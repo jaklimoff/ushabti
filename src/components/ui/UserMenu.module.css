@@ -1,0 +1,76 @@
+.wrap {
+  position: relative;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid #1f2229;
+  background: var(--bg-card);
+  border-radius: 5px;
+  transition:
+    background 140ms var(--ease),
+    border-color 140ms var(--ease);
+}
+
+.button:hover {
+  background: var(--bg-card-hover);
+  border-color: #2a323a;
+}
+
+.name {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.caret {
+  font-size: 9px;
+  line-height: 1;
+  color: #5d646f;
+}
+
+.menu {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 60;
+  min-width: 178px;
+  padding: 5px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: 8px;
+  box-shadow: var(--shadow-menu);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: ushabti-fade-in 120ms var(--ease);
+}
+
+.email {
+  padding: 6px 8px 7px;
+  font-size: 11px;
+  color: var(--faint);
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-4);
+  text-align: left;
+  width: 100%;
+}
+
+.item:hover {
+  background: #1b2126;
+  color: var(--text);
+}

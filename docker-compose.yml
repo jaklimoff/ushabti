@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ushabti
+      POSTGRES_PASSWORD: ushabti
+      POSTGRES_DB: ushabti
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ushabti -d ushabti"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    working_dir: /workspace
+    command: sh -c "npm install && npm run db:push -- --force && npm run dev"
+    environment:
+      DATABASE_URL: postgres://ushabti:ushabti@db:5432/ushabti
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+      - node-modules:/workspace/node_modules
+      - next-cache:/workspace/.next
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  node-modules:
+  next-cache:

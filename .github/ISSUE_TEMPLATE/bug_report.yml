@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: Tell us what you did and what you saw.
+      placeholder: |
+        1. I dragged a card to the next column.
+        2. I reloaded the page.
+        3. The card was back in the first column.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 141 on macOS
+  - type: dropdown
+    id: how
+    attributes:
+      label: How do you run Ushabti
+      options:
+        - docker compose up (dev)
+        - docker-compose.prod.yml
+        - npm run dev, my own database
+        - other
+  - type: textarea
+    id: logs
+    attributes:
+      label: Errors in the console or in the server log
+      render: text

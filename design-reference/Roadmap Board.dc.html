@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0a0b0d; }
+  * { box-sizing: border-box; }
+  a { color: #3fb0c8; text-decoration: none; }
+  a:hover { color: #6fd0e4; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(140,150,165,.28); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  @keyframes ping { 0% { opacity: 1; transform: scale(1); } 70% { opacity: 0; transform: scale(2.6); } 100% { opacity: 0; transform: scale(2.6); } }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+  @keyframes caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+</style>
+</helmet>
+
+<div style="height: 100vh; display: flex; background: #0a0b0d; color: #e8e9ec; font-family: 'IBM Plex Sans', sans-serif;">
+
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+
+  <div style="display: flex; align-items: center; gap: 12px; height: 46px; flex: 0 0 46px; padding: 0 14px; background: #0f1013; border-bottom: 1px solid #1c1f24;">
+    <div style="width: 18px; height: 18px; border-radius: 5px; background: #3fb0c8; display: flex; align-items: center; justify-content: center; font: 600 10px 'IBM Plex Mono', monospace; color: #05242b;">M</div>
+    <div style="font-size: 13px; font-weight: 600;">Mnemes Cards</div>
+    <div style="font-size: 13px; color: #4e545e;">/</div>
+    <div style="font-size: 13px; color: #a4aab3;">Roadmap</div>
+    <div style="flex: 1;"></div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 4px; border: 1px solid #1f2229; background: #14161a; border-radius: 5px; cursor: pointer;" style-hover="background: #191d22; border-color: #2a323a;">
+      <div style="width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 9px 'IBM Plex Mono', monospace; color: #fff; background: {{ meColor }};">{{ meInitials }}</div>
+      <div style="font-size: 12px; color: #cdd2d9;">{{ meName }}</div>
+      <div style="font-size: 9px; line-height: 1; color: #5d646f;">▾</div>
+    </div>
+  </div>
+
+  <div style="position: relative; display: flex; align-items: center; gap: 10px; height: 42px; flex: 0 0 42px; padding: 0 14px; border-bottom: 1px solid #16181c; background: #0c0d10;">
+    <div ref="{{ aStripRef }}" style="display: flex; align-items: center; gap: 3px; flex: 0 1 auto; min-width: 66px; overflow-x: auto; overflow-y: hidden;">
+      <sc-for list="{{ aViews }}" as="v" hint-placeholder-count="2">
+        <div ref="{{ v.ref }}" onClick="{{ v.onClick }}" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; cursor: pointer; white-space: nowrap; background: {{ v.bg }}; color: {{ v.fg }}; font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .09em; text-transform: uppercase;" style-hover="color: #dfe1e5;">
+          <div style="width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: {{ v.dot }};"></div>
+          {{ v.name }}
+          <sc-if value="{{ v.removable }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ v.onRemove }}" style="margin-right: -3px; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-size: 9px; color: #5d646f;" style-hover="background: #262b32; color: #dfe1e5;">✕</div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div onClick="{{ aViewAddToggle }}" style="flex: 0 0 22px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 5px; color: #5d646f; font-size: 14px; cursor: pointer;" style-hover="background: #1b1e24; color: #9fd7e3;">+</div>
+    <div style="flex: 1;"></div>
+    <div style="font: 400 11px 'IBM Plex Mono', monospace; color: #4e545e; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis;">{{ aCountLabel }}</div>
+
+    <sc-if value="{{ aViewAdding }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; top: 38px; left: 14px; z-index: 30; width: 246px; padding: 11px 12px 12px; background: #14171b; border: 1px solid #262b32; border-radius: 9px; box-shadow: 0 16px 38px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 11px;">
+        <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">New view</div>
+        <input value="{{ aViewName }}" onChange="{{ aViewNameChange }}" onKeyDown="{{ aViewNameKey }}" ref="{{ aViewNameRef }}" placeholder="View name" style="border: 0; border-bottom: 1px solid #262b32; outline: 0; background: transparent; color: #e8e9ec; font: 500 11.5px 'IBM Plex Mono', monospace; letter-spacing: .06em; text-transform: uppercase; padding: 2px 0 6px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Columns by</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 3px;">
+            <sc-for list="{{ aViewBys }}" as="b" hint-placeholder-count="5">
+              <div onClick="{{ b.onClick }}" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; cursor: pointer; font-size: 11.5px; background: {{ b.bg }}; color: {{ b.fg }};" style-hover="color: #dfe1e5;">
+                <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ b.color }}; opacity: {{ b.dotOpacity }};"></div>
+                {{ b.label }}
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 7px;">
+          <div onClick="{{ aCreateView }}" style="padding: 4px 10px; border-radius: 5px; background: #3fb0c8; color: #05242b; font-size: 11.5px; font-weight: 600; cursor: pointer;">Create view</div>
+          <div onClick="{{ aViewCancel }}" style="padding: 4px 9px; border-radius: 5px; border: 1px solid #1f2229; color: #8b919b; font-size: 11.5px; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">Cancel</div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="flex: 1; display: flex; min-height: 0;">
+    <div style="flex: 1; display: flex; gap: 8px; padding: 12px; overflow-x: auto; min-width: 0; background: #0a0b0d;">
+      <sc-for list="{{ aColumns }}" as="col" hint-placeholder-count="4">
+        <div onDragOver="{{ col.onDragOver }}" onDragLeave="{{ col.onDragLeave }}" onDrop="{{ col.onDrop }}" style="display: flex; flex-direction: column; width: {{ col.width }}px; flex: 0 0 {{ col.width }}px; background: #0d0e11; border: 1px solid {{ col.border }}; border-radius: 8px; overflow: hidden; opacity: {{ col.opacity }};">
+          <div draggable="{{ col.drag }}" onDragStart="{{ col.onColDragStart }}" onDragEnd="{{ col.onColDragEnd }}" style="display: flex; align-items: center; gap: 13px; padding: 11px 11px 10px 9px; border-bottom: 1px solid #17191e; cursor: {{ col.grab }};" style-hover="background: #101216;">
+            <div style="display: grid; grid-template-columns: 2px 2px; gap: 3px; padding: 2px 1px; border-radius: 3px; opacity: {{ col.gripOpacity }};" style-hover="background: #191d22;">
+              <div style="width: 2px; height: 2px; border-radius: 50%; background: #2f353d;"></div>
+              <div style="width: 2px; height: 2px; border-radius: 50%; background: #2f353d;"></div>
+              <div style="width: 2px; height: 2px; border-radius: 50%; background: #2f353d;"></div>
+              <div style="width: 2px; height: 2px; border-radius: 50%; background: #2f353d;"></div>
+              <div style="width: 2px; height: 2px; border-radius: 50%; background: #2f353d;"></div>
+              <div style="width: 2px; height: 2px; border-radius: 50%; background: #2f353d;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 7px; min-width: 0;">
+              <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ col.dot }}; box-shadow: 0 0 0 3px {{ col.halo }};"></div>
+              <div style="font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .11em; text-transform: uppercase; color: #d5dae1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ col.name }}</div>
+            </div>
+            <div style="padding: 1px 6px; border-radius: 20px; background: #161a1e; font: 400 10.5px 'IBM Plex Mono', monospace; color: #6b727d;">{{ col.count }}</div>
+            <div style="flex: 1;"></div>
+            <div onClick="{{ col.onAdd }}" style="width: 19px; height: 19px; display: flex; align-items: center; justify-content: center; border-radius: 5px; color: #5d646f; font-size: 14px; cursor: pointer;" style-hover="background: #1b1e24; color: #9fd7e3;">+</div>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow-y: auto;">
+            <sc-for list="{{ col.cards }}" as="card" hint-placeholder-count="3">
+              <div draggable="true" onDragStart="{{ card.onDragStart }}" onDragOver="{{ card.onDragOver }}" onDrop="{{ card.onDrop }}" onClick="{{ card.onClick }}" style="display: flex; flex: 0 0 auto; flex-direction: column; gap: 7px; padding: 10px 11px 9px; border-radius: 6px; overflow: hidden; cursor: pointer; background: {{ card.bg }}; box-shadow: {{ card.ring }};" style-hover="background: #191c21;">
+                <div style="display: flex; align-items: center; gap: 7px;">
+                  <div style="width: 8px; height: 8px; border-radius: 2px; background: {{ card.prioColor }};" title="{{ card.prioLabel }}"></div>
+                  <div style="font: 400 10.5px 'IBM Plex Mono', monospace; color: {{ card.keyColor }};">{{ card.key }}</div>
+                  <div style="flex: 1;"></div>
+                  <sc-for list="{{ card.labels }}" as="lab" hint-placeholder-count="1">
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: {{ lab.color }};" title="{{ lab.name }}"></div>
+                  </sc-for>
+                  <div style="width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 8.5px 'IBM Plex Mono', monospace; color: #fff; background: {{ card.whoColor }};">{{ card.who }}</div>
+                </div>
+                <div style="font-size: 12.5px; line-height: 1.35; color: {{ card.titleColor }}; text-wrap: pretty;">{{ card.title }}</div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 5px; padding: 2px 6px 2px 5px; border: 1px solid #23262c; border-radius: 4px;">
+                    <div style="width: 5px; height: 5px; border-radius: 50%; background: {{ card.badgeDot }};"></div>
+                    <div style="font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .04em; color: #a4aab3;">{{ card.badge }}</div>
+                  </div>
+                  <sc-for list="{{ card.metas }}" as="m" hint-placeholder-count="3">
+                    <div style="font: 400 10px 'IBM Plex Mono', monospace; letter-spacing: .03em; color: {{ m.color }};">{{ m.t }}</div>
+                  </sc-for>
+                </div>
+                <sc-if value="{{ card.agentOn }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin: 2px -11px -9px; background: rgba(63,176,200,.07); box-shadow: inset 0 1px 0 rgba(63,176,200,.16); display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: center; gap: 7px; padding: 7px 11px 8px;">
+                      <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: #6fbfd2; flex: 0 0 auto;">{{ card.agentName }}</div>
+                      <div style="font: 400 10.5px 'IBM Plex Mono', monospace; color: #94b6bf; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ card.agentAction }}</div>
+                      <div style="font: 400 10px 'IBM Plex Mono', monospace; color: #55747c; flex: 0 0 auto;">{{ card.agentAge }}</div>
+                    </div>
+                    <div style="height: 2px; overflow: hidden; background: rgba(63,176,200,.1);">
+                      <div style="width: 32%; height: 2px; background: #3fb0c8; animation: slide 1.9s linear infinite;"></div>
+                    </div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+
+      <sc-if value="{{ aCanAddCol }}" hint-placeholder-val="{{ true }}">
+      <div onDragOver="{{ aEndDragOver }}" onDrop="{{ aEndDrop }}" style="display: flex; flex-direction: column; width: {{ aColWidth }}px; flex: 0 0 {{ aColWidth }}px;">
+        <sc-if value="{{ aAdding }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 9px; padding: 10px 11px; background: #0d0e11; border: 1px solid #263038; border-radius: 8px;">
+            <input value="{{ aNewCol }}" onChange="{{ aNewColChange }}" onKeyDown="{{ aNewColKey }}" ref="{{ aNewColRef }}" placeholder="Column name" style="border: 0; outline: 0; background: transparent; color: #e8e9ec; font: 500 11.5px 'IBM Plex Mono', monospace; letter-spacing: .06em; text-transform: uppercase; padding: 2px 0;">
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <div onClick="{{ aAddColumn }}" style="padding: 4px 10px; border-radius: 5px; background: #3fb0c8; color: #05242b; font-size: 11.5px; font-weight: 600; cursor: pointer;">Add column</div>
+              <div onClick="{{ aCancelAdd }}" style="padding: 4px 9px; border-radius: 5px; border: 1px solid #1f2229; color: #8b919b; font-size: 11.5px; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">Cancel</div>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ aNotAdding }}" hint-placeholder-val="{{ true }}">
+          <div onClick="{{ aStartAdd }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 11px; border: 1px dashed #23272e; border-radius: 8px; color: #5d636e; font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .1em; text-transform: uppercase; cursor: pointer;" style-hover="border-color: #38505a; color: #9fd7e3;">
+            <div style="font-size: 14px; line-height: 1;">+</div>
+            New column
+          </div>
+        </sc-if>
+      </div>
+      </sc-if>
+    </div>
+
+  </div>
+  </div>
+
+  <sc-if value="{{ aHasSel }}" hint-placeholder-val="{{ true }}">
+  <div style="width: 380px; flex: 0 0 380px; height: 100vh; max-height: 100vh; display: flex; flex-direction: column; background: #0f1013; border-left: 1px solid #1c1f24; min-height: 0;">
+    <div style="height: 3px; flex: 0 0 3px; background: {{ aSel.prioColor }};"></div>
+
+    <div style="flex: 0 0 auto; padding: 13px 16px 14px; background: {{ aSel.prioTint }}; border-bottom: 1px solid #1c1f24; display: flex; flex-direction: column; gap: 10px;">
+      <div style="position: relative; display: flex; align-items: center; gap: 9px;">
+        <div style="font: 500 11px 'IBM Plex Mono', monospace; color: #8b919b;">{{ aSel.key }}</div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 6px; border-radius: 5px; background: {{ aSel.prioPillBg }}; color: #e8e9ec; font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .08em; text-transform: uppercase;">
+          <div style="width: 5px; height: 5px; border-radius: 50%; background: {{ aSel.prioColor }};"></div>
+          {{ aSel.prioLabel }}
+        </div>
+        <div style="flex: 1;"></div>
+        <div style="width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 8.5px 'IBM Plex Mono', monospace; color: #fff; background: {{ aSel.whoColor }};">{{ aSel.who }}</div>
+        <div onClick="{{ aMenuToggle }}" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: #6b7280; font-size: 13px; cursor: pointer; background: {{ aMenuBg }};" style-hover="background: #1b1e24; color: #dfe1e5;">⋯</div>
+        <div onClick="{{ aClose }}" style="width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 4px; color: #6b7280; font-size: 13px; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">✕</div>
+        <sc-if value="{{ aMenuOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; top: 26px; right: 24px; z-index: 40; width: 168px; padding: 5px; background: #14171b; border: 1px solid #262b32; border-radius: 8px; box-shadow: 0 14px 34px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 1px;">
+            <div onClick="{{ aDeleteTask }}" style="display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 5px; cursor: pointer; font-size: 12px; color: #d2726a;" style-hover="background: rgba(224,87,77,.13); color: #ea8a80;">
+              <div style="width: 6px; height: 6px; border-radius: 50%; background: #d2726a;"></div>
+              Delete task
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="font-size: 17px; font-weight: 600; line-height: 1.28; text-wrap: pretty;">{{ aSel.title }}</div>
+    </div>
+
+    <div style="flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column;">
+
+      <sc-if value="{{ aSel.chainOn }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 0 0 auto; padding: 12px 16px 13px; border-bottom: 1px solid #17191e; display: flex; flex-direction: column; gap: 9px;">
+          <div style="font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Blocked by</div>
+          <div style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap;">
+            <sc-for list="{{ aSel.chain }}" as="c" hint-placeholder-count="2">
+              <div style="display: flex; align-items: center; gap: 7px;">
+                <div style="padding: 2px 8px; border-radius: 5px; background: {{ c.bg }}; color: {{ c.fg }}; font: 400 11px 'IBM Plex Mono', monospace;">{{ c.key }}</div>
+                <div style="color: #3f4650; font-size: 11px;">→</div>
+              </div>
+            </sc-for>
+            <div style="padding: 2px 8px; border-radius: 5px; background: rgba(63,176,200,.16); color: #9fd7e3; font: 500 11px 'IBM Plex Mono', monospace;">{{ aSel.key }}</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="flex: 0 0 auto; padding: 14px 16px; display: grid; grid-template-columns: 68px 1fr; align-items: center;">
+        <div style="padding: 0 0 8px; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Status</div>
+        <div style="padding: 0 0 5px; position: relative;">
+          <div onClick="{{ aStatusToggle }}" style="display: inline-flex; align-items: center; height: 26px; gap: 8px; padding: 0 9px; border-radius: 5px; cursor: pointer; background: {{ aStatusBtnBg }};" style-hover="background: #191d22;">
+            <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ aSel.statusDot }};"></div>
+            <div style="font-size: 12px; color: #dfe1e5;">{{ aSel.statusName }}</div>
+            <div style="font-size: 9px; line-height: 1; color: #5d646f;">▾</div>
+          </div>
+          <sc-if value="{{ aStatusOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; top: 30px; left: 0; width: 186px; z-index: 20; padding: 5px; background: #14171b; border: 1px solid #262b32; border-radius: 8px; box-shadow: 0 14px 34px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 1px;">
+              <sc-for list="{{ aStatusSegs }}" as="s" hint-placeholder-count="5">
+                <div onClick="{{ s.onClick }}" style="display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 12px; background: {{ s.bg }}; color: {{ s.fg }};" style-hover="background: #1b2126; color: #e8e9ec;">
+                  <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ s.dot }};"></div>
+                  {{ s.label }}
+                  <div style="flex: 1;"></div>
+                  <div style="font-size: 10px; color: {{ s.tick }};">✓</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="padding: 8px 0; border-top: 1px solid #16181c; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Priority</div>
+        <div style="padding: 8px 0; border-top: 1px solid #16181c; display: flex;">
+          <div style="display: flex; gap: 1px; padding: 1px; background: #121418; border-radius: 6px;">
+            <sc-for list="{{ aPrios }}" as="p" hint-placeholder-count="4">
+              <div onClick="{{ p.onClick }}" style="display: flex; align-items: center; height: 22px; gap: 7px; padding: 0 9px; border-radius: 5px; cursor: pointer; font-size: 11.5px; background: {{ p.bg }}; color: {{ p.fg }};" style-hover="color: #dfe1e5;">
+                <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ p.color }}; opacity: {{ p.dotOpacity }};"></div>
+                {{ p.label }}
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding: 8px 0; border-top: 1px solid #16181c; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Estimate</div>
+        <div style="padding: 8px 0; border-top: 1px solid #16181c; display: flex;">
+          <div style="display: flex; gap: 1px; padding: 1px; background: #121418; border-radius: 6px;">
+            <sc-for list="{{ aEsts }}" as="e" hint-placeholder-count="5">
+              <div onClick="{{ e.onClick }}" style="display: flex; align-items: center; justify-content: center; height: 22px; min-width: 30px; padding: 0 8px; border-radius: 5px; cursor: pointer; font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .04em; background: {{ e.bg }}; color: {{ e.fg }};" style-hover="color: #dfe1e5;">{{ e.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding: 8px 0; border-top: 1px solid #16181c; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Phase</div>
+        <div style="padding: 8px 0; border-top: 1px solid #16181c; display: flex;">
+          <div style="display: inline-flex; align-items: center; height: 22px; gap: 7px; padding: 0 9px 0 8px; border-radius: 5px; font-size: 11.5px; background: {{ aSel.phaseBg }}; color: {{ aSel.phaseFg }};">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: {{ aSel.phaseDot }};"></div>
+            {{ aSel.phaseName }}
+          </div>
+        </div>
+
+        <div style="padding: 8px 0; border-top: 1px solid #16181c; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Assignee</div>
+        <div style="padding: 5px 0; border-top: 1px solid #16181c; position: relative;">
+          <div onClick="{{ aWhoToggle }}" style="display: inline-flex; align-items: center; height: 26px; gap: 8px; padding: 0 9px 0 4px; border-radius: 5px; cursor: pointer; background: {{ aWhoBtnBg }};" style-hover="background: #191d22;">
+            <div style="width: 18px; height: 18px; flex: 0 0 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 8.5px 'IBM Plex Mono', monospace; color: #fff; background: {{ aSel.whoColor }};">{{ aSel.who }}</div>
+            <div style="font-size: 12px; color: #dfe1e5;">{{ aSel.whoName }}</div>
+            <div style="font-size: 9px; line-height: 1; color: #5d646f;">▾</div>
+          </div>
+          <sc-if value="{{ aWhoOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position: absolute; top: 32px; left: 0; width: 186px; z-index: 20; padding: 5px; background: #14171b; border: 1px solid #262b32; border-radius: 8px; box-shadow: 0 14px 34px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 1px;">
+              <sc-for list="{{ aWhoMenu }}" as="w" hint-placeholder-count="4">
+                <div onClick="{{ w.onClick }}" style="display: flex; align-items: center; gap: 9px; padding: 4px 8px 4px 6px; border-radius: 5px; cursor: pointer; font-size: 12px; background: {{ w.bg }}; color: {{ w.fg }};" style-hover="background: #1b2126; color: #e8e9ec;">
+                  <div style="width: 18px; height: 18px; flex: 0 0 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 8.5px 'IBM Plex Mono', monospace; color: #fff; background: {{ w.color }};">{{ w.initials }}</div>
+                  {{ w.name }}
+                  <div style="flex: 1;"></div>
+                  <div style="font-size: 10px; color: {{ w.tick }};">✓</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="padding: 8px 0 0; border-top: 1px solid #16181c; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Labels</div>
+        <div style="padding: 8px 0 0; border-top: 1px solid #16181c; display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
+          <sc-for list="{{ aSel.labelChips }}" as="l" hint-placeholder-count="2">
+            <div style="display: inline-flex; align-items: center; height: 22px; gap: 7px; padding: 0 9px 0 8px; border-radius: 5px; font-size: 11.5px; background: {{ l.bg }}; color: {{ l.fg }};">
+              <div style="width: 6px; height: 6px; border-radius: 50%; background: {{ l.color }};"></div>
+              {{ l.name }}
+            </div>
+          </sc-for>
+          <div style="display: inline-flex; align-items: center; height: 22px; box-sizing: border-box; padding: 0 8px; border-radius: 5px; border: 1px dashed #262a31; color: #6b7280; font-size: 11.5px; cursor: pointer;" style-hover="border-color: #38505a; color: #9fd7e3;">+ label</div>
+        </div>
+      </div>
+
+      <div style="flex: 0 0 auto; padding: 0 16px 18px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 7px;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <div style="font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Description</div>
+            <div style="flex: 1;"></div>
+            <div style="display: inline-flex; align-items: center; gap: 5px; font: 400 10px 'IBM Plex Mono', monospace; color: #3f4650;">
+              <div style="padding: 1px 4px; border-radius: 3px; border: 1px solid #23272e;">MD</div>
+              click to edit
+            </div>
+          </div>
+          <div style="margin: 0 -8px; padding: 7px 8px; border-radius: 6px; font-size: 12.5px; line-height: 1.55; color: #9aa0aa; text-wrap: pretty; cursor: text;" style-hover="background: #131518; color: #c3c8cf;">{{ aSel.desc }}</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <div style="font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Checklist</div>
+            <div style="flex: 1;"></div>
+            <div style="font: 500 10.5px 'IBM Plex Mono', monospace; color: #9fd7e3;">{{ aSel.progLabel }}</div>
+          </div>
+          <div style="display: flex; gap: 4px; margin: 1px 0 5px;">
+            <sc-for list="{{ aSel.progBars }}" as="b" hint-placeholder-count="4">
+              <div style="flex: 1; height: 4px; border-radius: 2px; background: {{ b.bg }};"></div>
+            </sc-for>
+          </div>
+          <sc-for list="{{ aSel.criteria }}" as="c" hint-placeholder-count="3">
+            <div style="display: flex; gap: 9px; align-items: flex-start; margin: 0 -8px; padding: 4px 8px; border-radius: 6px;" style-hover="background: #131518;">
+              <div onClick="{{ c.onToggle }}" style="width: 13px; height: 13px; margin-top: 3px; flex: 0 0 13px; border-radius: 3px; cursor: pointer; border: 1px solid {{ c.border }}; background: {{ c.box }};" style-hover="border-color: #38505a;"></div>
+              <sc-if value="{{ c.editing }}" hint-placeholder-val="{{ false }}">
+                <input value="{{ aCritDraft }}" onChange="{{ aCritChange }}" onKeyDown="{{ aCritKey }}" onBlur="{{ aCritCommit }}" ref="{{ aCritRef }}" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #e8e9ec; font-family: 'IBM Plex Sans', sans-serif; font-size: 12.5px; line-height: 1.5; padding: 0;">
+              </sc-if>
+              <sc-if value="{{ c.reading }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ c.onEdit }}" style="flex: 1; font-size: 12.5px; line-height: 1.5; cursor: text; color: {{ c.color }}; text-decoration: {{ c.line }};">{{ c.t }}</div>
+              </sc-if>
+            </div>
+          </sc-for>
+          <div style="display: flex; align-items: center; gap: 9px; margin: 0 -8px; padding: 4px 8px; border-radius: 6px; color: #565c66; font-size: 12.5px; cursor: pointer;" style-hover="color: #9fd7e3;">
+            <div style="width: 13px; height: 13px; flex: 0 0 13px; border-radius: 3px; border: 1px dashed #2f343c;"></div>
+            Add item
+          </div>
+        </div>
+      </div>
+
+      <div style="flex: 0 0 auto; display: flex; gap: 18px; padding: 0 16px; border-top: 1px solid #1c1f24; border-bottom: 1px solid #1c1f24; background: #0c0d10;">
+        <sc-for list="{{ aTabs }}" as="t" hint-placeholder-count="2">
+          <div onClick="{{ t.onClick }}" style="display: flex; align-items: center; gap: 6px; padding: 10px 0 9px; font: 500 11px 'IBM Plex Mono', monospace; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; color: {{ t.fg }}; box-shadow: {{ t.line }};">
+            <sc-if value="{{ t.live }}" hint-placeholder-val="{{ false }}">
+              <div style="width: 5px; height: 5px; border-radius: 50%; background: #3fb0c8; animation: pulse 1.5s ease-in-out infinite;"></div>
+            </sc-if>
+            {{ t.label }}
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ aShowComments }}" hint-placeholder-val="{{ true }}">
+        <div style="flex: 0 0 auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 13px;">
+          <sc-for list="{{ aSel.comments }}" as="c" hint-placeholder-count="2">
+            <div style="display: flex; gap: 9px;">
+              <div style="width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 9px 'IBM Plex Mono', monospace; color: #fff; background: {{ c.color }};">{{ c.who }}</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <div style="display: flex; align-items: baseline; gap: 7px;">
+                  <div style="font-size: 12px; font-weight: 600; color: #dfe1e5;">{{ c.name }}</div>
+                  <div style="font: 400 10.5px 'IBM Plex Mono', monospace; color: #4e545e;">{{ c.time }}</div>
+                </div>
+                <div style="font-size: 12.5px; line-height: 1.5; color: #a8aeb7; text-wrap: pretty;">{{ c.text }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="display: flex; gap: 10px; margin-top: 3px;">
+            <div style="width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font: 500 9.5px 'IBM Plex Mono', monospace; color: #fff; background: {{ meColor }};">{{ meInitials }}</div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 11px 12px 9px; border-radius: 10px; background: #0b0c0f; box-shadow: {{ aDraftRing }};">
+              <textarea value="{{ aDraft }}" onChange="{{ aDraftChange }}" onKeyDown="{{ aDraftKey }}" placeholder="Leave a note for the agent…" rows="3" style="width: 100%; min-height: 58px; resize: none; border: 0; outline: 0; background: transparent; color: #dfe1e5; font-family: 'IBM Plex Sans', sans-serif; font-size: 12.5px; line-height: 1.55; padding: 0;"></textarea>
+              <div style="display: flex; align-items: center; gap: 9px; margin-top: 9px; padding-top: 9px; border-top: 1px solid #14171b;">
+                <div style="font: 400 10px 'IBM Plex Mono', monospace; letter-spacing: .04em; color: #3f4650;">⌘↵ to send</div>
+                <div style="flex: 1;"></div>
+                <div onClick="{{ aComment }}" style="padding: 5px 12px; border-radius: 6px; background: {{ aSendBg }}; color: {{ aSendFg }}; font-size: 11.5px; font-weight: 600; cursor: pointer;">Comment</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ aShowActivity }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 0 0 auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 9px;">
+          <sc-for list="{{ aSel.activity }}" as="a" hint-placeholder-count="3">
+            <div style="display: flex; align-items: baseline; gap: 9px; font: 400 11.5px 'IBM Plex Mono', monospace;">
+              <div style="color: #4e545e; flex: 0 0 26px;">{{ a.time }}</div>
+              <div style="color: #a8aeb7; line-height: 1.5;">{{ a.t }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ aShowAgent }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 0 0 auto; padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+      <sc-if value="{{ aSel.agentOn }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 0 0 auto; margin: 0; display: flex; flex-direction: column; gap: 9px;">
+          <div style="display: flex; flex-direction: column; gap: 11px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #6fbfd2;">{{ aSel.agentName }}</div>
+              <div style="font: 400 10.5px 'IBM Plex Mono', monospace; color: #55747c;">running</div>
+              <div style="flex: 1;"></div>
+              <div style="font: 400 10px 'IBM Plex Mono', monospace; color: #55747c;">started {{ aSel.agentAge }} ago</div>
+            </div>
+            <div style="margin: -2px -16px 0; height: 2px; overflow: hidden; background: rgba(63,176,200,.1);">
+              <div style="width: 32%; height: 2px; background: #3fb0c8; animation: slide 1.9s linear infinite;"></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+              <sc-for list="{{ aSel.agentLog }}" as="l" hint-placeholder-count="3">
+                <div style="display: flex; gap: 9px; font: 400 11.5px 'IBM Plex Mono', monospace; line-height: 1.5;">
+                  <div style="color: {{ l.timeColor }}; flex: 0 0 30px;">{{ l.time }}</div>
+                  <div style="color: {{ l.color }};">{{ l.t }}</div>
+                </div>
+              </sc-for>
+              <div style="display: flex; gap: 9px; font: 400 11.5px 'IBM Plex Mono', monospace; line-height: 1.5;">
+                <div style="color: #4f7d88; flex: 0 0 30px;">{{ aSel.agentNowTime }}</div>
+                <div style="color: #dfe1e5;">{{ aSel.agentNow }}<span style="display: inline-block; width: 1px; height: 11px; margin-left: 2px; vertical-align: -1px; background: #9fd7e3; animation: caret 1.1s step-end infinite;"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+          <sc-if value="{{ aSel.agentOff }}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 9px;">
+              <div style="font-size: 12.5px; line-height: 1.55; color: #8b919b; text-wrap: pretty;">No agent is working on this task.</div>
+              <div style="align-self: flex-start; padding: 5px 11px; border-radius: 5px; background: #3fb0c8; color: #05242b; font-size: 11.5px; font-weight: 600; cursor: pointer;">Start a run</div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showShipped&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;columnWidth&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:268,&quot;min&quot;:220,&quot;max&quot;:380,&quot;step&quot;:4,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Board&quot;}}">
+class Component extends DCLogic {
+  PRIO = [
+    { label: 'Urgent', color: '#e0574d', tint: 'rgba(224,87,77,.11)' },
+    { label: 'High', color: '#d1913a', tint: 'rgba(209,145,58,.12)' },
+    { label: 'Medium', color: '#4b8fbe', tint: 'rgba(75,143,190,.12)' },
+    { label: 'Low', color: '#8b8f98', tint: 'rgba(139,143,152,.13)' }
+  ];
+  STATUS = [
+    { id: 'backlog', name: 'Backlog', dot: '#6b7280', short: 'BKLG' },
+    { id: 'todo', name: 'Todo', dot: '#9aa0aa', short: 'TODO' },
+    { id: 'progress', name: 'In Progress', dot: '#d1913a', short: 'PROG' },
+    { id: 'ready', name: 'Ready', dot: '#3fb0c8', short: 'RDY' },
+    { id: 'done', name: 'Shipped', dot: '#4f8a5b', shipped: true }
+  ];
+  COLOR_POOL = ['#6d5bd0', '#2f9e7a', '#c2557a', '#b6763f', '#4b8fbe', '#8b8f98'];
+  AGENT = {
+    'MNC-11': {
+      name: 'builder',
+      age: '2m',
+      action: 'write notes/cite.ts',
+      log: [
+        { time: '12:04', t: 'read notes-api.ts, card-back.tsx' },
+        { time: '12:05', t: 'added 2 checklist items' },
+        { time: '12:06', t: 'write notes/cite.ts' }
+      ],
+      nowTime: '12:06',
+      now: 'running vitest'
+    }
+  };
+  RUN_SCRIPT = [
+    'running vitest',
+    '14 passed · 1 failed — notes/cite.spec.ts',
+    'patch cite.ts — guard a missing note id',
+    're-running vitest',
+    '15 passed',
+    'checked off "Stable note reference"',
+    'opened PR #248 — cite a note on the card back',
+    'waiting for review'
+  ];
+
+  runStamp(i) {
+    const m = 7 + i;
+    return (12 + Math.floor(m / 60)) + ':' + String(m % 60).padStart(2, '0');
+  }
+
+  PHASE = [
+    { id: 'poc', name: 'PoC', dot: '#8b8f98' },
+    { id: 'mvp', name: 'MVP', dot: '#3fb0c8' },
+    { id: 'mmp', name: 'MMP', dot: '#6d5bd0' },
+    { id: 'pilot', name: 'Pilot', dot: '#d1913a' },
+    { id: 'ga', name: 'GA', dot: '#4f8a5b' }
+  ];
+  LABELS = { engine: '#6d5bd0', ui: '#2f9e7a', import: '#b6763f', ux: '#c2557a', mobile: '#3d7fc1', sharing: '#7a8a2f', infra: '#4b8fbe' };
+  PEOPLE = { DK: { name: 'Dima K.', color: '#6d5bd0' }, AR: { name: 'Ana R.', color: '#2f9e7a' }, TS: { name: 'Tomás S.', color: '#b6763f' }, LM: { name: 'Lena M.', color: '#c2557a' } };
+
+  VIEW_BY = [
+    { id: 'status', label: 'Status', dot: '#9aa0aa' },
+    { id: 'priority', label: 'Priority', dot: '#e0574d' },
+    { id: 'phase', label: 'Phase', dot: '#6d5bd0' },
+    { id: 'who', label: 'Assignee', dot: '#2f9e7a' },
+    { id: 'est', label: 'Estimate', dot: '#4b8fbe' }
+  ];
+
+  state = {
+    columns: this.STATUS.map(c => Object.assign({}, c)),
+    views: [
+      { id: 'v-status', name: 'Board', by: 'status', fixed: true },
+      { id: 'v-phase', name: 'Phases', by: 'phase' }
+    ],
+    viewId: 'v-status',
+    viewAdding: false,
+    runN: 0,
+    viewName: '',
+    viewBy: 'priority',
+    adding: false,
+    newCol: '',
+    overCol: null,
+    dragColId: null,
+    selA: 'MNC-11',
+    tab: 'comments',
+    editCrit: null,
+    critDraft: '',
+    whoOpen: false,
+    crit: { 'MNC-11#0': true },
+    showDoneA: !!(this.props && this.props.showShipped),
+    draftA: '',
+    rev: 41,
+    tasks: [
+      { key: 'MNC-1', title: 'FSRS scheduler core: interval, difficulty and stability update', status: 'ready', phase: 'poc', priority: 0, est: 'L', who: 'DK', labels: ['engine'], due: 'Aug 21', deps: [], desc: 'Port the FSRS update rules into a pure function over (card state, grade) so the engine can be unit-tested without the app shell.', criteria: ['Pure function, no I/O', 'Matches reference implementation within 1e-6 on the test vectors', 'Serialisable card state'], comments: [{ who: 'AR', time: '2d', text: 'Reference vectors are in /fixtures/fsrs-v5.json.' }] },
+      { key: 'MNC-13', title: 'Benchmark harness: FSRS vs. SM-2 baseline on 6-month logs', status: 'done', phase: 'poc', priority: 1, est: 'M', who: 'AR', labels: ['engine'], due: '', deps: ['MNC-1'], desc: 'Replay anonymised review logs through both schedulers and report retention against reviews-per-day.', criteria: ['Single command run', 'Outputs CSV + summary table'], comments: [] },
+      { key: 'MNC-6', title: 'Local-first store on SQLite WASM with a review log table', status: 'ready', phase: 'poc', priority: 0, est: 'L', who: 'TS', labels: ['infra'], due: 'Aug 18', deps: [], desc: 'Everything a learner does lands in an append-only review log first; derived card state is a projection of it.', criteria: ['Append-only log', 'Rebuild card state from log', 'Survives hard reload'], comments: [{ who: 'TS', time: '5h', text: 'Persistence works in Chrome and Safari 17; Firefox needs the OPFS fallback.' }] },
+      { key: 'MNC-3', title: 'Review screen with single-key grading (1–4)', status: 'ready', phase: 'poc', priority: 0, est: 'M', who: 'LM', labels: ['ui'], due: '', deps: ['MNC-1'], desc: 'One card, one question, four keys. No settings visible during a session.', criteria: ['Keyboard-only session end to end', 'Undo last grade'], comments: [] },
+      { key: 'MNC-7', title: 'Onboarding: first deck reviewed in under three minutes', status: 'todo', phase: 'mvp', priority: 0, est: 'M', who: 'LM', labels: ['ux'], due: 'Sep 04', deps: ['MNC-3', 'MNC-4'], desc: 'A first-time user should be grading real cards before they meet a single scheduler setting. Three steps: pick a starter deck or paste a list, see one worked example, start reviewing.', criteria: ['Median time from landing to first grade under 3 minutes in the hallway test', 'No scheduler vocabulary before the first session ends', 'Skippable at every step, resumable after reload'], comments: [{ who: 'DK', time: '1d', text: 'Paste-a-list is the differentiator. Anki import can sit behind it.' }, { who: 'LM', time: '4h', text: 'Two of five testers stalled on deck choice. Suggest defaulting to a 20-card starter and letting them swap later.' }] },
+      { key: 'MNC-2', title: 'Parameter panel: retention target, fuzz and leech threshold', status: 'progress', phase: 'mvp', priority: 1, est: 'M', who: 'DK', labels: ['engine', 'ui'], due: 'Aug 29', deps: ['MNC-1'], desc: 'Expose the three knobs that actually change outcomes, with a plain-language forecast of the workload each setting implies.', criteria: ['Live forecast updates as knobs move', 'Reset to recommended defaults'], comments: [{ who: 'AR', time: '3d', text: 'Show reviews/day, not intervals. Nobody reasons in intervals.' }] },
+      { key: 'MNC-5', title: 'Card editor with cloze deletion and image occlusion stub', status: 'progress', phase: 'mvp', priority: 1, est: 'L', who: 'TS', labels: ['ui'], due: 'Sep 08', deps: [], desc: 'Editing is where power users are won. Cloze first; occlusion can ship as a placeholder that round-trips data.', criteria: ['Cloze syntax with live preview', 'Undo history per card'], comments: [] },
+      { key: 'MNC-4', title: 'Deck import: Anki .apkg reader with media', status: 'todo', phase: 'mvp', priority: 1, est: 'L', who: 'AR', labels: ['import'], due: 'Sep 12', deps: ['MNC-6'], desc: 'Read notes, cards, scheduling history and media out of an .apkg and map review history onto our log.', criteria: ['Handles 10k-note decks under 20s', 'Media unpacked lazily', 'Reports skipped note types'], comments: [] },
+      { key: 'MNC-14', title: 'Mobile review flow: PWA shell with an offline grade queue', status: 'progress', phase: 'mmp', priority: 0, est: 'XL', who: 'LM', labels: ['mobile', 'infra'], due: 'Sep 26', deps: ['MNC-6', 'MNC-8'], desc: 'Most reviews happen on a phone, often on a train with no signal. The mobile shell must accept grades offline, queue them, and reconcile without ever losing a review.', criteria: ['Grades accepted with the network disabled and replayed on reconnect', 'Queue survives app kill and OS eviction', 'Conflict on the same card resolves by review timestamp, not arrival order', 'Install prompt on second visit, never on the first'], comments: [{ who: 'TS', time: '6h', text: 'Queue is on IndexedDB with a monotonic clock guard. Needs MNC-8 landed before the reconcile path is real.' }, { who: 'DK', time: '2h', text: 'Raising this to urgent — the pilot schools are phone-first, so this gates the Pilot phase.' }, { who: 'AR', time: '30m', text: 'Please add a visible queued-count indicator so learners trust it.' }] },
+      { key: 'MNC-8', title: 'Sync service: conflict resolution per review-log entry', status: 'backlog', phase: 'mmp', priority: 1, est: 'XL', who: 'TS', labels: ['infra'], due: 'Oct 03', deps: ['MNC-6'], desc: 'Two devices, one learner, overlapping sessions. Log entries merge; derived state is recomputed rather than merged.', criteria: ['Idempotent replay', 'No lost reviews under concurrent sessions'], comments: [] },
+      { key: 'MNC-10', title: 'Retention analytics: forecast the coming workload curve', status: 'todo', phase: 'mmp', priority: 2, est: 'M', who: 'AR', labels: ['engine'], due: '', deps: ['MNC-1'], desc: 'Show the next 30 days of due volume so learners can see the cost of adding a deck before they add it.', criteria: ['30-day forecast', 'Updates within a session'], comments: [] },
+      { key: 'MNC-11', title: 'Mnemes Notes handoff: cite a note on the card back', status: 'backlog', phase: 'mmp', priority: 2, est: 'M', who: 'DK', labels: ['sharing'], due: '', deps: [], desc: 'First seam of the wider ecosystem: a card back can point at the note it came from and stay in sync when the note changes.', criteria: ['Stable note reference', 'Graceful when the note is gone'], comments: [] },
+      { key: 'MNC-9', title: 'Teacher view: assign a deck to a class and watch progress', status: 'backlog', phase: 'pilot', priority: 2, est: 'L', who: 'LM', labels: ['sharing'], due: 'Oct 20', deps: ['MNC-8'], desc: 'Assignment, not surveillance: aggregate class retention with per-student detail only on request.', criteria: ['Assign to a class in two steps', 'Class-level retention view'], comments: [] },
+      { key: 'MNC-17', title: 'Pilot instrumentation: funnel and drop-off events', status: 'todo', phase: 'pilot', priority: 1, est: 'S', who: 'AR', labels: ['infra'], due: 'Oct 09', deps: ['MNC-7'], desc: 'Enough events to answer where the first session breaks, and nothing more.', criteria: ['Documented event list', 'Self-host friendly'], comments: [] },
+      { key: 'MNC-15', title: 'Accessibility pass on the review keyboard flow', status: 'todo', phase: 'pilot', priority: 2, est: 'S', who: 'LM', labels: ['ux'], due: '', deps: ['MNC-3'], desc: 'Screen-reader announcement of card state and grade result; visible focus throughout the session.', criteria: ['NVDA and VoiceOver pass on a full session', 'No focus traps'], comments: [] },
+      { key: 'MNC-16', title: 'GDPR export and delete for student data', status: 'backlog', phase: 'ga', priority: 1, est: 'M', who: 'TS', labels: ['infra'], due: 'Nov 14', deps: ['MNC-8'], desc: 'Full export as JSON, hard delete with a documented retention window for backups.', criteria: ['Export in under a minute for a 5-year account', 'Delete removes derived state too'], comments: [] },
+      { key: 'MNC-12', title: 'Billing and seat management for schools', status: 'backlog', phase: 'ga', priority: 2, est: 'L', who: 'DK', labels: [], due: '', deps: ['MNC-9'], desc: 'Per-seat plans with a school invoice path; no card required for the pilot cohort.', criteria: ['Seat add/remove without downtime', 'Invoice export'], comments: [] },
+      { key: 'MNC-18', title: 'Deck marketplace stub', status: 'backlog', phase: 'ga', priority: 3, est: 'M', who: 'AR', labels: ['sharing'], due: '', deps: [], desc: 'Placeholder surface for shared decks so the information architecture does not have to change later.', criteria: ['Browse and clone a shared deck'], comments: [] }
+    ]
+  };
+
+  bump(fn) { this.setState(s => Object.assign({ rev: s.rev + 1 }, fn(s))); }
+
+  view() {
+    return this.state.views.find(v => v.id === this.state.viewId) || this.state.views[0];
+  }
+
+  componentDidMount() {
+    this.revealView();
+    this.runTimer = setInterval(() => {
+      if (this.state.runN >= this.RUN_SCRIPT.length - 1) { clearInterval(this.runTimer); return; }
+      this.setState(s => ({ runN: s.runN + 1 }));
+    }, 4200);
+  }
+
+  componentWillUnmount() { clearInterval(this.runTimer); }
+  componentDidUpdate() { this.revealView(); }
+
+  revealView() {
+    const s = this.strip, p = this.activePill;
+    if (!s || !p) return;
+    const sr = s.getBoundingClientRect(), pr = p.getBoundingClientRect();
+    if (pr.right > sr.right) s.scrollLeft += pr.right - sr.right + 6;
+    else if (pr.left < sr.left) s.scrollLeft -= sr.left - pr.left + 6;
+  }
+
+  dimDefs(by) {
+    const s = this.state;
+    if (by === 'priority') return { field: 'priority', defs: this.PRIO.map((p, i) => ({ id: 'p' + i, name: p.label, dot: p.color, value: i })) };
+    if (by === 'phase') return { field: 'phase', defs: this.PHASE.map(p => ({ id: p.id, name: p.name, dot: p.dot, value: p.id })) };
+    if (by === 'who') return { field: 'who', defs: Object.keys(this.PEOPLE).map(k => ({ id: 'w-' + k, name: this.PEOPLE[k].name, dot: this.PEOPLE[k].color, value: k })) };
+    if (by === 'est') return { field: 'est', defs: ['XS', 'S', 'M', 'L', 'XL'].map(v => ({ id: 'e-' + v, name: v, dot: '#4b8fbe', value: v })) };
+    return { field: 'status', defs: s.columns.filter(c => !c.shipped || s.showDoneA).map(c => ({ id: c.id, name: c.name, dot: c.dot, value: c.id })) };
+  }
+
+  createView() {
+    const by = this.state.viewBy;
+    const meta = this.VIEW_BY.find(x => x.id === by) || { label: 'View' };
+    const name = (this.state.viewName || '').trim() || 'By ' + meta.label.toLowerCase();
+    const id = 'v-' + Math.random().toString(36).slice(2, 7);
+    this.bump(s => ({ views: s.views.concat([{ id, name, by }]), viewId: id, viewAdding: false, viewName: '' }));
+  }
+
+  deleteTask(key) {
+    this.bump(s => ({ menuOpen: false, selA: null, tasks: s.tasks.filter(t => t.key !== key) }));
+  }
+
+  removeView(id) {
+    this.bump(s => {
+      const views = s.views.filter(v => v.id !== id);
+      return { views, viewId: s.viewId === id ? views[0].id : s.viewId };
+    });
+  }
+
+  move(key, changes, beforeKey) {
+    this.bump(s => {
+      const tasks = s.tasks.slice();
+      const i = tasks.findIndex(t => t.key === key);
+      if (i < 0) return {};
+      const t = Object.assign({}, tasks[i], changes);
+      tasks.splice(i, 1);
+      let j = tasks.length;
+      if (beforeKey && beforeKey !== key) {
+        const k = tasks.findIndex(x => x.key === beforeKey);
+        if (k >= 0) j = k;
+      }
+      tasks.splice(j, 0, t);
+      return { tasks };
+    });
+  }
+
+  commitCrit() {
+    const id = this.state.editCrit;
+    if (!id) return;
+    const at = id.lastIndexOf('#');
+    const key = id.slice(0, at);
+    const i = Number(id.slice(at + 1));
+    const text = (this.state.critDraft || '').trim();
+    this.bump(s => ({
+      editCrit: null,
+      critDraft: '',
+      tasks: s.tasks.map(t => {
+        if (t.key !== key) return t;
+        const criteria = t.criteria.slice();
+        if (text) criteria[i] = text; else criteria.splice(i, 1);
+        return Object.assign({}, t, { criteria });
+      })
+    }));
+  }
+
+  toggleCrit(key, i) {
+    const id = key + '#' + i;
+    this.bump(s => ({ crit: Object.assign({}, s.crit, { [id]: !s.crit[id] }) }));
+  }
+
+  patch(key, changes) {
+    this.bump(s => ({ tasks: s.tasks.map(t => t.key === key ? Object.assign({}, t, changes) : t) }));
+  }
+
+  setPrio(key, p) {
+    this.bump(s => ({ tasks: s.tasks.map(t => t.key === key ? Object.assign({}, t, { priority: p }) : t) }));
+  }
+
+  addComment() {
+    const key = this.state.selA;
+    const text = (this.state.draftA || '').trim();
+    if (!text) return;
+    this.bump(s => ({
+      draftA: '',
+      tasks: s.tasks.map(t => t.key === key ? Object.assign({}, t, { comments: t.comments.concat([{ who: 'DK', time: 'now', text }]) }) : t)
+    }));
+  }
+
+  addTask(field, value) {
+    const key = 'MNC-' + (19 + this.state.rev % 7);
+    const task = { key, title: 'New task', status: 'todo', phase: 'poc', priority: 2, est: 'M', who: 'DK', labels: [], due: '', deps: [], desc: 'Describe the work, then let the agent break it down.', criteria: [], comments: [] };
+    task[field] = value;
+    this.bump(s => ({ selA: key, tasks: s.tasks.concat([task]) }));
+  }
+
+  addColumn() {
+    const name = (this.state.newCol || '').trim();
+    if (!name) { this.setState({ adding: false, newCol: '' }); return; }
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'col';
+    this.bump(s => {
+      let id = base, n = 2;
+      while (s.columns.some(c => c.id === id)) { id = base + '-' + n; n++; }
+      const cols = s.columns.slice();
+      const col = { id, name, dot: this.COLOR_POOL[cols.length % this.COLOR_POOL.length] };
+      const at = cols.findIndex(c => c.shipped);
+      if (at >= 0) cols.splice(at, 0, col); else cols.push(col);
+      return { columns: cols, newCol: '', adding: false };
+    });
+  }
+
+  moveColumn(id, beforeId) {
+    if (!id || id === beforeId) return;
+    this.bump(s => {
+      const cols = s.columns.slice();
+      const i = cols.findIndex(c => c.id === id);
+      if (i < 0) return {};
+      let j = beforeId ? cols.findIndex(c => c.id === beforeId) : cols.length;
+      if (j < 0) j = cols.length;
+      const c = cols.splice(i, 1)[0];
+      cols.splice(j, 0, c);
+      return { columns: cols };
+    });
+  }
+
+  card(t, sel, field, value) {
+    const p = this.PRIO[t.priority];
+    const other = this.PHASE.find(x => x.id === t.phase) || { name: '—', dot: '#3f4650' };
+    const metas = [{ t: t.est, color: '#6b7280' }];
+    if (t.due) metas.push({ t: t.due, color: '#8b8f98' });
+    if (t.deps.length) metas.push({ t: '⇠' + t.deps.length, color: '#8b8f98' });
+    if (t.comments.length) metas.push({ t: t.comments.length + '·comments', color: '#4b8fbe' });
+    const on = sel === t.key;
+    const ag = this.AGENT[t.key];
+    return {
+      agentOn: !!ag, agentAction: ag ? this.RUN_SCRIPT[this.state.runN] : '', agentAge: ag ? ag.age : '', agentName: ag ? ag.name : '',
+      key: t.key, title: t.title, desc: t.desc, who: t.who, whoColor: this.PEOPLE[t.who].color,
+      prioColor: p.color, prioLabel: p.label, prioTint: p.tint,
+      badge: other.name, badgeDot: other.dot, metas,
+      labels: t.labels.map(l => ({ name: l, color: this.LABELS[l] })),
+      border: '#1e2127', bg: on ? '#1c2025' : '#14161a',
+      ring: 'inset 0 0 0 1px #1e2127' + (on ? ', 0 8px 20px rgba(0,0,0,.5)' : ''),
+      keyColor: on ? '#9fd7e3' : '#5d636e', titleColor: on ? '#f2f3f5' : '#dfe1e5',
+      onClick: () => this.setState({ selA: t.key }),
+      onDragStart: e => { this.drag = { type: 'card', key: t.key }; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; },
+      onDragOver: e => { if (this.drag && this.drag.type === 'card') e.preventDefault(); },
+      onDrop: e => {
+        if (!this.drag || this.drag.type !== 'card') return;
+        e.preventDefault(); e.stopPropagation();
+        this.move(this.drag.key, { [field]: value }, t.key);
+        this.drag = null;
+        this.setState({ overCol: null });
+      }
+    };
+  }
+
+  columns() {
+    const s = this.state;
+    const dim = this.dimDefs(this.view().by);
+    const field = dim.field;
+    const sortable = field === 'status';
+    const width = (this.props && this.props.columnWidth) || 268;
+    const known = {};
+    s.columns.forEach(c => { known[c.id] = true; });
+    const pool = s.tasks.filter(t => s.showDoneA || t.status !== 'done');
+    return dim.defs.map((d, i) => {
+      const list = sortable
+        ? pool.filter(t => t.status === d.value || (!known[t.status] && i === 0))
+        : pool.filter(t => t[field] === d.value);
+      const over = sortable && s.overCol === d.id && s.dragColId && s.dragColId !== d.id;
+      return {
+        id: d.id, name: d.name, dot: d.dot, count: list.length, width, halo: this.tint(d.dot, .14),
+        drag: sortable, grab: sortable ? 'grab' : 'default', gripOpacity: sortable ? 1 : 0,
+        border: over ? '#3fb0c8' : (s.overCol === d.id && !s.dragColId ? '#2d3d45' : '#1a1d22'),
+        opacity: s.dragColId === d.id ? 0.45 : 1,
+        cards: list.map(t => this.card(t, s.selA, field, d.value)),
+        onAdd: () => this.addTask(field, d.value),
+        onColDragStart: e => {
+          this.drag = { type: 'col', id: d.id };
+          if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', d.id); } catch (err) {} }
+          this.setState({ dragColId: d.id });
+        },
+        onColDragEnd: () => { this.drag = null; this.setState({ dragColId: null, overCol: null }); },
+        onDragOver: e => {
+          if (!this.drag) return;
+          e.preventDefault();
+          if (this.state.overCol !== d.id) this.setState({ overCol: d.id });
+        },
+        onDragLeave: () => { if (this.state.overCol === d.id) this.setState({ overCol: null }); },
+        onDrop: e => {
+          if (!this.drag) return;
+          e.preventDefault();
+          if (this.drag.type === 'col') { if (sortable) this.moveColumn(this.drag.id, d.id); }
+          else this.move(this.drag.key, { [field]: d.value }, null);
+          this.drag = null;
+          this.setState({ overCol: null, dragColId: null });
+        }
+      };
+    });
+  }
+
+  tint(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(',') + ',' + a + ')';
+  }
+
+  detail() {
+    const t = this.state.tasks.find(x => x.key === this.state.selA);
+    if (!t) return { key: '', title: '', desc: '', prioColor: 'transparent', prioLabel: '', criteria: [], statusName: '', statusDot: 'transparent', statusBg: 'transparent', statusFg: '#c3c8cf', phaseName: '', phaseDot: 'transparent', phaseBg: 'transparent', phaseFg: '#c3c8cf', labelChips: [], labelEmpty: '', est: 'M', who: '', whoId: '', whoColor: 'transparent', commentHeader: '', comments: [] };
+    const p = this.PRIO[t.priority];
+    const st = this.state.columns.find(x => x.id === t.status) || { name: 'Unsorted', dot: '#3f4650' };
+    const ag = this.AGENT[t.key];
+    const editId = this.state.editCrit;
+    const crits = t.criteria.map((c, i) => {
+      const id = t.key + '#' + i;
+      const on = !!this.state.crit[id];
+      return {
+        t: c, box: on ? '#3fb0c8' : '#0c0d10', border: on ? '#38505a' : '#2f343c',
+        color: on ? '#6f757f' : '#c3c8cf', line: on ? 'line-through' : 'none',
+        editing: editId === id, reading: editId !== id,
+        onToggle: () => this.toggleCrit(t.key, i),
+        onEdit: () => this.setState({ editCrit: id, critDraft: c })
+      };
+    });
+    const done = crits.filter(c => c.line === 'line-through').length;
+    const bars = (t.criteria.length ? t.criteria : ['']).map((c, i) => ({ bg: i < done ? '#3fb0c8' : '#1c2126' }));
+    const acts = [];
+    if (ag) acts.push({ time: '2m', t: ag.name + ' opened a run' });
+    acts.push({ time: '6h', t: t.who + ' moved to ' + st.name.toLowerCase() });
+    acts.push({ time: '1d', t: t.who + ' set priority → ' + p.label.toLowerCase() });
+    if (t.criteria.length) acts.push({ time: '1d', t: 'agent added ' + t.criteria.length + ' checklist items' });
+    const ph = this.PHASE.find(x => x.id === t.phase) || { name: '—', dot: '#3f4650' };
+    return {
+      key: t.key, title: t.title, desc: t.desc,
+      prioColor: p.color, prioLabel: p.label,
+      criteria: crits,
+      progLabel: done + ' / ' + Math.max(t.criteria.length, 1),
+      progBars: bars,
+      chainOn: t.deps.length > 0,
+      chain: t.deps.map(d => {
+        const dt = this.state.tasks.find(x => x.key === d);
+        const shipped = dt && dt.status === 'done';
+        return { key: d, bg: shipped ? 'rgba(79,138,91,.14)' : 'rgba(139,143,152,.14)', fg: shipped ? '#8dc298' : '#a4aab3' };
+      }),
+      prioTint: this.tint(p.color, .07),
+      prioPillBg: this.tint(p.color, .16),
+      activity: acts,
+      est: t.est, who: t.who, whoId: t.who, whoColor: this.PEOPLE[t.who].color, whoName: this.PEOPLE[t.who].name,
+      agentOn: !!this.AGENT[t.key],
+      agentOff: !this.AGENT[t.key],
+      agentName: this.AGENT[t.key] ? this.AGENT[t.key].name : '',
+      agentAge: this.AGENT[t.key] ? this.AGENT[t.key].age : '',
+      agentLog: ag ? ag.log.map(l => ({ time: l.time, t: l.t, timeColor: '#3f4650', color: '#8b919b' }))
+        .concat(this.RUN_SCRIPT.slice(0, this.state.runN).map((x, i) => ({ time: this.runStamp(i), t: x, timeColor: '#3f4650', color: '#8b919b' }))) : [],
+      agentNowTime: ag ? this.runStamp(this.state.runN) : '',
+      agentNow: ag ? this.RUN_SCRIPT[this.state.runN] : '',
+      statusName: st.name, statusDot: st.dot, statusBg: this.tint(st.dot, .13), statusFg: '#dfe1e5',
+      phaseName: ph.name, phaseDot: ph.dot, phaseBg: this.tint(ph.dot, .13), phaseFg: '#dfe1e5',
+      labelChips: t.labels.map(l => ({ name: l, color: this.LABELS[l], bg: this.tint(this.LABELS[l], .13), fg: '#cdd2d9' })),
+      labelEmpty: t.labels.length ? '' : 'none',
+      commentHeader: 'Comments · ' + t.comments.length,
+      comments: t.comments.map(c => ({ who: c.who, name: this.PEOPLE[c.who].name, time: c.time, text: c.text, color: this.PEOPLE[c.who].color }))
+    };
+  }
+
+  prios() {
+    const t = this.state.tasks.find(x => x.key === this.state.selA);
+    if (!t) return [];
+    return this.PRIO.map((p, i) => ({
+      label: p.label, color: p.color,
+      bg: i === t.priority ? this.tint(p.color, .16) : 'transparent',
+      fg: i === t.priority ? '#e8e9ec' : '#7d838d',
+      dotOpacity: i === t.priority ? 1 : 0.45,
+      onClick: () => this.setPrio(t.key, i)
+    }));
+  }
+
+  commentCount() {
+    const t = this.state.tasks.find(x => x.key === this.state.selA);
+    return t ? t.comments.length : 0;
+  }
+
+  statusSegs() {
+    const t = this.state.tasks.find(x => x.key === this.state.selA);
+    if (!t) return [];
+    return this.state.columns.map(c => {
+      const on = c.id === t.status;
+      return {
+        label: c.name, dot: c.dot,
+        bg: on ? '#1b2126' : 'transparent',
+        fg: on ? '#e8e9ec' : '#a4aab3',
+        tick: on ? '#9fd7e3' : 'transparent',
+        onClick: () => { this.patch(t.key, { status: c.id }); this.setState({ statusOpen: false }); }
+      };
+    });
+  }
+
+  ests() {
+    const t = this.state.tasks.find(x => x.key === this.state.selA);
+    if (!t) return [];
+    return ['XS', 'S', 'M', 'L', 'XL'].map(v => ({
+      label: v,
+      bg: v === t.est ? '#1e2429' : 'transparent',
+      fg: v === t.est ? '#9fd7e3' : '#7d838d',
+      onClick: () => this.patch(t.key, { est: v })
+    }));
+  }
+
+  renderVals() {
+    const s = this.state;
+    const hidden = {};
+    s.columns.forEach(c => { if (c.shipped && !s.showDoneA) hidden[c.id] = true; });
+    const visible = s.tasks.filter(t => !hidden[t.status]).length;
+    const v = this.view();
+    const byMeta = this.VIEW_BY.find(x => x.id === v.by) || this.VIEW_BY[0];
+    const groupCount = this.dimDefs(v.by).defs.length;
+    return {
+      aColWidth: (this.props && this.props.columnWidth) || 268,
+      aColCountLabel: groupCount + ' columns',
+      aGroupLabel: byMeta.label + ' columns',
+      aCanAddCol: v.by === 'status',
+      aViews: s.views.map(x => {
+        const on = x.id === s.viewId;
+        const m = this.VIEW_BY.find(y => y.id === x.by) || byMeta;
+        return {
+          name: x.name, dot: m.dot,
+          ref: el => { if (on) this.activePill = el; },
+          bg: on ? '#1b2126' : 'transparent',
+          fg: on ? '#e8e9ec' : '#7d838d',
+          removable: on && !x.fixed,
+          onClick: () => this.setState({ viewId: x.id, viewAdding: false }),
+          onRemove: e => { e.stopPropagation(); this.removeView(x.id); }
+        };
+      }),
+      aStripRef: el => { this.strip = el; },
+      aViewAdding: !!s.viewAdding,
+      aViewAddToggle: () => this.setState({ viewAdding: !s.viewAdding, viewName: '' }),
+      aViewCancel: () => this.setState({ viewAdding: false, viewName: '' }),
+      aViewName: s.viewName,
+      aViewNameRef: el => { if (el && document.activeElement !== el) el.focus(); },
+      aViewNameChange: e => this.setState({ viewName: e.target.value }),
+      aViewNameKey: e => {
+        if (e.key === 'Enter') this.createView();
+        if (e.key === 'Escape') this.setState({ viewAdding: false, viewName: '' });
+      },
+      aViewBys: this.VIEW_BY.map(x => ({
+        label: x.label, color: x.dot,
+        bg: x.id === s.viewBy ? this.tint(x.dot, .16) : 'transparent',
+        fg: x.id === s.viewBy ? '#e8e9ec' : '#7d838d',
+        dotOpacity: x.id === s.viewBy ? 1 : 0.45,
+        onClick: () => this.setState({ viewBy: x.id })
+      })),
+      aCreateView: () => this.createView(),
+      aAdding: s.adding,
+      aNotAdding: !s.adding,
+      aNewCol: s.newCol,
+      aNewColRef: el => { if (el && this.state.adding) el.focus(); },
+      aStartAdd: () => this.setState({ adding: true, newCol: '' }),
+      aCancelAdd: () => this.setState({ adding: false, newCol: '' }),
+      aNewColChange: e => this.setState({ newCol: e.target.value }),
+      aNewColKey: e => {
+        if (e.key === 'Enter') this.addColumn();
+        if (e.key === 'Escape') this.setState({ adding: false, newCol: '' });
+      },
+      aAddColumn: () => this.addColumn(),
+      aEndDragOver: e => { if (this.drag && this.drag.type === 'col') e.preventDefault(); },
+      aEndDrop: e => {
+        if (!this.drag || this.drag.type !== 'col') return;
+        e.preventDefault();
+        this.moveColumn(this.drag.id, null);
+        this.drag = null;
+        this.setState({ overCol: null, dragColId: null });
+      },
+      revLabel: 'rev ' + s.rev,
+      aHasSel: !!s.tasks.find(x => x.key === s.selA),
+      aColumns: this.columns(),
+      aSel: this.detail(),
+      aPrios: this.prios(),
+      aCountLabel: visible + ' tasks · ' + groupCount + ' groups',
+      aDoneBox: s.showDoneA ? '#3fb0c8' : 'transparent',
+      aDraft: s.draftA,
+      aDraftRing: (s.draftA || '').trim() ? 'inset 0 0 0 1px rgba(63,176,200,.4)' : 'inset 0 0 0 1px #1f2229',
+      aSendBg: (s.draftA || '').trim() ? '#3fb0c8' : '#171b1f',
+      aSendFg: (s.draftA || '').trim() ? '#05242b' : '#5d646f',
+      aEsts: this.ests(),
+      aStatusSegs: this.statusSegs(),
+      aStatusOpen: !!s.statusOpen,
+      aStatusBtnBg: s.statusOpen ? '#191d22' : '#14171b',
+      aStatusToggle: () => this.setState({ statusOpen: !s.statusOpen }),
+      meInitials: 'DK',
+      meName: this.PEOPLE.DK.name,
+      meColor: this.PEOPLE.DK.color,
+      aWhoOpen: !!s.whoOpen,
+      aWhoBtnBg: s.whoOpen ? '#191d22' : '#14171b',
+      aWhoBtnRing: s.whoOpen ? '#2a323a' : '#1f242a',
+      aWhoToggle: () => this.setState({ whoOpen: !this.state.whoOpen }),
+      aWhoMenu: Object.keys(this.PEOPLE).map(id => {
+        const on = id === (this.state.tasks.find(t => t.key === s.selA) || {}).who;
+        return {
+          initials: id, name: this.PEOPLE[id].name, color: this.PEOPLE[id].color,
+          bg: on ? '#1b2126' : 'transparent', fg: on ? '#e8e9ec' : '#a4aab3',
+          tick: on ? '#9fd7e3' : 'transparent',
+          onClick: () => { this.patch(s.selA, { who: id }); this.setState({ whoOpen: false }); }
+        };
+      }),
+      aCritDraft: s.critDraft,
+      aCritRef: el => { if (el && document.activeElement !== el) el.focus(); },
+      aCritChange: e => this.setState({ critDraft: e.target.value }),
+      aCritKey: e => {
+        if (e.key === 'Enter') this.commitCrit();
+        if (e.key === 'Escape') this.setState({ editCrit: null, critDraft: '' });
+      },
+      aCritCommit: () => this.commitCrit(),
+      aTabs: [
+        { id: 'comments', label: 'Comments ' + this.commentCount() },
+        { id: 'activity', label: 'Activity' },
+        { id: 'agent', label: 'Agent', live: !!this.AGENT[s.selA] }
+      ].map(x => ({
+        label: x.label,
+        live: !!x.live,
+        fg: s.tab === x.id ? '#e8e9ec' : '#6b7280',
+        line: s.tab === x.id ? 'inset 0 -1px 0 #3fb0c8' : 'none',
+        onClick: () => this.setState({ tab: x.id })
+      })),
+      aShowComments: s.tab === 'comments',
+      aShowActivity: s.tab === 'activity',
+      aShowAgent: s.tab === 'agent',
+      aWhoOptions: Object.keys(this.PEOPLE).map(k => ({ value: k, label: this.PEOPLE[k].name })),
+      aSetEst: e => this.patch(s.selA, { est: e.target.value }),
+      aSetWho: e => this.patch(s.selA, { who: e.target.value }),
+      aToggleDone: () => this.setState(x => ({ showDoneA: !x.showDoneA })),
+      aClose: () => this.setState({ selA: null, menuOpen: false }),
+      aMenuOpen: !!s.menuOpen,
+      aMenuBg: s.menuOpen ? '#1b1e24' : 'transparent',
+      aMenuToggle: () => this.setState({ menuOpen: !s.menuOpen }),
+      aDeleteTask: () => this.deleteTask(s.selA),
+      aDraftChange: e => this.setState({ draftA: e.target.value }),
+      aDraftKey: e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); this.addComment(); } },
+      aComment: () => this.addComment()
+    };
+  }
+}
+</script>
+</body>
+</html>

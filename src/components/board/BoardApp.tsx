@@ -1,0 +1,90 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import type { BoardData } from "@/lib/types";
+import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
+import { BoardCanvas } from "./BoardCanvas";
+import { BoardProvider, useBoard } from "./store";
+import { TaskPanel } from "./TaskPanel";
+import { ViewStrip } from "./ViewStrip";
+import styles from "./board.module.css";
+
+export function BoardApp({
+  initial,
+  user,
+  initialTaskId,
+}: {
+  initial: BoardData;
+  user: SessionUser;
+  initialTaskId: string | null;
+}) {
+  return (
+    <BoardProvider initial={initial} user={user}>
+      <BoardShell initialTaskId={initialTaskId} />
+    </BoardProvider>
+  );
+}
+
+function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
+  const { data, user, view, live, toasts } = useBoard();
+  const [selected, setSelected] = useState<string | null>(initialTaskId);
+
+  const open = useCallback((id: string | null) => {
+    setSelected(id);
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("task", id);
+    else url.searchParams.delete("task");
+    window.history.replaceState(null, "", url.toString());
+  }, []);
+
+  /* a task that another person removed must not keep the panel open */
+  useEffect(() => {
+    if (selected && !data.tasks.some((t) => t.id === selected)) open(null);
+  }, [data.tasks, open, selected]);
+
+  return (
+    <div className={styles.shell}>
+      <div className={styles.main}>
+        <div className={styles.top}>
+          <div className={styles.mark}>{data.project.key.slice(0, 1)}</div>
+          <span className={styles.crumbName}>{data.project.name}</span>
+          <span className={styles.crumbSep}>/</span>
+          <span className={styles.crumbView}>{view?.name ?? "Board"}</span>
+          <div className={styles.spacer} />
+          <span
+            className={live ? styles.liveDot : styles.liveDotOff}
+            title={live ? "Live: changes from others arrive by themselves" : "Not live right now"}
+          />
+          <Link
+            className={styles.iconLink}
+            href={`/p/${data.project.id}/settings`}
+            aria-label="Project settings"
+            title="Project settings"
+          >
+            ⚙
+          </Link>
+          <UserMenu user={user} />
+        </div>
+
+        <ViewStrip />
+        <BoardCanvas selectedTaskId={selected} onOpenTask={open} />
+      </div>
+
+      {selected && <TaskPanel taskId={selected} onClose={() => open(null)} />}
+
+      {toasts.length > 0 && (
+        <div className={styles.toasts}>
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`${styles.toast} ${toast.kind === "error" ? styles.toastError : ""}`}
+            >
+              {toast.text}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

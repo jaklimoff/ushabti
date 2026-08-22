@@ -1,0 +1,26 @@
+name: Idea
+description: Suggest a change.
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read [ROADMAP.md](../blob/main/ROADMAP.md) first. Ushabti stays small,
+        so many good ideas do not fit it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What can you not do today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+    validations:
+      required: true
+  - type: textarea
+    id: alternative
+    attributes:
+      label: What you do instead today

@@ -1,0 +1,40 @@
+# Self-hosting. Put a POSTGRES_PASSWORD in .env first, then:
+#   docker compose -f docker-compose.prod.yml up -d
+# Ushabti listens on 127.0.0.1:3000. Put a reverse proxy with TLS in front of
+# it: the session cookie is marked "secure" in production, so a browser will
+# not send it back over plain http.
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ushabti
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ushabti
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ushabti -d ushabti"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    # Pulls the published image from Docker Hub. The same image is on
+    # ghcr.io/jaklimoff/ushabti. Add --build to the command to build it here
+    # from the source in this directory instead.
+    image: jaklimoff/ushabti:${USHABTI_VERSION:-edge}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://ushabti:${POSTGRES_PASSWORD}@db:5432/ushabti
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

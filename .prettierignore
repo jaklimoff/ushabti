@@ -1,0 +1,8 @@
+.next
+node_modules
+drizzle
+design-reference
+package-lock.json
+test-results
+playwright-report
+docs

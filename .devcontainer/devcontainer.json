@@ -1,0 +1,13 @@
+{
+  "name": "Ushabti",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [3000, 5432],
+  "overrideCommand": true,
+  "customizations": {
+    "vscode": {
+      "extensions": ["esbenp.prettier-vscode", "ms-azuretools.vscode-docker"]
+    }
+  }
+}
