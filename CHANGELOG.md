@@ -18,6 +18,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   reporting that it is up. The panel now clears only when it moves to a
   different task, and it also stops re-reading the task on every render.
 
+- The board no longer disappears when a card carries a `Due` date. The server
+  wrote the date with the locale of the Node process and the browser wrote it
+  with its own, so a browser set to British English read "28 Aug" where the
+  server had sent "Aug 28". React saw the two texts disagree and threw the
+  server's board away. The month names are now written out in the code, so
+  both sides produce the same text.
+
 ## 0.2.0 — 2026-08-22
 
 ### Added
