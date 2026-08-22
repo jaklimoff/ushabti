@@ -49,8 +49,14 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     }
   }, [onClose, syncTaskCounts, taskId]);
 
+  // Only a different task clears what is on screen. A new `load` identity must
+  // not, because that unmounts the comment list and destroys the note the
+  // person is part-way through writing.
   useEffect(() => {
     setDetail(null);
+  }, [taskId]);
+
+  useEffect(() => {
     void load();
   }, [load]);
 

@@ -8,6 +8,16 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- A note being written in a task no longer disappears. The panel rebuilt its
+  loader whenever the board re-rendered, and the effect that reads the task
+  cleared the panel each time the loader changed. That unmounted the comment
+  list and took the half-written note with it. Anything that re-renders the
+  board did it: a change made by another person, or the live connection
+  reporting that it is up. The panel now clears only when it moves to a
+  different task, and it also stops re-reading the task on every render.
+
 ## 0.2.0 — 2026-08-22
 
 ### Added
