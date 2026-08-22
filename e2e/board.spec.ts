@@ -7,6 +7,7 @@ import {
   createProject,
   dragCard,
   register,
+  settles,
   unique,
 } from "./helpers";
 
@@ -96,6 +97,52 @@ test.describe("Ushabti board", () => {
     await expect(column(page, "In Progress").getByText("Move me across")).toBeVisible();
   });
 
+  test("drag a card into an empty column while other columns are full", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Empty column"));
+
+    // Backlog is left empty, and the columns beside it are filled. A card is
+    // a much smaller drop target than a column, so unless the pointer decides
+    // the target, a card next door wins and the empty column never takes a drop.
+    for (const title of ["Todo one", "Todo two", "Todo three"]) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+    await expect(column(page, "Backlog").getByTestId("card")).toHaveCount(0);
+
+    await dragCard(page, "Todo one", await centreOf(page, "Backlog"));
+
+    await expect(column(page, "Backlog").getByTestId("card")).toHaveCount(1);
+    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(2);
+
+    await page.goto(`/p/${projectId}`);
+    await expect(column(page, "Backlog").getByText("Todo one")).toBeVisible();
+  });
+
+  test("drag a card onto the free space under a column and it goes last", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Drop below"));
+    for (const title of ["First card", "Second card", "Third card"]) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    const titles = async () =>
+      (await column(page, "Todo").getByTestId("card-title").allInnerTexts()).map((t) => t.trim());
+
+    const last = await card(page, "Third card").first().boundingBox();
+    if (!last) throw new Error("cards not found");
+    await dragCard(page, "First card", {
+      x: last.x + last.width / 2,
+      y: last.y + last.height + 40,
+    });
+
+    expect(await titles()).toEqual(["Second card", "Third card", "First card"]);
+
+    await page.goto(`/p/${projectId}`);
+    expect(await titles()).toEqual(["Second card", "Third card", "First card"]);
+  });
+
   test("drag reorders cards inside one column", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Reorder"));
@@ -158,7 +205,8 @@ test.describe("Ushabti board", () => {
     await page.keyboard.press("ArrowRight");
     // the board shows the card in its new column before the drop is committed
     await expect(column(page, "In Progress").getByText("Keyboard move")).toBeVisible();
-    await page.keyboard.press("Space");
+    // The drop writes without waiting, so the reload below can outrun it.
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/move$/, () => page.keyboard.press("Space"));
 
     await expect(column(page, "In Progress").getByText("Keyboard move")).toBeVisible();
     // dropping must not also open the task
