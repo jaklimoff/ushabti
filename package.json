@@ -1,6 +1,6 @@
 {
   "name": "ushabti",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "A small, fast task board where every field is a property you define.",
   "license": "MIT",
