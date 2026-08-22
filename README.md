@@ -243,7 +243,7 @@ design-reference/ the source design this interface follows
 ## Take part
 
 - [ROADMAP.md](ROADMAP.md) — what is done, what comes next, and the known limits.
-- [CHANGELOG.md](CHANGELOG.md) — what changed in each release. Versions follow semantic versioning; `:edge` is the newest commit, a number is a release.
+- [CHANGELOG.md](CHANGELOG.md) — what changed in each release. Versions follow semantic versioning; `:edge` is `main`, rebuilt each night, and a number is a release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up, test and send a change.
 - [SECURITY.md](SECURITY.md) — how to report a weakness, and what is already known.
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — be courteous.

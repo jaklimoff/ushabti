@@ -1,9 +1,13 @@
 name: CI
 
+# The pull request run is the gate. The `main` run stays because a squash
+# merge makes a commit that no run has seen before; it is the only cheap check
+# that the squashed tree still builds.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}

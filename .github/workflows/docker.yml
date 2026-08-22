@@ -2,10 +2,15 @@ name: Docker image
 
 # Builds the production image and pushes it to Docker Hub and to the GitHub
 # container registry. The two hold the same image.
-# `main` becomes :edge. A tag like v0.2.0 becomes :0.2.0, :0.2, :0 and :latest.
+# A tag like v0.2.0 becomes :0.2.0, :0.2, :0 and :latest. The nightly run of
+# `main` becomes :edge.
+#
+# A merge into `main` does NOT build an image. The commits it carries already
+# passed as a pull request, and an image per merge has no reader. The nightly
+# run gives the same :edge tag for a fraction of the runner time, because the
+# arm64 half of the build is emulated and slow.
 on:
   push:
-    branches: [main]
     tags: ["v*.*.*"]
   # A pull request only rebuilds when something the image depends on moved.
   pull_request:
@@ -16,10 +21,14 @@ on:
       - next.config.mjs
       - scripts/**
       - .github/workflows/docker.yml
+  schedule:
+    # 03:41 UTC. An odd minute keeps the job off the top of the hour, where
+    # the GitHub scheduler is busiest and starts late.
+    - cron: "41 3 * * *"
   workflow_dispatch:
 
-# A newer commit on a branch replaces the build of the older one. A push to
-# main is never cancelled, because it publishes.
+# A newer commit on a branch replaces the build of the older one. A run that
+# publishes is never cancelled.
 concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -29,7 +38,33 @@ env:
   GHCR_IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
+  # The nightly run stops here if nobody pushed to `main` since the last one.
+  # An idle repository then costs nothing.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Did main move in the last day?
+        id: decide
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "schedule" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$(git log --since='25 hours ago' --format=%H)" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "main did not move; the nightly image stays as it is" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   build:
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     runs-on: ubuntu-latest
 
     permissions:
@@ -69,8 +104,11 @@ jobs:
           images: |
             ${{ env.DOCKERHUB_IMAGE }}
             ${{ env.GHCR_IMAGE }}
+          # :edge only comes from the default branch, so a tag build cannot
+          # move it and a pull request cannot claim it. The action reads the
+          # default branch itself; do not compare ref names by hand.
           tags: |
-            type=edge,branch=main
+            type=raw,value=edge,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -87,6 +125,7 @@ jobs:
           context: .
           file: ./Dockerfile
           # arm64 is emulated and slow, so a pull request checks amd64 only.
+          # A tag and the nightly build both architectures.
           platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -104,9 +143,11 @@ jobs:
           push-to-registry: true
 
       # Keeps the Docker Hub page showing the README of this repository.
+      # Runs whenever an image was pushed, which is every event except a
+      # pull request. One API call, and the page never goes stale.
       - name: Copy the README to Docker Hub
-        if: github.ref == 'refs/heads/main'
-        uses: peter-evans/dockerhub-description@v4
+        if: github.event_name != 'pull_request'
+        uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
