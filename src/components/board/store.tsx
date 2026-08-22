@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
 import { rankBetween } from "@/lib/rank";
 import type {
@@ -100,6 +101,7 @@ export function BoardProvider({
   const [live, setLive] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastSeq = useRef(0);
+  const router = useRouter();
   const projectId = data.project.id;
 
   /* --- restore the last view of this project -------------------------- */
@@ -135,9 +137,10 @@ export function BoardProvider({
       const fresh = await api.get<BoardData>(`/api/projects/${projectId}/board`);
       setData(fresh);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 404) window.location.href = "/projects";
+      // The project is gone, or this person was removed from it.
+      if (err instanceof ApiError && err.status === 404) router.push("/projects");
     }
-  }, [projectId]);
+  }, [projectId, router]);
 
   /* --- live updates from the other people on the board ---------------- */
   useEffect(() => {

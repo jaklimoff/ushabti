@@ -31,7 +31,7 @@ test.describe("Ushabti board", () => {
     await expect(page.getByRole("button", { name: /^Comments/ })).toBeVisible();
 
     // title
-    const title = page.locator('[class*="panel_title__"]');
+    const title = page.getByTestId("task-title");
     await title.click();
     await title.fill("Write the first task, renamed");
     await title.press("Enter");
@@ -42,8 +42,8 @@ test.describe("Ushabti board", () => {
     const editor = page.getByPlaceholder("Write in markdown…");
     await editor.fill("Ships **offline** first.\n\n- one\n- two");
     await editor.blur();
-    await expect(page.locator('[class*="panel_markdown__"] strong')).toHaveText("offline");
-    await expect(page.locator('[class*="panel_markdown__"] li')).toHaveCount(2);
+    await expect(page.getByTestId("markdown").locator("strong")).toHaveText("offline");
+    await expect(page.getByTestId("markdown").locator("li")).toHaveCount(2);
 
     // checklist
     await page.getByRole("button", { name: "Add item" }).click();
@@ -74,7 +74,7 @@ test.describe("Ushabti board", () => {
     await page.getByRole("button", { name: "Urgent" }).click();
     await page.getByRole("button", { name: "Close task" }).click();
 
-    const square = card(page, "Priority test").locator('[class*="board_prioSquare__"]');
+    const square = card(page, "Priority test").getByTestId("card-lead-square");
     await expect(square).toHaveAttribute("title", "Priority: Urgent");
   });
 
@@ -84,12 +84,12 @@ test.describe("Ushabti board", () => {
     await addTask(page, "Todo", "Move me across");
     await page.getByRole("button", { name: "Close task" }).click();
 
-    await expect(column(page, "Todo").locator('[class*="board_card__"]')).toHaveCount(1);
+    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(1);
 
     await dragCard(page, "Move me across", await centreOf(page, "In Progress"));
 
-    await expect(column(page, "In Progress").locator('[class*="board_card__"]')).toHaveCount(1);
-    await expect(column(page, "Todo").locator('[class*="board_card__"]')).toHaveCount(0);
+    await expect(column(page, "In Progress").getByTestId("card")).toHaveCount(1);
+    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(0);
 
     // and it survives a reload, so the move reached the database
     await page.goto(`/p/${projectId}`);
@@ -105,9 +105,7 @@ test.describe("Ushabti board", () => {
     }
 
     const titles = async () =>
-      (await column(page, "Todo").locator('[class*="board_cardTitle__"]').allInnerTexts()).map(
-        (t) => t.trim(),
-      );
+      (await column(page, "Todo").getByTestId("card-title").allInnerTexts()).map((t) => t.trim());
 
     expect(await titles()).toEqual(["First card", "Second card", "Third card"]);
 
@@ -156,7 +154,7 @@ test.describe("Ushabti board", () => {
 
     await card(page, "Keyboard move").first().focus();
     await page.keyboard.press("Space");
-    await expect(page.locator('[class*="board_cardOverlay__"]')).toBeVisible();
+    await expect(page.getByTestId("card-overlay")).toBeVisible();
     await page.keyboard.press("ArrowRight");
     // the board shows the card in its new column before the drop is committed
     await expect(column(page, "In Progress").getByText("Keyboard move")).toBeVisible();
@@ -164,7 +162,7 @@ test.describe("Ushabti board", () => {
 
     await expect(column(page, "In Progress").getByText("Keyboard move")).toBeVisible();
     // dropping must not also open the task
-    await expect(page.locator('[class*="panel_panel__"]')).toHaveCount(0);
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
 
     await page.goto(`/p/${projectId}`);
     await expect(column(page, "In Progress").getByText("Keyboard move")).toBeVisible();
@@ -172,7 +170,7 @@ test.describe("Ushabti board", () => {
     // Enter still opens the task
     await card(page, "Keyboard move").first().focus();
     await page.keyboard.press("Enter");
-    await expect(page.locator('[class*="panel_panel__"]')).toBeVisible();
+    await expect(page.getByTestId("task-panel")).toBeVisible();
   });
 
   test("create a view grouped by another property", async ({ page }) => {
@@ -186,9 +184,7 @@ test.describe("Ushabti board", () => {
     await page.getByRole("button", { name: "Assignee" }).click();
     await page.getByRole("button", { name: "Create view" }).click();
 
-    await expect(
-      page.locator('[class*="board_pill__"]').filter({ hasText: "By owner" }),
-    ).toBeVisible();
+    await expect(page.getByTestId("view-pill").filter({ hasText: "By owner" })).toBeVisible();
     await expect(column(page, "Unassigned")).toBeVisible();
   });
 

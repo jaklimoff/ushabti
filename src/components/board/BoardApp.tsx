@@ -54,6 +54,7 @@ function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
           <div className={styles.spacer} />
           <span
             className={live ? styles.liveDot : styles.liveDotOff}
+            data-testid={live ? "live-dot" : "live-dot-off"}
             title={live ? "Live: changes from others arrive by themselves" : "Not live right now"}
           />
           <Link

@@ -37,6 +37,7 @@ export function ViewStrip() {
             <button
               key={v.id}
               className={`${styles.pill} ${active ? styles.pillActive : ""}`}
+              data-testid="view-pill"
               onClick={() => setViewId(v.id)}
             >
               <span

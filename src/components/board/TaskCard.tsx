@@ -130,6 +130,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
     <div
       ref={ref}
       className={className}
+      data-testid={overlay ? "card-overlay" : "card"}
       style={style}
       onClick={onOpen}
       role="button"
@@ -147,6 +148,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
         {fields.lead && (
           <span
             className={styles.prioSquare}
+            data-testid="card-lead-square"
             style={{ background: fields.lead.color }}
             title={fields.lead.label}
           />
@@ -166,7 +168,9 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
         ))}
       </div>
 
-      <div className={styles.cardTitle}>{task.title}</div>
+      <div className={styles.cardTitle} data-testid="card-title">
+        {task.title}
+      </div>
 
       {hasFooter && (
         <div className={styles.cardMetaRow}>

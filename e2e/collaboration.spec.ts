@@ -59,7 +59,7 @@ test.describe("Two people on one board", () => {
     await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
 
     await friend.page.goto(`/p/${projectId}`);
-    await expect(friend.page.locator('[class*="board_liveDot__"]')).toBeVisible();
+    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
 
     await owner.page.goto(`/p/${projectId}`);
     await addTask(owner.page, "Todo", "Arrives by itself");
@@ -97,7 +97,7 @@ test.describe("Two people on one board", () => {
     await owner.page.goto(`/p/${projectId}`);
     await addTask(owner.page, "Todo", "Give it to a friend");
 
-    const panel = owner.page.locator('[class*="panel_panel__"]');
+    const panel = owner.page.getByTestId("task-panel");
     await panel.getByRole("button", { name: "Unassigned" }).click();
     await saved(owner.page, () => panel.getByRole("button", { name: "Friend Person" }).click());
 
@@ -116,7 +116,7 @@ test.describe("Columns", () => {
     const projectId = await createProject(page, unique("ColumnOrder"));
 
     const names = async () =>
-      (await page.locator('[class*="board_colName__"]').allInnerTexts()).map((t) => t.trim());
+      (await page.getByTestId("column-name").allInnerTexts()).map((t) => t.trim());
 
     expect(await names()).toEqual(["BACKLOG", "TODO", "IN PROGRESS", "READY", "SHIPPED"]);
 

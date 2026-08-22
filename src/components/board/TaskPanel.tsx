@@ -85,7 +85,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   if (!boardTask) return null;
 
   return (
-    <aside className={styles.panel}>
+    <aside className={styles.panel} data-testid="task-panel">
       <div className={styles.accent} style={{ background: accent }} />
 
       <div className={styles.head} style={{ background: tint(accent, 0.06) }} ref={menuRef}>
@@ -271,6 +271,7 @@ function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) 
     <textarea
       ref={ref}
       className={styles.title}
+      data-testid="task-title"
       value={draft}
       rows={1}
       onFocus={() => setEditing(true)}

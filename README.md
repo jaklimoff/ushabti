@@ -174,7 +174,7 @@ properties, views, members and the live updates between two browsers.
 
 | Part      | Choice                                                       |
 | --------- | ------------------------------------------------------------ |
-| Framework | Next.js 15 App Router, server components for the first paint |
+| Framework | Next.js 16 App Router, server components for the first paint |
 | Language  | TypeScript, strict                                           |
 | Database  | PostgreSQL 18 with Drizzle ORM                               |
 | Drag      | dnd-kit, one context for cards and columns                   |

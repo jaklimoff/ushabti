@@ -9,6 +9,15 @@ updates:
       # One pull request for the small stuff, separate ones for the rest.
       patch-and-minor:
         update-types: ["minor", "patch"]
+    ignore:
+      # eslint-config-next still carries eslint-plugin-react, which uses the
+      # ESLint 9 rule API. ESLint 10 crashes while loading it. Try again when
+      # that plugin supports ESLint 10.
+      - dependency-name: eslint
+        versions: [">=10"]
+      # typescript-eslint accepts TypeScript below 6.1 only.
+      - dependency-name: typescript
+        versions: [">=7"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -19,3 +28,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      # The images track the newest Node LTS, which is chosen by hand. An
+      # automatic major bump would put an odd or a non-LTS release in
+      # production.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]

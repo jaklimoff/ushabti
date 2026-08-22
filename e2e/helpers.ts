@@ -39,13 +39,13 @@ export async function createProject(page: Page, name: string): Promise<string> {
 
 /** The board column whose header carries this name. */
 export function column(page: Page, name: string) {
-  return page.locator('[class*="board_column__"]').filter({
-    has: page.locator('[class*="board_colName__"]', { hasText: new RegExp(`^${name}$`, "i") }),
+  return page.getByTestId("column").filter({
+    has: page.getByTestId("column-name").filter({ hasText: new RegExp(`^${name}$`, "i") }),
   });
 }
 
 export function card(page: Page, title: string) {
-  return page.locator('[class*="board_card__"]').filter({ hasText: title });
+  return page.getByTestId("card").filter({ hasText: title });
 }
 
 export async function addTask(page: Page, columnName: string, title: string) {
@@ -108,7 +108,7 @@ export async function centreOf(page: Page, columnName: string) {
 
 /** The settings card that belongs to one property. */
 export function propertyBox(page: Page, propertyName: string) {
-  return page.locator('[class*="settings_propBox__"]').filter({
+  return page.getByTestId("property-box").filter({
     has: page.getByLabel(`Name of the ${propertyName} property`),
   });
 }

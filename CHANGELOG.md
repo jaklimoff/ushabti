@@ -5,6 +5,21 @@ and the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html
 
 ## Unreleased
 
+### Changed
+
+- Next.js 16, with Turbopack in development. The end-to-end suite runs about
+  three times faster.
+- The production and development images use Node 24, the current LTS.
+- The end-to-end tests select elements by `data-testid` instead of by the class
+  names a bundler generates. Next 16 changed that format, and the old selectors
+  broke.
+
+### Known
+
+- Eight warnings from `react-hooks/set-state-in-effect`, a rule new in
+  eslint-config-next 16. The pattern works but is worth removing. See the
+  roadmap.
+
 ## 0.1.0 — 2026-08-22
 
 The first release. Everything is new.

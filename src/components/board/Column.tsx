@@ -112,6 +112,7 @@ export function Column({
     <div
       ref={sortable.setNodeRef}
       className={className}
+      data-testid="column"
       style={{
         transform: CSS.Translate.toString(sortable.transform),
         transition: sortable.transition ?? undefined,
@@ -141,7 +142,9 @@ export function Column({
             className={styles.colDot}
             style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
           />
-          <span className={styles.colName}>{column.name}</span>
+          <span className={styles.colName} data-testid="column-name">
+            {column.name}
+          </span>
         </span>
         <span className={styles.colCount}>{column.tasks.length}</span>
         <span style={{ flex: 1 }} />

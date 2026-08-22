@@ -26,11 +26,17 @@ export function Markdown({ text }: { text: string }) {
 
   if (html === null) {
     return (
-      <div className={styles.markdown} style={{ whiteSpace: "pre-wrap" }}>
+      <div className={styles.markdown} data-testid="markdown" style={{ whiteSpace: "pre-wrap" }}>
         {text}
       </div>
     );
   }
 
-  return <div className={styles.markdown} dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <div
+      className={styles.markdown}
+      data-testid="markdown"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }

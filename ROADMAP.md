@@ -61,6 +61,7 @@ Everything below works, is tested, and runs in the dev container.
 3. **Keyboard shortcuts.** `n` for a new task, `/` for search, arrow keys to move between cards, `Esc` to close.
 4. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
 5. **Drag to reorder properties** in the settings page. Today you use the up and down arrows.
+6. **Remove the eight `setState` calls inside effects.** They reset a field when the task or the option changes. Keying the component is the React answer. ESLint reports each one as a warning.
 
 ## Later
 

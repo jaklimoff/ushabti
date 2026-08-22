@@ -1,9 +1,7 @@
-import { FlatCompat } from "@eslint/eslintrc";
+import next from "eslint-config-next/core-web-vitals";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 import playwright from "eslint-plugin-playwright";
-
-const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
 
 export default tseslint.config(
   {
@@ -17,7 +15,7 @@ export default tseslint.config(
     ],
   },
 
-  ...compat.extends("next/core-web-vitals"),
+  ...next,
   ...tseslint.configs.recommended,
 
   {
@@ -32,6 +30,19 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
       "no-console": ["warn", { allow: ["warn", "error"] }],
       eqeqeq: ["error", "smart"],
+
+      // Two rules that arrived with eslint-config-next 16, kept as advice
+      // rather than as a gate:
+      //
+      // `refs` reads dnd-kit's useSortable() result as if it were a ref
+      // object, so every board component reports a false positive.
+      //
+      // `set-state-in-effect` catches a real pattern of ours: a panel field
+      // that resets when the task changes. The React way out is to key the
+      // component instead. That is a refactor with its own risk, so it is on
+      // the roadmap, not in this release.
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "warn",
     },
   },
 

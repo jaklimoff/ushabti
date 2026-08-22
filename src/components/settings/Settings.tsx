@@ -263,7 +263,7 @@ function PropertyRow({
   const canMoveDown = downTarget !== undefined;
 
   return (
-    <div className={styles.propBox}>
+    <div className={styles.propBox} data-testid="property-box">
       <div className={styles.propHead}>
         <input
           className={styles.nameInput}
