@@ -105,9 +105,10 @@ jobs:
             ${{ env.DOCKERHUB_IMAGE }}
             ${{ env.GHCR_IMAGE }}
           # :edge only comes from the default branch, so a tag build cannot
-          # move it and a pull request cannot claim it.
+          # move it and a pull request cannot claim it. The action reads the
+          # default branch itself; do not compare ref names by hand.
           tags: |
-            type=raw,value=edge,enable=${{ github.ref_name == github.event.repository.default_branch }}
+            type=raw,value=edge,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
@@ -142,8 +143,10 @@ jobs:
           push-to-registry: true
 
       # Keeps the Docker Hub page showing the README of this repository.
+      # Runs whenever an image was pushed, which is every event except a
+      # pull request. One API call, and the page never goes stale.
       - name: Copy the README to Docker Hub
-        if: github.ref_name == github.event.repository.default_branch
+        if: github.event_name != 'pull_request'
         uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
