@@ -58,14 +58,39 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Playwright serves this build to the end to end tests, so they exercise
+      # what the image ships.
       - name: Production build
         run: npm run build
 
       - name: Database schema
         run: npm run db:migrate
 
+      # The browser is 130 MB and never changes between runs of one Playwright
+      # version, so downloading it every time was 26 seconds of pure waste.
+      # The key holds that version, and a new version misses and downloads once.
+      - name: Which Playwright is this?
+        id: pw
+        run: |
+          echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Look for the browser
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
       - name: Install the browser
+        if: steps.browser-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      # The cache holds the browser but not the system libraries it links
+      # against, and those live outside ~/.cache. This adds them and nothing
+      # else, so a hit still saves the download.
+      - name: Install what the browser links against
+        if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: End to end tests
         run: npm run test:e2e

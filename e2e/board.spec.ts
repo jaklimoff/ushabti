@@ -202,6 +202,13 @@ test.describe("Ushabti board", () => {
     await card(page, "Keyboard move").first().focus();
     await page.keyboard.press("Space");
     await expect(page.getByTestId("card-overlay")).toBeVisible();
+    // dnd-kit measures the columns in an effect that runs after the drag-start
+    // render, and the arrow key needs those measurements to know what is to the
+    // right. This test can press it about five milliseconds after the card
+    // lifts, which no person can do, and it then reads rectangles that are not
+    // there yet. Against `next dev` the server was slow enough to hide it; the
+    // production build is not. So wait as a person waits.
+    await page.waitForTimeout(150);
     await page.keyboard.press("ArrowRight");
     // the board shows the card in its new column before the drop is committed
     await expect(column(page, "In Progress").getByText("Keyboard move")).toBeVisible();
