@@ -6,7 +6,7 @@ FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm,sharing=locked npm ci
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
@@ -15,18 +15,17 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# The runner keeps only what the server needs: the build output and the
-# packages listed under "dependencies".
+# `output: "standalone"` in next.config.mjs makes the build trace which files
+# the server really touches and write them to .next/standalone, its own
+# node_modules included. So the runner installs nothing: no npm, no registry,
+# no second dependency tree. Only the traced files reach the image.
 FROM node:24-bookworm-slim AS runner
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
-COPY --from=build /app/.next ./.next
-COPY next.config.mjs ./
-COPY drizzle ./drizzle
-COPY scripts ./scripts
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
 USER node
 EXPOSE 3000
-# Apply any new migration, then serve.
-CMD ["sh", "-c", "node scripts/migrate.mjs && node_modules/.bin/next start -p ${PORT} -H 0.0.0.0"]
+# Apply any new migration, then serve. `server.js` is the traced server; it
+# reads PORT and HOSTNAME itself, so there is no `next start` here.
+CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]

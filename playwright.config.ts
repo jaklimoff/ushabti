@@ -2,7 +2,6 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 2 : 1,
@@ -10,9 +9,13 @@ export default defineConfig({
   expect: { timeout: 12_000 },
   reporter: [["list"]],
   // Locally the dev server is already up in Docker, so this reuses it.
-  // On CI there is nothing running yet, so Playwright starts one itself.
+  // On CI there is nothing running yet, so Playwright starts one itself, and
+  // it starts the production build. `next dev` used to serve CI, which meant
+  // the tests never touched what the image ships, and every route paid for its
+  // first compile inside a test. CI already runs `npm run build`, so `start`
+  // costs nothing more and each page is ready when it is asked for.
   webServer: {
-    command: "npm run dev",
+    command: process.env.CI ? "npm run start" : "npm run dev",
     url: process.env.BASE_URL ?? "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
