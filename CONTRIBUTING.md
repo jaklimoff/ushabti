@@ -95,13 +95,13 @@ tests must pass before it merges.
 
 ## What runs, and when
 
-| When | What runs |
-| --- | --- |
-| Pull request | Format, lint, types, unit tests, build, migrations, Playwright, CodeQL. The image is built, but only for amd64 and it is never pushed. |
-| Merge into `main` | The same test job once, to prove the squashed commit still builds. No image. |
-| Every night | The `:edge` image for amd64 and arm64, if `main` moved. |
-| Every Monday | CodeQL over `main`, to catch what a new query finds in old code. |
-| Tag `vX.Y.Z` | The release image for amd64 and arm64, its provenance attestation, and the GitHub release. |
+| When              | What runs                                                                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Pull request      | Format, lint, types, unit tests, build, migrations, Playwright, CodeQL. The image is built, but only for amd64 and it is never pushed. |
+| Merge into `main` | The same test job once, to prove the squashed commit still builds. No image.                                                           |
+| Every night       | The `:edge` image for amd64 and arm64, if `main` moved.                                                                                |
+| Every Monday      | CodeQL over `main`, to catch what a new query finds in old code.                                                                       |
+| Tag `vX.Y.Z`      | The release image for amd64 and arm64, its provenance attestation, and the GitHub release.                                             |
 
 The rule behind the table: a pull request pays for correctness, a tag pays for
 publishing, and a merge pays for almost nothing, because the commits it carries
