@@ -1,0 +1,98 @@
+name: Cleanup
+
+# Two things fill up on their own and neither has an owner.
+#
+# 1. Actions cache. GitHub gives a repository 10 GB and evicts the least
+#    recently used entry when it is full. A pull request writes its own cache,
+#    scoped to its own ref, and that cache is dead the moment the pull request
+#    closes. Left alone it stays for seven days and pushes out entries that are
+#    still wanted.
+# 2. Container versions with no tag. Every push to :edge or :latest leaves the
+#    version it replaced behind, holding a name no one can type.
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    # Sunday, 05:23 UTC. Well clear of the nightly image build.
+    - cron: "23 5 * * 0"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  packages: write
+  contents: read
+
+jobs:
+  # Everything this pull request cached is now unreachable. Delete it.
+  pull-request-caches:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Drop the caches of this pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REF: refs/pull/${{ github.event.pull_request.number }}/merge
+        run: |
+          keys=$(gh cache list --repo "$REPO" --ref "$REF" --limit 100 --json id --jq '.[].id')
+          if [ -z "$keys" ]; then
+            echo "nothing cached under $REF" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for id in $keys; do
+            gh cache delete "$id" --repo "$REPO" && echo "deleted $id"
+          done
+
+  # A safety net under the scoped caches above. `mode=min` keeps each build's
+  # entry small, but an abandoned branch or a renamed scope still leaves one
+  # behind that nothing will ever read again.
+  stale-caches:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Report the size, then drop what nothing has read for a fortnight
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          before=$(gh api "repos/$REPO/actions/cache/usage" --jq .active_caches_size_in_bytes)
+          cutoff=$(date -u -d '14 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh cache list --repo "$REPO" --limit 100 --order asc --sort last_accessed_at \
+            --json id,key,lastAccessedAt \
+            --jq ".[] | select(.lastAccessedAt < \"$cutoff\") | .id" > stale.txt
+          while read -r id; do
+            [ -n "$id" ] && gh cache delete "$id" --repo "$REPO" && echo "deleted $id"
+          done < stale.txt
+          after=$(gh api "repos/$REPO/actions/cache/usage" --jq .active_caches_size_in_bytes)
+          {
+            echo "### Actions cache"
+            echo "before: $((before / 1024 / 1024)) MiB"
+            echo "after: $((after / 1024 / 1024)) MiB"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # A plain "delete every version with no tag" is wrong here. The per-platform
+  # halves of a multi-architecture image never carry a tag of their own, and
+  # neither do the build attestations; deleting those breaks the tag that
+  # points at them. This action reads each manifest first and treats a child of
+  # a live tag as live.
+  untagged-images:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Drop container versions that no tag can reach
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          packages: ushabti
+          delete-untagged: true
+          # Nothing that carries a tag is touched, so no release can be lost.
+          # The :sha-xxxxxxx tags are left to pile up on purpose: they share
+          # every layer with :edge, so they cost almost no storage, and a rule
+          # that deleted them could reach a release tag by mistake.
+          exclude-tags: edge,latest
+          # Reads back the manifest of every multi-architecture image
+          # afterwards and fails if a platform child went missing.
+          validate: true

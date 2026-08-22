@@ -8,6 +8,31 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- The image is 308 MB, down from 775 MB, and the two architectures build side
+  by side on runners of their own architecture instead of one runner emulating
+  the other. The tag build took 9m42s, of which 8m58s was the emulator.
+- The end to end tests now run against the production build, not `next dev`.
+  CI already made that build and then threw it away, so the tests never touched
+  what the image ships, and every route paid for its first compile inside a
+  test. The step is 24s where it was 86s, and `e2e/global-setup.ts`, whose only
+  job was warming those compiles, is gone.
+- Playwright's browser is cached between runs, keyed on the Playwright version.
+- CodeQL runs on `main` and weekly, not on every pull request. It takes about
+  seventy seconds and has never held a change back.
+- The image build writes `mode=min` build cache, scoped per architecture, where
+  it wrote `mode=max` for both. `max` stored every layer of every build stage
+  and filled the whole 10 GB repository cache in a day, which evicted the npm
+  cache and then evicted itself.
+
+### Added
+
+- A cleanup workflow. It drops the caches of a pull request when the pull
+  request closes, drops caches that nothing has read for a fortnight, and drops
+  container versions that no tag can reach. Nothing that carries a tag is
+  touched.
+
 ## 0.2.1 — 2026-08-22
 
 ### Fixed
