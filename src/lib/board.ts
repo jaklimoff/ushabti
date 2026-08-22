@@ -134,10 +134,23 @@ export function optionById(property: PropertyDTO | undefined, id: unknown) {
   return property.options.find((o) => o.id === id);
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * The board is drawn on the server and again in the browser, so a date must
+ * read the same in both places. `toLocaleDateString` does not do that: the
+ * server uses the locale of the Node process and writes "Aug 28", while a
+ * browser set to en-GB writes "28 Aug". React sees the two texts disagree and
+ * throws away the server tree. The month names are therefore written out here.
+ */
+function shortDate(date: Date): string {
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}`;
+}
+
 export function formatDate(value: string): string {
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return shortDate(parsed);
 }
 
 export function relativeTime(iso: string): string {
@@ -150,5 +163,5 @@ export function relativeTime(iso: string): string {
   if (diff < hour) return `${Math.floor(diff / minute)}m`;
   if (diff < day) return `${Math.floor(diff / hour)}h`;
   if (diff < 7 * day) return `${Math.floor(diff / day)}d`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return shortDate(new Date(iso));
 }
