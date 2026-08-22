@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.2.1 — 2026-08-22
+
 ### Fixed
 
 - A card can now be dropped into an empty column. The drop target was chosen by
@@ -18,7 +20,6 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   the pointer now wins, and rectangle overlap comes next for the keyboard, which
   has no pointer and had the same fault. Dropping on the free space below the
   cards sends the card to the end of that column.
-
 - A note being written in a task no longer disappears. The panel rebuilt its
   loader whenever the board re-rendered, and the effect that reads the task
   cleared the panel each time the loader changed. That unmounted the comment
