@@ -24,5 +24,13 @@ export default defineConfig({
     trace: "retain-on-failure",
     viewport: { width: 1440, height: 900 },
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // The viewport comes last: "Desktop Chrome" carries one of its own (1280x720)
+  // and would otherwise quietly replace the size set above. Board bugs that
+  // only show on a tall window were invisible while it did.
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
+  ],
 });

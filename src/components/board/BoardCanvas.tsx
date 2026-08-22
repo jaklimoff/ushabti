@@ -9,6 +9,8 @@ import {
   closestCenter,
   closestCorners,
   defaultDropAnimationSideEffects,
+  pointerWithin,
+  rectIntersection,
   useSensor,
   useSensors,
   type CollisionDetection,
@@ -46,7 +48,25 @@ const collision: CollisionDetection = (args) => {
     isColumn ? c.data.current?.type === "column" : c.data.current?.type !== "column",
   );
   const scoped = { ...args, droppableContainers: containers };
-  return isColumn ? closestCenter(scoped) : closestCorners(scoped);
+  if (isColumn) return closestCenter(scoped);
+
+  // A card follows the pointer, so the target under the pointer is the one the
+  // person means. Distance alone is not enough: an empty column is as tall as
+  // the board, which puts two of its corners hundreds of pixels away, so
+  // closestCorners always preferred a small card in the column next door and
+  // an empty column could never be dropped into.
+  const under = pointerWithin(scoped);
+  if (under.length) return under;
+
+  // The keyboard sensor moves a card with no pointer at all, so it needs
+  // geometry. Overlap is the right measure: a card the dragged card sits on
+  // top of covers most of it, while the tall column behind covers little, so
+  // the card wins where there is one and the column wins where there is not.
+  const overlapping = rectIntersection(scoped);
+  if (overlapping.length) return overlapping;
+
+  // Nothing overlaps at all, which happens in the gaps between the columns.
+  return closestCorners(scoped);
 };
 
 function findColumn(columns: BoardColumn[], taskId: string) {
@@ -197,7 +217,15 @@ export function BoardCanvas({
     }
 
     let ordered = target.tasks;
-    if (!overId.startsWith(CONTAINER_PREFIX) && overId !== activeId) {
+    if (overId.startsWith(CONTAINER_PREFIX)) {
+      // Dropped on the free space under the cards. If the card comes from
+      // another column it is already last, but a card from this same column
+      // has not moved yet, so send it to the end.
+      const from = ordered.findIndex((t) => t.id === activeId);
+      if (from >= 0 && from !== ordered.length - 1) {
+        ordered = arrayMove(ordered, from, ordered.length - 1);
+      }
+    } else if (overId !== activeId) {
       const from = ordered.findIndex((t) => t.id === activeId);
       const to = ordered.findIndex((t) => t.id === overId);
       if (from >= 0 && to >= 0) ordered = arrayMove(ordered, from, to);
