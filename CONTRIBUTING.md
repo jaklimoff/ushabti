@@ -80,6 +80,33 @@ e2e/                Playwright specs
 drizzle/            generated migrations
 ```
 
+## Branches
+
+There is one branch: `main`. There is no `develop` and there is no release
+branch. A release is only an annotated tag on a `main` commit.
+
+A release branch exists to fix an old version while `main` already holds
+breaking changes. Ushabti supports one version at a time, so a release branch
+would add work and give nothing back. If that ever changes, `release/X.Y` will
+be cut from the tag.
+
+`main` is protected. Every change arrives through a pull request, and the
+tests must pass before it merges.
+
+## What runs, and when
+
+| When              | What runs                                                                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Pull request      | Format, lint, types, unit tests, build, migrations, Playwright, CodeQL. The image is built, but only for amd64 and it is never pushed. |
+| Merge into `main` | The same test job once, to prove the squashed commit still builds. No image.                                                           |
+| Every night       | The `:edge` image for amd64 and arm64, if `main` moved.                                                                                |
+| Every Monday      | CodeQL over `main`, to catch what a new query finds in old code.                                                                       |
+| Tag `vX.Y.Z`      | The release image for amd64 and arm64, its provenance attestation, and the GitHub release.                                             |
+
+The rule behind the table: a pull request pays for correctness, a tag pays for
+publishing, and a merge pays for almost nothing, because the commits it carries
+passed minutes earlier.
+
 ## Making a release
 
 Versions follow [semantic versioning](https://semver.org/). Until 1.0.0 a minor
@@ -98,8 +125,10 @@ changelog disagree. When they agree it publishes:
   `ghcr.io`, for amd64 and arm64
 - a GitHub release whose notes are that section of the changelog
 
-A push to `main` publishes `:edge`. That tag is the newest commit, not a
-release.
+`:edge` is built once a night from `main`, and only if `main` moved. It is the
+newest code, not a release. Use it to try something before it ships; do not
+run it in production. `docker.yml` also has a manual trigger if you need an
+`:edge` image sooner.
 
 ## Licence of your work
 
