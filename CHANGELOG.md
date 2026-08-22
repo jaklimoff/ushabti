@@ -17,7 +17,6 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   board did it: a change made by another person, or the live connection
   reporting that it is up. The panel now clears only when it moves to a
   different task, and it also stops re-reading the task on every render.
-
 - The board no longer disappears when a card carries a `Due` date. The server
   wrote the date with the locale of the Node process and the browser wrote it
   with its own, so a browser set to British English read "28 Aug" where the
