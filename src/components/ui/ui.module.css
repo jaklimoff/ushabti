@@ -1,0 +1,545 @@
+/*
+ * The shared controls. Before this file a button was declared in three modules
+ * at three heights, and an input at 28, 30 and 34 px. Everything off the board
+ * now takes its geometry from here.
+ */
+
+/* ---- buttons ------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background 140ms var(--ease),
+    border-color 140ms var(--ease),
+    color 140ms var(--ease),
+    filter 140ms var(--ease);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnLg {
+  height: var(--control-h-lg);
+  padding: 0 16px;
+  font-size: var(--t-body);
+}
+
+.btnBlock {
+  width: 100%;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.ghost {
+  border: 1px solid #1f2229;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+.danger {
+  border: 1px solid rgba(224, 87, 77, 0.35);
+  color: #d2726a;
+  font-weight: 500;
+}
+
+.danger:hover:not(:disabled) {
+  background: rgba(224, 87, 77, 0.12);
+  color: var(--danger-soft);
+}
+
+.iconBtn {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  color: var(--icon);
+  font-size: 12px;
+  flex: 0 0 auto;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+.iconBtn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.iconBtnDanger:hover:not(:disabled) {
+  background: rgba(224, 87, 77, 0.13);
+  color: var(--danger-soft);
+}
+
+/* ---- inputs -------------------------------------------------------- */
+
+.input {
+  height: var(--control-h);
+  padding: 0 9px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-dash);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: var(--t-body);
+  outline: none;
+  min-width: 0;
+  transition: border-color 140ms var(--ease);
+}
+
+.input:focus {
+  border-color: var(--focus-ring);
+}
+
+.input:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.inputLg {
+  height: var(--control-h-lg);
+  padding: 0 11px;
+  font-size: var(--t-ui);
+}
+
+.inputBlock {
+  width: 100%;
+}
+
+.inputInvalid,
+.inputInvalid:focus {
+  border-color: rgba(224, 87, 77, 0.55);
+}
+
+/* A name that edits in place: invisible until you touch it. */
+.nameInput {
+  height: 26px;
+  padding: 0 8px;
+  margin-left: -8px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--t-ui);
+  font-weight: 500;
+  outline: none;
+  min-width: 0;
+  transition:
+    background 140ms var(--ease),
+    border-color 140ms var(--ease);
+}
+
+.nameInput:hover:not(:disabled) {
+  background: #131518;
+}
+
+.nameInput:focus {
+  background: var(--bg-input);
+  border-color: var(--line-strong);
+}
+
+.nameInput:disabled {
+  cursor: default;
+}
+
+/* ---- field --------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fieldRow > .fieldLabel {
+  width: 66px;
+  flex: 0 0 auto;
+}
+
+.fieldLabel {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.fieldNote {
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.fieldError {
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--danger-text);
+  text-wrap: pretty;
+}
+
+/* ---- section and card ---------------------------------------------- */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.h2 {
+  font-size: var(--t-h2);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.note {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-column);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 12px 13px;
+  border-top: 1px solid var(--line-soft);
+  background: #0b0c0f;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ---- tag ----------------------------------------------------------- */
+
+.tag {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tagNeutral {
+  background: #171b20;
+  color: var(--muted);
+}
+
+.tagAccent {
+  background: rgba(63, 176, 200, 0.14);
+  color: var(--accent-soft);
+}
+
+/* ---- empty state --------------------------------------------------- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 22px 20px;
+  color: var(--muted);
+}
+
+.emptyTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-ui);
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.emptyMark {
+  color: var(--faint-2);
+  font-size: 11px;
+}
+
+.emptyBody {
+  font-size: var(--t-body);
+  line-height: 1.6;
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+
+/* ---- confirm in place ---------------------------------------------- */
+
+/*
+ * The board has no dialogs, so a destructive control turns its own row into
+ * the question instead. The cost is always spelled out in real numbers.
+ */
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 11px 13px;
+  background: rgba(224, 87, 77, 0.06);
+  animation: ushabti-fade-in 140ms var(--ease);
+}
+
+.confirmText {
+  font-size: var(--t-body);
+  color: var(--danger-text);
+  text-wrap: pretty;
+}
+
+/* ---- copy ---------------------------------------------------------- */
+
+.copy {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--line-dash);
+  border-radius: var(--r-sm);
+}
+
+.copyLoud {
+  border-color: rgba(63, 176, 200, 0.3);
+}
+
+.copyText {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-micro);
+  line-height: 1.6;
+  color: var(--accent-soft);
+  word-break: break-all;
+  white-space: pre-wrap;
+  user-select: all;
+}
+
+.copyBtn {
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 4px;
+  border: 1px solid var(--line-dash);
+  color: var(--muted);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  transition:
+    border-color 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.copyBtn:hover {
+  border-color: var(--focus-ring);
+  color: var(--accent-soft);
+}
+
+.copyDone {
+  border-color: rgba(79, 138, 91, 0.5);
+  color: #7fc08c;
+}
+
+/* ---- swatches ------------------------------------------------------ */
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid transparent;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: #fff;
+  transition: border-color 140ms var(--ease);
+}
+
+.swatch:hover {
+  border-color: var(--line-menu);
+}
+
+.swatchOn {
+  border-color: var(--text);
+}
+
+/* ---- toasts -------------------------------------------------------- */
+
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.toast {
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  box-shadow: var(--shadow-menu);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--text-2);
+  text-wrap: pretty;
+  animation: ushabti-fade-in 160ms var(--ease);
+}
+
+.toastError {
+  border-color: rgba(224, 87, 77, 0.4);
+  color: var(--danger-soft);
+}
+
+/* ---- skeleton ------------------------------------------------------ */
+
+.skeleton {
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, #14171b 0%, #1b1f24 50%, #14171b 100%);
+  background-size: 200% 100%;
+  animation: ushabti-shimmer 1.4s linear infinite;
+}
+
+@keyframes ushabti-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* ---- status pages -------------------------------------------------- */
+
+.status {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.statusInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 380px;
+  text-align: center;
+}
+
+.statusMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.statusTitle {
+  font-size: var(--t-h2);
+  font-weight: 600;
+}
+
+.statusBody {
+  font-size: var(--t-body);
+  line-height: 1.65;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.statusDigest {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-micro);
+  color: var(--text-4);
+  user-select: all;
+}
+
+.statusActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: 4px;
+}

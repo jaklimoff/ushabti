@@ -11,16 +11,24 @@ own:
 
 ## Make one
 
-Open **Settings → Agents**. Only the owner of the project sees the controls.
+Open **Settings → People**, at `/p/{projectId}/settings/people`. Only the
+owner of the project sees the controls.
 
 1. Type a name, for example `Builder`, and press **Add agent**.
-2. Press **Issue token**. The plain text appears once, in a box under the
-   agent. Copy it now: the database keeps a SHA-256 digest, so nothing can read
-   it back — not the owner, not the server, not you.
-3. Give the token to the process that runs your agent.
+2. Press **Connect**. A panel opens with the token and the three commands that
+   put it to work, each with a copy button and each already carrying this
+   board's own address. Copy the token now: the database keeps a SHA-256
+   digest, so nothing can read it back — not the owner, not the server, not
+   you.
+3. Paste the commands. The panel says **Waiting for the first call…** until the
+   token is used, and then says the agent answered.
 
 A token opens **one project**. Revoke it with the ✕ next to it; the agent stops
 working within one request.
+
+An agent is a member, not an owner. It writes task values, comments and runs.
+It cannot delete a property, an option or a view, and it cannot write its own
+run's control word — see [Obey the control word](#obey-the-control-word).
 
 ## Sign in
 
@@ -156,7 +164,7 @@ log keeps the line.
 | Code | What it means                                                 |
 | ---- | ------------------------------------------------------------- |
 | 401  | The token is unknown or revoked.                              |
-| 403  | The token belongs to another project, or a person-only route. |
+| 403  | The token belongs to another project, or a route only a person may call. |
 | 404  | The task, run or project is not there.                        |
 | 409  | The task already has an open run, or your run is closed.      |
 
@@ -165,18 +173,25 @@ log keeps the line.
 An agent knows none of the above until you put it in front of one. Nothing here
 is discovered automatically.
 
-The short way is the **skill** in `examples/skill/ushabti/`. It is two files: a
-`SKILL.md` that says how to behave on somebody else's board, and a `board.mjs`
-that turns the API into commands and does the property lookups, so a model
-never handles an id.
+The short way is the **skill**, which the board serves to you. **Settings →
+People → Connect** prints these three commands with your address and your token
+already in them, so you should not have to type any of this by hand:
 
 ```bash
-cp -r examples/skill/ushabti ~/.claude/skills/          # for everything you do
-cp -r examples/skill/ushabti /path/to/project/.claude/skills/   # or one project
+mkdir -p ~/.claude/skills/ushabti && \
+  curl -sL $USHABTI_URL/skill/SKILL.md  -o ~/.claude/skills/ushabti/SKILL.md && \
+  curl -sL $USHABTI_URL/skill/board.mjs -o ~/.claude/skills/ushabti/board.mjs
 
 export USHABTI_URL=https://board.example.com
 export USHABTI_TOKEN=ush_…
 ```
+
+It is two files: a `SKILL.md` that says how to behave on somebody else's board,
+and a `board.mjs` that turns the API into commands and does the property
+lookups, so a model never handles an id. They live in
+`examples/skill/ushabti/` in the repository and are served from any running
+board at `/skill/SKILL.md` and `/skill/board.mjs`, which is the copy that
+matches the version you are talking to.
 
 Claude Code then loads it only when the work touches the board — when you name
 a task key, ask what is in the backlog, or ask it to pick something up. The

@@ -48,7 +48,14 @@ ships.
   product. Add a property type instead.
 - **Add a test.** A new rule in `src/lib` needs a unit test. A new screen or
   interaction needs a Playwright test in `e2e/`.
-- **Keep the interface quiet.** The board has no dialogs. Fields edit in place.
+- **Keep the interface quiet.** The board has no dialogs. Fields edit in place,
+  and they save on blur. When something destroys data, do not add a dialog: use
+  `ConfirmRow`, which turns the row itself into the question and names what is
+  lost. "Delete Labels? 5 options and 14 values go with it." beats "Are you
+  sure?" every time.
+- **Off the board, use `components/ui/`.** Button, Input, Field, Card, Tag,
+  Toasts, EmptyState, ConfirmRow, CopyField. Do not declare a fourth button.
+  Geometry, radius and type come from the tokens at the top of `globals.css`.
 - **Write plain English** in the interface and in comments. Short sentences.
 - **Add a line to [CHANGELOG.md](CHANGELOG.md)** under "Unreleased" if a user
   would notice the change.

@@ -79,6 +79,17 @@ export function agentOnly(actor: { kind: string }) {
   if (actor.kind !== "agent") throw new HttpError(403, "Only an agent can do this.");
 }
 
+/**
+ * The shape of a project is the owner's. A member writes values, comments and
+ * runs all day; only the owner removes a property, an option or a view, and
+ * only a person does it at all. An agent that loses a token would otherwise
+ * take the board apart with it.
+ */
+export function ownerOnly(actor: { kind: string }, membership: { role: string }, what: string) {
+  humanOnly(actor);
+  if (membership.role !== "owner") throw new HttpError(403, `Only the owner can ${what}.`);
+}
+
 export { requireUser };
 
 export function clientIdOf(req: Request): string | undefined {

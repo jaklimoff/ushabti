@@ -16,7 +16,7 @@ const TOKEN = process.env.USHABTI_TOKEN;
 /* ------------------------------------------------------------------ */
 
 async function call(method, path, payload) {
-  if (!TOKEN) fail("Set USHABTI_TOKEN. The owner issues one in Settings -> Agents.");
+  if (!TOKEN) fail("Set USHABTI_TOKEN. The owner issues one in Settings -> People, with Connect.");
   const res = await fetch(BASE + path, {
     method,
     headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },

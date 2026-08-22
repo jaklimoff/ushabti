@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { BoardData } from "@/lib/types";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
+import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
 import { BoardProvider, useBoard } from "./store";
 import { TaskPanel } from "./TaskPanel";
@@ -27,7 +28,7 @@ export function BoardApp({
 }
 
 function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
-  const { data, user, view, live, toasts } = useBoard();
+  const { data, user, view, live, toasts, groupProperty } = useBoard();
   const [selected, setSelected] = useState<string | null>(initialTaskId);
 
   const open = useCallback((id: string | null) => {
@@ -61,35 +62,35 @@ function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
             data-testid={live ? "live-dot" : "live-dot-off"}
             title={live ? "Live: changes from others arrive by themselves" : "Not live right now"}
           />
+          {/* A 26 px ⚙ was the only route to settings, and the only
+              pictograph in an otherwise geometric set. */}
           <Link
             className={styles.iconLink}
-            href={`/p/${data.project.id}/settings`}
-            aria-label="Project settings"
+            href={`/p/${data.project.id}/settings/properties`}
             title="Project settings"
           >
-            ⚙
+            Settings
           </Link>
           <UserMenu user={user} />
         </div>
 
         <ViewStrip />
         <BoardCanvas selectedTaskId={selected} onOpenTask={open} />
+
+        {data.tasks.length === 0 && (
+          <div className={styles.firstHint}>
+            <div className={styles.firstHintInner}>
+              The columns come from a property called <b>{groupProperty?.name ?? "Status"}</b>. So
+              do Priority, Assignee and the rest — every field on a task is yours to rename or
+              delete in <Link href={`/p/${data.project.id}/settings/properties`}>Settings</Link>.
+            </div>
+          </div>
+        )}
       </div>
 
       {selected && <TaskPanel taskId={selected} onClose={closePanel} />}
 
-      {toasts.length > 0 && (
-        <div className={styles.toasts}>
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              className={`${styles.toast} ${toast.kind === "error" ? styles.toastError : ""}`}
-            >
-              {toast.text}
-            </div>
-          ))}
-        </div>
-      )}
+      <Toasts toasts={toasts} />
     </div>
   );
 }

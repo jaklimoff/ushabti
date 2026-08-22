@@ -148,29 +148,54 @@ export function BoardProvider({
     }
   }, [projectId, router]);
 
+  /*
+   * The stream must outlive every re-render, so the effect below holds the
+   * project id and nothing else. It used to depend on `refresh`, which depends
+   * on the router, which gets a new identity whenever the route's shape
+   * changes: the EventSource then closed and reopened, and any broadcast that
+   * arrived in the gap was gone for good, because SSE does not replay.
+   */
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
   /* --- live updates from the other people on the board ---------------- */
   useEffect(() => {
     const source = new EventSource(`/api/projects/${projectId}/stream`);
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    source.addEventListener("ready", () => setLive(true));
+    /*
+     * Server-sent events have no replay, so everything that happened between
+     * the server rendering this board and the stream opening is invisible.
+     * That gap is small but real, and it grows whenever hydration is slower —
+     * a loading boundary, a cold cache, a slow phone. Ask once on connect, and
+     * the same line re-syncs after every reconnect: a network blip, a laptop
+     * waking up.
+     */
+    const opened = () => {
+      setLive(true);
+      void refreshRef.current();
+    };
+
+    source.addEventListener("ready", opened);
     source.addEventListener("change", (event) => {
       const payload = JSON.parse((event as MessageEvent).data) as { clientId?: string };
       if (payload.clientId === CLIENT_ID) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        void refresh();
+        void refreshRef.current();
         window.dispatchEvent(new CustomEvent("ushabti:remote-change"));
       }, 140);
     });
     source.onerror = () => setLive(false);
-    source.onopen = () => setLive(true);
+    source.onopen = opened;
 
     return () => {
       if (timer) clearTimeout(timer);
       source.close();
     };
-  }, [projectId, refresh]);
+  }, [projectId]);
 
   /* --- derived -------------------------------------------------------- */
   const view = useMemo(
@@ -488,14 +513,27 @@ export function BoardProvider({
     [guarded],
   );
 
+  /*
+   * Moving a property six rows used to be six clicks and six whole-board
+   * refetches, with the page visibly reloading under the hand doing it. The
+   * order is ours to work out; the broadcast reconciles it.
+   */
   const moveProperty = useCallback<Store["moveProperty"]>(
     async (propertyId, afterId) => {
+      setData((current) => {
+        const list = current.properties;
+        const moving = list.find((p) => p.id === propertyId);
+        if (!moving) return current;
+        const rest = list.filter((p) => p.id !== propertyId);
+        const at = afterId === null ? 0 : rest.findIndex((p) => p.id === afterId) + 1;
+        if (afterId !== null && at === 0) return current;
+        return { ...current, properties: [...rest.slice(0, at), moving, ...rest.slice(at)] };
+      });
       await guarded(async () => {
         await api.patch(`/api/properties/${propertyId}`, { afterId });
-        await refresh();
       });
     },
-    [guarded, refresh],
+    [guarded],
   );
 
   const deleteProperty = useCallback<Store["deleteProperty"]>(

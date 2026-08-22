@@ -37,6 +37,20 @@ export async function createProject(page: Page, name: string): Promise<string> {
   return page.url().split("/p/")[1].split("?")[0];
 }
 
+/** Settings is four pages now, so a test says which one it wants. */
+export async function gotoSettings(
+  page: Page,
+  projectId: string,
+  section: "properties" | "views" | "people" | "project" = "properties",
+) {
+  await page.goto(`/p/${projectId}/settings/${section}`);
+}
+
+/** A destructive control asks in its own row before it does anything. */
+export async function confirmDelete(page: Page, label = /^Yes, /) {
+  await page.getByRole("button", { name: label }).click();
+}
+
 /** The board column whose header carries this name. */
 export function column(page: Page, name: string) {
   return page.getByTestId("column").filter({

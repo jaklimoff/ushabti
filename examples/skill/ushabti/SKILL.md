@@ -17,7 +17,7 @@ node "$SKILL_DIR/board.mjs" help
 
 It needs `USHABTI_TOKEN` in the environment, and `USHABTI_URL` if the board is
 not at `http://localhost:3000`. If the token is missing, stop and ask for one:
-the owner issues it in **Settings → Agents**.
+the owner issues it in **Settings → People**, with the **Connect** button.
 
 ## The loop
 

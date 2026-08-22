@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { broadcast, clientIdOf, guard, json, route } from "@/lib/api";
+import { broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
 
 type Ctx = { params: Promise<{ projectId: string; userId: string }> };
 
@@ -16,8 +16,11 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   if (removingSelf && user.kind === "agent") {
     throw new HttpError(403, "An agent cannot leave a project. Ask the owner to remove it.");
   }
-  if (!removingSelf && membership.role !== "owner") {
-    throw new HttpError(403, "Only the owner can remove members.");
+  if (!removingSelf) {
+    humanOnly(user);
+    if (membership.role !== "owner") {
+      throw new HttpError(403, "Only the owner can remove members.");
+    }
   }
   if (userId === membership.ownerId) {
     throw new HttpError(400, "The owner cannot leave the project. Delete the project instead.");

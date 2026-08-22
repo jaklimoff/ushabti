@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { GROUPABLE_TYPES } from "@/lib/types";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useBoard } from "./store";
@@ -9,14 +10,49 @@ import styles from "./board.module.css";
 const VIEW_DOTS = ["#3fb0c8", "#6d5bd0", "#2f9e7a", "#d1913a", "#c2557a", "#4b8fbe"];
 
 export function ViewStrip() {
-  const { data, view, setViewId, createView, deleteView } = useBoard();
+  const { data, view, setViewId, createView } = useBoard();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const groupable = data.properties.filter((p) => GROUPABLE_TYPES.includes(p.type));
   const [groupById, setGroupById] = useState(groupable[0]?.id ?? "");
   const ref = useDismiss<HTMLDivElement>(() => setAdding(false), adding);
 
+  const plusRef = useRef<HTMLButtonElement>(null);
+  const [popLeft, setPopLeft] = useState(14);
+
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+
   const taskCount = data.tasks.length;
+
+  // The panel used to open at the far left however far right the + had moved.
+  useLayoutEffect(() => {
+    if (!adding || !plusRef.current || !ref.current) return;
+    const anchor = plusRef.current.getBoundingClientRect();
+    const host = ref.current.getBoundingClientRect();
+    const width = 262;
+    const left = anchor.left - host.left - width / 2 + anchor.width / 2;
+    setPopLeft(Math.max(10, Math.min(left, host.width - width - 10)));
+  }, [adding, ref]);
+
+  /* Views past the edge were invisible: the strip scrolls with no scrollbar. */
+  const measure = useCallback(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    setEdges({
+      start: el.scrollLeft > 2,
+      end: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+    });
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const el = stripRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measure, data.views.length]);
 
   async function submit() {
     const chosen = groupById || groupable[0]?.id;
@@ -28,9 +64,13 @@ export function ViewStrip() {
     await createView(title, chosen);
   }
 
+  const fade = [edges.start ? styles.fadeStart : "", edges.end ? styles.fadeEnd : ""]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className={styles.views} ref={ref}>
-      <div className={styles.viewStrip}>
+      <div className={`${styles.viewStrip} ${fade}`} ref={stripRef} onScroll={measure}>
         {data.views.map((v, i) => {
           const active = v.id === view?.id;
           return (
@@ -45,35 +85,16 @@ export function ViewStrip() {
                 style={{ background: active ? VIEW_DOTS[i % VIEW_DOTS.length] : "#3f4650" }}
               />
               {v.name}
-              {!v.isDefault && active && (
-                <span
-                  className={styles.pillClose}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Delete the view ${v.name}`}
-                  title="Delete this view"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void deleteView(v.id);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.stopPropagation();
-                      void deleteView(v.id);
-                    }
-                  }}
-                >
-                  ✕
-                </span>
-              )}
             </button>
           );
         })}
       </div>
 
       <button
+        ref={plusRef}
         className={styles.plus}
         aria-label="New view"
+        aria-expanded={adding}
         title="New view"
         onClick={() => {
           setAdding((v) => !v);
@@ -89,12 +110,13 @@ export function ViewStrip() {
       </span>
 
       {adding && (
-        <div className={styles.popover}>
+        <div className={styles.popover} style={{ left: popLeft }}>
           <span className="label">New view</span>
           <input
             className={styles.popInput}
             autoFocus
             value={name}
+            aria-label="Name of the new view"
             placeholder="View name"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -136,6 +158,13 @@ export function ViewStrip() {
               Cancel
             </button>
           </div>
+          {/*
+           * Deleting used to live on the active pill, which put a delete
+           * control under the cursor that had just selected the view.
+           */}
+          <Link className={styles.popLink} href={`/p/${data.project.id}/settings/views`}>
+            Rename, regroup or delete a view →
+          </Link>
         </div>
       )}
     </div>
