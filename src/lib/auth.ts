@@ -1,10 +1,11 @@
 import "server-only";
 import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers, projects, sessions, users } from "@/db/schema";
+import { bearerToken, holderOfToken } from "./agents";
 
 const scrypt = promisify(scryptCb) as (
   password: string,
@@ -58,6 +59,20 @@ export type CurrentUser = {
   color: string;
 };
 
+/**
+ * Whoever is behind a request: a person with a session cookie, or an agent
+ * with a token. From here down the two are treated the same, which is the
+ * whole point: an agent is a member of the project like anybody else.
+ */
+export type Actor = {
+  id: string;
+  name: string;
+  color: string;
+  kind: "human" | "agent";
+  /** Set for an agent. The token opens this project and no other. */
+  tokenProjectId?: string;
+};
+
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const jar = await cookies();
   const id = jar.get(SESSION_COOKIE)?.value;
@@ -75,13 +90,42 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     .where(and(eq(sessions.id, id), gt(sessions.expiresAt, new Date())))
     .limit(1);
 
-  return rows[0] ?? null;
+  const row = rows[0];
+  // An agent has no email and never holds a session, so the fallback is dead
+  // code that keeps the type honest.
+  return row ? { ...row, email: row.email ?? "" } : null;
 }
 
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) throw new HttpError(401, "Sign in first.");
   return user;
+}
+
+/** The token first, then the cookie. Null when the request carries neither. */
+export async function getActor(): Promise<Actor | null> {
+  const token = bearerToken((await headers()).get("authorization"));
+  if (token) {
+    const holder = await holderOfToken(token);
+    if (!holder) throw new HttpError(401, "That token is not valid any more.");
+    return {
+      id: holder.id,
+      name: holder.name,
+      color: holder.color,
+      kind: "agent",
+      tokenProjectId: holder.projectId,
+    };
+  }
+
+  const user = await getCurrentUser();
+  if (!user) return null;
+  return { id: user.id, name: user.name, color: user.color, kind: "human" };
+}
+
+export async function requireActor(): Promise<Actor> {
+  const actor = await getActor();
+  if (!actor) throw new HttpError(401, "Sign in first, or send an agent token.");
+  return actor;
 }
 
 export class HttpError extends Error {

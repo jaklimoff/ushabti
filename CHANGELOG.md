@@ -28,6 +28,32 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Agents.** A project can now have machine members. An agent is a member like
+  any other: it holds a person property, writes comments and appears in the
+  activity log. Two things are its own — it signs in with a token instead of a
+  password, and while it works it opens a _run_ on a task.
+  - **Settings → Agents.** The owner creates an agent, issues a token and
+    revokes it. The plain text of a token is shown once and stored as a digest.
+  - **The whole JSON API accepts a token.** `Authorization: Bearer ush_…` works
+    on every route the browser uses, so an agent reads and writes exactly what
+    a person can, in the project the token belongs to and no other.
+  - **A run makes the work visible.** While a run is open the card carries a
+    strip along its bottom: the agent's name, the line it last reported, the
+    time it has been going, and a bar that scans while it lives. The task panel
+    grows an **Agent** tab beside Comments and Activity — its dot pulses while
+    the run is live — holding the plan with its steps, the run log and the
+    buttons.
+  - **Pause, Stop and Take over.** Pause and Stop are requests: the agent reads
+    them in the answer to its next report and obeys. Take over is not a
+    request — it ends the run at once and gives the card back. Dragging a card
+    an agent holds takes it over as well.
+  - `docs/agents.md` has every call, and `examples/agent.mjs` is a working
+    agent in about a hundred lines.
+  - **A skill**, in `examples/skill/ushabti/`. Copy it into `.claude/skills/`
+    and Claude Code can work on the board: `list`, `claim`, `step`, `set`,
+    `comment`, `finish`. It takes property and option **names**, not ids, and
+    refuses an unknown one with the real choices, so an agent cannot bake a
+    board's ids into itself.
 - A cleanup workflow. It drops the caches of a pull request when the pull
   request closes, drops caches that nothing has read for a fortnight, and drops
   container versions that no tag can reach. Nothing that carries a tag is

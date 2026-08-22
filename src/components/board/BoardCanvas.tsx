@@ -92,7 +92,8 @@ export function BoardCanvas({
   selectedTaskId: string | null;
   onOpenTask: (id: string | null) => void;
 }) {
-  const { data, groupProperty, moveTask, createTask, patchOption } = useBoard();
+  const { data, groupProperty, moveTask, createTask, patchOption, runOf, controlRun, notify } =
+    useBoard();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [preview, setPreview] = useState<BoardColumn[] | null>(null);
@@ -253,6 +254,15 @@ export function BoardCanvas({
 
     setPreview(null);
     if (unchanged) return;
+
+    // Moving a card an agent holds takes it over. The run ends, the agent
+    // reads that on its next report, and the person owns the card again.
+    const run = runOf(activeId);
+    if (run) {
+      notify(`You took ${task?.key ?? "the task"} over from ${run.agent.name}.`, "info");
+      void controlRun(run.id, "take_over");
+    }
+
     void moveTask({ taskId: activeId, beforeId, afterId, values });
   }
 

@@ -4,8 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { leadProperty, relativeTime } from "@/lib/board";
 import { tint } from "@/lib/colors";
-import type { ChecklistItemDTO, TaskDetailDTO, TaskValue } from "@/lib/types";
+import { progressOf, runLine, STATUS_WORD } from "@/lib/run-state";
+import type {
+  AgentRunDetailDTO,
+  ChecklistItemDTO,
+  RunControl,
+  TaskDetailDTO,
+  TaskValue,
+} from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
+import { useElapsed } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PropertyControl } from "./controls/PropertyControl";
 import { Markdown } from "./Markdown";
@@ -22,10 +30,11 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     deleteTask,
     addOption,
     syncTaskCounts,
+    controlRun,
     notify,
   } = useBoard();
   const [detail, setDetail] = useState<TaskDetailDTO | null>(null);
-  const [tab, setTab] = useState<"comments" | "activity">("comments");
+  const [tab, setTab] = useState<"comments" | "activity" | "agent">("comments");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useDismiss<HTMLDivElement>(() => setMenuOpen(false), menuOpen);
 
@@ -87,6 +96,11 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   }, [boardTask, data.properties, groupProperty]);
 
   const accent = leadPill?.color ?? "#3f4650";
+
+  // The agent tab only exists while a run does. Deriving the shown tab rather
+  // than resetting it in an effect keeps the choice in one place.
+  const run = detail?.run ?? null;
+  const shownTab = tab === "agent" && !run ? "comments" : tab;
 
   if (!boardTask) return null;
 
@@ -186,26 +200,39 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
 
         <div className={styles.tabs}>
           <button
-            className={`${styles.tab} ${tab === "comments" ? styles.tabOn : ""}`}
+            className={`${styles.tab} ${shownTab === "comments" ? styles.tabOn : ""}`}
             onClick={() => setTab("comments")}
           >
             Comments {detail ? detail.comments.length : ""}
           </button>
           <button
-            className={`${styles.tab} ${tab === "activity" ? styles.tabOn : ""}`}
+            className={`${styles.tab} ${shownTab === "activity" ? styles.tabOn : ""}`}
             onClick={() => setTab("activity")}
           >
             Activity
           </button>
+          {run && (
+            <button
+              className={`${styles.tab} ${shownTab === "agent" ? styles.tabOn : ""}`}
+              onClick={() => setTab("agent")}
+              data-testid="agent-tab"
+            >
+              <span
+                className={`${styles.tabDot} ${run.status === "running" ? styles.tabDotLive : ""}`}
+                style={{ background: run.agent.color }}
+              />
+              Agent
+            </button>
+          )}
         </div>
 
         {!detail && <div className={styles.loading}>Loading…</div>}
 
-        {detail && tab === "comments" && (
+        {detail && shownTab === "comments" && (
           <Comments taskId={taskId} detail={detail} me={user} reload={load} onError={notify} />
         )}
 
-        {detail && tab === "activity" && (
+        {detail && shownTab === "activity" && (
           <div className={styles.feed}>
             {detail.activity.length === 0 && (
               <div className={styles.activityRow}>
@@ -220,6 +247,16 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               </div>
             ))}
           </div>
+        )}
+
+        {run && shownTab === "agent" && (
+          <AgentRunBlock
+            run={run}
+            onControl={async (control) => {
+              await controlRun(run.id, control);
+              await load();
+            }}
+          />
         )}
       </div>
     </aside>
@@ -252,9 +289,154 @@ function describeActivity(entry: {
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;
     case "comment":
       return `${who} left a comment`;
+    case "run":
+      return `${who} ${RUN_WORDS[d.action ?? ""] ?? "changed the run"}`;
     default:
       return `${who} made a change`;
   }
+}
+
+const RUN_WORDS: Record<string, string> = {
+  started: "started a run",
+  done: "finished the run",
+  failed: "stopped with a failure",
+  stopped: "stopped the run",
+  taken_over: "took the task over",
+};
+
+/**
+ * The run block of the design: what the agent does now, the plan behind it and
+ * the log under that. The buttons ask; only Take over decides.
+ */
+function AgentRunBlock({
+  run,
+  onControl,
+}: {
+  run: AgentRunDetailDTO;
+  onControl: (control: RunControl | "take_over") => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const since = useElapsed(run.startedAt, run.status === "running");
+  const paused = run.status === "paused";
+
+  async function press(control: RunControl | "take_over") {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onControl(control);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={styles.run} data-testid="panel-run">
+      <div className={styles.runHead}>
+        <Avatar
+          name={run.agent.name}
+          color={run.agent.color}
+          size={18}
+          kind="agent"
+          live={run.status === "running"}
+        />
+        <span className={styles.runAgent}>{run.agent.name}</span>
+        <span className={styles.runState}>{STATUS_WORD[run.status]}</span>
+        <span style={{ flex: 1 }} />
+        <span className={styles.runSince}>started {since} ago</span>
+      </div>
+
+      <div className={styles.runNow}>
+        <span
+          className={`${styles.runNowDot} ${paused ? styles.runNowDotPaused : ""}`}
+          style={{ background: run.agent.color }}
+        />
+        <span className={styles.runNowText}>{runLine(run)}</span>
+        {run.stepsTotal > 0 && (
+          <span className={styles.runCount}>
+            {Math.min(run.stepsDone + 1, run.stepsTotal)} / {run.stepsTotal}
+          </span>
+        )}
+      </div>
+
+      {run.stepsTotal > 0 && (
+        <>
+          <span className={styles.runBar}>
+            <span
+              className={styles.runBarFill}
+              style={{ width: `${progressOf(run) * 100}%`, background: run.agent.color }}
+            />
+          </span>
+          <div className={styles.runPlan}>
+            {run.steps.map((step) => (
+              <div key={step.id} className={styles.runStep}>
+                <span
+                  className={`${styles.runStepBox} ${
+                    step.state === "done"
+                      ? styles.runStepDone
+                      : step.state === "active"
+                        ? styles.runStepActive
+                        : ""
+                  }`}
+                  style={step.state === "done" ? { background: run.agent.color } : undefined}
+                />
+                <span
+                  className={`${styles.runStepText} ${
+                    step.state === "done" ? styles.runStepStruck : ""
+                  }`}
+                >
+                  {step.text}
+                </span>
+                {step.state === "active" && <span className={styles.runSince}>{since}</span>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {run.log.length > 0 && (
+        <div className={styles.runLog} data-testid="panel-run-log">
+          {run.log.map((line) => (
+            <div key={line.id} className={styles.runLogRow}>
+              <span className={styles.runLogTime}>{relativeTime(line.createdAt)}</span>
+              <span className={styles.runLogText}>{line.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.runNote}>
+        Your edits still save while the agent works. Take over ends the run and gives you the card.
+      </div>
+
+      <div className={styles.runButtons}>
+        {paused ? (
+          <button className={styles.runButton} disabled={busy} onClick={() => void press("resume")}>
+            Resume
+          </button>
+        ) : (
+          <button className={styles.runButton} disabled={busy} onClick={() => void press("pause")}>
+            Pause
+          </button>
+        )}
+        <button className={styles.runButton} disabled={busy} onClick={() => void press("stop")}>
+          Stop
+        </button>
+        <span style={{ flex: 1 }} />
+        <button
+          className={styles.runTakeOver}
+          disabled={busy}
+          onClick={() => void press("take_over")}
+        >
+          Take over
+        </button>
+      </div>
+      {run.control && (
+        <div className={styles.runNote} data-testid="panel-run-pending">
+          Asked the agent to {run.control}. It answers on its next report.
+        </div>
+      )}
+    </div>
+  );
 }
 
 function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
@@ -529,6 +711,7 @@ function Comments({
 }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const agentAtWork = detail.run !== null;
 
   async function send() {
     const text = draft.trim();
@@ -588,7 +771,7 @@ function Comments({
           <textarea
             className={styles.composerInput}
             value={draft}
-            placeholder="Leave a note…"
+            placeholder={agentAtWork ? "Leave a note for the agent…" : "Leave a note…"}
             rows={3}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {

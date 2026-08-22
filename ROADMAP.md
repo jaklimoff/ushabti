@@ -43,13 +43,22 @@ Everything below works, is tested, and runs in the dev container.
 
 - Live updates over server-sent events. A change reaches every open board in about a second.
 
+**Agents** — humans and machines on the same board
+
+- An agent is a machine member of a project. It can be the value of any person property, write comments and appear in the activity log.
+- The owner creates agents and issues tokens in Settings. A token opens one project, is shown once and is stored as a digest.
+- Every JSON route accepts `Authorization: Bearer ush_…`, so an agent uses the same API as the browser.
+- A run shows the work: a strip along the bottom of the card names the agent, its current step and its age; an Agent tab in the task panel, whose dot pulses while the run is live, adds the plan and the run log.
+- Pause and Stop are requests the agent reads and obeys. Take over ends a run at once, and so does dragging a held card.
+- A skill in `examples/skill/ushabti/`, so Claude Code can work on the board without being told how each time.
+
 **Engineering**
 
 - Docker Compose and a VS Code dev container.
 - A production image and `docker-compose.prod.yml` for self-hosting. Migrations run at start.
 - Generated Drizzle migrations in `drizzle/`.
-- Seed script with a demo project and two accounts.
-- 14 unit tests, 18 end-to-end tests. All pass from a cold server.
+- Seed script with a demo project, two accounts and an agent with a live run.
+- 24 unit tests, 24 end-to-end tests. All pass from a cold server.
 - GitHub Actions runs the types, both test suites and the production build.
 
 ---
@@ -68,6 +77,7 @@ Everything below works, is tested, and runs in the dev container.
 - **A list view.** The board is the only layout. A dense table with sortable columns suits a long backlog better.
 - **Blocked-by links.** Task dependencies and the chain strip from the design.
 - **A per-view card order.** See the limit below.
+- **A run history.** A closed run keeps its rows, but nothing shows them. Only the activity line survives on screen.
 - **Bulk edit.** Select several cards, set one property on all of them.
 - **Profile page.** Change your name, your colour and your password.
 - **Email invites.** Today the person must register first, and only then can the owner add their email.
@@ -78,9 +88,9 @@ Everything below works, is tested, and runs in the dev container.
 
 ## Before anyone else runs this
 
-- **Rate limiting on sign-in and sign-up.** Nothing stops a password guessing attack today. Put a proxy in front until this is done.
+- **Rate limiting on sign-in, sign-up and agent tokens.** Nothing stops a guessing attack today. Put a proxy in front until this is done.
 - **Password reset.** There is no way back into an account.
-- **Agents.** The product is meant for humans and agents on the same board. Nothing agent-related is built: no API tokens, no machine members, no webhooks.
+- **Webhooks.** An agent has to poll the board or the event stream. There is no call out when something changes.
 
 ---
 
@@ -93,3 +103,5 @@ These are consequences of the design, not defects. Read them before you build on
 - **The activity log has no limit.** The panel reads the last 60 entries, but the table only grows.
 - **Only select, person and checkbox properties can group a board.** A multi-select would put one task in several columns, which the drag logic does not handle.
 - **A property cannot be deleted while a view groups by it.** Point the view at another property first. This is on purpose: a view without its property is meaningless.
+- **One open run per task.** A second agent that claims the same task gets a 409. Two agents on one card would need a lock nobody can hold.
+- **Pause and Stop are cooperative.** Ushabti cannot reach into another machine. An agent that ignores the control word keeps running; the log records the request, and Take over always works.

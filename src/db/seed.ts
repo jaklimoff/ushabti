@@ -3,11 +3,15 @@
  * something to look at. Safe to run more than once: it removes the demo
  * project first and leaves every other account alone.
  */
-import { and, eq } from "drizzle-orm";
-import { randomBytes, scrypt as scryptCb } from "node:crypto";
+import { and, eq, inArray } from "drizzle-orm";
+import { createHash, randomBytes, scrypt as scryptCb } from "node:crypto";
 import { promisify } from "node:util";
 import { db, pool } from "./index";
 import {
+  agentRunLog,
+  agentRunSteps,
+  agentRuns,
+  agentTokens,
   checklistItems,
   comments,
   projectMembers,
@@ -29,6 +33,14 @@ async function hash(password: string) {
   const key = await scrypt(password, salt, 64);
   return `scrypt$${salt.toString("hex")}$${key.toString("hex")}`;
 }
+
+/**
+ * A fixed token, so the example in docs/agents.md runs against a fresh
+ * checkout with nothing to copy first. It only ever reaches the demo project.
+ */
+const DEMO_TOKEN = "ush_demo_seed_token_not_for_real_use";
+
+const AGENT = { name: "Builder", color: "#3fb0c8" };
 
 const PEOPLE = [
   { email: "demo@ushabti.local", name: "Demo Owner", color: "#6d5bd0" },
@@ -175,7 +187,32 @@ async function main() {
     .select({ id: projects.id })
     .from(projects)
     .where(and(eq(projects.ownerId, owner.id), eq(projects.key, "USH")));
-  for (const row of old) await db.delete(projects).where(eq(projects.id, row.id));
+  // The agents of the old demo project are users of their own, so they have to
+  // go with it. Nothing else in the database refers to them.
+  if (old.length) {
+    const oldAgents = await db
+      .select({ id: users.id })
+      .from(projectMembers)
+      .innerJoin(users, eq(users.id, projectMembers.userId))
+      .where(
+        and(
+          inArray(
+            projectMembers.projectId,
+            old.map((o) => o.id),
+          ),
+          eq(users.kind, "agent"),
+        ),
+      );
+    for (const row of old) await db.delete(projects).where(eq(projects.id, row.id));
+    if (oldAgents.length) {
+      await db.delete(users).where(
+        inArray(
+          users.id,
+          oldAgents.map((a) => a.id),
+        ),
+      );
+    }
+  }
 
   const [project] = await db
     .insert(projects)
@@ -300,9 +337,80 @@ async function main() {
     .set({ taskCounter: SEED_TASKS.length })
     .where(eq(projects.id, project.id));
 
+  await seedAgent(project.id, owner.id);
+
   console.log("Seeded the demo project.");
   console.log("  Sign in with demo@ushabti.local / ushabti-demo");
   console.log("  Second account:  friend@ushabti.local / ushabti-demo");
+  console.log(`  Agent token:     ${DEMO_TOKEN}`);
+}
+
+/**
+ * One machine member with a live run, so a fresh board shows what an agent at
+ * work looks like without anybody having to write one first.
+ */
+async function seedAgent(projectId: string, ownerId: string) {
+  const [agent] = await db
+    .insert(users)
+    .values({ name: AGENT.name, kind: "agent", color: AGENT.color })
+    .returning({ id: users.id });
+
+  await db.insert(projectMembers).values({ projectId, userId: agent.id, role: "member" });
+
+  await db.insert(agentTokens).values({
+    agentId: agent.id,
+    projectId,
+    name: "Demo token",
+    hash: createHash("sha256").update(DEMO_TOKEN).digest("hex"),
+    prefix: DEMO_TOKEN.slice(0, 12),
+    createdBy: ownerId,
+  });
+
+  const [task] = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(eq(tasks.projectId, projectId))
+    .limit(1);
+  if (!task) return;
+
+  const [run] = await db
+    .insert(agentRuns)
+    .values({
+      projectId,
+      taskId: task.id,
+      agentId: agent.id,
+      goal: "Write the offline queue tests",
+      step: "Writing offline queue tests",
+    })
+    .returning({ id: agentRuns.id });
+
+  const plan = [
+    "Read the queue and sync modules",
+    "Draft the acceptance criteria",
+    "Write the offline queue tests",
+    "Wire the reconcile path",
+    "Open a pull request",
+  ];
+  await db.insert(agentRunSteps).values(
+    plan.map((text, index) => ({
+      runId: run.id,
+      text,
+      state: index < 2 ? "done" : index === 2 ? "active" : "todo",
+      index,
+    })),
+  );
+
+  // Distinct times, so the log reads in the order the work happened.
+  const start = Date.now() - 3 * 60_000;
+  await db
+    .insert(agentRunLog)
+    .values(
+      [
+        "started: write the offline queue tests",
+        "read queue.ts, sync.ts",
+        "drafted 3 criteria",
+      ].map((text, i) => ({ runId: run.id, text, createdAt: new Date(start + i * 40_000) })),
+    );
 }
 
 await main();

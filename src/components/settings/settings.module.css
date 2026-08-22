@@ -384,3 +384,54 @@
     flex-wrap: wrap;
   }
 }
+
+/* ---- agents -------------------------------------------------------- */
+
+.agentBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.agentBox:last-of-type {
+  border-bottom: 0;
+}
+
+.tokenRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 4px 0 4px 32px;
+}
+
+.tokenPrefix {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.secret {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid rgba(63, 176, 200, 0.3);
+  border-radius: 6px;
+}
+
+.secretText {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-soft);
+  word-break: break-all;
+  user-select: all;
+}

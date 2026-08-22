@@ -46,9 +46,9 @@ So Ushabti is:
   or for twenty, today and later.
 - **Small by intent, not by neglect.** A task, a status, an owner. The features
   stop where the value stops.
-- **Ready for agents.** Humans and agents will use the same simple interface to
-  take a task, report on it, and close it. The interface is built; the agent
-  side is [next](ROADMAP.md), not done.
+- **Ready for agents.** Humans and agents use the same board and the same API.
+  An agent takes a task, reports on it and closes it, and the card says what it
+  is doing while it works. See [docs/agents.md](docs/agents.md).
 
 Small teams deserve neat tools. Write the work down. Let your ushabti answer.
 
@@ -78,6 +78,13 @@ Board  ·  Phases  ·  By assignee            ← views you create
   second, with no reload.
 - **Email and password sign-in.** No third party.
 - **Projects with members.** The owner adds people by email.
+- **Agents.** A project can have machine members. An agent signs in with a
+  token, uses the same JSON API the browser uses, and while it works a strip
+  along the bottom of its card says who is working, what it is doing and for how
+  long, and the task panel grows an **Agent** tab, with a dot that pulses while
+  the run is live, holding the plan and the run log. Pause and Stop ask; **Take
+  over** ends the run and hands the card back. `examples/skill/ushabti/` is a
+  ready skill for Claude Code. See [docs/agents.md](docs/agents.md).
 
 ![The task panel](docs/task.png)
 
@@ -102,14 +109,21 @@ Want something to look at straight away?
 docker compose exec app npm run db:seed
 ```
 
-That creates a filled demo project and two accounts:
+That creates a filled demo project, two accounts and an agent with a run
+already open, so the board shows what an agent at work looks like:
 
 | Email                  | Password       |
 | ---------------------- | -------------- |
 | `demo@ushabti.local`   | `ushabti-demo` |
 | `friend@ushabti.local` | `ushabti-demo` |
 
-Sign in as each one in two browser windows to watch the live updates.
+Sign in as each one in two browser windows to watch the live updates. The seed
+also prints an agent token; give it to `examples/agent.mjs` and watch a machine
+take a card:
+
+```bash
+USHABTI_TOKEN=ush_demo_seed_token_not_for_real_use node examples/agent.mjs
+```
 
 ### Host it for your team
 
@@ -180,7 +194,8 @@ Every one of them runs on each pull request, together with the production build
 and a CodeQL scan.
 
 The end-to-end suite covers sign-up, task editing, both kinds of drag, custom
-properties, views, members and the live updates between two browsers.
+properties, views, members, the live updates between two browsers, and an agent
+that takes a token, opens a run and is taken over.
 
 ## How it is built
 
@@ -198,13 +213,19 @@ properties, views, members and the live updates between two browsers.
 
 ```
 users ── project_members ── projects
-                               ├── properties ── property_options
-                               ├── views          (name + grouping property)
-                               └── tasks ── task_values   (task × property → JSON)
-                                        ├── checklist_items
-                                        ├── comments
-                                        └── activity
+  │ (human or agent)            ├── properties ── property_options
+  │                             ├── views          (name + grouping property)
+  └── agent_tokens              └── tasks ── task_values   (task × property → JSON)
+                                         ├── checklist_items
+                                         ├── comments
+                                         ├── activity
+                                         └── agent_runs ── agent_run_steps
+                                                        └── agent_run_log
 ```
+
+An agent is a row in `users`, so everything that points at a person — an
+assignee, a comment author, an activity actor — points at an agent just as
+well. That is the whole reason humans and agents share one board.
 
 `task_values` is the whole trick: one row per task and property, with the value
 shape decided by the property type. A select holds an option id, a multi-select
@@ -234,8 +255,9 @@ src/
     settings/     properties, views and members
     ui/           avatar, user menu, dismiss hook
   db/             schema, client, seed
-  lib/            auth, ranks, grouping, value rules, events
+  lib/            auth, tokens, ranks, grouping, value rules, runs, events
 e2e/              Playwright specs
+examples/         a small agent, in one file
 drizzle/          generated migrations
 design-reference/ the source design this interface follows
 ```

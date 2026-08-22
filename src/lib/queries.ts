@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { rankSequence } from "./rank";
+import { loadOpenRuns, loadTaskRun } from "./runs";
 import type {
   ActivityDTO,
   BoardData,
@@ -149,6 +150,7 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
         name: users.name,
         email: users.email,
         color: users.color,
+        kind: users.kind,
         role: projectMembers.role,
       })
       .from(projectMembers)
@@ -193,9 +195,12 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
   ]);
 
   const taskIds = taskRows.map((t) => t.id);
-  const valueRows = taskIds.length
-    ? await db.select().from(taskValues).where(inArray(taskValues.taskId, taskIds))
-    : [];
+  const [valueRows, runs] = await Promise.all([
+    taskIds.length
+      ? db.select().from(taskValues).where(inArray(taskValues.taskId, taskIds))
+      : Promise.resolve([]),
+    loadOpenRuns(projectId),
+  ]);
 
   const optionsByProp = new Map<string, PropertyDTO["options"]>();
   for (const o of optRows) {
@@ -249,6 +254,7 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     email: m.email,
     color: m.color,
     role: m.role,
+    kind: m.kind === "agent" ? "agent" : "human",
   }));
 
   return {
@@ -263,6 +269,7 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     properties: propertyList,
     views: viewList,
     tasks: taskList,
+    runs,
   };
 }
 
@@ -289,7 +296,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 
   if (!row) return null;
 
-  const [valueRows, checkRows, commentRows, activityRows] = await Promise.all([
+  const [valueRows, checkRows, commentRows, activityRows, run] = await Promise.all([
     db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
     db
       .select()
@@ -324,6 +331,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       .where(eq(activity.taskId, taskId))
       .orderBy(desc(activity.createdAt))
       .limit(60),
+    loadTaskRun(taskId),
   ]);
 
   const values: Record<string, TaskValue> = {};
@@ -367,6 +375,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     checklist,
     comments: commentList,
     activity: activityList,
+    run,
   };
 }
 

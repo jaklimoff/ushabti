@@ -56,9 +56,11 @@ export type PropertyDTO = {
 export type MemberDTO = {
   id: string;
   name: string;
-  email: string;
+  /** Null for an agent. Only a person has an email address. */
+  email: string | null;
   color: string;
   role: string;
+  kind: "human" | "agent";
 };
 
 export type TaskValue = string | string[] | number | boolean | null;
@@ -112,6 +114,84 @@ export type TaskDetailDTO = TaskDTO & {
   checklist: ChecklistItemDTO[];
   comments: CommentDTO[];
   activity: ActivityDTO[];
+  /** The open run of this task, with its plan and its log. */
+  run: AgentRunDetailDTO | null;
+};
+
+/* ------------------------------------------------------------------ */
+/* Agent runs                                                          */
+/* ------------------------------------------------------------------ */
+
+export const RUN_STATUSES = [
+  "running",
+  "paused",
+  "done",
+  "failed",
+  "stopped",
+  "taken_over",
+] as const;
+
+export type RunStatus = (typeof RUN_STATUSES)[number];
+
+/** A run is over once it reaches one of these. */
+export const CLOSED_STATUSES: RunStatus[] = ["done", "failed", "stopped", "taken_over"];
+
+export const RUN_CONTROLS = ["pause", "resume", "stop"] as const;
+
+export type RunControl = (typeof RUN_CONTROLS)[number];
+
+export type RunStepState = "todo" | "active" | "done";
+
+export type AgentRunStepDTO = {
+  id: string;
+  text: string;
+  state: RunStepState;
+  index: number;
+};
+
+export type AgentRunLogDTO = {
+  id: string;
+  text: string;
+  createdAt: string;
+};
+
+export type AgentRunDTO = {
+  id: string;
+  taskId: string;
+  status: RunStatus;
+  goal: string;
+  /** What the agent is doing right now, in one line. */
+  step: string;
+  control: RunControl | null;
+  startedAt: string;
+  updatedAt: string;
+  endedAt: string | null;
+  agent: { id: string; name: string; color: string };
+  stepsTotal: number;
+  stepsDone: number;
+  /** The newest line of the log. The panel shows the rest. */
+  lastLog: string | null;
+};
+
+export type AgentRunDetailDTO = AgentRunDTO & {
+  steps: AgentRunStepDTO[];
+  log: AgentRunLogDTO[];
+};
+
+export type AgentTokenDTO = {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+};
+
+export type AgentDTO = {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  tokens: AgentTokenDTO[];
 };
 
 export type ProjectDTO = {
@@ -128,4 +208,6 @@ export type BoardData = {
   properties: PropertyDTO[];
   views: ViewDTO[];
   tasks: TaskDTO[];
+  /** Only the runs that are still open. One per task at most. */
+  runs: AgentRunDTO[];
 };

@@ -163,6 +163,28 @@ body.ushabti-dragging * {
   }
 }
 
+/* The live ring of an agent that is working. */
+@keyframes ushabti-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+/* The bar that scans while a run has no plan to measure. */
+@keyframes ushabti-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
