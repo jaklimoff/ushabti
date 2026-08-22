@@ -36,8 +36,10 @@ npm test           # unit tests
 npm run test:e2e   # Playwright
 ```
 
-The end-to-end tests need the dev server. Start it with `docker compose up`, or
-let Playwright start one for you.
+The end-to-end tests need a server. Start the dev one with `docker compose up`,
+or let Playwright start one for you. On CI, and whenever `CI` is set, Playwright
+serves the production build instead, so the tests exercise what the image
+ships.
 
 ## Rules for a change
 
@@ -95,17 +97,25 @@ tests must pass before it merges.
 
 ## What runs, and when
 
-| When              | What runs                                                                                                                              |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Pull request      | Format, lint, types, unit tests, build, migrations, Playwright, CodeQL. The image is built, but only for amd64 and it is never pushed. |
-| Merge into `main` | The same test job once, to prove the squashed commit still builds. No image.                                                           |
-| Every night       | The `:edge` image for amd64 and arm64, if `main` moved.                                                                                |
-| Every Monday      | CodeQL over `main`, to catch what a new query finds in old code.                                                                       |
-| Tag `vX.Y.Z`      | The release image for amd64 and arm64, its provenance attestation, and the GitHub release.                                             |
+| When               | What runs                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Pull request       | Format, lint, types, unit tests, build, migrations, Playwright. The image is built, but only for amd64 and it is never pushed. |
+| Merge into `main`  | The same test job once, to prove the squashed commit still builds. Then CodeQL. No image.                                      |
+| Pull request close | The caches that pull request wrote, deleted.                                                                                   |
+| Every night        | The `:edge` image for amd64 and arm64, if `main` moved.                                                                        |
+| Every Sunday       | Old caches and container versions no tag can reach, deleted.                                                                   |
+| Every Monday       | CodeQL over `main`, to catch what a new query finds in old code.                                                               |
+| Tag `vX.Y.Z`       | The release image for amd64 and arm64, its provenance attestation, and the GitHub release.                                     |
 
 The rule behind the table: a pull request pays for correctness, a tag pays for
 publishing, and a merge pays for almost nothing, because the commits it carries
-passed minutes earlier.
+passed minutes earlier. CodeQL sits on the merge rather than on the pull
+request. It takes about seventy seconds and has never held a change back, so
+making every pull request wait for it bought nothing.
+
+Each architecture of the image builds on a runner of its own architecture. Do
+not put them back on one runner: arm64 under emulation took nine minutes where
+the pair now takes under three.
 
 ## Making a release
 
