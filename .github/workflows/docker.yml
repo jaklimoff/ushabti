@@ -97,7 +97,7 @@ jobs:
       # Proof of where the image came from, readable with `gh attestation verify`.
       - name: Attest the image
         if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.GHCR_IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}
