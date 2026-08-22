@@ -106,7 +106,7 @@ jobs:
       # Keeps the Docker Hub page showing the README of this repository.
       - name: Copy the README to Docker Hub
         if: github.ref == 'refs/heads/main'
-        uses: peter-evans/dockerhub-description@v4
+        uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
