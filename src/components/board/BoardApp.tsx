@@ -38,6 +38,10 @@ function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
     window.history.replaceState(null, "", url.toString());
   }, []);
 
+  // TaskPanel builds its loader from this, so a new function on every render
+  // would make the panel reload — and reset — every time the board re-renders.
+  const closePanel = useCallback(() => open(null), [open]);
+
   /* a task that another person removed must not keep the panel open */
   useEffect(() => {
     if (selected && !data.tasks.some((t) => t.id === selected)) open(null);
@@ -72,7 +76,7 @@ function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
         <BoardCanvas selectedTaskId={selected} onOpenTask={open} />
       </div>
 
-      {selected && <TaskPanel taskId={selected} onClose={() => open(null)} />}
+      {selected && <TaskPanel taskId={selected} onClose={closePanel} />}
 
       {toasts.length > 0 && (
         <div className={styles.toasts}>

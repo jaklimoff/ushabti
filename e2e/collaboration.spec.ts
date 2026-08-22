@@ -81,6 +81,41 @@ test.describe("Two people on one board", () => {
     await friend.context.close();
   });
 
+  test("a remote change does not throw away a comment being written", async ({ browser }) => {
+    const owner = await freshPage(browser);
+    const friend = await freshPage(browser);
+
+    await register(owner.page, "Owner Person");
+    const projectId = await createProject(owner.page, unique("Draft"));
+    const friendAccount = await register(friend.page, "Friend Person");
+
+    await owner.page.goto(`/p/${projectId}/settings`);
+    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
+    await owner.page.getByRole("button", { name: "Add member" }).click();
+    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+
+    await owner.page.goto(`/p/${projectId}`);
+    await addTask(owner.page, "Todo", "Something to discuss");
+
+    // The panel is open on the new task. Start a note, but do not send it.
+    const composer = owner.page.getByPlaceholder("Leave a note…");
+    await composer.fill("Half a thought");
+
+    // The friend changes the board, which re-renders the owner's side.
+    await friend.page.goto(`/p/${projectId}`);
+    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
+    await addTask(friend.page, "Todo", "Arrives by itself");
+    await expect(card(owner.page, "Arrives by itself")).toBeVisible({ timeout: 15_000 });
+
+    // The note survived the re-render, and it can still be sent.
+    await expect(composer).toHaveValue("Half a thought");
+    await owner.page.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(owner.page.getByText("Half a thought")).toBeVisible();
+
+    await owner.context.close();
+    await friend.context.close();
+  });
+
   test("a person property lists the members and sticks", async ({ browser }) => {
     const owner = await freshPage(browser);
     const friend = await freshPage(browser);
