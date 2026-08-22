@@ -59,7 +59,7 @@ export default tseslint.config(
   },
 
   {
-    files: ["src/db/seed.ts", "scripts/**/*.mjs", "e2e/**/*.ts"],
+    files: ["src/db/seed.ts", "scripts/**/*.mjs", "examples/**/*.mjs", "e2e/**/*.ts"],
     rules: { "no-console": "off" },
   },
 

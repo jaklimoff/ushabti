@@ -18,6 +18,24 @@ and what is easy to get wrong.
 - **The end to end tests serve the production build when `CI` is set.** They
   used to serve `next dev`, which hid a real fault for months. If a test passes
   locally and fails on CI, run it with `CI=1` before you suspect CI.
+- **An agent is a row in `users`.** It is a member of the project with
+  `kind = "agent"` and no password. Nothing else in the schema knows about
+  agents, which is why an assignee, a comment author and an activity actor all
+  work for them without a second code path. Resist a parallel identity table.
+- **Every JSON route accepts a token.** `guard()` takes a session cookie or an
+  `Authorization: Bearer` header, and the token carries the one project it
+  opens. When you add a route, decide on purpose whether an agent may call it:
+  `humanOnly()` for anything that hands out access, `agentOnly()` for the run
+  routes. A route that forgets is agent-callable.
+- **The card stays quiet.** One strip at the bottom: who, what, how long. The
+  plan, the log and the buttons belong to the Agent tab of the panel, which
+  exists only while a run does. A board with ten runs on it has to stay
+  readable, which is why the step count and the log ticker never reached the
+  card.
+- **Pause and Stop are requests, not commands.** The server cannot reach into
+  another machine. It writes a word on the run; the agent reads it in the answer
+  to its next report and obeys because it said it would. Only **Take over**
+  decides anything, because it acts on our own database.
 - **Write short plain sentences**, in the interface, in comments and in commit
   messages. Comments say why, never what.
 

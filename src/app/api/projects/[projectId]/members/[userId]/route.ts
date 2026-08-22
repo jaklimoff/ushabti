@@ -11,6 +11,11 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
 
   const removingSelf = user.id === userId;
+  // A person may leave. An agent may not: the owner removes it in Settings,
+  // which deletes its user row and its tokens with it.
+  if (removingSelf && user.kind === "agent") {
+    throw new HttpError(403, "An agent cannot leave a project. Ask the owner to remove it.");
+  }
   if (!removingSelf && membership.role !== "owner") {
     throw new HttpError(403, "Only the owner can remove members.");
   }

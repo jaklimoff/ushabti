@@ -1,9 +1,12 @@
 "use client";
 
 import { forwardRef, useMemo } from "react";
-import type { MemberDTO, PropertyDTO, TaskDTO } from "@/lib/types";
+import type { AgentRunDTO, MemberDTO, PropertyDTO, TaskDTO } from "@/lib/types";
 import { formatDate, leadProperty } from "@/lib/board";
+import { runLine } from "@/lib/run-state";
 import { Avatar } from "@/components/ui/Avatar";
+import { useElapsed } from "@/components/ui/useElapsed";
+import { useBoard } from "./store";
 import styles from "./board.module.css";
 
 export type CardFields = {
@@ -101,6 +104,9 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   },
   ref,
 ) {
+  const { runOf } = useBoard();
+  const run = runOf(task.id);
+
   const fields = useMemo(
     () => cardFields(task, properties, members, groupPropertyId),
     [task, properties, members, groupPropertyId],
@@ -203,6 +209,33 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
           )}
         </div>
       )}
+
+      {run && <CardRun run={run} overlay={overlay === true} />}
     </div>
   );
 });
+
+/**
+ * The strip of the board design: who is working, what it is doing, how long it
+ * has been at it, and a bar that scans while it lives. The plan and the log
+ * belong to the panel; a board full of runs has to stay readable.
+ */
+function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
+  const since = useElapsed(run.startedAt, run.status === "running");
+  const paused = run.status === "paused";
+
+  return (
+    <div className={styles.runStrip} data-testid="card-run">
+      <div className={styles.runStripRow}>
+        <span className={styles.runAgent}>{run.agent.name}</span>
+        <span className={styles.runText} data-testid="card-run-step">
+          {overlay ? "Drop to take over" : runLine(run)}
+        </span>
+        <span className={styles.runTime}>{since}</span>
+      </div>
+      <span className={styles.runScan} aria-hidden>
+        <span className={`${styles.runScanFill} ${paused ? styles.runScanPaused : ""}`} />
+      </span>
+    </div>
+  );
+}

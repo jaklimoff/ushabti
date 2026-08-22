@@ -457,6 +457,20 @@
   box-shadow: inset 0 -1px 0 var(--accent);
 }
 
+/* The agent tab carries the only live thing in the panel head. */
+.tabDot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.tabDotLive {
+  opacity: 1;
+  animation: ushabti-pulse 1.4s ease-in-out infinite;
+}
+
 .feed {
   flex: 0 0 auto;
   padding: 14px 16px 22px;
@@ -624,4 +638,213 @@
     z-index: 120;
     box-shadow: -22px 0 60px rgba(0, 0, 0, 0.62);
   }
+}
+
+/* ---- the agent run block ------------------------------------------ */
+
+/* Tab content, so it keeps the padding of the feed beside it. */
+.run {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 16px 22px;
+  padding: 13px 14px 14px;
+  background: var(--bg-top);
+  border: 1px solid #263b42;
+  border-radius: 9px;
+  animation: ushabti-fade-in 180ms var(--ease);
+}
+
+.runHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.runAgent {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.runState {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4f7d88;
+}
+
+.runSince {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint-2);
+}
+
+.runNow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.runNowDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  animation: ushabti-pulse 1.4s ease-in-out infinite;
+}
+
+.runNowDotPaused {
+  animation: none;
+  opacity: 0.45;
+}
+
+.runNowText {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.runCount {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent-soft);
+}
+
+.runBar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: #1c2126;
+  overflow: hidden;
+}
+
+.runBarFill {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  transition: width 220ms var(--ease);
+}
+
+.runPlan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.runStep {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.runStepBox {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 3px;
+  border: 1px solid var(--line-dash);
+}
+
+.runStepDone {
+  border-color: transparent;
+}
+
+.runStepActive {
+  border-color: #38505a;
+  background: rgba(63, 176, 200, 0.25);
+  animation: ushabti-pulse 1.6s ease-in-out infinite;
+}
+
+.runStepText {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text-3);
+  text-wrap: pretty;
+}
+
+.runStepStruck {
+  color: var(--muted-2);
+  text-decoration: line-through;
+}
+
+.runLog {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 9px 11px;
+  background: var(--bg-input);
+  border: 1px solid #191c21;
+  border-radius: 7px;
+}
+
+.runLogRow {
+  display: flex;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.runLogTime {
+  flex: 0 0 34px;
+  color: var(--faint-3);
+}
+
+.runLogText {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.runNote {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--faint);
+  text-wrap: pretty;
+}
+
+.runButtons {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.runButton {
+  padding: 4px 10px;
+  border: 1px solid #1f2229;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.runButton:hover:not(:disabled) {
+  color: var(--text-3);
+  border-color: var(--line-menu);
+}
+
+.runTakeOver {
+  padding: 4px 11px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.runTakeOver:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.runButton:disabled,
+.runTakeOver:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

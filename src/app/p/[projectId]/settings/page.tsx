@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, requireMembership, HttpError } from "@/lib/auth";
 import { loadBoard } from "@/lib/queries";
+import { loadAgents } from "@/lib/agents";
 import { Settings } from "@/components/settings/Settings";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,6 @@ export default async function SettingsPage({ params }: { params: Promise<{ proje
     throw err;
   }
 
-  const board = await loadBoard(projectId, role);
-  return <Settings initial={board} user={user} />;
+  const [board, agents] = await Promise.all([loadBoard(projectId, role), loadAgents(projectId)]);
+  return <Settings initial={board} user={user} agents={agents} />;
 }

@@ -35,7 +35,7 @@ function task(id: string, values: TaskDTO["values"] = {}, position = "V"): TaskD
 }
 
 const members: MemberDTO[] = [
-  { id: "u1", name: "Ada", email: "a@x.io", color: "#6d5bd0", role: "owner" },
+  { id: "u1", name: "Ada", email: "a@x.io", color: "#6d5bd0", role: "owner", kind: "human" },
 ];
 
 describe("board grouping", () => {

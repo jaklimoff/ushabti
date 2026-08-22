@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -19,9 +20,12 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    email: text("email").notNull(),
-    passwordHash: text("password_hash").notNull(),
+    /** Null for an agent. Only a human signs in. */
+    email: text("email"),
+    passwordHash: text("password_hash"),
     name: text("name").notNull(),
+    /** human | agent. An agent is a member like any other, with no password. */
+    kind: text("kind").notNull().default("human"),
     color: text("color").notNull().default("#6d5bd0"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -202,7 +206,7 @@ export const activity = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
-    /** created | title | description | value | checklist | comment | deleted */
+    /** created | title | description | value | checklist | comment | run | deleted */
     kind: text("kind").notNull(),
     data: jsonb("data").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -232,4 +236,109 @@ export const views = pgTable(
     config: jsonb("config").notNull().default({}),
   },
   (t) => [index("views_project_idx").on(t.projectId)],
+);
+
+/* ------------------------------------------------------------------ */
+/* Agents                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A token is how a machine member signs in. The plain text is shown once and
+ * never stored: only its SHA-256 digest is kept, next to a short prefix so a
+ * person can tell two tokens apart in the list.
+ */
+export const agentTokens = pgTable(
+  "agent_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** A token opens one project and no other. */
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    hash: text("hash").notNull(),
+    prefix: text("prefix").notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("agent_tokens_hash_key").on(t.hash),
+    index("agent_tokens_agent_idx").on(t.agentId),
+    index("agent_tokens_project_idx").on(t.projectId),
+  ],
+);
+
+/**
+ * One piece of work an agent does on one task. The board reads the open run of
+ * a task to draw the live signal, and the panel reads its steps and its log.
+ */
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** What the whole run is for, in one line. */
+    goal: text("goal").notNull().default(""),
+    /** What the agent is doing right now, in one line. */
+    step: text("step").notNull().default(""),
+    /** running | paused | done | failed | stopped | taken_over */
+    status: text("status").notNull().default("running"),
+    /**
+     * What a person asked for: pause, resume or stop. The agent reads it in the
+     * answer to its next write and obeys. Nothing here forces it.
+     */
+    control: text("control"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("agent_runs_task_idx").on(t.taskId),
+    index("agent_runs_project_idx").on(t.projectId),
+    // One task holds one open run. A second start has to wait or take over.
+    uniqueIndex("agent_runs_open_task_key")
+      .on(t.taskId)
+      .where(sql`${t.endedAt} is null`),
+  ],
+);
+
+export const agentRunSteps = pgTable(
+  "agent_run_steps",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => agentRuns.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    /** todo | active | done */
+    state: text("state").notNull().default("todo"),
+    index: integer("index").notNull(),
+  },
+  (t) => [index("agent_run_steps_run_idx").on(t.runId)],
+);
+
+export const agentRunLog = pgTable(
+  "agent_run_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => agentRuns.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("agent_run_log_run_idx").on(t.runId)],
 );

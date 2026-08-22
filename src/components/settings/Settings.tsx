@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import {
   GROUPABLE_TYPES,
   PROPERTY_TYPES,
   PROPERTY_TYPE_HINT,
   PROPERTY_TYPE_LABEL,
+  type AgentDTO,
   type MemberDTO,
   type PropertyDTO,
   type PropertyType,
@@ -19,15 +20,23 @@ import { BoardProvider, useBoard } from "@/components/board/store";
 import type { BoardData } from "@/lib/types";
 import styles from "./settings.module.css";
 
-export function Settings({ initial, user }: { initial: BoardData; user: SessionUser }) {
+export function Settings({
+  initial,
+  user,
+  agents,
+}: {
+  initial: BoardData;
+  user: SessionUser;
+  agents: AgentDTO[];
+}) {
   return (
     <BoardProvider initial={initial} user={user}>
-      <SettingsBody />
+      <SettingsBody agents={agents} />
     </BoardProvider>
   );
 }
 
-function SettingsBody() {
+function SettingsBody({ agents }: { agents: AgentDTO[] }) {
   const { data, user } = useBoard();
   const isOwner = data.project.role === "owner";
 
@@ -60,6 +69,7 @@ function SettingsBody() {
         <PropertiesSection />
         <ViewsSection />
         <MembersSection isOwner={isOwner} />
+        <AgentsSection isOwner={isOwner} agents={agents} />
       </div>
     </div>
   );
@@ -529,25 +539,27 @@ function MembersSection({ isOwner }: { isOwner: boolean }) {
         <span className={styles.note}>Everybody in the list can create, edit and move tasks.</span>
       </div>
       <div className={styles.card}>
-        {data.members.map((member) => (
-          <div key={member.id} className={styles.rowItem}>
-            <Avatar name={member.name} color={member.color} size={22} />
-            <span className={styles.memberName}>{member.name}</span>
-            <span className={styles.memberMail}>{member.email}</span>
-            {member.role === "owner" && <span className={styles.roleTag}>owner</span>}
-            <span style={{ flex: 1 }} />
-            {member.role !== "owner" && (isOwner || member.id === user.id) && (
-              <button
-                className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
-                aria-label={member.id === user.id ? "Leave the project" : `Remove ${member.name}`}
-                title={member.id === user.id ? "Leave the project" : "Remove from the project"}
-                onClick={() => void remove(member)}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        ))}
+        {data.members
+          .filter((member) => member.kind === "human")
+          .map((member) => (
+            <div key={member.id} className={styles.rowItem}>
+              <Avatar name={member.name} color={member.color} size={22} />
+              <span className={styles.memberName}>{member.name}</span>
+              <span className={styles.memberMail}>{member.email}</span>
+              {member.role === "owner" && <span className={styles.roleTag}>owner</span>}
+              <span style={{ flex: 1 }} />
+              {member.role !== "owner" && (isOwner || member.id === user.id) && (
+                <button
+                  className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                  aria-label={member.id === user.id ? "Leave the project" : `Remove ${member.name}`}
+                  title={member.id === user.id ? "Leave the project" : "Remove from the project"}
+                  onClick={() => void remove(member)}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
 
         {isOwner && (
           <div className={styles.addForm}>
@@ -572,4 +584,183 @@ function MembersSection({ isOwner }: { isOwner: boolean }) {
       </div>
     </section>
   );
+}
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * Agents are members too, so everything else on this page already works for
+ * them. Only two things are theirs alone: they are created here rather than
+ * invited by email, and they sign in with a token rather than a password.
+ */
+function AgentsSection({ isOwner, agents }: { isOwner: boolean; agents: AgentDTO[] }) {
+  const { data, notify, refresh } = useBoard();
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  /** The plain text of a token, held until the person leaves the page. */
+  const [secrets, setSecrets] = useState<Record<string, string>>({});
+
+  const projectId = data.project.id;
+
+  // The list comes from the server render, so a change asks for a new one.
+  const load = useCallback(async () => {
+    router.refresh();
+  }, [router]);
+
+  async function create() {
+    const trimmed = name.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    try {
+      await api.post(`/api/projects/${projectId}/agents`, { name: trimmed });
+      setName("");
+      await load();
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not add the agent.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function issue(agent: AgentDTO) {
+    try {
+      const res = await api.post<{ token: { id: string }; secret: string }>(
+        `/api/projects/${projectId}/agents/${agent.id}/tokens`,
+        { name: `${agent.name} token` },
+      );
+      setSecrets((current) => ({ ...current, [res.token.id]: res.secret }));
+      await load();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not issue a token.");
+    }
+  }
+
+  async function revoke(tokenId: string) {
+    try {
+      await api.del(`/api/agent-tokens/${tokenId}`);
+      setSecrets((current) => {
+        const next = { ...current };
+        delete next[tokenId];
+        return next;
+      });
+      await load();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not revoke the token.");
+    }
+  }
+
+  async function remove(agent: AgentDTO) {
+    try {
+      await api.del(`/api/projects/${projectId}/agents/${agent.id}`);
+      await load();
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not remove the agent.");
+    }
+  }
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.sectionHead}>
+        <h2 className={styles.h2}>Agents</h2>
+        <span className={styles.note}>
+          An agent is a member with a token instead of a password. It reads the board, edits tasks
+          and shows what it is doing on the card it holds.
+        </span>
+      </div>
+
+      <div className={styles.card}>
+        {agents.length === 0 && (
+          <div className={styles.rowItem}>
+            <span className={styles.note}>No agents yet.</span>
+          </div>
+        )}
+
+        {agents.map((agent) => (
+          <div key={agent.id} className={styles.agentBox} data-testid="agent-box">
+            <div className={styles.rowItem}>
+              <Avatar name={agent.name} color={agent.color} size={22} kind="agent" />
+              <span className={styles.memberName}>{agent.name}</span>
+              <span className={styles.roleTag}>agent</span>
+              <span style={{ flex: 1 }} />
+              {isOwner && (
+                <>
+                  <button className={styles.ghost} onClick={() => void issue(agent)}>
+                    Issue token
+                  </button>
+                  <button
+                    className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                    aria-label={`Remove the agent ${agent.name}`}
+                    title="Remove this agent"
+                    onClick={() => void remove(agent)}
+                  >
+                    ✕
+                  </button>
+                </>
+              )}
+            </div>
+
+            {agent.tokens.map((token) => (
+              <div key={token.id} className={styles.tokenRow}>
+                <span className={styles.tokenPrefix}>{token.prefix}…</span>
+                <span className={styles.note}>
+                  {token.lastUsedAt ? `last used ${relativeDay(token.lastUsedAt)}` : "never used"}
+                </span>
+                <span style={{ flex: 1 }} />
+                {isOwner && (
+                  <button
+                    className={`${styles.iconBtn} ${styles.iconBtnDanger}`}
+                    aria-label={`Revoke the token ${token.prefix}`}
+                    title="Revoke this token"
+                    onClick={() => void revoke(token.id)}
+                  >
+                    ✕
+                  </button>
+                )}
+                {secrets[token.id] && (
+                  <div className={styles.secret} data-testid="agent-secret">
+                    <code className={styles.secretText}>{secrets[token.id]}</code>
+                    <span className={styles.note} style={{ width: "100%" }}>
+                      Copy it now. It is stored as a digest, so this is the only time it is
+                      readable.
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+
+        {isOwner && (
+          <div className={styles.addForm}>
+            <input
+              className={styles.input}
+              style={{ flex: 1, minWidth: 180 }}
+              aria-label="Name of the new agent"
+              value={name}
+              placeholder="Builder"
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void create()}
+            />
+            <button className={styles.primary} onClick={() => void create()} disabled={busy}>
+              Add agent
+            </button>
+            <span className={styles.note} style={{ width: "100%" }}>
+              Read <code>docs/agents.md</code> for the calls an agent makes.
+            </span>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Whole days, so the token list never has to tick. */
+function relativeDay(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days} days ago`;
 }

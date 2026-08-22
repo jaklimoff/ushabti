@@ -486,6 +486,7 @@
   gap: 7px;
   padding: 10px 11px 9px;
   border-radius: 6px;
+  overflow: hidden;
   background: var(--bg-card);
   cursor: pointer;
   touch-action: manipulation;
@@ -751,4 +752,75 @@
   .crumbName {
     max-width: 46vw;
   }
+}
+
+/* ---- an agent is working on this card ------------------------------ */
+
+/*
+ * The strip bleeds to the edges of the card, so it reads as a footer rather
+ * than as one more badge. The card therefore has to clip it.
+ */
+.runStrip {
+  display: flex;
+  flex-direction: column;
+  margin: 2px -11px -9px;
+  background: rgba(63, 176, 200, 0.07);
+  box-shadow: inset 0 1px 0 rgba(63, 176, 200, 0.16);
+}
+
+.runStripRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px 8px;
+}
+
+.runAgent {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6fbfd2;
+}
+
+.runText {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: #94b6bf;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runTime {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #55747c;
+}
+
+.runScan {
+  display: block;
+  height: 2px;
+  overflow: hidden;
+  background: rgba(63, 176, 200, 0.1);
+}
+
+.runScanFill {
+  display: block;
+  width: 32%;
+  height: 2px;
+  background: var(--accent);
+  animation: ushabti-scan 1.9s linear infinite;
+}
+
+/* A paused run is alive but still. The bar says so by not moving. */
+.runScanPaused {
+  width: 100%;
+  opacity: 0.3;
+  animation: none;
 }

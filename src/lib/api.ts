@@ -1,6 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { HttpError, requireMembership, requireUser } from "./auth";
+import { HttpError, requireActor, requireMembership, requireUser } from "./auth";
 import { publish, type BoardEvent } from "./events";
 
 export { HttpError };
@@ -55,12 +55,31 @@ export function optionalStr(value: unknown, field: string, max = 20_000): string
   return value;
 }
 
-/** Authenticates the caller and confirms membership of the project. */
+/**
+ * Authenticates the caller and confirms membership of the project. The caller
+ * is a person with a session cookie or an agent with a token; every route
+ * below this line treats the two the same.
+ */
 export async function guard(projectId: string) {
-  const user = await requireUser();
+  const user = await requireActor();
+  if (user.tokenProjectId && user.tokenProjectId !== projectId) {
+    throw new HttpError(403, "That token belongs to another project.");
+  }
   const membership = await requireMembership(user.id, projectId);
   return { user, membership };
 }
+
+/** For the few routes only a person may call. */
+export function humanOnly(actor: { kind: string }) {
+  if (actor.kind !== "human") throw new HttpError(403, "Only a person can do this.");
+}
+
+/** For the run routes, which belong to the agent doing the work. */
+export function agentOnly(actor: { kind: string }) {
+  if (actor.kind !== "agent") throw new HttpError(403, "Only an agent can do this.");
+}
+
+export { requireUser };
 
 export function clientIdOf(req: Request): string | undefined {
   return req.headers.get("x-ushabti-client") ?? undefined;

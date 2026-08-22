@@ -13,9 +13,11 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
 import { rankBetween } from "@/lib/rank";
 import type {
+  AgentRunDTO,
   BoardData,
   PropertyDTO,
   PropertyType,
+  RunControl,
   TaskDTO,
   TaskValue,
   ViewDTO,
@@ -29,6 +31,10 @@ type Store = {
   user: SessionUser;
   view: ViewDTO | null;
   groupProperty: PropertyDTO | null;
+  /** The open run of a task, or null. One task holds one run at a time. */
+  runOf: (taskId: string) => AgentRunDTO | null;
+  /** Pause, resume or stop is a request. Take over ends the run at once. */
+  controlRun: (runId: string, control: RunControl | "take_over") => Promise<void>;
   live: boolean;
   toasts: Toast[];
   setViewId: (id: string) => void;
@@ -177,6 +183,17 @@ export function BoardProvider({
     [data.properties, view],
   );
 
+  const runsByTask = useMemo(() => {
+    const map = new Map<string, AgentRunDTO>();
+    for (const run of data.runs) map.set(run.taskId, run);
+    return map;
+  }, [data.runs]);
+
+  const runOf = useCallback<Store["runOf"]>(
+    (taskId) => runsByTask.get(taskId) ?? null,
+    [runsByTask],
+  );
+
   /* --- helpers -------------------------------------------------------- */
   const patchLocalTask = useCallback((taskId: string, patch: Partial<TaskDTO>) => {
     setData((current) => ({
@@ -304,6 +321,18 @@ export function BoardProvider({
       });
     },
     [guarded],
+  );
+
+  const controlRun = useCallback<Store["controlRun"]>(
+    async (runId, control) => {
+      try {
+        await api.post(`/api/runs/${runId}/control`, { control });
+        await refresh();
+      } catch (err) {
+        notify(err instanceof Error ? err.message : "The agent did not hear that.");
+      }
+    },
+    [notify, refresh],
   );
 
   const syncTaskCounts = useCallback<Store["syncTaskCounts"]>((taskId, counts) => {
@@ -484,6 +513,8 @@ export function BoardProvider({
     user,
     view,
     groupProperty,
+    runOf,
+    controlRun,
     live,
     toasts,
     setViewId,
