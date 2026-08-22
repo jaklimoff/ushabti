@@ -80,6 +80,27 @@ e2e/                Playwright specs
 drizzle/            generated migrations
 ```
 
+## Making a release
+
+Versions follow [semantic versioning](https://semver.org/). Until 1.0.0 a minor
+bump may break something.
+
+1. Move the entries under "Unreleased" in `CHANGELOG.md` into a new
+   `## X.Y.Z — YYYY-MM-DD` heading.
+2. Set the same number in `package.json`.
+3. Commit both.
+4. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
+
+The tag does the rest. It refuses to release if the tag, `package.json` and the
+changelog disagree. When they agree it publishes:
+
+- `jaklimoff/ushabti:X.Y.Z`, `:X.Y`, `:X` and `:latest` on Docker Hub and on
+  `ghcr.io`, for amd64 and arm64
+- a GitHub release whose notes are that section of the changelog
+
+A push to `main` publishes `:edge`. That tag is the newest commit, not a
+release.
+
 ## Licence of your work
 
 You agree that your work goes into Ushabti under the MIT licence.

@@ -1,28 +1,16 @@
 # Changelog
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
+the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
+
+While the major number is 0, a minor bump may break something. From 1.0.0 the
+usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
-### Changed
-
-- Next.js 16, with Turbopack in development. The end-to-end suite runs about
-  three times faster.
-- The production and development images use Node 24, the current LTS.
-- The end-to-end tests select elements by `data-testid` instead of by the class
-  names a bundler generates. Next 16 changed that format, and the old selectors
-  broke.
-
-### Known
-
-- Eight warnings from `react-hooks/set-state-in-effect`, a rule new in
-  eslint-config-next 16. The pattern works but is worth removing. See the
-  roadmap.
-
 ## 0.1.0 — 2026-08-22
 
-The first release. Everything is new.
+The first release.
 
 ### Added
 
@@ -33,11 +21,18 @@ The first release. Everything is new.
 - Drag and drop for cards and for columns, with the pointer or the keyboard.
 - Task detail: markdown description, checklist, comments and an activity log.
 - Live updates over server-sent events.
-- Docker Compose for development, a production image, and migrations that run
-  when the container starts.
-- 14 unit tests and 18 end-to-end tests.
+- Docker Compose for development, a production image on Docker Hub and on the
+  GitHub registry, and migrations that run when the container starts.
+- 14 unit tests and 18 end-to-end tests, run on every pull request together with
+  ESLint, Prettier, the types, the production build and a CodeQL scan.
+
+### Built on
+
+Next.js 16 with Turbopack, React 19, PostgreSQL 18 with Drizzle, Node 24.
 
 ### Known limits
 
-Read the end of [ROADMAP.md](ROADMAP.md). The short list: one card order for all
-views, no rate limit on sign-in, and no password reset.
+- Eight warnings from `react-hooks/set-state-in-effect`. The pattern works but
+  is worth removing.
+- One card order for all views, no rate limit on sign-in, no password reset.
+  The end of [ROADMAP.md](ROADMAP.md) has the full list.
