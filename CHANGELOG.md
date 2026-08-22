@@ -8,6 +8,22 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.2.0 — 2026-08-22
+
+### Added
+
+- `DATABASE_POOL_MAX`. One process held up to twelve connections and there was
+  no way to say otherwise. That is fine for a database of Ushabti's own, and
+  wrong on a managed cluster shared with other applications, where the whole
+  server may allow only 25. The default has not changed.
+
+### Note for anyone on a managed database
+
+`node-postgres` verifies the certificate when the connection string says
+`sslmode=require`, which is stricter than libpq and stricter than most other
+drivers. On DigitalOcean and similar, pass the provider's CA and ask for
+`sslmode=verify-full&sslrootcert=/path/to/ca.crt`.
+
 ## 0.1.0 — 2026-08-22
 
 The first release.

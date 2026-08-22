@@ -139,6 +139,18 @@ docker compose -f docker-compose.prod.yml up -d
 
 New migrations are applied when the container starts.
 
+#### Using a database you already have
+
+Point `DATABASE_URL` at it instead of running the `db` service. Two things to
+know about managed clusters:
+
+- `node-postgres` verifies the certificate when the URL says `sslmode=require`,
+  which is stricter than `libpq` and than most other drivers. Give it the
+  provider's CA and ask for
+  `?sslmode=verify-full&sslrootcert=/path/to/ca.crt`.
+- Set `DATABASE_POOL_MAX` below the share of connections you can spare. One
+  process otherwise holds up to twelve, and takes one more for live updates.
+
 ### Without Docker
 
 Point `DATABASE_URL` at any PostgreSQL 14 or later, then:
