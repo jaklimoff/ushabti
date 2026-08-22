@@ -169,6 +169,11 @@ jobs:
       id-token: write
 
     steps:
+      # Only the last step needs the working tree, to read README.md. Without
+      # this the manifest was still made and pushed, and the job then failed on
+      # a file that was never checked out.
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v6
         with:
           path: /tmp/digests
