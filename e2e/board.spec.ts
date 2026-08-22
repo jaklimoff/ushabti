@@ -132,7 +132,10 @@ test.describe("Ushabti board", () => {
 
     const last = await card(page, "Third card").first().boundingBox();
     if (!last) throw new Error("cards not found");
-    await dragCard(page, "First card", { x: last.x + last.width / 2, y: last.y + last.height + 40 });
+    await dragCard(page, "First card", {
+      x: last.x + last.width / 2,
+      y: last.y + last.height + 40,
+    });
 
     expect(await titles()).toEqual(["Second card", "Third card", "First card"]);
 
