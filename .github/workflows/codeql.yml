@@ -1,12 +1,17 @@
 name: CodeQL
 
+# A pull request is the gate: nothing reaches `main` without a clean scan.
+# The weekly run keeps the default-branch alerts current, because a new query
+# release can find a fault in code that did not change.
+#
+# There is no `push` to `main` trigger. That commit was scanned minutes before
+# as a pull request, and a second scan finds the same nothing.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   schedule:
     - cron: "17 4 * * 1"
+  workflow_dispatch:
 
 concurrency:
   group: codeql-${{ github.ref }}

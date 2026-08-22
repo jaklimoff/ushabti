@@ -1,12 +1,27 @@
 version: 2
+
+# The aim is one pull request per ecosystem per period, not one per package.
+# Small bumps are grouped and merge themselves (see
+# .github/workflows/dependabot-auto-merge.yml). Major bumps are grouped too,
+# but they wait for a person, because only a person reads release notes.
+#
+# `cooldown` holds a release back for a few days. A version that is yanked or
+# fixed in the first days then never reaches a pull request at all. Security
+# updates ignore the cooldown, so a fix still arrives at once.
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+      semver-patch-days: 3
+      semver-minor-days: 5
+      semver-major-days: 14
     groups:
-      # One pull request for the small stuff, separate ones for the rest.
+      # One pull request for the small stuff. A major still gets its own,
+      # because a failure must point at one package.
       patch-and-minor:
         update-types: ["minor", "patch"]
     ignore:
@@ -23,11 +38,27 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      # An action bump is one line. Reviewing five of them apart is waste, so
+      # the small ones travel together and the majors travel together.
+      actions-patch-and-minor:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      actions-major:
+        patterns: ["*"]
+        update-types: ["major"]
 
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      base-images:
+        patterns: ["*"]
     ignore:
       # The images track the newest Node LTS, which is chosen by hand. An
       # automatic major bump would put an odd or a non-LTS release in

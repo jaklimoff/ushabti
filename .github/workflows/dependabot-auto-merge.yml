@@ -1,0 +1,55 @@
+name: Dependabot auto-merge
+
+# A patch or minor bump merges itself once every required check is green.
+# A major bump never does: it waits for a person to read the release notes.
+#
+# The merge is not immediate. `--auto` asks GitHub to hold the pull request
+# until the branch ruleset is satisfied, so a red test still stops it.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: What did Dependabot change?
+        id: meta
+        uses: dependabot/fetch-metadata@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # A grouped pull request holds several dependencies. Every one of them
+      # must be small, so one major in the group holds back the whole group.
+      - name: Is every bump a patch or a minor?
+        id: size
+        env:
+          DEPS: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: |
+          if [ -z "$DEPS" ] || [ "$DEPS" = "[]" ]; then
+            echo "Dependabot sent no metadata; a person must merge this."
+            echo "small=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          big=$(printf '%s' "$DEPS" | jq -r '
+            [ .[] | select(.updateType
+                | . != "version-update:semver-patch"
+                and . != "version-update:semver-minor") ]
+            | length')
+          if [ "$big" -eq 0 ]; then
+            echo "small=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "$big of these are major bumps; a person must read them."
+            echo "small=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Let it merge itself
+        if: steps.size.outputs.small == 'true'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --squash "$PR_URL"
