@@ -33,11 +33,25 @@
   gap: 9px;
 }
 
+/* The key is the link to the task, so it is a button. It stays as quiet as
+   the label it was until the pointer is on it. */
 .key {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
   color: var(--muted);
+  padding: 2px 5px;
+  margin-left: -5px;
+  border-radius: 5px;
+  background: transparent;
+  transition:
+    background 120ms var(--ease),
+    color 120ms var(--ease);
+}
+
+.key:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
 }
 
 .leadPill {
@@ -96,12 +110,34 @@
   padding: 6px 8px;
   border-radius: 5px;
   font-size: 12px;
-  color: #d2726a;
+  color: var(--text-2);
   width: 100%;
   text-align: left;
 }
 
 .menuItem:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* The dot marks the row that takes something away, and holds the text of the
+   rows that do not on the same line. */
+.menuDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.menuItemDanger {
+  color: #d2726a;
+}
+
+.menuItemDanger .menuDot {
+  background: #d2726a;
+}
+
+.menuItemDanger:hover {
   background: rgba(224, 87, 77, 0.13);
   color: var(--danger-soft);
 }
