@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.3.0 — 2026-08-23
+
 ### Added
 
 - **A run that stops answering closes itself.** A killed agent used to leave a
@@ -17,13 +19,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   agent last spoke instead of how long it has worked, and after thirty it
   closes the run as **lost** and gives the task back. Only **Take over** could
   clear a dead run before.
-- **A heartbeat, so that a long build is not a dead agent.** `board.mjs beat
-USH-14 &` sends `{ "beat": true }` every two minutes. A beat says the
-  process is alive and writes nothing else — no step, no log, and not the
-  clock the thirty minutes counts, so a heartbeat left running by a killed
-  session can never hold a card open. An agent that beats without reporting
-  reads as **quiet**; one that does neither reads as **silent**. Killed with
-  its session, the heartbeat closes the run on the way out.
+- **A heartbeat, so that a long build is not a dead agent.** Run
+  `board.mjs beat USH-14 &` beside the work and it sends `{ "beat": true }`
+  every two minutes. A beat says the process is alive and writes nothing else —
+  no step, no log, and not the clock the thirty minutes counts, so a heartbeat
+  left running by a killed session can never hold a card open. An agent that
+  beats without reporting reads as **quiet**; one that does neither reads as
+  **silent**. Killed with its session, the heartbeat closes the run on the way
+  out.
 - **An account page**, at `/account`, reached from the menu behind your avatar.
   Change your name, pick your colour from the palette, and change your
   password. It also counts your other live sessions and can end them all,
@@ -52,6 +55,54 @@ USH-14 &` sends `{ "beat": true }` every two minutes. A beat says the
   scale for control height, radius, type and space. The same button used to be
   declared three times at three geometries, and the same input at 28, 30 and
   34 px.
+- **Agents.** A project can now have machine members. An agent is a member like
+  any other: it holds a person property, writes comments and appears in the
+  activity log. Two things are its own — it signs in with a token instead of a
+  password, and while it works it opens a _run_ on a task.
+  - **Settings → Agents.** The owner creates an agent, issues a token and
+    revokes it. The plain text of a token is shown once and stored as a digest.
+  - **The whole JSON API accepts a token.** `Authorization: Bearer ush_…` works
+    on every route the browser uses, so an agent reads and writes exactly what
+    a person can, in the project the token belongs to and no other.
+  - **A run makes the work visible.** While a run is open the card carries a
+    strip along its bottom: the agent's name, the line it last reported, the
+    time it has been going, and a bar that scans while it lives. The task panel
+    grows an **Agent** tab beside Comments and Activity — its dot pulses while
+    the run is live — holding the plan with its steps, the run log and the
+    buttons.
+  - **Pause, Stop and Take over.** Pause and Stop are requests: the agent reads
+    them in the answer to its next report and obeys. Take over is not a
+    request — it ends the run at once and gives the card back. Dragging a card
+    an agent holds takes it over as well.
+  - `docs/agents.md` has every call, and `examples/agent.mjs` is a working
+    agent in about a hundred lines.
+  - **A skill**, in `examples/skill/ushabti/`. Copy it into `.claude/skills/`
+    and Claude Code can work on the board: `list`, `claim`, `step`, `set`,
+    `comment`, `finish`. It takes property and option **names**, not ids, and
+    refuses an unknown one with the real choices, so an agent cannot bake a
+    board's ids into itself.
+- A cleanup workflow. It drops the caches of a pull request when the pull
+  request closes, drops caches that nothing has read for a fortnight, and drops
+  container versions that no tag can reach. Nothing that carries a tag is
+  touched.
+
+### Changed
+
+- The image is 308 MB, down from 775 MB, and the two architectures build side
+  by side on runners of their own architecture instead of one runner emulating
+  the other. The tag build took 9m42s, of which 8m58s was the emulator.
+- The end to end tests now run against the production build, not `next dev`.
+  CI already made that build and then threw it away, so the tests never touched
+  what the image ships, and every route paid for its first compile inside a
+  test. The step is 24s where it was 86s, and `e2e/global-setup.ts`, whose only
+  job was warming those compiles, is gone.
+- Playwright's browser is cached between runs, keyed on the Playwright version.
+- CodeQL runs on `main` and weekly, not on every pull request. It takes about
+  seventy seconds and has never held a change back.
+- The image build writes `mode=min` build cache, scoped per architecture, where
+  it wrote `mode=max` for both. `max` stored every layer of every build stage
+  and filled the whole 10 GB repository cache in a day, which evicted the npm
+  cache and then evicted itself.
 
 ### Fixed
 
@@ -105,56 +156,12 @@ USH-14 &` sends `{ "beat": true }` every two minutes. A beat says the
 - The show-on-card control was an unlabelled `◉`, and the only route to project
   settings was a 26 px `⚙`.
 
-### Changed
+### Note for anyone upgrading
 
-- The image is 308 MB, down from 775 MB, and the two architectures build side
-  by side on runners of their own architecture instead of one runner emulating
-  the other. The tag build took 9m42s, of which 8m58s was the emulator.
-- The end to end tests now run against the production build, not `next dev`.
-  CI already made that build and then threw it away, so the tests never touched
-  what the image ships, and every route paid for its first compile inside a
-  test. The step is 24s where it was 86s, and `e2e/global-setup.ts`, whose only
-  job was warming those compiles, is gone.
-- Playwright's browser is cached between runs, keyed on the Playwright version.
-- CodeQL runs on `main` and weekly, not on every pull request. It takes about
-  seventy seconds and has never held a change back.
-- The image build writes `mode=min` build cache, scoped per architecture, where
-  it wrote `mode=max` for both. `max` stored every layer of every build stage
-  and filled the whole 10 GB repository cache in a day, which evicted the npm
-  cache and then evicted itself.
-
-### Added
-
-- **Agents.** A project can now have machine members. An agent is a member like
-  any other: it holds a person property, writes comments and appears in the
-  activity log. Two things are its own — it signs in with a token instead of a
-  password, and while it works it opens a _run_ on a task.
-  - **Settings → Agents.** The owner creates an agent, issues a token and
-    revokes it. The plain text of a token is shown once and stored as a digest.
-  - **The whole JSON API accepts a token.** `Authorization: Bearer ush_…` works
-    on every route the browser uses, so an agent reads and writes exactly what
-    a person can, in the project the token belongs to and no other.
-  - **A run makes the work visible.** While a run is open the card carries a
-    strip along its bottom: the agent's name, the line it last reported, the
-    time it has been going, and a bar that scans while it lives. The task panel
-    grows an **Agent** tab beside Comments and Activity — its dot pulses while
-    the run is live — holding the plan with its steps, the run log and the
-    buttons.
-  - **Pause, Stop and Take over.** Pause and Stop are requests: the agent reads
-    them in the answer to its next report and obeys. Take over is not a
-    request — it ends the run at once and gives the card back. Dragging a card
-    an agent holds takes it over as well.
-  - `docs/agents.md` has every call, and `examples/agent.mjs` is a working
-    agent in about a hundred lines.
-  - **A skill**, in `examples/skill/ushabti/`. Copy it into `.claude/skills/`
-    and Claude Code can work on the board: `list`, `claim`, `step`, `set`,
-    `comment`, `finish`. It takes property and option **names**, not ids, and
-    refuses an unknown one with the real choices, so an agent cannot bake a
-    board's ids into itself.
-- A cleanup workflow. It drops the caches of a pull request when the pull
-  request closes, drops caches that nothing has read for a fortnight, and drops
-  container versions that no tag can reach. Nothing that carries a tag is
-  touched.
+This release adds a column to `agent_runs`, so run `npm run db:migrate` before
+you start the new image. Any run already open whose agent last reported more
+than thirty minutes ago closes as **lost** the first time somebody loads that
+board, which is the point of the change.
 
 ## 0.2.1 — 2026-08-22
 
