@@ -19,6 +19,7 @@ function SortableTask({
   members,
   groupPropertyId,
   selected,
+  cursor,
   onOpen,
 }: {
   task: TaskDTO;
@@ -27,6 +28,7 @@ function SortableTask({
   members: MemberDTO[];
   groupPropertyId: string | null;
   selected: boolean;
+  cursor: boolean;
   onOpen: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -43,6 +45,7 @@ function SortableTask({
       members={members}
       groupPropertyId={groupPropertyId}
       selected={selected}
+      cursor={cursor}
       ghost={isDragging}
       onOpen={onOpen}
       style={{
@@ -60,6 +63,7 @@ export function Column({
   members,
   groupProperty,
   selectedTaskId,
+  cursorTaskId,
   draggable,
   onOpenTask,
   onAddTask,
@@ -69,6 +73,7 @@ export function Column({
   members: MemberDTO[];
   groupProperty: PropertyDTO | null;
   selectedTaskId: string | null;
+  cursorTaskId: string | null;
   draggable: boolean;
   onOpenTask: (id: string) => void;
   onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
@@ -185,6 +190,7 @@ export function Column({
               members={members}
               groupPropertyId={groupProperty?.id ?? null}
               selected={selectedTaskId === task.id}
+              cursor={cursorTaskId === task.id}
               onOpen={() => onOpenTask(task.id)}
             />
           ))}

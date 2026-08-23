@@ -496,6 +496,17 @@
   color: var(--faint);
 }
 
+/* Every stop the keyboard can reach has to be visible, or a person who never
+   touches the mouse cannot see where they are. This one is invisible until
+   then on purpose: it is a drop target, not furniture. */
+.emptyDrop:focus-visible,
+.colAdd:focus-visible {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 1px var(--focus-ring);
+  color: var(--faint);
+}
+
 /* --------------------------------------------------------------- cards */
 
 .card {
@@ -520,6 +531,15 @@
 
 .cardSelected {
   box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.55);
+}
+
+/* The cursor. One card carries it, the arrow keys move it, and it reads
+   stronger than the ring on the open card because it is where you are. */
+.card:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 0 0 3px rgba(63, 176, 200, 0.18);
 }
 
 .cardGhost {

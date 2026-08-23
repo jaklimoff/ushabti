@@ -10,11 +10,31 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The board, with the keyboard alone.** One card carries the cursor and is
+  the board's only tab stop, so `Tab` reaches the board in one press instead of
+  one press for every card. The arrow keys move the cursor from card to card and
+  across columns, holding its place in the column and stepping over a column
+  with no cards; `Home` and `End` reach the ends of a column; `Enter` opens the
+  card. `Space` still lifts it, and while a card is lifted the arrow keys belong
+  to the drag, as before. The card you are on now says so: it wore no ring at
+  all, and on a board of forty cards the keyboard drag was a promise nobody
+  could find.
 - **A link to a task, in one click.** The key at the top of the panel — `USH-14`
   — copies the link to that task, and the ⋯ menu says **Copy link** for anyone
   who does not think to click a label. The link opens the board with the task
   open, which the address bar already did; nothing told a person that, and
   nobody copies an address bar with a drag on a task board.
+
+### Fixed
+
+- **A lifted card no longer jumps over an empty column.** 0.2.1 fixed this for
+  the pointer and said the keyboard was fixed with it. Only half of it was. The
+  drop target is one decision and where the arrow key puts the card is another,
+  and the second one still asked dnd-kit, which scores by the distance between
+  corners: an empty column is as tall as the board, so its two bottom corners
+  sit far below and a small card one column further over won the sum. Sideways
+  the board now works the columns out for itself — the nearest one that clears
+  the card, cards or no cards — and keeps the height the card was at.
 
 ## 0.3.0 — 2026-08-23
 

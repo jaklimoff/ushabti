@@ -69,9 +69,14 @@ Board  ·  Phases  ·  By assignee            ← views you create
 - **Views.** Each view is a board grouped by one select, person or checkbox
   property. Add as many as you like.
 - **Drag and drop.** Cards move inside a column and across columns; column
-  headers drag to reorder the options of the grouping property. From the
-  keyboard: focus a card, **Space** picks it up, the arrow keys move it,
-  **Space** puts it down, **Escape** cancels. **Enter** opens the task.
+  headers drag to reorder the options of the grouping property.
+- **The keyboard alone.** One press of **Tab** reaches the board, because one
+  card at a time is its tab stop. The **arrow keys** move that cursor from card
+  to card and across columns, holding its place in the column and stepping over
+  a column with no cards in it; **Home** and **End** reach the ends of a column.
+  **Enter** opens the card the cursor sits on. **Space** picks it up, the arrow
+  keys then move the card itself — one column at a time, into an empty column as
+  readily as a full one — **Space** puts it down and **Escape** cancels.
 - **Task detail.** Title, markdown description, checklist with progress,
   comments and an automatic activity log, all edited in place. No dialogs.
 - **Live updates.** A change by one person reaches every open board in about a

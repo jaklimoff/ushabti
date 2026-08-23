@@ -32,6 +32,21 @@ and what is easy to get wrong.
   exists only while a run does. A board with ten runs on it has to stay
   readable, which is why the step count and the log ticker never reached the
   card.
+- **The board has one tab stop.** The cursor is a card, and that card is the
+  only card `Tab` can reach; `BoardCanvas` holds which one and `TaskCard` sets
+  `tabIndex` after dnd-kit's own attributes, which hand every card a stop. Give
+  the cards their stops back and `Tab` walks all forty before it leaves the
+  board. The cursor is also the focused element, so the arrow keys move focus
+  and the drag sensor keeps working — which is why `BoardCanvas` ignores the
+  arrows while a card is lifted. Those arrows belong to the drag.
+- **Nothing on this board may be picked by the distance between corners.** A
+  column is as tall as the board, so an empty one has two corners hundreds of
+  pixels away and loses every sum to a small card one column further over. That
+  is why `collision` reaches for the pointer first and rectangle overlap second,
+  and why the arrow keys of a lifted card work the columns out themselves in
+  `liftedCardCoordinates` instead of asking `sortableKeyboardCoordinates`. Both
+  halves have to hold: the drop target is one decision, where the key puts the
+  card is another, and a release that fixed only the first one read as fixed.
 - **Pause and Stop are requests, not commands.** The server cannot reach into
   another machine. It writes a word on the run; the agent reads it in the answer
   to its next report and obeys because it said it would. Only **Take over**
