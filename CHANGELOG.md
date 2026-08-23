@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A link to a task, in one click.** The key at the top of the panel — `USH-14`
+  — copies the link to that task, and the ⋯ menu says **Copy link** for anyone
+  who does not think to click a label. The link opens the board with the task
+  open, which the address bar already did; nothing told a person that, and
+  nobody copies an address bar with a drag on a task board.
+
 ## 0.3.0 — 2026-08-23
 
 ### Added

@@ -228,6 +228,26 @@ test.describe("Ushabti board", () => {
     await expect(page.getByTestId("task-panel")).toBeVisible();
   });
 
+  test("copy the link to a task and open it again", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await register(page);
+    const projectId = await createProject(page, unique("Links"));
+    await addTask(page, "Todo", "Share me");
+
+    await page.getByTestId("task-key").click();
+    await expect(page.getByTestId("toast")).toHaveText("Link copied");
+
+    const link = await page.evaluate(() => navigator.clipboard.readText());
+    expect(link).toContain(`/p/${projectId}?task=`);
+
+    // The link has to open the task on its own, in a window that never had
+    // the board open.
+    await page.goto("about:blank");
+    await page.goto(link);
+    await expect(page.getByTestId("task-panel")).toBeVisible();
+    await expect(page.getByTestId("task-title")).toHaveValue("Share me");
+  });
+
   test("create a view grouped by another property", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Views"));

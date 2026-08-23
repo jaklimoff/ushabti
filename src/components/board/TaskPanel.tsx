@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
+import { copyText } from "@/lib/clipboard";
 import { leadProperty, relativeTime } from "@/lib/board";
 import { tint } from "@/lib/colors";
 import {
@@ -97,6 +98,16 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  /* The task key is its address: the panel writes the open task into the
+     query, so the address bar already holds the link a person wants to paste
+     into a chat. This copies that same shape from wherever the board is
+     served, so a link made behind a proxy still points at the proxy. */
+  const copyLink = useCallback(async () => {
+    const link = `${window.location.origin}/p/${data.project.id}?task=${taskId}`;
+    if (await copyText(link)) notify("Link copied", "info");
+    else notify("The link did not copy. The address bar holds it.");
+  }, [data.project.id, notify, taskId]);
+
   /* the band and the pill follow the same property the card square uses */
   const leadPill = useMemo(() => {
     if (!boardTask) return null;
@@ -120,7 +131,16 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
 
       <div className={styles.head} style={{ background: tint(accent, 0.06) }} ref={menuRef}>
         <div className={styles.headRow}>
-          <span className={styles.key}>{boardTask.key}</span>
+          <button
+            type="button"
+            className={styles.key}
+            data-testid="task-key"
+            title="Copy link to this task"
+            aria-label={`Copy link to ${boardTask.key}`}
+            onClick={() => void copyLink()}
+          >
+            {boardTask.key}
+          </button>
           {leadPill && (
             <span className={styles.leadPill} style={{ background: tint(leadPill.color, 0.16) }}>
               <span
@@ -152,11 +172,21 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 className={styles.menuItem}
                 onClick={() => {
                   setMenuOpen(false);
+                  void copyLink();
+                }}
+              >
+                <span className={styles.menuDot} />
+                Copy link
+              </button>
+              <button
+                className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                onClick={() => {
+                  setMenuOpen(false);
                   onClose();
                   void deleteTask(taskId);
                 }}
               >
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#d2726a" }} />
+                <span className={styles.menuDot} />
                 Delete task
               </button>
             </div>

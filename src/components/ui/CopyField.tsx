@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { copyText } from "@/lib/clipboard";
 import styles from "./ui.module.css";
 
 /**
@@ -29,13 +30,9 @@ export function CopyField({
   );
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      // No clipboard permission, or an insecure origin. The text stays
-      // selectable, so the person can still take it by hand.
-      return;
-    }
+    // The text stays selectable, so a refused clipboard still leaves the
+    // person a way to take the value by hand.
+    if (!(await copyText(value))) return;
     setDone(true);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setDone(false), 1800);
