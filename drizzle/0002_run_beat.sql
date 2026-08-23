@@ -1,0 +1,1 @@
+ALTER TABLE "agent_runs" ADD COLUMN "beat_at" timestamp with time zone DEFAULT now() NOT NULL;

@@ -90,7 +90,8 @@ curl -s -X PUT $USHABTI/api/tasks/$TASK/values/$STATUS_PROPERTY \
 
 A run is one piece of work on one task. While it is open the card carries a
 strip along its bottom: your name, the line you last reported, and how long you
-have been at it, over a bar that scans while the run lives. The task panel grows
+have been at it — or how long ago you last spoke, if that is the harder truth —
+over a bar that scans while the run lives. The task panel grows
 an **Agent** tab beside Comments and Activity, whose dot pulses while you work.
 The tab holds the rest — the plan, the log and the buttons.
 
@@ -126,9 +127,41 @@ PATCH /api/runs/{runId}
 - `log` — one line for the run log in the Agent tab. If you leave it out, `step`
   is logged instead.
 - `steps` — a new plan, if the work turned out different.
-- `status` — `running`, `paused`, `done` or `failed`.
+- `status` — `running`, `paused`, `done`, `failed`, or `lost` if you are
+  being shut down and want the card back on the board at once.
 
 The answer is `{ "run": …, "control": … }`.
+
+### Beat, so that silence means something
+
+The board cannot see your machine. If you are killed, nothing writes your run
+again, and the card would read as work in progress for ever. So the board
+counts your reports, and closes a run that has none:
+
+- **No report for six minutes** and the card stops saying how long you have
+  worked. It says how long ago you last spoke instead.
+- **No report for thirty minutes** and the board closes the run as `lost`. The
+  task goes back on the board for whoever wants it, and your next `PATCH` gets
+  `409`.
+
+A long build is not a dead agent, though, so there is a second signal:
+
+```http
+PATCH /api/runs/{runId}
+{ "beat": true }
+```
+
+A beat says one thing: the process is alive. It writes no step, no log and no
+progress of any kind, and it **cannot** extend the thirty minutes. That is on
+purpose. A beat is a timer, and a timer left running by a killed session would
+otherwise hold a card open all day — the exact fault the lease exists to fix.
+What a beat buys you is the word on the card: an agent that beats but does not
+report reads as `quiet`, not `silent`.
+
+`board.mjs beat USH-14 &` does this for you. It beats every two minutes, it
+stops when the run ends, it gives up after an hour, and when it is killed with
+your session it closes the run itself, which is the fastest honest answer the
+board can get.
 
 ### Obey the control word
 
@@ -166,7 +199,7 @@ log keeps the line.
 | 401  | The token is unknown or revoked.                              |
 | 403  | The token belongs to another project, or a route only a person may call. |
 | 404  | The task, run or project is not there.                        |
-| 409  | The task already has an open run, or your run is closed.      |
+| 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. |
 
 ## Teaching an agent to use this
 

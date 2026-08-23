@@ -789,6 +789,15 @@
   color: #55747c;
 }
 
+/*
+ * The one warm colour on the strip. It is on the time, not on a new badge,
+ * because the card says who, what and how long, and "how long since anybody
+ * heard from it" is the same slot answering a harder question.
+ */
+.runTimeStale {
+  color: #c9925a;
+}
+
 .runScan {
   display: block;
   height: 2px;

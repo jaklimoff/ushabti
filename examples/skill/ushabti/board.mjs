@@ -31,6 +31,27 @@ async function call(method, path, payload) {
   return data;
 }
 
+/**
+ * The same call, for the heartbeat, which must not die on the first bad
+ * answer. A board that cannot be reached for a minute is not a reason to give
+ * up: the lease on the server is there for the case where this never recovers.
+ * Status 0 means the request itself failed.
+ */
+async function trySend(method, path, payload) {
+  try {
+    const res = await fetch(BASE + path, {
+      method,
+      headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    });
+    return res.status;
+  } catch {
+    return 0;
+  }
+}
+
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+
 function fail(message, code = 1) {
   console.error(message);
   process.exit(code);
@@ -185,6 +206,7 @@ const commands = {
   set <key> "<Property>" "<Value>"    set one property (names, not ids)
   comment <key> "<text>"              leave a note
   claim <key> --goal "<what>" [--plan "a|b|c"] [--step "<now>"]
+  beat <key> [--every 120] [--for 60]  say "still here" until the session ends
   step <key> --say "<now>" [--index 2] [--log "<line>"]
   finish <key> [--status done|failed] [--log "<line>"]
 
@@ -301,6 +323,56 @@ http://localhost:3000.`);
       steps,
     });
     console.log(`${task.key} claimed. run ${run.id}`);
+    console.log(`Now start the heartbeat: node board.mjs beat ${task.key} &`);
+  },
+
+  /**
+   * The heartbeat. It says the process is alive between reports, and it says
+   * the process is gone when it is killed with the session.
+   *
+   * A beat never writes the step, the log or anything else a person reads as
+   * progress. It only stops the board from calling a busy agent silent while
+   * a long build runs.
+   *
+   * It closes the run when it is stopped, which is the whole point: the usual
+   * way an agent dies is a Ctrl-C that reaches this process too. If the run
+   * already ended, the board answers 409 and that is the right answer.
+   *
+   * It is not a permit to work for ever. After `--for` minutes it exits and
+   * leaves the run to the lease on the server, so a heartbeat that outlives
+   * its session cannot hold a card open all day.
+   */
+  async beat() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const run = data.runs.find((r) => r.taskId === task.id);
+    if (!run) fail(`No open run on ${task.key}. Claim it first.`, 9);
+
+    const every = Math.max(15, Number(flags.every ?? 120)) * 1000;
+    const until = Date.now() + Math.max(1, Number(flags.for ?? 60)) * 60_000;
+
+    let leaving = false;
+    const leave = async (why) => {
+      if (leaving) return;
+      leaving = true;
+      await trySend("PATCH", `/api/runs/${run.id}`, { status: "lost", log: why });
+      process.exit(0);
+    };
+    process.on("SIGINT", () => void leave("the agent was stopped"));
+    process.on("SIGTERM", () => void leave("the agent was stopped"));
+
+    console.log(`beating for ${task.key} every ${every / 1000}s`);
+    while (Date.now() < until) {
+      await sleep(every);
+      if (leaving) return;
+      const status = await trySend("PATCH", `/api/runs/${run.id}`, { beat: true });
+      // The run ended under us: finished, taken over, or closed by the board.
+      if (status === 409 || status === 404) {
+        console.log(`${task.key}: the run is over`);
+        return;
+      }
+    }
+    console.log(`${task.key}: heartbeat done, the run now rests on its reports`);
   },
 
   async step() {

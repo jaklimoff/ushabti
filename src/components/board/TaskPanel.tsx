@@ -4,7 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { leadProperty, relativeTime } from "@/lib/board";
 import { tint } from "@/lib/colors";
-import { progressOf, runLine, STATUS_WORD } from "@/lib/run-state";
+import {
+  duration,
+  elapsed,
+  isOpen,
+  leaseLeft,
+  lifeOf,
+  LIFE_WORD,
+  progressOf,
+  runLine,
+  STATUS_WORD,
+} from "@/lib/run-state";
 import type {
   AgentRunDetailDTO,
   ChecklistItemDTO,
@@ -13,7 +23,7 @@ import type {
   TaskValue,
 } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
-import { useElapsed } from "@/components/ui/useElapsed";
+import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PropertyControl } from "./controls/PropertyControl";
 import { Markdown } from "./Markdown";
@@ -302,6 +312,7 @@ const RUN_WORDS: Record<string, string> = {
   failed: "stopped with a failure",
   stopped: "stopped the run",
   taken_over: "took the task over",
+  lost: "stopped answering, so the board closed the run",
 };
 
 /**
@@ -316,7 +327,9 @@ function AgentRunBlock({
   onControl: (control: RunControl | "take_over") => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
-  const since = useElapsed(run.startedAt, run.status === "running");
+  const now = useNow(isOpen(run.status));
+  const since = elapsed(run.startedAt, now);
+  const life = lifeOf(run, now);
   const paused = run.status === "paused";
 
   async function press(control: RunControl | "take_over") {
@@ -337,10 +350,12 @@ function AgentRunBlock({
           color={run.agent.color}
           size={18}
           kind="agent"
-          live={run.status === "running"}
+          live={run.status === "running" && life === "reporting"}
         />
         <span className={styles.runAgent}>{run.agent.name}</span>
-        <span className={styles.runState}>{STATUS_WORD[run.status]}</span>
+        <span className={styles.runState}>
+          {life === "reporting" ? STATUS_WORD[run.status] : LIFE_WORD[life]}
+        </span>
         <span style={{ flex: 1 }} />
         <span className={styles.runSince}>started {since} ago</span>
       </div>
@@ -433,6 +448,15 @@ function AgentRunBlock({
       {run.control && (
         <div className={styles.runNote} data-testid="panel-run-pending">
           Asked the agent to {run.control}. It answers on its next report.
+        </div>
+      )}
+      {life !== "reporting" && (
+        <div className={styles.runNote} data-testid="panel-run-quiet">
+          {life === "silent"
+            ? `Nothing from ${run.agent.name} for ${elapsed(run.updatedAt, now)}.`
+            : `${run.agent.name} is alive but has reported nothing for ${elapsed(run.updatedAt, now)}.`}{" "}
+          The board closes this run in {duration(leaseLeft(run, now))}, and the task goes back to
+          whoever wants it.
         </div>
       )}
     </div>

@@ -28,6 +28,9 @@ node board.mjs task USH-14                      # read it in full first
 node board.mjs claim USH-14 --goal "Write the queue tests" \
   --plan "Read the module|Write the tests|Run them|Open a PR"
 
+# start the heartbeat in the background, and leave it there:
+node board.mjs beat USH-14 &
+
 # ...then, every time you move to a new part of the work:
 node board.mjs step USH-14 --index 1 --say "Writing the tests" \
   --log "write tests/queue.spec.ts"
@@ -47,6 +50,15 @@ panel; leave it out and the `--say` line is logged instead.
 
 - **Report before each part of the work, not after all of it.** A card that
   says nothing for ten minutes reads as a stuck agent.
+- **Start the heartbeat once you claim, and let it run.** It says you are
+  still there between reports, so a long build does not read as a dead agent.
+  It writes nothing else: only a report moves the card. If it is killed with
+  you, it closes the run and the task goes back on the board, which is what a
+  person watching would want.
+- **A run that reports nothing for half an hour is closed for you.** The board
+  cannot see your machine, so silence is the only evidence it has. Report
+  before a long wait, not after it. If your run was closed this way, do not
+  argue with it: claim the task again.
 - **Obey `control`.** Every `step` prints `control: none | pause | stop`.
   Nobody can force this. A person asked; you answer.
   - `stop` → `node board.mjs finish USH-14 --status stopped`, then stop. Say

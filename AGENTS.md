@@ -36,6 +36,11 @@ and what is easy to get wrong.
   another machine. It writes a word on the run; the agent reads it in the answer
   to its next report and obeys because it said it would. Only **Take over**
   decides anything, because it acts on our own database.
+- **A beat is not a report.** `updated_at` is the last thing an agent said.
+  `beat_at` is the last sign that its process is alive. The lease that closes a
+  silent run counts reports and never beats. Let a beat write `updated_at` and
+  a heartbeat left behind by a killed session holds a card open all day, which
+  is the exact fault the lease exists to fix.
 - **Structure is the owner's; content is shared.** A member — and an agent —
   writes values, comments and runs all day. Only a person, and only the owner,
   deletes a property, an option or a view, and only a person writes a run's

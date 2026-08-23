@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import {
   addTask,
+  backdateRun,
   card,
   centreOf,
   createProject,
@@ -123,6 +124,119 @@ test.describe("Agents on the board", () => {
 
     const afterTakeOver = await api.patch(`/api/runs/${run.id}`, { step: "Still going" });
     expect(afterTakeOver.status()).toBe(409);
+  });
+
+  test("a beat says the agent is alive and says nothing else", async ({ page, request }) => {
+    await register(page, "Beat Owner");
+    const projectId = await createProject(page, unique("Beat"));
+    await addTask(page, "Todo", "Held through a long build");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Beater");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Beater" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find(
+      (t: { title: string }) => t.title === "Held through a long build",
+    );
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, { goal: "Build it", step: "Running the build" })
+    ).json();
+
+    const before = (await (await api.get(`/api/runs/${run.id}`)).json()).run;
+
+    const beat = await api.patch(`/api/runs/${run.id}`, { beat: true });
+    expect(beat.ok()).toBeTruthy();
+
+    const after = (await (await api.get(`/api/runs/${run.id}`)).json()).run;
+
+    // The one thing a beat may move.
+    expect(new Date(after.beatAt).getTime()).toBeGreaterThan(new Date(before.beatAt).getTime());
+
+    // And everything it may not. The card is a report of work, and a timer
+    // does no work: it must not be able to look like progress.
+    expect(after.updatedAt).toBe(before.updatedAt);
+    expect(after.step).toBe("Running the build");
+    expect(after.log).toHaveLength(before.log.length);
+
+    await page.goto(`/p/${projectId}`);
+    const held = card(page, "Held through a long build").first();
+    await expect(held.getByTestId("card-run-step")).toHaveText("Running the build");
+
+    // A run that is over answers a beat the same way it answers a report.
+    await api.patch(`/api/runs/${run.id}`, { status: "done" });
+    expect((await api.patch(`/api/runs/${run.id}`, { beat: true })).status()).toBe(409);
+  });
+
+  test("a run that stops answering goes quiet, then silent, then closes itself", async ({
+    page,
+    request,
+  }) => {
+    await register(page, "Lease Owner");
+    const projectId = await createProject(page, unique("Lease"));
+    await addTask(page, "Todo", "Left behind by a killed agent");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Ghost");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Ghost" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find(
+      (t: { title: string }) => t.title === "Left behind by a killed agent",
+    );
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, { goal: "Never come back", step: "Working" })
+    ).json();
+
+    await page.goto(`/p/${projectId}`);
+    const held = card(page, "Left behind by a killed agent").first();
+    await expect(held.getByTestId("card-run")).toHaveAttribute("data-life", "reporting");
+
+    /* ---- nothing for ten minutes: the card stops claiming progress --- */
+
+    await backdateRun(run.id, 10);
+    await page.reload();
+    await expect(held.getByTestId("card-run")).toHaveAttribute("data-life", "silent");
+    await expect(held.getByTestId("card-run-time")).toContainText("silent");
+
+    /* ---- a beat softens the word and moves nothing else -------------- */
+
+    await api.patch(`/api/runs/${run.id}`, { beat: true });
+    await page.reload();
+    await expect(held.getByTestId("card-run")).toHaveAttribute("data-life", "quiet");
+    // Alive, but the line is still the last thing the agent actually said.
+    await expect(held.getByTestId("card-run-step")).toHaveText("Working");
+
+    /* ---- past the lease: the board takes the card back --------------- */
+
+    await backdateRun(run.id, 40);
+    // A beat cannot buy time. The lease counts reports, and there are none.
+    await api.patch(`/api/runs/${run.id}`, { beat: true });
+
+    await page.reload();
+    await expect(held.getByTestId("card-run")).toBeHidden();
+
+    // The run is over, so the agent's next word is refused like any other.
+    expect((await api.patch(`/api/runs/${run.id}`, { step: "Back!" })).status()).toBe(409);
+
+    await held.click();
+    await expect(page.getByTestId("agent-tab")).toBeHidden();
+    await page.getByRole("button", { name: /^Activity/ }).click();
+    await expect(page.getByText("stopped answering")).toBeVisible();
   });
 
   test("a token only opens its own project, and a revoked one opens nothing", async ({
