@@ -109,6 +109,54 @@ export function buildColumns(
   return columns.filter((c) => !c.isNone || c.tasks.length > 0 || columns.length === 1);
 }
 
+/** Where one press of an arrow, Home or End takes the board cursor. */
+export type CursorStep = "up" | "down" | "left" | "right" | "first" | "last";
+
+/** The card the cursor starts on: the top of the first column that has one. */
+export function firstTask(columns: BoardColumn[]): string | null {
+  for (const column of columns) {
+    if (column.tasks.length) return column.tasks[0].id;
+  }
+  return null;
+}
+
+/**
+ * The card the cursor lands on, or null when there is nowhere to go. Sideways
+ * it holds the row and steps over a column with no cards, because an empty
+ * column has nothing to put the cursor on. Nothing wraps: the board is a map,
+ * and a map has edges.
+ */
+export function cursorTarget(
+  columns: BoardColumn[],
+  taskId: string | null,
+  step: CursorStep,
+): string | null {
+  const at = columns.findIndex((c) => c.tasks.some((t) => t.id === taskId));
+  if (at < 0) return firstTask(columns);
+
+  const tasks = columns[at].tasks;
+  const row = tasks.findIndex((t) => t.id === taskId);
+
+  switch (step) {
+    case "up":
+      return tasks[row - 1]?.id ?? null;
+    case "down":
+      return tasks[row + 1]?.id ?? null;
+    case "first":
+      return tasks[0]?.id ?? null;
+    case "last":
+      return tasks[tasks.length - 1]?.id ?? null;
+    default: {
+      const way = step === "left" ? -1 : 1;
+      for (let i = at + way; i >= 0 && i < columns.length; i += way) {
+        const beside = columns[i].tasks;
+        if (beside.length) return beside[Math.min(row, beside.length - 1)].id;
+      }
+      return null;
+    }
+  }
+}
+
 /**
  * The first select property that is not the column property. Its colour drives
  * the small square on a card and the band at the top of the detail panel, so it

@@ -82,6 +82,8 @@ type Props = {
   members: MemberDTO[];
   groupPropertyId: string | null;
   selected?: boolean;
+  /** This card carries the board cursor, so it is the board's tab stop. */
+  cursor?: boolean;
   ghost?: boolean;
   overlay?: boolean;
   onOpen?: () => void;
@@ -96,6 +98,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
     members,
     groupPropertyId,
     selected,
+    cursor,
     ghost,
     overlay,
     onOpen,
@@ -138,10 +141,13 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
       className={className}
       data-testid={overlay ? "card-overlay" : "card"}
       style={style}
+      data-task-id={task.id}
       onClick={onOpen}
       role="button"
-      tabIndex={0}
       {...dragProps}
+      /* dnd-kit hands every card a tab stop. The board keeps one, so Tab
+         reaches the cursor in one press and the arrow keys move it. */
+      tabIndex={cursor && !overlay ? 0 : -1}
       onKeyDown={(event: React.KeyboardEvent<HTMLDivElement>) => {
         dragKeyDown?.(event);
         if (event.key === "Enter" && !event.defaultPrevented && onOpen) {

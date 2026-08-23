@@ -13,11 +13,13 @@ import {
   rectIntersection,
   useSensor,
   useSensors,
+  type ClientRect,
   type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
   type DropAnimation,
+  type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -26,7 +28,14 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { buildColumns, sortByPosition, type BoardColumn } from "@/lib/board";
+import {
+  buildColumns,
+  cursorTarget,
+  firstTask,
+  sortByPosition,
+  type BoardColumn,
+  type CursorStep,
+} from "@/lib/board";
 import type { TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column } from "./Column";
@@ -69,6 +78,67 @@ const collision: CollisionDetection = (args) => {
   return closestCorners(scoped);
 };
 
+/**
+ * Where an arrow key takes a lifted card. Sideways it goes to the column beside
+ * it, whether or not that column holds any cards.
+ *
+ * dnd-kit's own getter scores every target by its four corners, and an empty
+ * column is as tall as the board, so its two bottom corners are hundreds of
+ * pixels away. A small card one column further over won every time and a lifted
+ * card jumped straight over the gap it was aimed at — the same reckoning the
+ * collision above had to stop trusting, for the same reason.
+ *
+ * Up and down stay with dnd-kit: inside one column its answer is right.
+ */
+const liftedCardCoordinates: KeyboardCoordinateGetter = (event, args) => {
+  const way = event.code === "ArrowLeft" ? -1 : event.code === "ArrowRight" ? 1 : 0;
+  if (!way) return sortableKeyboardCoordinates(event, args);
+
+  const { collisionRect, droppableContainers, droppableRects } = args.context;
+  if (!collisionRect) return undefined;
+  event.preventDefault();
+
+  // The column next door is the nearest one that clears the card altogether.
+  // Its own column never does, which is what keeps the card moving.
+  let column: { id: string; rect: ClientRect } | null = null;
+  const cards: { columnId: string; rect: ClientRect }[] = [];
+
+  for (const entry of droppableContainers.getEnabled()) {
+    const data = entry.data.current;
+    const rect = droppableRects.get(entry.id);
+    if (!data || !rect) continue;
+
+    if (data.type === "card") {
+      cards.push({ columnId: String(data.columnId), rect });
+      continue;
+    }
+    if (data.type !== "container") continue;
+
+    const beside = way > 0 ? rect.left >= collisionRect.right : rect.right <= collisionRect.left;
+    const nearer =
+      !column || (way > 0 ? rect.left < column.rect.left : rect.right > column.rect.right);
+    if (beside && nearer) column = { id: String(data.columnId), rect };
+  }
+
+  if (!column) return undefined;
+
+  // Inside that column the card keeps the height it was at. An empty column has
+  // no card to keep it beside, so the column itself is the target.
+  const middle = collisionRect.top + collisionRect.height / 2;
+  let target = column.rect;
+  let nearest = Number.POSITIVE_INFINITY;
+  for (const card of cards) {
+    if (card.columnId !== column.id) continue;
+    const gap = Math.abs(card.rect.top + card.rect.height / 2 - middle);
+    if (gap < nearest) {
+      nearest = gap;
+      target = card.rect;
+    }
+  }
+
+  return { x: target.left, y: target.top };
+};
+
 function findColumn(columns: BoardColumn[], taskId: string) {
   return columns.find((c) => c.tasks.some((t) => t.id === taskId)) ?? null;
 }
@@ -85,6 +155,35 @@ function columnOf(columns: BoardColumn[], overId: string) {
   return findColumn(columns, overId);
 }
 
+/** The keys that move the cursor. Every other key is left alone. */
+const STEPS: Record<string, CursorStep | undefined> = {
+  ArrowUp: "up",
+  ArrowDown: "down",
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  Home: "first",
+  End: "last",
+};
+
+/** The task an event happened on, or null when it happened somewhere else. */
+function cardIdOf(target: EventTarget | null): string | null {
+  if (!(target instanceof HTMLElement)) return null;
+  return target.closest<HTMLElement>("[data-task-id]")?.dataset.taskId ?? null;
+}
+
+/**
+ * The cursor is the focused card, so moving the cursor moves focus. The card is
+ * already drawn, so it is found in the page rather than held in a ref map. The
+ * scroll is asked for by hand, because focus on its own scrolls a column more
+ * than it has to and never scrolls the board sideways.
+ */
+function focusCard(root: HTMLElement | null, taskId: string) {
+  const card = root?.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
+  if (!card) return;
+  card.focus({ preventScroll: true });
+  card.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
 export function BoardCanvas({
   selectedTaskId,
   onOpenTask,
@@ -97,6 +196,7 @@ export function BoardCanvas({
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [preview, setPreview] = useState<BoardColumn[] | null>(null);
+  const [cursor, setCursor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const base = useMemo(
@@ -107,12 +207,24 @@ export function BoardCanvas({
   const columns = preview ?? base;
   const columnsDraggable = groupProperty?.type === "select";
 
+  /* One card at a time carries the cursor, and that card is the board's only
+     tab stop: Tab reaches the board once instead of once for every card, and
+     the arrows do the walking. A cursor whose card left the board falls back to
+     the first card, so the board is never a dead end. */
+  const cursorTaskId = useMemo(
+    () =>
+      cursor && columns.some((c) => c.tasks.some((t) => t.id === cursor))
+        ? cursor
+        : firstTask(columns),
+    [columns, cursor],
+  );
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     // Space picks a card up and puts it down. Enter is left alone so it can
     // still open the task.
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+      coordinateGetter: liftedCardCoordinates,
       keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
     }),
   );
@@ -274,6 +386,30 @@ export function BoardCanvas({
     if (task) onOpenTask(task.id);
   }
 
+  /* Focus and the cursor are the same thing, so a click or a Tab onto a card
+     moves the cursor with it. */
+  function onCardFocus(event: React.FocusEvent<HTMLDivElement>) {
+    const id = cardIdOf(event.target);
+    if (id) setCursor(id);
+  }
+
+  function onCardKeys(event: React.KeyboardEvent<HTMLDivElement>) {
+    // While a card is lifted the arrows belong to the drag sensor.
+    if (activeTaskId || activeColumnId) return;
+    const step = STEPS[event.key];
+    if (!step) return;
+    // Keys typed in a composer, and keys on a column button, are not ours.
+    const from = cardIdOf(event.target);
+    if (!from) return;
+
+    // Without this the column scrolls under the cursor.
+    event.preventDefault();
+    const next = cursorTarget(columns, from, step);
+    if (!next || next === from) return;
+    setCursor(next);
+    focusCard(scrollRef.current, next);
+  }
+
   if (!groupProperty) {
     return (
       <div className={styles.canvasWrap}>
@@ -302,7 +438,7 @@ export function BoardCanvas({
       autoScroll={{ threshold: { x: 0.18, y: 0.2 }, acceleration: 14 }}
     >
       <div className={styles.canvasWrap}>
-        <div className={styles.canvas} ref={scrollRef}>
+        <div className={styles.canvas} ref={scrollRef} onFocus={onCardFocus} onKeyDown={onCardKeys}>
           <SortableContext
             items={columns.map((c) => COLUMN_PREFIX + c.id)}
             strategy={horizontalListSortingStrategy}
@@ -315,6 +451,7 @@ export function BoardCanvas({
                 members={data.members}
                 groupProperty={groupProperty}
                 selectedTaskId={selectedTaskId}
+                cursorTaskId={cursorTaskId}
                 draggable={columnsDraggable && !column.isNone}
                 onOpenTask={onOpenTask}
                 onAddTask={addTask}

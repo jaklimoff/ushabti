@@ -228,6 +228,81 @@ test.describe("Ushabti board", () => {
     await expect(page.getByTestId("task-panel")).toBeVisible();
   });
 
+  test("a lifted card lands in the empty column beside it, not past it", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Gap"));
+    await addTask(page, "Backlog", "Goes next door");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addTask(page, "In Progress", "Already there");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await card(page, "Goes next door").first().focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByTestId("card-overlay")).toBeVisible();
+    // the columns are measured in an effect after the lift; see the test above
+    await page.waitForTimeout(150);
+
+    // Todo holds no cards. Scored by its corners it is as tall as the board, so
+    // the small card two columns over used to win and the lift jumped the gap.
+    await page.keyboard.press("ArrowRight");
+    await expect(column(page, "Todo").getByText("Goes next door")).toBeVisible();
+
+    // One column at a time, and back again.
+    await page.keyboard.press("ArrowRight");
+    await expect(column(page, "In Progress").getByText("Goes next door")).toBeVisible();
+    await page.keyboard.press("ArrowLeft");
+    await expect(column(page, "Todo").getByText("Goes next door")).toBeVisible();
+
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/move$/, () => page.keyboard.press("Space"));
+    await page.goto(`/p/${projectId}`);
+    await expect(column(page, "Todo").getByText("Goes next door")).toBeVisible();
+  });
+
+  test("the arrow keys move the cursor from card to card", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Cursor"));
+
+    const written = [
+      ["Backlog", "Top of the pile"],
+      ["Backlog", "Under it"],
+      ["In Progress", "Two columns over"],
+    ] as const;
+    for (const [columnName, title] of written) {
+      await addTask(page, columnName, title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    // The whole board is one tab stop, not one for every card.
+    const tabStop = page.locator('[data-testid="card"][tabindex="0"]');
+    await expect(tabStop).toHaveCount(1);
+    await expect(tabStop).toContainText("Top of the pile");
+
+    await card(page, "Top of the pile").first().focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(card(page, "Under it").first()).toBeFocused();
+
+    // Todo holds no cards, so the cursor steps over it, and it takes the tab
+    // stop with it.
+    await page.keyboard.press("ArrowRight");
+    await expect(card(page, "Two columns over").first()).toBeFocused();
+    await expect(tabStop).toContainText("Two columns over");
+
+    // Coming back the row is clamped to what the column has.
+    await page.keyboard.press("ArrowLeft");
+    await expect(card(page, "Top of the pile").first()).toBeFocused();
+
+    // The top of a column is the end of the road. End is its bottom.
+    await page.keyboard.press("ArrowUp");
+    await expect(card(page, "Top of the pile").first()).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(card(page, "Under it").first()).toBeFocused();
+
+    // The cursor opens what it sits on.
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("task-panel")).toBeVisible();
+    await expect(page.getByTestId("task-title")).toHaveValue("Under it");
+  });
+
   test("copy the link to a task and open it again", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await register(page);

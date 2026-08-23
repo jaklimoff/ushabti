@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildColumns, columnIdForTask, leadProperty, NO_VALUE } from "../board";
+import {
+  buildColumns,
+  columnIdForTask,
+  cursorTarget,
+  firstTask,
+  leadProperty,
+  NO_VALUE,
+  type BoardColumn,
+} from "../board";
 import type { MemberDTO, PropertyDTO, TaskDTO } from "../types";
 
 function property(over: Partial<PropertyDTO> = {}): PropertyDTO {
@@ -96,5 +104,64 @@ describe("board grouping", () => {
       config: { showOnCard: false },
     });
     expect(leadProperty([status, hidden, phase], "p-status")?.id).toBe("p-phase");
+  });
+});
+
+/** A board of columns holding the task ids given, in order. */
+function board(...columns: string[][]): BoardColumn[] {
+  return columns.map((ids, i) => ({
+    id: `c${i}`,
+    name: `c${i}`,
+    color: "#000000",
+    value: null,
+    isNone: false,
+    tasks: ids.map((id) => task(id)),
+  }));
+}
+
+describe("board cursor", () => {
+  it("walks down and up one column", () => {
+    const columns = board(["a", "b", "c"]);
+    expect(cursorTarget(columns, "a", "down")).toBe("b");
+    expect(cursorTarget(columns, "b", "up")).toBe("a");
+  });
+
+  it("stops at the ends instead of wrapping", () => {
+    const columns = board(["a", "b"]);
+    expect(cursorTarget(columns, "a", "up")).toBeNull();
+    expect(cursorTarget(columns, "b", "down")).toBeNull();
+  });
+
+  it("steps over a column with no cards", () => {
+    const columns = board(["a"], [], ["b"]);
+    expect(cursorTarget(columns, "a", "right")).toBe("b");
+    expect(cursorTarget(columns, "b", "left")).toBe("a");
+  });
+
+  it("stops at the side of the board", () => {
+    const columns = board(["a"], []);
+    expect(cursorTarget(columns, "a", "left")).toBeNull();
+    expect(cursorTarget(columns, "a", "right")).toBeNull();
+  });
+
+  it("holds the row sideways and clamps it to a shorter column", () => {
+    const columns = board(["a", "b", "c"], ["x", "y"]);
+    expect(cursorTarget(columns, "b", "right")).toBe("y");
+    expect(cursorTarget(columns, "c", "right")).toBe("y");
+    expect(cursorTarget(columns, "y", "left")).toBe("b");
+  });
+
+  it("reaches the ends of the column with Home and End", () => {
+    const columns = board(["a", "b", "c"]);
+    expect(cursorTarget(columns, "b", "first")).toBe("a");
+    expect(cursorTarget(columns, "b", "last")).toBe("c");
+  });
+
+  it("falls back to the first card when the cursor is nowhere", () => {
+    const columns = board([], ["a", "b"]);
+    expect(cursorTarget(columns, null, "down")).toBe("a");
+    expect(cursorTarget(columns, "gone", "left")).toBe("a");
+    expect(firstTask(columns)).toBe("a");
+    expect(firstTask(board([], []))).toBeNull();
   });
 });
