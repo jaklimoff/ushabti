@@ -3,7 +3,7 @@ import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { propertyOptions, taskValues } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
 import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 
@@ -57,7 +57,8 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { optionId } = await ctx.params;
   const owner = await optionPropertyId(optionId);
   if (!owner) throw new HttpError(404, "Option not found.");
-  await guard(owner.projectId);
+  const { user, membership } = await guard(owner.projectId);
+  ownerOnly(user, membership, "delete an option");
 
   // Tasks that hold this option lose the value. Single-select clears, and
   // multi-select drops the one entry.

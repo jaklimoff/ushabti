@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 import { suggestProjectKey } from "@/lib/defaults";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Form";
+import { Tag } from "@/components/ui/Layout";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import styles from "./ProjectList.module.css";
 
@@ -19,7 +22,8 @@ export type ProjectRow = {
 
 export function ProjectList({ user, projects }: { user: SessionUser; projects: ProjectRow[] }) {
   const router = useRouter();
-  const [adding, setAdding] = useState(projects.length === 0);
+  const first = projects.length === 0;
+  const [adding, setAdding] = useState(first);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -53,60 +57,86 @@ export function ProjectList({ user, projects }: { user: SessionUser; projects: P
 
       <div className={styles.body}>
         <div className={styles.heading}>
-          <div className={styles.title}>Projects</div>
+          <h1 className={styles.title}>Projects</h1>
         </div>
 
-        {projects.length === 0 && !adding && (
-          <div className={styles.empty}>
-            You have no projects yet. Create one and the board arrives with a full set of properties
-            you can rename or replace.
-          </div>
+        {/*
+         * This sentence used to be written and unreachable: `adding` starts
+         * true when there are no projects, and the copy only rendered when it
+         * was false. It now sits above the form, where it answers the question
+         * the form asks.
+         */}
+        {first && (
+          <p className={styles.empty}>
+            A project is one board. It arrives with a full set of properties — Status, Priority,
+            Assignee and the rest — and every one of them is yours to rename or delete.
+          </p>
         )}
 
         <div className={styles.grid}>
           {projects.map((project) => (
-            <Link key={project.id} href={`/p/${project.id}`} className={styles.card}>
-              <div className={styles.cardTop}>
-                <span className={styles.key}>{project.key}</span>
-                {project.role === "owner" && <span className={styles.cardMeta}>owner</span>}
-              </div>
-              <div className={styles.cardName}>{project.name}</div>
-              <div className={styles.cardMeta}>
-                {project.taskCount} {project.taskCount === 1 ? "task" : "tasks"} ·{" "}
-                {project.memberCount} {project.memberCount === 1 ? "member" : "members"}
-              </div>
-            </Link>
+            <div key={project.id} className={styles.cardWrap}>
+              <Link href={`/p/${project.id}`} className={styles.card}>
+                <div className={styles.cardTop}>
+                  <span className={styles.key}>{project.key}</span>
+                  {project.role === "owner" && <Tag>owner</Tag>}
+                </div>
+                <div className={styles.cardName}>{project.name}</div>
+                <div className={styles.cardMeta}>
+                  {project.taskCount} {project.taskCount === 1 ? "task" : "tasks"} ·{" "}
+                  {project.memberCount} {project.memberCount === 1 ? "member" : "members"}
+                </div>
+              </Link>
+              <Link
+                href={`/p/${project.id}/settings/properties`}
+                className={styles.cardGear}
+                aria-label={`Settings for ${project.name}`}
+                title="Project settings"
+              >
+                ⚙
+              </Link>
+            </div>
           ))}
 
           {adding ? (
             <form className={styles.form} onSubmit={create}>
               <span className="label">New project</span>
-              <input
-                className={styles.input}
-                value={name}
+              <Input
+                block
                 autoFocus
+                value={name}
+                aria-label="Project name"
                 placeholder="Project name"
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (!key) return;
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => {
+                  // A suggestion you can edit beats one that flickers in grey
+                  // as you type and looks disabled.
+                  if (!key && name.trim()) setKey(suggestProjectKey(name));
                 }}
               />
-              <input
-                className={styles.input}
+              <Input
+                block
                 value={key}
-                placeholder={name ? suggestProjectKey(name) : "Key, e.g. USH"}
+                aria-label="Project key"
+                placeholder="Key, e.g. USH"
                 maxLength={6}
+                invalid={error !== null}
                 onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
               />
-              {error && <div className={styles.error}>{error}</div>}
+              <span className={styles.hint}>Task keys look like {key || "USH"}-14.</span>
+              {error && (
+                <div className={styles.error} role="alert">
+                  {error}
+                </div>
+              )}
               <div className={styles.row}>
-                <button className={styles.primary} type="submit" disabled={busy}>
+                <Button type="submit" disabled={busy}>
                   {busy ? "Creating…" : "Create project"}
-                </button>
+                </Button>
                 {projects.length > 0 && (
-                  <button className={styles.ghost} type="button" onClick={() => setAdding(false)}>
+                  <Button variant="ghost" onClick={() => setAdding(false)}>
                     Cancel
-                  </button>
+                  </Button>
                 )}
               </div>
             </form>

@@ -32,7 +32,39 @@
   --faint-2: #4e545e;
   --faint-3: #3f4650;
 
+  /* Control geometry. Every button and input picks one of these two heights,
+     which is why the same button is the same size on every screen. */
+  --control-h: 28px;
+  --control-h-lg: 34px;
+
+  /* Radius. --radius stays as the old name for the middle step. */
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 10px;
   --radius: 8px;
+
+  /* Type. The sizes the interface actually uses, named. */
+  --t-label: 9.5px;
+  --t-micro: 11px;
+  --t-small: 11.5px;
+  --t-body: 12.5px;
+  --t-ui: 13px;
+  --t-h2: 15px;
+  --t-h1: 20px;
+
+  /* Space. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 30px;
+
+  /* The four colours that were written by hand in every module. */
+  --focus-ring: #38505a;
+  --line-strong: #263038;
+  --icon: #5d646f;
+  --danger-text: #f0a49d;
   --shadow-menu: 0 14px 34px rgba(0, 0, 0, 0.55);
   --shadow-drag: 0 26px 54px rgba(0, 0, 0, 0.62), 0 2px 0 rgba(255, 255, 255, 0.04) inset;
   --ease: cubic-bezier(0.2, 0, 0, 1);

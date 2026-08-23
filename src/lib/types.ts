@@ -129,12 +129,13 @@ export const RUN_STATUSES = [
   "failed",
   "stopped",
   "taken_over",
+  "lost",
 ] as const;
 
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
 /** A run is over once it reaches one of these. */
-export const CLOSED_STATUSES: RunStatus[] = ["done", "failed", "stopped", "taken_over"];
+export const CLOSED_STATUSES: RunStatus[] = ["done", "failed", "stopped", "taken_over", "lost"];
 
 export const RUN_CONTROLS = ["pause", "resume", "stop"] as const;
 
@@ -164,7 +165,10 @@ export type AgentRunDTO = {
   step: string;
   control: RunControl | null;
   startedAt: string;
+  /** The last report. It moves only when the agent says the work moved. */
   updatedAt: string;
+  /** The last sign of life. A beat writes this and nothing else. */
+  beatAt: string;
   endedAt: string | null;
   agent: { id: string; name: string; color: string };
   stepsTotal: number;

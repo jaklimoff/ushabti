@@ -36,6 +36,24 @@ and what is easy to get wrong.
   another machine. It writes a word on the run; the agent reads it in the answer
   to its next report and obeys because it said it would. Only **Take over**
   decides anything, because it acts on our own database.
+- **A beat is not a report.** `updated_at` is the last thing an agent said.
+  `beat_at` is the last sign that its process is alive. The lease that closes a
+  silent run counts reports and never beats. Let a beat write `updated_at` and
+  a heartbeat left behind by a killed session holds a card open all day, which
+  is the exact fault the lease exists to fix.
+- **Structure is the owner's; content is shared.** A member — and an agent —
+  writes values, comments and runs all day. Only a person, and only the owner,
+  deletes a property, an option or a view, and only a person writes a run's
+  control word. `ownerOnly()` and `humanOnly()` say so at the top of those
+  routes. An agent that loses its token would otherwise take the board apart.
+- **A field saves on blur. A destructive action confirms in place. Nothing
+  else has a Save button.** Settings used to hold six different save models on
+  one page, and the one field a new person edits first was the odd one out.
+  `ConfirmRow` is the answer to "the board has no dialogs": the row becomes the
+  question, and the question names the cost in real numbers.
+- **Off the board, geometry comes from `components/ui/`.** A button, an input,
+  a tag and a card are declared once. They used to be declared three times
+  each, at three different heights. The board keeps its own CSS on purpose.
 - **Write short plain sentences**, in the interface, in comments and in commit
   messages. Comments say why, never what.
 

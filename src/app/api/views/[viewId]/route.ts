@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
 import { viewProjectId } from "@/lib/queries";
 import { GROUPABLE_TYPES, type PropertyType } from "@/lib/types";
 
@@ -42,7 +42,8 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { viewId } = await ctx.params;
   const projectId = await viewProjectId(viewId);
   if (!projectId) throw new HttpError(404, "View not found.");
-  await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  ownerOnly(user, membership, "delete a view");
 
   const [view] = await db.select().from(views).where(eq(views.id, viewId)).limit(1);
   if (view.isDefault) throw new HttpError(400, "The main view cannot be deleted.");

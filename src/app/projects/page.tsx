@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { listProjects } from "@/lib/queries";
 import { ProjectList } from "@/components/projects/ProjectList";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Projects · Ushabti" };
 
 export default async function ProjectsPage() {
   const user = await getCurrentUser();

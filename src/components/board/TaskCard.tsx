@@ -3,9 +3,9 @@
 import { forwardRef, useMemo } from "react";
 import type { AgentRunDTO, MemberDTO, PropertyDTO, TaskDTO } from "@/lib/types";
 import { formatDate, leadProperty } from "@/lib/board";
-import { runLine } from "@/lib/run-state";
+import { elapsed, isOpen, lifeOf, LIFE_WORD, runLine } from "@/lib/run-state";
 import { Avatar } from "@/components/ui/Avatar";
-import { useElapsed } from "@/components/ui/useElapsed";
+import { useNow } from "@/components/ui/useElapsed";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 
@@ -221,20 +221,33 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
  * belong to the panel; a board full of runs has to stay readable.
  */
 function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
-  const since = useElapsed(run.startedAt, run.status === "running");
+  const now = useNow(isOpen(run.status));
+  const life = lifeOf(run, now);
   const paused = run.status === "paused";
 
+  // A run that answers shows how long it has worked. One that has gone quiet
+  // shows how long ago it last said anything, because that is the number a
+  // person needs, and the strip has room for one.
+  const since = elapsed(life === "reporting" ? run.startedAt : run.updatedAt, now);
+
   return (
-    <div className={styles.runStrip} data-testid="card-run">
+    <div className={styles.runStrip} data-testid="card-run" data-life={life}>
       <div className={styles.runStripRow}>
         <span className={styles.runAgent}>{run.agent.name}</span>
         <span className={styles.runText} data-testid="card-run-step">
           {overlay ? "Drop to take over" : runLine(run)}
         </span>
-        <span className={styles.runTime}>{since}</span>
+        <span
+          className={`${styles.runTime} ${life === "reporting" ? "" : styles.runTimeStale}`}
+          data-testid="card-run-time"
+        >
+          {life === "reporting" ? since : `${LIFE_WORD[life]} ${since}`}
+        </span>
       </div>
       <span className={styles.runScan} aria-hidden>
-        <span className={`${styles.runScanFill} ${paused ? styles.runScanPaused : ""}`} />
+        <span
+          className={`${styles.runScanFill} ${paused || life === "silent" ? styles.runScanPaused : ""}`}
+        />
       </span>
     </div>
   );

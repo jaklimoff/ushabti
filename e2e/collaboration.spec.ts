@@ -5,6 +5,7 @@ import {
   column,
   createProject,
   dragCard,
+  gotoSettings,
   register,
   saved,
   settles,
@@ -33,7 +34,7 @@ test.describe("Two people on one board", () => {
     await friend.page.goto(`/p/${projectId}`);
     await expect(friend.page.getByText("This page is not here")).toBeVisible();
 
-    await owner.page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(owner.page, projectId, "people");
     await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
     await owner.page.getByRole("button", { name: "Add member" }).click();
     await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
@@ -53,7 +54,7 @@ test.describe("Two people on one board", () => {
     const projectId = await createProject(owner.page, unique("Live"));
     const friendAccount = await register(friend.page, "Friend Person");
 
-    await owner.page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(owner.page, projectId, "people");
     await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
     await owner.page.getByRole("button", { name: "Add member" }).click();
     await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
@@ -89,7 +90,7 @@ test.describe("Two people on one board", () => {
     const projectId = await createProject(owner.page, unique("Draft"));
     const friendAccount = await register(friend.page, "Friend Person");
 
-    await owner.page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(owner.page, projectId, "people");
     await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
     await owner.page.getByRole("button", { name: "Add member" }).click();
     await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
@@ -124,7 +125,7 @@ test.describe("Two people on one board", () => {
     const projectId = await createProject(owner.page, unique("People"));
     const friendAccount = await register(friend.page, "Friend Person");
 
-    await owner.page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(owner.page, projectId, "people");
     await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
     await owner.page.getByRole("button", { name: "Add member" }).click();
     await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
@@ -150,8 +151,10 @@ test.describe("Columns", () => {
     await register(page);
     const projectId = await createProject(page, unique("ColumnOrder"));
 
+    // The header is uppercased in CSS, so innerText depends on whether the
+    // stylesheet has landed. The order is what this test is about.
     const names = async () =>
-      (await page.getByTestId("column-name").allInnerTexts()).map((t) => t.trim());
+      (await page.getByTestId("column-name").allInnerTexts()).map((t) => t.trim().toUpperCase());
 
     expect(await names()).toEqual(["BACKLOG", "TODO", "IN PROGRESS", "READY", "SHIPPED"]);
 
