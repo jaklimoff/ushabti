@@ -294,7 +294,7 @@ export const agentRuns = pgTable(
     goal: text("goal").notNull().default(""),
     /** What the agent is doing right now, in one line. */
     step: text("step").notNull().default(""),
-    /** running | paused | done | failed | stopped | taken_over */
+    /** running | paused | done | failed | stopped | taken_over | lost */
     status: text("status").notNull().default("running"),
     /**
      * What a person asked for: pause, resume or stop. The agent reads it in the
@@ -302,7 +302,14 @@ export const agentRuns = pgTable(
      */
     control: text("control"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    /** The last report. It moves only when the agent says the work moved. */
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * The last sign of life, which is not the last report. A beat says the
+     * process is alive and nothing else. The two are kept apart on purpose: a
+     * timer must never be able to paint progress that nobody made.
+     */
+    beatAt: timestamp("beat_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
   },
   (t) => [

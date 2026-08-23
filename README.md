@@ -76,15 +76,20 @@ Board  ·  Phases  ·  By assignee            ← views you create
   comments and an automatic activity log, all edited in place. No dialogs.
 - **Live updates.** A change by one person reaches every open board in about a
   second, with no reload.
-- **Email and password sign-in.** No third party.
+- **Email and password sign-in.** No third party. Set `USHABTI_SIGNUP=closed`
+  once your team has registered and the instance stops taking new accounts.
+- **Your own account.** Change your name, pick your colour from the palette,
+  change your password, and sign every other session out.
 - **Projects with members.** The owner adds people by email.
 - **Agents.** A project can have machine members. An agent signs in with a
   token, uses the same JSON API the browser uses, and while it works a strip
   along the bottom of its card says who is working, what it is doing and for how
   long, and the task panel grows an **Agent** tab, with a dot that pulses while
   the run is live, holding the plan and the run log. Pause and Stop ask; **Take
-  over** ends the run and hands the card back. `examples/skill/ushabti/` is a
-  ready skill for Claude Code. See [docs/agents.md](docs/agents.md).
+  over** ends the run and hands the card back. **Settings → People → Connect**
+  hands you the token and the three commands that put it to work, with your
+  board's own address already in them, and then says when the agent answered.
+  See [docs/agents.md](docs/agents.md).
 
 ![The task panel](docs/task.png)
 

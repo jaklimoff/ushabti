@@ -1,11 +1,15 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { createSession, hashPassword, HttpError } from "@/lib/auth";
+import { createSession, hashPassword, HttpError, signupIsOpen } from "@/lib/auth";
 import { body, json, route, str } from "@/lib/api";
 import { pickAvatarColor } from "@/lib/colors";
 
 export const POST = route(async (req: Request) => {
+  if (!signupIsOpen()) {
+    throw new HttpError(403, "This board is not taking new accounts. Ask the owner to add you.");
+  }
+
   const input = await body<{ email?: string; password?: string; name?: string }>(req);
 
   const email = str(input.email, "Email", { max: 200 }).toLowerCase();

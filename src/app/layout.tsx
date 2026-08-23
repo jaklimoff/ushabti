@@ -17,7 +17,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ushabti",
+  // Three boards open in three tabs all read "Ushabti" before this.
+  title: { default: "Ushabti", template: "%s" },
   description: "A small, fast task board with properties you define yourself.",
 };
 

@@ -63,14 +63,45 @@ Everything below works, is tested, and runs in the dev container.
 
 ---
 
+## Done — v1.1 (2026-08-22)
+
+Everything off the board, brought up to the board's standard.
+
+- **Settings is four pages behind a rail** — Properties, Views, People, Project —
+  each with its own address, so a doc can link to one. It was a 2,400 px scroll
+  with the two things people came for at the bottom.
+- **Errors on the settings page are visible.** It called `notify()` on eight
+  paths and rendered no toasts at all, so "no account uses that email" arrived
+  on a screen that showed nothing.
+- **Nothing destructive happens on one click.** Deleting a property, an option,
+  a view, a member, an agent or a token asks in its own row first, and says what
+  goes with it in real numbers. Deleting a project asks for the key.
+- **Structure is the owner's, and only a person's.** An agent token could delete
+  a property, delete a view, and clear a pause a person had asked for. It cannot
+  now.
+- **An account page.** Name, colour from the palette, password, and a count of
+  your other sessions with a way to end them. None of it could be changed before.
+- **Connecting an agent is a recipe, not a file path.** The token gets a copy
+  button, the commands carry the board's own address, the skill is served from
+  `/skill/…`, and the panel says when the agent answered.
+- **The project key warns before it renames every task.**
+- **Loading, error and not-found states.** No route had a loading state; the
+  error page trapped you with one button and no digest.
+- **A shared `components/ui/`** with a token scale behind it, so a button is one
+  size everywhere off the board rather than three.
+- **A live board re-syncs when its stream connects**, so a change made while the
+  page was hydrating is no longer lost for good.
+
+---
+
 ## Next — the things that make daily use better
 
 1. **Filters and sorting inside a view.** Show only my tasks, only this label, only what is due this week. `views.config` is already a JSON column kept free for this.
 2. **Search.** Find a task by key or by words in the title. A box in the top bar, results as you type.
 3. **Keyboard shortcuts.** `n` for a new task, `/` for search, arrow keys to move between cards, `Esc` to close.
 4. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
-5. **Drag to reorder properties** in the settings page. Today you use the up and down arrows.
-6. **Remove the eight `setState` calls inside effects.** They reset a field when the task or the option changes. Keying the component is the React answer. ESLint reports each one as a warning.
+5. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
+6. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
 
 ## Later
 
@@ -79,7 +110,6 @@ Everything below works, is tested, and runs in the dev container.
 - **A per-view card order.** See the limit below.
 - **A run history.** A closed run keeps its rows, but nothing shows them. Only the activity line survives on screen.
 - **Bulk edit.** Select several cards, set one property on all of them.
-- **Profile page.** Change your name, your colour and your password.
 - **Email invites.** Today the person must register first, and only then can the owner add their email.
 - **Import.** Read a Trello or Jira export and map lists to options.
 - **Attachments.** Files on a task.
@@ -88,8 +118,8 @@ Everything below works, is tested, and runs in the dev container.
 
 ## Before anyone else runs this
 
-- **Rate limiting on sign-in, sign-up and agent tokens.** Nothing stops a guessing attack today. Put a proxy in front until this is done.
-- **Password reset.** There is no way back into an account.
+- **Rate limiting on sign-in, sign-up and agent tokens.** Nothing stops a guessing attack today. Put a proxy in front until this is done. `USHABTI_SIGNUP=closed` at least stops new accounts.
+- **Password reset.** There is no way back into an account you cannot sign in to. You can change a password you still know, on `/account`.
 - **Webhooks.** An agent has to poll the board or the event stream. There is no call out when something changes.
 
 ---

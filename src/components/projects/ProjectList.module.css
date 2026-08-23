@@ -143,60 +143,68 @@
   border-radius: 10px;
 }
 
-.input {
-  height: 30px;
-  padding: 0 9px;
-  border-radius: 6px;
-  border: 1px solid var(--line-dash);
-  background: var(--bg-input);
-  color: var(--text);
-  font-size: 12.5px;
-  outline: none;
-}
-
-.input:focus {
-  border-color: #38505a;
-}
-
 .row {
   display: flex;
   align-items: center;
   gap: 7px;
 }
 
-.primary {
-  padding: 5px 11px;
-  border-radius: 5px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 11.5px;
-  font-weight: 600;
-}
-
-.ghost {
-  padding: 5px 10px;
-  border-radius: 5px;
-  border: 1px solid #1f2229;
-  color: var(--muted);
-  font-size: 11.5px;
-}
-
-.ghost:hover {
-  background: var(--bg-hover);
-  color: var(--text-2);
-}
-
 .error {
-  font-size: 11.5px;
-  color: #f0a49d;
+  font-size: var(--t-small);
+  color: var(--danger-text);
 }
 
 .empty {
   padding: 26px;
   border: 1px dashed var(--line-dash);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--t-body);
   line-height: 1.6;
-  text-align: center;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.hint {
+  font-size: var(--t-small);
+  color: var(--faint);
+}
+
+/* The card is a link, so the gear sits beside it rather than inside it. */
+.cardWrap {
+  position: relative;
+  display: flex;
+}
+
+.cardWrap > .card {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardGear {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  color: var(--icon);
+  font-size: 12px;
+  opacity: 0;
+  transition:
+    opacity 140ms var(--ease),
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.cardWrap:hover .cardGear,
+.cardGear:focus-visible {
+  opacity: 1;
+}
+
+.cardGear:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
 }

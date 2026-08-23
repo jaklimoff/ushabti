@@ -15,8 +15,17 @@ const nextConfig = {
   // is resolved at run time, not bundled, so it needs the package.json of the
   // package to read its `exports` map, and it then reaches back into the rest
   // of the package. 16 MB is a small price for a start that cannot fail.
+  //
+  // `examples/skill/ushabti` is the same story: /skill/[file] reads those two
+  // files off disk so the settings page can hand somebody a working install
+  // command, and nothing imports them either.
   outputFileTracingIncludes: {
-    "/**": ["./scripts/migrate.mjs", "./drizzle/**", "./node_modules/drizzle-orm/**"],
+    "/**": [
+      "./scripts/migrate.mjs",
+      "./drizzle/**",
+      "./node_modules/drizzle-orm/**",
+      "./examples/skill/ushabti/**",
+    ],
   },
   experimental: {
     optimizePackageImports: ["@dnd-kit/core", "@dnd-kit/sortable"],

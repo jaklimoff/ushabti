@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { Client } from "pg";
 
 export function unique(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -35,6 +36,20 @@ export async function createProject(page: Page, name: string): Promise<string> {
   await page.waitForURL(/\/p\/[0-9a-f-]{36}/);
   await expect(page.getByText("BACKLOG")).toBeVisible();
   return page.url().split("/p/")[1].split("?")[0];
+}
+
+/** Settings is four pages now, so a test says which one it wants. */
+export async function gotoSettings(
+  page: Page,
+  projectId: string,
+  section: "properties" | "views" | "people" | "project" = "properties",
+) {
+  await page.goto(`/p/${projectId}/settings/${section}`);
+}
+
+/** A destructive control asks in its own row before it does anything. */
+export async function confirmDelete(page: Page, label = /^Yes, /) {
+  await page.getByRole("button", { name: label }).click();
 }
 
 /** The board column whose header carries this name. */
@@ -124,4 +139,32 @@ export async function saved(page: Page, action: () => Promise<void>) {
     action(),
   ]);
   expect(response.ok()).toBeTruthy();
+}
+
+/**
+ * Moves a run back in time.
+ *
+ * The board closes a run that reports nothing for half an hour, and calls one
+ * quiet after six minutes. A test cannot wait that long and must not be able
+ * to shorten the rule, because the rule is the thing under test. So it moves
+ * the clock the run carries instead, which is what a killed agent looks like
+ * from the outside: a row nobody wrote again.
+ */
+export async function backdateRun(runId: string, minutes: number): Promise<void> {
+  const client = new Client({
+    connectionString:
+      process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti",
+  });
+  await client.connect();
+  try {
+    await client.query(
+      `update agent_runs
+          set updated_at = now() - ($2 || ' minutes')::interval,
+              beat_at    = now() - ($2 || ' minutes')::interval
+        where id = $1`,
+      [runId, String(minutes)],
+    );
+  } finally {
+    await client.end();
+  }
 }

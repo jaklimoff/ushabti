@@ -4,7 +4,7 @@ import { agentRuns } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { agentOnly, body, broadcast, clientIdOf, guard, json, optionalStr, route } from "@/lib/api";
 import { logActivity } from "@/lib/queries";
-import { addLog, loadRun, replaceSteps, runContext, setCurrentStep } from "@/lib/runs";
+import { addLog, beat, loadRun, replaceSteps, runContext, setCurrentStep } from "@/lib/runs";
 import { CLOSED_STATUSES, RUN_STATUSES, type RunStatus } from "@/lib/types";
 import { isOpen } from "@/lib/run-state";
 
@@ -21,6 +21,9 @@ export const GET = route<Ctx>(async (_req, ctx) => {
  * The one call an agent makes while it works. It reports the step it is on,
  * and it reads back the control word a person set, so a Pause or a Stop from
  * the board reaches it without a second request.
+ *
+ * `{ beat: true }` is the other thing it carries, and it is a different kind
+ * of thing: not "here is what I did" but "I am still here".
  */
 export const PATCH = route<Ctx>(async (req, ctx) => {
   const { runId } = await ctx.params;
@@ -37,9 +40,31 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     steps?: unknown;
     log?: string;
     status?: string;
+    beat?: boolean;
   }>(req);
 
-  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  /*
+   * A beat is not a report. It says the process is alive, and the board is
+   * allowed to say only that: no step, no log, and above all no `updatedAt`,
+   * which is the field the lease counts. A timer that could write progress
+   * would keep a dead agent's card looking busy for ever.
+   *
+   * It still broadcasts, because "silent" is a word the board paints from
+   * this column, and an open board has to be able to take it back.
+   */
+  if (input.beat === true) {
+    await beat(runId);
+    await broadcast({
+      projectId: context.projectId,
+      scope: "board",
+      taskId: context.taskId,
+      clientId: clientIdOf(req),
+    });
+    const beating = await loadRun(runId);
+    return json({ run: beating, control: beating.control });
+  }
+
+  const patch: Record<string, unknown> = { updatedAt: new Date(), beatAt: new Date() };
   const goal = optionalStr(input.goal, "Goal", 200);
   const step = optionalStr(input.step, "Step", 200);
   if (goal !== undefined) patch.goal = goal.trim();

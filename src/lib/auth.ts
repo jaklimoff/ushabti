@@ -45,6 +45,12 @@ export async function createSession(userId: string): Promise<void> {
   });
 }
 
+/** The id of the session cookie on this request, if there is one. */
+export async function currentSessionId(): Promise<string | null> {
+  const jar = await cookies();
+  return jar.get(SESSION_COOKIE)?.value ?? null;
+}
+
 export async function destroySession(): Promise<void> {
   const jar = await cookies();
   const id = jar.get(SESSION_COOKIE)?.value;
@@ -58,6 +64,14 @@ export type CurrentUser = {
   name: string;
   color: string;
 };
+
+/**
+ * Whether this instance still takes new accounts. A board on the open internet
+ * wants to stop after the team has signed up; there is no rate limit yet.
+ */
+export function signupIsOpen(): boolean {
+  return (process.env.USHABTI_SIGNUP ?? "open").toLowerCase() !== "closed";
+}
 
 /**
  * Whoever is behind a request: a person with a session cookie, or an agent

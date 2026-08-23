@@ -1,8 +1,10 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
+import { activity, agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
 import { HttpError } from "./auth";
+import { publish } from "./events";
+import { REPORT_LEASE_MS } from "./run-state";
 import type {
   AgentRunDTO,
   AgentRunDetailDTO,
@@ -25,6 +27,7 @@ type RunRow = {
   control: string | null;
   startedAt: Date;
   updatedAt: Date;
+  beatAt: Date;
   endedAt: Date | null;
   agentId: string;
   agentName: string;
@@ -40,6 +43,7 @@ const runColumns = {
   control: agentRuns.control,
   startedAt: agentRuns.startedAt,
   updatedAt: agentRuns.updatedAt,
+  beatAt: agentRuns.beatAt,
   endedAt: agentRuns.endedAt,
   agentId: users.id,
   agentName: users.name,
@@ -56,6 +60,7 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
     control: (row.control as RunControl | null) ?? null,
     startedAt: row.startedAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    beatAt: row.beatAt.toISOString(),
     endedAt: row.endedAt?.toISOString() ?? null,
     agent: { id: row.agentId, name: row.agentName, color: row.agentColor },
     stepsTotal: steps.length,
@@ -64,8 +69,51 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
   };
 }
 
+/**
+ * Closes every open run that missed its lease.
+ *
+ * A killed agent writes nothing, so the board would show its card as work in
+ * progress for ever. Silence is the only evidence there is, and this is where
+ * the board acts on it. The run ends as `lost`, which is not `failed`: nobody
+ * knows what happened, and saying so is the honest answer.
+ *
+ * It counts reports, not beats. A beat left running by a dead session must
+ * never be able to hold a card open.
+ *
+ * It sits on the read path because the board is read far more often than any
+ * schedule would fire, and one UPDATE behind an index costs less than a job
+ * this project would then have to run, watch and ship.
+ */
+async function sweepLost(scope: SQL | undefined): Promise<void> {
+  const cutoff = new Date(Date.now() - REPORT_LEASE_MS);
+  const closed = await db
+    .update(agentRuns)
+    .set({ status: "lost", control: null, endedAt: new Date() })
+    .where(and(isNull(agentRuns.endedAt), lt(agentRuns.updatedAt, cutoff), scope))
+    .returning({
+      id: agentRuns.id,
+      projectId: agentRuns.projectId,
+      taskId: agentRuns.taskId,
+      agentId: agentRuns.agentId,
+    });
+
+  for (const run of closed) {
+    await addLog(run.id, "no word from the agent, so the board closed the run");
+    await db.insert(activity).values({
+      projectId: run.projectId,
+      taskId: run.taskId,
+      actorId: run.agentId,
+      kind: "run",
+      data: { action: "lost" },
+    });
+    await publish({ projectId: run.projectId, scope: "board", taskId: run.taskId });
+  }
+}
+
 /** Every open run of a project, for the board. */
 export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
+  await sweepLost(eq(agentRuns.projectId, projectId));
+
   const rows = await db
     .select(runColumns)
     .from(agentRuns)
@@ -105,6 +153,8 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
 
 /** The open run of one task, with its plan and the tail of its log. */
 export async function loadTaskRun(taskId: string): Promise<AgentRunDetailDTO | null> {
+  await sweepLost(eq(agentRuns.taskId, taskId));
+
   const [row] = await db
     .select(runColumns)
     .from(agentRuns)
@@ -213,4 +263,15 @@ export async function closeRun(runId: string, status: RunStatus): Promise<void> 
     .update(agentRuns)
     .set({ status, control: null, endedAt: new Date(), updatedAt: new Date() })
     .where(eq(agentRuns.id, runId));
+}
+
+/**
+ * A beat: the process is alive. It writes one column and no more.
+ *
+ * It must not touch `updatedAt`, which is the last report and the only thing
+ * the lease counts, and it must not write the log. A card that says "writing
+ * the tests" has to mean the agent said so.
+ */
+export async function beat(runId: string): Promise<void> {
+  await db.update(agentRuns).set({ beatAt: new Date() }).where(eq(agentRuns.id, runId));
 }

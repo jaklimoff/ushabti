@@ -8,6 +8,103 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A run that stops answering closes itself.** A killed agent used to leave a
+  card reading "active" for ever, because the server cannot see another
+  machine and nothing ever wrote that run again. Now the board counts the
+  agent's reports: after six minutes of silence the card says how long ago the
+  agent last spoke instead of how long it has worked, and after thirty it
+  closes the run as **lost** and gives the task back. Only **Take over** could
+  clear a dead run before.
+- **A heartbeat, so that a long build is not a dead agent.** `board.mjs beat
+USH-14 &` sends `{ "beat": true }` every two minutes. A beat says the
+  process is alive and writes nothing else — no step, no log, and not the
+  clock the thirty minutes counts, so a heartbeat left running by a killed
+  session can never hold a card open. An agent that beats without reporting
+  reads as **quiet**; one that does neither reads as **silent**. Killed with
+  its session, the heartbeat closes the run on the way out.
+- **An account page**, at `/account`, reached from the menu behind your avatar.
+  Change your name, pick your colour from the palette, and change your
+  password. It also counts your other live sessions and can end them all,
+  which — with no password reset in the product — is the only lever a person
+  has after a password they no longer trust. Nothing about a person could be
+  changed before: a name typed once at registration was permanent.
+- **Settings is four pages behind a rail** — Properties, Views, People,
+  Project — each with its own address. `docs/agents.md` and the shipped skill
+  both told people to open "Settings → Agents", which was not a place: it was
+  a section two and a half screens down a single scroll.
+- **Settings → People → Connect** replaces "Issue token". It hands over the
+  token with a copy button and the three commands that put it to work, each
+  already carrying this board's own address, and then says **Waiting for the
+  first call…** until the token is used. The skill is served from the board
+  itself at `/skill/SKILL.md` and `/skill/board.mjs`, so the instruction is
+  true for anybody running the image rather than the repository.
+- **Settings → Views can create a view.** The section named Views could rename,
+  regroup and delete one, but not make one.
+- **A new board says where its columns come from**, and stops saying it as soon
+  as there is a task.
+- **Loading states** for the board, the project list, settings and the account
+  page. There were none; a slow query looked like a click that had not landed.
+- **`USHABTI_SIGNUP=closed`** stops an instance taking new accounts.
+- **`components/ui/`** — Button, Input, Field, Card, Row, Tag, Toasts,
+  EmptyState, ConfirmRow, CopyField, Skeleton, StatusPage — behind a token
+  scale for control height, radius, type and space. The same button used to be
+  declared three times at three geometries, and the same input at 28, 30 and
+  34 px.
+
+### Fixed
+
+- **The settings page showed no errors at all.** It called `notify()` on eight
+  failure paths and never rendered the toasts, so adding a member by an email
+  nobody had registered — which is how it always goes the first time, because
+  there are no invites — did nothing visible whatsoever. The error now appears,
+  and for that case the sign-up link to send them appears with it.
+- **An agent token could take a board apart.** `DELETE` on a property, an
+  option or a view asked only for membership, so any token could delete a field
+  and every value in it. Those three, and the routes that add and remove
+  members, are now the owner's and a person's alone.
+- **An agent could clear a pause a person had asked for.** `POST
+/api/runs/{id}/control` took a token, so an agent could write `resume` on its
+  own run and the log would read as though a person had. Only a person may
+  write a control word now.
+- **Six controls destroyed data on one click.** Deleting a property, an option,
+  a view, a member, an agent or a token now asks in its own row and says what
+  goes with it: "Delete Labels? 5 options and 14 values go with it." Deleting a
+  project asks you to type its key.
+- **Changing the project key silently renamed every task.** Task keys are built
+  from the prefix, so it broke every pasted link and every key an agent had
+  been given. It now says how many tasks it is about to rename.
+- **A live board lost changes made while it was still hydrating.** Server-sent
+  events have no replay, so anything broadcast between the server render and
+  the stream opening was gone for good. The board now re-syncs whenever the
+  stream connects, which also covers a reconnect after a network blip or a
+  laptop waking up.
+- **The first-run copy on the projects page had never been seen by anybody.**
+  It rendered only when the new-project form was closed, and the form opens
+  itself when you have no projects.
+- **A mistyped password at registration was unrecoverable.** The field has a
+  reveal, and says plainly that there is no reset.
+- Reordering a property refetched the whole board on every press, six times to
+  move a row six places.
+- The new-view panel opened at the far left of the strip however far right the
+  `+` had moved, and views scrolled out of sight with no edge fade.
+- The delete control for a view appeared on the pill you had just clicked to
+  select it, with no confirmation. It lives in Settings → Views now.
+- The user menu had no route to your account, and Sign out sat directly beside
+  a link that only navigates.
+- `not-found.tsx` told everybody who mistyped a URL to go and ask a colleague
+  for access. `error.tsx` offered one button and no way out, and threw away the
+  digest that finds the error in the log. Both, plus a new `global-error.tsx`,
+  now share one look with the rest of the app.
+- Settings wrapped rather than laid out below 620 px, dropping the arrows to a
+  second line and stranding the card toggle on the first.
+- Option colours opened the operating system's colour wheel, ignoring the
+  palette the rest of the product picks from.
+- Every browser tab said "Ushabti", and there was no favicon.
+- The show-on-card control was an unlabelled `◉`, and the only route to project
+  settings was a 26 px `⚙`.
+
 ### Changed
 
 - The image is 308 MB, down from 775 MB, and the two architectures build side

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRuns } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
 import { logActivity } from "@/lib/queries";
 import { addLog, closeRun, loadRun } from "@/lib/runs";
 import { RUN_CONTROLS, type RunControl, type RunStatus } from "@/lib/types";
@@ -35,6 +35,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
   if (!context) throw new HttpError(404, "Run not found.");
 
   const { user } = await guard(context.projectId);
+  // Pause and Stop mean nothing if the agent can write them itself.
+  humanOnly(user);
   if (!isOpen(context.status as RunStatus)) throw new HttpError(409, "That run is over.");
 
   const input = await body<{ control?: string }>(req);

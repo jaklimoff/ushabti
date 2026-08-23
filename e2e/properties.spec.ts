@@ -3,7 +3,9 @@ import {
   addTask,
   card,
   column,
+  confirmDelete,
   createProject,
+  gotoSettings,
   propertyBox,
   register,
   saved,
@@ -15,7 +17,7 @@ test.describe("Custom properties", () => {
     await register(page);
     const projectId = await createProject(page, unique("Custom"));
 
-    await page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(page, projectId);
     await page.getByLabel("New property name").fill("Risk");
     await page.getByPlaceholder("Options, separated by commas").fill("Low, Medium, High");
     await page.getByRole("button", { name: "Add property" }).click();
@@ -39,7 +41,7 @@ test.describe("Custom properties", () => {
     await register(page);
     const projectId = await createProject(page, unique("Rename"));
 
-    await page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(page, projectId);
     const status = propertyBox(page, "Status");
     const backlog = status.getByLabel("Name of the option Backlog");
     await backlog.fill("Icebox");
@@ -59,7 +61,7 @@ test.describe("Custom properties", () => {
 
     await expect(card(page, "Hidden props").getByTestId("card-lead-square")).toBeVisible();
 
-    await page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(page, projectId);
     await saved(page, () =>
       page.getByRole("button", { name: "Hide Priority on the card" }).click(),
     );
@@ -77,10 +79,16 @@ test.describe("Custom properties", () => {
     await page.getByRole("button", { name: "Close task" }).click();
     await expect(card(page, "Estimate goes away")).toContainText("XL");
 
-    await page.goto(`/p/${projectId}/settings`);
-    await saved(page, () =>
-      page.getByRole("button", { name: "Delete the property Estimate" }).click(),
-    );
+    await gotoSettings(page, projectId);
+
+    // It asks first, and it says what goes with it.
+    await page.getByRole("button", { name: "Delete the property Estimate" }).click();
+    await expect(page.getByText(/Delete Estimate\? .* go with it\./)).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByLabel("Name of the Estimate property")).toBeVisible();
+
+    await page.getByRole("button", { name: "Delete the property Estimate" }).click();
+    await saved(page, () => confirmDelete(page));
     await expect(page.getByLabel("Name of the Estimate property")).toHaveCount(0);
 
     await page.goto(`/p/${projectId}`);
@@ -91,7 +99,7 @@ test.describe("Custom properties", () => {
     await register(page);
     const projectId = await createProject(page, unique("Types"));
 
-    await page.goto(`/p/${projectId}/settings`);
+    await gotoSettings(page, projectId);
     for (const [name, type] of [
       ["Owner note", "Text"],
       ["Points", "Number"],
