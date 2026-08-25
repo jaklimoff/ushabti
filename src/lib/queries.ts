@@ -16,6 +16,7 @@ import {
   views,
 } from "@/db/schema";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
+import { readFilters } from "./filters";
 import { rankSequence } from "./rank";
 import { loadOpenRuns, loadTaskRun } from "./runs";
 import type {
@@ -137,6 +138,72 @@ export async function createProject(userId: string, name: string, key: string) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Views                                                               */
+/* ------------------------------------------------------------------ */
+
+type ViewRow = typeof views.$inferSelect;
+
+/**
+ * A view as the board sees it. The filters go through `readFilters`, so a rule
+ * whose property or option was deleted never leaves this function. That is the
+ * only cleanup there is: nothing rewrites a view when a property goes.
+ */
+export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[]): ViewDTO {
+  return {
+    id: row.id,
+    name: row.name,
+    groupById: row.groupById,
+    position: row.position,
+    isDefault: row.isDefault,
+    filters: readFilters((row.config as { filters?: unknown } | null)?.filters, propertyList),
+  };
+}
+
+/** The properties of a project with their options, as the board sees them. */
+export async function loadProperties(projectId: string): Promise<PropertyDTO[]> {
+  const [propRows, optRows] = await Promise.all([
+    db
+      .select()
+      .from(properties)
+      .where(eq(properties.projectId, projectId))
+      .orderBy(byPos(properties.position)),
+    db
+      .select({
+        id: propertyOptions.id,
+        propertyId: propertyOptions.propertyId,
+        name: propertyOptions.name,
+        color: propertyOptions.color,
+        position: propertyOptions.position,
+      })
+      .from(propertyOptions)
+      .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
+      .where(eq(properties.projectId, projectId))
+      .orderBy(byPos(propertyOptions.position)),
+  ]);
+  return withOptions(propRows, optRows);
+}
+
+type PropRow = typeof properties.$inferSelect;
+type OptRow = { id: string; propertyId: string; name: string; color: string; position: string };
+
+function withOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
+  const optionsByProp = new Map<string, PropertyDTO["options"]>();
+  for (const o of optRows) {
+    const list = optionsByProp.get(o.propertyId) ?? [];
+    list.push({ id: o.id, name: o.name, color: o.color, position: o.position });
+    optionsByProp.set(o.propertyId, list);
+  }
+  return propRows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    type: p.type as PropertyType,
+    position: p.position,
+    config: (p.config ?? {}) as PropertyDTO["config"],
+    options: optionsByProp.get(p.id) ?? [],
+  }));
+}
+
+/* ------------------------------------------------------------------ */
 /* Board                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -202,13 +269,6 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     loadOpenRuns(projectId),
   ]);
 
-  const optionsByProp = new Map<string, PropertyDTO["options"]>();
-  for (const o of optRows) {
-    const list = optionsByProp.get(o.propertyId) ?? [];
-    list.push({ id: o.id, name: o.name, color: o.color, position: o.position });
-    optionsByProp.set(o.propertyId, list);
-  }
-
   const valuesByTask = new Map<string, Record<string, TaskValue>>();
   for (const v of valueRows) {
     const bag = valuesByTask.get(v.taskId) ?? {};
@@ -216,22 +276,9 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     valuesByTask.set(v.taskId, bag);
   }
 
-  const propertyList: PropertyDTO[] = propRows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    type: p.type as PropertyType,
-    position: p.position,
-    config: (p.config ?? {}) as PropertyDTO["config"],
-    options: optionsByProp.get(p.id) ?? [],
-  }));
+  const propertyList = withOptions(propRows, optRows);
 
-  const viewList: ViewDTO[] = viewRows.map((v) => ({
-    id: v.id,
-    name: v.name,
-    groupById: v.groupById,
-    position: v.position,
-    isDefault: v.isDefault,
-  }));
+  const viewList: ViewDTO[] = viewRows.map((v) => toViewDTO(v, propertyList));
 
   const taskList: TaskDTO[] = taskRows.map((t) => ({
     id: t.id,

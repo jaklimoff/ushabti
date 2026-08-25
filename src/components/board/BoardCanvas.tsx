@@ -36,6 +36,7 @@ import {
   type BoardColumn,
   type CursorStep,
 } from "@/lib/board";
+import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
 import type { TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column } from "./Column";
@@ -191,21 +192,48 @@ export function BoardCanvas({
   selectedTaskId: string | null;
   onOpenTask: (id: string | null) => void;
 }) {
-  const { data, groupProperty, moveTask, createTask, patchOption, runOf, controlRun, notify } =
-    useBoard();
+  const {
+    data,
+    groupProperty,
+    filters,
+    visibleTasks,
+    moveTask,
+    createTask,
+    patchOption,
+    runOf,
+    controlRun,
+    notify,
+  } = useBoard();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [preview, setPreview] = useState<BoardColumn[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // The filters of the view are already off `visibleTasks`, so every part of
+  // the board below this line — the columns, the drag preview, the cursor —
+  // sees the same board a person sees.
   const base = useMemo(
-    () => buildColumns(groupProperty, sortByPosition(data.tasks), data.members),
-    [data.tasks, data.members, groupProperty],
+    () =>
+      allowedColumns(
+        buildColumns(groupProperty, sortByPosition(visibleTasks), data.members),
+        filters,
+        groupProperty,
+      ),
+    [visibleTasks, data.members, filters, groupProperty],
   );
 
   const columns = preview ?? base;
-  const columnsDraggable = groupProperty?.type === "select";
+
+  /*
+   * A column may not be dragged while a rule hides some of its neighbours. The
+   * order belongs to the property, not to this view, and a drop can only name
+   * the column it landed after — so through a filter it would rank the option
+   * after a column somebody else cannot see, and move it on their board too.
+   * You cannot reorder a list you are only being shown part of.
+   */
+  const partial = !!groupProperty && filters.rules.some((r) => r.propertyId === groupProperty.id);
+  const columnsDraggable = groupProperty?.type === "select" && !partial;
 
   /* One card at a time carries the cursor, and that card is the board's only
      tab stop: Tab reaches the board once instead of once for every card, and
@@ -234,6 +262,12 @@ export function BoardCanvas({
     document.body.classList.toggle("ushabti-dragging", dragging);
     return () => document.body.classList.remove("ushabti-dragging");
   }, [activeTaskId, activeColumnId]);
+
+  const addNote = seedNote(
+    seedValues(filters, data.properties, groupProperty?.id ?? null),
+    data.properties,
+    data.members,
+  );
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;
   const activeColumn = activeColumnId
@@ -379,7 +413,13 @@ export function BoardCanvas({
   }
 
   async function addTask(column: BoardColumn, title: string, atTop: boolean) {
-    const values: Record<string, TaskValue> = {};
+    // The filter decides everything the column does not, so a task added to a
+    // filtered board is not hidden by the filter it was added under.
+    const values: Record<string, TaskValue> = seedValues(
+      filters,
+      data.properties,
+      groupProperty?.id ?? null,
+    );
     if (groupProperty && !column.isNone) values[groupProperty.id] = column.value;
     const neighbour = atTop ? null : (column.tasks.at(-1)?.id ?? null);
     const task = await createTask({ title, values, afterId: neighbour, atTop });
@@ -447,6 +487,7 @@ export function BoardCanvas({
               <Column
                 key={column.id}
                 column={column}
+                addNote={addNote}
                 properties={data.properties}
                 members={data.members}
                 groupProperty={groupProperty}
@@ -490,7 +531,7 @@ export function BoardCanvas({
 }
 
 function AddColumn() {
-  const { groupProperty, addOption } = useBoard();
+  const { groupProperty, filters, addOption, setFilters } = useBoard();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
@@ -500,7 +541,21 @@ function AddColumn() {
     const trimmed = name.trim();
     setName("");
     setAdding(false);
-    if (trimmed && groupProperty) await addOption(groupProperty.id, trimmed);
+    if (!trimmed || !groupProperty) return;
+    const optionId = await addOption(groupProperty.id, trimmed);
+
+    /*
+     * A rule about the grouping property decides the columns, so a column made
+     * under one would fail it and vanish the moment it was named. Nobody makes
+     * a column in order not to see it: the new option joins the rule instead.
+     */
+    if (!optionId) return;
+    const rules = filters.rules.map((rule) =>
+      rule.propertyId === groupProperty.id && rule.op === "is"
+        ? { ...rule, values: [...(rule.values ?? []), optionId] }
+        : rule,
+    );
+    if (rules.some((rule, i) => rule !== filters.rules[i])) await setFilters(rules);
   }
 
   return (

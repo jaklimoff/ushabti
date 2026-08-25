@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
-import { withProjectLock } from "@/lib/queries";
+import { toViewDTO, withProjectLock } from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
 import { GROUPABLE_TYPES, type PropertyType } from "@/lib/types";
 
@@ -52,5 +52,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   });
 
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
-  return json({ view }, 201);
+  // A new view has no filters, so the property list it is read against can be
+  // empty: `readFilters` has nothing to check.
+  return json({ view: toViewDTO(view, []) }, 201);
 });

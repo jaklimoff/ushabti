@@ -206,7 +206,12 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               <div className={`${styles.propLabel} ${index > 0 ? styles.rowLine : ""}`}>
                 {property.name}
               </div>
-              <div className={`${styles.propValue} ${index > 0 ? styles.rowLine : ""}`}>
+              {/* The row is a grid of two cells, so the value carries the
+                  name a test needs to reach it by. */}
+              <div
+                className={`${styles.propValue} ${index > 0 ? styles.rowLine : ""}`}
+                data-property={property.name}
+              >
                 <PropertyControl
                   property={property}
                   value={boardTask.values[property.id] ?? null}

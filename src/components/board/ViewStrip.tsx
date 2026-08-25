@@ -4,13 +4,20 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import Link from "next/link";
 import { GROUPABLE_TYPES } from "@/lib/types";
 import { useDismiss } from "@/components/ui/useDismiss";
+import { FilterButton } from "./Filters";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 
 const VIEW_DOTS = ["#3fb0c8", "#6d5bd0", "#2f9e7a", "#d1913a", "#c2557a", "#4b8fbe"];
 
-export function ViewStrip() {
-  const { data, view, setViewId, createView } = useBoard();
+export function ViewStrip({
+  filterOpen,
+  setFilterOpen,
+}: {
+  filterOpen: boolean;
+  setFilterOpen: (v: boolean) => void;
+}) {
+  const { data, view, visibleTasks, setViewId, createView } = useBoard();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const groupable = data.properties.filter((p) => GROUPABLE_TYPES.includes(p.type));
@@ -24,6 +31,7 @@ export function ViewStrip() {
   const [edges, setEdges] = useState({ start: false, end: false });
 
   const taskCount = data.tasks.length;
+  const shown = visibleTasks.length;
 
   // The panel used to open at the far left however far right the + had moved.
   useLayoutEffect(() => {
@@ -105,8 +113,12 @@ export function ViewStrip() {
       </button>
 
       <div style={{ flex: 1 }} />
-      <span className={styles.count}>
-        {taskCount} {taskCount === 1 ? "task" : "tasks"}
+      <FilterButton open={filterOpen} setOpen={setFilterOpen} />
+      {/* A filtered board says how much of itself it is showing. "12 tasks"
+          alone cannot tell you whether the other 28 exist. */}
+      <span className={styles.count} data-testid="task-count">
+        {shown === taskCount ? shown : `${shown} of ${taskCount}`}{" "}
+        {taskCount === 1 ? "task" : "tasks"}
       </span>
 
       {adding && (

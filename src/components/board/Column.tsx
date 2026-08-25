@@ -65,6 +65,7 @@ export function Column({
   selectedTaskId,
   cursorTaskId,
   draggable,
+  addNote,
   onOpenTask,
   onAddTask,
 }: {
@@ -75,6 +76,8 @@ export function Column({
   selectedTaskId: string | null;
   cursorTaskId: string | null;
   draggable: boolean;
+  /** What the filter will put on the new task, or "" when it puts nothing. */
+  addNote: string;
   onOpenTask: (id: string) => void;
   onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
 }) {
@@ -172,6 +175,7 @@ export function Column({
             ref={inputRef}
             draft={draft}
             setDraft={setDraft}
+            note={addNote}
             commit={commit}
             cancel={() => setComposing(null)}
           />
@@ -201,6 +205,7 @@ export function Column({
             ref={inputRef}
             draft={draft}
             setDraft={setDraft}
+            note={addNote}
             commit={commit}
             cancel={() => setComposing(null)}
           />
@@ -228,12 +233,14 @@ const Composer = function Composer({
   ref,
   draft,
   setDraft,
+  note,
   commit,
   cancel,
 }: {
   ref: React.RefObject<HTMLTextAreaElement | null>;
   draft: string;
   setDraft: (v: string) => void;
+  note: string;
   commit: () => void;
   cancel: () => void;
 }) {
@@ -257,7 +264,9 @@ const Composer = function Composer({
         }}
         onBlur={() => (draft.trim() ? commit() : cancel())}
       />
-      <span className={styles.composerHint}>Enter to add · Esc to cancel</span>
+      {/* A filtered board says what it is about to write, so the card it
+          makes is never a surprise and never disappears. */}
+      <span className={styles.composerHint}>Enter to add · {note || "Esc to cancel"}</span>
     </div>
   );
 };

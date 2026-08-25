@@ -6,6 +6,58 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## Unreleased
+
+### Added
+
+- **Filters inside a view.** A view can now show only some of its tasks. The
+  **Filter** button in the view strip asks which property, and the rule it makes
+  appears as a chip on a line of its own under the strip — a line that exists
+  only while the view is filtered, so an unfiltered board looks exactly as it
+  did. Click the chip to change the rule, press its ✕ to remove it, or **Clear**
+  to remove them all. Every property type can be asked about, because no field
+  on a task is hardcoded: an option, a member, a word in some text, a number
+  over or under, a date before or after, and "empty" for anything that can hold
+  nothing. Every rule has to pass; a filter narrows, it never widens.
+
+  The rules belong to the view and save the moment you make them, the same way
+  the grouping property already does. The strip counts what you are looking at —
+  `12 of 40 tasks` — so a board can never quietly be a part of itself.
+
+  Adding one is two answers in a panel that does not move: which property, then
+  what about it. Picking the property writes nothing — the board cannot know
+  which priority you meant, so it does not guess one and hide half the cards
+  while you decide. The panel stays open after the first value, because a rule
+  usually names more than one; `‹` goes back, and Escape puts the panel away and
+  keeps what you typed, because nothing in this product has a Cancel.
+
+  Five things a filter is usually allowed to get wrong, and does not here:
+
+  - **"is not" keeps the empties.** "Priority is not High" shows a task with no
+    priority, because a task with no priority is not High. Jira drops those and
+    hands people an incomplete board they believe is complete.
+  - **A card added under a filter is not hidden by it.** The composer fills in
+    what the filter asks for and says so before you press Enter — `Enter to add
+· sets Priority Urgent`.
+  - **A column you cannot drop into is not drawn.** A rule about the grouping
+    property takes its columns with it, so a card can never vanish where it
+    landed. A new column made under such a rule joins the rule instead of
+    disappearing the moment it is named.
+  - **A rule whose property or option was deleted goes with it.** Nothing tidies
+    a view up when a property goes, so the rules are read afresh every time.
+    A filter nobody can see never keeps hiding cards.
+  - **A question with no answer is not a rule.** It lives in the panel until it
+    means something, so nobody else on the board sees a half-made filter, and
+    taking the answer back takes the rule with it.
+
+### Changed
+
+- **A column cannot be dragged while a rule hides its neighbours.** The order of
+  the columns belongs to the property and everybody shares it, and a drop can
+  only name the column it landed after. Through a filter that would rank the
+  option after a column somebody else cannot see, and move it on their board
+  too. You cannot reorder a list you are only shown part of.
+
 ## 0.4.0 — 2026-08-23
 
 ### Added
