@@ -232,7 +232,10 @@ export const views = pgTable(
     position: text("position").notNull(),
     /** The first view of a project cannot be deleted. */
     isDefault: boolean("is_default").notNull().default(false),
-    /** { hidden: string[] } - option ids whose column stays collapsed. */
+    /**
+     * What this view does to the board beyond grouping it.
+     * `{ filters: { rules: FilterRule[] } }` - which tasks it shows.
+     */
     config: jsonb("config").notNull().default({}),
   },
   (t) => [index("views_project_idx").on(t.projectId)],

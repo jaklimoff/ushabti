@@ -47,6 +47,39 @@ and what is easy to get wrong.
   `liftedCardCoordinates` instead of asking `sortableKeyboardCoordinates`. Both
   halves have to hold: the drop target is one decision, where the key puts the
   card is another, and a release that fixed only the first one read as fixed.
+- **A filter is read afresh, never cleaned up.** Nothing rewrites a view when
+  the property or the option one of its rules names is deleted, so a saved rule
+  can point at nothing. `readFilters()` throws those away every time the board
+  is read — on the server in `toViewDTO`, and again on the write in the view
+  route. Do not add a cleanup pass to the delete transactions instead: it would
+  have to run in four places and would still lose a race. A rule nobody can see
+  must never keep hiding cards, which is why the chips and the hiding are drawn
+  from the same reading.
+- **Every rule has to pass, and "is not" keeps the empties.** A filter narrows;
+  there is no "any of these rules". A task with no priority is not High, so
+  `Priority is not High` shows it. Jira's `!=` drops those, which is how people
+  ship a board they believe is complete. "Nothing yet" is a _value_ in a rule's
+  set — `NO_VALUE_KEY` — and not an operator, so "Doing, or nothing yet" is one
+  rule rather than two that can never both pass.
+- **A filter that names the grouping property takes its columns with it.** An
+  empty column you may still drop a card into is a trap: the card would vanish
+  where it landed. `allowedColumns()` removes them, and nothing is lost, because
+  a task in one of them failed the same rule. For the same reason a column
+  cannot be _dragged_ through such a filter — a drop can only name the column it
+  landed after, and the option order belongs to the property that everybody
+  shares. And a new column made under one joins the rule, because nobody makes
+  a column in order not to see it.
+- **Picking a property asks a question; it never answers it.** A new rule
+  carries no value, so nothing is written to the view, nothing is broadcast and
+  no chip is drawn until somebody says what they meant. `hasAnswer()` is the one
+  place that decides, and both the panel and `readFilters()` ask it, so a rule
+  that reaches a board always means something. The operator may have a default —
+  that is the shape of the question, not the answer.
+- **Adding a task under a filter fills in what the filter asks for.** Otherwise
+  the card is written and hidden in the same breath with nothing on screen to
+  say why. `seedValues()` answers only a rule it can answer without guessing —
+  one value, positive, and not the grouping property, which the column decides.
+  The composer says what it will write before it writes it.
 - **Pause and Stop are requests, not commands.** The server cannot reach into
   another machine. It writes a word on the run; the agent reads it in the answer
   to its next report and obeys because it said it would. Only **Take over**

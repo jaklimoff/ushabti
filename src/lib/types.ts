@@ -80,12 +80,66 @@ export type TaskDTO = {
   commentCount: number;
 };
 
+/* ------------------------------------------------------------------ */
+/* Filters                                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The word that says how a rule reads its property. Nothing here names a
+ * field: a rule holds a property id, and the property says which of these it
+ * can answer. `src/lib/filters.ts` holds the rules themselves.
+ */
+export const FILTER_OPS = [
+  /* select, multi_select, person, checkbox: the value is one of a chosen set */
+  "is",
+  "is_not",
+  /* text */
+  "contains",
+  "not_contains",
+  /* number */
+  "eq",
+  "gt",
+  "lt",
+  /* date */
+  "on",
+  "before",
+  "after",
+  /* anything that can hold nothing */
+  "empty",
+  "not_empty",
+] as const;
+
+export type FilterOp = (typeof FILTER_OPS)[number];
+
+/** The member of a value set that stands for "this task holds nothing here". */
+export const NO_VALUE_KEY = "__none__";
+
+/**
+ * One rule. `values` carries option ids, member ids, "true" / "false" or
+ * NO_VALUE_KEY for the set operators; `text` carries the one word a text,
+ * number or date rule compares against. A rule never carries both.
+ */
+export type FilterRule = {
+  propertyId: string;
+  op: FilterOp;
+  values?: string[];
+  /** The text, the number as text, or a date as 2026-08-25. */
+  text?: string;
+};
+
+/** Every rule of a view. They all have to pass: a filter narrows, never widens. */
+export type ViewFilters = {
+  rules: FilterRule[];
+};
+
 export type ViewDTO = {
   id: string;
   name: string;
   groupById: string | null;
   position: string;
   isDefault: boolean;
+  /** Which tasks this view shows. Every rule has to pass. */
+  filters: ViewFilters;
 };
 
 export type ChecklistItemDTO = {

@@ -11,16 +11,19 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
+import { applyFilters, EMPTY_FILTERS } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
   AgentRunDTO,
   BoardData,
+  FilterRule,
   PropertyDTO,
   PropertyType,
   RunControl,
   TaskDTO,
   TaskValue,
   ViewDTO,
+  ViewFilters,
 } from "@/lib/types";
 import type { SessionUser } from "@/components/ui/UserMenu";
 
@@ -31,6 +34,15 @@ type Store = {
   user: SessionUser;
   view: ViewDTO | null;
   groupProperty: PropertyDTO | null;
+  /** The rules of the view on screen. */
+  filters: ViewFilters;
+  /**
+   * The tasks that view shows. Everything that counts tasks reads this, so the
+   * columns, the count in the strip and the empty state can never disagree.
+   */
+  visibleTasks: TaskDTO[];
+  /** Writes the rules of the view. They save at once, like the grouping does. */
+  setFilters: (rules: FilterRule[]) => Promise<void>;
   /** The open run of a task, or null. One task holds one run at a time. */
   runOf: (taskId: string) => AgentRunDTO | null;
   /** Pause, resume or stop is a request. Take over ends the run at once. */
@@ -63,7 +75,10 @@ type Store = {
   ) => void;
 
   createView: (name: string, groupById: string) => Promise<void>;
-  updateView: (viewId: string, patch: { name?: string; groupById?: string }) => Promise<void>;
+  updateView: (
+    viewId: string,
+    patch: { name?: string; groupById?: string; filters?: ViewFilters },
+  ) => Promise<void>;
   deleteView: (viewId: string) => Promise<void>;
 
   addOption: (propertyId: string, name: string) => Promise<string | null>;
@@ -206,6 +221,13 @@ export function BoardProvider({
   const groupProperty = useMemo(
     () => (view?.groupById ? (data.properties.find((p) => p.id === view.groupById) ?? null) : null),
     [data.properties, view],
+  );
+
+  const filters = view?.filters ?? EMPTY_FILTERS;
+
+  const visibleTasks = useMemo(
+    () => applyFilters(data.tasks, filters, data.properties),
+    [data.properties, data.tasks, filters],
   );
 
   const runsByTask = useMemo(() => {
@@ -408,6 +430,14 @@ export function BoardProvider({
     [guarded],
   );
 
+  const setFilters = useCallback<Store["setFilters"]>(
+    async (rules) => {
+      if (!view) return;
+      await updateView(view.id, { filters: { rules } });
+    },
+    [updateView, view],
+  );
+
   const deleteView = useCallback<Store["deleteView"]>(
     async (id) => {
       const remaining = data.views.filter((v) => v.id !== id);
@@ -551,6 +581,9 @@ export function BoardProvider({
     user,
     view,
     groupProperty,
+    filters,
+    visibleTasks,
+    setFilters,
     runOf,
     controlRun,
     live,

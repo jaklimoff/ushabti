@@ -337,6 +337,13 @@ test.describe("Agents on the board", () => {
     expect((await api.del(`/api/views/${extraView.id}`)).status()).toBe(403);
     expect((await api.del(`/api/options/${ready.id}`)).status()).toBe(403);
 
+    // A filter says what everybody on this board can see. An agent that lost
+    // its token would otherwise hide the work from the people doing it.
+    const hide = await api.patch(`/api/views/${extraView.id}`, {
+      filters: { rules: [{ propertyId: status.id, op: "is", values: [ready.id] }] },
+    });
+    expect(hide.status()).toBe(403);
+
     // Pause and Stop mean nothing if the agent can write them itself.
     const { run } = await (
       await api.post(`/api/tasks/${task.id}/run`, { goal: "Do it", step: "Starting" })

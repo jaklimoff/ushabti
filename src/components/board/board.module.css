@@ -13,6 +13,9 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* The board is what the hints over it are measured against. Without this
+     they are measured against the window and drift under the task panel. */
+  position: relative;
 }
 
 /* ------------------------------------------------------------- top bar */
@@ -868,4 +871,266 @@
   line-height: 1.6;
   text-align: center;
   text-wrap: pretty;
+}
+
+/* -------------------------------------------------------------- filters */
+
+/* A popover belongs to the control that opened it, so the control is the
+   thing it is measured from. The new-view panel above has to be placed by
+   hand because its + moves as the strip fills up; these do not move. */
+.filterAnchor {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.filterPop {
+  top: 28px;
+  left: auto;
+  right: 0;
+  width: 234px;
+}
+
+/* A chip sits at the left edge of the row, so its panel opens under it. */
+.filterRow .filterPop {
+  left: 0;
+  right: auto;
+}
+
+.filterOn {
+  background: #171b20;
+  color: var(--text);
+}
+
+/* Three bars, narrowing. A funnel at this size is a smudge. */
+.filterMark {
+  width: 8px;
+  height: 6px;
+  flex: 0 0 8px;
+  background: currentColor;
+  opacity: 0.75;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 1.5px,
+    0 1.5px,
+    0 2.25px,
+    87% 2.25px,
+    87% 3.75px,
+    0 3.75px,
+    0 4.5px,
+    62% 4.5px,
+    62% 6px,
+    0 6px
+  );
+}
+
+/* The property and the box sit on one line: picking a property turns it into
+   the tag, and the box goes on to ask what about it. The panel never moves. */
+.askHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--line-menu);
+  padding-bottom: 6px;
+}
+
+.askTag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  max-width: 46%;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #1b2126;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.askTag:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* In a chip's own panel there is nowhere to go back to, so it is not a button. */
+.askTagFlat {
+  cursor: default;
+}
+
+.askTagFlat:hover {
+  background: #1b2126;
+  color: var(--text-3);
+}
+
+.askBox {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 2px 0;
+}
+
+.askBox::placeholder {
+  color: var(--faint);
+  text-transform: uppercase;
+}
+
+.askBox:disabled {
+  cursor: default;
+}
+
+/* The row the arrow keys are on. It is not focus: the box keeps that. */
+.filterItemAt {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.filterRowNote {
+  font-size: 10.5px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46%;
+}
+
+.filterList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 232px;
+  overflow-y: auto;
+  margin: 0 -4px;
+}
+
+.filterItem {
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-size: var(--t-small);
+  color: var(--text-4);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.filterItem:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.filterItemOn {
+  color: var(--text);
+}
+
+.filterTick {
+  color: var(--accent);
+  font-size: 10px;
+  transition: opacity 140ms var(--ease);
+}
+
+.filterNote {
+  font-size: var(--t-small);
+  color: var(--muted);
+  padding: 4px 6px;
+}
+
+/* The row exists only while the view has a rule. An unfiltered board pays
+   nothing for it, and a board that hides work can never do it quietly. */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--line-faint);
+  background: var(--bg-sub);
+  /* The row wraps rather than scrolls. A scrolling row would clip the panel
+     that opens under a chip, because it is a child of the chip. */
+  flex-wrap: wrap;
+}
+
+.filterChip {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  border-radius: 5px;
+  background: #171b20;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  transition: border-color 140ms var(--ease);
+}
+
+.filterChip:hover,
+.filterChipOpen {
+  border-color: var(--line-menu);
+}
+
+.filterChipBody {
+  padding: 0 6px 0 8px;
+  height: 100%;
+  font-size: var(--t-small);
+  color: var(--text-3);
+}
+
+.filterChipX {
+  height: 100%;
+  padding: 0 7px 0 3px;
+  font-size: 9px;
+  color: var(--faint);
+}
+
+.filterChipX:hover {
+  color: var(--danger-soft);
+}
+
+.filterClear {
+  padding: 0 7px;
+  height: 22px;
+  border-radius: 5px;
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
+.filterClear:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+/* Nothing passed. The board is not empty, so it must not read as empty. */
+.filterBlank {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.filterBlankInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  font-size: var(--t-body);
+  color: var(--muted);
 }

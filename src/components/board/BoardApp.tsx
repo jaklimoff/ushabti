@@ -6,6 +6,7 @@ import type { BoardData } from "@/lib/types";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
+import { FilterChips } from "./Filters";
 import { BoardProvider, useBoard } from "./store";
 import { TaskPanel } from "./TaskPanel";
 import { ViewStrip } from "./ViewStrip";
@@ -28,8 +29,12 @@ export function BoardApp({
 }
 
 function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
-  const { data, user, view, live, toasts, groupProperty } = useBoard();
+  const { data, user, view, live, toasts, groupProperty, filters, visibleTasks, setFilters } =
+    useBoard();
   const [selected, setSelected] = useState<string | null>(initialTaskId);
+  /* The chip line and the Filter button are on two rows but are one control,
+     so the row can hold its space open while somebody is choosing. */
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const open = useCallback((id: string | null) => {
     setSelected(id);
@@ -74,8 +79,24 @@ function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
           <UserMenu user={user} />
         </div>
 
-        <ViewStrip />
+        <ViewStrip filterOpen={filterOpen} setFilterOpen={setFilterOpen} />
+        <FilterChips panelOpen={filterOpen} />
         <BoardCanvas selectedTaskId={selected} onOpenTask={open} />
+
+        {/* The project has tasks; this view is hiding all of them. Saying so
+            is the difference between a filter and a board that looks broken. */}
+        {data.tasks.length > 0 && visibleTasks.length === 0 && (
+          <div className={styles.filterBlank}>
+            <div className={styles.filterBlankInner}>
+              <span>
+                No task passes {filters.rules.length === 1 ? "the filter" : "all the filters"}.
+              </span>
+              <button className={styles.ghost} onClick={() => void setFilters([])}>
+                Clear the filter
+              </button>
+            </div>
+          </div>
+        )}
 
         {data.tasks.length === 0 && (
           <div className={styles.firstHint}>

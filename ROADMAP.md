@@ -96,7 +96,8 @@ Everything off the board, brought up to the board's standard.
 
 ## Next — the things that make daily use better
 
-1. **Filters and sorting inside a view.** Show only my tasks, only this label, only what is due this week. `views.config` is already a JSON column kept free for this.
+1. **Sorting inside a view.** Filters shipped; the order did not. A view still
+   shows the one card order every view shares.
 2. **Search.** Find a task by key or by words in the title. A box in the top bar, results as you type.
 3. **Keyboard shortcuts.** `n` for a new task, `/` for search, arrow keys to move between cards, `Esc` to close.
 4. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
@@ -108,6 +109,11 @@ Everything off the board, brought up to the board's standard.
 - **A list view.** The board is the only layout. A dense table with sortable columns suits a long backlog better.
 - **Blocked-by links.** Task dependencies and the chain strip from the design.
 - **A per-view card order.** See the limit below.
+- **Relative dates in a filter.** A date rule names a day today, so "due this
+  week" has to be rewritten every week. A relative window has to read the same
+  on the server and in the browser, which a clock in two time zones does not.
+- **A filter that says "me".** A person rule names one member, so a shared view
+  filtered to "my tasks" is one named person's tasks on everybody's screen.
 - **A run history.** A closed run keeps its rows, but nothing shows them. Only the activity line survives on screen.
 - **Bulk edit.** Select several cards, set one property on all of them.
 - **Email invites.** Today the person must register first, and only then can the owner add their email.
