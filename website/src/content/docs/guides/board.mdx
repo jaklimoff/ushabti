@@ -1,0 +1,125 @@
+---
+title: The board
+description: Dragging cards and columns, adding tasks and columns, the live dot, and why an empty column is not a trap.
+sidebar:
+  order: 3
+---
+
+import { Aside, LinkCard, CardGrid, Card } from '@astrojs/starlight/components'
+import { Image } from 'astro:assets'
+import board from '../../../assets/board.png'
+
+The board is the product. Everything else — settings, the panel, the API — exists to keep it honest.
+
+<Image src={board} alt="An Ushabti board with four columns, coloured tags on the cards, and an agent working on one of them." class="shot" />
+
+## Moving a card
+
+Drag it. Cards move inside a column and between columns; dropping one on the free space below a
+column's cards sends it to the end of that column. A drag has to travel five pixels before it counts,
+so a click still opens the card.
+
+Moving a card to another column **writes the grouping property's value for that column**. Dragging
+a card from Todo to In Progress is not a special board operation; it sets `Status = In Progress`.
+That is the same write the panel makes, and the same one an agent makes over the API.
+
+<Aside type="note" title="Nothing here is picked by the distance between corners">
+A column is as tall as the board, so an empty one has two corners hundreds of pixels away and would
+lose every distance contest to a small card one column further over. Ushabti asks *what is under the
+pointer* first, and *which rectangles overlap* second. Corner distance only settles the gaps.
+</Aside>
+
+## Moving a column
+
+Each column header carries a six-dot grip. Drag it and you **reorder the options of the grouping
+property** — for everybody, and in every view that groups by it. Three conditions:
+
+- Only when the grouping property is a **select**. Person and checkbox columns have no order to
+  change.
+- The `No status` column never moves; it is always last.
+- **Not while a filter names the grouping property.** A drop can only say which column it landed
+  after, and through a partial view you would be ranking an option after a column somebody else
+  cannot see.
+
+## Adding a column
+
+**+ New column** at the right end, shown only when the grouping property is a select. Type a name,
+press Enter. It adds an option to the grouping property, so the column appears on everybody's board.
+
+If the current view has an `is` rule on the grouping property, **the new option joins that rule** —
+because nobody makes a column in order not to see it.
+
+## Adding a task
+
+Two places, and they mean different things:
+
+- The **+** in a column header — adds to the **top** of that column.
+- The empty area below the cards — adds to the end. It reads **Add a task** when the column is
+  empty.
+
+Both open a composer with the placeholder *"What needs doing?"*. **Enter** adds it (Shift+Enter is a
+newline), **Escape** cancels, and clicking away with text in the box also adds it. The new task's
+panel opens straight away.
+
+Under the box is a line saying what will happen: `Enter to add · Esc to cancel`, or
+`Enter to add · sets Priority Urgent` when a filter is going to fill something in. The composer says
+what it will write before it writes it — see [Filters](/ushabti/guides/filters/).
+
+## The top bar
+
+<CardGrid>
+  <Card title="The live dot" icon="rocket">
+    On: *"Live: changes from others arrive by themselves."* Off: *"Not live right now."* It is the
+    state of one server-sent-events connection per tab.
+  </Card>
+  <Card title="The view strip" icon="list-format">
+    Every view, the `+` to add one, the **Filter** pill, and a count. The count reads `40 tasks`, or
+    `12 of 40 tasks` when filtered, so a board can never quietly be a part of itself.
+  </Card>
+</CardGrid>
+
+## When the board is empty
+
+Two different empty states, because they mean two different things.
+
+**No task passes the filter** — with a **Clear the filter** button. Your work is there; you asked a
+question it does not answer.
+
+**Nothing at all yet** — and the board takes the chance to explain itself:
+
+> The columns come from a property called **Status**. So do Priority, Assignee and the rest — every
+> field on a task is yours to rename or delete in Settings.
+
+## Live updates
+
+Somebody else moves a card, edits a title, adds a column, renames a property or changes a filter,
+and your board follows in about a second with no reload.
+
+The mechanics, in case a number matters to you: one `EventSource` per tab, fed by Postgres
+`LISTEN`/`NOTIFY`, so any Ushabti process on the same database sees every write. Incoming events are
+debounced by 140 ms and then the board is refetched. **The event says what changed, never how** —
+there is no payload to get out of order. Your own writes are tagged and skipped, so your tab never
+refetches because of you.
+
+The board also re-syncs whenever the stream connects — first open, and after every reconnect. Events
+have no replay, so anything broadcast while you were reconnecting would otherwise be lost for good.
+
+<Aside type="tip" title="Every open board holds one database connection">
+For live updates, outside the pool. It matters when you point Ushabti at a small managed cluster —
+see [Configuration](/ushabti/start/configuration/).
+</Aside>
+
+<LinkCard
+  title="Keyboard"
+  href="/ushabti/guides/keyboard/"
+  description="One press of Tab reaches the board. Everything after that is arrows."
+/>
+
+<style>{`
+  .shot {
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 12px;
+    margin: 1.5rem 0 2rem;
+    box-shadow: var(--sl-shadow-md);
+  }
+`}</style>

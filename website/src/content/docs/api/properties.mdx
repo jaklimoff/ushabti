@@ -1,0 +1,201 @@
+---
+title: Properties and views API
+description: Create and change the structure of a board — properties, their options, views and the filter rules a view holds.
+sidebar:
+  order: 6
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components'
+
+**Adding** is any member's. **Deleting** is the owner's, and a person's.
+
+---
+
+## Properties
+
+### `POST /api/projects/{projectId}/properties`
+
+```json title="request"
+{ "name": "Environment", "type": "select", "options": ["local", "staging", "production"] }
+```
+
+| Field | Rules |
+| --- | --- |
+| `name` | required, ≤ 40 characters |
+| `type` | required — `select`, `multi_select`, `person`, `text`, `number`, `date`, `checkbox` |
+| `options` | only read for `select` and `multi_select`; blanks dropped, then capped at 40 |
+
+Option colours cycle through the palette. The property is appended last with `showOnCard: true`.
+
+```json title="201"
+{ "property": { "id": "…", "projectId": "…", "name": "Environment", "type": "select",
+                "position": "Vm", "config": { "showOnCard": true }, "createdAt": "…",
+                "options": [{ "id": "…", "name": "local", "color": "#e0574d", "position": "V" }] } }
+```
+
+`400 That property type does not exist.` for anything outside the seven.
+
+### `PATCH /api/properties/{propertyId}`
+
+```json title="request"
+{ "name": "Env", "showOnCard": false, "afterId": "<propertyId>" }
+```
+
+All optional and applied independently.
+
+- `showOnCard` is merged into `config`, so nothing else in it is lost.
+- `afterId` moves it. **`null` means the front**, and so does an id that names nothing. It is the
+  presence of the key that triggers the move, not its value.
+
+`200 {"ok": true}`. A body with nothing recognisable in it is a no-op that still answers `200`, and
+broadcasts nothing.
+
+### `DELETE /api/properties/{propertyId}` <Badge text="owner only" variant="caution" size="small" />
+
+Removes the property, its options and every value written for it.
+
+| Status | Message |
+| --- | --- |
+| `400` | `The view "Phases" groups by this property. Point it at another property first.` |
+| `400` | `These views group by this property: "Phases", "Board". Point them at another property first.` |
+
+---
+
+## Options
+
+### `POST /api/properties/{propertyId}/options`
+
+```json title="request"
+{ "name": "staging", "color": "#3fb0c8" }
+```
+
+`name` required, ≤ 40. `color` optional and must look like `#3fb0c8`; **anything else is ignored
+silently** and the next unused palette colour is used instead.
+
+`201 { "option": { "id", "propertyId", "name", "color", "position" } }`, or
+`400 Only select properties have options.`
+
+### `PATCH /api/options/{optionId}`
+
+```json title="request"
+{ "name": "prod", "color": "#2f9e7a", "afterId": null }
+```
+
+Here a malformed `color` **is** an error — `400 The colour must look like #3fb0c8.` `afterId` behaves
+as it does for properties: `null` or unknown means the front.
+
+Reordering options is what column dragging does on the board.
+
+### `DELETE /api/options/{optionId}` <Badge text="owner only" variant="caution" size="small" />
+
+Deletes the option and scrubs it out of every value: a single-select holding it becomes `null`, and a
+multi-select drops it from its list.
+
+**Saved filter rules are not touched.** They do not need to be — a rule naming a dead option is
+discarded every time the view is read. See [Filters](/ushabti/guides/filters/).
+
+---
+
+## Views
+
+### `POST /api/projects/{projectId}/views`
+
+```json title="request"
+{ "name": "By assignee", "groupById": "<propertyId>" }
+```
+
+`groupById` must be a property of this project whose type is `select`, `person` or `checkbox`.
+
+```json title="201"
+{ "view": { "id": "…", "name": "By assignee", "groupById": "…", "position": "Vn",
+            "isDefault": false, "filters": { "rules": [] } } }
+```
+
+| Status | Message |
+| --- | --- |
+| `400` | `Choose a property to group by.` · `That property is not in this project.` |
+| `400` | `A board can only group by a select, person or checkbox property.` |
+
+### `PATCH /api/views/{viewId}`
+
+```json title="request"
+{ "name": "Board", "groupById": "…", "filters": { "rules": [ … ] } }
+```
+
+<Aside type="caution" title="`filters` is human only">
+An agent may rename a view and change its grouping. It may **not** write filters — a token that could
+hide work from the people should not. `403 Only a person can do this.`
+</Aside>
+
+Rules are read and cleaned **on the way in** as well as on the way out, so what you send is not
+necessarily what is stored.
+
+### `DELETE /api/views/{viewId}` <Badge text="owner only" variant="caution" size="small" />
+
+`400 The main view cannot be deleted.` for the project's first view.
+
+---
+
+## Value shapes by type
+
+The one validator, shared by the values `PUT`, the task-create `values` bag and the move `values` bag.
+
+**Clearing comes first and applies to every type.** `null`, an omitted key, or `""` stores `null` —
+or `[]` for a multi-select.
+
+| Type | Send | Stored as | Refused with |
+| --- | --- | --- | --- |
+| `select` | an option id of **this** property | the id | `Priority needs one option.` · `One of the options does not exist any more.` |
+| `multi_select` | an array of option ids; non-strings are dropped silently | a deduplicated array | `Labels needs a list of options.` · `One of the options does not exist any more.` |
+| `person` | a member's user id — **an agent counts** | the id | `Assignee needs one member.` · `That person is not a member of this project.` |
+| `text` | a string | truncated at **2000** characters | `Notes needs text.` |
+| `number` | a number, or anything `Number()` can make finite — `"42"` works | a number | `Estimate needs a number.` |
+| `date` | `YYYY-MM-DD`, no time and no timezone | the string | `Due needs a date like 2026-08-21.` |
+| `checkbox` | `true`, or the string `"true"` | `true` / `false` — **never refused** | — |
+
+<Aside type="note" title="The date is not calendar-checked">
+It is matched against the pattern and stored. `2026-13-45` passes. Comparisons everywhere are plain
+string comparisons on that format, which is exactly why the server and the browser never disagree.
+</Aside>
+
+---
+
+## Filter rules
+
+A view's `filters` is `{ "rules": [...] }`, and each rule is:
+
+```jsonc
+{
+  "propertyId": "…",
+  "op": "is",            // see the table below
+  "values": ["<optionId>", "__none__"],   // set operators only
+  "text": "login"                          // text / number / date operators only
+}
+```
+
+A rule never carries both `values` and `text`.
+
+| Property type | Operators, in menu order |
+| --- | --- |
+| `select` · `multi_select` · `person` | `is` · `is_not` |
+| `checkbox` | `is` |
+| `text` | `contains` · `not_contains` · `empty` · `not_empty` |
+| `number` | `eq` · `gt` · `lt` · `empty` · `not_empty` |
+| `date` | `on` · `before` · `after` · `empty` · `not_empty` |
+
+**`values` holds** option ids, user ids, the literal `"true"` / `"false"` for a checkbox, and the
+sentinel `"__none__"` — *nothing yet*. That sentinel is a **value in the set, not an operator**, which
+is why `["<doingId>", "__none__"]` is one rule meaning "Doing, or nothing yet".
+
+The semantics — every rule must pass, `is_not` keeps the empties, values within a rule are an "or" —
+are explained in [the filters guide](/ushabti/guides/filters/).
+
+### What survives a read
+
+A rule is kept only if its property still exists, its operator is allowed for that property's type,
+and it has an **answer**: at least one live value for a set operator, non-blank text for the others,
+and a bare `empty` / `not_empty` always. `text` is truncated at 200 characters. Extra keys are
+dropped.
+
+One exception: a `person` rule naming somebody who has left the project **survives**, because asking
+about the tasks they left behind is still a fair question.

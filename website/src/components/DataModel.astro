@@ -1,0 +1,171 @@
+---
+// The schema, drawn. Colours come from the page's tokens, so it reads in both
+// themes and stays sharp at any size.
+const B = { w: 132, h: 44 }
+
+type Box = { id: string; x: number; y: number; label: string; sub: string; accent?: boolean }
+
+const boxes: Box[] = [
+  { id: 'users', x: 24, y: 24, label: 'users', sub: 'human or agent', accent: true },
+  { id: 'members', x: 190, y: 24, label: 'project_members', sub: 'owner or member' },
+  { id: 'projects', x: 356, y: 24, label: 'projects', sub: 'one board' },
+
+  { id: 'tokens', x: 24, y: 112, label: 'agent_tokens', sub: 'sha-256, one project' },
+  { id: 'sessions', x: 24, y: 186, label: 'sessions', sub: '30 days' },
+
+  { id: 'properties', x: 356, y: 112, label: 'properties', sub: 'name + type' },
+  { id: 'views', x: 522, y: 112, label: 'views', sub: 'name + grouping' },
+  { id: 'tasks', x: 688, y: 112, label: 'tasks', sub: 'title + rank' },
+
+  { id: 'options', x: 356, y: 200, label: 'property_options', sub: 'name + colour' },
+  { id: 'values', x: 522, y: 200, label: 'task_values', sub: 'task × property → JSON', accent: true },
+
+  { id: 'checklist', x: 688, y: 200, label: 'checklist_items', sub: 'text + done' },
+  { id: 'comments', x: 688, y: 268, label: 'comments', sub: 'author → users' },
+  { id: 'activity', x: 688, y: 336, label: 'activity', sub: 'actor → users' },
+  { id: 'runs', x: 688, y: 404, label: 'agent_runs', sub: 'one open per task' },
+
+  { id: 'steps', x: 522, y: 476, label: 'agent_run_steps', sub: 'the plan' },
+  { id: 'log', x: 688, y: 476, label: 'agent_run_log', sub: 'append only' },
+]
+
+const byId = new Map(boxes.map((b) => [b.id, b]))
+function at(id: string): Box {
+  const box = byId.get(id)
+  if (!box) throw new Error(`No box called ${id} in the diagram.`)
+  return box
+}
+const cx = (id: string) => at(id).x + B.w / 2
+const right = (id: string) => at(id).x + B.w
+const bottom = (id: string) => at(id).y + B.h
+const mid = (id: string) => at(id).y + B.h / 2
+
+// Straight and elbowed connectors, written as paths so nothing overlaps a box.
+const lines = [
+  `M${right('users')} ${mid('users')} H${at('members').x}`,
+  `M${right('members')} ${mid('members')} H${at('projects').x}`,
+  `M${cx('users')} ${bottom('users')} V${mid('tokens')} H${at('tokens').x}`,
+  `M${cx('users')} ${bottom('users')} V${mid('sessions')} H${at('sessions').x}`,
+  `M${cx('projects')} ${bottom('projects')} V${at('properties').y}`,
+  `M${cx('projects')} ${bottom('projects')} V90 H${cx('views')} V${at('views').y}`,
+  `M${cx('projects')} ${bottom('projects')} V90 H${cx('tasks')} V${at('tasks').y}`,
+  `M${cx('properties')} ${bottom('properties')} V${at('options').y}`,
+  `M${cx('tasks')} ${bottom('tasks')} V${at('checklist').y}`,
+  `M${cx('tasks')} ${bottom('tasks')} V${mid('comments')} H${right('comments')} `,
+  `M${cx('tasks')} ${bottom('tasks')} V${mid('activity')} H${right('activity')}`,
+  `M${cx('tasks')} ${bottom('tasks')} V${mid('runs')} H${right('runs')}`,
+  `M${cx('runs')} ${bottom('runs')} V${at('log').y}`,
+  `M${cx('runs')} ${bottom('runs')} V454 H${cx('steps')} V${at('steps').y}`,
+]
+
+// task_values is the interesting one: it points at both sides. Routed clear of
+// the boxes, so a dashed line never reads as a join it is not.
+const joins = [
+  `M${at('values').x} ${mid('values')} H${right('options')}`,
+  `M${cx('values')} ${at('values').y} V180 H${cx('tasks') - 30} V${bottom('tasks')}`,
+]
+---
+
+<figure class="erd not-content">
+  <div class="erd-scroll">
+    <svg viewBox="0 0 852 544" role="img" aria-labelledby="erd-title erd-desc">
+      <title id="erd-title">The Ushabti data model</title>
+      <desc id="erd-desc">
+        Users join projects through project_members and may be humans or agents. A project holds
+        properties, views and tasks. A property holds options. Every task value is one row in
+        task_values, keyed by task and property. A task also holds checklist items, comments,
+        activity and agent runs, and a run holds its plan and its log. The dashed lines are the two
+        halves of a value: every row in task_values names a task and a property, and a select value
+        holds the id of one of that property's options.
+      </desc>
+
+      {lines.map((d) => <path d={d} class="wire" fill="none" />)}
+      {joins.map((d) => <path d={d} class="wire wire-join" fill="none" />)}
+
+      {
+        boxes.map((b) => (
+          <g class={b.accent ? 'node is-key' : 'node'}>
+            <rect x={b.x} y={b.y} width={B.w} height={B.h} rx="8" />
+            <text x={b.x + 11} y={b.y + 19} class="node-label">
+              {b.label}
+            </text>
+            <text x={b.x + 11} y={b.y + 33} class="node-sub">
+              {b.sub}
+            </text>
+          </g>
+        ))
+      }
+    </svg>
+  </div>
+  <figcaption>
+    Two boxes carry the whole idea. <strong>users</strong> holds people and agents alike, which is why
+    an assignee, a comment author and an activity actor all work for a machine.
+    <strong>task_values</strong> is one row per task and property — so nothing on a task is a
+    column, and nothing is hardcoded.
+  </figcaption>
+</figure>
+
+<style>
+  .erd {
+    margin: 2rem 0;
+  }
+
+  .erd-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 12px;
+    background: var(--sl-color-gray-7);
+    padding: 0.75rem;
+  }
+
+  svg {
+    display: block;
+    min-width: 620px;
+    width: 100%;
+    height: auto;
+  }
+
+  .wire {
+    stroke: var(--sl-color-gray-4);
+    stroke-width: 1.25;
+  }
+
+  .wire-join {
+    stroke: var(--sl-color-accent);
+    stroke-dasharray: 3 3;
+  }
+
+  .node rect {
+    fill: var(--sl-color-bg);
+    stroke: var(--sl-color-hairline-light);
+    stroke-width: 1;
+  }
+
+  .node.is-key rect {
+    stroke: color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
+    fill: color-mix(in srgb, var(--sl-color-accent) 8%, var(--sl-color-bg));
+  }
+
+  .node-label {
+    font-family: var(--sl-font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--sl-color-white);
+  }
+
+  .node.is-key .node-label {
+    fill: var(--sl-color-text-accent);
+  }
+
+  .node-sub {
+    font-size: 10px;
+    fill: var(--sl-color-gray-3);
+  }
+
+  figcaption {
+    margin-top: 0.85rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+    line-height: 1.65;
+  }
+</style>

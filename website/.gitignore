@@ -1,0 +1,10 @@
+dist/
+.astro/
+node_modules/
+.DS_Store
+
+# Built from the repository root by scripts/sync.mjs at every build.
+src/content/docs/releases/changelog.md
+src/content/docs/releases/roadmap.md
+src/content/docs/internals/contributing.md
+src/content/docs/internals/security.md

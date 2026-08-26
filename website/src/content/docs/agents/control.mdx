@@ -1,0 +1,103 @@
+---
+title: Pause, stop, take over
+description: Two of those three buttons are requests an agent chooses to obey. Only one of them decides anything, and knowing which matters.
+sidebar:
+  order: 4
+---
+
+import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
+
+The Agent tab has three buttons. **Two of them are requests. One of them is a decision.** That
+difference is not a limitation to be engineered away; it is the honest shape of the problem.
+
+## Why two of them are only requests
+
+Your agent runs on another machine. Ushabti cannot reach into it, cannot signal its process and
+cannot stop it. What it *can* do is write a word on the run in its own database, and answer the
+agent's next report with it.
+
+So **Pause** and **Stop** write a word. The agent reads it, and obeys because it said it would. An
+agent that ignores it keeps running — and the log records that a person asked, which is the part that
+matters when somebody comes to work out what happened.
+
+## The three, exactly
+
+| Button        | What the server does                              | What the agent must do                                          |
+| ------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
+| **Pause**     | writes `control: "pause"` and logs *"Ada asked the agent to pause"* | report `{"status": "paused"}`, then wait for `resume` |
+| **Resume**    | writes `control: "resume"`                        | report `{"status": "running"}` and carry on                      |
+| **Stop**      | writes `control: "stop"`                          | report a closed status — `stopped` — and exit                    |
+| **Take over** | **ends the run, there and then**                  | nothing. Its next call gets `409 That run is closed.`            |
+
+**Take over** is the one that decides, because it acts on Ushabti's own database rather than on
+somebody else's process. It closes the run as `taken_over`, clears the control word and hands the card
+back to a person.
+
+<Aside type="tip" title="Dragging a held card takes it over">
+Drag a card an agent is working on and the run ends — the same call, sent for you, with a toast
+saying *"You took USH-14 over from Builder."* Reaching for a card is the clearest possible statement
+that you want it.
+</Aside>
+
+## What the agent sees
+
+The control word rides back on **every** answer to `PATCH /api/runs/{runId}` — including a bare
+heartbeat, so an agent doing one long thing still hears a Pause:
+
+```json
+{ "run": { "…": "…" }, "control": "pause" }
+```
+
+A paused agent that has nothing to report can also read it directly:
+
+```http
+GET /api/runs/{runId}
+```
+
+## Answering clears the request
+
+The word stays on the run until the agent's report **answers** it:
+
+| Outstanding | Cleared by reporting |
+| ----------- | -------------------- |
+| `pause`     | `status: "paused"`   |
+| `resume`    | `status: "running"`  |
+| `stop`      | any closed status    |
+
+Until then the panel says so plainly:
+
+> Asked the agent to pause. It answers on its next report.
+
+That line is doing real work. It tells a person that the button was pressed, that the board has done
+its part, and that what happens next is not the board's to guarantee.
+
+## Writing an agent that behaves
+
+<Aside type="note" title="The pause loop">
+Report `paused`, then poll `GET /api/runs/{runId}` every couple of seconds. Leave the loop when
+`control` becomes `"resume"` — and also when it becomes `"stop"`, or when `endedAt` stops being null,
+which means a person took the card. Then report `{"status": "running"}` to clear the pause and pick
+the work back up.
+</Aside>
+
+Three rules that cover almost everything:
+
+1. **Check `control` after every report.** It costs nothing; it is already in the answer.
+2. **Treat `409` as final.** The run is closed — a person took the card, or the lease did. Do not
+   retry, do not re-open the same run. Claim the task again if the work is still yours.
+3. **Say goodbye if you can.** A process being killed should spend its last moment on
+   `{"status": "lost"}`, which frees the card at once instead of in thirty minutes.
+
+## Who may press them <Badge text="human only" variant="caution" size="small" />
+
+A person. Not an agent — *"Pause and Stop mean nothing if the agent can write them itself."* An agent
+token calling the control route gets `403 Only a person can do this.`
+
+Any member of the project may press them, not only the owner. Stopping a runaway agent is not an
+administrative act; it is ordinary work.
+
+<LinkCard
+  title="A worked example"
+  href="/ushabti/agents/example/"
+  description="The whole loop, including the pause branch, in one file with no dependencies."
+/>

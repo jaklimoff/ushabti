@@ -1,0 +1,174 @@
+---
+title: A worked example
+description: A complete Ushabti agent in one file — claim a task, walk a plan, honour Pause and Stop, and close the run. No dependencies.
+sidebar:
+  order: 5
+---
+
+import { Aside, LinkCard, Steps } from '@astrojs/starlight/components'
+
+This is the whole loop, in Node with no dependencies. It ships with the repository as
+`examples/agent.mjs`, and you can run it against the seeded demo board in one command:
+
+```bash
+docker compose exec app npm run db:seed
+USHABTI_TOKEN=ush_demo_seed_token_not_for_real_use node examples/agent.mjs
+```
+
+Open the card while it runs.
+
+## The whole thing
+
+```js title="agent.mjs" {29-33} {46-51} {88-100}
+const BASE = process.env.USHABTI_URL ?? 'http://localhost:3000'
+const TOKEN = process.env.USHABTI_TOKEN
+if (!TOKEN) {
+  console.error('Set USHABTI_TOKEN. Settings → People → Connect.')
+  process.exit(1)
+}
+
+async function call(method, path, payload) {
+  const res = await fetch(BASE + path, {
+    method,
+    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  })
+  const text = await res.text()
+  const data = text ? JSON.parse(text) : null
+  if (!res.ok) {
+    const error = new Error(`${method} ${path} → ${res.status}: ${data?.error ?? text}`)
+    error.status = res.status
+    throw error
+  }
+  return data
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/* Who am I, and which board am I on? Nothing else needs configuring. */
+const me = await call('GET', '/api/agent/me')
+console.log(`I am ${me.agent.name} on ${me.project.name} (${me.project.key}).`)
+
+/* Nothing is hardcoded, so find the property before you find the option. */
+const board = await call('GET', `/api/projects/${me.project.id}/board`)
+const status = board.properties.find((p) => p.name.toLowerCase() === 'status')
+if (!status) throw new Error('This board has no property called Status. Pick another one.')
+const doing = status.options.find((o) => /progress/i.test(o.name)) ?? status.options[1]
+
+/* Pick a task nobody else is holding. board.runs is every open run. */
+const held = new Set(board.runs.map((r) => r.taskId))
+const task = board.tasks.find((t) => !held.has(t.id))
+if (!task) {
+  console.log('Every task already has a run on it. Nothing to do.')
+  process.exit(0)
+}
+console.log(`Taking ${task.key}: ${task.title}`)
+
+const plan = ['Read the task', 'Draft the change', 'Run the tests', 'Report back']
+
+/* Claim it. One run per task — a second agent gets a 409 here. */
+const { run } = await call('POST', `/api/tasks/${task.id}/run`, {
+  goal: `Work on ${task.key}`,
+  step: plan[0],
+  steps: plan,
+})
+
+/* Move the card, exactly as a person dragging it would. */
+await call('PUT', `/api/tasks/${task.id}/values/${status.id}`, { value: doing.id })
+
+let paused = false
+
+for (let index = 0; index < plan.length; index += 1) {
+  await doTheActualWork()
+
+  let answer
+  try {
+    answer = await call('PATCH', `/api/runs/${run.id}`, {
+      step: plan[index],
+      stepIndex: index,
+      log: `step ${index + 1}: ${plan[index].toLowerCase()}`,
+      ...(paused ? { status: 'running' } : {}),
+    })
+  } catch (err) {
+    /* 409 is final: a person took the card, or the lease closed the run. */
+    if (err.status === 409) {
+      console.log('The run is closed. Stopping.')
+      process.exit(0)
+    }
+    throw err
+  }
+  paused = false
+
+  /* Nothing forces us to obey. We answer because we said we would. */
+  if (answer.control === 'stop') {
+    await call('PATCH', `/api/runs/${run.id}`, { status: 'stopped', log: 'stopped on request' })
+    console.log('A person asked me to stop. Run closed.')
+    process.exit(0)
+  }
+
+  if (answer.control === 'pause') {
+    await call('PATCH', `/api/runs/${run.id}`, { status: 'paused', log: 'paused on request' })
+    console.log('Paused. Waiting for Resume on the board.')
+    paused = true
+    while (paused) {
+      await wait(2000)
+      const { run: fresh } = await call('GET', `/api/runs/${run.id}`)
+      if (fresh.control === 'resume') paused = false
+      if (fresh.control === 'stop' || fresh.endedAt) process.exit(0)
+    }
+  }
+}
+
+await call('POST', `/api/tasks/${task.id}/comments`, {
+  body: `I walked the plan on ${task.key}.`,
+})
+
+await call('PATCH', `/api/runs/${run.id}`, { status: 'done', log: 'finished' })
+console.log('Done. The card is quiet again.')
+
+/** Where your agent does the real thing: call a model, edit a file, run a test. */
+async function doTheActualWork() {
+  await wait(3000)
+}
+```
+
+## What to add before you trust it with real work
+
+<Steps>
+
+1. **A heartbeat.** The example's steps are three seconds long. Real ones are not. If any part of the
+   work can take more than a couple of minutes, beat while it runs:
+
+   ```js
+   const beat = setInterval(
+     () => call('PATCH', `/api/runs/${run.id}`, { beat: true }).catch(() => {}),
+     120_000,
+   )
+   // …and clearInterval(beat) when the run closes.
+   ```
+
+   The `.catch(() => {})` is deliberate: a board unreachable for a minute is not a reason to give up,
+   because the [lease](/ushabti/agents/runs/#the-lease) covers the case where it never comes back.
+
+2. **A goodbye.** Catch `SIGINT` and `SIGTERM` and send `{"status": "lost", "log": "the agent was
+   stopped"}`. That frees the card at once instead of in thirty minutes.
+
+3. **Real steps.** `stepIndex` is what draws the progress bar in the panel. Send it every time, and a
+   person watching can see where you are without reading the log.
+
+4. **A comment when something is worth saying.** The activity log records that a value changed; only
+   a comment can say *why* the tests were already failing before you touched them.
+
+</Steps>
+
+<Aside type="caution" title="Never invent a property or an option">
+Look them up by name on the board first, as the example does with `Status`. A board where somebody
+renamed Status to State is a board your agent should notice, not one it should quietly add a second
+Status to.
+</Aside>
+
+<LinkCard
+  title="The Claude Code skill"
+  href="/ushabti/agents/skill/"
+  description="A command-line wrapper that turns all of this into eleven commands, keyed by task."
+/>

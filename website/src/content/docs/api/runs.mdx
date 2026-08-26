@@ -1,0 +1,169 @@
+---
+title: Agents and runs API
+description: The five routes an agent lives on — claim a task, report, beat, read the run, and the human-only control route.
+sidebar:
+  order: 7
+---
+
+import { Aside, Badge, LinkCard } from '@astrojs/starlight/components'
+
+For the ideas behind these routes — the heartbeat, the lease, and why Pause is a request — read
+[the run protocol](/ushabti/agents/runs/). This page is the reference.
+
+---
+
+## `POST /api/tasks/{taskId}/run` <Badge text="agent only" variant="note" size="small" />
+
+Opens a run on a task.
+
+```json title="request"
+{
+  "goal":  "Write the offline queue tests",
+  "step":  "Reading the queue module",
+  "steps": ["Read the queue module", "Draft the criteria", "Write the tests"]
+}
+```
+
+| Field | Rules |
+| --- | --- |
+| `goal` | optional, ≤ 200 characters, defaults to `""` |
+| `step` | optional, ≤ 200 — defaults to `steps[0]` |
+| `steps` | optional, **at most 50**, each ≤ 200 |
+
+```json title="201"
+{ "run": { "id": "…", "taskId": "…", "status": "running", "goal": "…", "step": "…",
+           "control": null, "startedAt": "…", "updatedAt": "…", "beatAt": "…", "endedAt": null,
+           "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" },
+           "stepsTotal": 3, "stepsDone": 0, "lastLog": "started: Write the offline queue tests",
+           "steps": [ … ], "log": [ … ] } }
+```
+
+| Status | Message |
+| --- | --- |
+| `400` | `A plan has at most 50 steps.` |
+| `409` | `Another run is already open on this task.` |
+
+The database enforces one open run per task with a partial unique index; the `409` is not advisory.
+
+---
+
+## `PATCH /api/runs/{runId}` <Badge text="agent only" variant="note" size="small" />
+
+One route for reporting, beating and closing.
+
+```json title="a report"
+{ "step": "Writing tests/queue.spec.ts", "stepIndex": 2, "log": "12 cases, 3 failing" }
+```
+
+```json title="a heartbeat"
+{ "beat": true }
+```
+
+```json title="closing"
+{ "status": "done", "log": "opened PR #124" }
+```
+
+| Field | Rules |
+| --- | --- |
+| `beat` | when true, **nothing else is read**. Writes `beat_at` only, and returns early. |
+| `goal` | ≤ 200 characters |
+| `step` | ≤ 200 characters |
+| `steps` | replaces the whole plan, at most 50 |
+| `stepIndex` | a whole number, zero or more. Before it: done. It: active. After it: waiting. |
+| `log` | ≤ 400 characters. **Omit it while sending `step` and the step is logged instead.** |
+| `status` | `running` · `paused` · `done` · `failed` · `stopped` · `lost` |
+
+```json title="200"
+{ "run": { … }, "control": "pause" }
+```
+
+**`control` is the answer to the report.** It is `null` most of the time; when it is not, a person has
+asked for something. A bare heartbeat gets it too.
+
+| Status | Message |
+| --- | --- |
+| `400` | `stepIndex must be a whole number, zero or more.` |
+| `400` | `Only a person takes a task over.` — an agent sending `taken_over` |
+| `403` | `That run belongs to another agent.` |
+| `409` | `That run is closed.` |
+
+A report writes **both** `updated_at` and `beat_at`. A beat writes only `beat_at`, and that
+distinction is what makes the lease work.
+
+### Closing statuses
+
+`done`, `failed`, `stopped`, `lost` and `taken_over` all end the run: `ended_at` is stamped and an
+entry goes in the task's activity. If the status **answers** an outstanding control word, the word is
+cleared.
+
+---
+
+## `GET /api/runs/{runId}`
+
+Reads a run back. **Not agent-only** — a person's session works too, which is how the panel refreshes.
+
+```json title="200"
+{ "run": { "…": "…", "steps": [ … ], "log": [ … ] } }
+```
+
+`steps` is the whole plan; `log` is the **last 40 lines**, oldest first.
+
+This is the route a paused agent polls while it waits for `resume`.
+
+---
+
+## `POST /api/runs/{runId}/control` <Badge text="human only" variant="caution" size="small" />
+
+```json title="request"
+{ "control": "pause" }
+```
+
+`pause` · `resume` · `stop` · `take_over`.
+
+The first three **write a word on the run** and log that a person asked. The agent reads the word in
+the answer to its next report and obeys because it said it would. Nothing forces it.
+
+`take_over` is different: it **closes the run immediately** as `taken_over`, clears the control word
+and hands the card back. It is the only one that decides anything, because it acts on Ushabti's own
+database.
+
+```json title="200"
+{ "run": { … } }
+```
+
+| Status | Message |
+| --- | --- |
+| `400` | `Control must be one of: pause, stop, resume, take_over.` |
+| `403` | `Only a person can do this.` — *"Pause and Stop mean nothing if the agent can write them itself."* |
+| `409` | `That run is over.` |
+
+Any member may call it, not only the owner. Stopping a runaway agent is ordinary work.
+
+---
+
+## Fields on a run
+
+| Field | Written by | Means |
+| --- | --- | --- |
+| `goal` | the agent | what the whole run is for. One line. |
+| `step` | the agent | what it is doing **now**. This is the line on the card. |
+| `status` | the agent — except `taken_over` (a person) and `lost` (either) | where the run is |
+| `control` | **a person only** | the outstanding request, or `null` |
+| `startedAt` | the server | when the run opened |
+| `updatedAt` | a **report** — never a beat | the last thing the agent *said*. **The lease counts this.** |
+| `beatAt` | a report **and** a beat | the last sign the process is *alive* |
+| `endedAt` | the server | `null` while open |
+| `stepsTotal` / `stepsDone` | derived | the progress bar |
+| `lastLog` | derived | the newest log line |
+
+<Aside type="danger" title="Never let a heartbeat write updatedAt">
+If you are reimplementing this server-side: a beat that touched `updated_at` would let a heartbeat
+left behind by a killed session hold a card open all day. That is the exact fault the lease exists to
+fix.
+</Aside>
+
+<LinkCard
+  title="Pause, stop, take over"
+  href="/ushabti/agents/control/"
+  description="What each one really does, and how an agent should answer."
+/>

@@ -1,0 +1,123 @@
+---
+title: Live events API
+description: The server-sent-events stream that keeps every open board in step — what it sends, what it deliberately does not, and how to consume it.
+sidebar:
+  order: 8
+---
+
+import { Aside } from '@astrojs/starlight/components'
+
+## `GET /api/projects/{projectId}/stream`
+
+A `text/event-stream` connection carrying one event per write in the project.
+
+```bash
+curl -N "$USHABTI_URL/api/projects/$PROJECT/stream" \
+  -H "Authorization: Bearer $USHABTI_TOKEN"
+```
+
+```text title="what comes down the wire"
+retry: 3000
+
+event: ready
+data: {}
+
+event: change
+data: {"projectId":"…","scope":"board","clientId":"tab-8f2c"}
+
+: ping
+
+event: change
+data: {"projectId":"…","scope":"task","taskId":"…","clientId":"tab-8f2c"}
+```
+
+Response headers: `Content-Type: text/event-stream; charset=utf-8`, `Cache-Control: no-cache,
+no-transform`, `Connection: keep-alive`, `X-Accel-Buffering: no`.
+
+## What it sends
+
+| Line | Meaning |
+| --- | --- |
+| `retry: 3000` | Sent once, first. The browser reconnects after three seconds. |
+| `event: ready` | Sent once. The subscription is live — nothing more. |
+| `event: change` | One per write. The payload is below. |
+| `: ping` | A comment every 25 seconds, so proxies do not close the connection. `EventSource` ignores it. |
+
+```jsonc title="a change payload"
+{
+  "projectId": "…",
+  "scope": "board" | "task" | "project",
+  "taskId": "…",      // present on task-scoped events
+  "clientId": "…"     // the x-ushabti-client header of whoever wrote
+}
+```
+
+## What it does not send
+
+**The change itself.** The event names *what* changed, never *how*, so there is no payload to arrive
+out of order, no partial state to reconcile and no way for two clients to disagree about what
+happened.
+
+A listener refetches:
+
+- `scope: "board"` → refetch [the board](/ushabti/api/board/)
+- `scope: "task"` with a `taskId` → refetch that task
+- `scope: "project"` → the project's own settings changed
+
+<Aside type="tip" title="Skip your own echo">
+Send `x-ushabti-client: <some id>` on every write and compare it against `clientId` here. Your own
+writes then never cause you a refetch. The board debounces what is left by 140 ms and refetches once.
+</Aside>
+
+## Consuming it
+
+```js
+const stream = new EventSource(`/api/projects/${projectId}/stream`)
+
+stream.addEventListener('ready', () => {
+  // Re-read the board on EVERY connect, not only the first.
+  refetchBoard()
+})
+
+stream.addEventListener('change', (event) => {
+  const change = JSON.parse(event.data)
+  if (change.clientId === MY_CLIENT_ID) return
+  if (change.scope === 'task') refetchTask(change.taskId)
+  else refetchBoard()
+})
+```
+
+<Aside type="caution" title="Re-read on every connect, including reconnects">
+Server-sent events have **no replay**. Anything broadcast while you were reconnecting — a network
+blip, a laptop waking — is gone. Treating `ready` as "refetch now" is what makes a reconnect
+equivalent to a fresh load.
+</Aside>
+
+<Aside type="note" title="A missed event is possible">
+A failed broadcast is swallowed on the server, on purpose: a broadcast must never break the write
+that caused it. So the stream is a hint that something changed, not a guaranteed log of everything
+that did. Anything that must be correct should be re-read, not accumulated.
+</Aside>
+
+## How it works underneath
+
+A write calls `pg_notify` on a single channel. Every Ushabti process holds one `LISTEN` connection
+and fans each notification out to the streams it is serving for that project. So **two processes on
+the same database stay in step** with no message broker and nothing to run.
+
+<Aside type="caution" title="Each open stream holds a database connection">
+One `LISTEN` connection per open board, outside the pool. It matters when you point Ushabti at a
+small managed cluster — see [`DATABASE_POOL_MAX`](/ushabti/start/configuration/#database_pool_max).
+</Aside>
+
+## Which routes broadcast what
+
+| Route | scope |
+| --- | --- |
+| create a task · move a task · delete a task | `board` |
+| **write a value** | `board`, **with** a `taskId` |
+| create or change a property, an option or a view | `board` |
+| edit a task · checklist · comments | `task` |
+| project name, members, agents | `project` |
+
+A `PATCH` that changes nothing broadcasts nothing.

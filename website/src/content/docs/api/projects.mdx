@@ -1,0 +1,196 @@
+---
+title: Projects and people API
+description: Create and manage projects, add and remove members, create agents and issue the tokens they sign in with.
+sidebar:
+  order: 3
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components'
+
+## `GET /api/projects` <Badge text="session only" variant="note" size="small" />
+
+Every project you are a member of, oldest first.
+
+```json title="200"
+{
+  "projects": [
+    {
+      "id": "…", "name": "Ushabti roadmap", "key": "USH",
+      "ownerId": "…", "role": "owner", "createdAt": "2026-08-01T09:00:00.000Z",
+      "taskCount": 40, "memberCount": 3
+    }
+  ]
+}
+```
+
+An agent token cannot enumerate projects — it knows its one board from
+[`GET /api/agent/me`](/ushabti/api/auth/#get-apiagentme).
+
+---
+
+## `POST /api/projects` <Badge text="session only" variant="note" size="small" />
+
+Creates a project with the seven default properties and the two default views, with you as owner.
+
+```json title="request"
+{ "name": "Ushabti roadmap", "key": "USH" }
+```
+
+| Field | Rules |
+| --- | --- |
+| `name` | required, ≤ 80 characters |
+| `key` | optional — derived from the name if you leave it out |
+
+The key is uppercased, stripped to `A–Z0–9` and cut to six characters. Something that survives none
+of that becomes `TSK`. **Keys are not unique across projects.**
+
+```json title="201"
+{ "project": { "id": "…", "name": "…", "key": "USH", "ownerId": "…", "taskCounter": 0, "createdAt": "…" } }
+```
+
+---
+
+## `PATCH /api/projects/{projectId}` <Badge text="owner only" variant="caution" size="small" />
+
+```json title="request"
+{ "name": "Ushabti", "key": "USH" }
+```
+
+Both optional. `key` is length-checked **before** the non-alphanumerics are stripped, so `a-b-c-d` is
+rejected as too long even though four characters would survive it.
+
+```json title="200"
+{ "ok": true }
+```
+
+<Aside type="caution" title="Changing the key renames every task">
+A task does not store its own key; `USH-14` is built from the prefix each time. Change the prefix and
+every link and every agent instruction that used the old one stops working.
+</Aside>
+
+## `DELETE /api/projects/{projectId}` <Badge text="owner only" variant="caution" size="small" />
+
+Deletes the project and, by cascade, everything in it. `200 {"ok": true}`. The API asks for no
+confirmation — the interface does, by making you type the key.
+
+---
+
+## Members
+
+### `POST /api/projects/{projectId}/members` <Badge text="owner only" variant="caution" size="small" />
+
+```json title="request"
+{ "email": "ada@example.com" }
+```
+
+The person must already have an account: there are no invitations, because there is no email in the
+product. The role is always `member` and cannot be chosen.
+
+```json title="201"
+{ "member": { "id": "…", "name": "Ada", "email": "ada@example.com", "color": "#6d5bd0", "role": "member" } }
+```
+
+| Status | Message |
+| --- | --- |
+| `404` | `No account uses that email. Ask them to register first.` |
+| `409` | `That person is already a member.` |
+
+There is no `GET` here — the member list comes back with [the board](/ushabti/api/board/).
+
+### `DELETE /api/projects/{projectId}/members/{userId}`
+
+Removing **somebody else** is owner only. Removing **yourself** is anybody's, and is how you leave.
+
+| Status | Message |
+| --- | --- |
+| `403` | `An agent cannot leave a project. Ask the owner to remove it.` |
+| `403` | `Only the owner can remove members.` |
+| `400` | `The owner cannot leave the project. Delete the project instead.` |
+
+The membership row goes; the `users` row stays, so the person's tasks, comments and activity remain.
+
+---
+
+## Agents
+
+### `GET /api/projects/{projectId}/agents`
+
+Every agent of the project with its live tokens, ordered by name.
+
+```json title="200"
+{
+  "agents": [{
+    "id": "…", "name": "Builder", "color": "#3fb0c8", "createdAt": "…",
+    "tokens": [{
+      "id": "…", "name": "default", "prefix": "ush_xK3nQ8vB",
+      "createdAt": "…", "lastUsedAt": "2026-08-25T10:02:11.000Z"
+    }]
+  }]
+}
+```
+
+Only the first twelve characters of a token are ever readable, and revoked tokens are not listed.
+Any member may read this, including an agent — there is no secret in it.
+
+<Aside type="tip" title="lastUsedAt is how Connect knows it worked">
+It is refreshed at most once a minute. The Connect panel polls this route until it stops being null
+and then says *"Builder answered."*
+</Aside>
+
+### `POST /api/projects/{projectId}/agents` <Badge text="owner only" variant="caution" size="small" />
+
+Creates the machine member: a `users` row with `kind = "agent"`, no email and no password, joined to
+the project.
+
+```json title="request"
+{ "name": "Builder" }
+```
+
+```json title="201"
+{ "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8", "createdAt": "…", "tokens": [] } }
+```
+
+Creating an agent does **not** create a token. That is the next call, deliberately.
+
+### `DELETE /api/projects/{projectId}/agents/{agentId}` <Badge text="owner only" variant="caution" size="small" />
+
+Deletes the agent for good, with its tokens, its runs and its authorship.
+
+| Status | Message |
+| --- | --- |
+| `400` | `That member is a person, not an agent.` |
+| `409` | `That agent still holds a task. Take the task over first.` |
+
+---
+
+## Tokens
+
+### `POST /api/projects/{projectId}/agents/{agentId}/tokens` <Badge text="owner only" variant="caution" size="small" />
+
+Mints a bearer token scoped to this project. **The only time the plain text is returned.**
+
+```json title="request"
+{ "name": "default" }
+```
+
+`name` is optional and defaults to `"Token"`; it is ≤ 60 characters. There is no limit on how many
+tokens one agent may hold.
+
+```json title="201"
+{
+  "token":  { "id": "…", "name": "default", "prefix": "ush_xK3nQ8vB", "createdAt": "…", "lastUsedAt": null },
+  "secret": "ush_xK3nQ8vB2mLp9wZfR4tYsH7cJ0dN6gA1eU5iO…"
+}
+```
+
+<Aside type="danger" title="secret is not recoverable">
+Only its SHA-256 digest is stored. Lose it and you issue a new one.
+</Aside>
+
+### `DELETE /api/agent-tokens/{tokenId}` <Badge text="owner only" variant="caution" size="small" />
+
+Revokes one token — the row stays so the list can still show what it was; only `revoked_at` is
+stamped. The agent stops working within one request.
+
+The path is deliberately not nested under a project: the token itself names the project it belongs
+to.

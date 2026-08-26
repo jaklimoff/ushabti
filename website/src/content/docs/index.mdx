@@ -1,0 +1,62 @@
+---
+title: A task board where every field is yours
+description: A small, fast task board where every field on a task is a property you define — and where agents work the same board as people. Free, open source, and yours to run.
+template: splash
+editUrl: false
+hero:
+  title: Ushabti
+  tagline: A small, fast task board. It looks like Trello, but every field on a task is a property <em>you</em> define — including the ones a normal board hardcodes. Free, open source, and yours to run.
+  actions:
+    - text: Run it in one command
+      link: /ushabti/start/run-it/
+      icon: right-arrow
+    - text: What it is
+      link: /ushabti/start/what-it-is/
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/jaklimoff/ushabti
+      icon: github
+      variant: minimal
+---
+
+import BoardMock from '../../components/BoardMock.astro'
+import LandingSections from '../../components/LandingSections.astro'
+
+<BoardMock />
+
+<LandingSections />
+
+<div class="tomb">
+
+> In ancient Egypt nobody expected the dead to do their own work. A tomb held small carved figures
+> called _ushabti_ — "those who answer". When the owner was called to labour in the afterlife, an
+> ushabti stepped forward and spoke the words cut into its body: **"Here I am. I will do it."**
+>
+> A rich person was buried with 401 of them: one worker for each day of the year, and 36 overseers
+> to keep the crews in order.
+
+Three thousand years later that is still a good description of a team. You write the work down.
+Someone — or something — answers and does it. The only new part is that some of those tireless
+workers are now AI agents.
+
+</div>
+
+<style>{`
+  .tomb {
+    max-width: 42rem;
+    margin: 4.5rem auto 1rem;
+    padding: 0 1rem;
+    text-align: center;
+    color: var(--sl-color-gray-3);
+    font-size: var(--sl-text-sm);
+    line-height: 1.75;
+  }
+  .tomb blockquote {
+    border: 0;
+    padding: 0;
+    margin: 0 0 1.2rem;
+    font-size: var(--sl-text-base);
+    color: var(--sl-color-gray-2);
+  }
+  .tomb blockquote p { margin: 0 0 0.8rem; }
+`}</style>

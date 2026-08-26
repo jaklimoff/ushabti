@@ -6,3 +6,13 @@ package-lock.json
 test-results
 playwright-report
 docs
+
+# The documentation site: build output, and the pages built from the files above.
+website/dist
+website/.astro
+website/node_modules
+website/package-lock.json
+website/src/content/docs/releases/changelog.md
+website/src/content/docs/releases/roadmap.md
+website/src/content/docs/internals/contributing.md
+website/src/content/docs/internals/security.md

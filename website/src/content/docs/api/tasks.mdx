@@ -1,0 +1,225 @@
+---
+title: Tasks API
+description: Create, read, edit, move and delete tasks; write property values; and manage the checklist and comments.
+sidebar:
+  order: 5
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components'
+
+Every route on this page accepts an agent token. Content is shared.
+
+---
+
+## `POST /api/projects/{projectId}/tasks`
+
+Creates a task, gives it the next number in the project and a rank, and optionally writes its first
+values.
+
+```json title="request"
+{
+  "title": "Write the offline queue tests",
+  "description": "Cover the retry path.",
+  "values": { "<statusPropertyId>": "<optionId>" },
+  "atTop": true
+}
+```
+
+| Field | Rules |
+| --- | --- |
+| `title` | required, ≤ 400 characters |
+| `description` | optional, ≤ 20000 characters |
+| `values` | optional, `{ propertyId: value }` — see [value shapes](/ushabti/api/properties/#value-shapes-by-type) |
+| `afterId` | optional — place it straight after this task |
+| `atTop` | optional — only read when `afterId` is absent |
+
+Neither placement field means the end of the board.
+
+```json title="201"
+{ "task": { "id": "…", "number": 14, "key": "USH-14", "title": "…", "description": "",
+            "position": "Vk", "projectId": "…", "createdBy": "…", "createdAt": "…", "updatedAt": "…" } }
+```
+
+<Aside type="caution" title="A bad value in `values` still leaves you a task">
+The row is committed before the values are written, so a rejected value answers `400` on a task that
+now exists with the rest of the values applied. Read the task back if the answer was not `201`.
+</Aside>
+
+---
+
+## `GET /api/tasks/{taskId}`
+
+The task in full — everything the panel shows.
+
+```jsonc title="200"
+{
+  "task": {
+    "id": "…", "number": 14, "key": "USH-14",
+    "title": "…", "description": "…",
+    "position": "Vk", "createdAt": "…", "updatedAt": "…",
+    "values": { "<propertyId>": "<value>" },
+    "checklistTotal": 4, "checklistDone": 2, "commentCount": 3,
+
+    "checklist": [
+      { "id": "…", "text": "Cover the retry path", "done": true, "position": "V" }
+    ],
+
+    "comments": [                       // oldest first
+      { "id": "…", "body": "tests are green",  "createdAt": "…",
+        "author": { "id": "…", "name": "Builder", "color": "#3fb0c8" } }
+    ],
+
+    "activity": [                       // NEWEST first, at most 60
+      { "id": "…", "kind": "value", "createdAt": "…",
+        "data": { "property": "Status", "value": "In Progress" },
+        "actor": { "id": "…", "name": "Ada", "color": "#6d5bd0" } }
+    ],
+
+    "run": null                         // or the open run, with `steps` and the last 40 `log` lines
+  }
+}
+```
+
+`activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
+`deleted`. `author` and `actor` are `null` when the user row has been deleted.
+
+<Aside type="note" title="A 200 with a null task is possible">
+If the row disappears between the lookup and the read, the answer is `{"task": null}` at `200`.
+</Aside>
+
+---
+
+## `PATCH /api/tasks/{taskId}`
+
+```json title="request"
+{ "title": "…", "description": "…" }
+```
+
+Both optional, ≤ 400 and ≤ 20000 characters. `""` clears the description. `200 {"ok": true}`.
+
+## `DELETE /api/tasks/{taskId}`
+
+Deletes the task with its values, checklist, comments and runs. `200 {"ok": true}`.
+
+<Aside type="caution" title="An agent can delete a task">
+This route carries no gate. If that is not what you want from an agent, say so in its instructions —
+the bundled skill does.
+</Aside>
+
+---
+
+## `POST /api/tasks/{taskId}/move`
+
+One drag in one call: a new rank, and optionally the column value the card landed on.
+
+```json title="request"
+{ "beforeId": "<taskId>", "values": { "<statusPropertyId>": "<optionId>" } }
+```
+
+| Field | Means |
+| --- | --- |
+| `beforeId` | land **in front of** this task. Wins over `afterId`. |
+| `afterId` | land **after** this task. Only read when `beforeId` is absent. |
+| `values` | the column change, written in the same call |
+| *neither id* | the end of the board |
+
+```json title="200"
+{ "position": "Vkm" }
+```
+
+The answer is the authoritative new rank.
+
+<Aside type="tip" title="The neighbour is the global neighbour">
+Ranks are computed against the project's whole task list, not against the target column — so
+`beforeId` must name the task that really is the neighbour in the board's one order, which for a
+grouped or filtered board is the card the user can see next to it.
+</Aside>
+
+Concurrent moves are serialised behind a per-project lock, so two people dragging at once cannot
+compute the same rank.
+
+---
+
+## `PUT /api/tasks/{taskId}/values/{propertyId}`
+
+Writes one value. **This is the main agent write.**
+
+```json title="request"
+{ "value": "<optionId>" }
+```
+
+```json title="200"
+{ "value": "<optionId>" }
+```
+
+Read the answer rather than assuming: values are normalised on the way in — a multi-select is
+deduplicated, `"42"` becomes the number `42`, and text is truncated at 2000 characters.
+
+**To clear a value**, send `null`, `""`, or omit the key entirely. That stores `null`, or `[]` for a
+multi-select.
+
+The accepted shape depends on the property's type —
+see [value shapes](/ushabti/api/properties/#value-shapes-by-type).
+
+| Status | Message |
+| --- | --- |
+| `400` | `That property is not in this project.` |
+| `400` | `Priority needs one option.` · `One of the options does not exist any more.` · `Due needs a date like 2026-08-21.` |
+
+---
+
+## Checklist
+
+### `POST /api/tasks/{taskId}/checklist`
+
+```json title="request"
+{ "text": "Cover the retry path" }
+```
+
+`text` required, ≤ 400 characters. `201 { "item": { "id", "taskId", "text", "done", "position" } }`.
+
+### `PATCH /api/checklist/{itemId}`
+
+```json title="request"
+{ "text": "…", "done": true }
+```
+
+Both optional. `done` is coerced, so any truthy JSON works.
+
+```json title="200"
+{ "item": { "id": "…", "taskId": "…", "text": "…", "done": true, "position": "V" } }
+```
+
+Send neither field and the answer is `{"ok": true}` instead — a different shape, and no write.
+
+### `DELETE /api/checklist/{itemId}`
+
+`200 {"ok": true}`. There is no reordering for checklist items.
+
+---
+
+## Comments
+
+### `POST /api/tasks/{taskId}/comments`
+
+```json title="request"
+{ "body": "tests are green" }
+```
+
+The field is literally `body`. Required, ≤ 8000 characters. An agent comments as itself.
+
+```json title="201"
+{ "comment": { "id": "…", "taskId": "…", "authorId": "…", "body": "…", "createdAt": "…",
+               "author": { "id": "…", "name": "Builder", "color": "#3fb0c8" } } }
+```
+
+### `DELETE /api/comments/{commentId}`
+
+Your own comment, or anybody's if you are the owner. `403 You can only delete your own comments.`
+otherwise.
+
+An agent may delete its own comments — this is the one owner check written without the human gate.
+
+<Aside type="note" title="Comments cannot be edited">
+There is no `PATCH`. A comment is a thing somebody said.
+</Aside>

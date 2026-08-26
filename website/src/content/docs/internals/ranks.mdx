@@ -1,0 +1,91 @@
+---
+title: Fractional ranks
+description: Every ordered thing in Ushabti carries a base-62 string, so a drag writes one row. And the PostgreSQL collation trap that comes with it.
+sidebar:
+  order: 3
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+
+Tasks, properties, options, views and checklist items all carry a `position` that is a **string**,
+never an integer.
+
+## The idea
+
+The string is the digits of a base-62 fraction over this alphabet:
+
+```
+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+```
+
+so `"0" < "9" < "A" < "Z" < "a" < "z"` in byte order. Between any two of them there is always another
+one, which is the entire point.
+
+Dropping a card between two neighbours computes a string that sorts between theirs:
+
+```
+before:  "V"          "W"
+drop:    "V"   "Vf"   "W"
+```
+
+**One drag writes one row.** No column is renumbered, nothing else moves, and two people dragging
+different cards never touch the same rows.
+
+| Call | Means |
+| --- | --- |
+| `rankBetween(a, b)` | a string strictly between the two. Either bound may be open |
+| `rankBetween(null, b)` | prepend |
+| `rankBetween(a, null)` | append |
+| `rankBetween(null, null)` | `"V"` — the middle of the alphabet, and the fallback for a move that resolves to nothing |
+
+The unit test drives ten thousand random moves through it.
+
+## The trap
+
+<Aside type="danger" title="Rank strings mix case, and the default collation does not">
+PostgreSQL's default collation sorts case-**in**sensitively, which puts `"a"` and `"A"` in an
+unpredictable relation and scrambles a rank order in ways that look like a bug somewhere else
+entirely.
+
+So **every** ordering query in Ushabti asks for `COLLATE "C"` explicitly. There is one helper and
+nothing sorts without it.
+</Aside>
+
+The same trap exists in a client:
+
+```js
+tasks.sort((a, b) => (a.position < b.position ? -1 : 1))   // correct — byte order
+tasks.sort((a, b) => a.position.localeCompare(b.position)) // WRONG — folds case
+```
+
+`Intl.Collator` is wrong for the same reason. Plain `<` on strings is right.
+
+## Where a move sends its neighbours
+
+`POST /api/tasks/{taskId}/move` takes `beforeId` or `afterId` — the task the card must land in front
+of, or follow. The neighbours are worked out against the project's **whole** task list minus this
+task, because there is one order per project rather than one per column.
+
+For a grouped or filtered board that means naming the card the user can actually see next to it.
+Everything the client can see is in the same global order, so this holds.
+
+Every route that reads neighbours and then writes a rank runs behind a per-project lock, so two
+simultaneous moves serialise instead of computing the same string.
+
+## Why not integers with gaps
+
+The usual alternative is `position: 100, 200, 300`, renumbering when the gaps run out. That works
+until two people drag at the same time, at which point one renumbering overwrites the other's move
+and a card lands somewhere nobody chose. A fractional index has no renumbering step to collide with.
+
+<Aside type="note" title="The known cost">
+One card order is shared by **every view** in a project. Move a card up in Board and it moves in
+Phases. Per-view ordering would mean a rank per view per task, and the project has decided the price
+is not worth it — it is listed as a known limit on the [roadmap](/ushabti/releases/roadmap/).
+</Aside>
+
+<LinkCard
+  title="Contributing"
+  href="/ushabti/internals/contributing/"
+  description="Set-up, the checks that must pass, and the rules a change has to follow."
+/>

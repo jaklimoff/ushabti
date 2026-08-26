@@ -4,6 +4,7 @@
 [![Docker image](https://github.com/jaklimoff/ushabti/actions/workflows/docker.yml/badge.svg)](https://hub.docker.com/r/jaklimoff/ushabti)
 [![Docker pulls](https://img.shields.io/docker/pulls/jaklimoff/ushabti)](https://hub.docker.com/r/jaklimoff/ushabti)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+[![Documentation](https://img.shields.io/badge/docs-ushabti-3fb0c8)](https://jaklimoff.github.io/ushabti/)
 
 A small, fast task board. It looks like Trello, but every field on a task is a
 property **you** define — including the ones a normal board hardcodes, such as
@@ -274,6 +275,7 @@ design-reference/ the source design this interface follows
 
 ## Take part
 
+- [The documentation](https://jaklimoff.github.io/ushabti/) — the guides, the whole JSON API and the agent protocol, in one place.
 - [ROADMAP.md](ROADMAP.md) — what is done, what comes next, and the known limits.
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release. Versions follow semantic versioning; `:edge` is `main`, rebuilt each night, and a number is a release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up, test and send a change.

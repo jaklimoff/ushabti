@@ -1,0 +1,112 @@
+---
+title: Your first board
+description: From a fresh project to a board that matches how your team works — properties, columns, views and the first task.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, Badge, LinkCard, CardGrid } from '@astrojs/starlight/components'
+
+A new project is not empty. It arrives with seven properties and two views, and **every one of them
+is an ordinary row you can change or delete**. That is the point of the starting set: not to be
+right, but to be a worked example of what a property is.
+
+## What you start with
+
+| Property     | Type         | Options it starts with                           |
+| ------------ | ------------ | ------------------------------------------------ |
+| **Status**   | select       | Backlog, Todo, In Progress, Ready, Shipped       |
+| **Priority** | select       | Urgent, High, Medium, Low                        |
+| **Assignee** | person       | — every member of the project                    |
+| **Phase**    | select       | PoC, MVP, MMP, Pilot, GA                         |
+| **Estimate** | select       | XS, S, M, L, XL                                  |
+| **Labels**   | multi-select | bug, feature, infra, ux, docs                    |
+| **Due**      | date         | —                                                |
+
+And two views: **Board** grouped by Status <Badge text="main" variant="tip" size="small" />, and
+**Phases** grouped by Phase.
+
+<Aside type="note">
+If your team does not think in phases, delete Phase. The Phases view will ask you to point it at
+another property, and nothing else happens. Nothing in Ushabti was written against those names.
+</Aside>
+
+## Make it yours
+
+<Steps>
+
+1. **Fix the columns first.** The columns are the options of the property the view groups by, so
+   changing them changes the board. On the board itself:
+
+   - Drag a **column header** to reorder — that reorders the options for everybody, in every view
+     using that property.
+   - **+ New column** at the right end adds an option to the grouping property.
+
+   To rename or recolour one, go to **Settings → Properties** and edit the option chip. Colours come
+   from a fixed palette of twelve, on purpose: a board where anybody can pick any colour stops
+   meaning anything.
+
+2. **Add the property your team actually argues about.** Settings → Properties, bottom row: a name,
+   a type, and for a select type a comma-separated list of options.
+
+   ```
+   Name:    Environment
+   Type:    Select
+   Options: local, staging, production
+   ```
+
+   Seven types are available — select, multi-select, person, text, number, date and checkbox. Only
+   **select, person and checkbox** can group a view, because a task must sit in exactly one column.
+
+3. **Decide what reaches the card.** Each property has an **On card ◉ / ○** toggle. A card with
+   eight fields on it is a table, not a card. Turn off what you only ever read in the panel.
+
+   The first select that is shown on the card and is not the grouping property becomes the **lead
+   property**: it colours the small square at the top-left of the card, the pill beside the task
+   key, and the band down the left of the task panel.
+
+4. **Add a second view.** The `+` at the end of the view strip: a name and a "Columns by" property.
+   The same tasks, asked a different question.
+
+5. **Write the first task.** The **+** in a column header adds to the top of that column; the empty
+   area below the cards adds to the end. Type the title, press **Enter**. The panel opens straight
+   away so you can fill in the rest.
+
+</Steps>
+
+## The habits worth learning early
+
+<CardGrid>
+  <div>
+    **Nothing has a Save button.** A field saves when you leave it. Title, description, values,
+    checklist text, view names, the project key — all of it saves on blur. `Escape` reverts.
+  </div>
+  <div>
+    **The board has no dialogs.** When something destroys data, the row itself becomes the question
+    and names the cost: *"Delete Labels? 5 options and 14 values go with it."*
+  </div>
+  <div>
+    **Tab reaches the board.** One press, then the arrow keys move a cursor from card to card,
+    `Enter` opens one and `Space` picks it up. See [Keyboard](/ushabti/guides/keyboard/).
+  </div>
+  <div>
+    **Every task has a link.** Click the task key (`USH-14`) to copy `…/p/{project}?task={id}`.
+    Paste it anywhere; it opens the card.
+  </div>
+</CardGrid>
+
+## Add your team
+
+**Settings → People**, owner only. Add somebody by email — they must already have an account, because
+there are no email invites. If the address is unknown, the page hands you a copyable sign-up link
+for this instance to send them.
+
+Everybody in a project can create, edit and move anything in it. The owner alone can delete a
+property, an option or a view, add or remove members, manage agents and tokens, and rename or delete
+the project. That split is deliberate: **structure is the owner's, content is shared**.
+
+<LinkCard
+  title="Connect an agent"
+  href="/ushabti/agents/connect/"
+  description="Three commands, a token, and a machine that answers on the same board."
+/>
