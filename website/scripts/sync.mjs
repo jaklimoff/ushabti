@@ -1,7 +1,7 @@
 // CHANGELOG.md, ROADMAP.md, CONTRIBUTING.md and SECURITY.md belong to the repo.
 // The site reads them from there and adds a front matter block, so a release
 // note is never written twice and never drifts.
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -76,6 +76,10 @@ for (const page of pages) {
     "",
   ].join("\n");
 
-  await writeFile(join(docs, page.to), front + body);
+  // A fresh checkout has no releases/ directory: every file in it is generated
+  // and therefore ignored, and git does not track an empty directory.
+  const target = join(docs, page.to);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, front + body);
   console.log(`[sync] ${page.from} → src/content/docs/${page.to}`);
 }
