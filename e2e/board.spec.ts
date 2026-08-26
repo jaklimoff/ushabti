@@ -23,6 +23,29 @@ test.describe("Ushabti board", () => {
     await expect(page.getByRole("button", { name: /^Phases/ })).toBeVisible();
   });
 
+  test("a full column scrolls and its cards keep their height", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Overflow"));
+
+    for (let i = 1; i <= 14; i += 1) {
+      await addTask(page, "Backlog", `Overflow card ${i}`);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    const backlog = column(page, "Backlog");
+    const body = backlog.getByTestId("column-body");
+    const size = await body.evaluate((el) => ({
+      scroll: el.scrollHeight,
+      client: el.clientHeight,
+    }));
+    // The body scrolls. A card clips its own overflow, so a flex column would
+    // sooner squash every card to nothing than let this happen.
+    expect(size.scroll).toBeGreaterThan(size.client);
+
+    const first = await backlog.getByTestId("card").first().boundingBox();
+    expect(first!.height).toBeGreaterThan(40);
+  });
+
   test("add a task, open it and edit every part", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Editing"));

@@ -475,11 +475,13 @@
   gap: 6px;
   padding: 8px;
   overflow-y: auto;
-  min-height: 46px;
+  /* The body is what scrolls, so it has to be allowed to be shorter than the
+     cards in it. */
+  min-height: 0;
 }
 
 .emptyDrop {
-  flex: 1;
+  flex: 1 0 auto;
   min-height: 34px;
   display: flex;
   align-items: flex-start;
@@ -515,6 +517,9 @@
 .card {
   display: flex;
   flex-direction: column;
+  /* The column scrolls; the card keeps its height. A card clips its own
+     overflow, so a flex column would happily squash it to nothing first. */
+  flex: 0 0 auto;
   gap: 7px;
   padding: 10px 11px 9px;
   border-radius: 6px;
@@ -672,6 +677,7 @@
 .composer {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
   gap: 8px;
   padding: 9px 10px;
   border-radius: 6px;

@@ -169,7 +169,7 @@ export function Column({
         </button>
       </div>
 
-      <div className={styles.colBody} ref={setDropRef}>
+      <div className={styles.colBody} ref={setDropRef} data-testid="column-body">
         {composing === "top" && (
           <Composer
             ref={inputRef}
