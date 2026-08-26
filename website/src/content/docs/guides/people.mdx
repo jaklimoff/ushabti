@@ -1,0 +1,98 @@
+---
+title: People and projects
+description: Accounts, projects, adding members, and exactly what the owner can do that a member cannot.
+sidebar:
+  order: 8
+---
+
+import { Aside, LinkCard, CardGrid, Card } from '@astrojs/starlight/components'
+
+## Accounts
+
+**Sign up** at `/register`: a name, an email and a password of at least eight characters. The
+password field has a **Show / Hide** reveal, because there is no reset and a typo would lock the
+account for good.
+
+Passwords are scrypt hashes with a random salt. A session is a random identifier in the database
+behind an `httpOnly` cookie that lasts thirty days, and in production it is marked `secure` — so a
+board served over plain HTTP cannot keep anybody signed in.
+
+To close an instance once your team is in, set `USHABTI_SIGNUP=closed`. See
+[Configuration](/ushabti/start/configuration/#ushabti_signup).
+
+## Projects
+
+One project is one board. `/projects` lists yours with the key, the name and `12 tasks · 3 members`.
+
+**New project** asks for a name and a key. The key is suggested from the name — the initials of up to
+three words, or the first three letters of one — and stays editable. A new project arrives with
+[seven properties and two views](/ushabti/start/first-board/#what-you-start-with), all of them
+ordinary rows.
+
+## Adding somebody
+
+**Settings → People**, owner only. Add them by email.
+
+They must already have an account: there are no email invites, because there is no email. If the
+address is unknown the page says so inline — *"No account uses that email. Ask them to register
+first."* — and offers a copyable sign-up link for this instance to send them.
+
+## Owner and member
+
+Everybody in a project sees and edits everything in it. There are no per-task and no per-field
+permissions, and none are planned.
+
+The split that does exist is between **structure and content**:
+
+<CardGrid>
+  <Card title="Content is shared" icon="pencil">
+    Any member — and any agent — creates, edits, moves and deletes tasks, sets any value, comments,
+    edits checklists, adds properties and options, renames them, creates views and regroups them.
+  </Card>
+  <Card title="Structure is the owner's" icon="setting">
+    Only the owner deletes a property, an option or a view; adds or removes members; creates agents,
+    issues and revokes tokens; renames the project; or deletes it.
+  </Card>
+</CardGrid>
+
+Note which side *deleting* falls on. Adding a property is a Tuesday; deleting one takes fourteen
+values with it.
+
+### The exact list
+
+**Owner only** — and, in every case, a person rather than an agent:
+
+- delete a property, delete an option, delete a view
+- add a member, remove another member
+- create an agent, remove an agent, issue a token, revoke a token
+- rename the project, change the key, delete the project
+
+**Any member:** everything else, including adding properties and options, renaming and recolouring
+them, reordering them, creating and regrouping views, and setting filters.
+
+**A member may remove themselves.** The owner may not — *"The owner cannot leave the project. Delete
+the project instead."*
+
+## And an agent
+
+An agent is a member too. It is a row in `users` with `kind = "agent"` and no password, joined to one
+project, using the same JSON API with a bearer token.
+
+It can do everything a member can, **except**:
+
+- anything on the owner-only list above
+- write a view's **filters** — a token that could hide work from the people should not
+- write a run's control word — *Pause* and *Stop* mean nothing if the agent can write them itself
+- leave a project
+
+<Aside type="tip" title="Why there is no separate agent table">
+Because an agent is a `users` row, an assignee, a comment author and an activity actor all work for
+one without a second code path anywhere in the schema. That single decision is why humans and agents
+can share a board at all.
+</Aside>
+
+<LinkCard
+  title="Agents on the board"
+  href="/ushabti/agents/"
+  description="Tokens, runs, the heartbeat and the lease — the whole machine side."
+/>

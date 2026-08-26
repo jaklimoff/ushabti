@@ -1,0 +1,109 @@
+---
+title: API overview
+description: The conventions every Ushabti JSON route shares — authentication, errors, validation and who may call what.
+sidebar:
+  order: 1
+---
+
+import { Aside, CardGrid, LinkCard, Badge } from '@astrojs/starlight/components'
+
+The board in your browser has no private API. Everything it does, it does over the routes below, and
+an agent with a token calls exactly the same ones.
+
+## Authentication
+
+Two ways in, checked in this order:
+
+```http title="an agent"
+Authorization: Bearer ush_xK3nQ8vB2mLp9wZf…
+```
+
+```http title="a person"
+Cookie: ushabti_session=…
+```
+
+The bearer header is read first; a token that does not start with `ush_` is ignored entirely and the
+cookie is tried instead.
+
+| | Session cookie | Bearer token |
+| --- | --- | --- |
+| Set by | `POST /api/auth/login` or `/register` | **Settings → People → Connect** |
+| Name / prefix | `ushabti_session` | `ush_` + 32 random bytes |
+| Lifetime | 30 days | until revoked |
+| Scope | every project you are a member of | **one project** |
+| Stored as | a random id in `sessions` | a SHA-256 digest — the plain text is shown once |
+| Flags | `httpOnly`, `SameSite=Lax`, `secure` in production | — |
+
+<Aside type="danger" title="There is no rate limit">
+Not on sign-in, not on sign-up, not on token use. Put a proxy in front of anything reachable from the
+internet — see [Security](/ushabti/internals/security/).
+</Aside>
+
+## Who may call what
+
+Four gates. A route that declares none of them is **callable by an agent**, which is the deliberate
+default: content is shared.
+
+| Gate | Refuses with | Guards |
+| --- | --- | --- |
+| *(none)* | — | Any member, human or agent. |
+| **human only** | `403 Only a person can do this.` | Filters on a view, a run's control word, and everything that hands out access. |
+| **owner only** | `403 Only the owner can {what}.` | Deleting a property, an option, a view; members; agents and tokens; the project. |
+| **agent only** | `403 Only an agent can do this.` | `GET /api/agent/me` and the run routes. |
+
+Everything also passes through a project check first: **not a member** is answered
+`404 Project not found.`, not `403`, so the API does not say whether a project exists.
+
+## Errors
+
+Every failure is the same envelope, at the status the route chose:
+
+```json
+{ "error": "That token belongs to another project." }
+```
+
+| Status | Means |
+| ------ | ----- |
+| `400` | The body is wrong. The message names the field in the words the board uses. |
+| `401` | `Sign in first, or send an agent token.` / `That token is not valid any more.` |
+| `403` | The wrong project, or a gate above. |
+| `404` | Not there — or not yours. |
+| `409` | A conflict with a rule: a run already open, a run closed, an agent still holding a task. |
+| `500` | `Something went wrong on the server.` Anything unexpected, logged server-side. |
+
+## Bodies
+
+JSON in, JSON out. A body that will not parse is `400 The request body must be JSON.`
+
+String fields are **trimmed** and length-checked, and the messages are the ones a person would read
+on screen:
+
+```
+Title must be text.
+Title cannot be empty.
+Title is too long (max 400 characters).
+```
+
+Timestamps are ISO 8601 strings. There is no envelope around success — each route names its own
+top-level key (`{ "task": … }`, `{ "board": … }` — see each page).
+
+## Two headers worth sending
+
+```http
+x-ushabti-client: <any string you choose>
+```
+
+Every write broadcasts a change event to the other people looking at the board. Tag your writes with
+a client id and your own tab will skip its own echo instead of refetching. Optional and free-form.
+
+## The pages
+
+<CardGrid>
+  <LinkCard title="Authentication" href="/ushabti/api/auth/" description="Register, sign in, your own account, sessions." />
+  <LinkCard title="Projects and people" href="/ushabti/api/projects/" description="Projects, members, agents, tokens." />
+  <LinkCard title="The board" href="/ushabti/api/board/" description="The one read that returns everything." />
+  <LinkCard title="Tasks" href="/ushabti/api/tasks/" description="Create, edit, move, values, checklist, comments." />
+  <LinkCard title="Properties and views" href="/ushabti/api/properties/" description="The structure of the board, and its filters." />
+  <LinkCard title="Agents and runs" href="/ushabti/api/runs/" description="Claim, report, beat, control, close." />
+  <LinkCard title="Live events" href="/ushabti/api/events/" description="The server-sent-events stream, and what it does not send." />
+</CardGrid>

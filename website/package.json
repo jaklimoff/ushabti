@@ -1,0 +1,25 @@
+{
+  "name": "ushabti-website",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "dev": "node scripts/sync.mjs && node scripts/og.mjs && astro dev",
+    "build": "node scripts/sync.mjs && node scripts/og.mjs && astro build && node scripts/links.mjs",
+    "preview": "astro preview",
+    "check": "node scripts/sync.mjs && astro check",
+    "og": "node scripts/og.mjs",
+    "links": "node scripts/links.mjs"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/starlight": "^0.41.9",
+    "astro": "^7.2.6",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^6.0.3"
+  }
+}

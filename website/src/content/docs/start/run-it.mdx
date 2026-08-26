@@ -1,0 +1,132 @@
+---
+title: Run it in one command
+description: Start Ushabti locally with Docker, seed a demo project with a live agent run, and drive that agent from a script.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, Tabs, TabItem, LinkCard } from '@astrojs/starlight/components'
+
+You need Docker. Nothing else — no Node on your machine, no Postgres, no global installs.
+
+<Steps>
+
+1. **Get the source and the environment file.**
+
+   ```bash
+   git clone https://github.com/jaklimoff/ushabti
+   cd ushabti
+   cp .env.example .env
+   ```
+
+2. **Start it.**
+
+   ```bash
+   docker compose up
+   ```
+
+   The first run builds the image and installs the packages, so give it a minute. The app container
+   installs, writes the database schema with `drizzle-kit push` and starts the dev server on its own.
+
+3. **Open it.** The board is at [http://localhost:3000](http://localhost:3000). Register an account and you have an empty
+   project with seven properties and two views already in it.
+
+</Steps>
+
+## Something to look at straight away
+
+An empty board teaches you nothing. In a second terminal:
+
+```bash
+docker compose exec app npm run db:seed
+```
+
+That creates a filled demo project, two accounts, and an agent with a run **already open**, so the
+board shows what a machine at work actually looks like.
+
+| Email                  | Password       |
+| ---------------------- | -------------- |
+| `demo@ushabti.local`   | `ushabti-demo` |
+| `friend@ushabti.local` | `ushabti-demo` |
+
+Sign in as each one in two browser windows and move a card. The other window follows in about a
+second, with no reload.
+
+## Watch a machine take a card
+
+The seed also creates an agent called **Builder** with a fixed token. Give it to the example agent
+and watch the card grow a strip along the bottom:
+
+```bash
+USHABTI_TOKEN=ush_demo_seed_token_not_for_real_use node examples/agent.mjs
+```
+
+```ansi frame="terminal"
+I am Builder on Ushabti roadmap (USH).
+Taking USH-3: Write the offline queue tests
+```
+
+Open that card while it runs. The panel grows an **Agent** tab with a pulsing dot, holding the plan
+and the run log. Press **Pause** and watch the agent answer on its next report.
+
+<Aside type="caution" title="That token is a demo token">
+`ush_demo_seed_token_not_for_real_use` is written into the seed script in plain text so this page
+works on a fresh checkout. It opens the demo project on your own machine and nothing else. Never
+seed a database you care about.
+</Aside>
+
+## Other ways to run it
+
+<Tabs>
+  <TabItem label="VS Code dev container">
+
+`.devcontainer/devcontainer.json` points at the same compose file. **Reopen in Container** puts your
+editor inside the `app` service, with ports 3000 and 5432 forwarded.
+
+  </TabItem>
+  <TabItem label="Without Docker">
+
+You need PostgreSQL 14 or later. Point `DATABASE_URL` at it, then:
+
+```bash
+npm install
+npm run db:migrate
+npm run dev
+```
+
+Note that the compose files pin PostgreSQL 18, so that is the version actually tested.
+
+  </TabItem>
+  <TabItem label="Just the database">
+
+Keep the `db` service and run the app on your host:
+
+```bash
+docker compose up db
+DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti npm run dev
+```
+
+The compose file publishes Postgres on `127.0.0.1:5435`, not 5432, so it does not fight a database
+you already run.
+
+  </TabItem>
+</Tabs>
+
+## What the dev setup is doing
+
+- `postgres:18`, published on `127.0.0.1:5435` and health-checked with `pg_isready`.
+- The app from `Dockerfile.dev` (`node:24-bookworm-slim`), running
+  `npm install && npm run db:push -- --force && npm run dev`.
+- Your source is bind-mounted at `/workspace`; `node_modules` and `.next` are named volumes, so they
+  do not fight your host.
+- File-watch polling is on, so hot reload works on macOS and Windows.
+
+Development uses `drizzle-kit push`, which follows `src/db/schema.ts` immediately. **Migrations are
+for self-hosted installs**, and you still commit one with any schema change — see
+[contributing](/ushabti/internals/contributing/).
+
+<LinkCard
+  title="Your first board"
+  href="/ushabti/start/first-board/"
+  description="Now make it yours: properties, views, and the columns your team actually uses."
+/>

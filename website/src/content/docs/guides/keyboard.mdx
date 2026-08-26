@@ -1,0 +1,106 @@
+---
+title: Keyboard
+description: Every key on the Ushabti board — one tab stop, a cursor that moves with the arrows, and a keyboard drag that treats an empty column like any other.
+sidebar:
+  order: 4
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+
+You can work the whole board without a mouse, and it takes **one press of Tab** to get there.
+
+## Getting to the board
+
+A board with forty cards on it has **one tab stop**, not forty. The cursor card is the tab stop;
+every other card is skipped. Tab once and you are on the board; Tab again and you have left it.
+
+The cursor starts on the top card of the first column that has one. Clicking a card moves the cursor
+there too — focus *is* the cursor, so the two can never disagree.
+
+## Moving the cursor
+
+<div class="keys">
+
+| Key | What it does |
+| --- | ------------ |
+| <kbd>Tab</kbd> | Reach the board. One stop, not forty. |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Up and down inside the column. No wrapping — the ends are ends. |
+| <kbd>←</kbd> <kbd>→</kbd> | To the nearest column in that direction **that has cards**, keeping your place down the column. Empty columns are stepped over. |
+| <kbd>Home</kbd> | The first card in this column. |
+| <kbd>End</kbd> | The last card in this column. |
+| <kbd>Enter</kbd> | Open the card the cursor is on. |
+| <kbd>Space</kbd> | Pick the card up. |
+
+</div>
+
+The cursor scrolls itself into view by hand — `nearest` in both directions — because plain focus
+scrolls too much and never scrolls a board sideways.
+
+## Moving a card
+
+Press <kbd>Space</kbd> and the card is lifted. **The arrow keys now belong to the drag**, and the
+cursor does not move; that is the whole reason they can be trusted here.
+
+<div class="keys">
+
+| Key while lifted | What it does |
+| ---------------- | ------------ |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move the card within its column. |
+| <kbd>←</kbd> <kbd>→</kbd> | Move the card one column at a time — **into an empty column as readily as a full one**. |
+| <kbd>Space</kbd> or <kbd>Enter</kbd> | Put it down. |
+| <kbd>Escape</kbd> | Cancel. The card goes back. |
+
+</div>
+
+<Aside type="note" title="Why the empty column needed its own answer">
+The obvious keyboard drag asks the library which sortable is nearest and gets an answer weighted by
+distance between rectangles — which an empty column, being as tall as the board, always loses. So
+the sideways keys work the columns out themselves: the nearest column that fully clears the card,
+whether or not anything is in it, keeping the height the card was already at.
+
+Two halves had to hold. *Where a drop lands* is one decision; *where a key puts the card* is another.
+A fix to only the first one reads as fixed and is not.
+</Aside>
+
+## Everywhere else
+
+<div class="keys">
+
+| Key | Where | What it does |
+| --- | ----- | ------------ |
+| <kbd>Escape</kbd> | the board | Closes the task panel — but only when you are not typing in a field. |
+| <kbd>Enter</kbd> | a title | Saves and leaves the field. |
+| <kbd>Escape</kbd> | any field | Reverts it. |
+| <kbd>⌘</kbd><kbd>Enter</kbd> | description, comment | Saves or sends. |
+| <kbd>Enter</kbd> | the task composer | Adds the task. <kbd>Shift</kbd><kbd>Enter</kbd> is a newline. |
+| <kbd>Enter</kbd> | a checklist box | Adds the item and keeps the box open for the next one. |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> | the filter panel | Move the highlight (it wraps) and pick. |
+| <kbd>Backspace</kbd> | an empty filter box | Goes back to the property list. |
+
+</div>
+
+Nothing in Ushabti has a Save button, so **leaving a field is how you save it**. That is one rule for
+every field on every page, which is worth more than a shortcut for each.
+
+<LinkCard
+  title="Filters"
+  href="/ushabti/guides/filters/"
+  description="Every rule has to pass, and “is not” keeps the tasks that hold nothing."
+/>
+
+<style>{`
+  .keys kbd {
+    display: inline-block;
+    min-width: 1.6em;
+    text-align: center;
+    padding: 0.1em 0.45em;
+    border: 1px solid var(--sl-color-hairline-light);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: var(--sl-color-gray-7);
+    font-family: var(--sl-font-mono);
+    font-size: 0.8em;
+    color: var(--sl-color-gray-1);
+  }
+  .keys td:first-child { white-space: nowrap; }
+`}</style>

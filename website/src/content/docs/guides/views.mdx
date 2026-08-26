@@ -1,0 +1,95 @@
+---
+title: Views
+description: A view is the same tasks grouped by a different property. How columns come from options, and what a view can and cannot do.
+sidebar:
+  order: 2
+---
+
+import { Aside, Badge, LinkCard } from '@astrojs/starlight/components'
+
+A view is a name, one grouping property, and a set of filter rules. That is all it holds. It owns no
+tasks, so making one, changing one or deleting one never touches your work.
+
+The columns are the options of the grouping property, in that property's own order. Change the
+order and every view using that property changes with it, because the order belongs to the property
+everybody shares — not to one person's board.
+
+## What you start with
+
+A new project has two: **Board**, grouped by Status and marked
+<Badge text="main" variant="tip" size="small" />, and **Phases**, grouped by Phase.
+
+The main view cannot be deleted. Everything else about it is ordinary.
+
+## How the columns are worked out
+
+<div class="cols-table">
+
+| Grouping property | Columns you get                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| **select**        | one per option, in the property's option order, plus **No status** at the end                |
+| **person**        | one per project member — **agents included** — plus **Unassigned**                            |
+| **checkbox**      | exactly two: the property's name, and `Not <name>`                                            |
+
+</div>
+
+The "nothing yet" column (`No status`, `Unassigned`) only appears when something is in it, or when
+it is the only column there is. A checkbox never gets one, because off is a value, not emptiness.
+
+<Aside type="tip" title="Group by a person property to see the workload">
+Group by Assignee and every column is one person — or one agent. It is the fastest way to see who is
+carrying what, and it needs no new feature, because the columns are just that property's values.
+</Aside>
+
+## Adding a view
+
+The `+` at the end of the view strip opens a small panel: a name, and a chip row of every property
+that can group a board. Leave the name blank and it becomes `By status` — the property name,
+lowercased.
+
+If no groupable property exists yet, it says so: *"Create a select, person or checkbox property
+first."*
+
+You can also do it in **Settings → Views**, which is where you rename, regroup and delete.
+
+## Renaming, regrouping, deleting
+
+**Settings → Views** (`/p/{project}/settings/views`). The name saves on blur; the "Columns by"
+dropdown saves the moment you change it. Deleting is owner only and asks in the row:
+
+> **Delete the view Phases?** The tasks stay; only this way of looking at them goes.
+
+## Two limits worth knowing now
+
+<Aside type="caution" title="A view is not in the URL">
+The board's address is `/p/{projectId}`, and only the open task is in it (`?task=…`). **Which view
+you are looking at is remembered in your browser**, per project, not in the address bar — so you
+cannot send somebody a link to a particular view. Settings pages do each have their own address.
+</Aside>
+
+<Aside type="caution" title="One card order, shared by every view">
+There is one order for the cards in a project, not one per view. Move a card up in **Board** and it
+moves in **Phases** too. It is a known limit, listed on the [roadmap](/ushabti/releases/roadmap/),
+and it is the price of a drag writing exactly one row.
+</Aside>
+
+## A view that groups by a property you delete
+
+You cannot delete it. The server refuses and names the view, because the alternative is a board that
+silently stops having columns. Point the view at another property first, then delete.
+
+## What a filter does to the columns
+
+If a view's filter names its own grouping property, the columns that rule excludes **disappear** —
+they are not drawn empty. An empty column you could still drop a card into is a trap: the card would
+vanish the moment it landed. See [Filters](/ushabti/guides/filters/).
+
+<LinkCard
+  title="The board"
+  href="/ushabti/guides/board/"
+  description="Dragging cards and columns, adding a task, and what the top bar is telling you."
+/>
+
+<style>{`
+  .cols-table code { white-space: nowrap; }
+`}</style>

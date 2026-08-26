@@ -1,0 +1,164 @@
+---
+title: Filters
+description: How Ushabti filters work — every rule has to pass, "is not" keeps the empties, and "nothing yet" is a value rather than an operator.
+sidebar:
+  order: 5
+---
+
+import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
+
+A filter belongs to a view and shows only some of its tasks. It saves the instant a rule has an
+answer, like everything else here.
+
+Three decisions make Ushabti's filters behave differently from the ones you are used to. They are
+worth reading before the mechanics.
+
+## 1. Every rule has to pass
+
+A filter **narrows**. There is no "any of these rules", and no way to build one. Two rules means both.
+
+Within a single rule the values are an "or": `Status is Doing, Ready` is one rule, and it passes for
+either. That is where the "or" lives, and it is the only place it lives.
+
+## 2. "is not" keeps the tasks that hold nothing
+
+A task with no priority is **not** High. So `Priority is not High` shows it.
+
+<Aside type="danger" title="This is the opposite of what Jira does">
+Jira's `!=` quietly drops rows where the field is empty, which is how people ship a board they
+believe is complete. If you want "not High, and it must have a priority", say so with two rules:
+`Priority is not High` **and** `Priority is not empty`.
+</Aside>
+
+## 3. "Nothing yet" is a value, not an operator
+
+At the end of every value list sits an entry meaning *this task holds nothing here*. It is a value in
+the set, so `Doing, or nothing yet` is **one rule** rather than two rules that could never both pass.
+
+It wears the same words the columns use: **Unassigned** for a person property, **No priority** for
+everything else. A checkbox never gets one — off is a value, not emptiness.
+
+## The operators
+
+<div class="ops">
+
+| Property type                     | Operators, in menu order (the first is the default) |
+| --------------------------------- | ---------------------------------------------------- |
+| select · multi-select · person    | `is` · `is not`                                       |
+| checkbox                          | `is`                                                  |
+| text                              | `contains` · `does not contain` · `is empty` · `is not empty` |
+| number                            | `is` · `is over` · `is under` · `is empty` · `is not empty` |
+| date                              | `is on` · `is before` · `is after` · `is empty` · `is not empty` |
+
+</div>
+
+Text compares case-insensitively. A number rule needs the value to really be a number. Dates compare
+as `YYYY-MM-DD` strings — no `Date` object, no timezone, so the server and your browser always agree.
+
+## Using it
+
+The **Filter** pill sits at the right of the view strip, showing the rule count when there is one.
+The panel asks two questions in one place that does not move:
+
+1. **Which property?** A list of every property, each with its colour dot, and — where a rule already
+   exists — that rule's summary on the right. Arrow keys move the highlight, Enter picks.
+
+2. **The answer.** A back button, then a box whose placeholder fits the type: *Which value?*, *Who?*,
+   *What words?*, *What number?*, *Which date?*. Under it the operator chips (only when there is more
+   than one to choose), and for `is` / `is not` a tick list of values you can type to filter. Enter
+   toggles the highlighted value and the list **stays open**, because a rule usually names more than
+   one.
+
+Picking a property that already has a rule reopens that rule rather than making a second one. Date
+rules are the exception: `after March` and `before June` are two rules on purpose.
+
+<Aside type="tip" title="Escape keeps what you typed">
+Nothing in Ushabti has a Cancel. Escape closes the panel, and the rule you were building is saved if
+it has an answer. Clicking away does the same.
+</Aside>
+
+### Picking a property asks a question; it never answers one
+
+Until a rule has an answer, **nothing is written**: not to the view, not to the other people looking
+at it, and no chip is drawn. A set rule needs at least one value; a text, number or date rule needs
+something in the box; `is empty` and `is not empty` count as their own answer.
+
+Taking the last answer back deletes the rule. An operator may come with a default — that is the shape
+of the question, not the answer to it.
+
+## The chips
+
+A row under the view strip, one button per rule:
+
+- `Due is empty`
+- `Unassigned` — a value that speaks for itself needs no operator
+- `Priority is High, Urgent`
+- `Labels is bug, feature +2` — more than two collapses
+- `Estimate is over 3` · `Due is before 2026-09-01` · `Title contains login`
+
+Click a chip to reopen that rule; its ✕ removes it. **Clear** at the end of the row removes them all.
+
+## When a filter names the grouping property
+
+The columns that rule excludes **disappear** — they are not drawn empty.
+
+Nothing is lost by that: a task in one of those columns failed the same rule, so it is off the board
+either way. What you gain is the absence of a trap. An empty column you could still drop a card into
+would take the card and hide it in the same movement, with nothing on screen to say why.
+
+Two things follow:
+
+- **A column cannot be dragged** while such a filter is on. A drop can only name the column it landed
+  after, and the option order belongs to the property everybody shares.
+- **A new column joins the rule**, because nobody makes a column in order not to see it.
+
+## Adding a task under a filter
+
+A card written and hidden in the same breath, with nothing on screen to explain it, is the worst
+thing a filter can do. So the composer fills in what the filter asks for.
+
+It only answers a rule it can answer **without guessing**: the operator is `is`, there is exactly one
+value, that value is not "nothing yet", and the property is not the grouping property — the column
+decides that one. Everything else is left alone.
+
+And it says so first. The composer's hint reads:
+
+```
+Enter to add · sets Priority Urgent, Labels bug
+```
+
+## A rule pointing at something you deleted
+
+Nothing rewrites a view when a property or an option it names is deleted. There is no cleanup pass,
+on purpose: it would have to run in four different delete transactions and would still lose a race.
+
+Instead the rules are **read afresh every time**, and anything that no longer makes sense is thrown
+away on the spot — a rule whose property is gone, an operator that is not allowed for that type, a
+value that is no longer a live option. A rule left with no answer goes with it.
+
+That reading happens in two places that have to agree: on the server when a board is read, and again
+on every write to the view. So the chips you see and the cards that are hidden always come from the
+same reading. **A rule nobody can see must never keep hiding cards.**
+
+<Aside type="note" title="One exception, deliberately">
+A `person` rule naming somebody who has left the project **survives**. Asking about the tasks they
+left behind is still a fair question, and the answer is still useful.
+</Aside>
+
+## Who may set one
+
+Any person in the project. **An agent may not** <Badge text="human only" variant="caution" size="small" /> —
+a token that could write filters could hide work from the people.
+
+<LinkCard
+  title="The task panel"
+  href="/ushabti/guides/task-panel/"
+  description="Title, description, checklist, comments, activity — and the Agent tab."
+/>
+
+<style>{`
+  .ops code {
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+    border-color: color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
+  }
+`}</style>

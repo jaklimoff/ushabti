@@ -1,0 +1,88 @@
+---
+title: Settings
+description: The four settings pages, what each one owns, and how Ushabti asks before it destroys something.
+sidebar:
+  order: 7
+---
+
+import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
+
+**Settings** in the top bar, or `/p/{projectId}/settings`. Four pages behind a rail, each with its
+own address, so a document can link to one.
+
+| Page                                         | What lives there                                                           |
+| -------------------------------------------- | -------------------------------------------------------------------------- |
+| [Properties](/ushabti/guides/properties/) `…/settings/properties` | Every field on a task. Create, rename, recolour, reorder, delete. |
+| [Views](/ushabti/guides/views/) `…/settings/views`                | Rename, regroup and delete views.                                  |
+| [People](/ushabti/guides/people/) `…/settings/people`             | Members, agents, and the tokens that connect them.                 |
+| Project `…/settings/project`                 | The project name, the task-key prefix, and deleting the project.            |
+
+The rail counts what is on each page, and its foot names the version you are running.
+
+## How a destructive action asks
+
+The board has no dialogs, so a destructive control **turns its own row into the question** — and the
+question names the cost in real numbers.
+
+> **Delete Labels?** 5 options and 14 values go with it. — *Yes, delete* · *Cancel*
+
+Those numbers are counted, not estimated. The full set:
+
+| Action            | The question                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| Delete a property | *Delete Labels? 5 options and 14 values go with it.*                                |
+| Delete a view     | *Delete the view Phases? The tasks stay; only this way of looking at them goes.*     |
+| Remove a member   | *Remove Ada? They lose the board; their tasks and comments stay.*                    |
+| Leave a project   | *Leave this project? Only the owner can put you back.*                              |
+| Remove an agent   | *Remove Builder? Its tokens stop working at once. Its comments and its activity stay.* |
+| Revoke a token    | *Revoke this token? Builder stops working within one request.*                       |
+
+<Aside type="caution" title="Two controls have not caught up">
+**Deleting an option** and **deleting a task** still happen on the first click, with no question. The
+changelog claims otherwise; the code does not.
+</Aside>
+
+## The Project page
+
+**Name** and **Key**, owner only, both saving on blur. Everybody else sees *"Only the owner can
+change the name and the key."*
+
+The key is uppercased as you type, accepts `A–Z` and `0–9` only, and stops at six characters. It is
+the prefix on every task key — `USH-14` — and a task never stores its own key, it is built from the
+prefix. So changing it renames every task at once, and the page warns the moment the box differs:
+
+> ⚠ 40 tasks are called `USH-…` today. Leaving this box renames all of them. Links and agent
+> instructions that use the old key stop working.
+
+### Deleting the project <Badge text="owner only" variant="caution" size="small" />
+
+Its own block, and it does not take a click:
+
+> The board, its 40 tasks, its properties, its views and its agents go with it. There is no undo.
+
+Press **Delete project** and it asks you to **type the project key** — `USH` — into a box.
+**Delete for good** stays disabled until it matches exactly.
+
+## Your own account
+
+Behind your avatar, not in project settings: **`/account`**.
+
+- **Name** — what cards, comments and the activity log call you.
+- **Colour** — eight swatches, each wearing your initials so you can see how it will look on a card.
+  *"Pick one nobody else on your team is using."*
+- **Email** — read only. It is how you sign in and it cannot be changed yet.
+- **Password** — the one you use now, the new one, at least eight characters. Changing it **signs
+  every other session out**.
+- **Other sessions** — *"2 other sessions are signed in"*, and **Sign out everywhere**.
+
+<Aside type="danger" title="There is no password reset">
+There is no email anywhere in Ushabti — no invites, no reset, no notifications. The sign-up form says
+so and offers to show the password while you type it. If you lose it, an administrator has to change
+the row in the database.
+</Aside>
+
+<LinkCard
+  title="People and projects"
+  href="/ushabti/guides/people/"
+  description="Members, the owner, and exactly what the split between them is."
+/>

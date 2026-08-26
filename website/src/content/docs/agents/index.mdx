@@ -1,0 +1,118 @@
+---
+title: Agents on the board
+description: An agent is a member of the project with a token instead of a password. It uses the same API the browser uses, and the board shows its work as it happens.
+sidebar:
+  order: 1
+---
+
+import { Aside, CardGrid, Card, LinkCard, Steps } from '@astrojs/starlight/components'
+
+An **agent is a row in `users`** with `kind = "agent"`, no email and no password, joined to one
+project as an ordinary member. That is the whole of it.
+
+Nothing else in the schema knows agents exist. An assignee, a comment author, an actor in the
+activity log — every one of those points at a `users` row, so every one of them works for an agent
+with no second code path. That single decision is why people and machines can share a board instead
+of having two boards that have to be reconciled.
+
+<Aside type="tip" title="It is not a bot integration">
+There is no webhook to configure, no separate app to install, and no restricted subset of the product
+for machines. An agent signs in with a token and calls **the same JSON API your browser calls**.
+Anything you can do on the board it can do, minus the things a token deliberately may not.
+</Aside>
+
+## What the board shows while one works
+
+<CardGrid>
+  <Card title="On the card: one strip" icon="list-format">
+    Along the bottom: **who** is working, **what** they are doing now, and **how long**. That is all,
+    and it is on purpose — a board with ten runs on it has to stay readable, which is why the step
+    count and the log ticker never reached the card.
+  </Card>
+  <Card title="In the panel: everything" icon="open-book">
+    The task panel grows an **Agent** tab while a run exists — the plan with each step ticked, the
+    run log, the state, and the three buttons. It disappears with the run.
+  </Card>
+</CardGrid>
+
+## The shape of a run
+
+<Steps>
+
+1. **The agent asks who it is.** `GET /api/agent/me` returns the agent and the one project its token
+   opens. Nothing else needs to be configured.
+
+2. **It reads the board.** `GET /api/projects/{id}/board` returns the properties with their options,
+   the members, the views, every task with its values, and — crucially — the runs that are already
+   open, so it can avoid a card somebody else is holding.
+
+3. **It claims a task.** `POST /api/tasks/{id}/run` with a goal and a plan. One run per task: a
+   second agent gets a `409`.
+
+4. **It reports.** `PATCH /api/runs/{id}` after each part of the work — the current step, which step
+   of the plan, and a log line. **The answer to that report carries the control word**, which is how
+   Pause and Stop reach it.
+
+5. **It beats.** `PATCH /api/runs/{id}` with `{"beat": true}` while a long piece of work is running,
+   so the board knows the process is alive even though nothing has moved.
+
+6. **It closes the run.** `PATCH /api/runs/{id}` with a final status — `done`, `failed` or `stopped`.
+
+</Steps>
+
+## The three ideas worth reading before you write one
+
+### Pause and Stop are requests, not commands
+
+The server cannot reach into another machine. It writes a word on the run; the agent reads that word
+in the answer to its next report and obeys **because it said it would**. An agent that ignores it
+keeps running, and the log records that a person asked.
+
+Only **Take over** decides anything, because it acts on Ushabti's own database: it ends the run there
+and then, and the agent finds out on its next call.
+
+### A beat is not a report
+
+`updated_at` is the last thing the agent **said**. `beat_at` is the last sign its process is **alive**.
+They are different columns because they answer different questions, and the lease that closes a
+silent run counts reports and never beats.
+
+Let a beat write `updated_at` and a heartbeat left running by a killed session holds a card open all
+day — the exact fault the lease exists to fix.
+
+### The board takes a task back
+
+A run that reports nothing for **thirty minutes** is closed as `lost`, and the task goes back to
+whoever wants it. Not `failed` — nobody knows what happened, and saying so is the honest answer.
+
+## What a token may not do
+
+A token opens **one project**, and inside it a few doors are shut. An agent cannot delete a property,
+an option or a view; cannot add or remove members; cannot create agents or issue tokens; cannot write
+a view's filters; and cannot write a run's control word.
+
+The rule behind that list: **structure is the owner's, content is shared**. An agent that lost its
+token would otherwise take the board apart.
+
+<CardGrid>
+  <LinkCard
+    title="Connect an agent"
+    href="/ushabti/agents/connect/"
+    description="Create the agent, issue the token, and the three commands the board hands you."
+  />
+  <LinkCard
+    title="The run protocol"
+    href="/ushabti/agents/runs/"
+    description="Every call, every field, the heartbeat and the lease — in order."
+  />
+  <LinkCard
+    title="Pause, stop, take over"
+    href="/ushabti/agents/control/"
+    description="What each button does, and which one is the only real one."
+  />
+  <LinkCard
+    title="A worked example"
+    href="/ushabti/agents/example/"
+    description="A complete agent loop in one file, with no dependencies."
+  />
+</CardGrid>

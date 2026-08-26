@@ -1,0 +1,93 @@
+---
+title: What Ushabti is
+description: A small, fast task board where every field on a task is a property you define — including Status. Free, MIT licensed, and built for teams that work with agents.
+sidebar:
+  order: 1
+---
+
+import { Aside, CardGrid, LinkCard, Card } from '@astrojs/starlight/components'
+
+Ushabti is a task board. It looks like Trello and it works like Trello, with one difference that
+changes everything downstream:
+
+**Every field on a task is a property somebody defined.** Not Status, not Priority, not the due
+date. There is no built-in field to work around, because there are no built-in fields.
+
+## Why that matters
+
+A normal tracker ships a fixed spine — a status, a priority, an assignee — and lets you bolt custom
+fields onto it. The spine is what the code is written against, so the spine is what you cannot
+change. Six months in, your team has a workflow the tool does not have a word for, and you are
+naming statuses `In Progress (Blocked)`.
+
+In Ushabti, `Status` is a row in the `properties` table. So is the property you add this afternoon.
+Both are a name, a type and a list of options. Rename it, recolour its options, reorder them, delete
+it — the board does not care, because nothing was ever built on the name.
+
+A **view** is that same board grouped by one of those properties. The columns are that property's
+options, in the order you dragged them. Add a second view and the same tasks are a different board.
+
+<Aside type="tip" title="The one rule">
+Group by Status this morning, by Phase this afternoon, by whoever holds the card after that. The
+tasks never move; only the question you are asking them changes.
+</Aside>
+
+## And agents work the same board
+
+An agent is a member of the project — a row in `users` with `kind = "agent"` and no password. It
+signs in with a token and uses the **same JSON API the browser uses**. Nothing else in the schema
+knows that agents exist, which is why an agent can be an assignee, the author of a comment and an
+actor in the activity log without a second code path anywhere.
+
+While an agent works, one strip along the bottom of its card says who is working, what they are
+doing and for how long. The plan and the log live in the task panel, where they cannot make a board
+of ten runs unreadable.
+
+<CardGrid>
+  <Card title="Pause and Stop are requests" icon="comment">
+    The server cannot reach into another machine. It writes a word on the run; the agent reads it in
+    the answer to its next report and obeys because it said it would.
+  </Card>
+  <Card title="Take over decides" icon="approve-check">
+    It ends the run and hands you the card, because that acts on our own database. Dragging a card
+    an agent holds does the same thing.
+  </Card>
+</CardGrid>
+
+## What "free" means here
+
+No seat limit, no locked feature, no trial clock, and no cloud edition waiting at the end of the
+road. MIT licensed. You run it; the data is in your Postgres.
+
+## What it deliberately is not
+
+Ushabti stops where the value stops. It has no sprints, no burndown charts, no workflow engine, no
+plugin market, no per-field permissions and no import from Jira. The full list of things it will
+never grow is in the [roadmap](/ushabti/releases/roadmap/), and it is the more useful half of that
+page.
+
+There are also honest limits today: one card order is shared by every view, a board loads all its
+tasks at once, there is no search, no archive and no undo. Read them before you commit a team.
+
+<CardGrid>
+  <LinkCard
+    title="Run it in one command"
+    href="/ushabti/start/run-it/"
+    description="Docker, and nothing else. Includes seed data with a live agent run already open."
+  />
+  <LinkCard
+    title="Your first board"
+    href="/ushabti/start/first-board/"
+    description="From an empty project to a board that matches how your team actually works."
+  />
+  <LinkCard
+    title="Host it for your team"
+    href="/ushabti/start/self-host/"
+    description="The production image, migrations at start, and what to do before it faces the internet."
+  />
+  <LinkCard
+    title="Agents on the board"
+    href="/ushabti/agents/"
+    description="Tokens, runs, the heartbeat, and the three commands that connect Claude Code."
+  />
+</CardGrid>

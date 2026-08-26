@@ -1,0 +1,98 @@
+---
+title: The data model
+description: Every table in Ushabti, and why only two of them are interesting.
+sidebar:
+  order: 2
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+import DataModel from '../../../components/DataModel.astro'
+
+<DataModel />
+
+## `task_values` is the whole trick
+
+One row per task **and** property, with the value shape decided by the property's type:
+
+| Property type | What the row holds |
+| --- | --- |
+| `select` | an option id |
+| `multi_select` | a list of option ids |
+| `person` | a user id — of a human **or** an agent |
+| `text` | a string, truncated at 2000 |
+| `number` | a number |
+| `date` | `"YYYY-MM-DD"` |
+| `checkbox` | `true` or `false` |
+
+Because there is no `status` column anywhere, there is nothing to work around when a team's status is
+not a status. Adding a whole new property type is one branch in the value rules and one control in
+the task panel.
+
+A property with no value written has **no row**, which is why a task's `values` object in the API is
+sparse and why "missing" and "null" mean the same thing.
+
+## An agent is a row in `users`
+
+`kind` is `"human"` or `"agent"`. An agent has no email and no password, and joins one project
+through `project_members` exactly like a person.
+
+Nothing else in the schema knows agents exist. Look at what that buys:
+
+- **Assignee** is a `person` property; its value is a user id; an agent has one.
+- **A comment** has an `author_id`; an agent writes comments.
+- **Activity** has an `actor_id`; an agent appears in the log.
+- **A run** has an `agent_id`, which is the only table that cares.
+
+Resist a parallel identity table. The moment agents get their own table, every one of those four
+needs a second code path and a nullable column beside the first.
+
+## The rest, briefly
+
+| Table | Holds |
+| --- | --- |
+| `projects` | name, key prefix, owner, and the counter that gives each task its number |
+| `project_members` | who is in a project, and whether they are the owner |
+| `sessions` | a random id and an expiry. A person's sign-in |
+| `agent_tokens` | a SHA-256 digest, a visible 12-character prefix, one project, and `revoked_at` |
+| `properties` | name, type, rank, and a small `config` — today only `showOnCard` |
+| `property_options` | name, colour, rank. Select types only |
+| `views` | name, grouping property, rank, and the filter rules in `config` |
+| `tasks` | title, description, number, rank. **One order per project** |
+| `checklist_items` | text, done, rank |
+| `comments` | body and author. Never edited |
+| `activity` | one row per thing that happened, with a free-form `data` object |
+| `agent_runs` | goal, step, status, control, and the two clocks |
+| `agent_run_steps` | the plan, each step `todo`, `active` or `done` |
+| `agent_run_log` | append-only lines. The panel shows the last 40 |
+
+## The two clocks on a run
+
+| Column | Answers | Written by |
+| --- | --- | --- |
+| `updated_at` | when did the agent last **say** something? | a report — never a beat |
+| `beat_at` | when did we last know the process is **alive**? | a report and a beat |
+
+The lease that closes a silent run counts `updated_at`. Let a beat write it and a heartbeat left
+behind by a killed session holds a card open all day, which is the exact fault the lease exists to
+fix.
+
+## Cascades
+
+Deleting a project takes everything with it. Deleting a task takes its values, checklist, comments
+and runs. Deleting a property takes its options and every value written for it — which is why the
+confirmation counts them out loud.
+
+Deleting a **user** takes their tokens and runs, but their comments and activity survive with a null
+author, so the record of what happened does not develop holes.
+
+<Aside type="note" title="What is deliberately absent">
+No archive table, no soft deletes, no audit log beyond `activity`, no attachments and no files on
+disk. Everything Ushabti holds is in Postgres, so `pg_dump` is a complete backup — and, since there
+is no undo, it is also the only one.
+</Aside>
+
+<LinkCard
+  title="Fractional ranks"
+  href="/ushabti/internals/ranks/"
+  description="Why every ordered thing carries a string, and the collation trap that comes with it."
+/>

@@ -1,0 +1,147 @@
+---
+title: Authentication API
+description: Register, sign in, sign out, change your name, colour and password, and end your other sessions.
+sidebar:
+  order: 2
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components'
+
+These routes are for people. **A bearer token is ignored here** — an agent has no account to manage
+and no password to change.
+
+---
+
+## `POST /api/auth/register`
+
+Creates an account and signs it straight in.
+
+**Auth** — none, but gated by [`USHABTI_SIGNUP`](/ushabti/start/configuration/#ushabti_signup).
+
+```json title="request"
+{ "email": "ada@example.com", "name": "Ada", "password": "at-least-eight" }
+```
+
+| Field | Rules |
+| --- | --- |
+| `email` | required, ≤ 200 characters, must look like an address |
+| `name` | required, ≤ 80 characters |
+| `password` | required, **at least 8 characters** — not trimmed, no maximum |
+
+Your avatar colour is not yours to choose here: it is derived from the email, so two people are
+unlikely to collide. Change it later at `/account`.
+
+```json title="200 — and a Set-Cookie"
+{ "user": { "id": "…", "email": "ada@example.com", "name": "Ada", "color": "#3fb0c8" } }
+```
+
+| Status | Message |
+| --- | --- |
+| `403` | `This board is not taking new accounts. Ask the owner to add you.` — checked before the body is even read |
+| `400` | `That email address does not look correct.` · `The password must have at least 8 characters.` |
+| `409` | `An account with that email already exists.` |
+
+---
+
+## `POST /api/auth/login`
+
+```json title="request"
+{ "email": "ada@example.com", "password": "…" }
+```
+
+```json title="200 — and a Set-Cookie"
+{ "user": { "id": "…", "email": "ada@example.com", "name": "Ada", "color": "#3fb0c8" } }
+```
+
+<Aside type="note" title="One message for three failures">
+An unknown email, an account with no password, and the wrong password all answer
+`401 Wrong email or password.` — on purpose. The API does not tell a stranger which addresses have
+accounts.
+</Aside>
+
+---
+
+## `POST /api/auth/logout`
+
+Deletes the session row and clears the cookie. No body, no auth needed, `200 {"ok": true}`. Calling
+it without a cookie is a no-op that still succeeds.
+
+---
+
+## `PATCH /api/auth/me`
+
+Changes your display name and avatar colour. Both fields optional; send either or both.
+
+```json title="request"
+{ "name": "Ada L.", "color": "#3fb0c8" }
+```
+
+`color` must be one of the eight avatar colours:
+
+```
+#6d5bd0  #2f9e7a  #c2557a  #b6763f  #4b8fbe  #3fb0c8  #d1913a  #7a8a2f
+```
+
+```json title="200"
+{ "user": { "id": "…", "name": "Ada L.", "color": "#3fb0c8", "email": "ada@example.com" } }
+```
+
+<Aside type="caution" title="Two shapes from one route">
+Send **neither** field and the answer is `{"ok": true}` instead of `{"user": …}`. Handle both.
+</Aside>
+
+Errors: `400 Pick one of the colours on offer.` for a well-formed colour outside the palette, plus
+the usual length messages for `Name` and `Colour`.
+
+---
+
+## `POST /api/auth/password`
+
+Changes your password and **signs every other session out**.
+
+```json title="request"
+{ "current": "…", "next": "at-least-eight" }
+```
+
+```json title="200"
+{ "ok": true }
+```
+
+| Status | Message |
+| --- | --- |
+| `400` | `Send the password you use now and the one you want.` · `The new password must have at least 8 characters.` |
+| `403` | `That is not the password you use now.` — note 403, not 401 |
+
+---
+
+## `GET /api/auth/sessions`
+
+```json title="200"
+{ "others": 2 }
+```
+
+Unexpired sessions for your account, not counting the one asking.
+
+## `DELETE /api/auth/sessions`
+
+Ends every session except this one. `200 {"ok": true}`.
+
+<Aside type="tip" title="This is the only lever you have">
+There is no password reset in Ushabti, and no email of any kind. If you no longer trust a password,
+change it — which signs the others out — or sign out everywhere from `/account`.
+</Aside>
+
+---
+
+## `GET /api/agent/me` <Badge text="agent only" variant="note" size="small" />
+
+The agent counterpart. It exists so that nothing else needs the project id in configuration.
+
+```json title="200"
+{
+  "agent":   { "id": "…", "name": "Builder", "color": "#3fb0c8" },
+  "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member" }
+}
+```
+
+A signed-in person calling it gets `403 Only an agent can do this.`

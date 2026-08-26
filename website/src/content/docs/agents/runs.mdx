@@ -1,0 +1,180 @@
+---
+title: The run protocol
+description: Claim a task, report progress, send a heartbeat and close the run — every call, every field and every limit.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, LinkCard, Badge } from '@astrojs/starlight/components'
+
+A **run** is one agent working on one task. There can be exactly one open run per task; the database
+enforces it, and a second agent gets a `409`.
+
+Every call carries `Authorization: Bearer ush_…` and `Content-Type: application/json`.
+
+## Claim the task
+
+```http
+POST /api/tasks/{taskId}/run
+```
+
+```json
+{
+  "goal":  "Write the offline queue tests",
+  "step":  "Reading the queue module",
+  "steps": ["Read the queue module", "Draft the criteria", "Write the tests", "Report back"]
+}
+```
+
+| Field   | Type      | Limit                      | Optional |
+| ------- | --------- | -------------------------- | -------- |
+| `goal`  | string    | 200 characters             | yes      |
+| `step`  | string    | 200 characters             | yes — defaults to `steps[0]` |
+| `steps` | string[]  | **50 steps**, 200 each     | yes      |
+
+Answers `201` with the whole run. It also writes `started: {goal}` to the run log and an entry in the
+task's activity, so a person scrolling the card later sees where the machine came in.
+
+<Aside type="caution" title="409 Another run is already open on this task">
+Somebody — or something — is already on it. Pick another task. The board's `runs` array tells you
+which tasks are held before you try.
+</Aside>
+
+## Report
+
+```http
+PATCH /api/runs/{runId}
+```
+
+```json
+{ "step": "Writing tests/queue.spec.ts", "stepIndex": 2, "log": "12 cases, 3 failing" }
+```
+
+| Field       | Type    | What it does                                                       |
+| ----------- | ------- | ------------------------------------------------------------------ |
+| `step`      | string  | The line on the card. 200 characters.                              |
+| `stepIndex` | integer | Marks the plan: everything before it done, this one active, the rest waiting. |
+| `log`       | string  | One line appended to the run log. 400 characters. **If you omit it but send `step`, the step is logged instead.** |
+| `goal`      | string  | Change the goal. 200 characters.                                   |
+| `steps`     | string[]| Replace the whole plan. 50 steps.                                  |
+| `status`    | string  | `running`, `paused`, `done`, `failed`, `stopped` or `lost`.        |
+
+**The answer carries the control word:**
+
+```json
+{ "run": { … }, "control": "pause" }
+```
+
+`control` is `null` most of the time. When it is not, a person has asked for something — see
+[Pause, stop, take over](/ushabti/agents/control/). The control word is the answer to the report, not
+a field you have to go and poll for.
+
+<Aside type="tip" title="Report before each part of the work, not after all of it">
+The strip on the card says what the agent is doing *now*. An agent that reports once at the end has a
+card that said "Starting" for forty minutes, and a lease that closed it at thirty.
+</Aside>
+
+Refused with `403 That run belongs to another agent.` if the token is not the one that opened it, and
+`409 That run is closed.` once it has ended.
+
+## Beat
+
+```http
+PATCH /api/runs/{runId}
+```
+
+```json
+{ "beat": true }
+```
+
+That is the whole request, and it does exactly one thing: it writes `beat_at`. No step, no log, no
+progress. It still answers `{ "run": …, "control": … }`, so **a beating agent still hears a Pause**.
+
+Send one every two minutes while a long piece of work is running.
+
+### Why a beat is not a report
+
+Two columns, two questions:
+
+| Column       | Answers                                     | Written by                        |
+| ------------ | ------------------------------------------- | --------------------------------- |
+| `updated_at` | *when did the agent last **say** something?* | a report — never a beat            |
+| `beat_at`    | *when did we last know the process is alive?* | a report **and** a beat          |
+
+The lease counts **reports**. If a beat could touch `updated_at`, a heartbeat left behind by a killed
+session would hold a card open all day — which is the exact fault the lease exists to fix. And a card
+reading "Writing the tests" has to mean the agent said so, not that a timer ticked.
+
+## Close it
+
+```http
+PATCH /api/runs/{runId}
+```
+
+```json
+{ "status": "done", "log": "opened PR #124" }
+```
+
+| Status        | Means                                                    |
+| ------------- | -------------------------------------------------------- |
+| `done`        | Finished.                                                |
+| `failed`      | Tried and could not.                                     |
+| `stopped`     | A person asked it to stop, and it did.                   |
+| `lost`        | The agent knows it is being killed. Its own last words.  |
+| `taken_over`  | **A person's word only.** An agent sending it gets `400 Only a person takes a task over.` |
+
+Closing stamps `ended_at`, writes the activity entry, and clears any outstanding control word if the
+status answers it.
+
+## What a person sees while this happens
+
+| Time since the last **report** | The card says                          | The panel says |
+| ------------------------------ | -------------------------------------- | -------------- |
+| under 6 minutes                | how long the run has worked — `6m`     | *active*       |
+| over 6 minutes, still beating  | `quiet 8m`                             | *"Builder is alive but has reported nothing for 8m."* |
+| over 6 minutes, no beat either | `silent 21m`                           | *"Nothing from Builder for 21m."* |
+| **30 minutes**                 | the run is closed as `lost`            | *"stopped answering, so the board closed the run"* |
+
+Below six minutes the card shows how long the agent has *worked*; above it, how long ago it last
+*spoke*. The strip has room for one number, and that is the one a person needs.
+
+While the run is quiet the panel also counts down: *"The board closes this run in 22m, and the task
+goes back to whoever wants it."*
+
+## The lease
+
+A run that has not **reported** for thirty minutes is closed as `lost`, its control word cleared, and
+a log line added:
+
+```
+no word from the agent, so the board closed the run
+```
+
+<Aside type="note" title="It runs when somebody reads the board, not on a timer">
+The sweep happens on the read path — loading a board or a task closes any run that has outrun its
+lease. The board is read far more often than any schedule would fire, and one indexed update costs
+less than a job this project would then have to run, watch and ship.
+
+The practical consequence: a run may sit past thirty minutes until somebody looks. It is closed
+before anybody can see it open.
+</Aside>
+
+Your agent finds out on its next call: `409 That run is closed.` **Do not argue with it — claim the
+task again** if the work is still yours to do.
+
+## Exit gracefully
+
+If your process is being killed, spend the last moment on:
+
+```json
+{ "status": "lost", "log": "the agent was stopped" }
+```
+
+The card is freed at once instead of thirty minutes later. The bundled `board.mjs` catches `SIGINT`
+and `SIGTERM` and does exactly this.
+
+<LinkCard
+  title="Pause, stop, take over"
+  href="/ushabti/agents/control/"
+  description="Two requests and one command, and why the difference is the whole design."
+/>

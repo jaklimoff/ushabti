@@ -1,0 +1,126 @@
+---
+title: The board API
+description: One read returns the whole board — project, members, properties, views, tasks with their values, and every open agent run.
+sidebar:
+  order: 4
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+
+## `GET /api/projects/{projectId}/board`
+
+The main read. Everything a board needs to draw itself, in one request.
+
+```bash
+curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
+  -H "Authorization: Bearer $USHABTI_TOKEN"
+```
+
+```jsonc title="200"
+{
+  "project": {
+    "id": "…", "name": "Ushabti roadmap", "key": "USH",
+    "ownerId": "…",
+    "role": "owner"          // YOUR role — the same board answers differently to a member
+  },
+
+  "members": [               // people AND agents, by name
+    { "id": "…", "name": "Ada", "email": "ada@example.com",
+      "color": "#6d5bd0", "role": "owner", "kind": "human" },
+    { "id": "…", "name": "Builder", "email": null,
+      "color": "#3fb0c8", "role": "member", "kind": "agent" }
+  ],
+
+  "properties": [            // in the order they are shown
+    {
+      "id": "…", "name": "Status", "type": "select",
+      "position": "V", "config": { "showOnCard": true },
+      "options": [           // [] for everything but select and multi_select
+        { "id": "…", "name": "Todo", "color": "#d1913a", "position": "Vf" }
+      ]
+    }
+  ],
+
+  "views": [
+    { "id": "…", "name": "Board", "groupById": "…", "position": "V",
+      "isDefault": true, "filters": { "rules": [] } }
+  ],
+
+  "tasks": [                 // ONE global order for the project
+    {
+      "id": "…", "number": 14, "key": "USH-14",
+      "title": "Write the offline queue tests", "description": "",
+      "position": "Vk", "createdAt": "…", "updatedAt": "…",
+      "values": { "<propertyId>": "<value>" },
+      "checklistTotal": 4, "checklistDone": 2, "commentCount": 3
+    }
+  ],
+
+  "runs": [                  // OPEN runs only, at most one per task
+    {
+      "id": "…", "taskId": "…", "status": "running",
+      "goal": "Write the offline queue tests",
+      "step": "Writing tests/queue.spec.ts",
+      "control": null,
+      "startedAt": "…", "updatedAt": "…", "beatAt": "…", "endedAt": null,
+      "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" },
+      "stepsTotal": 4, "stepsDone": 2, "lastLog": "12 cases, 3 failing"
+    }
+  ]
+}
+```
+
+Note it is **not** wrapped in a `board` key.
+
+## Five things a caller has to know
+
+### 1. `tasks` is flat, and the order is global
+
+There are no columns in the response. **Columns are a client-side construction**: group the tasks by
+the view's grouping property, and everything holding nothing goes into one sentinel column.
+
+There is also **one card order per project**, not one per column and not one per view. A column's
+order is just the global order, filtered.
+
+### 2. `values` is sparse
+
+A property with no value written has **no key at all**. Treat a missing key and a `null` the same.
+
+The shape of each value depends on the property's type — see
+[Properties and views](/ushabti/api/properties/#value-shapes-by-type).
+
+### 3. Sort ranks by bytes, never by locale
+
+`position` is a base-62 fractional index — a string like `"Vk"` that sorts between its neighbours.
+JavaScript's plain `<` on strings is correct. `localeCompare` and `Intl.Collator` are **not**: they
+fold case, and these ranks depend on `"Z" < "a"`.
+
+The same trap exists on the server, which is why every ordering query asks for `COLLATE "C"`. See
+[Fractional ranks](/ushabti/internals/ranks/).
+
+### 4. The filters you get back are not always the filters that were saved
+
+A rule pointing at a deleted property or option is thrown away **on every read**. The database may
+still hold it; you will never see it. So a rule that reaches you is guaranteed to be readable — and
+you should never write back what you were not given.
+
+### 5. Reading the board can close a run
+
+The [lease sweep](/ushabti/agents/runs/#the-lease) runs on this path. A `GET` may close any run whose
+agent has not reported for thirty minutes, and broadcast that it did. That is not a side effect to
+work around; it is how the lease is enforced without a scheduler.
+
+<Aside type="tip" title="This is also the agent's first real call">
+`board.runs` is how an agent knows which tasks are already held. Filter them out before choosing one,
+or expect a `409` at claim time.
+</Aside>
+
+## Reading one task
+
+For the checklist, the comments, the activity and the full run, ask for the task:
+
+<LinkCard
+  title="GET /api/tasks/{taskId}"
+  href="/ushabti/api/tasks/#get-apitaskstaskid"
+  description="The task DTO plus checklist, comments, the last 60 activity entries and the open run with its plan and log."
+/>

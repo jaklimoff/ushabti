@@ -1,0 +1,302 @@
+/* Ushabti's own tokens, mapped onto Starlight.
+   The board is near-black with one teal accent. The docs are the same room. */
+
+:root {
+  --sl-font: var(--font-ushabti-sans);
+  --sl-font-mono: var(--font-ushabti-mono);
+
+  /* The board's own values, kept under their board names so a diagram or a
+     mock card can use exactly what the product uses. */
+  --ush-bg: #0a0b0d;
+  --ush-bg-top: #0f1013;
+  --ush-bg-column: #0d0e11;
+  --ush-bg-card: #14171b;
+  --ush-bg-card-hover: #191c21;
+  --ush-line: #1c1f24;
+  --ush-line-soft: #17191e;
+  --ush-accent: #3fb0c8;
+  --ush-accent-soft: #9fd7e3;
+  --ush-accent-ink: #05242b;
+  --ush-danger: #e0574d;
+  --ush-text: #e8e9ec;
+  --ush-muted: #8b919b;
+  --ush-faint: #565c66;
+}
+
+/* ── Dark, which is the board's own scheme and the default here ────────── */
+:root,
+::backdrop {
+  --sl-color-white: #f4f6f8;
+  --sl-color-gray-1: #e8e9ec;
+  --sl-color-gray-2: #cdd2d9;
+  --sl-color-gray-3: #8b919b;
+  --sl-color-gray-4: #565c66;
+  --sl-color-gray-5: #262b32;
+  --sl-color-gray-6: #14171b;
+  --sl-color-gray-7: #101216;
+  --sl-color-black: #0a0b0d;
+
+  --sl-color-accent-low: #10333c;
+  --sl-color-accent: #3fb0c8;
+  --sl-color-accent-high: #9fd7e3;
+
+  --sl-color-bg: var(--sl-color-black);
+  --sl-color-bg-nav: #0d0e11;
+  --sl-color-bg-sidebar: #0c0d10;
+  --sl-color-bg-inline-code: #191c21;
+  --sl-color-hairline: #16181c;
+  --sl-color-hairline-light: #1c1f24;
+  --sl-color-hairline-shade: #131519;
+
+  --sl-color-text: var(--sl-color-gray-2);
+  --sl-color-text-accent: var(--sl-color-accent-high);
+
+  --sl-hue-orange: 36;
+  --sl-hue-green: 158;
+  --sl-hue-blue: 192;
+  --sl-hue-purple: 262;
+  --sl-hue-red: 4;
+
+  --sl-shadow-md: 0 1px 0 rgb(255 255 255 / 3%) inset, 0 8px 24px rgb(0 0 0 / 45%);
+  --sl-shadow-lg: 0 1px 0 rgb(255 255 255 / 3%) inset, 0 24px 60px rgb(0 0 0 / 60%);
+}
+
+/* ── Light, built from the same accent, darkened until it holds on paper ── */
+:root[data-theme="light"],
+[data-theme="light"] ::backdrop {
+  --sl-color-white: #0f1114;
+  --sl-color-gray-1: #1a1e23;
+  --sl-color-gray-2: #343b44;
+  --sl-color-gray-3: #596069;
+  --sl-color-gray-4: #838a94;
+  --sl-color-gray-5: #ccd2d8;
+  --sl-color-gray-6: #eaeef1;
+  --sl-color-gray-7: #f5f7f9;
+  --sl-color-black: #ffffff;
+
+  --sl-color-accent-low: #dcf0f5;
+  --sl-color-accent: #0e7f97;
+  --sl-color-accent-high: #0a5265;
+
+  --sl-color-bg-nav: #f5f7f9;
+  --sl-color-bg-sidebar: #fbfcfd;
+  --sl-color-bg-inline-code: #eaeef1;
+  --sl-color-hairline-light: #e2e7eb;
+  --sl-shadow-md: 0 1px 2px rgb(15 17 20 / 6%), 0 8px 24px rgb(15 17 20 / 8%);
+  --sl-shadow-lg: 0 2px 4px rgb(15 17 20 / 6%), 0 24px 60px rgb(15 17 20 / 12%);
+  --sl-color-hairline: #e8ecef;
+  --sl-color-hairline-shade: #eaeef1;
+  --sl-color-text-accent: var(--sl-color-accent);
+}
+
+/* ── Type ──────────────────────────────────────────────────────────────── */
+
+body {
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+h1,
+h2,
+h3 {
+  letter-spacing: -0.022em;
+  font-weight: 600;
+}
+
+.sl-markdown-content h2 {
+  padding-top: 0.4em;
+  border-top: 1px solid var(--sl-color-hairline-light);
+  margin-top: 2.5rem;
+}
+
+.sl-markdown-content h2:first-of-type {
+  border-top: 0;
+}
+
+.content-panel h1#_top {
+  font-size: var(--sl-text-4xl);
+  letter-spacing: -0.03em;
+}
+
+/* ── Chrome ────────────────────────────────────────────────────────────── */
+
+header.header {
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+  backdrop-filter: blur(10px);
+  background-color: color-mix(in srgb, var(--sl-color-bg-nav) 82%, transparent);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  header.header {
+    background-color: var(--sl-color-bg-nav);
+  }
+}
+
+.sidebar-pane {
+  border-inline-end: 1px solid var(--sl-color-hairline-light);
+}
+
+/* One rail, one accent. The current page is marked by a bar, the way the
+   board marks the column you are in. */
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover {
+  background-color: transparent;
+  color: var(--sl-color-text-accent);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--sl-color-accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.sidebar-content ul.top-level > li > details > summary > .group-label > span,
+.sidebar-content > ul > li > span.large {
+  font-size: var(--sl-text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--sl-color-gray-3);
+  font-weight: 600;
+}
+
+.sidebar-content a {
+  border-radius: 4px;
+  transition:
+    color 0.12s ease,
+    background-color 0.12s ease;
+}
+
+/* ── Code ──────────────────────────────────────────────────────────────── */
+
+.expressive-code {
+  --ec-frm-edBg: var(--ush-bg-card);
+  --ec-frm-frameBoxShdCssVal: none;
+}
+
+:root[data-theme="light"] .expressive-code {
+  --ec-frm-edBg: #f7f9fa;
+}
+
+.sl-markdown-content code:not(:where(.expressive-code *)) {
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: 5px;
+  padding: 0.12em 0.36em;
+  font-size: 0.875em;
+  color: var(--sl-color-gray-1);
+}
+
+/* ── Tables. The API pages are mostly tables, so they earn the attention. ─ */
+
+.sl-markdown-content table {
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: var(--sl-text-sm);
+  display: table;
+  width: 100%;
+}
+
+.sl-markdown-content th {
+  background: var(--sl-color-gray-7);
+  font-size: var(--sl-text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sl-color-gray-3);
+  font-weight: 600;
+  text-align: start;
+}
+
+.sl-markdown-content th,
+.sl-markdown-content td {
+  border: 0;
+  border-bottom: 1px solid var(--sl-color-hairline);
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+
+.sl-markdown-content tr:last-child td {
+  border-bottom: 0;
+}
+
+/* A table wider than the column scrolls inside itself, never the page. This has
+   to reach a table nested in a step or an aside, not only a top-level one. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* ── Asides ────────────────────────────────────────────────────────────── */
+
+.starlight-aside {
+  border-inline-start-width: 2px;
+  border-radius: 0 8px 8px 0;
+  padding: 0.85rem 1rem;
+}
+
+.starlight-aside__title {
+  font-size: var(--sl-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+
+.card {
+  border-radius: 10px;
+  background: var(--sl-color-gray-7);
+  border-color: var(--sl-color-hairline-light);
+}
+
+.sl-link-card {
+  border-radius: 10px;
+  border-color: var(--sl-color-hairline-light);
+  background: var(--sl-color-gray-7);
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.sl-link-card:hover {
+  border-color: var(--sl-color-accent);
+  transform: translateY(-1px);
+}
+
+/* ── API headings ──────────────────────────────────────────────────────
+   The reference pages name a route in the heading. A route is code, so it
+   is set as code — but at the heading's weight, not in a box. */
+
+.sl-markdown-content :is(h1, h2, h3, h4) code {
+  font-size: 0.78em;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--sl-color-white);
+  letter-spacing: -0.01em;
+}
+
+/* A heading that names a route, followed by its badge, stays on one line. */
+.sl-markdown-content h2 .sl-badge,
+.sl-markdown-content h3 .sl-badge {
+  vertical-align: middle;
+  margin-inline-start: 0.5rem;
+  font-size: 0.7rem;
+}
+
+/* Inline code inside a table cell must not wrap mid-identifier. */
+.sl-markdown-content td > code:only-child,
+.sl-markdown-content th > code:only-child {
+  white-space: nowrap;
+}
+
+/* ── Links ──────────────────────────────────────────────────────────────
+   `not-content` opts a block out of Starlight's markdown styles, which
+   includes the link colour. The landing page and the diagrams need it back. */
+
+.not-content a:not(.btn) {
+  color: var(--sl-color-text-accent);
+}

@@ -1,0 +1,132 @@
+---
+title: Connect an agent
+description: Create an agent, issue its token, and get it answering — including the three commands that wire up Claude Code.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, Badge, LinkCard, Tabs, TabItem } from '@astrojs/starlight/components'
+
+<Steps>
+
+1. **Create the agent.** <Badge text="owner only" variant="caution" size="small" />
+
+   **Settings → People → Agents**. Give it a name — that name appears on cards, in comments and in
+   the activity log, so call it something a teammate would recognise.
+
+   Creating an agent does not create a token. That is the next step, and it is separate on purpose.
+
+2. **Issue a token.** Press **Connect** on the agent's row.
+
+   The token is shown **once**. Only a SHA-256 digest is stored, so it cannot be read again — the
+   list afterwards shows the first twelve characters, enough to tell two tokens apart and no more.
+
+   ```
+   ush_xK3nQ8vB2mLp9wZfR4tYsH7cJ0dN6gA1eU5iO...
+   ```
+
+   A token is `ush_` followed by 32 random bytes. It opens **one project** and no other, and it never
+   expires — revoking is the only way to end it.
+
+3. **Give it to your agent.** The Connect panel hands you three ready commands with your board's own
+   address already in them.
+
+</Steps>
+
+## The three commands
+
+For **Claude Code**, which reads a skill from `~/.claude/skills`:
+
+```bash title="1 — put the skill where Claude Code finds it"
+mkdir -p ~/.claude/skills/ushabti && \
+  curl -sL https://your-board.example.com/skill/SKILL.md  -o ~/.claude/skills/ushabti/SKILL.md && \
+  curl -sL https://your-board.example.com/skill/board.mjs -o ~/.claude/skills/ushabti/board.mjs
+```
+
+```bash title="2 — give it the board and the token"
+export USHABTI_URL=https://your-board.example.com
+export USHABTI_TOKEN=ush_…
+```
+
+```bash title="3 — check it"
+curl -s $USHABTI_URL/api/agent/me -H "Authorization: Bearer $USHABTI_TOKEN"
+```
+
+```json title="what you should get back"
+{
+  "agent":   { "id": "…", "name": "Builder", "color": "#3fb0c8" },
+  "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member" }
+}
+```
+
+Under those commands the panel waits — *"Waiting for the first call from this token…"* — and turns
+into **"Builder answered."** the moment the token is used. It is checking every three seconds, so you
+do not have to guess whether it worked.
+
+<Aside type="tip" title="The board serves its own skill">
+`/skill/SKILL.md` and `/skill/board.mjs` are served by **your instance**, from the version of the code
+it is running. So the instructions an agent gets are always true for the board it is talking to,
+rather than for whatever was on GitHub the day somebody copied them.
+</Aside>
+
+## Another framework?
+
+Put `SKILL.md` in the system prompt and ship `board.mjs` next to your agent — it is one file of Node
+with no dependencies. Or ignore both and call the JSON API directly; see
+[the run protocol](/ushabti/agents/runs/) and [the worked example](/ushabti/agents/example/).
+
+## Using the token
+
+Every JSON route accepts it:
+
+```bash
+curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
+  -H "Authorization: Bearer $USHABTI_TOKEN"
+```
+
+<Tabs>
+  <TabItem label="What it opens">
+
+One project. The project id is baked into the token when it is issued and never changes; calling
+another project's route with it gets `403 That token belongs to another project.`
+
+You do not need to configure the project id anywhere — `GET /api/agent/me` tells the agent which
+board it is on.
+
+  </TabItem>
+  <TabItem label="What it cannot do">
+
+- delete a property, an option or a view
+- add or remove members
+- create agents, issue or revoke tokens
+- rename or delete the project
+- write a view's **filters**
+- write a run's **control word** — Pause and Stop are a person's to send
+
+Everything else a member can do, it can do.
+
+  </TabItem>
+  <TabItem label="Revoking">
+
+**Settings → People**, the ✕ on the token row:
+
+> Revoke this token? Builder stops working within one request.
+
+The row stays so the list still shows what it was; only the revocation is recorded. Removing the
+agent itself is refused while it still holds a task — *"That agent still holds a task. Take the task
+over first."*
+
+  </TabItem>
+</Tabs>
+
+<Aside type="caution" title="Treat it like a password">
+It is a bearer token: whoever holds it is the agent. It never expires on its own, and it opens a
+whole project. Keep it in the environment, never in a repository, and revoke it the moment a machine
+that held it is out of your hands.
+</Aside>
+
+<LinkCard
+  title="The run protocol"
+  href="/ushabti/agents/runs/"
+  description="Claim, report, beat, close — with every field and every limit."
+/>

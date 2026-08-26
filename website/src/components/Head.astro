@@ -1,0 +1,9 @@
+---
+// Starlight's own head, with the two self-hosted faces preloaded in front of it.
+import Default from '@astrojs/starlight/components/Head.astro'
+import { Font } from 'astro:assets'
+---
+
+<Font cssVariable="--font-ushabti-sans" preload />
+<Font cssVariable="--font-ushabti-mono" />
+<Default><slot /></Default>

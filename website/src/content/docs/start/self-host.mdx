@@ -1,0 +1,139 @@
+---
+title: Host it for your team
+description: Run the production Ushabti image with Docker Compose, put TLS in front of it, upgrade it, and point it at a database you already have.
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps, Tabs, TabItem, LinkCard } from '@astrojs/starlight/components'
+
+Two commands put the production image on a server. Read the whole page before the last one, because
+the default binding is deliberately local-only.
+
+<Steps>
+
+1. **Set a database password.**
+
+   ```bash
+   echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
+   ```
+
+   Compose refuses to start without it — `${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}`.
+
+2. **Start it.**
+
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+   This pulls [`jaklimoff/ushabti`](https://hub.docker.com/r/jaklimoff/ushabti), applies the
+   migrations at start and serves on **`127.0.0.1:3000`** — bound to loopback, so nothing reaches it
+   until you put a proxy in front.
+
+3. **Put TLS in front of it.** In production the session cookie is marked `secure`, so a browser will
+   not send it back over plain `http`. Without a proxy, nobody can stay signed in.
+
+4. **Close sign-up once your team has registered.**
+
+   ```bash
+   echo "USHABTI_SIGNUP=closed" >> .env
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+</Steps>
+
+<Aside type="danger" title="Do not skip the proxy">
+There is **no rate limit** on sign-in. Nothing in Ushabti slows a password-guessing attack, and there
+is no password reset to recover from one. Put it behind a proxy that limits requests, and read
+[Security](/ushabti/internals/security/) before it faces the internet.
+</Aside>
+
+## Which image, which tag
+
+The same image is published to Docker Hub and to `ghcr.io/jaklimoff/ushabti`, built from the same
+commit by the same workflow. Pick either.
+
+| Tag        | What it is                                       | Use it for                     |
+| ---------- | ------------------------------------------------ | ------------------------------ |
+| `:edge`    | `main`, rebuilt each night                        | Trying things. **Not** production. |
+| `0.5.0`    | A release                                        | Production. Pin it.            |
+
+Pin a release by setting `USHABTI_VERSION` in `.env`:
+
+```bash
+USHABTI_VERSION=0.5.0
+```
+
+Add `--build` to the compose command to build the image from your own checkout instead of pulling.
+
+## Upgrading
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+The container's command is `node scripts/migrate.mjs && node server.js`, so **every start applies
+any migration the database has not seen**. There is no separate migration step to remember.
+
+Check the [changelog](/ushabti/releases/changelog/) before a jump: some releases carry a note. The
+0.3.0 upgrade, for example, closes any open run whose agent last reported over thirty minutes ago
+the first time somebody loads the board.
+
+## A database you already have
+
+Point `DATABASE_URL` at it and drop the `db` service. Two things about managed clusters:
+
+<Tabs>
+  <TabItem label="TLS">
+
+`node-postgres` **verifies the certificate** when the URL says `sslmode=require`. That is stricter
+than `libpq` and than most other drivers, so a URL that works elsewhere can fail here. Give it the
+provider's CA:
+
+```bash
+DATABASE_URL="postgres://user:pass@host:5432/ushabti?sslmode=verify-full&sslrootcert=/etc/ssl/ca.crt"
+```
+
+  </TabItem>
+  <TabItem label="Connection count">
+
+```bash
+DATABASE_POOL_MAX=6
+```
+
+One Ushabti process otherwise holds up to **twelve** connections, and takes **one more per open
+browser tab** for live updates — every SSE stream keeps a `LISTEN` connection outside the pool.
+DigitalOcean's smallest managed cluster allows 25 connections for everything.
+
+  </TabItem>
+</Tabs>
+
+## What the image is
+
+A three-stage `node:24-bookworm-slim` build using Next's `output: "standalone"`, so the runner
+installs nothing at start.
+
+<Aside type="caution" title="If you fork it">
+The standalone output carries only the files the build saw the server touch. Nothing imports
+`scripts/migrate.mjs`, so its packages are named by hand in `outputFileTracingIncludes` in
+`next.config.mjs`, next to `drizzle/**` and `examples/skill/ushabti/**`. Add an import to that script
+without adding it there and the image builds, starts, and dies on the first line.
+</Aside>
+
+## Backing it up
+
+Everything is in Postgres — there are no uploads and no files on disk.
+
+```bash
+docker compose -f docker-compose.prod.yml exec db \
+  pg_dump -U ushabti ushabti | gzip > ushabti-$(date +%F).sql.gz
+```
+
+There is no archive and no undo in the product, so a deleted task is gone. The backup is the undo.
+
+<LinkCard
+  title="Configuration"
+  href="/ushabti/start/configuration/"
+  description="Every environment variable, what it does and what it defaults to."
+/>

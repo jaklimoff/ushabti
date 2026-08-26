@@ -1,0 +1,98 @@
+---
+title: The Claude Code skill
+description: Ushabti serves its own agent skill — a SKILL.md and a dependency-free board.mjs that turn the API into eleven commands, keyed by task.
+sidebar:
+  order: 6
+---
+
+import { Aside, LinkCard, Steps, Badge } from '@astrojs/starlight/components'
+
+Ushabti ships a skill so that Claude Code can work the board without being told how each time.
+
+Two files, served by **your own board** at `/skill/SKILL.md` and `/skill/board.mjs`, from the version
+of the code it is running. The instructions an agent gets are therefore always true for the board it
+is talking to.
+
+<Steps>
+
+1. **Install it** — the first of the three commands in **Settings → People → Connect**, with your
+   board's address already filled in:
+
+   ```bash
+   mkdir -p ~/.claude/skills/ushabti && \
+     curl -sL $USHABTI_URL/skill/SKILL.md  -o ~/.claude/skills/ushabti/SKILL.md && \
+     curl -sL $USHABTI_URL/skill/board.mjs -o ~/.claude/skills/ushabti/board.mjs
+   ```
+
+2. **Set the environment.**
+
+   ```bash
+   export USHABTI_URL=https://your-board.example.com
+   export USHABTI_TOKEN=ush_…
+   ```
+
+3. **Use it.** The skill triggers on a task key (`USH-14`), on "what is on the board", and on asking
+   to pick up, claim, update or finish a task.
+
+</Steps>
+
+## What `board.mjs` gives you
+
+Node 18 or later, no dependencies. It does every lookup **by name**, so a model never has to handle
+an identifier.
+
+```bash
+node board.mjs me                                   # who am I, which board
+node board.mjs props                                # every property and its options
+node board.mjs list [--held] [--free]               # the board, by the main view
+node board.mjs task USH-14                          # one task in full
+node board.mjs new "Fix the queue" --set "Priority=High"
+node board.mjs set USH-14 "Status" "In Progress"    # names, never ids
+node board.mjs comment USH-14 "tests are green"
+node board.mjs claim USH-14 --goal "…" --plan "a|b|c" --step "…"
+node board.mjs beat USH-14 --every 120 --for 60     # say "still here"
+node board.mjs step USH-14 --say "…" --index 2 --log "…"
+node board.mjs finish USH-14 --status done --log "…"
+```
+
+Details worth knowing:
+
+- A task key is `USH-14`, `14` or a raw id — all three work.
+- `--plan` is pipe-separated.
+- An unknown property or option **fails with the real list** rather than guessing at what you meant.
+- `step` prints `control: none | pause | stop`, so the model sees what the board is asking.
+- **Exit code 9** means the card is not yours — a `409` from the server, or no open run.
+- `claim` finishes by telling you to start the heartbeat: `node board.mjs beat USH-14 &`.
+
+## What `SKILL.md` tells the model
+
+The loop, and a short list of rules that stop the common failures:
+
+- **Report before each part of the work, not after all of it.** The strip on the card says what is
+  happening *now*.
+- **Start the heartbeat once you claim, and let it run.**
+- **A run that reports nothing for half an hour is closed for you.** If yours was, do not argue with
+  it — claim the task again.
+- **Obey `control`.**
+- **Exit code 9 means the card is not yours.**
+- **One open run per task.**
+- **Never invent a property or an option.**
+- **Do not create properties, and do not delete tasks.**
+
+<Aside type="tip" title="Why the board serves the skill instead of the repository">
+Because the person running your board may be three releases behind the repository, and instructions
+that describe a different version are worse than no instructions. `/skill/*` is public and
+unauthenticated — the files carry no secrets, only the shape of the API.
+</Aside>
+
+## Another framework
+
+Put `SKILL.md` in the system prompt and ship `board.mjs` next to your agent. Or skip both and call
+the API directly — see [the run protocol](/ushabti/agents/runs/) and
+[the worked example](/ushabti/agents/example/).
+
+<LinkCard
+  title="API reference"
+  href="/ushabti/api/"
+  description="Every route, every field, and which ones an agent may call."
+/>

@@ -1,0 +1,126 @@
+---
+title: The task panel
+description: Everything on a card — title, markdown description, properties, checklist, comments, activity and the Agent tab. All edited in place.
+sidebar:
+  order: 6
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+import { Image } from 'astro:assets'
+import task from '../../../assets/task.png'
+
+Click a card, or press <kbd>Enter</kbd> on it, and the panel slides in beside the board. Below 900
+pixels wide it covers the board instead.
+
+**There are no dialogs.** Every field edits where it sits and saves when you leave it.
+
+<Image src={task} alt="The Ushabti task panel: title, properties, a markdown description, a checklist with a progress bar, and tabs for comments, activity and the agent." class="shot" />
+
+## The head
+
+- **The task key** — `USH-14` — is a button. Click it to copy a link straight to this card
+  (`…/p/{project}?task={id}`) and a toast confirms. The link is built from the address in your
+  browser, so behind a reverse proxy it points at the proxy.
+- **The lead pill** beside it shows the lead select property's option, in its colour. A coloured
+  band runs down the left edge of the panel in the same colour.
+- **⋯** holds *Copy link* and *Delete task*.
+- **✕** closes it, and so does <kbd>Escape</kbd> when you are not typing.
+
+<Aside type="caution" title="Delete task does not ask">
+It goes immediately, and it takes the values, the checklist, the comments and any run with it. There
+is no archive and no undo in Ushabti. The [backup](/ushabti/start/self-host/#backing-it-up) is the
+undo.
+</Aside>
+
+## Title
+
+A textarea that grows with the text. <kbd>Enter</kbd> saves and leaves the field,
+<kbd>Escape</kbd> reverts, clicking away saves. Blank reverts — a task with no title is not a thing.
+
+## Properties
+
+Every property of the project, in project order, as a grid of label and value. Each one is edited by
+the control its type deserves — a segmented row, a dropdown, an avatar menu, a switch, a date picker.
+Every change saves at once.
+
+The select and multi-select menus carry a **Find or add…** box: type a name nothing matches and it
+offers to create that option and apply it in one go.
+
+## Description
+
+Markdown, rendered. The header carries an `MD` badge and a hint that changes from *click to edit* to
+<kbd>⌘</kbd><kbd>Enter</kbd> *saves*. Clicking away saves too; <kbd>Escape</kbd> reverts.
+
+<Aside type="note" title="What is safe to paste in">
+The markdown is rendered and then sanitised before it reaches the page, so raw HTML in a description
+cannot run. Before the page has hydrated it shows the plain text, escaped — never a half-sanitised
+middle state.
+</Aside>
+
+## Checklist
+
+A count in the header (`3 / 7`) and a progress bar of one cell per item. Each row is a tick box, the
+text, and a ✕.
+
+- Click the text to edit it. **Emptying the text deletes the item.**
+- **Add item** opens a box asking *"What has to be true?"*. Enter adds it and **keeps the box open**
+  for the next one, because you are usually writing a list rather than one line.
+- The counts feed straight back to the card.
+
+## Comments
+
+Avatar, name, relative time, body. You can delete your own; the project owner can delete anybody's.
+
+The composer takes <kbd>⌘</kbd><kbd>Enter</kbd> or the **Comment** button. Its placeholder is
+*"Leave a note…"* — or *"Leave a note for the agent…"* while an agent is working on the card, because
+that changes who you are talking to.
+
+## Activity
+
+The last sixty entries, newest first, written as sentences:
+
+```
+12m   Ada set Priority to High
+34m   Builder started a run
+1h    Ada renamed it to "Write the offline queue tests"
+2h    Ada created the task
+```
+
+Values, titles, descriptions, checklist items, comments and every run event are recorded. An agent
+appears here exactly like a person, because to the activity log it is one.
+
+## The Agent tab
+
+It exists **only while a run does**, and it disappears when the run ends — the panel falls back to
+Comments rather than showing you an empty tab. The tab's dot wears the agent's colour and pulses
+while the run is live.
+
+Inside: the agent, its state and how long it has been going; the current step with a counter; a
+progress bar and the plan, each step ticked, current or waiting; and the run log with relative times.
+
+Then the buttons — **Pause**, **Stop** and **Take over** — and a note that matters:
+
+> Your edits still save while the agent works. Take over ends the run and gives you the card.
+
+See [Pause, stop, take over](/ushabti/agents/control/) for what each one actually does.
+
+## The save model, in one line
+
+Title, description, values, checklist text, view names, property names, option names, the project
+name and the project key **all save when you leave the field**. Comments and new checklist items take
+<kbd>Enter</kbd> or <kbd>⌘</kbd><kbd>Enter</kbd>. Nothing anywhere has a Save button.
+
+<LinkCard
+  title="Settings"
+  href="/ushabti/guides/settings/"
+  description="Four pages behind a rail, and how a destructive action asks."
+/>
+
+<style>{`
+  .shot {
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 12px;
+    margin: 1.5rem 0 2rem;
+    box-shadow: var(--sl-shadow-md);
+  }
+`}</style>

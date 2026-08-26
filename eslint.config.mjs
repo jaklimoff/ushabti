@@ -12,6 +12,10 @@ export default tseslint.config(
       "design-reference/**",
       "test-results/**",
       "next-env.d.ts",
+      // The documentation site is its own package with its own build output.
+      "website/dist/**",
+      "website/.astro/**",
+      "website/node_modules/**",
     ],
   },
 
@@ -59,7 +63,13 @@ export default tseslint.config(
   },
 
   {
-    files: ["src/db/seed.ts", "scripts/**/*.mjs", "examples/**/*.mjs", "e2e/**/*.ts"],
+    files: [
+      "src/db/seed.ts",
+      "scripts/**/*.mjs",
+      "website/scripts/**/*.mjs",
+      "examples/**/*.mjs",
+      "e2e/**/*.ts",
+    ],
     rules: { "no-console": "off" },
   },
 

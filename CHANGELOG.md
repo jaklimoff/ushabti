@@ -6,6 +6,23 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## Unreleased
+
+### Added
+
+- **A documentation site**, at
+  [jaklimoff.github.io/ushabti](https://jaklimoff.github.io/ushabti/). The
+  guides, the whole JSON API and the agent protocol, in one place and
+  searchable. It covers what the README has never had room for: every property
+  type and what it holds, the whole keyboard model, what a filter does to the
+  columns, every route with its fields and its real error messages, and the run
+  protocol an agent has to speak — claim, report, beat, close.
+
+  It lives in `website/` and is built by GitHub Actions on every push to `main`.
+  This file, the roadmap, the contributing guide and the security policy are
+  read from the repository at build time, so a release note is written once and
+  never drifts.
+
 ## 0.5.0 — 2026-08-25
 
 ### Added

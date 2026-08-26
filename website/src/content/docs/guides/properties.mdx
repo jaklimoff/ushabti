@@ -1,0 +1,160 @@
+---
+title: Properties
+description: The seven property types in Ushabti, how to create, rename, recolour, reorder and delete them, and what "show on card" decides.
+sidebar:
+  order: 1
+---
+
+import { Aside, Badge, LinkCard } from '@astrojs/starlight/components'
+
+A property is a field on a task. That is the whole model: a name, a type, and — for the select
+types — a list of options. `Status` is one. So is anything you add. There is no second kind of
+field and no built-in spine underneath.
+
+Under the surface a property is a row in `properties`, and a value is a row in `task_values` keyed
+by task **and** property. That is why adding a property costs nothing and deleting one takes its
+values with it.
+
+## The seven types
+
+| Type             | Holds                              | Can group a view                     | In the panel it is                       |
+| ---------------- | ---------------------------------- | ------------------------------------ | ---------------------------------------- |
+| **Select**       | one option                         | <Badge text="yes" variant="tip" />   | a segmented row, or a dropdown           |
+| **Multi-select** | any number of options              | no                                   | chips plus a "find or add" menu          |
+| **Person**       | one member — a human **or an agent** | <Badge text="yes" variant="tip" />  | an avatar, and a menu of everybody        |
+| **Text**         | free text, up to 2000 characters   | no                                   | a plain input                            |
+| **Number**       | a number                           | no                                   | an input, numeric keypad on a phone       |
+| **Date**         | a calendar date, `YYYY-MM-DD`      | no                                   | a native date picker, shown as `Aug 28`   |
+| **Checkbox**     | on or off                          | <Badge text="yes" variant="tip" />   | a switch                                 |
+
+Only **select, person and checkbox** can be a view's grouping property, because a task must sit in
+exactly one column. A multi-select would put one card in three places at once.
+
+<Aside type="note" title="Why a select sometimes looks different">
+A select renders as a segmented row — every option visible, one click to change — only when it has
+five options or fewer, every name is at most eight characters, and the names add up to twenty-six
+characters or less. Otherwise it is a dropdown. `XS S M L XL` gets a compact style with no dots.
+Clicking the option already chosen clears it.
+</Aside>
+
+## Everything you do to a property
+
+All of it is in **Settings → Properties** (`/p/{project}/settings/properties`), except reordering
+options, which happens on the board.
+
+### Create one
+
+The bottom row of the card: a name, a type from the dropdown, and — for select and multi-select
+only — options separated by commas. A hint under the row explains the type currently chosen.
+
+```
+Name:    Environment
+Type:    Select
+Options: local, staging, production
+```
+
+New properties are appended last and start with **On card** switched on. Up to forty options at
+creation; their colours cycle through the palette. Any member can add a property.
+
+### Rename it
+
+Click the name, type, click away. It saves on blur. Blank reverts.
+
+### Add, rename and recolour an option
+
+`+ option` at the end of a select's option row. Click an option's name to rename it. Click its
+colour square for a popover of the **twelve palette colours**:
+
+<div class="swatches">
+  <i style="--c:#e0574d" /><i style="--c:#d1913a" /><i style="--c:#4f8a5b" /><i style="--c:#3fb0c8" />
+  <i style="--c:#4b8fbe" /><i style="--c:#6d5bd0" /><i style="--c:#c2557a" /><i style="--c:#b6763f" />
+  <i style="--c:#2f9e7a" /><i style="--c:#7a8a2f" /><i style="--c:#3d7fc1" /><i style="--c:#8b8f98" />
+</div>
+
+There is no colour wheel. It was removed on purpose: a board where anybody can pick any of sixteen
+million colours stops meaning anything, and two options a shade apart are worse than useless.
+
+A new option takes the first palette colour nobody is using yet.
+
+<Aside type="tip" title="You can also add an option while filling in a card">
+The select and multi-select menus in the task panel carry a **Find or add…** box. Type a name that
+matches nothing and it offers `Add "staging"`, which creates the option and applies it in one go.
+</Aside>
+
+### Reorder properties
+
+The ↑ and ↓ buttons on each row. That order is the order of the fields in the task panel.
+
+### Reorder options
+
+Not here — **drag the column headers on the board**. That is the only way, and it is deliberate: the
+option order *is* the column order, so you set it where you can see the result. It applies to
+everybody and to every view that groups by that property. See [The board](/ushabti/guides/board/).
+
+### Delete a property <Badge text="owner only" variant="caution" size="small" />
+
+The red ✕. The row becomes the question and names the cost in real numbers:
+
+> **Delete Labels?** 5 options and 14 values go with it. — *Yes, delete* · *Cancel*
+
+A property that a view groups by cannot be deleted at all:
+
+> The view "Phases" groups by this property. Point it at another property first.
+
+### Delete an option <Badge text="owner only" variant="caution" size="small" />
+
+The ✕ on the option chip. Deleting an option clears it from every single-select value and removes it
+from every multi-select list.
+
+<Aside type="caution" title="This one does not ask">
+Unlike a property, a view or a member, **deleting an option happens on the first click**. Everything
+else destructive in Ushabti confirms in its own row; this control has not caught up.
+</Aside>
+
+## "On card" and the lead property
+
+Every property has an **On card ◉ / ○** toggle. Switch it off and the property never appears on a
+card — it is still fully editable in the task panel. A card carrying eight fields is a table.
+
+Two things decide themselves from that toggle:
+
+- The **grouping property of the current view is never drawn on the card**, whatever the toggle
+  says. The column already tells you.
+- The **lead property** is the first select that is shown on the card and is not the grouping
+  property. It colours the small square at the card's top-left, the pill beside the task key, and
+  the band down the left edge of the task panel. Reorder your properties to change which one leads.
+
+## How each type looks on a card
+
+| Type             | On the card                                              |
+| ---------------- | -------------------------------------------------------- |
+| Lead select      | a coloured square, top-left, with a tooltip (`Priority: High`) |
+| Other select     | a badge with a coloured dot                              |
+| Multi-select     | up to four coloured dots                                 |
+| Person           | up to two avatars                                        |
+| Date             | `Aug 28`                                                  |
+| Number           | `Estimate 5`                                              |
+| Checkbox         | the property's name, **only when it is on**              |
+| Text             | the first 24 characters                                  |
+
+Plus checklist progress (`2/5`) and a comment count (`💬 3`) when either is not zero.
+
+<Aside type="note" title="Why the date says Aug 28 and not 28/08/2026">
+Month names are written out in English in the code rather than taken from the browser's locale, so
+the server and your browser always render the same string. A locale-formatted date rendered on the
+server and re-rendered in the browser is a hydration mismatch waiting to happen.
+</Aside>
+
+<LinkCard
+  title="Views"
+  href="/ushabti/guides/views/"
+  description="Turn a property into columns — the same tasks, asked a different question."
+/>
+
+<style>{`
+  .swatches { display: flex; gap: 6px; margin: 1rem 0 1.4rem; flex-wrap: wrap; }
+  .swatches i {
+    width: 22px; height: 22px; border-radius: 5px; background: var(--c);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 25%);
+  }
+`}</style>

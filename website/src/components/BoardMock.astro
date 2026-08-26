@@ -1,0 +1,366 @@
+---
+// The board, in HTML and CSS, using the product's own tokens. Nothing here is
+// an image, so it stays sharp and reads on a phone.
+type Card = {
+  key: string
+  title: string
+  tags: [label: string, color: string][]
+  check?: [done: number, total: number]
+  run?: { agent: string; step: string; age: string }
+}
+
+const columns: { name: string; color: string; cards: Card[] }[] = [
+  {
+    name: 'Backlog',
+    color: '#6b7280',
+    cards: [
+      { key: 'USH-11', title: 'Saved filters per view', tags: [['Low', '#7a8a2f']] },
+      { key: 'USH-12', title: 'Export a board to CSV', tags: [['Idea', '#4b8fbe']] },
+    ],
+  },
+  {
+    name: 'Todo',
+    color: '#d1913a',
+    cards: [
+      {
+        key: 'USH-7',
+        title: 'Column headers reorder the options',
+        tags: [
+          ['High', '#c2557a'],
+          ['Board', '#4b8fbe'],
+        ],
+        check: [1, 3],
+      },
+    ],
+  },
+  {
+    name: 'In progress',
+    color: '#3fb0c8',
+    cards: [
+      {
+        key: 'USH-3',
+        title: 'Write the offline queue tests',
+        tags: [['High', '#c2557a']],
+        check: [2, 4],
+        run: { agent: 'Builder', step: 'Writing tests/queue.spec.ts', age: '6m' },
+      },
+    ],
+  },
+  {
+    name: 'Done',
+    color: '#2f9e7a',
+    cards: [{ key: 'USH-1', title: 'Fractional ranks for card order', tags: [['Done', '#2f9e7a']] }],
+  },
+]
+---
+
+<div class="mock not-content" aria-label="A screenshot-accurate mock of the Ushabti board" role="img">
+  <div class="mock-top">
+    <span class="mock-dot" style="background:#3fb0c8"></span>
+    <span class="mock-title">Ushabti roadmap</span>
+    <nav class="mock-views">
+      <span class="mock-view is-on">Board</span>
+      <span class="mock-view">Phases</span>
+      <span class="mock-view">By assignee</span>
+    </nav>
+    <span class="mock-filter">Priority is High, or nothing yet</span>
+  </div>
+
+  <div class="mock-cols">
+    {
+      columns.map((col) => (
+        <section class="mock-col">
+          <header class="mock-col-head">
+            <span class="mock-swatch" style={`background:${col.color}`} />
+            <span class="mock-col-name">{col.name}</span>
+            <span class="mock-count">{col.cards.length}</span>
+          </header>
+          {col.cards.map((card) => (
+            <article class="mock-card">
+              <span class="mock-key">{card.key}</span>
+              <p class="mock-card-title">{card.title}</p>
+              <div class="mock-tags">
+                {card.tags.map(([label, color]) => (
+                  <span class="mock-tag" style={`--tag:${color}`}>
+                    {label}
+                  </span>
+                ))}
+                {card.check && (
+                  <span class="mock-check">
+                    {card.check[0]}/{card.check[1]}
+                  </span>
+                )}
+              </div>
+              {card.run && (
+                <div class="mock-run">
+                  <span class="mock-run-agent">{card.run.agent}</span>
+                  <span class="mock-run-step">{card.run.step}</span>
+                  <span class="mock-run-age">{card.run.age}</span>
+                  <span class="mock-scan">
+                    <span class="mock-scan-fill" />
+                  </span>
+                </div>
+              )}
+            </article>
+          ))}
+          <span class="mock-add">+ Add a task</span>
+        </section>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  .mock {
+    --bg: #0a0b0d;
+    --bg-top: #0f1013;
+    --bg-column: #0d0e11;
+    --bg-card: #14171b;
+    --line: #1c1f24;
+    --line-soft: #17191e;
+    --accent: #3fb0c8;
+    --text: #e8e9ec;
+    --muted: #8b919b;
+    --faint: #565c66;
+
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 12.5px;
+    line-height: 1.45;
+    box-shadow: 0 30px 70px rgb(0 0 0 / 45%);
+    user-select: none;
+  }
+
+  .mock-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--bg-top);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  .mock-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex: none;
+  }
+
+  .mock-title {
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .mock-views {
+    display: flex;
+    gap: 2px;
+    margin-inline-start: 6px;
+  }
+
+  .mock-view {
+    padding: 3px 8px;
+    border-radius: 5px;
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+
+  .mock-view.is-on {
+    background: #191c21;
+    color: var(--text);
+  }
+
+  .mock-filter {
+    margin-inline-start: auto;
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid rgb(63 176 200 / 35%);
+    background: rgb(63 176 200 / 8%);
+    border-radius: 999px;
+    padding: 2px 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mock-cols {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--line-soft);
+    padding: 1px 0 0;
+  }
+
+  .mock-col {
+    background: var(--bg-column);
+    padding: 10px 9px 14px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .mock-col-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding-bottom: 2px;
+  }
+
+  .mock-swatch {
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+  }
+
+  .mock-col-name {
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #a4aab3;
+  }
+
+  .mock-count {
+    color: var(--faint);
+    font-size: 10.5px;
+  }
+
+  .mock-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 9px 0;
+    overflow: hidden;
+  }
+
+  .mock-key {
+    font-size: 10px;
+    color: var(--faint);
+    font-family: var(--sl-font-mono, monospace);
+    letter-spacing: 0.03em;
+  }
+
+  .mock-card-title {
+    margin: 2px 0 7px;
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.35;
+  }
+
+  .mock-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    padding-bottom: 9px;
+  }
+
+  .mock-tag {
+    font-size: 10.5px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    color: var(--tag);
+    border: 1px solid color-mix(in srgb, var(--tag) 40%, transparent);
+    background: color-mix(in srgb, var(--tag) 12%, transparent);
+  }
+
+  .mock-check {
+    font-size: 10.5px;
+    color: var(--faint);
+    font-family: var(--sl-font-mono, monospace);
+  }
+
+  /* The one strip a run is allowed on the card: who, what, how long. */
+  .mock-run {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0 -9px;
+    padding: 6px 9px 7px;
+    border-top: 1px solid var(--line);
+    background: #101318;
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+
+  .mock-run-agent {
+    color: var(--accent);
+    font-weight: 600;
+    flex: none;
+  }
+
+  .mock-run-step {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mock-run-age {
+    margin-inline-start: auto;
+    color: var(--faint);
+    font-family: var(--sl-font-mono, monospace);
+    flex: none;
+  }
+
+  .mock-scan {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    overflow: hidden;
+  }
+
+  .mock-scan-fill {
+    display: block;
+    width: 32%;
+    height: 100%;
+    background: var(--accent);
+    animation: mock-scan 1.9s linear infinite;
+  }
+
+  @keyframes mock-scan {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(320%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mock-scan-fill {
+      width: 100%;
+      opacity: 0.3;
+      animation: none;
+    }
+  }
+
+  .mock-add {
+    color: var(--faint);
+    font-size: 11px;
+    margin-top: auto;
+  }
+
+  @media (max-width: 60rem) {
+    .mock-cols {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .mock-filter {
+      display: none;
+    }
+  }
+
+  @media (max-width: 34rem) {
+    .mock-cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .mock-views {
+      display: none;
+    }
+  }
+</style>
