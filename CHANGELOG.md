@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A column full of tasks scrolls instead of squashing its cards.** Past about
+  a dozen cards every card in that column was pressed flat until the titles
+  were unreadable. The column body always could scroll; a card clips its own
+  content, which let the layout shrink it to nothing first and never reach the
+  scroll.
+
 ### Added
 
 - **A documentation site**, at
