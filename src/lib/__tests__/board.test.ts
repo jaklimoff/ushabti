@@ -3,8 +3,10 @@ import {
   buildColumns,
   columnIdForTask,
   cursorTarget,
+  clampPanelWidth,
   firstTask,
   NO_VALUE,
+  PANEL_MIN_WIDTH,
   taskByAddress,
   type BoardColumn,
 } from "../board";
@@ -165,5 +167,24 @@ describe("the address of a task", () => {
   it("says nothing for a key no task has", () => {
     expect(taskByAddress(tasks, "USH-404")).toBeNull();
     expect(taskByAddress(tasks, null)).toBeNull();
+  });
+});
+
+describe("how wide the panel may be", () => {
+  it("holds the width somebody dragged", () => {
+    expect(clampPanelWidth(560, 1440)).toBe(560);
+  });
+
+  it("never gives the board away", () => {
+    expect(clampPanelWidth(1400, 1440)).toBe(1120);
+  });
+
+  it("keeps the panel readable, even on a window too small for both", () => {
+    expect(clampPanelWidth(120, 1440)).toBe(PANEL_MIN_WIDTH);
+    expect(clampPanelWidth(600, 500)).toBe(PANEL_MIN_WIDTH);
+  });
+
+  it("answers a width that is not a number at all", () => {
+    expect(clampPanelWidth(Number.NaN, 1440)).toBe(PANEL_MIN_WIDTH);
   });
 });

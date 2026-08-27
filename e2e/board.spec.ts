@@ -354,6 +354,40 @@ test.describe("Ushabti board", () => {
     await expect(page.getByTestId("task-title")).toHaveValue("Share me");
   });
 
+  test("the panel is as wide as somebody dragged it, and stays that wide", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Width"));
+    await addTask(page, "Todo", "Room to read");
+
+    const panel = page.getByTestId("task-panel");
+    const grip = page.getByTestId("panel-grip");
+    const was = (await panel.boundingBox())!.width;
+    const edge = (await grip.boundingBox())!;
+
+    // The panel grows to the left, so the pointer goes left.
+    await page.mouse.move(edge.x + edge.width / 2, edge.y + 240);
+    await page.mouse.down();
+    await page.mouse.move(edge.x + edge.width / 2 - 140, edge.y + 240, { steps: 12 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => Math.round((await panel.boundingBox())!.width))
+      .toBe(Math.round(was + 140));
+
+    // The arrow keys move it too, so the width is not a mouse-only setting.
+    await grip.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect
+      .poll(async () => Math.round((await panel.boundingBox())!.width))
+      .toBe(Math.round(was + 156));
+
+    // The next board this person opens is the width they left it.
+    await page.reload();
+    await expect(panel).toBeVisible();
+    await expect
+      .poll(async () => Math.round((await panel.boundingBox())!.width))
+      .toBe(Math.round(was + 156));
+  });
+
   test("create a view grouped by another property", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Views"));

@@ -1,13 +1,43 @@
 .panel {
-  width: 396px;
-  flex: 0 0 396px;
+  /* The width somebody dragged, written on the element by the panel itself.
+     The number here is the one a board has until anybody says otherwise. */
+  width: var(--panel-w, 396px);
+  flex: 0 0 var(--panel-w, 396px);
   height: 100vh;
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--bg-top);
   border-left: 1px solid var(--line);
   min-height: 0;
   animation: ushabti-panel-in 180ms var(--ease);
+}
+
+/* The left edge is the handle. It lies over the border, a few pixels either
+   side of it, so the pointer finds it without a grip drawn on the screen. */
+.grip {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 7px;
+  height: 100%;
+  z-index: 30;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 120ms var(--ease);
+}
+
+.grip:hover {
+  background: var(--line-menu);
+}
+
+.grip:focus-visible {
+  outline: none;
+  background: var(--focus-ring);
+}
+
+.grip[data-dragging="true"] {
+  background: var(--accent);
 }
 
 .accent {
