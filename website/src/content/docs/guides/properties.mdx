@@ -53,7 +53,7 @@ Type:    Select
 Options: local, staging, production
 ```
 
-New properties are appended last and start with **On card** switched on. Up to forty options at
+New properties are appended last and start on the card. Up to forty options at
 creation; their colours cycle through the palette. Any member can add a property.
 
 ### Rename it
@@ -111,39 +111,27 @@ Unlike a property, a view or a member, **deleting an option happens on the first
 else destructive in Ushabti confirms in its own row; this control has not caught up.
 </Aside>
 
-## "On card" and the lead property
+## "On card"
 
 Every property has an **On card ◉ / ○** toggle. Switch it off and the property never appears on a
 card — it is still fully editable in the task panel. A card carrying eight fields is a table.
 
-Two things decide themselves from that toggle:
-
-- The **grouping property of the current view is never drawn on the card**, whatever the toggle
-  says. The column already tells you.
-- The **lead property** is the first select that is shown on the card and is not the grouping
-  property. It colours the small square at the card's top-left, the pill beside the task key, and
-  the band down the left edge of the task panel. Reorder your properties to change which one leads.
-
-## How each type looks on a card
-
-| Type             | On the card                                              |
-| ---------------- | -------------------------------------------------------- |
-| Lead select      | a coloured square, top-left, with a tooltip (`Priority: High`) |
-| Other select     | a badge with a coloured dot                              |
-| Multi-select     | up to four coloured dots                                 |
-| Person           | up to two avatars                                        |
-| Date             | `Aug 28`                                                  |
-| Number           | `Estimate 5`                                              |
-| Checkbox         | the property's name, **only when it is on**              |
-| Text             | the first 24 characters                                  |
-
-Plus checklist progress (`2/5`) and a comment count (`💬 3`) when either is not zero.
+The toggle is the short answer. The long one is the
+[**Card view**](/ushabti/guides/card-view/) page, which says where each property sits on the card —
+the edge stripe, either end of the header, the body, either end of the footer — and how it reads.
+Switching the toggle back on puts the property where its type belongs, in the footer.
 
 <Aside type="note" title="Why the date says Aug 28 and not 28/08/2026">
 Month names are written out in English in the code rather than taken from the browser's locale, so
 the server and your browser always render the same string. A locale-formatted date rendered on the
 server and re-rendered in the browser is a hydration mismatch waiting to happen.
 </Aside>
+
+<LinkCard
+  title="The card view"
+  href="/ushabti/guides/card-view/"
+  description="Which properties a card carries, where each one sits, and how it reads."
+/>
 
 <LinkCard
   title="Views"

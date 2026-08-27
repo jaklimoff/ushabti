@@ -5,7 +5,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useRef, useState } from "react";
 import type { BoardColumn } from "@/lib/board";
-import type { MemberDTO, PropertyDTO, TaskDTO } from "@/lib/types";
+import type { TaskDTO } from "@/lib/types";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
 
@@ -15,18 +15,12 @@ export const CONTAINER_PREFIX = "container:";
 function SortableTask({
   task,
   columnId,
-  properties,
-  members,
-  groupPropertyId,
   selected,
   cursor,
   onOpen,
 }: {
   task: TaskDTO;
   columnId: string;
-  properties: PropertyDTO[];
-  members: MemberDTO[];
-  groupPropertyId: string | null;
   selected: boolean;
   cursor: boolean;
   onOpen: () => void;
@@ -41,9 +35,6 @@ function SortableTask({
     <TaskCard
       ref={setNodeRef}
       task={task}
-      properties={properties}
-      members={members}
-      groupPropertyId={groupPropertyId}
       selected={selected}
       cursor={cursor}
       ghost={isDragging}
@@ -59,9 +50,6 @@ function SortableTask({
 
 export function Column({
   column,
-  properties,
-  members,
-  groupProperty,
   selectedTaskId,
   cursorTaskId,
   draggable,
@@ -70,9 +58,6 @@ export function Column({
   onAddTask,
 }: {
   column: BoardColumn;
-  properties: PropertyDTO[];
-  members: MemberDTO[];
-  groupProperty: PropertyDTO | null;
   selectedTaskId: string | null;
   cursorTaskId: string | null;
   draggable: boolean;
@@ -190,9 +175,6 @@ export function Column({
               key={task.id}
               task={task}
               columnId={column.id}
-              properties={properties}
-              members={members}
-              groupPropertyId={groupProperty?.id ?? null}
               selected={selectedTaskId === task.id}
               cursor={cursorTaskId === task.id}
               onOpen={() => onOpenTask(task.id)}

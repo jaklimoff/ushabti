@@ -15,6 +15,7 @@ import {
   users,
   views,
 } from "@/db/schema";
+import { readCardView } from "./card-view";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
 import { rankSequence } from "./rank";
@@ -22,6 +23,7 @@ import { loadOpenRuns, loadTaskRun } from "./runs";
 import type {
   ActivityDTO,
   BoardData,
+  CardView,
   ChecklistItemDTO,
   CommentDTO,
   MemberDTO,
@@ -103,7 +105,7 @@ export async function createProject(userId: string, name: string, key: string) {
           name: def.name,
           type: def.type,
           position: propRanks[i],
-          config: { showOnCard: def.showOnCard },
+          config: {},
         })
         .returning({ id: properties.id });
       byName.set(def.name, prop.id);
@@ -160,6 +162,19 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[]): ViewDTO {
 }
 
 /** The properties of a project with their options, as the board sees them. */
+/**
+ * The property the board is grouped by when nobody has chosen a view. The
+ * default card view leaves it off the card, because the columns already say it.
+ */
+export async function defaultGroupById(projectId: string): Promise<string | null> {
+  const rows = await db
+    .select({ groupById: views.groupById, isDefault: views.isDefault })
+    .from(views)
+    .where(eq(views.projectId, projectId))
+    .orderBy(byPos(views.position));
+  return (rows.find((v) => v.isDefault) ?? rows[0])?.groupById ?? null;
+}
+
 export async function loadProperties(projectId: string): Promise<PropertyDTO[]> {
   const [propRows, optRows] = await Promise.all([
     db
@@ -284,6 +299,16 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
 
   const viewList: ViewDTO[] = viewRows.map((v) => toViewDTO(v, propertyList));
 
+  /* The card a project has before anybody arranges one is the card it drew
+     before this page existed, and that card leaves out the columns. So the
+     default view says which property those are. */
+  const defaultView = viewList.find((v) => v.isDefault) ?? viewList[0] ?? null;
+  const cardView: CardView = readCardView(
+    projectRow.cardView,
+    propertyList,
+    defaultView?.groupById ?? null,
+  );
+
   const taskList: TaskDTO[] = taskRows.map((t) => ({
     id: t.id,
     number: t.number,
@@ -319,6 +344,7 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     members,
     properties: propertyList,
     views: viewList,
+    cardView,
     tasks: taskList,
     runs,
   };

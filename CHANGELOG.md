@@ -6,6 +6,49 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## Unreleased
+
+### Added
+
+- **A card view page in settings.** `…/settings/card` says what a card on the
+  board carries. Every row is one thing a card could hold — your properties,
+  plus the five parts a task has of its own: its ID, its title, its
+  description, its checklist and its comment count. Open a row and say where it
+  sits — the edge stripe, either end of the header, the body, either end of the
+  footer, or nowhere — and how it reads: a colour, a name, both, a face, a
+  boxed word, one line or two. It saves as you click, and the card beside the
+  rows is the board's own card drawing your own tasks, so the preview cannot
+  drift from the board.
+- **An edge stripe.** A band of colour down the left of a card, one property at
+  a time, and only a property that has colours of its own. The task panel takes
+  its band from the same property.
+- **The description can sit on a card**, one line or two. It never could before.
+- `PATCH /api/projects/{projectId}/card-view` writes the whole card view, or
+  `null` to go back to the default. People only: an agent that lost its token
+  would otherwise rearrange every card on the board.
+
+### Changed
+
+- **"On card" on the Properties page now writes the card view.** It is the
+  short answer to the same question: off the card, or back where its type
+  belongs. `showOnCard` on `PATCH /api/properties/{propertyId}` still works and
+  means exactly that. Nothing writes `config.showOnCard` any more; an older
+  project's value seeds the card it starts with.
+- **A card no longer decides anything for itself.** It used to pick a lead
+  select, draw multi-select values as dots and drop the grouping property.
+  Those are now rows in the card view, and a new project starts with exactly
+  the card the board drew before. One change is visible: the grouping property
+  of a view no longer appears on the card when you switch to another view. It
+  is off the card until somebody puts it on.
+
+### Fixed
+
+- **A click made in the first moment after a board loaded could be undone.**
+  The event stream asks for the board the instant it connects, and that answer
+  was still in flight when the click wrote. It landed afterwards and put the
+  board back as it was, with nothing on screen to say so. A read that started
+  before a write of this tab's own is now thrown away.
+
 ## 0.6.1 — 2026-08-27
 
 ### Fixed

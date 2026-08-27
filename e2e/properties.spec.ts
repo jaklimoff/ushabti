@@ -59,7 +59,7 @@ test.describe("Custom properties", () => {
     await page.getByRole("button", { name: "Urgent" }).click();
     await page.getByRole("button", { name: "Close task" }).click();
 
-    await expect(card(page, "Hidden props").getByTestId("card-lead-square")).toBeVisible();
+    await expect(card(page, "Hidden props").locator('[title="Priority · Urgent"]')).toBeVisible();
 
     await gotoSettings(page, projectId);
     await saved(page, () =>
@@ -68,7 +68,7 @@ test.describe("Custom properties", () => {
     await expect(page.getByRole("button", { name: "Show Priority on the card" })).toBeVisible();
 
     await page.goto(`/p/${projectId}`);
-    await expect(card(page, "Hidden props").getByTestId("card-lead-square")).toHaveCount(0);
+    await expect(card(page, "Hidden props").locator('[title="Priority · Urgent"]')).toHaveCount(0);
   });
 
   test("delete a property and its values disappear", async ({ page }) => {

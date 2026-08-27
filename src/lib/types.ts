@@ -34,6 +34,11 @@ export const PROPERTY_TYPE_HINT: Record<PropertyType, string> = {
 export const GROUPABLE_TYPES: PropertyType[] = ["select", "person", "checkbox"];
 
 export type PropertyConfig = {
+  /**
+   * Where a property sits on a card is the card view's business now. This is
+   * what older projects wrote before that page existed, and it still seeds the
+   * card view a project falls back to. Nothing writes it any more.
+   */
   showOnCard?: boolean;
 };
 
@@ -79,6 +84,114 @@ export type TaskDTO = {
   checklistDone: number;
   commentCount: number;
 };
+
+/* ------------------------------------------------------------------ */
+/* The card view                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The three parts of a task that behave like properties on a card without
+ * being any: its key, its title and its description. The checklist and the
+ * comment count join them, because a card draws those too and somebody has to
+ * be able to take them off. Nothing here is a field on a task — the words are
+ * fixed, the values come from the task row the board already has.
+ */
+export const CARD_BUILTINS = ["_key", "_title", "_desc", "_checklist", "_comments"] as const;
+
+export type CardBuiltin = (typeof CARD_BUILTINS)[number];
+
+export const CARD_BUILTIN_NAME: Record<CardBuiltin, string> = {
+  _key: "Task ID",
+  _title: "Title",
+  _desc: "Description",
+  _checklist: "Checklist",
+  _comments: "Comments",
+};
+
+/**
+ * Where a row sits on the card. A card is a header row, a title, a body and a
+ * footer, and the two ends of the header and the footer are separate places,
+ * so a row can sit left or right. `edge` is the stripe down the left side,
+ * `title` belongs to the title alone, and `off` means the card never draws it.
+ */
+export const CARD_PLACES = [
+  "edge",
+  "headerL",
+  "headerR",
+  "body",
+  "footerL",
+  "footerR",
+  "title",
+  "off",
+] as const;
+
+export type CardPlace = (typeof CARD_PLACES)[number];
+
+export const CARD_PLACE_LABEL: Record<CardPlace, string> = {
+  edge: "Edge stripe",
+  headerL: "Header left",
+  headerR: "Header right",
+  body: "Body",
+  footerL: "Footer left",
+  footerR: "Footer right",
+  title: "Title row",
+  off: "Not shown",
+};
+
+/**
+ * How a row reads. Which of these a row may use comes from its kind, not from
+ * its type: two property types that read the same way share a kind.
+ */
+export const CARD_MODES = [
+  /* select, multi_select */
+  "colour",
+  "both",
+  /* person */
+  "avatar",
+  /* anything with words */
+  "text",
+  "boxed",
+  /* the description */
+  "one",
+  "two",
+  /* the checklist */
+  "bar",
+  /* the title */
+  "fixed",
+] as const;
+
+export type CardMode = (typeof CARD_MODES)[number];
+
+/**
+ * The kinds a row can be. A property type maps onto one of these, and the kind
+ * decides which modes the row offers and how the card draws it. Adding a
+ * property type means mapping it to a kind, and nothing else.
+ */
+export const CARD_KINDS = [
+  "id",
+  "title",
+  "desc",
+  "checklist",
+  "comments",
+  "select",
+  "person",
+  "date",
+  "flag",
+  "text",
+] as const;
+
+export type CardKind = (typeof CARD_KINDS)[number];
+
+/** One row of the card view: where it sits and how it reads. */
+export type CardRow = { place: CardPlace; mode: CardMode };
+
+/**
+ * What every card in the project carries. `order` decides which row is drawn
+ * first where two share a place; `rows` says where each one sits. A row nobody
+ * named falls back to the place its kind belongs in, so a new property lands
+ * on the card the way it always did.
+ */
+export type CardView = { order: string[]; rows: Record<string, CardRow> };
 
 /* ------------------------------------------------------------------ */
 /* Filters                                                             */
@@ -265,6 +378,8 @@ export type BoardData = {
   members: MemberDTO[];
   properties: PropertyDTO[];
   views: ViewDTO[];
+  /** What a card carries, read afresh: a row naming a dead property is gone. */
+  cardView: CardView;
   tasks: TaskDTO[];
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];

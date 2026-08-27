@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
-import { leadProperty, relativeTime } from "@/lib/board";
+import { relativeTime } from "@/lib/board";
+import { accentProperty } from "@/lib/card-view";
 import { tint } from "@/lib/colors";
 import {
   duration,
@@ -35,7 +36,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const {
     data,
     user,
-    groupProperty,
+    cardItems,
     setValue,
     patchTask,
     deleteTask,
@@ -108,13 +109,14 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     else notify("The link did not copy. The address bar holds it.");
   }, [data.project.id, notify, taskId]);
 
-  /* the band and the pill follow the same property the card square uses */
+  /* The band and the pill follow the colour the card leads with: the edge
+     stripe, or the first colour the card view puts on a card. */
   const leadPill = useMemo(() => {
     if (!boardTask) return null;
-    const property = leadProperty(data.properties, groupProperty?.id ?? null);
+    const property = accentProperty(cardItems);
     if (!property) return null;
     return property.options.find((o) => o.id === boardTask.values[property.id]) ?? null;
-  }, [boardTask, data.properties, groupProperty]);
+  }, [boardTask, cardItems]);
 
   const accent = leadPill?.color ?? "#3f4650";
 

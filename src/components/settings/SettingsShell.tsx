@@ -33,6 +33,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
 
   const items = [
     { slug: "properties", label: "Properties", count: data.properties.length },
+    { slug: "card", label: "Card view", count: null },
     { slug: "views", label: "Views", count: data.views.length },
     { slug: "people", label: "People", count: data.members.length },
     { slug: "project", label: "Project", count: null },

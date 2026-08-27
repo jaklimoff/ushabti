@@ -38,11 +38,11 @@ export async function createProject(page: Page, name: string): Promise<string> {
   return page.url().split("/p/")[1].split("?")[0];
 }
 
-/** Settings is four pages now, so a test says which one it wants. */
+/** Settings is five pages now, so a test says which one it wants. */
 export async function gotoSettings(
   page: Page,
   projectId: string,
-  section: "properties" | "views" | "people" | "project" = "properties",
+  section: "properties" | "card" | "views" | "people" | "project" = "properties",
 ) {
   await page.goto(`/p/${projectId}/settings/${section}`);
 }
@@ -133,7 +133,7 @@ export async function saved(page: Page, action: () => Promise<void>) {
   const [response] = await Promise.all([
     page.waitForResponse(
       (r) =>
-        /\/api\/(tasks|checklist|comments|options|properties|views)/.test(r.url()) &&
+        /\/api\/(tasks|checklist|comments|options|properties|views)|\/card-view/.test(r.url()) &&
         r.request().method() !== "GET",
     ),
     action(),

@@ -11,11 +11,14 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
+import { cardItems, defaultCardView, readCardView } from "@/lib/card-view";
+import type { CardItem } from "@/lib/card-view";
 import { applyFilters, EMPTY_FILTERS } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
   AgentRunDTO,
   BoardData,
+  CardView,
   FilterRule,
   PropertyDTO,
   PropertyType,
@@ -43,6 +46,12 @@ type Store = {
   visibleTasks: TaskDTO[];
   /** Writes the rules of the view. They save at once, like the grouping does. */
   setFilters: (rules: FilterRule[]) => Promise<void>;
+  /** Every row of the card, in order, with the property behind it. */
+  cardItems: CardItem[];
+  /** Arranges the card. It saves as you click; there is no Save button. */
+  setCardView: (view: CardView) => Promise<void>;
+  /** Back to the card the board draws when nobody has arranged one. */
+  resetCardView: () => Promise<void>;
   /** The open run of a task, or null. One task holds one run at a time. */
   runOf: (taskId: string) => AgentRunDTO | null;
   /** Pause, resume or stop is a request. Take over ends the run at once. */
@@ -88,10 +97,7 @@ type Store = {
   ) => Promise<void>;
   deleteOption: (optionId: string) => Promise<void>;
   addProperty: (name: string, type: PropertyType, options?: string[]) => Promise<void>;
-  patchProperty: (
-    propertyId: string,
-    patch: { name?: string; showOnCard?: boolean },
-  ) => Promise<void>;
+  patchProperty: (propertyId: string, patch: { name?: string }) => Promise<void>;
   moveProperty: (propertyId: string, afterId: string | null) => Promise<void>;
   deleteProperty: (propertyId: string) => Promise<void>;
 };
@@ -153,9 +159,23 @@ export function BoardProvider({
     setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), 5200);
   }, []);
 
+  /*
+   * Every write this tab makes, counted. A read that was already in flight when
+   * one went out answers with the board as it was before, and putting that on
+   * screen quietly undoes the click that just happened. The stream asks for a
+   * board the moment it connects, so the window is widest right after a page
+   * loads — which is exactly when somebody clicks.
+   */
+  const writes = useRef(0);
+  const wrote = useCallback(() => {
+    writes.current += 1;
+  }, []);
+
   const refresh = useCallback(async () => {
+    const at = writes.current;
     try {
       const fresh = await api.get<BoardData>(`/api/projects/${projectId}/board`);
+      if (writes.current !== at) return;
       setData(fresh);
     } catch (err) {
       // The project is gone, or this person was removed from it.
@@ -225,6 +245,21 @@ export function BoardProvider({
 
   const filters = view?.filters ?? EMPTY_FILTERS;
 
+  /*
+   * The card view is read afresh here, exactly as the server reads it: a row
+   * that names a property somebody has just deleted must stop holding a place
+   * on the card at once, and not when the next board arrives.
+   */
+  const defaultGroupById =
+    (data.views.find((v) => v.isDefault) ?? data.views[0])?.groupById ?? null;
+
+  const cardView = useMemo(
+    () => readCardView(data.cardView, data.properties, defaultGroupById),
+    [data.cardView, data.properties, defaultGroupById],
+  );
+
+  const items = useMemo(() => cardItems(cardView, data.properties), [cardView, data.properties]);
+
   const visibleTasks = useMemo(
     () => applyFilters(data.tasks, filters, data.properties),
     [data.properties, data.tasks, filters],
@@ -251,6 +286,7 @@ export function BoardProvider({
 
   const guarded = useCallback(
     async (work: () => Promise<void>) => {
+      wrote();
       try {
         await work();
       } catch (err) {
@@ -258,12 +294,13 @@ export function BoardProvider({
         await refresh();
       }
     },
-    [notify, refresh],
+    [notify, refresh, wrote],
   );
 
   /* --- tasks ---------------------------------------------------------- */
   const createTask = useCallback<Store["createTask"]>(
     async (input) => {
+      wrote();
       try {
         const { task } = await api.post<{ task: TaskDTO & { key: string } }>(
           `/api/projects/${projectId}/tasks`,
@@ -289,7 +326,7 @@ export function BoardProvider({
         return null;
       }
     },
-    [notify, projectId],
+    [notify, projectId, wrote],
   );
 
   const patchTask = useCallback<Store["patchTask"]>(
@@ -403,6 +440,7 @@ export function BoardProvider({
   /* --- views ---------------------------------------------------------- */
   const createView = useCallback<Store["createView"]>(
     async (name, groupById) => {
+      wrote();
       try {
         const { view: created } = await api.post<{ view: ViewDTO }>(
           `/api/projects/${projectId}/views`,
@@ -414,7 +452,7 @@ export function BoardProvider({
         notify(err instanceof Error ? err.message : "The view did not save.");
       }
     },
-    [notify, projectId, setViewId],
+    [notify, projectId, setViewId, wrote],
   );
 
   const updateView = useCallback<Store["updateView"]>(
@@ -438,6 +476,30 @@ export function BoardProvider({
     [updateView, view],
   );
 
+  /* --- the card ------------------------------------------------------- */
+  const setCardView = useCallback<Store["setCardView"]>(
+    async (next) => {
+      setData((current) => ({ ...current, cardView: next }));
+      await guarded(async () => {
+        await api.patch(`/api/projects/${projectId}/card-view`, { cardView: next });
+      });
+    },
+    [guarded, projectId],
+  );
+
+  const resetCardView = useCallback<Store["resetCardView"]>(async () => {
+    setData((current) => ({
+      ...current,
+      cardView: defaultCardView(
+        current.properties,
+        (current.views.find((v) => v.isDefault) ?? current.views[0])?.groupById ?? null,
+      ),
+    }));
+    await guarded(async () => {
+      await api.patch(`/api/projects/${projectId}/card-view`, { cardView: null });
+    });
+  }, [guarded, projectId]);
+
   const deleteView = useCallback<Store["deleteView"]>(
     async (id) => {
       const remaining = data.views.filter((v) => v.id !== id);
@@ -453,6 +515,7 @@ export function BoardProvider({
   /* --- properties and options ----------------------------------------- */
   const addOption = useCallback<Store["addOption"]>(
     async (propertyId, name) => {
+      wrote();
       try {
         const { option } = await api.post<{ option: PropertyDTO["options"][number] }>(
           `/api/properties/${propertyId}/options`,
@@ -470,7 +533,7 @@ export function BoardProvider({
         return null;
       }
     },
-    [notify],
+    [notify, wrote],
   );
 
   const patchOption = useCallback<Store["patchOption"]>(
@@ -525,15 +588,7 @@ export function BoardProvider({
       setData((current) => ({
         ...current,
         properties: current.properties.map((p) =>
-          p.id === propertyId
-            ? {
-                ...p,
-                ...(patch.name ? { name: patch.name } : {}),
-                ...(patch.showOnCard !== undefined
-                  ? { config: { ...p.config, showOnCard: patch.showOnCard } }
-                  : {}),
-              }
-            : p,
+          p.id === propertyId ? { ...p, ...(patch.name ? { name: patch.name } : {}) } : p,
         ),
       }));
       await guarded(async () => {
@@ -584,6 +639,9 @@ export function BoardProvider({
     filters,
     visibleTasks,
     setFilters,
+    cardItems: items,
+    setCardView,
+    resetCardView,
     runOf,
     controlRun,
     live,

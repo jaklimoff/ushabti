@@ -1,10 +1,16 @@
 import { eq, ne, and } from "drizzle-orm";
 import { byPos } from "@/lib/order";
 import { db } from "@/db";
-import { properties, views } from "@/db/schema";
+import { projects, properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
-import { propertyProjectId, withProjectLock } from "@/lib/queries";
+import { fallbackRow, KIND_OF_TYPE, readCardView, setCardPlace } from "@/lib/card-view";
+import {
+  defaultGroupById,
+  loadProperties,
+  propertyProjectId,
+  withProjectLock,
+} from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 
 type Ctx = { params: Promise<{ propertyId: string }> };
@@ -20,13 +26,11 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 
   if (input.name !== undefined) patch.name = str(input.name, "Property name", { max: 40 });
 
+  /* Where a property sits on a card belongs to the card view, so this writes
+     there. It is the short way to say it: off the card, or back where its kind
+     belongs. The card view page says the rest. */
   if (input.showOnCard !== undefined) {
-    const [current] = await db
-      .select({ config: properties.config })
-      .from(properties)
-      .where(eq(properties.id, propertyId))
-      .limit(1);
-    patch.config = { ...((current?.config ?? {}) as object), showOnCard: !!input.showOnCard };
+    await setShownOnCard(projectId, propertyId, !!input.showOnCard);
   }
 
   if (input.afterId !== undefined) {
@@ -48,12 +52,41 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     return json({ ok: true });
   }
 
-  if (Object.keys(patch).length === 0) return json({ ok: true });
-
-  await db.update(properties).set(patch).where(eq(properties.id, propertyId));
+  if (Object.keys(patch).length > 0) {
+    await db.update(properties).set(patch).where(eq(properties.id, propertyId));
+  }
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
   return json({ ok: true });
 });
+
+/** Takes one property off the card, or puts it back where its kind belongs. */
+async function setShownOnCard(projectId: string, propertyId: string, shown: boolean) {
+  const [[project], propertyList, groupById] = await Promise.all([
+    db.select({ cardView: projects.cardView }).from(projects).where(eq(projects.id, projectId)),
+    loadProperties(projectId),
+    defaultGroupById(projectId),
+  ]);
+
+  const property = propertyList.find((p) => p.id === propertyId);
+  if (!property) return;
+
+  const current = readCardView(project?.cardView, propertyList, groupById);
+  if (!shown) {
+    await db
+      .update(projects)
+      .set({ cardView: setCardPlace(current, propertyId, "off") })
+      .where(eq(projects.id, projectId));
+    return;
+  }
+
+  if (current.rows[propertyId]?.place !== "off") return;
+  const home = fallbackRow(KIND_OF_TYPE[property.type]);
+  const next = {
+    ...current,
+    rows: { ...current.rows, [propertyId]: home },
+  };
+  await db.update(projects).set({ cardView: next }).where(eq(projects.id, projectId));
+}
 
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { propertyId } = await ctx.params;
