@@ -209,8 +209,9 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
             </span>
           )}
           {task.commentCount > 0 && (
-            <span className={styles.cardMeta} title="Comments">
-              💬 {task.commentCount}
+            <span className={styles.cardComments} title="Comments">
+              <CommentIcon />
+              {task.commentCount}
             </span>
           )}
         </div>
@@ -220,6 +221,21 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
     </div>
   );
 });
+
+/** A hairline speech bubble. The board draws its own shapes; no icon set. */
+function CommentIcon() {
+  return (
+    <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" focusable="false">
+      <path
+        d="M3 2h6a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5.2L3 11.3V9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 /**
  * The strip of the board design: who is working, what it is doing, how long it
