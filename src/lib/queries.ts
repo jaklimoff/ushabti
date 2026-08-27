@@ -68,8 +68,8 @@ export async function listProjects(userId: string) {
       ownerId: projects.ownerId,
       role: projectMembers.role,
       createdAt: projects.createdAt,
-      taskCount: sql<number>`(select count(*)::int from ${tasks} where ${tasks.projectId} = ${projects.id})`,
-      memberCount: sql<number>`(select count(*)::int from ${projectMembers} pm where pm.project_id = ${projects.id})`,
+      taskCount: sql<number>`(select count(*)::int from ${tasks} t where t.project_id = ${projects}.id)`,
+      memberCount: sql<number>`(select count(*)::int from ${projectMembers} pm where pm.project_id = ${projects}.id)`,
     })
     .from(projectMembers)
     .innerJoin(projects, eq(projects.id, projectMembers.projectId))
@@ -251,9 +251,13 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
         position: tasks.position,
         createdAt: tasks.createdAt,
         updatedAt: tasks.updatedAt,
-        checklistTotal: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks.id})`,
-        checklistDone: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks.id} and ci.done)`,
-        commentCount: sql<number>`(select count(*)::int from ${comments} c where c.task_id = ${tasks.id})`,
+        /* `${tasks.id}` writes a bare `"id"` in a selected column, and inside
+           a subquery that name belongs to the inner table. The counts then
+           compare a task to a comment and every card reads zero. Name the
+           table. */
+        checklistTotal: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks}.id)`,
+        checklistDone: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks}.id and ci.done)`,
+        commentCount: sql<number>`(select count(*)::int from ${comments} c where c.task_id = ${tasks}.id)`,
       })
       .from(tasks)
       .where(eq(tasks.projectId, projectId))

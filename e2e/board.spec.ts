@@ -190,9 +190,9 @@ test.describe("Ushabti board", () => {
     expect(await titles()).toEqual(["Third card", "First card", "Second card"]);
   });
 
-  test("checklist and comment counts reach the card without a reload", async ({ page }) => {
+  test("checklist and comment counts reach the card and survive a reload", async ({ page }) => {
     await register(page);
-    await createProject(page, unique("Counts"));
+    const projectId = await createProject(page, unique("Counts"));
     await addTask(page, "Todo", "Counting task");
 
     await page.getByRole("button", { name: "Add item" }).click();
@@ -214,6 +214,12 @@ test.describe("Ushabti board", () => {
     const target = card(page, "Counting task").first();
     await expect(target).toContainText("1/2");
     await expect(target).toContainText("1");
+
+    // and again from the board the server draws, which counts them itself
+    await page.goto(`/p/${projectId}`);
+    const drawn = card(page, "Counting task").first();
+    await expect(drawn).toContainText("1/2");
+    await expect(drawn.getByTitle("Comments")).toHaveText("1");
   });
 
   test("a card moves with the keyboard alone", async ({ page }) => {
