@@ -22,7 +22,7 @@ docker compose up
 docker compose exec app npm run db:seed   # demo data, in a second terminal
 ```
 
-The app is then at <http://localhost:3000>.
+The app is then at <http://localhost:3050>.
 
 ## Before you open a pull request
 
