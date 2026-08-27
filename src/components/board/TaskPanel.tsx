@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
-import { relativeTime } from "@/lib/board";
+import { clampPanelWidth, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
 import { tint } from "@/lib/colors";
 import {
@@ -31,6 +31,9 @@ import { PropertyControl } from "./controls/PropertyControl";
 import { Markdown } from "./Markdown";
 import { useBoard } from "./store";
 import styles from "./panel.module.css";
+
+/** One person's answer about their own screen, kept in their own browser. */
+const WIDTH_KEY = "ushabti:panel-width";
 
 export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const {
@@ -117,6 +120,94 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     [boardTask, cardItems, data.members],
   );
 
+  /* How wide the panel is lives on the element and never in state: a render
+     for every pointer move would draw the comments, the description and the
+     run log again, forty times a second. */
+  const panelRef = useRef<HTMLElement>(null);
+  const gripRef = useRef<HTMLDivElement>(null);
+
+  const widen = useCallback((px: number) => {
+    const panel = panelRef.current;
+    if (!panel) return 0;
+    const width = clampPanelWidth(px, window.innerWidth);
+    panel.style.setProperty("--panel-w", `${width}px`);
+    gripRef.current?.setAttribute("aria-valuenow", String(width));
+    /* The widest the window allows: asking for the window itself gets it. */
+    gripRef.current?.setAttribute(
+      "aria-valuemax",
+      String(clampPanelWidth(window.innerWidth, window.innerWidth)),
+    );
+    return width;
+  }, []);
+
+  /* The width is one person's answer to their own screen, so it is kept in
+     their browser and not on the board everybody shares. */
+  const remember = useCallback((width: number) => {
+    try {
+      window.localStorage.setItem(WIDTH_KEY, String(width));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(WIDTH_KEY);
+    } catch {
+      /* private mode */
+    }
+    /* No answer means the width the stylesheet gives it, which still has to
+       pass the window it opened in. */
+    widen(Number(saved) || panel.getBoundingClientRect().width);
+
+    const onResize = () => widen(panel.getBoundingClientRect().width);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [widen]);
+
+  function onGripDown(event: React.PointerEvent<HTMLDivElement>) {
+    const panel = panelRef.current;
+    if (!panel || event.button !== 0) return;
+    event.preventDefault();
+
+    const grip = event.currentTarget;
+    const startX = event.clientX;
+    const startWidth = panel.getBoundingClientRect().width;
+    grip.setPointerCapture(event.pointerId);
+    grip.dataset.dragging = "true";
+    /* A drag over the panel would otherwise select every word it crosses. */
+    document.body.style.userSelect = "none";
+
+    /* The panel grows to the left, so the pointer moving left widens it. */
+    const move = (e: PointerEvent) => widen(startWidth + (startX - e.clientX));
+    const done = () => {
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", done);
+      grip.removeEventListener("pointercancel", done);
+      delete grip.dataset.dragging;
+      document.body.style.userSelect = "";
+      remember(panel.getBoundingClientRect().width);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", done);
+    grip.addEventListener("pointercancel", done);
+  }
+
+  /* The edge answers the arrow keys too, so the width is not a mouse-only
+     setting. Shift takes the bigger step, as it does in every editor. */
+  function onGripKey(event: React.KeyboardEvent<HTMLDivElement>) {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const way = event.key === "ArrowLeft" ? 1 : event.key === "ArrowRight" ? -1 : 0;
+    if (!way) return;
+    event.preventDefault();
+    const step = event.shiftKey ? 48 : 16;
+    remember(widen(panel.getBoundingClientRect().width + way * step));
+  }
+
   // The agent tab only exists while a run does. Deriving the shown tab rather
   // than resetting it in an effect keeps the choice in one place.
   const run = detail?.run ?? null;
@@ -125,7 +216,22 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   if (!boardTask) return null;
 
   return (
-    <aside className={styles.panel} data-testid="task-panel">
+    <aside className={styles.panel} data-testid="task-panel" ref={panelRef}>
+      {/* The panel is dragged wider by its own left edge. There is no handle
+          to look at: the cursor over the line is the whole invitation. */}
+      <div
+        className={styles.grip}
+        data-testid="panel-grip"
+        ref={gripRef}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Panel width"
+        aria-valuemin={PANEL_MIN_WIDTH}
+        tabIndex={0}
+        onPointerDown={onGripDown}
+        onKeyDown={onGripKey}
+      />
+
       <div className={styles.accent} data-testid="panel-accent" style={{ background: accent }} />
 
       <div className={styles.head} style={{ background: tint(accent, 0.06) }} ref={menuRef}>

@@ -162,6 +162,21 @@ export function sortByPosition<T extends { position: string }>(rows: T[]): T[] {
 }
 
 /**
+ * How wide the task panel may be dragged. The board never disappears behind
+ * it: a board you cannot see is a board you cannot drop a card on, so a strip
+ * of it always stays. A narrow window beats a wide stored width, which is why
+ * this is asked again on every resize and not only when the width is written.
+ */
+export const PANEL_MIN_WIDTH = 340;
+const BOARD_MIN_WIDTH = 320;
+
+export function clampPanelWidth(width: number, windowWidth: number): number {
+  const most = Math.max(PANEL_MIN_WIDTH, Math.round(windowWidth) - BOARD_MIN_WIDTH);
+  if (!Number.isFinite(width)) return PANEL_MIN_WIDTH;
+  return Math.min(Math.max(Math.round(width), PANEL_MIN_WIDTH), most);
+}
+
+/**
  * The address of a task is the key a person reads on the card — DP-4 — because
  * that is the word they say out loud. A link written before that was true
  * carries the uuid, so both are answered here and neither one breaks.
