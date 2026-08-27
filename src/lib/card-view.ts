@@ -580,14 +580,32 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
   return slots;
 }
 
-/** The property whose colour the detail panel takes: the edge, or the first colour on the card. */
-export function accentProperty(items: CardItem[]): PropertyDTO | null {
-  const edge = items.find((i) => i.place === "edge" && i.property);
-  if (edge) return edge.property;
-  const coloured = items.find(
-    (i) => i.property?.type === "select" && i.place !== "off" && i.mode !== "text",
-  );
-  return coloured?.property ?? null;
+/**
+ * The colour the panel takes: the stripe the card draws down its left side, so
+ * a card and the panel it opens are the same colour. It is the card view that
+ * decides, and this asks it the same way the card does rather than working a
+ * colour out a second time — a panel that names its own property drifts from
+ * the board the first time somebody moves the edge.
+ *
+ * A board with no stripe falls back to the first colour the card leads with. A
+ * row that reads as words carries none, and neither does an empty value, which
+ * is why the answer is a colour and not a property.
+ */
+export function cardAccent(items: CardItem[], task: TaskDTO, members: MemberDTO[]): string | null {
+  const colourOf = (item: CardItem): string | null => {
+    const [first] = chipsFor(item, task, members);
+    return first?.swatch?.color ?? first?.person?.color ?? null;
+  };
+
+  const edge = items.find((i) => i.place === "edge");
+  if (edge) return colourOf(edge);
+
+  for (const item of items) {
+    if (item.place === "off" || item.place === "title") continue;
+    const colour = colourOf(item);
+    if (colour) return colour;
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
