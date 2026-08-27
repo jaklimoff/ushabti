@@ -6,7 +6,7 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
-## Unreleased
+## 0.7.0 — 2026-08-27
 
 ### Added
 
@@ -20,15 +20,26 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   rows is the board's own card drawing your own tasks, so the preview cannot
   drift from the board.
 - **An edge stripe.** A band of colour down the left of a card, one property at
-  a time, and only a property that has colours of its own. The task panel takes
-  its band from the same property.
+  a time, and only a property that has colours of its own.
 - **The description can sit on a card**, one line or two. It never could before.
 - `PATCH /api/projects/{projectId}/card-view` writes the whole card view, or
   `null` to go back to the default. People only: an agent that lost its token
   would otherwise rearrange every card on the board.
+- **The task panel is as wide as you drag it.** Its left edge is the handle —
+  the arrow keys move it too — and the width it is left at is the width every
+  task opens at, on this browser. A strip of the board always stays, whatever
+  the window.
 
 ### Changed
 
+- **A task's link carries the key on its card.** `?task=DP-4`, in place of a
+  uuid nobody can read or say out loud. A link written before this still opens
+  its task.
+- **The task panel wears the colour of the card it opens**: the edge stripe, or
+  the first colour the card leads with, asked of the card view rather than
+  chosen by the panel. Move the edge and the panel moves with it. The priority
+  is no longer said again in a pill at the top of the panel — it is a property
+  row there, like every other field.
 - **"On card" on the Properties page now writes the card view.** It is the
   short answer to the same question: off the card, or back where its type
   belongs. `showOnCard` on `PATCH /api/properties/{propertyId}` still works and
