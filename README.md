@@ -13,6 +13,10 @@ the same tasks can be looked at from more than one angle.
 
 Free, open source, and yours to run. No seats, no trial, no locked features.
 
+**[Read the documentation](https://jaklimoff.github.io/ushabti/)** — the
+guides, every property type, the whole JSON API and the agent protocol, in one
+searchable place.
+
 ![The Ushabti board](docs/board.png)
 
 ## The name
@@ -111,7 +115,7 @@ cp .env.example .env
 docker compose up         # the first run builds the image and installs packages
 ```
 
-Open <http://localhost:3000>. The app container installs the packages, writes
+Open <http://localhost:3050>. The app container installs the packages, writes
 the database schema and starts the dev server on its own.
 
 Want something to look at straight away?
@@ -133,6 +137,7 @@ also prints an agent token; give it to `examples/agent.mjs` and watch a machine
 take a card:
 
 ```bash
+USHABTI_URL=http://localhost:3050 \
 USHABTI_TOKEN=ush_demo_seed_token_not_for_real_use node examples/agent.mjs
 ```
 
