@@ -6,6 +6,34 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## 0.6.1 — 2026-08-27
+
+### Fixed
+
+- **Every count on a card read zero until the card was opened.** The board
+  counts comments and checklist items in a subquery, and the task it counted
+  for was written without naming its table. Inside the subquery that bare name
+  belongs to the other table, so the count asked whether a comment is its own
+  task and answered zero, every time. Opening a task then handed the real
+  numbers to the card behind the panel, which is why the number looked like it
+  only arrived on open. The project list counted its tasks and its people the
+  same way and showed zero for both. The end to end test that covered this
+  passed all along: it read the card the panel had already corrected. It now
+  reads the board the server draws.
+
+### Changed
+
+- **The comment count on a card is drawn, not typed.** The emoji is gone. The
+  count carries a hairline speech bubble, eleven pixels of inline SVG in the
+  same muted mono as the checklist ratio beside it.
+- **The development server listens on 3050.** 3000 is a busy port on a working
+  machine. `npm run dev`, the compose file, the dev image and the Playwright
+  default moved together, so development holds one number. Nothing changed for
+  a running instance: the shipped image, `npm run start` and the production
+  compose still listen on 3000, and so does CI.
+- **The README points at the documentation site** from the top, next to what
+  Ushabti is, instead of only from a badge and the last section.
+
 ## 0.6.0 — 2026-08-26
 
 ### Fixed
