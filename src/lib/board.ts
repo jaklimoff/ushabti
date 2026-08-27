@@ -161,6 +161,19 @@ export function sortByPosition<T extends { position: string }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => (a.position < b.position ? -1 : a.position > b.position ? 1 : 0));
 }
 
+/**
+ * The address of a task is the key a person reads on the card — DP-4 — because
+ * that is the word they say out loud. A link written before that was true
+ * carries the uuid, so both are answered here and neither one breaks.
+ */
+export function taskByAddress(tasks: TaskDTO[], address: string | null): TaskDTO | null {
+  if (!address) return null;
+  const wanted = address.trim().toLowerCase();
+  return (
+    tasks.find((t) => t.key.toLowerCase() === wanted) ?? tasks.find((t) => t.id === address) ?? null
+  );
+}
+
 export function optionById(property: PropertyDTO | undefined, id: unknown) {
   if (!property || typeof id !== "string") return undefined;
   return property.options.find((o) => o.id === id);

@@ -104,10 +104,10 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
      into a chat. This copies that same shape from wherever the board is
      served, so a link made behind a proxy still points at the proxy. */
   const copyLink = useCallback(async () => {
-    const link = `${window.location.origin}/p/${data.project.id}?task=${taskId}`;
+    const link = `${window.location.origin}/p/${data.project.id}?task=${boardTask?.key ?? taskId}`;
     if (await copyText(link)) notify("Link copied", "info");
     else notify("The link did not copy. The address bar holds it.");
-  }, [data.project.id, notify, taskId]);
+  }, [boardTask, data.project.id, notify, taskId]);
 
   /* The band and the pill follow the colour the card leads with: the edge
      stripe, or the first colour the card view puts on a card. */

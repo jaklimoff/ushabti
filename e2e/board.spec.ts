@@ -338,11 +338,13 @@ test.describe("Ushabti board", () => {
     const projectId = await createProject(page, unique("Links"));
     await addTask(page, "Todo", "Share me");
 
+    const key = await page.getByTestId("task-key").innerText();
     await page.getByTestId("task-key").click();
     await expect(page.getByTestId("toast")).toHaveText("Link copied");
 
+    // The link carries the key people read on the card, not the uuid.
     const link = await page.evaluate(() => navigator.clipboard.readText());
-    expect(link).toContain(`/p/${projectId}?task=`);
+    expect(link).toBe(`${new URL(page.url()).origin}/p/${projectId}?task=${key}`);
 
     // The link has to open the task on its own, in a window that never had
     // the board open.

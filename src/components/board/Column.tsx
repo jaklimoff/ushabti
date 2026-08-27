@@ -63,7 +63,7 @@ export function Column({
   draggable: boolean;
   /** What the filter will put on the new task, or "" when it puts nothing. */
   addNote: string;
-  onOpenTask: (id: string) => void;
+  onOpenTask: (task: TaskDTO) => void;
   onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
 }) {
   const [composing, setComposing] = useState<"top" | "bottom" | null>(null);
@@ -177,7 +177,7 @@ export function Column({
               columnId={column.id}
               selected={selectedTaskId === task.id}
               cursor={cursorTaskId === task.id}
-              onOpen={() => onOpenTask(task.id)}
+              onOpen={() => onOpenTask(task)}
             />
           ))}
         </SortableContext>
