@@ -58,6 +58,12 @@ export const projects = pgTable("projects", {
     .references(() => users.id, { onDelete: "cascade" }),
   /** Monotonic counter that produces the number part of a task key. */
   taskCounter: integer("task_counter").notNull().default(0),
+  /**
+   * What every card on this board carries: `{ order, rows }`. Null until
+   * somebody arranges one, and read through `readCardView`, which throws away a
+   * row naming a property that is gone.
+   */
+  cardView: jsonb("card_view"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

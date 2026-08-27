@@ -50,11 +50,11 @@ needs a second code path and a nullable column beside the first.
 
 | Table | Holds |
 | --- | --- |
-| `projects` | name, key prefix, owner, and the counter that gives each task its number |
+| `projects` | name, key prefix, owner, the counter that gives each task its number, and the `card_view` every card is drawn from |
 | `project_members` | who is in a project, and whether they are the owner |
 | `sessions` | a random id and an expiry. A person's sign-in |
 | `agent_tokens` | a SHA-256 digest, a visible 12-character prefix, one project, and `revoked_at` |
-| `properties` | name, type, rank, and a small `config` — today only `showOnCard` |
+| `properties` | name, type, rank, and a small `config`. Where it sits on a card is the project's `card_view`, not this |
 | `property_options` | name, colour, rank. Select types only |
 | `views` | name, grouping property, rank, and the filter rules in `config` |
 | `tasks` | title, description, number, rank. **One order per project** |

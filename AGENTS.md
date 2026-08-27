@@ -32,6 +32,29 @@ and what is easy to get wrong.
   exists only while a run does. A board with ten runs on it has to stay
   readable, which is why the step count and the log ticker never reached the
   card.
+- **A card draws the card view and decides nothing.** What a card carries is
+  `projects.card_view`, one object of `order` and `rows` that everybody on the
+  board shares. `TaskCard` knows how to draw a chip and nothing else — which
+  chips there are, where they sit and how they read all come from
+  `src/lib/card-view.ts`. Adding a property type means one line in
+  `KIND_OF_TYPE`. Putting a decision back in the card, however small, splits
+  the answer in two.
+- **The card view is read afresh, never cleaned up**, exactly as a filter is.
+  A row can name a property that has been deleted, so `readCardView()` throws
+  those away every time — on the server in `loadBoard`, and again on the write.
+  It settles the invariants in the same pass: the title never moves, one row at
+  most holds the edge, and a mode a row's kind cannot read becomes one it can.
+  Do not add a cleanup pass to the delete transaction; it would lose the same
+  race the filter one would.
+- **Five rows of the card view are not properties.** `_key`, `_title`, `_desc`,
+  `_checklist` and `_comments` are the task row the board already has, given
+  rows so that somebody can take them off. They are not fields on a task and
+  must never become any: nothing writes them, and the words are fixed.
+- **A read that started before this tab's own write is thrown away.** The
+  stream asks for the board the moment it connects, and that answer is stale
+  the instant somebody clicks. `store.tsx` counts the writes and `refresh()`
+  drops an answer that was overtaken, which is the only thing standing between
+  a fast click after a page load and having it silently undone.
 - **The board has one tab stop.** The cursor is a card, and that card is the
   only card `Tab` can reach; `BoardCanvas` holds which one and `TaskCard` sets
   `tabIndex` after dnd-kit's own attributes, which hand every card a stop. Give

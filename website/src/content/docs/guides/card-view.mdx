@@ -1,0 +1,101 @@
+---
+title: The card view
+description: Say what a card on the board carries — which properties, where they sit, and how each one reads.
+sidebar:
+  order: 2
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+
+**Settings → Card view**, or `/p/{projectId}/settings/card`.
+
+A card is small on purpose, and what belongs on it is not the same for two teams. One board needs a
+due date on every card; another needs the label colours and nothing else. This page says which it is.
+
+It belongs to the **project**, not to you and not to a view, so everybody looking at that board sees
+the same card. It **saves as you click** — there is no Save button, and the card on the right redraws
+as you go, because it is the board's own card drawing your project's own tasks.
+
+## What a row is
+
+Every row is one thing a card could carry. Most are your properties. Five are parts a task has of its
+own, and they behave the same way:
+
+| Row             | What it draws                                     |
+| --------------- | ------------------------------------------------- |
+| **Task ID**     | `USH-14`                                          |
+| **Title**       | The task title. It cannot move and cannot come off |
+| **Description** | One or two lines of it, in the body                |
+| **Checklist**   | A bar and `2/5`, or just `2/5`                    |
+| **Comments**    | A speech bubble and a count                       |
+
+<Aside title="Nothing here is a field on a task">
+The five are the task row the board already has. Everything else on a card is a property somebody
+defined, which is why deleting a property takes it off every card and adding one puts it back.
+</Aside>
+
+## The six places
+
+Open a row's **On card** cell and the small card in the panel is the map. Click a box.
+
+```
+┌─┬──────────────────┐
+│ │  L          R    │   header: two ends of one row
+│E│  ────────────    │   the title, which never moves
+│ │  [   BODY    ]   │
+│ │  L          R    │   footer: two ends of one row
+└─┴──────────────────┘
+ └ the edge stripe
+```
+
+**Left** and **right** are the two ends of the same row, so a header can carry the priority colour on
+one side and a face on the other. **Rows sharing a place sit in the order of the list** — move a row
+with the arrows to put it in front of its neighbours.
+
+**Take off the card** puts a row in *Not shown*. It keeps its place in the list, and the foot of the
+page counts what is left: *10 of 12 on the card*.
+
+### The edge stripe
+
+A stripe of colour down the left of every card. **One property at a time**, and only a property that
+has colours of its own — a select, a multi-select or a person. Ask a date for the edge and the box is
+closed, and the row says why. Giving the edge to a second property takes the first one off the card,
+and the panel says so before you click.
+
+The edge is also what the **task panel** takes its band colour from.
+
+## How a row reads
+
+| Kind                       | Modes                                   |
+| -------------------------- | --------------------------------------- |
+| Select, multi-select       | **Both** (dot and name) · **Colour** (a square) · **Text** |
+| Person                     | **Avatar** · **Name** · **Both**        |
+| Task ID, date, text, number, checkbox | **Plain** · **Boxed**        |
+| Description                | **2 lines** · **1 line**                |
+| Checklist                  | **Bar** · **Count**                     |
+
+A multi-select draws one part per value, so three labels are three squares.
+
+Asking an edge row for words moves it into the header, because a stripe has nowhere to put them.
+
+## What a card actually draws
+
+Only what the task holds. A task with no due date has a shorter footer than the one beside it, and
+neither leaves a gap. A header with nothing in it is not drawn at all.
+
+## Reset to default
+
+Back to the card Ushabti drew before this page existed: the first select colour and the task ID in
+the header, the assignee and the labels closing it, everything else in the footer, and the property
+the board is grouped by left off, because the column already says it.
+
+<Aside type="tip" title="The short way">
+The **On card** toggle on the [Properties](/ushabti/guides/properties/) page is the same setting,
+asked briefly: it takes a property off the card, or puts it back where its kind belongs.
+</Aside>
+
+<LinkCard
+  title="Settings"
+  href="/ushabti/guides/settings/"
+  description="The five settings pages, and how a destructive action asks."
+/>

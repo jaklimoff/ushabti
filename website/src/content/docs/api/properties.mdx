@@ -25,11 +25,12 @@ import { Aside, Badge } from '@astrojs/starlight/components'
 | `type` | required — `select`, `multi_select`, `person`, `text`, `number`, `date`, `checkbox` |
 | `options` | only read for `select` and `multi_select`; blanks dropped, then capped at 40 |
 
-Option colours cycle through the palette. The property is appended last with `showOnCard: true`.
+Option colours cycle through the palette. The property is appended last, and joins every card in the
+footer, where its type belongs.
 
 ```json title="201"
 { "property": { "id": "…", "projectId": "…", "name": "Environment", "type": "select",
-                "position": "Vm", "config": { "showOnCard": true }, "createdAt": "…",
+                "position": "Vm", "config": {}, "createdAt": "…",
                 "options": [{ "id": "…", "name": "local", "color": "#e0574d", "position": "V" }] } }
 ```
 
@@ -43,7 +44,10 @@ Option colours cycle through the palette. The property is appended last with `sh
 
 All optional and applied independently.
 
-- `showOnCard` is merged into `config`, so nothing else in it is lost.
+- `showOnCard` writes the project's **card view**, not the property: `false` puts the property in
+  `off`, `true` puts it back where its type belongs. See
+  [`PATCH /api/projects/{projectId}/card-view`](/ushabti/api/projects/#patch-apiprojectsprojectidcard-view)
+  for the long form.
 - `afterId` moves it. **`null` means the front**, and so does an id that names nothing. It is the
   presence of the key that triggers the move, not its value.
 

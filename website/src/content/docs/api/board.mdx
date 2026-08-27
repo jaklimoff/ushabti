@@ -34,7 +34,7 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
   "properties": [            // in the order they are shown
     {
       "id": "…", "name": "Status", "type": "select",
-      "position": "V", "config": { "showOnCard": true },
+      "position": "V", "config": {},
       "options": [           // [] for everything but select and multi_select
         { "id": "…", "name": "Todo", "color": "#d1913a", "position": "Vf" }
       ]
@@ -45,6 +45,14 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     { "id": "…", "name": "Board", "groupById": "…", "position": "V",
       "isDefault": true, "filters": { "rules": [] } }
   ],
+
+  "cardView": {              // what every card carries, already read afresh
+    "order": ["<propertyId>", "_key", "_title", "_desc", "_checklist", "_comments"],
+    "rows": {
+      "<propertyId>": { "place": "headerL", "mode": "colour" },
+      "_title": { "place": "title", "mode": "fixed" }
+    }
+  },
 
   "tasks": [                 // ONE global order for the project
     {

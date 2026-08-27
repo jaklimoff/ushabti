@@ -488,9 +488,6 @@ export function BoardCanvas({
                 key={column.id}
                 column={column}
                 addNote={addNote}
-                properties={data.properties}
-                members={data.members}
-                groupProperty={groupProperty}
                 selectedTaskId={selectedTaskId}
                 cursorTaskId={cursorTaskId}
                 draggable={columnsDraggable && !column.isNone}
@@ -504,15 +501,7 @@ export function BoardCanvas({
       </div>
 
       <DragOverlay dropAnimation={dropAnimation} zIndex={300}>
-        {activeTask && (
-          <TaskCard
-            task={activeTask}
-            properties={data.properties}
-            members={data.members}
-            groupPropertyId={groupProperty.id}
-            overlay
-          />
-        )}
+        {activeTask && <TaskCard task={activeTask} overlay />}
         {activeColumn && (
           <div className={styles.column} style={{ boxShadow: "var(--shadow-drag)" }}>
             <div className={styles.colHead}>

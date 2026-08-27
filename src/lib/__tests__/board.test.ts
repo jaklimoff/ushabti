@@ -4,7 +4,6 @@ import {
   columnIdForTask,
   cursorTarget,
   firstTask,
-  leadProperty,
   NO_VALUE,
   type BoardColumn,
 } from "../board";
@@ -88,22 +87,6 @@ describe("board grouping", () => {
     expect(columnIdForTask(task("a", { "p-status": "o-done" }), status)).toBe("o-done");
     expect(columnIdForTask(task("a"), status)).toBe(NO_VALUE);
     expect(columnIdForTask(task("a"), null)).toBe(NO_VALUE);
-  });
-
-  it("picks the first visible select that is not the column property", () => {
-    const status = property();
-    const priority = property({ id: "p-prio", name: "Priority", position: "k" });
-    const phase = property({ id: "p-phase", name: "Phase", position: "s" });
-    expect(leadProperty([status, priority, phase], "p-status")?.id).toBe("p-prio");
-    expect(leadProperty([status, priority, phase], "p-prio")?.id).toBe("p-status");
-
-    const hidden = property({
-      id: "p-prio",
-      name: "Priority",
-      position: "k",
-      config: { showOnCard: false },
-    });
-    expect(leadProperty([status, hidden, phase], "p-status")?.id).toBe("p-phase");
   });
 });
 

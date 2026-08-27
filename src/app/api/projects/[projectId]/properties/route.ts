@@ -35,7 +35,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         name,
         type,
         position: rankAfter(last.at(-1)?.position ?? null),
-        config: { showOnCard: true },
+        config: {},
       })
       .returning();
     return row;

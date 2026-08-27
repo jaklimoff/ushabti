@@ -240,7 +240,7 @@ async function main() {
         name: def.name,
         type: def.type,
         position: propRanks[i],
-        config: { showOnCard: def.showOnCard },
+        config: {},
       })
       .returning({ id: properties.id });
     propByName.set(def.name, prop.id);

@@ -68,6 +68,44 @@ A task does not store its own key; `USH-14` is built from the prefix each time. 
 every link and every agent instruction that used the old one stops working.
 </Aside>
 
+## `PATCH /api/projects/{projectId}/card-view` <Badge text="people only" variant="note" size="small" />
+
+Arranges the card every board of this project draws. Any member may; **an agent may not**, because
+the card view is the shape of the board rather than anything on it.
+
+```json title="request"
+{ "cardView": {
+    "order": ["<propertyId>", "_key", "_title", "_desc", "_checklist", "_comments"],
+    "rows": {
+      "<propertyId>": { "place": "edge", "mode": "colour" },
+      "_key":   { "place": "headerL", "mode": "text" },
+      "_title": { "place": "title",   "mode": "fixed" },
+      "_desc":  { "place": "body",    "mode": "two" }
+    } } }
+```
+
+The whole card view goes in one request; there is no per-row route. `"cardView": null` throws the
+saved one away and goes back to the default.
+
+| Field | Rules |
+| --- | --- |
+| `order` | which row is drawn first where two share a place. Ids nobody knows are dropped, ids nobody named are appended |
+| `rows[id].place` | `edge`, `headerL`, `headerR`, `body`, `footerL`, `footerR`, `off` |
+| `rows[id].mode` | `colour`, `both`, `avatar`, `text`, `boxed`, `one`, `two`, `bar`, `fixed` — the row's kind decides which it may use |
+
+Five ids are not properties: `_key`, `_title`, `_desc`, `_checklist` and `_comments`.
+
+The body is read the way the board reads it, so what comes back is what was stored, not what was
+sent: a row naming a property that is gone is dropped, `_title` stays in `title`/`fixed`, only one
+row keeps `edge` (and only a select, multi-select or person may hold it), and a mode a row cannot
+read becomes the first one it can.
+
+```json title="200"
+{ "cardView": { "order": ["…"], "rows": { "…": { "place": "headerL", "mode": "colour" } } } }
+```
+
+`403 Only a person can do this.` for a token.
+
 ## `DELETE /api/projects/{projectId}` <Badge text="owner only" variant="caution" size="small" />
 
 Deletes the project and, by cascade, everything in it. `200 {"ok": true}`. The API asks for no

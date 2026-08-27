@@ -97,6 +97,7 @@ export default defineConfig({
           label: "Using the board",
           items: [
             { label: "Properties", link: "/guides/properties/" },
+            { label: "The card view", link: "/guides/card-view/" },
             { label: "Views", link: "/guides/views/" },
             { label: "The board", link: "/guides/board/" },
             { label: "Keyboard", link: "/guides/keyboard/" },

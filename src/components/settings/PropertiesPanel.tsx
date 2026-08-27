@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useBoard } from "@/components/board/store";
+import { fallbackRow, KIND_OF_TYPE, setCardPlace, viewOf } from "@/lib/card-view";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
@@ -111,12 +112,16 @@ function PropertyRow({
   upTarget: string | null | undefined;
   downTarget: string | undefined;
 }) {
-  const { data, patchProperty, moveProperty, deleteProperty, addOption } = useBoard();
+  const { data, cardItems, setCardView, patchProperty, moveProperty, deleteProperty, addOption } =
+    useBoard();
   const [name, setName] = useState(property.name);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const confirm = useConfirm();
-  const showOnCard = property.config.showOnCard !== false;
+  /* Where a property sits on a card belongs to the card view, so this reads
+     from there and writes there. This page keeps the short answer; the card
+     view page has the long one. */
+  const showOnCard = cardItems.find((i) => i.id === property.id)?.place !== "off";
   const canMoveUp = upTarget !== undefined;
   const canMoveDown = downTarget !== undefined;
 
@@ -174,7 +179,20 @@ function PropertyRow({
             className={`${styles.cardToggle} ${showOnCard ? styles.cardToggleOn : ""}`}
             aria-label={`${showOnCard ? "Hide" : "Show"} ${property.name} on the card`}
             aria-pressed={showOnCard}
-            onClick={() => void patchProperty(property.id, { showOnCard: !showOnCard })}
+            onClick={() => {
+              const view = viewOf(cardItems);
+              void setCardView(
+                showOnCard
+                  ? setCardPlace(view, property.id, "off")
+                  : {
+                      ...view,
+                      rows: {
+                        ...view.rows,
+                        [property.id]: fallbackRow(KIND_OF_TYPE[property.type]),
+                      },
+                    },
+              );
+            }}
           >
             On card {showOnCard ? "◉" : "○"}
           </button>

@@ -98,8 +98,8 @@ test.describe("Ushabti board", () => {
     await page.getByRole("button", { name: "Urgent" }).click();
     await page.getByRole("button", { name: "Close task" }).click();
 
-    const square = card(page, "Priority test").getByTestId("card-lead-square");
-    await expect(square).toHaveAttribute("title", "Priority: Urgent");
+    const square = card(page, "Priority test").getByTestId("card-chip").first();
+    await expect(square).toHaveAttribute("title", "Priority · Urgent");
   });
 
   test("drag a card into another column and it stays there", async ({ page }) => {

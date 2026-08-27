@@ -157,22 +157,6 @@ export function cursorTarget(
   }
 }
 
-/**
- * The first select property that is not the column property. Its colour drives
- * the small square on a card and the band at the top of the detail panel, so it
- * has to be the same property whether or not a task carries a value for it.
- */
-export function leadProperty(
-  properties: PropertyDTO[],
-  groupPropertyId: string | null,
-): PropertyDTO | null {
-  return (
-    properties.find(
-      (p) => p.type === "select" && p.id !== groupPropertyId && p.config.showOnCard !== false,
-    ) ?? null
-  );
-}
-
 export function sortByPosition<T extends { position: string }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => (a.position < b.position ? -1 : a.position > b.position ? 1 : 0));
 }

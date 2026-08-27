@@ -4,7 +4,6 @@ export type DefaultOption = { name: string; color: string };
 export type DefaultProperty = {
   name: string;
   type: PropertyType;
-  showOnCard: boolean;
   options?: DefaultOption[];
 };
 
@@ -17,7 +16,6 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
   {
     name: "Status",
     type: "select",
-    showOnCard: true,
     options: [
       { name: "Backlog", color: "#6b7280" },
       { name: "Todo", color: "#9aa0aa" },
@@ -29,7 +27,6 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
   {
     name: "Priority",
     type: "select",
-    showOnCard: true,
     options: [
       { name: "Urgent", color: "#e0574d" },
       { name: "High", color: "#d1913a" },
@@ -37,11 +34,10 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
       { name: "Low", color: "#8b8f98" },
     ],
   },
-  { name: "Assignee", type: "person", showOnCard: true },
+  { name: "Assignee", type: "person" },
   {
     name: "Phase",
     type: "select",
-    showOnCard: true,
     options: [
       { name: "PoC", color: "#8b8f98" },
       { name: "MVP", color: "#3fb0c8" },
@@ -53,7 +49,6 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
   {
     name: "Estimate",
     type: "select",
-    showOnCard: true,
     options: [
       { name: "XS", color: "#8b8f98" },
       { name: "S", color: "#4b8fbe" },
@@ -65,7 +60,6 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
   {
     name: "Labels",
     type: "multi_select",
-    showOnCard: true,
     options: [
       { name: "bug", color: "#e0574d" },
       { name: "feature", color: "#2f9e7a" },
@@ -74,7 +68,7 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
       { name: "docs", color: "#7a8a2f" },
     ],
   },
-  { name: "Due", type: "date", showOnCard: true },
+  { name: "Due", type: "date" },
 ];
 
 /** Views that a new project starts with. Keyed by default property name. */

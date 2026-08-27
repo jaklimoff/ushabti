@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "card_view" jsonb;
