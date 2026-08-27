@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCard,
+  cardAccent,
   cardItems,
   defaultCardView,
   moveCardRow,
@@ -294,5 +295,48 @@ describe("the preview", () => {
 
     const real = [task({ "p-prio": "o-urgent" }, { id: "a" }), task({}, { id: "b" })];
     expect(previewTasks(real, PROPERTIES, [ADA], "USH").map((t) => t.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("the colour a panel takes from a card", () => {
+  const edged = items({
+    order: ["p-status", "p-prio", "_key", "_title", "p-who"],
+    rows: {
+      "p-status": { place: "edge", mode: "colour" },
+      "p-prio": { place: "headerL", mode: "colour" },
+      _key: { place: "headerL", mode: "text" },
+      _title: { place: "title", mode: "fixed" },
+      "p-who": { place: "headerR", mode: "avatar" },
+    },
+  });
+
+  it("is the stripe the card draws, whatever else has a colour", () => {
+    expect(cardAccent(edged, task({ "p-status": "o-done", "p-prio": "o-urgent" }), [])).toBe(
+      "#4f8a5b",
+    );
+  });
+
+  it("is nothing when the task holds no value for the stripe", () => {
+    expect(cardAccent(edged, task({ "p-prio": "o-urgent" }), [])).toBeNull();
+  });
+
+  it("falls back to the first colour on a card with no stripe", () => {
+    const plain = items(null);
+    expect(cardAccent(plain, task({ "p-prio": "o-urgent", "p-who": "m-ada" }), [ADA])).toBe(
+      "#e0574d",
+    );
+    expect(cardAccent(plain, task({ "p-who": "m-ada" }), [ADA])).toBe("#6d5bd0");
+    expect(cardAccent(plain, task(), [ADA])).toBeNull();
+  });
+
+  it("takes no colour from a row that reads as words", () => {
+    const words = items({
+      order: ["p-prio", "_title"],
+      rows: {
+        "p-prio": { place: "headerL", mode: "text" },
+        _title: { place: "title", mode: "fixed" },
+      },
+    });
+    expect(cardAccent(words, task({ "p-prio": "o-urgent" }), [])).toBeNull();
   });
 });

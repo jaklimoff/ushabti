@@ -38,7 +38,9 @@ and what is easy to get wrong.
   chips there are, where they sit and how they read all come from
   `src/lib/card-view.ts`. Adding a property type means one line in
   `KIND_OF_TYPE`. Putting a decision back in the card, however small, splits
-  the answer in two.
+  the answer in two. The detail panel takes the same colour by the same route:
+  `cardAccent()` asks the card view for the stripe the card wears, so moving
+  the edge moves the panel with it and no screen names a property of its own.
 - **The card view is read afresh, never cleaned up**, exactly as a filter is.
   A row can name a property that has been deleted, so `readCardView()` throws
   those away every time — on the server in `loadBoard`, and again on the write.

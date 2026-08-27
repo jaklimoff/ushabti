@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
 import { relativeTime } from "@/lib/board";
-import { accentProperty } from "@/lib/card-view";
+import { cardAccent } from "@/lib/card-view";
 import { tint } from "@/lib/colors";
 import {
   duration,
@@ -109,16 +109,13 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     else notify("The link did not copy. The address bar holds it.");
   }, [boardTask, data.project.id, notify, taskId]);
 
-  /* The band and the pill follow the colour the card leads with: the edge
-     stripe, or the first colour the card view puts on a card. */
-  const leadPill = useMemo(() => {
-    if (!boardTask) return null;
-    const property = accentProperty(cardItems);
-    if (!property) return null;
-    return property.options.find((o) => o.id === boardTask.values[property.id]) ?? null;
-  }, [boardTask, cardItems]);
-
-  const accent = leadPill?.color ?? "#3f4650";
+  /* The band takes the colour the card wears: its edge stripe, or the first
+     colour the card view puts on it. The panel and the card it came from are
+     one thing, so they read the same colour out of the same place. */
+  const accent = useMemo(
+    () => (boardTask ? cardAccent(cardItems, boardTask, data.members) : null) ?? "#3f4650",
+    [boardTask, cardItems, data.members],
+  );
 
   // The agent tab only exists while a run does. Deriving the shown tab rather
   // than resetting it in an effect keeps the choice in one place.
@@ -129,7 +126,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
 
   return (
     <aside className={styles.panel} data-testid="task-panel">
-      <div className={styles.accent} style={{ background: accent }} />
+      <div className={styles.accent} data-testid="panel-accent" style={{ background: accent }} />
 
       <div className={styles.head} style={{ background: tint(accent, 0.06) }} ref={menuRef}>
         <div className={styles.headRow}>
@@ -143,14 +140,6 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           >
             {boardTask.key}
           </button>
-          {leadPill && (
-            <span className={styles.leadPill} style={{ background: tint(leadPill.color, 0.16) }}>
-              <span
-                style={{ width: 5, height: 5, borderRadius: "50%", background: leadPill.color }}
-              />
-              {leadPill.name}
-            </span>
-          )}
           <span style={{ flex: 1 }} />
           <button
             className={styles.iconButton}

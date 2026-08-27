@@ -73,6 +73,35 @@ test.describe("Card view", () => {
     await expect(card(page, "Striped").getByTestId("card-edge")).toHaveCount(0);
   });
 
+  test("the panel wears the colour of the card it opens", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Band"));
+    await addTask(page, "Todo", "Coloured");
+    await page.getByRole("button", { name: "Urgent" }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "card");
+    await row(page, "Priority")
+      .getByRole("button", { name: /^Priority on the card/ })
+      .click();
+    await saved(page, () =>
+      page.getByRole("button", { name: "Put Priority in the edge stripe" }).click(),
+    );
+
+    await page.goto(`/p/${projectId}`);
+    const stripe = card(page, "Coloured").getByTestId("card-edge");
+    const colour = await stripe.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+    await card(page, "Coloured").click();
+    await expect(page.getByTestId("task-panel")).toBeVisible();
+    const band = page.getByTestId("panel-accent");
+    expect(await band.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(colour);
+
+    // The priority used to be said again at the top of the panel. The panel
+    // holds it as a property, so it is said once.
+    await expect(page.getByTestId("task-panel").getByText("Urgent").first()).toBeVisible();
+  });
+
   test("a date has no colours of its own, so the edge is closed to it", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Dates"));
