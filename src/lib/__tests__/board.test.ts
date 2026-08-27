@@ -5,6 +5,7 @@ import {
   cursorTarget,
   firstTask,
   NO_VALUE,
+  taskByAddress,
   type BoardColumn,
 } from "../board";
 import type { MemberDTO, PropertyDTO, TaskDTO } from "../types";
@@ -146,5 +147,23 @@ describe("board cursor", () => {
     expect(cursorTarget(columns, "gone", "left")).toBe("a");
     expect(firstTask(columns)).toBe("a");
     expect(firstTask(board([], []))).toBeNull();
+  });
+});
+
+describe("the address of a task", () => {
+  const tasks = [task("one"), task("two")];
+
+  it("finds the task the key names, whatever the case", () => {
+    expect(taskByAddress(tasks, "USH-two")?.id).toBe("two");
+    expect(taskByAddress(tasks, "ush-two")?.id).toBe("two");
+  });
+
+  it("still answers a link that carries the uuid", () => {
+    expect(taskByAddress(tasks, "one")?.id).toBe("one");
+  });
+
+  it("says nothing for a key no task has", () => {
+    expect(taskByAddress(tasks, "USH-404")).toBeNull();
+    expect(taskByAddress(tasks, null)).toBeNull();
   });
 });

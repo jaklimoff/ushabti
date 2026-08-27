@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import type { BoardData } from "@/lib/types";
+import { taskByAddress } from "@/lib/board";
+import type { BoardData, TaskDTO } from "@/lib/types";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
@@ -15,31 +16,36 @@ import styles from "./board.module.css";
 export function BoardApp({
   initial,
   user,
-  initialTaskId,
+  initialTask,
 }: {
   initial: BoardData;
   user: SessionUser;
-  initialTaskId: string | null;
+  /** What the query said: a task key, or the uuid an older link carries. */
+  initialTask: string | null;
 }) {
   return (
     <BoardProvider initial={initial} user={user}>
-      <BoardShell initialTaskId={initialTaskId} />
+      <BoardShell initialTask={initialTask} />
     </BoardProvider>
   );
 }
 
-function BoardShell({ initialTaskId }: { initialTaskId: string | null }) {
+function BoardShell({ initialTask }: { initialTask: string | null }) {
   const { data, user, view, live, toasts, groupProperty, filters, visibleTasks, setFilters } =
     useBoard();
-  const [selected, setSelected] = useState<string | null>(initialTaskId);
+  const [selected, setSelected] = useState<string | null>(
+    () => taskByAddress(data.tasks, initialTask)?.id ?? null,
+  );
   /* The chip line and the Filter button are on two rows but are one control,
      so the row can hold its space open while somebody is choosing. */
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const open = useCallback((id: string | null) => {
-    setSelected(id);
+  /* The task itself arrives, not its id, because the query carries the key a
+     person reads on the card and only the task knows it. */
+  const open = useCallback((task: TaskDTO | null) => {
+    setSelected(task?.id ?? null);
     const url = new URL(window.location.href);
-    if (id) url.searchParams.set("task", id);
+    if (task) url.searchParams.set("task", task.key);
     else url.searchParams.delete("task");
     window.history.replaceState(null, "", url.toString());
   }, []);

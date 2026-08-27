@@ -37,7 +37,7 @@ import {
   type CursorStep,
 } from "@/lib/board";
 import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
-import type { TaskValue } from "@/lib/types";
+import type { TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column } from "./Column";
 import { TaskCard } from "./TaskCard";
@@ -190,7 +190,7 @@ export function BoardCanvas({
   onOpenTask,
 }: {
   selectedTaskId: string | null;
-  onOpenTask: (id: string | null) => void;
+  onOpenTask: (task: TaskDTO | null) => void;
 }) {
   const {
     data,
@@ -423,7 +423,7 @@ export function BoardCanvas({
     if (groupProperty && !column.isNone) values[groupProperty.id] = column.value;
     const neighbour = atTop ? null : (column.tasks.at(-1)?.id ?? null);
     const task = await createTask({ title, values, afterId: neighbour, atTop });
-    if (task) onOpenTask(task.id);
+    if (task) onOpenTask(task);
   }
 
   /* Focus and the cursor are the same thing, so a click or a Tab onto a card
