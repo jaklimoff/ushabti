@@ -9,7 +9,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "next dev -p 3000 -H 0.0.0.0",
+    "dev": "next dev -p 3050 -H 0.0.0.0",
     "build": "next build",
     "start": "next start -p 3000 -H 0.0.0.0",
     "lint": "eslint .",
