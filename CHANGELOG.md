@@ -6,7 +6,7 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
-## Unreleased
+## 0.8.0 — 2026-09-02
 
 ### Added
 
@@ -54,6 +54,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   has one.
 - Adding a task to a filtered list fills in what the filter asks for, including
   the property a board would have left to its columns.
+
+### Note for anyone upgrading
+
+This release adds a column to `views`, so run `npm run db:migrate` before you
+start the new image — the published image runs its migrations itself. Every
+view you already have reads as a **board**, so nothing on your screen changes
+until you make a list or turn one of them into a list.
 
 ## 0.7.0 — 2026-08-27
 
