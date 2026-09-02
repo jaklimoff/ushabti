@@ -28,6 +28,7 @@ import type {
   ViewDTO,
   ViewFilters,
   ViewKind,
+  ViewSort,
 } from "@/lib/types";
 import type { SessionUser } from "@/components/ui/UserMenu";
 
@@ -47,6 +48,10 @@ type Store = {
   visibleTasks: TaskDTO[];
   /** Writes the rules of the view. They save at once, like the grouping does. */
   setFilters: (rules: FilterRule[]) => Promise<void>;
+  /** The order the view draws its rows in, or null for the shared rank. */
+  sort: ViewSort | null;
+  /** Writes that order. It saves at once, exactly as a rule does. */
+  setSort: (sort: ViewSort | null) => Promise<void>;
   /** Every row of the card, in order, with the property behind it. */
   cardItems: CardItem[];
   /** Arranges the card. It saves as you click; there is no Save button. */
@@ -88,7 +93,13 @@ type Store = {
   createView: (name: string, kind: ViewKind, groupById: string | null) => Promise<void>;
   updateView: (
     viewId: string,
-    patch: { name?: string; kind?: ViewKind; groupById?: string | null; filters?: ViewFilters },
+    patch: {
+      name?: string;
+      kind?: ViewKind;
+      groupById?: string | null;
+      filters?: ViewFilters;
+      sort?: ViewSort | null;
+    },
   ) => Promise<void>;
   deleteView: (viewId: string) => Promise<void>;
 
@@ -246,6 +257,7 @@ export function BoardProvider({
   );
 
   const filters = view?.filters ?? EMPTY_FILTERS;
+  const sort = view?.sort ?? null;
 
   /*
    * The card view is read afresh here, exactly as the server reads it: a row
@@ -478,6 +490,14 @@ export function BoardProvider({
     [updateView, view],
   );
 
+  const setSort = useCallback<Store["setSort"]>(
+    async (next) => {
+      if (!view) return;
+      await updateView(view.id, { sort: next });
+    },
+    [updateView, view],
+  );
+
   /* --- the card ------------------------------------------------------- */
   const setCardView = useCallback<Store["setCardView"]>(
     async (next) => {
@@ -641,6 +661,8 @@ export function BoardProvider({
     filters,
     visibleTasks,
     setFilters,
+    sort,
+    setSort,
     cardItems: items,
     setCardView,
     resetCardView,

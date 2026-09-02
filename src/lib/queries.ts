@@ -19,6 +19,7 @@ import { HttpError } from "./auth";
 import { readCardView } from "./card-view";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
+import { readSort } from "./sort";
 import { rankSequence } from "./rank";
 import { loadOpenRuns, loadTaskRun } from "./runs";
 import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
@@ -165,6 +166,7 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[]): ViewDTO {
     position: row.position,
     isDefault: row.isDefault,
     filters: readFilters((row.config as { filters?: unknown } | null)?.filters, propertyList),
+    sort: readSort((row.config as { sort?: unknown } | null)?.sort, propertyList),
   };
 }
 

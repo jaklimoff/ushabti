@@ -25,6 +25,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
 import { listColumns, listTemplate } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
+import { canSort, nextSort, sortTasks } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
 import { useBoard } from "./store";
 import { TaskRow, pinProps } from "./TaskRow";
@@ -81,6 +82,8 @@ export function ListCanvas({
     filters,
     visibleTasks,
     cardItems,
+    sort,
+    setSort,
     moveTask,
     createTask,
     runOf,
@@ -95,11 +98,27 @@ export function ListCanvas({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const base = useMemo(() => sortByPosition(visibleTasks), [visibleTasks]);
-  const rows = preview ?? base;
-
   const columns = useMemo(() => listColumns(cardItems), [cardItems]);
   const template = useMemo(() => listTemplate(columns), [columns]);
+
+  /*
+   * The rank every view shares, unless somebody asked a heading for another
+   * order. A sort writes nothing, so the rank underneath is untouched and the
+   * boards go on showing it.
+   */
+  const base = useMemo(
+    () => sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members),
+    [visibleTasks, sort, cardItems, data.members],
+  );
+  const rows = preview ?? base;
+
+  /*
+   * A drag writes a rank, and a sorted list is not showing ranks. Dropping a
+   * row between two others would write an order nobody on this screen can see
+   * and then leave the row where the sort puts it, which reads as the drag
+   * having failed. So the rows are held still, and the chip above says why.
+   */
+  const sorted = sort !== null;
 
   /*
    * The cursor walks the same function the board walks, over a list that is one
@@ -234,6 +253,15 @@ export function ListCanvas({
   function onRowKeys(event: React.KeyboardEvent<HTMLDivElement>) {
     // While a row is lifted the arrows belong to the drag sensor.
     if (activeTaskId) return;
+
+    /* Space lifts a row, and a sorted list has no rank to lift one to. The
+       sensor is off, so without this the press would fall through and scroll
+       the list instead — which reads as the list having jumped by itself. */
+    if (sorted && event.key === " " && rowIdOf(event.target)) {
+      event.preventDefault();
+      return;
+    }
+
     const step = STEPS[event.key];
     if (!step) return;
     // Keys typed in the composer are not ours. Left and right are nobody's:
@@ -280,21 +308,64 @@ export function ListCanvas({
             <div className={styles.listHead} data-testid="list-head">
               {columns.map((column, at) => {
                 const held = pinProps(columns, column, at);
+                const on = sort?.columnId === column.id ? sort.direction : null;
+                const className = [
+                  styles.listHeadCell,
+                  column.right ? styles.listHeadRight : "",
+                  on ? styles.listHeadOn : "",
+                  held.className,
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+
+                if (!canSort(column.item)) {
+                  return (
+                    <span key={column.id} style={held.style} className={className}>
+                      {column.name}
+                    </span>
+                  );
+                }
+
                 return (
-                  <span
+                  <button
                     key={column.id}
+                    type="button"
                     style={held.style}
-                    className={[
-                      styles.listHeadCell,
-                      column.right ? styles.listHeadRight : "",
-                      held.className,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    title={column.name}
+                    className={className}
+                    data-testid="list-head-cell"
+                    /* `aria-sort` belongs to a columnheader, and nothing here
+                       is one: the list is a grid that reads like a table, and
+                       its rows are buttons. So the state goes in the name,
+                       where it is read either way. */
+                    aria-label={
+                      on === "asc"
+                        ? `${column.name}, smallest first. Again for largest first.`
+                        : on === "desc"
+                          ? `${column.name}, largest first. Again for the board's own order.`
+                          : `Order by ${column.name}`
+                    }
+                    /* Down, then up, then back to the order the board keeps —
+                       and the third press is the way back to a list you can
+                       drag, which is why it is on the heading and not hidden
+                       in a menu. */
+                    title={
+                      on === "asc"
+                        ? `${column.name}, smallest first. Again for largest first.`
+                        : on === "desc"
+                          ? `${column.name}, largest first. Again for the board's own order.`
+                          : `Order by ${column.name}`
+                    }
+                    onClick={() => void setSort(nextSort(sort, column.id))}
                   >
-                    {column.name}
-                  </span>
+                    <span className={styles.listHeadWords} data-testid="list-head-name">
+                      {column.name}
+                    </span>
+                    {on && (
+                      <span className={styles.listHeadArrow} aria-hidden>
+                        {on === "asc" ? "\u2191" : "\u2193"}
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>
@@ -307,6 +378,7 @@ export function ListCanvas({
                   columns={columns}
                   selected={selectedTaskId === task.id}
                   cursor={cursorTaskId === task.id}
+                  frozen={sorted}
                   onOpen={() => onOpenTask(task)}
                 />
               ))}
@@ -377,17 +449,21 @@ function SortableRow({
   columns,
   selected,
   cursor,
+  frozen,
   onOpen,
 }: {
   task: TaskDTO;
   columns: ReturnType<typeof listColumns>;
   selected: boolean;
   cursor: boolean;
+  /** A sorted list is not showing ranks, so there is no rank to drag one to. */
+  frozen: boolean;
   onOpen: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: { type: "row" },
+    disabled: frozen,
     transition: { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" },
   });
 

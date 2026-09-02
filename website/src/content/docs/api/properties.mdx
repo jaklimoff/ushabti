@@ -133,16 +133,25 @@ becomes a board again.
 ### `PATCH /api/views/{viewId}`
 
 ```json title="request"
-{ "name": "Board", "kind": "list", "groupById": "…", "filters": { "rules": [ … ] } }
+{ "name": "Board", "kind": "list", "groupById": "…",
+  "filters": { "rules": [ … ] },
+  "sort": { "columnId": "<propertyId or _key|_title|_checklist|_comments>", "direction": "asc" } }
 ```
+
+`sort` is the order a **list** draws its rows in; `null` gives back the rank every view shares, which
+is the only order a drag can write. `columnId` names a property or one of the parts a task has of its
+own — the same ids the card view is made of. A sort naming a column that is gone is dropped on the
+way in, exactly as a filter rule is. A board keeps a sort it is given but never reads one.
 
 Send `"groupById": null` to clear it. A view that would end up a **board** with no property is
 refused — `400 A board needs a property to make its columns from.` — because the alternative is a
 screen with nothing on it. An unknown `kind` is refused rather than stored.
 
 <Aside type="caution" title="`filters` is human only">
-An agent may rename a view, change its kind and change its grouping. It may **not** write filters —
-a token that could hide work from the people should not. `403 Only a person can do this.`
+An agent may rename a view, change its kind, change its grouping and change its **sort**. It may
+**not** write filters — a token that could hide work from the people should not. `403 Only a person
+can do this.` A sort is not guarded, because it hides nothing: every task is on the screen either
+way, in a different order.
 </Aside>
 
 Rules are read and cleaned **on the way in** as well as on the way out, so what you send is not

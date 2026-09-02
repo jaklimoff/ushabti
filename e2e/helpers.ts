@@ -117,6 +117,17 @@ export function listRow(page: Page, title: string) {
 }
 
 /**
+ * The heading of a list column, which is also the button that orders it. It is
+ * found by its name and not by its whole text, because a sorted heading grows
+ * an arrow.
+ */
+export function listHead(page: Page, name: string) {
+  return page.getByTestId("list-head-cell").filter({
+    has: page.getByTestId("list-head-name").filter({ hasText: new RegExp(`^${name}$`, "i") }),
+  });
+}
+
+/**
  * The titles of the list, top to bottom. Scoped to the rows themselves: the
  * drag overlay draws a row of its own and would otherwise join the answer.
  */

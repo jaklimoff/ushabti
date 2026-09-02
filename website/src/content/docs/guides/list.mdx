@@ -57,8 +57,9 @@ itself, which would then make the column vanish the day somebody edited an unrel
 
 ## Order, and dragging a row
 
-The rows are in `position` order, top to bottom. Drag one and it writes exactly one rank — the same
-write a card drag makes, minus the property value, because there is no column to say anything about.
+The rows are in `position` order, top to bottom — until you ask a heading for another order. Drag one
+and it writes exactly one rank — the same write a card drag makes, minus the property value, because
+there is no column to say anything about.
 
 **That order is shared.** Move a row in a list and the card moves on every board in the project.
 This is not a new hazard; it is the existing one, running the other way. A board drag has always
@@ -67,10 +68,48 @@ reordered the list.
 Under a filter the rows are a subsequence, so a drag puts the row beside the row you can *see*, and
 the hidden tasks between them stay where they are.
 
-<Aside type="note" title="The headings are labels, not sort buttons">
-Sorting a view is [still to come](/ushabti/releases/roadmap/). A header that sorted today would show
-an order no drag can write and nobody else can see, so the headings do nothing on purpose. When
-sorting arrives, a sorted list will turn its drag off and say so.
+## Ordering by a column
+
+**Press a heading.** Once for smallest first, again for largest first, and a third time for the
+order the board itself keeps. The heading you pressed carries an arrow, and a chip above the list
+names the column so you can see at a glance that the list is not in its own order.
+
+A sort **writes nothing**. The rank each task carries is untouched, so every board goes on showing
+exactly what it showed before, and the order is remembered on the view — everybody looking at that
+view sees it, the way they see its filters.
+
+How each kind of column orders:
+
+<div class="cols-table">
+
+| Column | Orders by |
+| ------ | --------- |
+| **select** | its own option order — Urgent above Low, not alphabetically between High and Medium |
+| **multi-select** | its highest option, so a task labelled `bug` and `docs` sorts with the bugs |
+| **person** | the member's name |
+| **date** | the day it names |
+| **number** | its size, so 9 comes before 10 |
+| **text**, **title** | the words |
+| **checkbox** | off before on |
+| **Task ID** | the number |
+| **Checklist** | how far along it is — three of four is further than three of ten |
+| **Comments** | how many |
+
+</div>
+
+A task that holds **nothing** for that column goes last, whichever way the order runs. Turning a sort
+around asks a question about the tasks that have an answer; "nothing yet" is not a small value, and a
+list that opened on a page of blanks would be answering a question nobody asked.
+
+Two tasks that compare the same keep the rank they already had, so a sorted list never shuffles under
+you and always agrees with the board underneath.
+
+<Aside type="caution" title="A sorted list cannot be dragged">
+A drag writes a rank, and a sorted list is not showing ranks — dropping a row between two others
+would write an order nobody on the screen can see and then leave the row where the sort puts it,
+which reads as the drag having failed. So while an order is on, the rows are held still and
+<kbd>Space</kbd> does not lift one. The third press of the heading, or the `✕` on the chip, gives the
+order — and the drag — back.
 </Aside>
 
 ## Adding a task
@@ -96,7 +135,7 @@ The list has exactly **one tab stop**, and it is the row the cursor is on.
 | `↑` `↓`            | move the cursor. Nothing wraps                 |
 | `Home` `End`       | first row, last row                            |
 | `Enter`            | open the task in the panel                     |
-| `Space`            | pick the row up, and put it down again         |
+| `Space`            | pick the row up, and put it down again. Not while the list is sorted |
 | `↑` `↓` while held | move the row                                   |
 | `Escape`           | cancel the lift, or close the panel            |
 

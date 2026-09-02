@@ -6,6 +6,7 @@ import {
   column,
   createProject,
   gotoSettings,
+  listHead,
   listOrder,
   listRow,
   register,
@@ -287,6 +288,104 @@ test.describe("A list view", () => {
     await page.getByRole("button", { name: "Delete the property Phase" }).click();
     await page.getByRole("button", { name: /^Yes, / }).click();
     await expect(page.getByLabel("Name of the Phase property")).toHaveCount(0);
+  });
+
+  test("orders itself by a column, and gives the board's own order back", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Sort"));
+
+    await addTask(page, "Todo", "Middling");
+    await page.getByRole("button", { name: "Medium", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addTask(page, "Todo", "The worst of it");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addTask(page, "Todo", "Can wait");
+    await page.getByRole("button", { name: "Low", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await addListView(page, "Sorted");
+    const asAdded = ["Middling", "The worst of it", "Can wait"];
+    expect(await listOrder(page)).toEqual(asAdded);
+
+    // Options are ordered by hand and that order is the meaning: Urgent above
+    // Low, not alphabetically.
+    await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
+    expect(await listOrder(page)).toEqual(["The worst of it", "Middling", "Can wait"]);
+
+    await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
+    expect(await listOrder(page)).toEqual(["Can wait", "Middling", "The worst of it"]);
+
+    // The third press is the way back to the order a drag can write.
+    await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
+    expect(await listOrder(page)).toEqual(asAdded);
+    await expect(page.getByTestId("sort-chip")).toHaveCount(0);
+  });
+
+  test("holds its order across a reload, and says it is holding one", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Holds"));
+    await threeTasks(page);
+    await addListView(page, "Held");
+
+    await settles(page, /\/api\/views\//, () => listHead(page, "Title").click());
+    const sorted = await listOrder(page);
+    expect(sorted).toEqual(["First thing", "Second thing", "Third thing"].sort());
+
+    await expect(page.getByTestId("sort-chip")).toContainText("Title");
+
+    await page.reload();
+    await expect(page.getByTestId("list-view")).toBeVisible();
+    expect(await listOrder(page)).toEqual(sorted);
+    await expect(page.getByTestId("sort-chip")).toContainText("Title");
+
+    // The chip is the other way out, and it leaves the drag working again.
+    await settles(page, /\/api\/views\//, () => page.getByTestId("sort-clear").click());
+    await expect(page.getByTestId("sort-chip")).toHaveCount(0);
+    expect(await listOrder(page)).toEqual(["First thing", "Second thing", "Third thing"]);
+  });
+
+  test("cannot be dragged while it is holding an order", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Frozen"));
+    await threeTasks(page);
+    await addListView(page, "Frozen");
+
+    await settles(page, /\/api\/views\//, () => listHead(page, "Title").click());
+    const before = await listOrder(page);
+
+    // A drag would write a rank into a list that is not showing ranks, so the
+    // rows are held still. Space does not lift one either.
+    await listRow(page, before[2]).focus();
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(250);
+    await expect(page.getByTestId("list-row-overlay")).toHaveCount(0);
+    expect(await listOrder(page)).toEqual(before);
+
+    // And with the order given back, it lifts again.
+    await settles(page, /\/api\/views\//, () => page.getByTestId("sort-clear").click());
+    await listRow(page, "First thing").focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByTestId("list-row-overlay")).toBeVisible();
+    await page.keyboard.press("Escape");
+  });
+
+  test("the order belongs to the view, not to the board underneath", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Mine"));
+    await threeTasks(page);
+    await addListView(page, "Mine");
+
+    await settles(page, /\/api\/views\//, () => listHead(page, "Title").click());
+    expect(await listOrder(page)).toEqual(["First thing", "Second thing", "Third thing"].sort());
+
+    // A sort writes nothing. The rank underneath is untouched, so the board
+    // shows exactly what it showed before.
+    await page.getByTestId("view-pill").filter({ hasText: "Board" }).first().click();
+    await expect(column(page, "Todo").getByTestId("card-title")).toHaveText([
+      "First thing",
+      "Second thing",
+    ]);
   });
 
   test("opens a task beside it, and the panel wears the row's colour", async ({ page }) => {

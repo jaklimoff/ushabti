@@ -246,6 +246,29 @@ export type ViewFilters = {
   rules: FilterRule[];
 };
 
+/* ------------------------------------------------------------------ */
+/* Sorting                                                             */
+/* ------------------------------------------------------------------ */
+
+export const SORT_DIRECTIONS = ["asc", "desc"] as const;
+
+export type SortDirection = (typeof SORT_DIRECTIONS)[number];
+
+/**
+ * The order a list is drawn in, when somebody has asked for one. `columnId` is
+ * a property, or one of the parts a task has of its own — the same ids the
+ * card view is made of, because a list's columns are the card view.
+ *
+ * It writes nothing. The rank a task carries is the one order every view
+ * shares and it stays where it is, so a view with a sort is showing an order
+ * it cannot save — which is exactly why a sorted list cannot be dragged.
+ * `src/lib/sort.ts` holds the comparing.
+ */
+export type ViewSort = {
+  columnId: string;
+  direction: SortDirection;
+};
+
 /**
  * The shape a view draws the same tasks in. A board puts them in columns; a
  * list puts them in one dense line-per-task, which is what a long backlog
@@ -277,6 +300,12 @@ export type ViewDTO = {
   isDefault: boolean;
   /** Which tasks this view shows. Every rule has to pass. */
   filters: ViewFilters;
+  /**
+   * The order a list draws them in, or null for the rank every view shares.
+   * A board keeps one it was given but never reads it, exactly as it keeps a
+   * grouping property it is not using.
+   */
+  sort: ViewSort | null;
 };
 
 export type ChecklistItemDTO = {

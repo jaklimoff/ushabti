@@ -62,6 +62,25 @@ and what is easy to get wrong.
   and shares `chipsFor`, so a value cannot read one way on a card and another
   in a list. Its one deliberate difference is that a colour-only chip gets its
   name back: a column's heading names the property, never the value.
+- **A sort writes nothing, which is why a sorted list holds still.** The rank a
+  task carries is the one order every view shares; `src/lib/sort.ts` decides
+  only what a list draws, and never writes. So a drag inside a sorted list would
+  write an order nobody on that screen can see, and then leave the row where the
+  sort puts it — which reads as the drag having failed. `useSortable` is
+  disabled while a sort is on, `Space` is swallowed, and the chip above the list
+  is the way back. A sort is read afresh like a filter: `readSort()` throws away
+  one that names a column that is gone, on the server in `toViewDTO` and again
+  on the write. It is not `humanOnly` — a filter is guarded because it hides
+  work from the people, and a sort hides nothing.
+- **A sort keys off the card kind, and off the type only where it must.** A
+  select orders by its option index, because that order was arranged by hand
+  and is the meaning; a multi-select by its lowest index, because its values
+  arrive in whatever order somebody clicked them. Empty always sorts last, both
+  ways, and equal keys fall back to `position` so a list never shuffles and
+  always agrees with the board. Words go through one named `Intl.Collator`, not
+  `localeCompare`: the list is drawn on the server and again in the browser, and
+  the default locale differs between them — the same hazard the written-out
+  month names in `board.ts` exist for.
 - **A list is one column of rows, so it walks the board's own cursor.**
   `cursorTarget` over a single synthetic column already answers up, down, Home
   and End, and answers null sideways because its loop finds no second column.

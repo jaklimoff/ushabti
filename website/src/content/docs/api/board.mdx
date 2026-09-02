@@ -44,8 +44,9 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
   "views": [
     // kind is "board" or "list". A list has no columns, so groupById may be
     // null — and when it is not, it is remembered rather than read.
+    // sort is the order a list draws its rows in, or null for the shared rank.
     { "id": "…", "name": "Board", "kind": "board", "groupById": "…", "position": "V",
-      "isDefault": true, "filters": { "rules": [] } }
+      "isDefault": true, "filters": { "rules": [] }, "sort": null }
   ],
 
   "cardView": {              // what every card carries, already read afresh
