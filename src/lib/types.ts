@@ -146,6 +146,7 @@ export const CARD_MODES = [
   /* select, multi_select */
   "colour",
   "both",
+  "fill",
   /* person */
   "avatar",
   /* anything with words */

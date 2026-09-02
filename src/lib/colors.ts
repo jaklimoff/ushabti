@@ -52,6 +52,31 @@ export function tint(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/**
+ * The ink that reads on a colour. A filled chip paints the option's own colour
+ * behind its name, and the palette runs from a deep violet to a bright cyan, so
+ * neither one ink nor the other is right for all of them. This asks which of
+ * the two the colour carries further, the same sum the eye does.
+ */
+export function ink(hex: string): string {
+  const clean = hex.replace("#", "");
+  const full =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean;
+  const channel = (at: number) => {
+    const c = parseInt(full.slice(at, at + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+  const onWhite = 1.05 / (luminance + 0.05);
+  const onBlack = (luminance + 0.05) / 0.05;
+  return onBlack >= onWhite ? "#14161a" : "#f6f8fa";
+}
+
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";

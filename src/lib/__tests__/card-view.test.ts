@@ -272,6 +272,25 @@ describe("drawing a card", () => {
     expect(card.footerL.map((c) => c.text)).toEqual(["bug", "ux"]);
   });
 
+  it("paints the colour behind the name when the row is filled", () => {
+    const filled = items({
+      order: ["p-prio"],
+      rows: { "p-prio": { place: "footerL", mode: "fill" } },
+    });
+    const [chip] = buildCard(filled, task({ "p-prio": "o-urgent" }), []).footerL;
+    expect(chip).toMatchObject({ text: "Urgent", fill: "#e0574d", boxed: false });
+    /* The colour is behind the words, not beside them. */
+    expect(chip.swatch).toBeNull();
+  });
+
+  it("takes the panel colour from a filled row too", () => {
+    const filled = items({
+      order: ["p-prio"],
+      rows: { "p-prio": { place: "footerL", mode: "fill" } },
+    });
+    expect(cardAccent(filled, task({ "p-prio": "o-urgent" }), [])).toBe("#e0574d");
+  });
+
   it("shows a checkbox by its name, and only when it is on", () => {
     const done: PropertyDTO = {
       id: "p-done",

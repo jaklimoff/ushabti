@@ -102,6 +102,29 @@ test.describe("Card view", () => {
     await expect(page.getByTestId("task-panel").getByText("Urgent").first()).toBeVisible();
   });
 
+  test("a filled row wears its colour behind the words", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Fill"));
+    await addTask(page, "Todo", "Labelled");
+    await page.getByRole("button", { name: "Urgent" }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "card");
+    await row(page, "Priority")
+      .getByRole("button", { name: /^Priority on the card/ })
+      .click();
+    await saved(page, () => page.getByRole("button", { name: "Filled" }).click());
+
+    await page.goto(`/p/${projectId}`);
+    const chip = card(page, "Labelled").getByTestId("card-chip").filter({ hasText: "Urgent" });
+    const paint = await chip.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { background: style.backgroundColor, color: style.color };
+    });
+    expect(paint.background).toBe("rgb(224, 87, 77)");
+    expect(paint.color).not.toBe(paint.background);
+  });
+
   test("a date has no colours of its own, so the edge is closed to it", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Dates"));
