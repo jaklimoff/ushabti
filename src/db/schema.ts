@@ -232,8 +232,15 @@ export const views = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /**
+     * board | list. What shape the same tasks are drawn in: columns, or one
+     * dense list. Nothing else about a view changes with it, which is why it
+     * is one word and not a second table.
+     */
+    kind: text("kind").notNull().default("board"),
     /** The property that becomes the columns of the board. */
     /** Never cascades: the delete route refuses while any view points here. */
+    /** A list may hold none: it groups nothing, so it needs nothing. */
     groupById: uuid("group_by_id").references(() => properties.id, { onDelete: "set null" }),
     position: text("position").notNull(),
     /** The first view of a project cannot be deleted. */

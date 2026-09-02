@@ -246,9 +246,32 @@ export type ViewFilters = {
   rules: FilterRule[];
 };
 
+/**
+ * The shape a view draws the same tasks in. A board puts them in columns; a
+ * list puts them in one dense line-per-task, which is what a long backlog
+ * wants. Nothing else about a view changes with the kind: the filters, the
+ * card view and the one card order are shared by both.
+ */
+export const VIEW_KINDS = ["board", "list"] as const;
+
+export type ViewKind = (typeof VIEW_KINDS)[number];
+
+export const VIEW_KIND_LABEL: Record<ViewKind, string> = {
+  board: "Board",
+  list: "List",
+};
+
+export const VIEW_KIND_HINT: Record<ViewKind, string> = {
+  board: "Cards in columns, one column for each value.",
+  list: "One task on each line, with the columns you choose.",
+};
+
 export type ViewDTO = {
   id: string;
   name: string;
+  /** board | list. What shape this view draws the tasks in. */
+  kind: ViewKind;
+  /** The property the columns come from. A list may have none. */
   groupById: string | null;
   position: string;
   isDefault: boolean;

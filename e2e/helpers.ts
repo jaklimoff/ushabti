@@ -75,6 +75,64 @@ export async function addTask(page: Page, columnName: string, title: string) {
 }
 
 /**
+ * Adds a rule: pick the property, then say what about it. Picking the property
+ * on its own writes nothing, which is the point of the two steps.
+ */
+export async function addFilter(page: Page, property: string, value: string) {
+  await page.getByTestId("filter-button").click();
+  const search = page.getByTestId("filter-search");
+  await search.fill(property);
+  await search.press("Enter");
+
+  const box = page.getByTestId("filter-box");
+  await box.fill(value);
+  await settles(page, /\/api\/views\/[0-9a-f-]+$/, () => box.press("Enter"));
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("filter-menu")).toHaveCount(0);
+}
+
+/* ------------------------------------------------------------------ */
+/* A list view                                                         */
+/* ------------------------------------------------------------------ */
+
+/** The two chips that say what a new view shows. A view may share their name. */
+export function viewKind(page: Page, kind: "Board" | "List") {
+  return page
+    .getByRole("group", { name: "What the new view shows" })
+    .getByRole("button", { name: kind, exact: true });
+}
+
+/** Makes a list view from the `+` in the view strip and switches to it. */
+export async function addListView(page: Page, name: string) {
+  await page.getByRole("button", { name: "New view" }).click();
+  await page.getByLabel("Name of the new view").fill(name);
+  await viewKind(page, "List").click();
+  await page.getByRole("button", { name: "Create view" }).click();
+  await expect(page.getByTestId("list-view")).toBeVisible();
+}
+
+/** The list row whose title carries these words. */
+export function listRow(page: Page, title: string) {
+  return page.getByTestId("list-row").filter({ hasText: title });
+}
+
+/**
+ * The titles of the list, top to bottom. Scoped to the rows themselves: the
+ * drag overlay draws a row of its own and would otherwise join the answer.
+ */
+export async function listOrder(page: Page): Promise<string[]> {
+  return page.getByTestId("list-row").getByTestId("list-row-title").allInnerTexts();
+}
+
+export async function addListTask(page: Page, title: string) {
+  await page.getByTestId("list-add").click();
+  const input = page.getByPlaceholder("What needs doing?");
+  await input.fill(title);
+  await input.press("Enter");
+  await expect(listRow(page, title).first()).toBeVisible();
+}
+
+/**
  * dnd-kit listens to pointer events and needs real movement, so the drag runs
  * as a sequence of small steps rather than one jump.
  */

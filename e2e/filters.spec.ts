@@ -1,24 +1,17 @@
 import { expect, test } from "@playwright/test";
-import { addTask, card, column, createProject, register, saved, settles, unique } from "./helpers";
+import {
+  addFilter,
+  addTask,
+  card,
+  column,
+  createProject,
+  register,
+  saved,
+  settles,
+  unique,
+} from "./helpers";
 
 type Page = import("@playwright/test").Page;
-
-/**
- * Adds a rule: pick the property, then say what about it. Picking the property
- * on its own writes nothing, which is the point of the two steps.
- */
-async function addFilter(page: Page, property: string, value: string) {
-  await page.getByTestId("filter-button").click();
-  const search = page.getByTestId("filter-search");
-  await search.fill(property);
-  await search.press("Enter");
-
-  const box = page.getByTestId("filter-box");
-  await box.fill(value);
-  await settles(page, /\/api\/views\/[0-9a-f-]+$/, () => box.press("Enter"));
-  await page.keyboard.press("Escape");
-  await expect(page.getByTestId("filter-menu")).toHaveCount(0);
-}
 
 function chip(page: Page, text: string) {
   return page.getByTestId("filter-chip").filter({ hasText: text });

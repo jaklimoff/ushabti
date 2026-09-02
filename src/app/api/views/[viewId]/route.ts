@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { properties, views } from "@/db/schema";
+import { views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import {
   body,
@@ -14,8 +14,8 @@ import {
   str,
 } from "@/lib/api";
 import { readFilters } from "@/lib/filters";
-import { loadProperties, viewProjectId } from "@/lib/queries";
-import { GROUPABLE_TYPES, type PropertyType } from "@/lib/types";
+import { groupPropertyId, loadProperties, viewProjectId } from "@/lib/queries";
+import { VIEW_KINDS } from "@/lib/types";
 
 type Ctx = { params: Promise<{ viewId: string }> };
 
@@ -25,23 +25,40 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   if (!projectId) throw new HttpError(404, "View not found.");
   const { user } = await guard(projectId);
 
-  const input = await body<{ name?: string; groupById?: string; filters?: unknown }>(req);
+  const input = await body<{
+    name?: string;
+    kind?: string;
+    groupById?: string | null;
+    filters?: unknown;
+  }>(req);
   const patch: Record<string, unknown> = {};
 
+  const [current] = await db.select().from(views).where(eq(views.id, viewId)).limit(1);
+  if (!current) throw new HttpError(404, "View not found.");
+
   if (input.name !== undefined) patch.name = str(input.name, "View name", { max: 40 });
-  if (input.groupById !== undefined) {
-    const [prop] = await db
-      .select({ id: properties.id, type: properties.type, projectId: properties.projectId })
-      .from(properties)
-      .where(eq(properties.id, input.groupById))
-      .limit(1);
-    if (!prop || prop.projectId !== projectId)
-      throw new HttpError(400, "That property is not in this project.");
-    if (!GROUPABLE_TYPES.includes(prop.type as PropertyType)) {
-      throw new HttpError(400, "A board can only group by a select, person or checkbox property.");
-    }
-    patch.groupById = prop.id;
+
+  if (input.kind !== undefined) {
+    if (!(VIEW_KINDS as readonly string[]).includes(input.kind))
+      throw new HttpError(400, "A view is a board or a list.");
+    patch.kind = input.kind;
   }
+
+  if (input.groupById !== undefined) {
+    patch.groupById =
+      input.groupById === null || input.groupById === ""
+        ? null
+        : await groupPropertyId(projectId, input.groupById);
+  }
+
+  /* A board is its columns. Turning a list into one without a property to make
+     them from would leave a screen with nothing on it. */
+  const kind = "kind" in patch ? (patch.kind as string) : current.kind;
+  /* `??` cannot be used here: a list clearing its grouping writes null on
+     purpose, and null is exactly what `??` reads as "nothing was said". */
+  const groupById = "groupById" in patch ? (patch.groupById as string | null) : current.groupById;
+  if (kind === "board" && !groupById)
+    throw new HttpError(400, "A board needs a property to make its columns from.");
 
   if (input.filters !== undefined) {
     // A filter says what everybody on this board can see. An agent writes
@@ -50,12 +67,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     // The same reading the board does. A rule this cannot make sense of is
     // dropped here rather than saved and ignored for ever afterwards.
     const filters = readFilters(input.filters, await loadProperties(projectId));
-    const [current] = await db
-      .select({ config: views.config })
-      .from(views)
-      .where(eq(views.id, viewId))
-      .limit(1);
-    patch.config = { ...((current?.config ?? {}) as object), filters };
+    patch.config = { ...((current.config ?? {}) as object), filters };
   }
 
   if (Object.keys(patch).length === 0) return json({ ok: true });

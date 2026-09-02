@@ -15,11 +15,13 @@ import {
   users,
   views,
 } from "@/db/schema";
+import { HttpError } from "./auth";
 import { readCardView } from "./card-view";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
 import { rankSequence } from "./rank";
 import { loadOpenRuns, loadTaskRun } from "./runs";
+import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
 import type {
   ActivityDTO,
   BoardData,
@@ -33,6 +35,7 @@ import type {
   TaskDetailDTO,
   TaskValue,
   ViewDTO,
+  ViewKind,
 } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -128,7 +131,8 @@ export async function createProject(userId: string, name: string, key: string) {
       DEFAULT_VIEWS.map((v, i) => ({
         projectId: project.id,
         name: v.name,
-        groupById: byName.get(v.groupBy) ?? null,
+        kind: v.kind,
+        groupById: v.groupBy ? (byName.get(v.groupBy) ?? null) : null,
         position: viewRanks[i],
         isDefault: v.isDefault,
         config: {},
@@ -154,6 +158,9 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[]): ViewDTO {
   return {
     id: row.id,
     name: row.name,
+    /* A word nobody recognises is a board, which is what every view was
+       before this column existed. */
+    kind: (VIEW_KINDS as readonly string[]).includes(row.kind) ? (row.kind as ViewKind) : "board",
     groupById: row.groupById,
     position: row.position,
     isDefault: row.isDefault,
@@ -165,14 +172,19 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[]): ViewDTO {
 /**
  * The property the board is grouped by when nobody has chosen a view. The
  * default card view leaves it off the card, because the columns already say it.
+ *
+ * Only a board is asked. A list has no columns to say it, so letting one answer
+ * would put a property back on every card in a project that never arranged one
+ * — on the day somebody made their main view a list.
  */
 export async function defaultGroupById(projectId: string): Promise<string | null> {
   const rows = await db
-    .select({ groupById: views.groupById, isDefault: views.isDefault })
+    .select({ groupById: views.groupById, isDefault: views.isDefault, kind: views.kind })
     .from(views)
     .where(eq(views.projectId, projectId))
     .orderBy(byPos(views.position));
-  return (rows.find((v) => v.isDefault) ?? rows[0])?.groupById ?? null;
+  const boards = rows.filter((v) => v.kind === "board");
+  return (boards.find((v) => v.isDefault) ?? boards[0])?.groupById ?? null;
 }
 
 export async function loadProperties(projectId: string): Promise<PropertyDTO[]> {
@@ -502,6 +514,25 @@ export async function optionPropertyId(optionId: string) {
     .where(eq(propertyOptions.id, optionId))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * The property a view may take its columns from, checked. Both view routes ask
+ * the same question, and a board that groups by a text property has no columns
+ * at all, so the answer is a refusal rather than an empty board.
+ */
+export async function groupPropertyId(projectId: string, propertyId: string): Promise<string> {
+  const [prop] = await db
+    .select({ id: properties.id, type: properties.type, projectId: properties.projectId })
+    .from(properties)
+    .where(eq(properties.id, propertyId))
+    .limit(1);
+  if (!prop || prop.projectId !== projectId)
+    throw new HttpError(400, "That property is not in this project.");
+  if (!GROUPABLE_TYPES.includes(prop.type as PropertyType)) {
+    throw new HttpError(400, "A view can only group by a select, person or checkbox property.");
+  }
+  return prop.id;
 }
 
 export async function viewProjectId(viewId: string): Promise<string | null> {

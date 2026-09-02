@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCard,
+  buildRow,
   cardAccent,
   cardItems,
   defaultCardView,
@@ -357,5 +358,51 @@ describe("the colour a panel takes from a card", () => {
       },
     });
     expect(cardAccent(words, task({ "p-prio": "o-urgent" }), [])).toBeNull();
+  });
+});
+
+describe("a task laid out as a row", () => {
+  it("keeps each row's chips under the row they came from", () => {
+    /* A card merges every row of a place into one strip. A table has a cell
+       for each, so the two cannot share `buildCard`. */
+    const slots = buildRow(items(null), task({ "p-prio": "o-urgent", "p-who": ADA.id }), [ADA]);
+    expect(slots.cells["p-prio"].map((c) => c.text)).toEqual(["Urgent"]);
+    expect(slots.cells["p-who"][0].person?.name).toBe("Ada Lovelace");
+    /* Empty is empty, exactly as on a card. */
+    expect(slots.cells["p-due"]).toEqual([]);
+  });
+
+  it("gives a colour-only chip its name back", () => {
+    /* On a card the title above carries the meaning and room is scarce. A
+       column's heading names the property, never the value, so a row of bare
+       squares under PRIORITY says only that the task has one. */
+    const card = buildCard(items(null), task({ "p-prio": "o-urgent" }), [ADA]);
+    expect(card.headerL.find((c) => c.tip.startsWith("Priority"))?.text).toBe(null);
+
+    const row = buildRow(items(null), task({ "p-prio": "o-urgent" }), [ADA]);
+    expect(row.cells["p-prio"][0].text).toBe("Urgent");
+  });
+
+  it("wears the same stripe the card wears, and only when the card wears one", () => {
+    expect(buildRow(items(null), task({ "p-prio": "o-urgent" }), [ADA]).edge).toBe(null);
+
+    const edged = {
+      order: ["_key", "_title", "p-prio"],
+      rows: { "p-prio": { place: "edge", mode: "colour" } },
+    };
+    const slots = buildRow(items(edged), task({ "p-prio": "o-urgent" }), [ADA]);
+    expect(slots.edge).toBe("#e0574d");
+    /* The stripe is not also a cell. */
+    expect(slots.cells["p-prio"]).toBeUndefined();
+  });
+
+  it("puts the description beside the title, not in a column of its own", () => {
+    const saved = {
+      order: ["_key", "_title", "_desc"],
+      rows: { _desc: { place: "body", mode: "two" } },
+    };
+    const slots = buildRow(items(saved), task(), [ADA]);
+    expect(slots.desc).toBe("The long version of it.");
+    expect(slots.cells._desc).toBeUndefined();
   });
 });

@@ -594,6 +594,53 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
 }
 
 /**
+ * A task laid out the way a list needs it.
+ *
+ * The same chips as a card, from the same `chipsFor`, but kept under the row
+ * they came from: a card merges every row of a place into one strip, and a
+ * table has a cell for each. The edge is the same answer the card gets, so a
+ * row and the card of the same task wear one colour.
+ */
+export type RowSlots = {
+  edge: string | null;
+  /** The description, when the card view puts it anywhere a card would draw it. */
+  desc: string | null;
+  cells: Record<string, CardChip[]>;
+};
+
+export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[]): RowSlots {
+  const slots: RowSlots = { edge: null, desc: null, cells: {} };
+
+  for (const item of items) {
+    if (item.place === "off" || item.place === "title") continue;
+
+    if (item.place === "edge") {
+      slots.edge = chipColour(chipsFor(item, task, members)[0]);
+      continue;
+    }
+
+    /* A line has one line, so the description never becomes a column of its
+       own: it follows the title, and only when the card would draw it too. */
+    if (item.kind === "desc") {
+      slots.desc = task.description.trim() || null;
+      continue;
+    }
+
+    /*
+     * A colour with no word beside it is a legend nobody was given. On a card
+     * that is a fair trade — the chip sits among eight others and room is the
+     * scarce thing, and the title above it carries the meaning. A column has
+     * the room, and its heading names the property, never the value: a row of
+     * bare squares under PRIORITY says only that the task has one.
+     */
+    const named: CardItem = item.mode === "colour" ? { ...item, mode: "both" } : item;
+    slots.cells[item.id] = chipsFor(named, task, members);
+  }
+
+  return slots;
+}
+
+/**
  * The colour the panel takes: the stripe the card draws down its left side, so
  * a card and the panel it opens are the same colour. It is the card view that
  * decides, and this asks it the same way the card does rather than working a

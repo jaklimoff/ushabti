@@ -1,0 +1,133 @@
+---
+title: The list
+description: A view drawn as one row for each task — where its columns come from, what the drag writes, and why it has no sections.
+sidebar:
+  order: 5
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+
+A view has a kind. A **board** puts the tasks in columns; a **list** puts them in rows — one row for
+each task, in the one order every view in the project shares. Same tasks, same filters, same card
+view. Only the drawing differs.
+
+Make one from the `+` in the view strip, or change a view's kind in **Settings → Views**. See
+[Views](/ushabti/guides/views/).
+
+## What a list is for
+
+Three things a board cannot do.
+
+1. **It shows the card order.** Every view in a project shares one order — a task has a single
+   `position` — and a board only ever draws part of it, one column at a time. Nobody could see the
+   order they were all sharing. A list is that screen, and its drag is the only place you can move a
+   task without also changing one of its properties.
+2. **It puts a property under itself.** A card stacks one task's values; forty cards are forty
+   stacks. A list puts Priority under Priority, which is how you find the three urgent things nobody
+   is assigned to.
+3. **It is dense and it counts honestly.** A board grouped by Status buries two hundred backlog
+   items under one column while four sit half empty. A list is one scroll, and *"12 of 40 tasks"*
+   finally describes what you can actually see.
+
+## Where the columns come from
+
+**The card view.** A list row is the card read across instead of down: the same rows, in the same
+order, drawn by the same chips. Arrange it in **Settings → Card view** and both drawings follow.
+
+- A row that is **off the card** is off the list.
+- The **edge stripe** stays a stripe down the side of the row. It is not a column.
+- The **description** joins the title, one line and ellipsed, because a row is one line.
+- The **key** and the **title** open every row, whatever order the card view puts them in — a table
+  is read from the left, and the name of the task is what you are looking for. They also stay put
+  when a wide list is scrolled sideways.
+- A task with no value for a column draws **nothing** there. Empty is empty, exactly as on a card.
+
+One deliberate difference: a property the card draws as a **bare colour** gets its name back in a
+list. On a card the title above it says what it belongs to and space is scarce; a column's heading
+names the property, never the value, so a row of unlabelled squares under `PRIORITY` would only tell
+you that the task has one.
+
+<Aside type="caution" title="The property a board groups by is missing at first">
+The card a project starts with leaves out the property its main board groups by — usually Status —
+because the columns already say it. A list has no columns, so that property is missing from a list
+until you put it back on the card in **Settings → Card view**. It is a real trade-off and it is
+listed on the [roadmap](/ushabti/releases/roadmap/): the alternative was a rule that put it back by
+itself, which would then make the column vanish the day somebody edited an unrelated row.
+</Aside>
+
+## Order, and dragging a row
+
+The rows are in `position` order, top to bottom. Drag one and it writes exactly one rank — the same
+write a card drag makes, minus the property value, because there is no column to say anything about.
+
+**That order is shared.** Move a row in a list and the card moves on every board in the project.
+This is not a new hazard; it is the existing one, running the other way. A board drag has always
+reordered the list.
+
+Under a filter the rows are a subsequence, so a drag puts the row beside the row you can *see*, and
+the hidden tasks between them stay where they are.
+
+<Aside type="note" title="The headings are labels, not sort buttons">
+Sorting a view is [still to come](/ushabti/releases/roadmap/). A header that sorted today would show
+an order no drag can write and nobody else can see, so the headings do nothing on purpose. When
+sorting arrives, a sorted list will turn its drag off and say so.
+</Aside>
+
+## Adding a task
+
+One composer, at the end of the list: **+ Add a task**. Enter adds it, Shift+Enter is a newline,
+Escape cancels, and clicking away commits anything you typed.
+
+Under a filter it says what it is about to write — *"sets Priority Urgent"* — and then writes it, so
+the row you add is never hidden by the filter you added it under. A board leaves the grouping
+property to the column; a list has no column, so the filter answers for that one too.
+
+The new row lands after the last row you can see, and the task panel opens on it.
+
+## Keyboard
+
+The list has exactly **one tab stop**, and it is the row the cursor is on.
+
+<div class="keys-table">
+
+| Key                | What it does                                  |
+| ------------------ | --------------------------------------------- |
+| `Tab`              | reaches the list, once, at the cursor row      |
+| `↑` `↓`            | move the cursor. Nothing wraps                 |
+| `Home` `End`       | first row, last row                            |
+| `Enter`            | open the task in the panel                     |
+| `Space`            | pick the row up, and put it down again         |
+| `↑` `↓` while held | move the row                                   |
+| `Escape`           | cancel the lift, or close the panel            |
+
+</div>
+
+`←` and `→` do nothing, so a wide list still scrolls sideways with them.
+
+## An agent working on a row
+
+The row names the agent, in the small mono face, and its bottom hairline scans while the run
+reports. It stops when the run is paused or has gone silent. Everything else the card's strip shows
+— the step, the age — is in the row's tooltip, and the plan, the log and Pause / Stop / Take over
+are in the Agent tab of the panel.
+
+A card can afford three fields along its bottom edge. Forty rows each running a ticker cannot, which
+is the same reason the card refused one.
+
+**Dragging a row an agent holds takes the task over**, exactly as dragging its card does.
+
+<LinkCard
+  title="Views"
+  href="/ushabti/guides/views/"
+  description="The two kinds, how the columns of a board are worked out, and changing a view's kind."
+/>
+
+<LinkCard
+  title="The card view"
+  href="/ushabti/guides/card-view/"
+  description="What a card carries — and therefore what a list's columns are."
+/>
+
+<style>{`
+  .keys-table code { white-space: nowrap; }
+`}</style>

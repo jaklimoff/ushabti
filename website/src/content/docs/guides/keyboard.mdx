@@ -1,8 +1,8 @@
 ---
 title: Keyboard
-description: Every key on the Ushabti board — one tab stop, a cursor that moves with the arrows, and a keyboard drag that treats an empty column like any other.
+description: Every key on the Ushabti board and list — one tab stop, a cursor that moves with the arrows, and a keyboard drag that treats an empty column like any other.
 sidebar:
-  order: 5
+  order: 6
 ---
 
 import { Aside, LinkCard } from '@astrojs/starlight/components'
@@ -60,6 +60,30 @@ whether or not anything is in it, keeping the height the card was already at.
 
 Two halves had to hold. *Where a drop lands* is one decision; *where a key puts the card* is another.
 A fix to only the first one reads as fixed and is not.
+</Aside>
+
+## A list
+
+A [list](/ushabti/guides/list/) is the same idea with one axis instead of two, and it walks the same
+code — so everything above holds, minus the sideways.
+
+<div class="keys">
+
+| Key | What it does |
+| --- | ------------ |
+| <kbd>Tab</kbd> | Reach the list. One stop, not two thousand. |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Up and down the rows. Nothing wraps. |
+| <kbd>←</kbd> <kbd>→</kbd> | **Nothing.** A list has no sideways, so the keys are left alone and a wide list still scrolls with them. |
+| <kbd>Home</kbd> <kbd>End</kbd> | First row, last row. |
+| <kbd>Enter</kbd> | Open the row's task. |
+| <kbd>Space</kbd> | Pick the row up; press it again to put it down. <kbd>↑</kbd> <kbd>↓</kbd> move it, <kbd>Escape</kbd> cancels. |
+
+</div>
+
+<Aside type="note" title="A list does not need the board's answer, and must not take it">
+The sideways keys above are worked out by hand because an empty column is as tall as the board and
+loses every distance contest. A list has one column of equal rows and no such container, so it uses
+the library's own answer, which is correct there. Unifying the two would break the board.
 </Aside>
 
 ## Everywhere else

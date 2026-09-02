@@ -231,7 +231,10 @@ http://localhost:3000.`);
 
   async list() {
     const data = await board();
-    const view = data.views.find((v) => v.isDefault) ?? data.views[0];
+    /* A list keeps the property it once grouped by but never reads it, so the
+       columns below come from a board or from nothing. */
+    const boards = data.views.filter((v) => v.kind !== "list");
+    const view = boards.find((v) => v.isDefault) ?? boards[0];
     const group = data.properties.find((p) => p.id === view?.groupById) ?? null;
     const held = new Set(data.runs.map((r) => r.taskId));
 

@@ -95,12 +95,19 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
   ownerOnly(user, membership, "delete a property");
 
-  // A view is meaningless without its grouping property, so deleting the
+  // A board is meaningless without its grouping property, so deleting the
   // property would take the view with it. Say so instead of doing it quietly.
+  //
+  // Only a board is counted. A list remembers a property so that turning it
+  // back into a board restores the same columns, but it never reads one — and
+  // a remembered word must not pin a property nobody is grouping by. The
+  // foreign key clears it if the property does go.
   const used = await db
     .select({ name: views.name })
     .from(views)
-    .where(and(eq(views.projectId, projectId), eq(views.groupById, propertyId)));
+    .where(
+      and(eq(views.projectId, projectId), eq(views.groupById, propertyId), eq(views.kind, "board")),
+    );
   if (used.length) {
     const names = used.map((v) => `"${v.name}"`).join(", ");
     throw new HttpError(

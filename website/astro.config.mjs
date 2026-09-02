@@ -100,6 +100,7 @@ export default defineConfig({
             { label: "The card view", link: "/guides/card-view/" },
             { label: "Views", link: "/guides/views/" },
             { label: "The board", link: "/guides/board/" },
+            { label: "The list", link: "/guides/list/" },
             { label: "Keyboard", link: "/guides/keyboard/" },
             { label: "Filters", link: "/guides/filters/" },
             { label: "The task panel", link: "/guides/task-panel/" },
