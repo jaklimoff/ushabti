@@ -11,6 +11,8 @@ import {
   OPS_FOR_TYPE,
   OP_LABEL,
 } from "@/lib/filters";
+import { sortLabel } from "@/lib/sort";
+import type { CardItem } from "@/lib/card-view";
 import {
   NO_VALUE_KEY,
   type FilterOp,
@@ -18,6 +20,7 @@ import {
   type MemberDTO,
   type PropertyDTO,
   type PropertyType,
+  type ViewSort,
 } from "@/lib/types";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useBoard } from "./store";
@@ -509,8 +512,11 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
  * first answer does not push the board down a line under an open panel.
  */
 export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
-  const { data, filters, setFilters } = useBoard();
-  if (filters.rules.length === 0 && !panelOpen) return null;
+  const { data, view, filters, sort, setSort, cardItems, setFilters } = useBoard();
+  /* A sort belongs to a list. A board keeps one it was given and never reads
+     it, so it must not draw a chip for an order it is not in. */
+  const shownSort = view?.kind === "list" ? sort : null;
+  if (filters.rules.length === 0 && !shownSort && !panelOpen) return null;
 
   function write(rules: FilterRule[]) {
     void setFilters(rules);
@@ -518,6 +524,9 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
 
   return (
     <div className={styles.filterRow} data-testid="filter-row">
+      {shownSort && (
+        <SortChip sort={shownSort} items={cardItems} onClear={() => void setSort(null)} />
+      )}
       {filters.rules.map((rule, i) => {
         const property = data.properties.find((p) => p.id === rule.propertyId);
         if (!property) return null;
@@ -544,6 +553,43 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
         </button>
       )}
     </div>
+  );
+}
+
+/**
+ * The order a list is in, and the way out of it.
+ *
+ * The heading says which column and which way; this says the thing a heading
+ * cannot, which is that the list is no longer in the order it can be dragged
+ * in. That is why it names the drag rather than just the column.
+ */
+function SortChip({
+  sort,
+  items,
+  onClear,
+}: {
+  sort: ViewSort;
+  items: CardItem[];
+  onClear: () => void;
+}) {
+  const name = sortLabel(sort, items);
+  if (!name) return null;
+
+  return (
+    <span className={`${styles.filterChip} ${styles.sortChip}`} data-testid="sort-chip">
+      <span className={styles.filterChipBody}>
+        {sort.direction === "asc" ? "\u2191" : "\u2193"} {name}
+      </span>
+      <button
+        className={styles.filterChipX}
+        data-testid="sort-clear"
+        aria-label="Back to the board's own order"
+        title="Back to the board's own order, which is the one you can drag"
+        onClick={onClear}
+      >
+        ✕
+      </button>
+    </span>
   );
 }
 

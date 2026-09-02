@@ -28,6 +28,18 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   card does.
 - **A list can be made on a project with nothing to group by.** A board is its
   columns and cannot be, which used to make the `+` a dead end on such a project.
+- **Press a heading to order a list by it.** Once for smallest first, again for
+  largest first, a third time for the order the board itself keeps. A select
+  orders by its own option order — Urgent above Low, not alphabetically between
+  High and Medium — a multi-select by its highest option, a checklist by how far
+  along it is, and a number by its size rather than its digits. A task holding
+  nothing for that column goes last whichever way the order runs, and two that
+  compare the same keep the rank they had.
+- The order is the view's, so everybody looking at that view sees it, and it
+  survives a reload. It **writes nothing**: the rank each task carries is
+  untouched, so every board goes on showing what it showed before.
+- **A sorted list cannot be dragged, and says so.** A chip above the list names
+  the column, and its `✕` gives back the order — and the drag — in one click.
 
 ### Changed
 

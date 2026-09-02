@@ -15,6 +15,7 @@ import {
 } from "@/lib/api";
 import { readFilters } from "@/lib/filters";
 import { groupPropertyId, loadProperties, viewProjectId } from "@/lib/queries";
+import { readSort } from "@/lib/sort";
 import { VIEW_KINDS } from "@/lib/types";
 
 type Ctx = { params: Promise<{ viewId: string }> };
@@ -30,6 +31,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     kind?: string;
     groupById?: string | null;
     filters?: unknown;
+    sort?: unknown;
   }>(req);
   const patch: Record<string, unknown> = {};
 
@@ -60,14 +62,29 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   if (kind === "board" && !groupById)
     throw new HttpError(400, "A board needs a property to make its columns from.");
 
-  if (input.filters !== undefined) {
-    // A filter says what everybody on this board can see. An agent writes
-    // values all day; it does not get to hide the work from the people.
-    humanOnly(user);
-    // The same reading the board does. A rule this cannot make sense of is
-    // dropped here rather than saved and ignored for ever afterwards.
-    const filters = readFilters(input.filters, await loadProperties(projectId));
-    patch.config = { ...((current.config ?? {}) as object), filters };
+  if (input.filters !== undefined || input.sort !== undefined) {
+    const properties = await loadProperties(projectId);
+    let config = { ...((current.config ?? {}) as object) };
+
+    if (input.filters !== undefined) {
+      // A filter says what everybody on this board can see. An agent writes
+      // values all day; it does not get to hide the work from the people.
+      humanOnly(user);
+      // The same reading the board does. A rule this cannot make sense of is
+      // dropped here rather than saved and ignored for ever afterwards.
+      config = { ...config, filters: readFilters(input.filters, properties) };
+    }
+
+    if (input.sort !== undefined) {
+      /* No `humanOnly` here, and on purpose. A filter is guarded because it
+         hides work from the people; a sort hides nothing and shows every task
+         either way, so it sits with the grouping property rather than with the
+         filters. The same reading the list does, so a column that is gone
+         cannot be saved as an order. */
+      config = { ...config, sort: readSort(input.sort, properties) };
+    }
+
+    patch.config = config;
   }
 
   if (Object.keys(patch).length === 0) return json({ ok: true });
