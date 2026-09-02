@@ -3,6 +3,7 @@
 import { forwardRef, useMemo } from "react";
 import type { AgentRunDTO, TaskDTO } from "@/lib/types";
 import { buildCard, type CardChip } from "@/lib/card-view";
+import { ink } from "@/lib/colors";
 import { elapsed, isOpen, lifeOf, LIFE_WORD, runLine } from "@/lib/run-state";
 import { Avatar } from "@/components/ui/Avatar";
 import { useNow } from "@/components/ui/useElapsed";
@@ -152,12 +153,20 @@ function Strip({
 
 /** One small part of a card: a colour, a face, a word, a bar or a count. */
 function Chip({ chip }: { chip: CardChip }) {
-  const className = [styles.cardChip, chip.boxed ? styles.cardChipBoxed : ""]
+  const className = [
+    styles.cardChip,
+    chip.boxed ? styles.cardChipBoxed : "",
+    chip.fill ? styles.cardChipFill : "",
+  ]
     .filter(Boolean)
     .join(" ");
 
+  /* A filled chip carries its colour behind the words, so the words take the
+     ink that reads on it. */
+  const paint = chip.fill ? { background: chip.fill, color: ink(chip.fill) } : undefined;
+
   return (
-    <span className={className} title={chip.tip} data-testid="card-chip">
+    <span className={className} style={paint} title={chip.tip} data-testid="card-chip">
       {chip.swatch && (
         <span
           className={chip.swatch.round ? styles.cardChipDot : styles.cardChipSquare}

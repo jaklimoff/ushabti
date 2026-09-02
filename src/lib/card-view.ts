@@ -57,6 +57,7 @@ export const KIND_OF_BUILTIN: Record<CardBuiltin, CardKind> = {
 export const MODES_FOR_KIND: Record<CardKind, { id: CardMode; label: string }[]> = {
   select: [
     { id: "both", label: "Both" },
+    { id: "fill", label: "Filled" },
     { id: "colour", label: "Colour" },
     { id: "text", label: "Text" },
   ],
@@ -409,6 +410,8 @@ export type CardChip = {
   /** The tooltip: the row this came from, and what the task holds for it. */
   tip: string;
   swatch: { color: string; round: boolean } | null;
+  /** The colour painted behind the words, instead of beside them. */
+  fill: string | null;
   person: MemberDTO | null;
   text: string | null;
   /** A hairline box around it. */
@@ -438,6 +441,7 @@ function chip(item: CardItem, key: string, value: string, extra: Partial<CardChi
     key,
     tip: `${item.name} · ${value}`,
     swatch: null,
+    fill: null,
     person: null,
     text: null,
     boxed: false,
@@ -446,6 +450,11 @@ function chip(item: CardItem, key: string, value: string, extra: Partial<CardChi
     bubble: false,
     ...extra,
   };
+}
+
+/** The colour a chip carries, whichever way it wears it. */
+function chipColour(chip: CardChip | undefined): string | null {
+  return chip?.swatch?.color ?? chip?.fill ?? chip?.person?.color ?? null;
 }
 
 /** What a task holds for one row, as the parts the card draws. Empty is empty. */
@@ -496,12 +505,17 @@ function chipsFor(item: CardItem, task: TaskDTO, members: MemberDTO[]): CardChip
       for (const id of ids) {
         const option = property.options.find((o) => o.id === id);
         if (!option) continue;
+        const filled = item.mode === "fill";
         chips.push(
           chip(item, `${item.id}-${task.id}-${option.id}`, option.name, {
             swatch:
-              item.mode === "text" ? null : { color: option.color, round: item.mode === "both" },
+              item.mode === "text" || filled
+                ? null
+                : { color: option.color, round: item.mode === "both" },
+            fill: filled ? option.color : null,
             text: item.mode === "colour" ? null : option.name,
-            boxed: item.mode !== "colour",
+            /* The fill is the box. A second outline around it says nothing. */
+            boxed: item.mode !== "colour" && !filled,
           }),
         );
       }
@@ -557,8 +571,7 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
-      const [first] = chipsFor(item, task, members);
-      slots.edge = first?.swatch?.color ?? first?.person?.color ?? null;
+      slots.edge = chipColour(chipsFor(item, task, members)[0]);
       continue;
     }
 
@@ -592,10 +605,7 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
  * is why the answer is a colour and not a property.
  */
 export function cardAccent(items: CardItem[], task: TaskDTO, members: MemberDTO[]): string | null {
-  const colourOf = (item: CardItem): string | null => {
-    const [first] = chipsFor(item, task, members);
-    return first?.swatch?.color ?? first?.person?.color ?? null;
-  };
+  const colourOf = (item: CardItem): string | null => chipColour(chipsFor(item, task, members)[0]);
 
   const edge = items.find((i) => i.place === "edge");
   if (edge) return colourOf(edge);
