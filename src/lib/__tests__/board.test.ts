@@ -118,6 +118,25 @@ describe("board cursor", () => {
     expect(cursorTarget(columns, "b", "down")).toBeNull();
   });
 
+  /*
+   * A list is one column of rows, and it walks the same function rather than
+   * owning a second one. These pin that: up and down are the only steps that
+   * mean anything, and the sideways loop finds no second column to go to.
+   */
+  it("walks a list, which is one column of rows", () => {
+    const list = board(["a", "b", "c"]);
+    expect(cursorTarget(list, "a", "down")).toBe("b");
+    expect(cursorTarget(list, "c", "up")).toBe("b");
+    expect(cursorTarget(list, "b", "first")).toBe("a");
+    expect(cursorTarget(list, "b", "last")).toBe("c");
+    /* Nothing wraps: a list has a top and a bottom, and both are felt. */
+    expect(cursorTarget(list, "a", "up")).toBeNull();
+    expect(cursorTarget(list, "c", "down")).toBeNull();
+    /* A list has no sideways. */
+    expect(cursorTarget(list, "b", "left")).toBeNull();
+    expect(cursorTarget(list, "b", "right")).toBeNull();
+  });
+
   it("steps over a column with no cards", () => {
     const columns = board(["a"], [], ["b"]);
     expect(cursorTarget(columns, "a", "right")).toBe("b");

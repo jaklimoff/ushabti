@@ -507,6 +507,12 @@ describe("a task added to a filtered board", () => {
   it("never answers for the grouping property, which the column decides", () => {
     const rules = [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }];
     expect(seedValues({ rules }, properties, status.id)).toEqual({});
+    /*
+     * A list has no columns, so nothing else decides it and the filter has to
+     * answer for it too. This is the whole difference between the two callers,
+     * and without it a row added to a filtered list is written and hidden in
+     * the same breath.
+     */
     expect(seedValues({ rules }, properties, null)).toEqual({ "p-status": "o-todo" });
   });
 

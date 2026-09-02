@@ -27,6 +27,7 @@ import type {
   TaskValue,
   ViewDTO,
   ViewFilters,
+  ViewKind,
 } from "@/lib/types";
 import type { SessionUser } from "@/components/ui/UserMenu";
 
@@ -83,10 +84,11 @@ type Store = {
     counts: { checklistTotal: number; checklistDone: number; commentCount: number },
   ) => void;
 
-  createView: (name: string, groupById: string) => Promise<void>;
+  /** A board needs a property for its columns. A list does not. */
+  createView: (name: string, kind: ViewKind, groupById: string | null) => Promise<void>;
   updateView: (
     viewId: string,
-    patch: { name?: string; groupById?: string; filters?: ViewFilters },
+    patch: { name?: string; kind?: ViewKind; groupById?: string | null; filters?: ViewFilters },
   ) => Promise<void>;
   deleteView: (viewId: string) => Promise<void>;
 
@@ -439,12 +441,12 @@ export function BoardProvider({
 
   /* --- views ---------------------------------------------------------- */
   const createView = useCallback<Store["createView"]>(
-    async (name, groupById) => {
+    async (name, kind, groupById) => {
       wrote();
       try {
         const { view: created } = await api.post<{ view: ViewDTO }>(
           `/api/projects/${projectId}/views`,
-          { name, groupById },
+          { name, kind, groupById },
         );
         setData((current) => ({ ...current, views: [...current.views, created] }));
         setViewId(created.id);

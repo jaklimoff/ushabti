@@ -41,6 +41,42 @@ and what is easy to get wrong.
   the answer in two. The detail panel takes the same colour by the same route:
   `cardAccent()` asks the card view for the stripe the card wears, so moving
   the edge moves the panel with it and no screen names a property of its own.
+- **A view has a kind, and a list is the same tasks lying down.** `views.kind`
+  is `board` or `list`, and nothing else about a view changes with it: one
+  filter set, one card view, one card order. A list groups by nothing on
+  purpose — sections would need a second drop model, where a drag writes a
+  property value, which is what a board already is. It keeps `groupById`
+  unread, so turning it back into a board restores the same columns; that is
+  also why the property delete route counts only `kind = 'board'`, and why
+  `defaultGroupById()` asks only a board. Let a list answer either one and a
+  remembered word starts pinning a property nobody is grouping by, or a
+  property comes back onto every card in the project.
+- **A row draws the card view and decides nothing**, exactly as a card does.
+  `listColumns()` in `src/lib/list-view.ts` is the one place that says which
+  columns a list has: a row that is off the card is off the list, the edge is
+  the stripe and not a column, the description joins the title because a line
+  has one line, and the key and the title open the row because a table is read
+  from the left. The five places of a card collapse to "a column" — a place
+  says where a chip sits on a _card_ — so adding a property type is still one
+  line in `KIND_OF_TYPE` plus one width. `buildRow()` sits beside `buildCard()`
+  and shares `chipsFor`, so a value cannot read one way on a card and another
+  in a list. Its one deliberate difference is that a colour-only chip gets its
+  name back: a column's heading names the property, never the value.
+- **A list is one column of rows, so it walks the board's own cursor.**
+  `cursorTarget` over a single synthetic column already answers up, down, Home
+  and End, and answers null sideways because its loop finds no second column.
+  It must not grow a second walker. For the same reason a list uses dnd-kit's
+  own `closestCenter` and `sortableKeyboardCoordinates`: the board overrides
+  both to beat a column as tall as the whole board, which loses every sum of
+  corner distances. A list has no such container, and unifying the two breaks
+  the board.
+- **`allowedColumns()` has no equivalent in a list, and must not gain one.** It
+  removes a drop target a card could not survive. A list has one drop target
+  and every visible task lives in it, so there is nothing to remove.
+- **A task added to a list is seeded for the whole filter.** `seedValues()`
+  skips the grouping property because the column decides it; a list has no
+  column, so it passes `null` and the filter answers for that property too.
+  Without it the row is written and hidden in the same breath.
 - **The card view is read afresh, never cleaned up**, exactly as a filter is.
   A row can name a property that has been deleted, so `readCardView()` throws
   those away every time — on the server in `loadBoard`, and again on the write.

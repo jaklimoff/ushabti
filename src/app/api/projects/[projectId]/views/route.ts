@@ -1,12 +1,11 @@
 import { eq } from "drizzle-orm";
 import { byPos } from "@/lib/order";
-import { db } from "@/db";
-import { properties, views } from "@/db/schema";
+import { views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
-import { toViewDTO, withProjectLock } from "@/lib/queries";
+import { groupPropertyId, toViewDTO, withProjectLock } from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
-import { GROUPABLE_TYPES, type PropertyType } from "@/lib/types";
+import { VIEW_KINDS, type ViewKind } from "@/lib/types";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -14,20 +13,25 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   await guard(projectId);
 
-  const input = await body<{ name?: string; groupById?: string }>(req);
+  const input = await body<{ name?: string; kind?: string; groupById?: string | null }>(req);
   const name = str(input.name, "View name", { max: 40 });
-  if (typeof input.groupById !== "string")
-    throw new HttpError(400, "Choose a property to group by.");
 
-  const [prop] = await db
-    .select({ id: properties.id, type: properties.type, projectId: properties.projectId })
-    .from(properties)
-    .where(eq(properties.id, input.groupById))
-    .limit(1);
-  if (!prop || prop.projectId !== projectId)
-    throw new HttpError(400, "That property is not in this project.");
-  if (!GROUPABLE_TYPES.includes(prop.type as PropertyType)) {
-    throw new HttpError(400, "A board can only group by a select, person or checkbox property.");
+  // A request that says nothing about the kind means a board, which is what
+  // every view was before there was more than one.
+  const wanted = input.kind ?? "board";
+  if (!(VIEW_KINDS as readonly string[]).includes(wanted))
+    throw new HttpError(400, "A view is a board or a list.");
+  const kind = wanted as ViewKind;
+
+  // A board is its columns, so it cannot be made without one. A list groups
+  // nothing, and asks for nothing.
+  let groupById: string | null = null;
+  if (kind === "board") {
+    if (typeof input.groupById !== "string")
+      throw new HttpError(400, "Choose a property to group by.");
+    groupById = await groupPropertyId(projectId, input.groupById);
+  } else if (typeof input.groupById === "string" && input.groupById) {
+    groupById = await groupPropertyId(projectId, input.groupById);
   }
 
   const view = await withProjectLock(projectId, async (tx) => {
@@ -42,7 +46,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .values({
         projectId,
         name,
-        groupById: prop.id,
+        kind,
+        groupById,
         position: rankAfter(siblings.at(-1)?.position ?? null),
         isDefault: siblings.length === 0,
         config: {},

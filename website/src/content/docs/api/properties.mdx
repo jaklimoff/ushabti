@@ -63,6 +63,9 @@ Removes the property, its options and every value written for it.
 | `400` | `The view "Phases" groups by this property. Point it at another property first.` |
 | `400` | `These views group by this property: "Phases", "Board". Point them at another property first.` |
 
+Only views whose `kind` is `board` are counted. A **list** remembers a grouping property but never
+reads one, so a remembered word does not keep a property alive; the column is cleared if it goes.
+
 ---
 
 ## Options
@@ -105,30 +108,41 @@ discarded every time the view is read. See [Filters](/ushabti/guides/filters/).
 ### `POST /api/projects/{projectId}/views`
 
 ```json title="request"
-{ "name": "By assignee", "groupById": "<propertyId>" }
+{ "name": "By assignee", "kind": "board", "groupById": "<propertyId>" }
 ```
 
-`groupById` must be a property of this project whose type is `select`, `person` or `checkbox`.
+`kind` is `board` or `list`, and defaults to `board` — which is what every view was before there
+was more than one kind.
+
+A **board** requires `groupById`: a property of this project whose type is `select`, `person` or
+`checkbox`. A **list** groups nothing and needs none, so it can be created on a project that has no
+such property at all. A list may still carry one; it is remembered, unread, for the day the view
+becomes a board again.
 
 ```json title="201"
-{ "view": { "id": "…", "name": "By assignee", "groupById": "…", "position": "Vn",
-            "isDefault": false, "filters": { "rules": [] } } }
+{ "view": { "id": "…", "name": "By assignee", "kind": "board", "groupById": "…",
+            "position": "Vn", "isDefault": false, "filters": { "rules": [] } } }
 ```
 
 | Status | Message |
 | --- | --- |
 | `400` | `Choose a property to group by.` · `That property is not in this project.` |
-| `400` | `A board can only group by a select, person or checkbox property.` |
+| `400` | `A view can only group by a select, person or checkbox property.` |
+| `400` | `A view is a board or a list.` |
 
 ### `PATCH /api/views/{viewId}`
 
 ```json title="request"
-{ "name": "Board", "groupById": "…", "filters": { "rules": [ … ] } }
+{ "name": "Board", "kind": "list", "groupById": "…", "filters": { "rules": [ … ] } }
 ```
 
+Send `"groupById": null` to clear it. A view that would end up a **board** with no property is
+refused — `400 A board needs a property to make its columns from.` — because the alternative is a
+screen with nothing on it. An unknown `kind` is refused rather than stored.
+
 <Aside type="caution" title="`filters` is human only">
-An agent may rename a view and change its grouping. It may **not** write filters — a token that could
-hide work from the people should not. `403 Only a person can do this.`
+An agent may rename a view, change its kind and change its grouping. It may **not** write filters —
+a token that could hide work from the people should not. `403 Only a person can do this.`
 </Aside>
 
 Rules are read and cleaned **on the way in** as well as on the way out, so what you send is not

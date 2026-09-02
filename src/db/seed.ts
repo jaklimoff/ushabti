@@ -267,7 +267,8 @@ async function main() {
     DEFAULT_VIEWS.map((v, i) => ({
       projectId: project.id,
       name: v.name,
-      groupById: propByName.get(v.groupBy) ?? null,
+      kind: v.kind,
+      groupById: v.groupBy ? (propByName.get(v.groupBy) ?? null) : null,
       position: viewRanks[i],
       isDefault: v.isDefault,
       config: {},

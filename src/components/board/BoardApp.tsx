@@ -8,6 +8,7 @@ import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
 import { FilterChips } from "./Filters";
+import { ListCanvas } from "./ListCanvas";
 import { BoardProvider, useBoard } from "./store";
 import { TaskPanel } from "./TaskPanel";
 import { ViewStrip } from "./ViewStrip";
@@ -87,7 +88,13 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
 
         <ViewStrip filterOpen={filterOpen} setFilterOpen={setFilterOpen} />
         <FilterChips panelOpen={filterOpen} />
-        <BoardCanvas selectedTaskId={selected} onOpenTask={open} />
+        {/* The same tasks, drawn two ways. Everything above and below this line
+            is the view's, whichever shape it takes. */}
+        {view?.kind === "list" ? (
+          <ListCanvas selectedTaskId={selected} onOpenTask={open} />
+        ) : (
+          <BoardCanvas selectedTaskId={selected} onOpenTask={open} />
+        )}
 
         {/* The project has tasks; this view is hiding all of them. Saying so
             is the difference between a filter and a board that looks broken. */}
@@ -107,9 +114,21 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         {data.tasks.length === 0 && (
           <div className={styles.firstHint}>
             <div className={styles.firstHintInner}>
-              The columns come from a property called <b>{groupProperty?.name ?? "Status"}</b>. So
-              do Priority, Assignee and the rest — every field on a task is yours to rename or
-              delete in <Link href={`/p/${data.project.id}/settings/properties`}>Settings</Link>.
+              {view?.kind === "list" ? (
+                <>
+                  The columns of a list are what a card carries, which you arrange in{" "}
+                  <Link href={`/p/${data.project.id}/settings/card`}>Settings</Link>. Every field on
+                  a task is a property of yours — Status, Priority, Assignee and the rest — so you
+                  can rename or delete any of them.
+                </>
+              ) : (
+                <>
+                  The columns come from a property called <b>{groupProperty?.name ?? "Status"}</b>.
+                  So do Priority, Assignee and the rest — every field on a task is yours to rename
+                  or delete in{" "}
+                  <Link href={`/p/${data.project.id}/settings/properties`}>Settings</Link>.
+                </>
+              )}
             </div>
           </div>
         )}

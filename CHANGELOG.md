@@ -6,6 +6,43 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## Unreleased
+
+### Added
+
+- **A view can be a list.** A view was always a board grouped by one property.
+  It now has a kind: a **board**, which is what every view was, or a **list**,
+  which draws one row for each task in the one order every view shares. Choose
+  it when you make a view — the `+` in the view strip asks "Shows as" before it
+  asks what the columns are — or change it later in **Settings → Views**. A list
+  pill carries three lines where a board pill carries a dot.
+- **The list is where the card order lives.** Every view in a project shares one
+  order, and until now no screen showed it: a board only ever draws part of it,
+  so nobody could see the order they were all sharing. Drag a row, or lift it
+  with Space and move it with the arrows, and the boards move with it.
+- **The columns of a list are what a card carries.** They come from
+  **Settings → Card view** — the same rows, in the same order, drawn by the same
+  chips. Take a property off the card and it leaves the list in the same breath.
+  The key and the title open every row and stay put while a wide list scrolls
+  sideways; a row that has no value for a column draws nothing, exactly as a
+  card does.
+- **A list can be made on a project with nothing to group by.** A board is its
+  columns and cannot be, which used to make the `+` a dead end on such a project.
+
+### Changed
+
+- Changing a view between a board and a list asks nothing and loses nothing. A
+  board keeps the property it grouped by, unread, so turning it back restores
+  the same columns.
+- A property can be deleted while a _list_ remembers it. Only a board is counted
+  now, because only a board reads one.
+- A colour-only chip carries its name in a list. On a card the title above it
+  says what it belongs to and room is scarce; a column's heading names the
+  property, never the value, so a row of bare squares says only that the task
+  has one.
+- Adding a task to a filtered list fills in what the filter asks for, including
+  the property a board would have left to its columns.
+
 ## 0.7.0 — 2026-08-27
 
 ### Added

@@ -7,8 +7,25 @@ sidebar:
 
 import { Aside, Badge, LinkCard } from '@astrojs/starlight/components'
 
-A view is a name, one grouping property, and a set of filter rules. That is all it holds. It owns no
-tasks, so making one, changing one or deleting one never touches your work.
+A view is a name, a **kind**, one grouping property, and a set of filter rules. That is all it
+holds. It owns no tasks, so making one, changing one or deleting one never touches your work.
+
+## The two kinds
+
+<div class="cols-table">
+
+| Kind      | What you get                                                                   |
+| --------- | ------------------------------------------------------------------------------ |
+| **Board** | Cards in columns, one column for each value of the grouping property.           |
+| **List**  | One row for each task, in the one order every view shares. No columns, no grouping. |
+
+</div>
+
+The same tasks either way. A filter, the card view and the card order are shared by both, so
+switching a view between them changes the drawing and nothing else. See
+[The list](/ushabti/guides/list/).
+
+## The columns of a board
 
 The columns are the options of the grouping property, in that property's own order. Change the
 order and every view using that property changes with it, because the order belongs to the property
@@ -43,19 +60,34 @@ carrying what, and it needs no new feature, because the columns are just that pr
 
 ## Adding a view
 
-The `+` at the end of the view strip opens a small panel: a name, and a chip row of every property
-that can group a board. Leave the name blank and it becomes `By status` — the property name,
-lowercased.
+The `+` at the end of the view strip opens a small panel: a name, **Shows as** — `Board` or `List` —
+and, for a board, a chip row of every property that can group one. Leave the name blank and a board
+becomes `By status` — the property name, lowercased — and a list becomes `List`.
 
 If no groupable property exists yet, it says so: *"Create a select, person or checkbox property
-first."*
+first."* That stops a **board** only. A list groups nothing, so it can be made on a project that has
+no such property at all.
 
-You can also do it in **Settings → Views**, which is where you rename, regroup and delete.
+You can also do it in **Settings → Views**, which is where you rename, regroup, change the kind and
+delete.
+
+## Changing the kind
+
+**Settings → Views**, the `Shows as` dropdown. It saves the moment you change it and it asks
+nothing, because nothing is lost either way: a board that becomes a list **keeps the property it
+grouped by**, unread, so turning it back restores the same columns. The "Columns by" dropdown
+disappears for a list rather than greying out — a disabled control is a question with no answer.
+
+<Aside type="tip" title="A list can outlive its grouping property">
+A property cannot be deleted while a **board** groups by it. A list is not counted, because a list
+never reads one. Turn a board into a list and the property it remembers is free to go; the list goes
+on drawing rows, and turning it back into a board asks you for a new property.
+</Aside>
 
 ## Renaming, regrouping, deleting
 
-**Settings → Views** (`/p/{project}/settings/views`). The name saves on blur; the "Columns by"
-dropdown saves the moment you change it. Deleting is owner only and asks in the row:
+**Settings → Views** (`/p/{project}/settings/views`). The name saves on blur; the "Shows as" and
+"Columns by" dropdowns save the moment you change them. Deleting is owner only and asks in the row:
 
 > **Delete the view Phases?** The tasks stay; only this way of looking at them goes.
 
@@ -69,20 +101,28 @@ cannot send somebody a link to a particular view. Settings pages do each have th
 
 <Aside type="caution" title="One card order, shared by every view">
 There is one order for the cards in a project, not one per view. Move a card up in **Board** and it
-moves in **Phases** too. It is a known limit, listed on the [roadmap](/ushabti/releases/roadmap/),
-and it is the price of a drag writing exactly one row.
+moves in **Phases** too, and a row moved in a list moves on every board. It is a known limit, listed
+on the [roadmap](/ushabti/releases/roadmap/), and it is the price of a drag writing exactly one row.
+A [list](/ushabti/guides/list/) is the one screen that shows that order whole.
 </Aside>
 
 ## A view that groups by a property you delete
 
-You cannot delete it. The server refuses and names the view, because the alternative is a board that
-silently stops having columns. Point the view at another property first, then delete.
+You cannot delete it — while a **board** groups by it. The server refuses and names the view, because
+the alternative is a board that silently stops having columns. Point the view at another property
+first, or make it a list, then delete.
 
 ## What a filter does to the columns
 
 If a view's filter names its own grouping property, the columns that rule excludes **disappear** —
 they are not drawn empty. An empty column you could still drop a card into is a trap: the card would
 vanish the moment it landed. See [Filters](/ushabti/guides/filters/).
+
+<LinkCard
+  title="The list"
+  href="/ushabti/guides/list/"
+  description="One row for each task, the order every view shares, and where its columns come from."
+/>
 
 <LinkCard
   title="The board"

@@ -888,6 +888,321 @@
   animation: none;
 }
 
+/* ------------------------------------------------------------- the list */
+
+/*
+ * A list is the card view read across instead of down: the same rows, in the
+ * same order, drawn by the same chips. Nothing here names a property, and the
+ * cells reuse the card's own chip classes, so a value reads the same wherever
+ * it is drawn.
+ */
+
+.list {
+  --list-row-h: 32px;
+  --list-head-h: 26px;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.listScroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  /* The last row must not sit against the bottom of the window. */
+  padding-bottom: 40px;
+}
+
+/* As wide as its widest line, so a narrow window scrolls the whole table
+   rather than squeezing the title away. The header, the sections and the rows
+   are all children of this, so they scroll as one. */
+.listGrid {
+  min-width: min-content;
+}
+
+/* ---- the header ----------------------------------------------------- */
+
+/*
+ * The left gutter belongs to the first cell rather than to the row, because
+ * that cell is held while the list scrolls sideways. Were the gutter the row's
+ * padding, the held cell would stop at the very edge and the colour stripe
+ * would have nowhere to be.
+ */
+.listHead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: var(--list-cols);
+  align-items: stretch;
+  gap: 8px;
+  height: var(--list-head-h);
+  padding: 0 12px 0 0;
+  background: var(--bg-sub);
+  border-bottom: 1px solid var(--line);
+}
+
+.listHeadCell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-right: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A number reads from the right, so its heading does too. */
+.listHeadRight {
+  padding-right: 0;
+  text-align: right;
+}
+
+/* ---- a row ---------------------------------------------------------- */
+
+.listRow {
+  position: relative;
+  display: grid;
+  /* Opaque on purpose: the pinned cells take this background with `inherit`,
+     so the rows sliding under them must have something to hide behind. */
+  background: var(--bg);
+  grid-template-columns: var(--list-cols);
+  align-items: stretch;
+  gap: 8px;
+  min-height: var(--list-row-h);
+  padding: 0 12px 0 0;
+  border-bottom: 1px solid var(--line-faint);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 120ms var(--ease);
+}
+
+.listRow:hover {
+  background: var(--bg-card);
+}
+
+/* The open task, wearing the ring its card wears. */
+.listRowSelected {
+  background: var(--bg-card);
+  box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.55);
+}
+
+/*
+ * The cursor. One line carries it, the arrow keys move it, and it is the
+ * list's only tab stop. The ring stays inside the row: a card floats in an
+ * 8 px gutter and can wear a halo, a line touching two hairlines cannot.
+ */
+.listRow:focus-visible {
+  outline: none;
+  background: var(--bg-card-hover);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/*
+ * The colour the card wears, worn down the side of the line. The padding does
+ * not move with it, which is the one deliberate difference from a card: in a
+ * table the columns line up whether or not a task has a colour to show.
+ */
+.listRowEdge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+
+/* A wide bar does not rotate. The card's 1.4° reads as a lift at 250 px and
+   as a broken table at 1000. */
+.listRowOverlay {
+  cursor: grabbing;
+  border-radius: 6px;
+  background: #1a1e24;
+  box-shadow: var(--shadow-drag);
+}
+
+/* ---- the cells ------------------------------------------------------ */
+
+/*
+ * A cell that stays put while the list scrolls sideways. It takes the row's
+ * own background, so hover and the open row read across the seam, and the
+ * hairline is the edge of the held part.
+ */
+.listPin {
+  position: sticky;
+  z-index: 1;
+  background: inherit;
+}
+
+.listPinLast {
+  box-shadow: 1px 0 0 var(--line-faint);
+}
+
+/* The first column carries the gutter, and with it the colour stripe. */
+.listCellLead {
+  padding-left: 12px;
+}
+
+.listKey {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+.listTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.listTitleText {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--t-body);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The description, when the card view puts it on the card. It gives way
+   before the title does, because the title is the name of the thing. */
+.listDesc {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--t-small);
+  color: var(--faint-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*
+ * One property of one task. A chip cannot end in an ellipsis, so the last
+ * 10 px is a lane the cell fades out over. Content that fits stops before the
+ * lane and never fades; content that does not, dissolves.
+ */
+.listChips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 10px;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 10px), transparent 100%);
+}
+
+.listChipsRight {
+  justify-content: flex-end;
+  padding-right: 0;
+  mask-image: none;
+}
+
+/*
+ * Who is working on this row. The card names the agent, its step and its age;
+ * a line has room for the name, and the rest is one hover away.
+ */
+.listRunAgent {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6fbfd2;
+  white-space: nowrap;
+}
+
+.listRunAgent[data-life="quiet"],
+.listRunAgent[data-life="silent"] {
+  color: var(--faint);
+}
+
+/* ---- an agent is working on this row -------------------------------- */
+
+/*
+ * Who, and that it is alive. The card gives a run its whole footer; a line has
+ * room for a name and for the hairline it already has, scanning. The step, the
+ * time and the plan stay in the panel.
+ */
+.listRowRun {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  overflow: hidden;
+  background: rgba(63, 176, 200, 0.12);
+}
+
+.listRowRunFill {
+  display: block;
+  width: 22%;
+  height: 1px;
+  background: var(--accent);
+  animation: ushabti-scan 1.9s linear infinite;
+}
+
+/* ---- adding, and nothing to show ------------------------------------ */
+
+/*
+ * The only way into a list, so unlike the board's `.emptyDrop` it is never
+ * invisible: a column carries a + in its head and can afford to hide this,
+ * and a list has no head to carry one.
+ */
+.listAdd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--list-row-h);
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line-faint);
+  background: none;
+  color: var(--faint-2);
+  font-family: inherit;
+  font-size: var(--t-body);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.listAdd:hover {
+  background: var(--bg-card);
+  color: var(--text-4);
+}
+
+.listAdd:focus-visible {
+  outline: none;
+  background: var(--bg-card);
+  color: var(--text-4);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+
+/* The words stay where the eye is when a wide list is scrolled sideways. */
+.listAddWords {
+  position: sticky;
+  left: 0;
+}
+
+.listCompose {
+  padding: 6px 12px;
+}
+
 /*
  * The first board a person sees is five empty columns, which says nothing
  * about the one idea the product is built on. It goes as soon as there is a

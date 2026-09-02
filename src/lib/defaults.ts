@@ -1,4 +1,4 @@
-import type { PropertyType } from "./types";
+import type { PropertyType, ViewKind } from "./types";
 
 export type DefaultOption = { name: string; color: string };
 export type DefaultProperty = {
@@ -71,10 +71,18 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
   { name: "Due", type: "date" },
 ];
 
-/** Views that a new project starts with. Keyed by default property name. */
-export const DEFAULT_VIEWS: { name: string; groupBy: string; isDefault: boolean }[] = [
-  { name: "Board", groupBy: "Status", isDefault: true },
-  { name: "Phases", groupBy: "Phase", isDefault: false },
+/**
+ * Views that a new project starts with. `groupBy` names a default property; a
+ * list groups nothing, so it names none.
+ */
+export const DEFAULT_VIEWS: {
+  name: string;
+  kind: ViewKind;
+  groupBy: string | null;
+  isDefault: boolean;
+}[] = [
+  { name: "Board", kind: "board", groupBy: "Status", isDefault: true },
+  { name: "Phases", kind: "board", groupBy: "Phase", isDefault: false },
 ];
 
 export function suggestProjectKey(name: string): string {
