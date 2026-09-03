@@ -1,0 +1,99 @@
+---
+title: Search
+description: The box in the top bar of an Ushabti board — find a task by its key, its title or its words, press / to reach it, and see the hits the view is hiding.
+sidebar:
+  order: 8
+---
+
+import { Aside, LinkCard } from '@astrojs/starlight/components'
+
+A box sits in the top bar, beside the project name. Type in it and the hits arrive on the
+keystroke — no button, no waiting, no page of results. Press <kbd>Enter</kbd> and the task opens.
+
+## What it looks at
+
+Three things, in this order of preference:
+
+1. **The key**, which is the address a person says out loud. `DP-4` finds DP-4, and so does a bare
+   `4` — that is the half people actually type.
+2. **The title**, first the titles that *start* with what you typed, then the titles that carry it
+   anywhere.
+3. **The description.** A hit found only there carries the line it was found on, under the title, so
+   a row always says why it is a hit.
+
+Nothing else is searched: not comments, not checklist items, not the values of properties. A
+property is what [filters](/ushabti/guides/filters/) are for.
+
+## Two words narrow
+
+Every word has to be somewhere — the key, the title or the description — exactly as
+[every filter rule has to pass](/ushabti/guides/filters/). `login guide` finds the task whose title
+is "Write the login guide"; it does not find everything with "login" in it as well.
+
+The words may land in different places. One in the title and one in the description is still a hit.
+
+## It reaches past the filter
+
+A search looks at **every task in the project**, and not at the tasks the view happens to be
+drawing.
+
+That is the difference between a search and a filter, and it decides this. A filter says what a view
+shows, and everybody on that view sees it. A search hides nothing, writes nothing, and ends by
+opening one task — so narrowing it to the current view would mean that a key somebody sent you in
+chat quietly finds nothing, on any board that has a filter on it.
+
+What it owes you instead is a word. A hit the view is not drawing says **not in this view** on its
+own row, and still opens.
+
+<Aside type="note" title="The box is in the top bar on purpose">
+The [Filter](/ushabti/guides/filters/) pill lives in the view strip because a filter belongs to a
+view. What a search finds belongs to the project, so its box sits above the strip, beside the
+project name — with the things that no view owns.
+</Aside>
+
+## The keys
+
+<div class="keys">
+
+| Key | What it does |
+| --- | ------------ |
+| <kbd>/</kbd> | From anywhere on the board, put the cursor in the box. It does not land in the box as a character — unless you were already typing in a field, in which case the field keeps it. |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move down the hits. The list is a ring, like the filter panel's. |
+| <kbd>Enter</kbd> | Open the highlighted task. |
+| <kbd>Escape</kbd> | Put the list away and leave the box. The board and the task panel are untouched. |
+
+</div>
+
+Opening a task closes the list and **keeps the words**, so working through three hits in turn is
+<kbd>/</kbd>, <kbd>↓</kbd>, <kbd>Enter</kbd> and no retyping.
+
+## What it costs
+
+Nothing on the server. The board is already in your browser — every task, with its description — so
+the search runs there and answers between keystrokes.
+
+That is also its limit: it can only find what the board loaded, and a board loads every task at
+once. The day a board pages, this becomes a query.
+
+<LinkCard
+  title="The task panel"
+  href="/ushabti/guides/task-panel/"
+  description="Title, description, checklist, comments, activity — and the Agent tab."
+/>
+
+<style>{`
+  .keys kbd {
+    display: inline-block;
+    min-width: 1.6em;
+    text-align: center;
+    padding: 0.1em 0.45em;
+    border: 1px solid var(--sl-color-hairline-light);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: var(--sl-color-gray-7);
+    font-family: var(--sl-font-mono);
+    font-size: 0.8em;
+    color: var(--sl-color-gray-1);
+  }
+  .keys td:first-child { white-space: nowrap; }
+`}</style>

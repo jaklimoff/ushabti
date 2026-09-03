@@ -103,6 +103,7 @@ export default defineConfig({
             { label: "The list", link: "/guides/list/" },
             { label: "Keyboard", link: "/guides/keyboard/" },
             { label: "Filters", link: "/guides/filters/" },
+            { label: "Search", link: "/guides/search/" },
             { label: "The task panel", link: "/guides/task-panel/" },
             { label: "Settings", link: "/guides/settings/" },
             { label: "People and projects", link: "/guides/people/" },

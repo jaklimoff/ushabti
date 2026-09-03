@@ -102,11 +102,11 @@ Everything off the board, brought up to the board's standard.
    heading to press. What a board would need is a control of its own beside the
    filter, and an answer to what a drag means inside a sorted column — the list
    answers it by holding still, and a board would have to do the same.
-2. **Search.** Find a task by key or by words in the title. A box in the top bar, results as you type.
-3. **Keyboard shortcuts.** `n` for a new task, `/` for search, arrow keys to move between cards, `Esc` to close.
-4. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
-5. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
-6. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
+2. **Keyboard shortcuts.** `n` for a new task. `/` for search, the arrow keys
+   between cards and `Esc` to close are done.
+3. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
+4. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
+5. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
 
 ## Later
 
@@ -148,6 +148,11 @@ These are consequences of the design, not defects. Read them before you build on
 - **A list draws every row it shows.** Like the board, and for the same reason: above a few thousand tasks it needs paging. A row is cheaper than a card, so the ceiling is higher, not different.
 - **A list shows what a card shows.** Its columns are the project's card view, so the property a board groups by is missing from a list until somebody puts it back on the card in Settings → Card view — the default leaves it off because a board's columns already say it. The alternative was worse: a rule that restored it would make the column vanish the day somebody edited an unrelated row.
 - **A board loads all its tasks at once.** Fine for a few thousand. It needs paging above that.
+- **Search reads the board the browser already has**, which is why it answers on
+  the keystroke and asks the server nothing. It follows the line above: the day
+  a board pages, search has to become a query. It looks at the key, the title
+  and the description, and at nothing else — a comment or a checklist item is
+  not searched.
 - **The activity log has no limit.** The panel reads the last 60 entries, but the table only grows.
 - **Only select, person and checkbox properties can group a board.** A multi-select would put one task in several columns, which the drag logic does not handle. A list groups by nothing, so this does not reach it.
 - **A property cannot be deleted while a view groups by it.** Point the view at another property first. This is on purpose: a view without its property is meaningless.
