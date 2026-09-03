@@ -1545,3 +1545,141 @@ button.listHeadCell:focus-visible {
   font-size: var(--t-body);
   color: var(--muted);
 }
+
+/* ---------------------------------------------------------------- search */
+
+/* The box sits in the top bar and not in the view strip: what it finds
+   belongs to the project, and the strip belongs to one view. */
+.searchAnchor {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 208px;
+  min-width: 0;
+}
+
+.searchBox {
+  width: 100%;
+  height: 26px;
+  padding: 0 20px 0 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  outline: 0;
+  background: var(--bg-hover);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  transition: border-color 140ms var(--ease);
+}
+
+.searchBox::placeholder {
+  color: var(--faint);
+  text-transform: uppercase;
+}
+
+.searchBox:focus {
+  border-color: #38505a;
+}
+
+/* The key that opens the box, on the box. It goes the moment there are words,
+   because it is a hint and not a value. */
+.searchSlash {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint-2);
+}
+
+.searchPop {
+  top: 32px;
+  left: auto;
+  right: 0;
+  width: 328px;
+  gap: 0;
+  padding: 6px;
+}
+
+.searchList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.searchItem {
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 6px;
+  border-radius: 5px;
+}
+
+.searchItem:hover {
+  background: var(--bg-hover);
+}
+
+/* The row the arrow keys are on. It is not focus: the box keeps that. */
+.searchItemAt {
+  background: var(--bg-hover);
+}
+
+.searchLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.searchKey {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--faint-2);
+}
+
+.searchTitle {
+  min-width: 0;
+  font-size: var(--t-small);
+  color: var(--text-4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchItemAt .searchTitle {
+  color: var(--text);
+}
+
+/* A search reaches past the filter, so a hit the board behind it is not
+   drawing has to say so. Without this the row opens a card nobody can find. */
+.searchAway {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* Why this is a hit, when neither the key nor the title says so. */
+.searchSnippet {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+  .searchAnchor {
+    flex: 0 1 132px;
+  }
+
+  .searchPop {
+    width: 280px;
+  }
+}

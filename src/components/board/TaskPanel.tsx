@@ -28,6 +28,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PropertyControl } from "./controls/PropertyControl";
+import { isTyping } from "./keys";
 import { Markdown } from "./Markdown";
 import { useBoard } from "./store";
 import styles from "./panel.module.css";
@@ -92,11 +93,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      const typing =
-        target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-      if (event.key === "Escape" && !typing) onClose();
+      if (event.key === "Escape" && !isTyping(event.target)) onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

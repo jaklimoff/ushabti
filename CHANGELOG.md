@@ -6,6 +6,21 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## Unreleased
+
+### Added
+
+- **Find a task from the top bar.** A box beside the project name answers as you
+  type: by the key a person reads on a card — `DP-4`, or just `4` — by words in
+  the title, and by words in the description. Press `/` from anywhere on the
+  board to reach it, the arrows to move down the hits, Enter to open one. A hit
+  found only in a description carries the line it was found on, so a row always
+  says why it is a hit.
+- **A search reaches past the filter.** It looks at every task in the project,
+  because it hides nothing and ends by opening one task. A hit the view is not
+  drawing says **not in this view** on its own row, so a key somebody sent you
+  still opens on a filtered board instead of quietly finding nothing.
+
 ## 0.8.0 — 2026-09-02
 
 ### Added

@@ -127,6 +127,15 @@ and what is easy to get wrong.
   `liftedCardCoordinates` instead of asking `sortableKeyboardCoordinates`. Both
   halves have to hold: the drop target is one decision, where the key puts the
   card is another, and a release that fixed only the first one read as fixed.
+- **A search is not a filter, so it must not read one.** `searchTasks()` in
+  `src/lib/search.ts` looks at every task in the project and never at
+  `visibleTasks`: a filter decides what a view shows and everybody sees it,
+  while a search hides nothing, writes nothing and ends by opening one task.
+  Narrow it to the view and the one thing a person does with a key somebody
+  sent them — paste it in, open the task — stops working on any filtered
+  board. What is owed instead is a word on the row: a hit the view is not
+  drawing says so. The box sits in the top bar and not in the view strip for
+  the same reason; the strip holds what belongs to a view.
 - **A filter is read afresh, never cleaned up.** Nothing rewrites a view when
   the property or the option one of its rules names is deleted, so a saved rule
   can point at nothing. `readFilters()` throws those away every time the board
