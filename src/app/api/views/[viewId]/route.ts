@@ -26,7 +26,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const { viewId } = await ctx.params;
   const projectId = await viewProjectId(viewId);
   if (!projectId) throw new HttpError(404, "View not found.");
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
 
   const input = await body<{
     name?: string;
@@ -35,6 +35,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     filters?: unknown;
     sort?: unknown;
     afterId?: string | null;
+    isDefault?: boolean;
   }>(req);
   const patch: Record<string, unknown> = {};
 
@@ -88,6 +89,32 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     }
 
     patch.config = config;
+  }
+
+  /*
+   * A project has one main view: the one a board opens on, and the one view
+   * that cannot be deleted. So naming a new one takes the word off the old one
+   * in the same transaction — a board with two, or with none, answers "which
+   * view opens?" twice. There is no way to say "not this one", because that
+   * would leave the project with no answer at all.
+   */
+  if (input.isDefault !== undefined) {
+    ownerOnly(user, membership, "change the main view");
+    if (!input.isDefault)
+      throw new HttpError(400, "Make another view the main one instead. A project always has one.");
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(views)
+        .set({ isDefault: false })
+        .where(and(eq(views.projectId, projectId), eq(views.isDefault, true)));
+      await tx
+        .update(views)
+        .set({ ...patch, isDefault: true })
+        .where(eq(views.id, viewId));
+    });
+    await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
+    return json({ ok: true });
   }
 
   /* A drag says which view this one landed after, never a rank: the rank is

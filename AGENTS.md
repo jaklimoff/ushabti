@@ -62,6 +62,14 @@ and what is easy to get wrong.
   and shares `chipsFor`, so a value cannot read one way on a card and another
   in a list. Its one deliberate difference is that a colour-only chip gets its
   name back: a column's heading names the property, never the value.
+- **One view is the main one, and it is named rather than unnamed.** The word
+  says two things at once: which view a board opens on when nobody has picked
+  one, and which view cannot be deleted. So the route takes `isDefault: true`
+  and nothing else — the flag comes off the old view and goes on the new one in
+  one transaction, because a project with two main views, or with none, answers
+  "which view opens?" twice. It is `ownerOnly`, beside deleting a view, and it
+  moves what `defaultGroupById` answers: on a project that never arranged a
+  card view, the main view is the one that says which property the columns are.
 - **A view is dragged by naming what it landed on, never a rank.** The strip
   and the settings page write the same one order, so `moveView` in `store.tsx`
   is the only place that works the neighbour out and the route is the only

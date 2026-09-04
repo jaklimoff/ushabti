@@ -153,7 +153,7 @@ export function ViewsPanel() {
 }
 
 function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] }) {
-  const { data, updateView, deleteView } = useBoard();
+  const { data, updateView, deleteView, setMainView } = useBoard();
   const confirm = useConfirm();
   const isOwner = data.project.role === "owner";
   const {
@@ -230,7 +230,25 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
           else e.target.value = view.name;
         }}
       />
-      {view.isDefault && <Tag accent>main</Tag>}
+      {/* The main view is named, never unnamed: a project always has one, so
+          the way off the word is to give it to another view. */}
+      {view.isDefault ? (
+        <Tag accent title="The view a board opens on. It is the one view that cannot be deleted.">
+          main
+        </Tag>
+      ) : (
+        isOwner && (
+          <button
+            type="button"
+            className={styles.makeMain}
+            aria-label={`Make ${view.name} the main view`}
+            title="The board opens on the main view, and it cannot be deleted."
+            onClick={() => void setMainView(view.id)}
+          >
+            Make main
+          </button>
+        )
+      )}
       <Spacer />
       <span className="label">Shows as</span>
       <Select
