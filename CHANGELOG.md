@@ -20,6 +20,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   because it hides nothing and ends by opening one task. A hit the view is not
   drawing says **not in this view** on its own row, so a key somebody sent you
   still opens on a filtered board instead of quietly finding nothing.
+- **The views can be put in order.** Drag a pill along the strip at the top of
+  the board, or a row by its grip on the settings page: it is one order, so
+  moving a view in either place moves it in both. The settings page answers the
+  keyboard as well — Space lifts a row, the arrows move it, Space puts it down.
 
 ## 0.8.0 — 2026-09-02
 

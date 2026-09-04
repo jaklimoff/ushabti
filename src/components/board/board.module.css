@@ -149,9 +149,19 @@
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--muted);
+  /* The strip pans on a touch screen, exactly as a column does. */
+  touch-action: manipulation;
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
+}
+
+/* The pill under the pointer while the order is being changed. */
+.pillLifted {
+  z-index: 2;
+  opacity: 0.9;
+  background: #171b20;
+  box-shadow: 0 6px 18px #00000055;
 }
 
 .pill:hover {

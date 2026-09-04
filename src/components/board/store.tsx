@@ -102,6 +102,12 @@ type Store = {
     },
   ) => Promise<void>;
   deleteView: (viewId: string) => Promise<void>;
+  /**
+   * Puts one view where another one sits. A drag names the view it landed on,
+   * not a rank: the strip and the settings page then say the same thing in the
+   * same words, and only this one place works the neighbours out.
+   */
+  moveView: (viewId: string, overId: string) => Promise<void>;
 
   addOption: (propertyId: string, name: string) => Promise<string | null>;
   patchOption: (
@@ -534,6 +540,31 @@ export function BoardProvider({
     [data.views, guarded, setViewId, viewId],
   );
 
+  /*
+   * The order of the views is the order of the strip, so the answer is worked
+   * out here and drawn at once. The board is fetched again only if the write
+   * fails.
+   */
+  const moveView = useCallback<Store["moveView"]>(
+    async (id, overId) => {
+      const list = data.views;
+      const from = list.findIndex((v) => v.id === id);
+      const to = list.findIndex((v) => v.id === overId);
+      if (from < 0 || to < 0 || from === to) return;
+
+      const ordered = list.filter((v) => v.id !== id);
+      ordered.splice(to, 0, list[from]);
+      // The view it now sits behind. Null is the front of the strip.
+      const afterId = ordered[to - 1]?.id ?? null;
+
+      setData((current) => ({ ...current, views: ordered }));
+      await guarded(async () => {
+        await api.patch(`/api/views/${id}`, { afterId });
+      });
+    },
+    [data.views, guarded],
+  );
+
   /* --- properties and options ----------------------------------------- */
   const addOption = useCallback<Store["addOption"]>(
     async (propertyId, name) => {
@@ -682,6 +713,7 @@ export function BoardProvider({
     createView,
     updateView,
     deleteView,
+    moveView,
     addOption,
     patchOption,
     deleteOption,

@@ -34,11 +34,9 @@ export function Card({ children, className }: { children: React.ReactNode; class
   return <div className={[styles.card, className ?? ""].filter(Boolean).join(" ")}>{children}</div>;
 }
 
-export function Row({
-  children,
-  className,
-  ...rest
-}: React.HTMLAttributes<HTMLDivElement> & { className?: string }) {
+/* The ref goes through so that a row can be dragged: dnd-kit needs the node
+   itself, and a settings row is still one of these and not a second kind. */
+export function Row({ children, className, ...rest }: React.ComponentPropsWithRef<"div">) {
   return (
     <div {...rest} className={[styles.row, className ?? ""].filter(Boolean).join(" ")}>
       {children}

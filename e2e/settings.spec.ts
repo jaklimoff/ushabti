@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { column, createProject, gotoSettings, register, unique } from "./helpers";
+import {
+  column,
+  createProject,
+  dragOnto,
+  gotoSettings,
+  register,
+  unique,
+  viewRowOrder,
+} from "./helpers";
 
 test.describe("Settings", () => {
   test("a failure says what went wrong", async ({ page }) => {
@@ -48,6 +56,47 @@ test.describe("Settings", () => {
     await expect(page.getByText(/Delete the view By assignee\?/)).toBeVisible();
     await page.getByRole("button", { name: "Yes, delete" }).click();
     await expect(page.getByLabel("Name of the view By assignee")).toHaveCount(0);
+  });
+
+  test("a view is dragged into its place, and stays there", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("ViewOrder"));
+
+    await gotoSettings(page, projectId, "views");
+    expect(await viewRowOrder(page)).toEqual(["BOARD", "PHASES"]);
+
+    await dragOnto(
+      page,
+      page.getByRole("button", { name: "Reorder the view Phases" }),
+      page.getByLabel("Name of the view Board"),
+      /^\/api\/views\/[0-9a-f-]+$/,
+    );
+    expect(await viewRowOrder(page)).toEqual(["PHASES", "BOARD"]);
+
+    // The order is one order, so the strip above the board reads the same.
+    await page.goto(`/p/${projectId}`);
+    expect(
+      (await page.getByTestId("view-pill").allInnerTexts()).map((t) => t.trim().toUpperCase()),
+    ).toEqual(["PHASES", "BOARD"]);
+  });
+
+  test("the keyboard moves a view as well as the pointer", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("ViewKeys"));
+
+    await gotoSettings(page, projectId, "views");
+    await page.getByRole("button", { name: "Reorder the view Board" }).focus();
+
+    // Space lifts the row, the arrows move it, Space puts it down.
+    await page.keyboard.press("Space");
+    // dnd-kit measures the rows after the lift, so the first arrow needs the
+    // frame that comes with it.
+    await page.waitForTimeout(120);
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(120);
+    await page.keyboard.press("Space");
+
+    await expect.poll(async () => viewRowOrder(page)).toEqual(["PHASES", "BOARD"]);
   });
 
   test("changing the project key warns about the tasks it renames", async ({ page }) => {

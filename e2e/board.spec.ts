@@ -6,9 +6,11 @@ import {
   column,
   createProject,
   dragCard,
+  dragOnto,
   register,
   settles,
   unique,
+  viewOrder,
 } from "./helpers";
 
 test.describe("Ushabti board", () => {
@@ -401,6 +403,24 @@ test.describe("Ushabti board", () => {
 
     await expect(page.getByTestId("view-pill").filter({ hasText: "By owner" })).toBeVisible();
     await expect(column(page, "Unassigned")).toBeVisible();
+  });
+
+  test("a pill is dragged along the strip, and the order keeps", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("PillOrder"));
+
+    expect(await viewOrder(page)).toEqual(["BOARD", "PHASES"]);
+
+    const pill = (name: string) => page.getByTestId("view-pill").filter({ hasText: name });
+    await dragOnto(page, pill("Phases"), pill("Board"), /^\/api\/views\/[0-9a-f-]+$/);
+    expect(await viewOrder(page)).toEqual(["PHASES", "BOARD"]);
+
+    // A drag is not a click: the board still shows the view it was on, which
+    // is the one with the Status columns and not the Phase ones.
+    await expect(column(page, "Backlog")).toBeVisible();
+
+    await page.goto(`/p/${projectId}`);
+    expect(await viewOrder(page)).toEqual(["PHASES", "BOARD"]);
   });
 
   test("add a column, which is a new option on the grouping property", async ({ page }) => {

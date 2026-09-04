@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { Client } from "pg";
 
 export function unique(prefix: string): string {
@@ -236,4 +236,47 @@ export async function backdateRun(runId: string, minutes: number): Promise<void>
   } finally {
     await client.end();
   }
+}
+
+/**
+ * Drags one element onto another, then waits for the write to come back.
+ *
+ * dnd-kit listens to pointer events and needs real movement, so this walks
+ * there in small steps, exactly as `dragCard` does.
+ */
+export async function dragOnto(page: Page, handle: Locator, target: Locator, wrote: RegExp) {
+  const from = await handle.boundingBox();
+  const to = await target.boundingBox();
+  if (!from || !to) throw new Error("Nothing to drag, or nowhere to drop it.");
+
+  const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+  const end = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 6, start.y + 6, { steps: 4 });
+
+  const steps = 20;
+  for (let i = 1; i <= steps; i += 1) {
+    await page.mouse.move(
+      start.x + ((end.x - start.x) * i) / steps,
+      start.y + ((end.y - start.y) * i) / steps,
+    );
+    if (i % 5 === 0) await page.waitForTimeout(24);
+  }
+  await page.waitForTimeout(140);
+  await settles(page, wrote, () => page.mouse.up());
+  await page.waitForTimeout(220);
+}
+
+/** The names of the views in the strip, left to right. */
+export async function viewOrder(page: Page): Promise<string[]> {
+  return (await page.getByTestId("view-pill").allInnerTexts()).map((t) => t.trim().toUpperCase());
+}
+
+/** The names of the views on the settings page, top to bottom. */
+export async function viewRowOrder(page: Page): Promise<string[]> {
+  return page
+    .locator('input[aria-label^="Name of the view"]')
+    .evaluateAll((boxes) => boxes.map((b) => (b as HTMLInputElement).value.toUpperCase()));
 }

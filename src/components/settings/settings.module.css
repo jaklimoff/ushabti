@@ -891,3 +891,41 @@
   color: #e0b56a;
   text-wrap: pretty;
 }
+
+/* ---------------------------------------------------------- view order */
+
+/* The one thing that lifts a row. The rest of the row keeps its caret. */
+.grip {
+  display: grid;
+  grid-template-columns: 2px 2px;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 4px 3px;
+  border-radius: 3px;
+  cursor: grab;
+  opacity: 0.65;
+  touch-action: none;
+  transition:
+    background 140ms var(--ease),
+    opacity 140ms var(--ease);
+}
+
+.grip:hover,
+.grip:focus-visible {
+  background: var(--bg-hover);
+  opacity: 1;
+}
+
+.grip span {
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #3a4048;
+}
+
+.rowLifted {
+  position: relative;
+  z-index: 2;
+  background: var(--bg-hover);
+}
