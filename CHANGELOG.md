@@ -6,7 +6,7 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
-## Unreleased
+## 0.9.0 — 2026-09-04
 
 ### Added
 
