@@ -62,6 +62,16 @@ and what is easy to get wrong.
   and shares `chipsFor`, so a value cannot read one way on a card and another
   in a list. Its one deliberate difference is that a colour-only chip gets its
   name back: a column's heading names the property, never the value.
+- **A view is dragged by naming what it landed on, never a rank.** The strip
+  and the settings page write the same one order, so `moveView` in `store.tsx`
+  is the only place that works the neighbour out and the route is the only
+  place that makes a rank, under the project lock, exactly as a property's is.
+  A pill is a button first: the drag starts after five pixels and dnd-kit
+  swallows the click that follows, so picking a view and moving one cannot
+  happen at once. The pill's colour follows the view and not its place, because
+  a pill that changed colour as it passed its neighbour would read as another
+  view. The keyboard route is the grip in settings; the strip keeps Space and
+  Enter for picking a view, which is what a top bar is for.
 - **A sort writes nothing, which is why a sorted list holds still.** The rank a
   task carries is the one order every view shares; `src/lib/sort.ts` decides
   only what a list draws, and never writes. So a drag inside a sorted list would
