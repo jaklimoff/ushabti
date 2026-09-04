@@ -36,7 +36,12 @@ everybody shares — not to one person's board.
 A new project has two: **Board**, grouped by Status and marked
 <Badge text="main" variant="tip" size="small" />, and **Phases**, grouped by Phase.
 
-The main view cannot be deleted. Everything else about it is ordinary.
+The main view is the one a board opens on when nobody in that browser has picked one, and it is the
+one view that cannot be deleted. Everything else about it is ordinary.
+
+Any view can take the word. **Settings → Views** puts **Make main** on every other row, and one
+click moves it — the word is given, never taken away, because a project always has exactly one. It
+is owner only, like deleting a view.
 
 ## How the columns are worked out
 
@@ -68,8 +73,18 @@ If no groupable property exists yet, it says so: *"Create a select, person or ch
 first."* That stops a **board** only. A list groups nothing, so it can be made on a project that has
 no such property at all.
 
-You can also do it in **Settings → Views**, which is where you rename, regroup, change the kind and
-delete.
+You can also do it in **Settings → Views**, which is where you rename, regroup, change the kind,
+change the order and delete.
+
+## The order of the views
+
+Drag a pill along the strip at the top of the board, or drag a row by the grip on its left in
+**Settings → Views**. It is one order, shared by everybody on the project, so moving a view in
+either place moves it in both.
+
+A pill stays a button first: the drag starts only once the pointer has travelled, so a click still
+picks the view. The settings page answers the keyboard as well — <kbd>Space</kbd> lifts a row, the
+arrows move it, <kbd>Space</kbd> puts it down.
 
 ## Changing the kind
 
@@ -87,7 +102,8 @@ on drawing rows, and turning it back into a board asks you for a new property.
 ## Renaming, regrouping, deleting
 
 **Settings → Views** (`/p/{project}/settings/views`). The name saves on blur; the "Shows as" and
-"Columns by" dropdowns save the moment you change them. Deleting is owner only and asks in the row:
+"Columns by" dropdowns save the moment you change them; the grip on the left changes the order and
+**Make main** moves the word. Deleting is owner only and asks in the row:
 
 > **Delete the view Phases?** The tasks stay; only this way of looking at them goes.
 
