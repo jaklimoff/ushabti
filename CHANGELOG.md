@@ -24,6 +24,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   the board, or a row by its grip on the settings page: it is one order, so
   moving a view in either place moves it in both. The settings page answers the
   keyboard as well — Space lifts a row, the arrows move it, Space puts it down.
+- **Any view can be made the main one.** The settings page gives the word to
+  another view in one click. The main view is the one a board opens on when
+  nobody has picked one, and the one view that cannot be deleted, so the word
+  is given rather than taken away: naming a new main view takes it off the old
+  one. Only the owner can, as with deleting a view.
 
 ## 0.8.0 — 2026-09-02
 

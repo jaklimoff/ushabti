@@ -103,6 +103,11 @@ type Store = {
   ) => Promise<void>;
   deleteView: (viewId: string) => Promise<void>;
   /**
+   * Names the main view: the one a board opens on, and the one that cannot be
+   * deleted. Naming one takes the word off the other, here as on the server.
+   */
+  setMainView: (viewId: string) => Promise<void>;
+  /**
    * Puts one view where another one sits. A drag names the view it landed on,
    * not a rank: the strip and the settings page then say the same thing in the
    * same words, and only this one place works the neighbours out.
@@ -540,6 +545,19 @@ export function BoardProvider({
     [data.views, guarded, setViewId, viewId],
   );
 
+  const setMainView = useCallback<Store["setMainView"]>(
+    async (id) => {
+      setData((current) => ({
+        ...current,
+        views: current.views.map((v) => ({ ...v, isDefault: v.id === id })),
+      }));
+      await guarded(async () => {
+        await api.patch(`/api/views/${id}`, { isDefault: true });
+      });
+    },
+    [guarded],
+  );
+
   /*
    * The order of the views is the order of the strip, so the answer is worked
    * out here and drawn at once. The board is fetched again only if the write
@@ -713,6 +731,7 @@ export function BoardProvider({
     createView,
     updateView,
     deleteView,
+    setMainView,
     moveView,
     addOption,
     patchOption,
