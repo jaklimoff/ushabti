@@ -31,7 +31,7 @@
     "dompurify": "^3.4.14",
     "drizzle-orm": "^0.45.2",
     "marked": "^18.0.11",
-    "next": "^16.3.3",
+    "next": "^16.3.4",
     "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -39,19 +39,19 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.5",
-    "eslint-config-next": "^16.3.3",
+    "eslint-config-next": "^16.3.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-playwright": "^2.11.0",
     "prettier": "^3.9.6",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.67.0",
+    "typescript-eslint": "^8.68.0",
     "vitest": "^4.1.11"
   }
 }
