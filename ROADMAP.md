@@ -35,7 +35,7 @@ Everything below works, is tested, and runs in the dev container.
 
 **Task detail**
 
-- Title, markdown description, checklist with a progress bar, comments, activity log.
+- Title, markdown description, checklist with a progress bar, markdown comments, activity log.
 - Every field edits in place. No dialogs.
 - A task has its own link (`?task=…`).
 - The panel is dragged as wide as the reading needs, by its own left edge.

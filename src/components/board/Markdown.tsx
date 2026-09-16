@@ -13,7 +13,7 @@ marked.setOptions({ gfm: true, breaks: true });
  * which React escapes. The markdown is never turned into HTML without going
  * through the sanitiser first.
  */
-export function Markdown({ text }: { text: string }) {
+export function Markdown({ text, testId = "markdown" }: { text: string; testId?: string }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -26,7 +26,7 @@ export function Markdown({ text }: { text: string }) {
 
   if (html === null) {
     return (
-      <div className={styles.markdown} data-testid="markdown" style={{ whiteSpace: "pre-wrap" }}>
+      <div className={styles.markdown} data-testid={testId} style={{ whiteSpace: "pre-wrap" }}>
         {text}
       </div>
     );
@@ -35,7 +35,7 @@ export function Markdown({ text }: { text: string }) {
   return (
     <div
       className={styles.markdown}
-      data-testid="markdown"
+      data-testid={testId}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

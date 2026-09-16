@@ -913,7 +913,9 @@ function Comments({
                 </button>
               )}
             </div>
-            <div className={styles.commentText}>{comment.body}</div>
+            <div className={styles.commentText}>
+              <Markdown text={comment.body} testId="comment-markdown" />
+            </div>
           </div>
         </div>
       ))}
@@ -935,7 +937,9 @@ function Comments({
             }}
           />
           <div className={styles.composerFoot}>
-            <span style={{ fontSize: 10.5, color: "var(--faint-3)" }}>Cmd + Enter to send</span>
+            <span style={{ fontSize: 10.5, color: "var(--faint-3)" }}>
+              Markdown · Cmd + Enter to send
+            </span>
             <span style={{ flex: 1 }} />
             <button
               className={`${styles.send} ${draft.trim() ? styles.sendOn : styles.sendOff}`}

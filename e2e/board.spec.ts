@@ -82,10 +82,14 @@ test.describe("Ushabti board", () => {
 
     // comment
     const composer = page.getByPlaceholder("Leave a note…");
-    await composer.fill("Looks right to me.");
+    await composer.fill("Looks **right** to me.\n\n- one\n- two");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(page.getByText("Looks right to me.")).toBeVisible();
     await expect(page.getByRole("button", { name: /^Comments 1/ })).toBeVisible();
+
+    // a comment reads like a description: it is markdown too
+    const posted = page.getByTestId("comment-markdown");
+    await expect(posted.locator("strong")).toHaveText("right");
+    await expect(posted.locator("li")).toHaveCount(2);
 
     // activity
     await page.getByRole("button", { name: /^Activity/ }).click();
