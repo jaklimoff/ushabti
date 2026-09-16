@@ -1,6 +1,7 @@
 import "server-only";
 import { Client } from "pg";
 import { pool } from "@/db";
+import { databaseUrl } from "@/db/url";
 
 const CHANNEL = "ushabti_events";
 
@@ -32,10 +33,7 @@ async function ensureListener(): Promise<void> {
   if (hub.connecting) return hub.connecting;
 
   hub.connecting = (async () => {
-    const client = new Client({
-      connectionString:
-        process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti",
-    });
+    const client = new Client({ connectionString: databaseUrl() });
     client.on("error", () => {
       hub.client = null;
       hub.connecting = null;

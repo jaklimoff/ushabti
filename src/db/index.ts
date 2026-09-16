@@ -1,9 +1,9 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
+import { databaseUrl } from "./url";
 
-const connectionString =
-  process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti";
+const connectionString = databaseUrl();
 
 /**
  * How many connections this process may hold. Twelve suits a database that

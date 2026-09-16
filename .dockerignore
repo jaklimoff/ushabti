@@ -5,6 +5,8 @@ node_modules
 # output, so one that reaches the build context ships in the public image.
 .env*
 design-reference
+# Deployment files for one server. They can hold its passwords.
+infra
 e2e
 test-results
 playwright-report
