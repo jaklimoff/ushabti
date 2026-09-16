@@ -6,6 +6,15 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## Unreleased
+
+### Changed
+
+- **A comment reads like a description.** It is markdown too, drawn by the same
+  renderer: a list is a list, `code` is code, and a long note has paragraphs.
+  Nothing changes about what is stored, so every comment already written reads
+  better the moment the panel opens. The composer says so under the box.
+
 ## 0.9.0 — 2026-09-04
 
 ### Added

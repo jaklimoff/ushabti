@@ -562,13 +562,14 @@
   color: var(--faint-2);
 }
 
+/* The markdown inside carries the line breaks, so no pre-wrap here. */
 .commentText {
   font-size: 12.5px;
   line-height: 1.5;
   color: #a8aeb7;
   text-wrap: pretty;
-  white-space: pre-wrap;
   word-break: break-word;
+  min-width: 0;
 }
 
 .commentDelete {

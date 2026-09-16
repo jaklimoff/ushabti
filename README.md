@@ -83,7 +83,8 @@ Board  ·  Phases  ·  By assignee            ← views you create
   keys then move the card itself — one column at a time, into an empty column as
   readily as a full one — **Space** puts it down and **Escape** cancels.
 - **Task detail.** Title, markdown description, checklist with progress,
-  comments and an automatic activity log, all edited in place. No dialogs.
+  markdown comments and an automatic activity log, all edited in place. No
+  dialogs.
 - **Live updates.** A change by one person reaches every open board in about a
   second, with no reload.
 - **Email and password sign-in.** No third party. Set `USHABTI_SIGNUP=closed`
