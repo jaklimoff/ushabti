@@ -6,7 +6,7 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
-## Unreleased
+## 0.10.0 — 2026-09-16
 
 ### Changed
 
@@ -14,6 +14,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   renderer: a list is a list, `code` is code, and a long note has paragraphs.
   Nothing changes about what is stored, so every comment already written reads
   better the moment the panel opens. The composer says so under the box.
+
+### Fixed
+
+- **No env file reaches the image.** Next copies `.env` and `.env.production`
+  into the standalone output, and only `.env` was ignored. A `.env.production`
+  sitting beside the Dockerfile shipped in the public image. Every `.env*` is
+  now out of the build context and out of the repository, except the example.
+- **A missing `DATABASE_URL` says so at the start.** In production the server
+  fell back to the development URL and died later on a refused connection,
+  which named the port and never the cause. It now stops with
+  `DATABASE_URL is not set.` The build still passes with no database at all.
 
 ## 0.9.0 — 2026-09-04
 
