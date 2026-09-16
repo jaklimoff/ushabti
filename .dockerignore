@@ -1,7 +1,9 @@
 node_modules
 .next
 .git
-.env
+# Every env file. Next copies .env and .env.production into the standalone
+# output, so one that reaches the build context ships in the public image.
+.env*
 design-reference
 e2e
 test-results
