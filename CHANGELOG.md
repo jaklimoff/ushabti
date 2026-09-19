@@ -6,6 +6,37 @@ the numbers follow [semantic versioning](https://semver.org/spec/v2.0.0.html).
 While the major number is 0, a minor bump may break something. From 1.0.0 the
 usual promise applies: a patch fixes, a minor adds, a major breaks.
 
+## Unreleased
+
+### Added
+
+- **An agent can wait for work.** `board.mjs watch` holds the board's stream
+  open and starts a harness session — Claude Code, Codex, pi, OpenCode, any
+  command that takes a prompt and exits — when a task is assigned to the agent,
+  when a person mentions it in a comment, or, if you ask for it, when a person
+  creates a task. It claims the task first, so the card shows life within a
+  second, and it stops the session when somebody takes the card over.
+- **The board says which agents are listening.** An agent holding the stream
+  open wears a ringed avatar in the top bar, and its token reads "listening
+  now" in Settings → People. An agent that is away draws nothing.
+- **An agent can ask a question and wait.** Its run turns to _waiting_: the card
+  shows the question and how long it has waited, the Agent tab says to answer
+  in a comment, and the comment box says whom you answer. The board never
+  closes a waiting run for silence. The answer wakes the agent again.
+- **A comment can become the description.** An agent that refines a task a
+  person already described posts its draft as a comment; "Use as description"
+  makes it the description, and asks first when that replaces words.
+- **An activity feed for agents.** `GET /api/projects/{id}/activity?after=…`
+  returns what happened after a moment, so an agent that was away catches up.
+- **`board.mjs` can `check`, `describe` and `ask`.** `describe` refuses to write
+  over a description a person wrote.
+
+### Fixed
+
+- **The stream says ready only once it is listening.** It used to send `ready`
+  before it subscribed, so a change in that gap was never announced to a client
+  that read the board on `ready`.
+
 ## 0.10.0 — 2026-09-16
 
 ### Changed

@@ -129,7 +129,9 @@ Everything off the board, brought up to the board's standard.
 
 - **Rate limiting on sign-in, sign-up and agent tokens.** Nothing stops a guessing attack today. Put a proxy in front until this is done. `USHABTI_SIGNUP=closed` at least stops new accounts.
 - **Password reset.** There is no way back into an account you cannot sign in to. You can change a password you still know, on `/account`.
-- **Webhooks.** An agent has to poll the board or the event stream. There is no call out when something changes.
+- **Webhooks.** There is no call out when something changes. An agent listens
+  on the stream instead, which `board.mjs watch` does for it; a service that
+  cannot hold a socket open still has to poll.
 
 ---
 
@@ -157,4 +159,8 @@ These are consequences of the design, not defects. Read them before you build on
 - **Only select, person and checkbox properties can group a board.** A multi-select would put one task in several columns, which the drag logic does not handle. A list groups by nothing, so this does not reach it.
 - **A property cannot be deleted while a view groups by it.** Point the view at another property first. This is on purpose: a view without its property is meaningless.
 - **One open run per task.** A second agent that claims the same task gets a 409. Two agents on one card would need a lock nobody can hold.
+- **A waiting run holds its card until somebody answers or takes it over.** The
+  board never closes it for silence, because waiting is silence on purpose.
+- **The watcher needs a POSIX shell.** `--run` goes through `sh`, and stopping a
+  session stops its process group. On Windows, run it under WSL.
 - **Pause and Stop are cooperative.** Ushabti cannot reach into another machine. An agent that ignores the control word keeps running; the log records the request, and Take over always works.

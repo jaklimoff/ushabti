@@ -76,6 +76,12 @@
   animation: ushabti-pulse 2.2s ease-in-out infinite;
 }
 
+.listening {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .liveDotOff {
   width: 5px;
   height: 5px;

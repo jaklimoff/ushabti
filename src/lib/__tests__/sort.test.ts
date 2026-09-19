@@ -58,8 +58,24 @@ const DUE: PropertyDTO = {
 const PROPERTIES = [PRIORITY, LABELS, ASSIGNEE, POINTS, DUE];
 
 const MEMBERS: MemberDTO[] = [
-  { id: "u-ada", name: "Ada", email: "a@x.io", color: "#6d5bd0", role: "owner", kind: "human" },
-  { id: "u-zoe", name: "Zoe", email: "z@x.io", color: "#2f9e7a", role: "member", kind: "human" },
+  {
+    id: "u-ada",
+    name: "Ada",
+    email: "a@x.io",
+    color: "#6d5bd0",
+    role: "owner",
+    kind: "human",
+    listeningAt: null,
+  },
+  {
+    id: "u-zoe",
+    name: "Zoe",
+    email: "z@x.io",
+    color: "#2f9e7a",
+    role: "member",
+    kind: "human",
+    listeningAt: null,
+  },
 ];
 
 /** Every property on the card, so every one of them is a column of the list. */

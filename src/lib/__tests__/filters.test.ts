@@ -89,8 +89,24 @@ const blocked: PropertyDTO = {
 const properties = [status, labels, assignee, due, estimate, notes, blocked];
 
 const members: MemberDTO[] = [
-  { id: "u-ada", name: "Ada", email: "a@x.io", color: "#6d5bd0", role: "owner", kind: "human" },
-  { id: "u-bot", name: "Scribe", email: null, color: "#2f9e7a", role: "member", kind: "agent" },
+  {
+    id: "u-ada",
+    name: "Ada",
+    email: "a@x.io",
+    color: "#6d5bd0",
+    role: "owner",
+    kind: "human",
+    listeningAt: null,
+  },
+  {
+    id: "u-bot",
+    name: "Scribe",
+    email: null,
+    color: "#2f9e7a",
+    role: "member",
+    kind: "agent",
+    listeningAt: null,
+  },
 ];
 
 function task(id: string, values: TaskDTO["values"] = {}): TaskDTO {

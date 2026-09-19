@@ -95,6 +95,23 @@ async function touch(tokenId: string): Promise<void> {
   }
 }
 
+/**
+ * The stream calls this while an agent holds it open, and once more with
+ * `false` when it closes. A clean close answers at once; a crash is answered
+ * by the lease in `presence.ts`, which is why the column is a moment and not
+ * a flag.
+ */
+export async function markListening(tokenId: string, listening: boolean): Promise<void> {
+  try {
+    await db
+      .update(agentTokens)
+      .set({ listeningAt: listening ? new Date() : null })
+      .where(eq(agentTokens.id, tokenId));
+  } catch {
+    // Presence is a courtesy. It must never break the stream that carries it.
+  }
+}
+
 /** Every agent of a project, with the tokens that are still live. */
 export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
   const [rows, tokenRows] = await Promise.all([
@@ -117,6 +134,7 @@ export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
         prefix: agentTokens.prefix,
         createdAt: agentTokens.createdAt,
         lastUsedAt: agentTokens.lastUsedAt,
+        listeningAt: agentTokens.listeningAt,
       })
       .from(agentTokens)
       .where(and(eq(agentTokens.projectId, projectId), isNull(agentTokens.revokedAt)))
@@ -136,6 +154,7 @@ export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
         prefix: t.prefix,
         createdAt: t.createdAt.toISOString(),
         lastUsedAt: t.lastUsedAt?.toISOString() ?? null,
+        listeningAt: t.listeningAt?.toISOString() ?? null,
       })),
   }));
 }

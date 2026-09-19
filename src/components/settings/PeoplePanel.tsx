@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
+import { isListening } from "@/lib/presence";
 import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -422,7 +423,11 @@ function TokenRow({
       <div className={styles.tokenRow}>
         <span className={styles.tokenPrefix}>{token.prefix}…</span>
         <Note>
-          {token.lastUsedAt ? `last used ${relativeDay(token.lastUsedAt)}` : "never used"}
+          {isListening(token.listeningAt)
+            ? "listening now"
+            : token.lastUsedAt
+              ? `last used ${relativeDay(token.lastUsedAt)}`
+              : "never used"}
         </Note>
         <Spacer />
         {isOwner && (
@@ -441,6 +446,7 @@ function TokenRow({
           secret={secret}
           agentName={agentName}
           answered={token.lastUsedAt !== null}
+          listening={isListening(token.listeningAt)}
           reload={reload}
         />
       )}
@@ -457,11 +463,13 @@ function Connect({
   secret,
   agentName,
   answered,
+  listening,
   reload,
 }: {
   secret: string;
   agentName: string;
   answered: boolean;
+  listening: boolean;
   reload: () => Promise<void>;
 }) {
   // The board knows its own address; the person was being asked to remember
@@ -472,19 +480,22 @@ function Connect({
     () => "",
   );
 
-  // The loop is only closed when the token has actually been used. Watch for
-  // it rather than making the person reload and squint at "never used".
+  // The loop is only closed when the token has actually been used, and then
+  // again when the watcher in step 4 starts. Watch for both rather than
+  // making the person reload and squint at "never used".
   useEffect(() => {
-    if (answered) return;
+    if (answered && listening) return;
     const timer = setInterval(() => void reload(), 3000);
     return () => clearInterval(timer);
-  }, [answered, reload]);
+  }, [answered, listening, reload]);
 
   const install = `mkdir -p ~/.claude/skills/ushabti && \\
   curl -sL ${origin}/skill/SKILL.md  -o ~/.claude/skills/ushabti/SKILL.md && \\
   curl -sL ${origin}/skill/board.mjs -o ~/.claude/skills/ushabti/board.mjs`;
   const env = `export USHABTI_URL=${origin}\nexport USHABTI_TOKEN=${secret}`;
   const check = `curl -s $USHABTI_URL/api/agent/me -H "Authorization: Bearer $USHABTI_TOKEN"`;
+  const watch = `node ~/.claude/skills/ushabti/board.mjs watch --on assigned,mention \\
+  --run 'claude -p {prompt} --allowedTools "Bash(node:*)"'`;
 
   return (
     <div className={styles.connect} data-testid="agent-secret">
@@ -510,11 +521,20 @@ function Connect({
           Check it.
         </span>
         <CopyField value={check} label="the check command" />
+        <span className={styles.connectSay}>
+          <span className={styles.connectNum}>4</span>
+          Keep it listening, so a task assigned to {agentName} starts it by itself.
+        </span>
+        <CopyField value={watch} label="the watch command" />
       </div>
 
       <div className={`${styles.waiting} ${answered ? styles.answered : ""}`}>
         <span className={`${styles.waitDot} ${answered ? styles.answeredDot : ""}`} />
-        {answered ? `${agentName} answered.` : "Waiting for the first call from this token…"}
+        {listening
+          ? `${agentName} is listening.`
+          : answered
+            ? `${agentName} answered.`
+            : "Waiting for the first call from this token…"}
       </div>
 
       <Note>

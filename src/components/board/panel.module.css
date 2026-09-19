@@ -589,6 +589,27 @@
   color: var(--danger-soft);
 }
 
+/* Quiet until the comment is pointed at, like the delete beside it. A draft an
+   agent left is a comment first; the button is for when it earns the place. */
+.commentUse {
+  opacity: 0;
+  font-size: 10.5px;
+  color: var(--faint-3);
+  transition:
+    opacity 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.comment:hover .commentUse,
+.commentUse:focus-visible,
+.commentDelete:focus-visible {
+  opacity: 1;
+}
+
+.commentUse:hover {
+  color: var(--text);
+}
+
 .composer {
   display: flex;
   gap: 10px;

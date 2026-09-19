@@ -1,6 +1,6 @@
 ---
 name: ushabti
-description: Work on an Ushabti task board — read the board, take a task, report progress on it while you work, set properties, comment and close. Use whenever the person names a task key (USH-14), asks what is on the board or in the backlog, asks you to pick up, claim, update or finish a task, or when your work is being tracked on Ushabti. Needs USHABTI_TOKEN.
+description: Work on an Ushabti task board — read the board, take a task, report progress on it while you work, refine a task, set properties, comment, ask a person and close. Use whenever the person names a task key (USH-14), asks what is on the board or in the backlog, asks you to pick up, claim, refine, update or finish a task, when a prompt says the Ushabti watcher woke you, or when your work is being tracked on Ushabti. Needs USHABTI_TOKEN.
 ---
 
 # Ushabti
@@ -46,6 +46,46 @@ your shoulder: "Writing the tests", not "invoking tool". `--index` counts from
 zero and marks everything before it done. `--log` is the transcript line in the
 panel; leave it out and the `--say` line is logged instead.
 
+## When the watcher woke you
+
+If `USHABTI_RUN` is set, you did not start this work: `board.mjs watch` did,
+because a task was created, assigned to you, mentioned you, or answered a
+question you asked. `USHABTI_TASK` is the task key and `USHABTI_EVENT` says
+which of those it was.
+
+- **The task is already yours.** The watcher claimed it and beats for you. Do
+  not `claim`, and do not start `beat`.
+- **Read it first**: `node board.mjs task $USHABTI_TASK`. On a `reply`, the
+  newest comments hold the answer.
+- **Report with `step`** as usual, and obey `control` as usual.
+- **End with `finish`, or with `ask`.** Either ends your session. If you just
+  stop, the watcher closes the run for you, but the card then says less than
+  you could have.
+
+## Refining a task
+
+A person wrote a title in a hurry. Make it something a developer or another
+agent can start without asking anything.
+
+1. **Read the board's properties** with `props`, and the task with `task`.
+2. **Set only what you are sure of.** A label the title names, an estimate the
+   work makes obvious. Leave a property empty rather than guess. Never set a
+   person property: who does the work is the people's decision.
+3. **Write the acceptance criteria as checklist items**, one `check` each. A
+   criterion is a thing somebody can test: "A failed send retries five times",
+   not "Retries work".
+4. **Write the description, or propose one.** If it is empty, `describe` it:
+   what is wanted, why, what is out of scope, and where in the code it lives if
+   you can find out. If a person already wrote one, do not write over it —
+   `describe` refuses anyway. Post your version with `comment --file`, and the
+   person can make it the description with one press.
+5. **If you cannot go on without an answer, `ask`**, and stop. One question,
+   the one that matters, answerable in a sentence. Do not ask what you could
+   find out by reading the code.
+6. **`finish`**, with a `--log` line that says what you added.
+
+Keep it short. A refined task is one a person reads in a minute.
+
 ## Rules
 
 - **Report before each part of the work, not after all of it.** A card that
@@ -74,6 +114,10 @@ panel; leave it out and the `--say` line is logged instead.
   rename or delete any of them — that is the point of the product.
 - **Do not create properties or delete tasks.** You may create tasks, edit
   them, comment and move them.
+- **Do not write over a person's description.** Propose yours in a comment.
+- **A question is a comment and a wait.** `ask` posts the question, marks the
+  run as waiting and tells you to end the session. The board does not close a
+  waiting run for silence, and the watcher wakes you when a person answers.
 
 ## When the work has no task yet
 
@@ -83,6 +127,21 @@ node board.mjs new "Fix the offline queue" --set "Status=Todo" --set "Priority=H
 
 Then claim it as usual. Prefer an existing task if one already describes the
 work.
+
+## Waiting for work
+
+A harness answers a prompt and exits, so it cannot wait for the board by
+itself. `watch` does the waiting, and starts one harness session per piece of
+work. The person who runs the agent starts it once and leaves it running:
+
+```bash
+node board.mjs watch --on assigned,mention \
+  --run 'claude -p {prompt} --allowedTools "Bash(node:*)"'
+```
+
+`{prompt}` says what happened and points back at this file, so any harness
+that takes a prompt and exits works. While it runs, the board shows the agent
+as listening. You never run `watch` from inside a session.
 
 ## The rest of the API
 

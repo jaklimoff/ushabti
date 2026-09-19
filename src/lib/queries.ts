@@ -1,9 +1,10 @@
 import "server-only";
 import { byPos } from "@/lib/order";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   activity,
+  agentTokens,
   checklistItems,
   comments,
   projectMembers,
@@ -25,6 +26,7 @@ import { loadOpenRuns, loadTaskRun } from "./runs";
 import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
 import type {
   ActivityDTO,
+  ActivityFeedEntryDTO,
   BoardData,
   CardView,
   ChecklistItemDTO,
@@ -248,6 +250,11 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
         color: users.color,
         kind: users.kind,
         role: projectMembers.role,
+        /* The newest moment any live token of this agent held the stream.
+           Two watchers on one agent are one agent listening. */
+        listeningAt: sql<
+          Date | string | null
+        >`(select max(${agentTokens.listeningAt}) from ${agentTokens} where ${agentTokens.agentId} = ${users}.id and ${agentTokens.projectId} = ${projectId} and ${agentTokens.revokedAt} is null)`,
       })
       .from(projectMembers)
       .innerJoin(users, eq(users.id, projectMembers.userId))
@@ -345,6 +352,7 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     color: m.color,
     role: m.role,
     kind: m.kind === "agent" ? "agent" : "human",
+    listeningAt: m.listeningAt ? new Date(m.listeningAt).toISOString() : null,
   }));
 
   return {
@@ -488,6 +496,53 @@ export async function logActivity(entry: {
     kind: entry.kind,
     data: entry.data ?? {},
   });
+}
+
+/**
+ * A project's activity after a moment, oldest first, for an agent that reads
+ * what the stream rang about. The time index makes this one range scan.
+ */
+export async function loadActivityFeed(
+  projectId: string,
+  after: Date,
+  limit: number,
+): Promise<ActivityFeedEntryDTO[]> {
+  const rows = await db
+    .select({
+      id: activity.id,
+      kind: activity.kind,
+      taskId: activity.taskId,
+      taskNumber: tasks.number,
+      projectKey: projects.key,
+      data: activity.data,
+      createdAt: activity.createdAt,
+      actorId: users.id,
+      actorName: users.name,
+      actorKind: users.kind,
+    })
+    .from(activity)
+    .innerJoin(projects, eq(projects.id, activity.projectId))
+    .leftJoin(tasks, eq(tasks.id, activity.taskId))
+    .leftJoin(users, eq(users.id, activity.actorId))
+    .where(and(eq(activity.projectId, projectId), gt(activity.createdAt, after)))
+    .orderBy(asc(activity.createdAt), asc(activity.id))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    taskId: r.taskId,
+    taskKey: r.taskNumber === null ? null : `${r.projectKey}-${r.taskNumber}`,
+    data: (r.data ?? {}) as Record<string, unknown>,
+    createdAt: r.createdAt.toISOString(),
+    actor: r.actorId
+      ? {
+          id: r.actorId,
+          name: r.actorName ?? "",
+          kind: r.actorKind === "agent" ? "agent" : "human",
+        }
+      : null,
+  }));
 }
 
 export async function taskProjectId(taskId: string): Promise<string | null> {

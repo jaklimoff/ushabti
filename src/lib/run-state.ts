@@ -38,9 +38,12 @@ export const REPORT_LEASE_MS = 30 * 60_000;
 export type RunLife = "reporting" | "quiet" | "silent";
 
 export function lifeOf(
-  run: Pick<AgentRunDTO, "updatedAt" | "beatAt">,
+  run: Pick<AgentRunDTO, "updatedAt" | "beatAt"> & Partial<Pick<AgentRunDTO, "status">>,
   now: number = Date.now(),
 ): RunLife {
+  // A waiting agent said the last thing it has to say: its question. Nobody
+  // expects it to speak again until a person answers.
+  if (run.status === "waiting") return "reporting";
   if (now - new Date(run.updatedAt).getTime() < SILENT_AFTER_MS) return "reporting";
   return now - new Date(run.beatAt).getTime() < SILENT_AFTER_MS ? "quiet" : "silent";
 }
@@ -75,7 +78,36 @@ export function progressOf(run: Pick<AgentRunDTO, "stepsTotal" | "stepsDone">): 
 /** The one line the card shows. Falls back to the goal, then to a default. */
 export function runLine(run: Pick<AgentRunDTO, "step" | "goal" | "status">): string {
   if (run.status === "paused") return run.step.trim() || "Paused";
+  if (run.status === "waiting") return run.step.trim() || "Waiting for an answer";
   return run.step.trim() || run.goal.trim() || "Working";
+}
+
+/**
+ * The one number a run strip has room for, and whether it is a warning.
+ *
+ * A run that answers shows how long it has worked. One that has gone quiet
+ * shows how long ago it last said anything, and one that waits shows how long
+ * a person has kept it waiting, because in each case that is the number a
+ * person needs.
+ */
+export function runClock(
+  run: Pick<AgentRunDTO, "status" | "startedAt" | "updatedAt" | "beatAt">,
+  now: number = Date.now(),
+): { text: string; stale: boolean } {
+  if (run.status === "waiting")
+    return { text: `waiting ${elapsed(run.updatedAt, now)}`, stale: true };
+  const life = lifeOf(run, now);
+  if (life === "reporting") return { text: elapsed(run.startedAt, now), stale: false };
+  return { text: `${LIFE_WORD[life]} ${elapsed(run.updatedAt, now)}`, stale: true };
+}
+
+/** Whether the bar under a run should stop: nobody is working on it now. */
+export function runIsStill(
+  run: Pick<AgentRunDTO, "status" | "updatedAt" | "beatAt">,
+  now: number = Date.now(),
+): boolean {
+  if (run.status === "paused" || run.status === "waiting") return true;
+  return lifeOf(run, now) === "silent";
 }
 
 /** A length of time, the way the design writes it: 45s, 12m, 2h 04m. */
@@ -96,6 +128,7 @@ export function elapsed(fromISO: string, now: number = Date.now()): string {
 export const STATUS_WORD: Record<RunStatus, string> = {
   running: "active",
   paused: "paused",
+  waiting: "waiting for an answer",
   done: "finished",
   failed: "failed",
   stopped: "stopped",

@@ -217,7 +217,12 @@ export const activity = pgTable(
     data: jsonb("data").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("activity_task_idx").on(t.taskId), index("activity_project_idx").on(t.projectId)],
+  (t) => [
+    index("activity_task_idx").on(t.taskId),
+    index("activity_project_idx").on(t.projectId),
+    // The feed an agent reads to catch up walks a project in time order.
+    index("activity_project_time_idx").on(t.projectId, t.createdAt),
+  ],
 );
 
 /* ------------------------------------------------------------------ */
@@ -280,6 +285,13 @@ export const agentTokens = pgTable(
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    /**
+     * The last moment this token held the project stream open. It is written
+     * while the stream lives and cleared when it closes. The board reads it
+     * against a short lease, so a process that died without closing anything
+     * stops reading as listening on its own.
+     */
+    listeningAt: timestamp("listening_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (t) => [
