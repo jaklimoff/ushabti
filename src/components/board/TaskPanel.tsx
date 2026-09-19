@@ -25,6 +25,7 @@ import type {
   TaskValue,
 } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
+import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PropertyControl } from "./controls/PropertyControl";
@@ -368,7 +369,15 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
         {!detail && <div className={styles.loading}>Loading…</div>}
 
         {detail && shownTab === "comments" && (
-          <Comments taskId={taskId} detail={detail} me={user} reload={load} onError={notify} />
+          <Comments
+            taskId={taskId}
+            detail={detail}
+            me={user}
+            description={boardTask.description}
+            onUseAsDescription={(description) => patchTask(taskId, { description })}
+            reload={load}
+            onError={notify}
+          />
         )}
 
         {detail && shownTab === "activity" && (
@@ -460,6 +469,7 @@ function AgentRunBlock({
   const since = elapsed(run.startedAt, now);
   const life = lifeOf(run, now);
   const paused = run.status === "paused";
+  const waiting = run.status === "waiting";
 
   async function press(control: RunControl | "take_over") {
     if (busy) return;
@@ -491,7 +501,7 @@ function AgentRunBlock({
 
       <div className={styles.runNow}>
         <span
-          className={`${styles.runNowDot} ${paused ? styles.runNowDotPaused : ""}`}
+          className={`${styles.runNowDot} ${paused || waiting ? styles.runNowDotPaused : ""}`}
           style={{ background: run.agent.color }}
         />
         <span className={styles.runNowText}>{runLine(run)}</span>
@@ -548,12 +558,20 @@ function AgentRunBlock({
         </div>
       )}
 
-      <div className={styles.runNote}>
-        Your edits still save while the agent works. Take over ends the run and gives you the card.
-      </div>
+      {waiting ? (
+        <div className={styles.runNote} data-testid="panel-run-waiting">
+          {run.agent.name} asked a question and stopped. Answer it in a comment, and it picks the
+          task up again. Nothing runs until then, so there is nothing to pause or stop.
+        </div>
+      ) : (
+        <div className={styles.runNote}>
+          Your edits still save while the agent works. Take over ends the run and gives you the
+          card.
+        </div>
+      )}
 
       <div className={styles.runButtons}>
-        {paused ? (
+        {waiting ? null : paused ? (
           <button className={styles.runButton} disabled={busy} onClick={() => void press("resume")}>
             Resume
           </button>
@@ -562,9 +580,11 @@ function AgentRunBlock({
             Pause
           </button>
         )}
-        <button className={styles.runButton} disabled={busy} onClick={() => void press("stop")}>
-          Stop
-        </button>
+        {!waiting && (
+          <button className={styles.runButton} disabled={busy} onClick={() => void press("stop")}>
+            Stop
+          </button>
+        )}
         <span style={{ flex: 1 }} />
         <button
           className={styles.runTakeOver}
@@ -853,18 +873,23 @@ function Comments({
   taskId,
   detail,
   me,
+  description,
+  onUseAsDescription,
   reload,
   onError,
 }: {
   taskId: string;
   detail: TaskDetailDTO;
   me: { id: string; name: string; color: string };
+  description: string;
+  onUseAsDescription: (body: string) => Promise<unknown>;
   reload: () => Promise<void>;
   onError: (message: string) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const agentAtWork = detail.run !== null;
+  const waitingFor = detail.run?.status === "waiting" ? detail.run.agent.name : null;
 
   async function send() {
     const text = draft.trim();
@@ -884,40 +909,15 @@ function Comments({
   return (
     <div className={styles.feed}>
       {detail.comments.map((comment) => (
-        <div key={comment.id} className={styles.comment}>
-          <Avatar
-            name={comment.author?.name ?? "?"}
-            color={comment.author?.color ?? "#3f4650"}
-            size={20}
-          />
-          <div className={styles.commentBody}>
-            <div className={styles.commentHead}>
-              <span className={styles.commentName}>{comment.author?.name ?? "Removed user"}</span>
-              <span className={styles.commentTime}>{relativeTime(comment.createdAt)}</span>
-              <span style={{ flex: 1 }} />
-              {comment.author?.id === me.id && (
-                <button
-                  className={styles.commentDelete}
-                  aria-label="Delete comment"
-                  title="Delete"
-                  onClick={async () => {
-                    try {
-                      await api.del(`/api/comments/${comment.id}`);
-                      await reload();
-                    } catch (err) {
-                      onError(err instanceof Error ? err.message : "Could not delete.");
-                    }
-                  }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-            <div className={styles.commentText}>
-              <Markdown text={comment.body} testId="comment-markdown" />
-            </div>
-          </div>
-        </div>
+        <CommentItem
+          key={comment.id}
+          comment={comment}
+          mine={comment.author?.id === me.id}
+          description={description}
+          onUseAsDescription={onUseAsDescription}
+          reload={reload}
+          onError={onError}
+        />
       ))}
 
       <div className={styles.composer}>
@@ -926,7 +926,13 @@ function Comments({
           <textarea
             className={styles.composerInput}
             value={draft}
-            placeholder={agentAtWork ? "Leave a note for the agent…" : "Leave a note…"}
+            placeholder={
+              waitingFor
+                ? `Answer ${waitingFor}…`
+                : agentAtWork
+                  ? "Leave a note for the agent…"
+                  : "Leave a note…"
+            }
             rows={3}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -949,6 +955,91 @@ function Comments({
               Comment
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One comment. An agent that refines a task a person already described posts
+ * its draft here rather than writing over their words, so the comment is
+ * where a draft becomes the description, in one press. Replacing words that
+ * are there asks first, and says how many are lost; filling an empty
+ * description asks nothing, because nothing is lost.
+ */
+function CommentItem({
+  comment,
+  mine,
+  description,
+  onUseAsDescription,
+  reload,
+  onError,
+}: {
+  comment: TaskDetailDTO["comments"][number];
+  mine: boolean;
+  description: string;
+  onUseAsDescription: (body: string) => Promise<unknown>;
+  reload: () => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const confirm = useConfirm();
+  const already = comment.body.trim() === description.trim();
+  const words = description.trim() ? description.trim().split(/\s+/).length : 0;
+
+  const use = () => void onUseAsDescription(comment.body);
+
+  return (
+    <div className={styles.comment} data-testid="comment">
+      <Avatar
+        name={comment.author?.name ?? "?"}
+        color={comment.author?.color ?? "#3f4650"}
+        size={20}
+      />
+      <div className={styles.commentBody}>
+        <div className={styles.commentHead}>
+          <span className={styles.commentName}>{comment.author?.name ?? "Removed user"}</span>
+          <span className={styles.commentTime}>{relativeTime(comment.createdAt)}</span>
+          <span style={{ flex: 1 }} />
+          {!already && !confirm.asking && (
+            <button
+              className={styles.commentUse}
+              title="Make this comment the description"
+              onClick={words ? confirm.ask : use}
+            >
+              Use as description
+            </button>
+          )}
+          {mine && (
+            <button
+              className={styles.commentDelete}
+              aria-label="Delete comment"
+              title="Delete"
+              onClick={async () => {
+                try {
+                  await api.del(`/api/comments/${comment.id}`);
+                  await reload();
+                } catch (err) {
+                  onError(err instanceof Error ? err.message : "Could not delete.");
+                }
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {confirm.asking && (
+          <ConfirmRow
+            question={`Replace the description with this comment? Its ${words} ${
+              words === 1 ? "word goes" : "words go"
+            }.`}
+            confirmLabel="Yes, replace"
+            onConfirm={() => confirm.confirm(use)}
+            onCancel={confirm.cancel}
+          />
+        )}
+        <div className={styles.commentText}>
+          <Markdown text={comment.body} testId="comment-markdown" />
         </div>
       </div>
     </div>

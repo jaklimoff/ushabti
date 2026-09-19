@@ -8,14 +8,24 @@
  * `node board.mjs help` prints the list.
  */
 
+import { spawn } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 const BASE = (process.env.USHABTI_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const TOKEN = process.env.USHABTI_TOKEN;
+const SKILL_DIR = dirname(fileURLToPath(import.meta.url));
 
 /* ------------------------------------------------------------------ */
 /* The wire                                                            */
 /* ------------------------------------------------------------------ */
 
-async function call(method, path, payload) {
+/**
+ * One call. It throws on a bad answer, with the status on the error, so that
+ * the watcher can live through one. A command uses `call`, which exits.
+ */
+async function request(method, path, payload) {
   if (!TOKEN) fail("Set USHABTI_TOKEN. The owner issues one in Settings -> People, with Connect.");
   const res = await fetch(BASE + path, {
     method,
@@ -23,12 +33,27 @@ async function call(method, path, payload) {
     body: payload === undefined ? undefined : JSON.stringify(payload),
   });
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
   if (!res.ok) {
-    if (res.status === 409) fail(`409: ${data?.error ?? "conflict"}`, 9);
-    fail(`${res.status}: ${data?.error ?? text}`);
+    const error = new Error(`${res.status}: ${data?.error ?? text}`);
+    error.status = res.status;
+    throw error;
   }
   return data;
+}
+
+async function call(method, path, payload) {
+  try {
+    return await request(method, path, payload);
+  } catch (err) {
+    if (err.status === 409) fail(err.message, 9);
+    fail(err.status ? err.message : `The board at ${BASE} did not answer: ${err.message}`);
+  }
 }
 
 /**
@@ -208,7 +233,16 @@ const commands = {
   claim <key> --goal "<what>" [--plan "a|b|c"] [--step "<now>"]
   beat <key> [--every 120] [--for 60]  say "still here" until the session ends
   step <key> --say "<now>" [--index 2] [--log "<line>"]
+  check <key> "<item>"                add a checklist item
+  describe <key> "<markdown>"         write the description, if it is empty or yours
+  ask <key> "<question>"              ask a person, wait, and end your session
   finish <key> [--status done|failed] [--log "<line>"]
+
+  watch --run "<command>" [--on assigned,mention,created] [--goal "<job>"]
+        [--jobs 1] [--timeout 30] [--state <file>] [--once]
+                                      wait for work and start a harness for it
+
+A long text can come from a file: --file notes.md, or --file - for stdin.
 
 Every command needs USHABTI_TOKEN. Set USHABTI_URL if the board is not at
 http://localhost:3000.`);
@@ -306,7 +340,7 @@ http://localhost:3000.`);
   async comment() {
     const data = await board();
     const task = findTask(data, positional[0]);
-    const body = positional[1];
+    const body = textArgument(positional[1]);
     if (!body) fail('Give the text: comment USH-14 "the tests pass"');
     await call("POST", `/api/tasks/${task.id}/comments`, { body });
     console.log(`${task.key}: comment left`);
@@ -398,6 +432,64 @@ http://localhost:3000.`);
     console.log(`control: ${answer.control ?? "none"}`);
   },
 
+  async check() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const text = positional[1];
+    if (!text) fail('Give the item: check USH-14 "Retries stop after five tries"');
+    await call("POST", `/api/tasks/${task.id}/checklist`, { text });
+    console.log(`${task.key}: checklist item added`);
+  },
+
+  /**
+   * The description is the one field an agent may not write over. A person
+   * who wrote one meant it; an agent that disagrees posts a comment, and the
+   * person makes it the description with one press. What the agent wrote
+   * itself, it may write again.
+   */
+  async describe() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const text = textArgument(positional[1]);
+    if (!text) fail('Give the text: describe USH-14 "…", or --file draft.md');
+
+    const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
+    const lastEdit = detail.activity.find((a) => a.kind === "description");
+    const mine = lastEdit?.actor?.id === data.me.agent.id;
+    if (detail.description.trim() && !mine) {
+      fail(
+        `${task.key} already has a description that a person wrote. Do not write over it. ` +
+          `Post your draft as a comment instead: comment ${task.key} --file draft.md`,
+      );
+    }
+    await call("PATCH", `/api/tasks/${task.id}`, { description: text });
+    console.log(`${task.key}: description written`);
+  },
+
+  /**
+   * A question the agent cannot answer alone. The question goes up as a
+   * comment, where the person answers it, and the run waits: the card says
+   * so, and the board does not close a waiting run for silence. The watcher
+   * wakes the agent again when a person replies.
+   */
+  async ask() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const question = textArgument(positional[1]);
+    if (!question) fail('Give the question: ask USH-14 "Which service owns the queue?"');
+    const run = data.runs.find((r) => r.taskId === task.id);
+    if (!run) fail(`No open run on ${task.key}. It was taken over, or never claimed.`, 9);
+
+    await call("POST", `/api/tasks/${task.id}/comments`, { body: question });
+    const line = question.replace(/\s+/g, " ").trim();
+    await call("PATCH", `/api/runs/${run.id}`, {
+      status: "waiting",
+      step: line.length > 200 ? `${line.slice(0, 197)}…` : line,
+      log: "asked a question",
+    });
+    console.log(`${task.key}: waiting for an answer. End your session now.`);
+  },
+
   async finish() {
     const data = await board();
     const task = findTask(data, positional[0]);
@@ -407,6 +499,481 @@ http://localhost:3000.`);
     await call("PATCH", `/api/runs/${run.id}`, { status, log: flags.log ?? status });
     console.log(`${task.key}: run ${status}`);
   },
+};
+
+/** A text argument, or the file `--file` names, or stdin for `--file -`. */
+function textArgument(inline) {
+  if (!flags.file) return inline;
+  try {
+    return readFileSync(flags.file === "-" ? 0 : flags.file, "utf8");
+  } catch (err) {
+    fail(`Could not read ${flags.file}: ${err.message}`);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Waiting for work                                                    */
+/* ------------------------------------------------------------------ */
+
+/*
+ * A harness — Claude Code, Codex, pi, OpenCode — answers a prompt and exits.
+ * None of them can sit and wait for a board to call. So this does the waiting,
+ * and starts one short harness session per piece of work:
+ *
+ *   the stream rings  ->  read the feed  ->  claim  ->  run the command
+ *
+ * The stream is a doorbell and nothing more. What happened is read from the
+ * activity feed, after the last line this watcher saw, so a task created
+ * while the socket was down still arrives when it comes back.
+ *
+ * The run is the lock. The watcher claims before the harness starts, so the
+ * card shows life within a second, and a second watcher on the same board gets
+ * a 409 and leaves the task alone. It then keeps the run honest: it beats while
+ * the harness works, stops the harness when a person takes the card over or
+ * asks it to stop, and closes whatever the harness leaves open.
+ */
+
+const TRIGGERS = ["created", "assigned", "mention"];
+
+const PROMPTS = {
+  created: (key) => `A person just created task ${key} on the Ushabti board.`,
+  assigned: (key) => `Task ${key} on the Ushabti board was just assigned to you.`,
+  mention: (key) => `A person mentioned you in a comment on task ${key} on the Ushabti board.`,
+  reply: (key) =>
+    `A person answered the question you asked on task ${key} on the Ushabti board. ` +
+    `Read the newest comments before anything else.`,
+};
+
+function promptFor(event, key, goal) {
+  return (
+    `${PROMPTS[event](key)} Your job: ${goal}. ` +
+    `Read ${SKILL_DIR}/SKILL.md first and follow it. ` +
+    `The watcher already holds the run on ${key} and beats for it, ` +
+    `so do not claim the task and do not start a heartbeat.`
+  );
+}
+
+/** Quotes a value for a POSIX shell, so a placeholder is one argument. */
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function fillCommand(template, values) {
+  return template.replace(/\{(key|id|event|prompt|skill)\}/g, (_, name) =>
+    shellQuote(values[name]),
+  );
+}
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+commands.watch = async function watch() {
+  const template = flags.run;
+  if (!template || template === "true") {
+    fail(`Give the command to start: watch --run 'claude -p {prompt}'`);
+  }
+  const triggers = new Set(
+    String(flags.on ?? "assigned,mention")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
+  );
+  for (const t of triggers) {
+    if (!TRIGGERS.includes(t)) fail(`--on takes ${TRIGGERS.join(", ")}. "${t}" is not one.`);
+  }
+  const goal = String(flags.goal ?? "refine the task so that a developer or an agent can start it");
+  const jobs = Math.max(1, Number(flags.jobs ?? 1) || 1);
+  const timeout = Math.max(1, Number(flags.timeout ?? 30) || 30) * 60_000;
+  const once = flags.once === "true";
+
+  const me = await call("GET", "/api/agent/me");
+  const projectId = me.project.id;
+  const agentId = me.agent.id;
+  const mention = new RegExp(`@${escapeRegExp(me.agent.name)}(?![\\w-])`, "i");
+
+  /* --- where the feed was left ------------------------------------- */
+
+  const readState = () => {
+    if (!flags.state) return null;
+    try {
+      return JSON.parse(readFileSync(flags.state, "utf8"));
+    } catch {
+      return null;
+    }
+  };
+  const saveState = () => {
+    if (!flags.state) return;
+    try {
+      // The ids near the cursor go too: the overlap reads them again after a
+      // restart, and a task that was already handled must not wake twice.
+      writeFileSync(
+        flags.state,
+        JSON.stringify({ projectId, cursor, seen: seenOrder.slice(-500) }),
+      );
+    } catch (err) {
+      say(`could not write ${flags.state}: ${err.message}`);
+    }
+  };
+
+  const saved = readState();
+  let cursor =
+    saved?.projectId === projectId && saved.cursor
+      ? saved.cursor
+      : (await call("GET", `/api/projects/${projectId}/activity`)).now;
+
+  /* Lines are read again across a small overlap, because two writes can
+     commit out of the order of their clocks. The ids make that harmless. */
+  const OVERLAP_MS = 5_000;
+  const seenOrder = saved?.projectId === projectId && Array.isArray(saved.seen) ? saved.seen : [];
+  const seen = new Set(seenOrder);
+  const remember = (id) => {
+    seen.add(id);
+    seenOrder.push(id);
+    if (seenOrder.length > 5_000) seen.delete(seenOrder.shift());
+  };
+
+  /* --- the work ------------------------------------------------------ */
+
+  const queue = [];
+  const active = new Map();
+  let stopping = false;
+  let finishedOne = false;
+
+  function say(line) {
+    console.log(`[watch] ${line}`);
+  }
+
+  function wake(taskId, key, event) {
+    if (active.has(taskId) || queue.some((job) => job.taskId === taskId)) return;
+    say(`${key}: ${event}`);
+    queue.push({ taskId, key, event });
+    pump();
+  }
+
+  function pump() {
+    while (!stopping && active.size < jobs && queue.length) {
+      const job = queue.shift();
+      active.set(job.taskId, job);
+      void work(job).finally(() => {
+        active.delete(job.taskId);
+        if (once && finishedOne) void leave(0);
+        else pump();
+      });
+    }
+  }
+
+  async function work(job) {
+    let runId;
+    try {
+      if (job.event === "reply") {
+        runId = job.runId;
+        await request("PATCH", `/api/runs/${runId}`, {
+          status: "running",
+          step: "Reading the answer",
+        });
+      } else {
+        const { run } = await request("POST", `/api/tasks/${job.taskId}/run`, {
+          goal: goal.length > 200 ? `${goal.slice(0, 197)}…` : goal,
+          step: "Starting",
+        });
+        runId = run.id;
+      }
+    } catch (err) {
+      // 409: somebody else holds it, or the run closed. Either way, not ours.
+      say(`${job.key}: left alone (${err.message})`);
+      return;
+    }
+    job.runId = runId;
+    finishedOne = true;
+
+    const command = fillCommand(template, {
+      key: job.key,
+      id: job.taskId,
+      event: job.event,
+      prompt: promptFor(job.event, job.key, goal),
+      skill: SKILL_DIR,
+    });
+
+    const child = spawn(command, {
+      shell: true,
+      // Its own process group, so that stopping it stops the harness under
+      // the shell too, and not only the shell.
+      detached: process.platform !== "win32",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        USHABTI_URL: BASE,
+        USHABTI_TOKEN: TOKEN,
+        USHABTI_TASK: job.key,
+        USHABTI_RUN: runId,
+        USHABTI_EVENT: job.event,
+      },
+    });
+    job.child = child;
+    const prefix = (stream, out) => {
+      let rest = "";
+      stream.on("data", (chunk) => {
+        const lines = (rest + chunk).split("\n");
+        rest = lines.pop();
+        for (const line of lines) out.write(`[${job.key}] ${line}\n`);
+      });
+      stream.on("end", () => rest && out.write(`[${job.key}] ${rest}\n`));
+    };
+    prefix(child.stdout, process.stdout);
+    prefix(child.stderr, process.stderr);
+
+    const exited = new Promise((done) => {
+      child.on("exit", (code, signal) => done({ code, signal }));
+      child.on("error", (err) => done({ code: 127, signal: null, error: err }));
+    });
+
+    /* While the harness works: a beat every two minutes, and a look at the
+       run every ten seconds, so a Take over or a Stop ends the work within
+       seconds and not at the harness's next report. */
+    let why = null;
+    let beatDue = Date.now() + 120_000;
+    const deadline = Date.now() + timeout;
+    const watcher = setInterval(async () => {
+      if (why) return;
+      if (Date.now() > deadline) {
+        why = { status: "failed", log: `ran past --timeout, so the watcher stopped it` };
+        return stop(child);
+      }
+      try {
+        const { run } = await request("GET", `/api/runs/${runId}`);
+        if (run.endedAt) {
+          why = { closed: true };
+          say(`${job.key}: the run ended (${run.status}), so the harness is stopped`);
+          return stop(child);
+        }
+        if (run.control === "stop") {
+          why = { status: "stopped", log: "stopped, as asked" };
+          return stop(child);
+        }
+        if (Date.now() > beatDue) {
+          beatDue = Date.now() + 120_000;
+          await request("PATCH", `/api/runs/${runId}`, { beat: true });
+        }
+      } catch {
+        // The board is away for a moment. The lease is there for longer.
+      }
+    }, 10_000);
+
+    const { code, signal, error } = await exited;
+    clearInterval(watcher);
+    if (error) say(`${job.key}: could not start the command: ${error.message}`);
+
+    /* Whatever the harness left open, the watcher closes. A waiting run is
+       not left open by accident: it asked a person, and stays. */
+    try {
+      if (why?.closed) return;
+      const { run } = await request("GET", `/api/runs/${runId}`);
+      if (run.endedAt || run.status === "waiting") {
+        say(`${job.key}: ${run.endedAt ? run.status : "waiting for an answer"}`);
+        return;
+      }
+      const close =
+        why ??
+        (code === 0
+          ? { status: "done", log: "the session ended without closing the run" }
+          : { status: "failed", log: `the session exited with ${signal ?? `code ${code}`}` });
+      await request("PATCH", `/api/runs/${runId}`, close);
+      say(`${job.key}: ${close.status}`);
+    } catch (err) {
+      say(`${job.key}: could not close the run: ${err.message}`);
+    }
+  }
+
+  function stop(child) {
+    try {
+      if (process.platform !== "win32") process.kill(-child.pid, "SIGTERM");
+      else child.kill("SIGTERM");
+    } catch {
+      /* already gone */
+    }
+  }
+
+  /* --- reading what the stream rang about --------------------------- */
+
+  let board = null;
+  const freshBoard = async () =>
+    (board ??= await request("GET", `/api/projects/${projectId}/board`));
+
+  const assignedToMe = (b, taskId) => {
+    const task = b.tasks.find((t) => t.id === taskId);
+    if (!task) return false;
+    return b.properties.some((p) => p.type === "person" && task.values[p.id] === agentId);
+  };
+
+  async function consider(entry) {
+    const actor = entry.actor;
+    if (!entry.taskId || !actor || actor.id === agentId) return;
+    const key = entry.taskKey ?? entry.taskId;
+
+    if (entry.kind === "created") {
+      // A task an agent wrote is not a reason for another agent to wake:
+      // two watchers would otherwise refine each other's work for ever.
+      if (triggers.has("created") && actor.kind === "human")
+        return wake(entry.taskId, key, "created");
+      if (triggers.has("assigned") && assignedToMe(await freshBoard(), entry.taskId))
+        return wake(entry.taskId, key, "assigned");
+      return;
+    }
+
+    if (entry.kind === "value" && triggers.has("assigned")) {
+      const b = await freshBoard();
+      const property = b.properties.find((p) => p.id === entry.data.propertyId);
+      if (property?.type !== "person") return;
+      const task = b.tasks.find((t) => t.id === entry.taskId);
+      if (task?.values[property.id] === agentId) return wake(entry.taskId, key, "assigned");
+      return;
+    }
+
+    if (entry.kind === "comment" && actor.kind === "human") {
+      const { task } = await request("GET", `/api/tasks/${entry.taskId}`);
+      const comment = task.comments.find((c) => c.id === entry.data.commentId);
+      if (!comment) return;
+      const run = task.run;
+      // An answer comes after the question. A comment older than the moment
+      // the run began to wait was written before anybody asked anything.
+      const answers =
+        run?.agent.id === agentId &&
+        run.status === "waiting" &&
+        Date.parse(comment.createdAt) >= Date.parse(run.updatedAt);
+      if (answers) {
+        if (active.has(entry.taskId)) return;
+        queue.push({ taskId: entry.taskId, key, event: "reply", runId: run.id });
+        say(`${key}: reply`);
+        return pump();
+      }
+      if (triggers.has("mention") && mention.test(comment.body)) {
+        return wake(entry.taskId, key, "mention");
+      }
+    }
+  }
+
+  let syncing = null;
+  let again = false;
+
+  async function sync() {
+    if (syncing) {
+      again = true;
+      return syncing;
+    }
+    syncing = (async () => {
+      do {
+        again = false;
+        board = null;
+        try {
+          for (;;) {
+            const after = new Date(Date.parse(cursor) - OVERLAP_MS).toISOString();
+            const { entries } = await request(
+              "GET",
+              `/api/projects/${projectId}/activity?after=${encodeURIComponent(after)}&limit=200`,
+            );
+            let fresh = 0;
+            for (const entry of entries) {
+              if (seen.has(entry.id)) continue;
+              remember(entry.id);
+              fresh += 1;
+              if (entry.createdAt > cursor) cursor = entry.createdAt;
+              try {
+                await consider(entry);
+              } catch (err) {
+                say(`could not read ${entry.taskKey ?? "a task"}: ${err.message}`);
+              }
+            }
+            if (entries.length < 200 || fresh === 0) break;
+          }
+          saveState();
+        } catch (err) {
+          say(`could not read the feed: ${err.message}`);
+        }
+      } while (again);
+      syncing = null;
+    })();
+    return syncing;
+  }
+
+  let ring = null;
+  const rang = () => {
+    clearTimeout(ring);
+    ring = setTimeout(() => void sync(), 250);
+  };
+
+  /* --- the stream ---------------------------------------------------- */
+
+  const aborter = new AbortController();
+
+  async function listen() {
+    let backoff = 1_000;
+    while (!stopping) {
+      try {
+        const res = await fetch(`${BASE}/api/projects/${projectId}/stream`, {
+          headers: { Authorization: `Bearer ${TOKEN}`, Accept: "text/event-stream" },
+          signal: aborter.signal,
+        });
+        if (res.status === 401 || res.status === 403) {
+          say(`the board refused the token (${res.status}). Stopping.`);
+          return leave(1);
+        }
+        if (!res.ok || !res.body) throw new Error(`status ${res.status}`);
+        backoff = 1_000;
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const blocks = buffer.split(/\r?\n\r?\n/);
+          buffer = blocks.pop();
+          for (const block of blocks) {
+            const event = /^event:\s*(\S+)/m.exec(block)?.[1];
+            if (event === "ready") {
+              say(`listening on ${me.project.name} (${me.project.key}) as ${me.agent.name}`);
+              rang();
+            } else if (event === "change") {
+              rang();
+            }
+          }
+        }
+      } catch (err) {
+        if (stopping) return;
+        say(`the stream broke: ${err.message}`);
+      }
+      if (stopping) return;
+      say(`reconnecting in ${backoff / 1000}s`);
+      await sleep(backoff);
+      backoff = Math.min(backoff * 2, 30_000);
+    }
+  }
+
+  /* --- leaving ------------------------------------------------------- */
+
+  async function leave(code) {
+    if (stopping) return;
+    stopping = true;
+    aborter.abort();
+    for (const job of active.values()) {
+      if (job.child) stop(job.child);
+      if (job.runId) {
+        await trySend("PATCH", `/api/runs/${job.runId}`, {
+          status: "lost",
+          log: "the watcher was stopped",
+        });
+      }
+    }
+    saveState();
+    process.exit(code);
+  }
+  process.on("SIGINT", () => void leave(0));
+  process.on("SIGTERM", () => void leave(0));
+
+  say(`on ${[...triggers].join(", ")}, up to ${jobs} at a time: ${template}`);
+  await listen();
 };
 
 const run = commands[command];

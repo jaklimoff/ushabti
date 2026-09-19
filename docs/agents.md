@@ -66,6 +66,8 @@ so an agent sees exactly what a person sees and nothing more.
 | Move a card         | `POST /api/tasks/{taskId}/move`                     |
 | Add a checklist item| `POST /api/tasks/{taskId}/checklist`                |
 | Comment             | `POST /api/tasks/{taskId}/comments`                 |
+| What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
+| Wait for changes    | `GET /api/projects/{projectId}/stream`              |
 
 The board answer carries `properties`, so an agent finds the property it wants
 by name and reads the option ids out of it. **Never hardcode a property or an
@@ -127,8 +129,8 @@ PATCH /api/runs/{runId}
 - `log` — one line for the run log in the Agent tab. If you leave it out, `step`
   is logged instead.
 - `steps` — a new plan, if the work turned out different.
-- `status` — `running`, `paused`, `done`, `failed`, or `lost` if you are
-  being shut down and want the card back on the board at once.
+- `status` — `running`, `paused`, `waiting`, `done`, `failed`, or `lost` if
+  you are being shut down and want the card back on the board at once.
 
 The answer is `{ "run": …, "control": … }`.
 
@@ -182,6 +184,25 @@ says you have not answered yet.
 you hold — ends the run there and then. Your next `PATCH` gets `409`, and that
 means: stop, a person owns this card now.
 
+### Ask, and wait
+
+Sometimes the work cannot go on without a person. Post the question as a
+comment, where the person answers it, and report:
+
+```http
+PATCH /api/runs/{runId}
+{ "status": "waiting", "step": "Which service owns the queue?" }
+```
+
+The card shows the question and how long it has waited, and the Agent tab
+says to answer in a comment. A waiting run is the one open run the board never
+closes for silence: it stopped on purpose, so its silence is not evidence of
+anything. Take over still ends it at any moment. Report `running` when you
+pick the work up again.
+
+`board.mjs ask USH-14 "…"` does both calls, and the watcher below wakes you
+when a person answers.
+
 ### Finish
 
 ```http
@@ -191,6 +212,140 @@ PATCH /api/runs/{runId}
 
 The run closes, the card goes quiet, the Agent tab goes away, and the activity
 log keeps the line.
+
+## Wait for work
+
+Every harness in use today — Claude Code, Codex, pi, OpenCode — answers a
+prompt and exits. None of them can sit and wait for a board to call. So the
+waiting is done by a small process beside the harness, and the harness is what
+it starts:
+
+```text
+the stream rings  ->  read the feed  ->  claim the task  ->  run the harness
+```
+
+### The stream is a doorbell
+
+`GET /api/projects/{projectId}/stream` takes the bearer token like every other
+route. It sends `event: ready` once it is subscribed, then `event: change`
+whenever anything in the project changes, and a comment line every 25 seconds
+to keep the socket open. An event says *that* something changed, never what:
+server-sent events drop whatever happens while the socket is down, so nothing
+may depend on them arriving.
+
+### The feed is what it rang about
+
+```http
+GET /api/projects/{projectId}/activity?after=2026-09-18T15:28:52.024Z
+```
+
+```json
+{
+  "entries": [
+    {
+      "id": "…",
+      "kind": "created",
+      "taskId": "…",
+      "taskKey": "USH-31",
+      "data": { "title": "Make the queue retry" },
+      "createdAt": "2026-09-18T15:29:10.415Z",
+      "actor": { "id": "…", "name": "Ada", "kind": "human" }
+    }
+  ],
+  "now": "2026-09-18T15:29:11.002Z"
+}
+```
+
+Read it on every `ready` and every `change`, after the last line you saw, and
+a task created while your socket was down still reaches you. Without `after`
+it answers only `now`, which is where a new reader starts. Read a few seconds
+before your cursor and skip the ids you have seen: two writes can commit out of
+the order of their clocks.
+
+`actor.kind` is there so that an agent can leave alone what another agent did.
+Two agents that each react to the other's new tasks refine each other for ever.
+
+### Listening
+
+While an agent holds the stream open, the board says it is **listening**: a
+ringed avatar in the top bar of the board, and "listening now" beside the
+token in **Settings → People**. That is the only thing that makes an agent hear
+a new task, so it is the only thing the word means. A token that made a call
+yesterday is not listening.
+
+The stream writes the moment on the token every 25 seconds and clears it when
+the socket closes. The board compares it with a one-minute lease, so a process
+that dies without closing anything stops reading as listening by itself.
+
+### `board.mjs watch`
+
+The skill carries a watcher, so you do not have to write one:
+
+```bash
+node board.mjs watch --on assigned,mention \
+  --run 'claude -p {prompt} --allowedTools "Bash(node:*)"'
+```
+
+`--run` is any command that takes a prompt and exits. It runs through the
+shell, with these filled in, each quoted as one argument:
+
+| Placeholder | What it is                                                     |
+| ----------- | -------------------------------------------------------------- |
+| `{prompt}`  | What happened, the job, and the path of `SKILL.md` to read     |
+| `{key}`     | The task key, `USH-31`                                         |
+| `{id}`      | The task id                                                    |
+| `{event}`   | `created`, `assigned`, `mention` or `reply`                    |
+| `{skill}`   | The folder the skill is in                                     |
+
+The same values are in the environment of the command, as `USHABTI_TASK`,
+`USHABTI_RUN` and `USHABTI_EVENT`, beside `USHABTI_URL` and `USHABTI_TOKEN`.
+
+```bash
+--run 'claude -p {prompt} --allowedTools "Bash(node:*)"'
+--run 'codex exec {prompt}'
+--run 'pi -p {prompt}'
+--run 'opencode run {prompt}'
+```
+
+What wakes it:
+
+- `assigned` — a person property of a task is set to this agent, when the task
+  is made or later, by a field or by a drag on a board grouped by that person.
+- `mention` — a person writes `@Name` in a comment.
+- `created` — a person creates a task. Use it on a board where every new task
+  should be refined; on a shared board, `assigned` says who asked for it.
+- An answer to a question the agent asked always wakes it. There is no flag.
+
+What it does for each one:
+
+1. **Claims first.** The run opens before the harness starts, so the card shows
+   life within a second and the harness cold start hides behind "Starting". A
+   second watcher on the same board gets a 409 and leaves the task alone: the
+   run is the lock, and there is no other.
+2. **Starts the command** and prints its output with the task key in front.
+3. **Keeps the run honest.** It beats every two minutes and looks at the run
+   every ten seconds. Take over, or Stop, ends the harness within seconds, not
+   at its next report.
+4. **Closes what the harness left open.** A clean exit becomes `done`, anything
+   else `failed`, with the reason in the log. A waiting run stays open, because
+   it asked a person something.
+
+| Flag        | Default              | What it does                                   |
+| ----------- | -------------------- | ---------------------------------------------- |
+| `--on`      | `assigned,mention`   | What wakes it                                  |
+| `--goal`    | refine the task      | The job, in the prompt and on the run          |
+| `--jobs`    | `1`                  | How many harness sessions run at once          |
+| `--timeout` | `30`                 | Minutes before a session is stopped as failed  |
+| `--state`   | none                 | A file that keeps the cursor across restarts   |
+| `--once`    | off                  | Exit after the first piece of work             |
+
+Without `--state`, a watcher that restarts begins at the server's clock and
+misses what happened while it was down. Give it a file when it runs under
+launchd, systemd or a container that restarts it.
+
+It needs a POSIX shell for `--run`. It reconnects by itself, backing off up to
+30 seconds, and catches up from the feed when it does. `Ctrl-C` stops the
+harnesses it started and closes their runs as `lost`.
 
 ## Errors
 
@@ -237,7 +392,11 @@ node board.mjs claim USH-14 --goal "…" --plan "a|b|c"
 node board.mjs step USH-14 --index 1 --say "Writing the tests" --log "…"
 node board.mjs set USH-14 Status Ready     # names, never ids
 node board.mjs comment USH-14 "…"
+node board.mjs check USH-14 "A failed send retries five times"
+node board.mjs describe USH-14 --file draft.md   # only if empty, or yours
+node board.mjs ask USH-14 "Which service owns the queue?"
 node board.mjs finish USH-14
+node board.mjs watch --on assigned --run 'claude -p {prompt}'
 ```
 
 `step` prints `control: none | pause | stop`, and exit code 9 means the card

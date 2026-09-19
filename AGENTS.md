@@ -187,6 +187,23 @@ and what is easy to get wrong.
   say why. `seedValues()` answers only a rule it can answer without guessing —
   one value, positive, and not the grouping property, which the column decides.
   The composer says what it will write before it writes it.
+- **The stream is a doorbell; the feed is the record.** An event says that
+  something changed and where, never what. A browser answers by reading the
+  board, an agent by reading `/activity` after its cursor. SSE drops whatever
+  happens while a socket is down, so putting the change itself in an event
+  makes a watcher that silently misses work. `ready` goes out after the
+  subscription, so a client that reads on `ready` misses nothing in between.
+- **Listening is a lease, and only the stream writes it.** `listening_at` on a
+  token is touched while an agent holds the stream and cleared when it closes;
+  `isListening()` reads it against a minute. It is not "last used": a token
+  that made a call is not a token that will hear the next task.
+- **A waiting run is the one open run the lease leaves alone.** It asked a
+  person something and stopped on purpose. `sweepLost` skips it, `lifeOf`
+  calls it reporting, and only an answer or Take over moves it.
+- **The watcher claims before the harness starts.** The run is the lock: a
+  second watcher gets a 409 and leaves the task alone. Do not add a queue or a
+  lock beside it. A task an agent created never wakes `--on created`, or two
+  agents refine each other's work for ever.
 - **Pause and Stop are requests, not commands.** The server cannot reach into
   another machine. It writes a word on the run; the agent reads it in the answer
   to its next report and obeys because it said it would. Only **Take over**

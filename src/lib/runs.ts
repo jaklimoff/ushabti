@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull, lt, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt, ne, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { activity, agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
 import { HttpError } from "./auth";
@@ -80,6 +80,10 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
  * It counts reports, not beats. A beat left running by a dead session must
  * never be able to hold a card open.
  *
+ * A run that is waiting is left alone. It asked a person something and
+ * stopped on purpose, so its silence is the expected answer, not evidence.
+ * Take over still ends it at any moment.
+ *
  * It sits on the read path because the board is read far more often than any
  * schedule would fire, and one UPDATE behind an index costs less than a job
  * this project would then have to run, watch and ship.
@@ -89,7 +93,14 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
   const closed = await db
     .update(agentRuns)
     .set({ status: "lost", control: null, endedAt: new Date() })
-    .where(and(isNull(agentRuns.endedAt), lt(agentRuns.updatedAt, cutoff), scope))
+    .where(
+      and(
+        isNull(agentRuns.endedAt),
+        ne(agentRuns.status, "waiting"),
+        lt(agentRuns.updatedAt, cutoff),
+        scope,
+      ),
+    )
     .returning({
       id: agentRuns.id,
       projectId: agentRuns.projectId,

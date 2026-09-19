@@ -3,7 +3,7 @@
 import { forwardRef, useMemo } from "react";
 import { buildRow } from "@/lib/card-view";
 import type { ListColumn } from "@/lib/list-view";
-import { elapsed, isOpen, lifeOf, LIFE_WORD, runLine } from "@/lib/run-state";
+import { isOpen, lifeOf, runClock, runIsStill, runLine } from "@/lib/run-state";
 import type { AgentRunDTO, TaskDTO } from "@/lib/types";
 import { useNow } from "@/components/ui/useElapsed";
 import { Chip } from "./Chip";
@@ -157,8 +157,7 @@ export function pinProps(
 function RowRun({ run }: { run: AgentRunDTO }) {
   const now = useNow(isOpen(run.status));
   const life = lifeOf(run, now);
-  const since = elapsed(life === "reporting" ? run.startedAt : run.updatedAt, now);
-  const word = life === "reporting" ? since : `${LIFE_WORD[life]} ${since}`;
+  const word = runClock(run, now).text;
 
   return (
     <span
@@ -179,8 +178,7 @@ function RowRun({ run }: { run: AgentRunDTO }) {
  */
 function RunLine({ run }: { run: AgentRunDTO }) {
   const now = useNow(isOpen(run.status));
-  const life = lifeOf(run, now);
-  const still = run.status === "paused" || life === "silent";
+  const still = runIsStill(run, now);
 
   return (
     <span className={styles.listRowRun} aria-hidden>

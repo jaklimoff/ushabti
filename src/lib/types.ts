@@ -66,6 +66,12 @@ export type MemberDTO = {
   color: string;
   role: string;
   kind: "human" | "agent";
+  /**
+   * The last moment one of this agent's tokens held the stream open. Null for
+   * a person, and for an agent that is not listening. Read it with
+   * `isListening()`, never as a flag: it is a lease.
+   */
+  listeningAt: string | null;
 };
 
 export type TaskValue = string | string[] | number | boolean | null;
@@ -345,6 +351,7 @@ export type TaskDetailDTO = TaskDTO & {
 export const RUN_STATUSES = [
   "running",
   "paused",
+  "waiting",
   "done",
   "failed",
   "stopped",
@@ -408,6 +415,7 @@ export type AgentTokenDTO = {
   prefix: string;
   createdAt: string;
   lastUsedAt: string | null;
+  listeningAt: string | null;
 };
 
 export type AgentDTO = {
@@ -416,6 +424,21 @@ export type AgentDTO = {
   color: string;
   createdAt: string;
   tokens: AgentTokenDTO[];
+};
+
+/**
+ * One line of the project's activity, for an agent that catches up. The
+ * stream only rings; this is what it rang about. It carries the actor's kind
+ * so that an agent can leave alone what another agent did.
+ */
+export type ActivityFeedEntryDTO = {
+  id: string;
+  kind: string;
+  taskId: string | null;
+  taskKey: string | null;
+  data: Record<string, unknown>;
+  createdAt: string;
+  actor: { id: string; name: string; kind: "human" | "agent" } | null;
 };
 
 export type ProjectDTO = {

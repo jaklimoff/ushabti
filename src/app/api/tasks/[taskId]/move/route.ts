@@ -71,7 +71,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         taskId,
         actorId: user.id,
         kind: "value",
-        data: { property: prop.name, value: await describeValue(prop, value) },
+        data: { property: prop.name, propertyId, value: await describeValue(prop, value) },
       });
     }
   }

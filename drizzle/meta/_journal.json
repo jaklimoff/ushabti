@@ -36,6 +36,13 @@
       "when": 1788350365675,
       "tag": "0004_view_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789744880229,
+      "tag": "0005_agent_presence",
+      "breakpoints": true
     }
   ]
 }

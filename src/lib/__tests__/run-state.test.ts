@@ -7,6 +7,8 @@ import {
   lifeOf,
   progressOf,
   REPORT_LEASE_MS,
+  runClock,
+  runIsStill,
   runLine,
   SILENT_AFTER_MS,
   stepStates,
@@ -16,6 +18,7 @@ describe("run state", () => {
   it("counts a run as open until it ends", () => {
     expect(isOpen("running")).toBe(true);
     expect(isOpen("paused")).toBe(true);
+    expect(isOpen("waiting")).toBe(true);
     expect(isOpen("done")).toBe(false);
     expect(isOpen("failed")).toBe(false);
     expect(isOpen("stopped")).toBe(false);
@@ -114,5 +117,50 @@ describe("elapsed time", () => {
     expect(duration(45_000)).toBe("45s");
     expect(duration(16 * 60_000)).toBe("16m");
     expect(duration(-5)).toBe("0s");
+  });
+});
+
+describe("a run that waits for a person", () => {
+  const now = new Date("2026-08-22T12:00:00Z").getTime();
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+  const run = {
+    status: "waiting" as const,
+    step: "Which service owns the queue?",
+    goal: "Refine the task",
+    startedAt: ago(3 * 3_600_000),
+    updatedAt: ago(2 * 3_600_000),
+    beatAt: ago(2 * 3_600_000),
+  };
+
+  it("is never called silent, however long the person takes", () => {
+    expect(lifeOf(run, now)).toBe("reporting");
+  });
+
+  it("shows its question, and how long it has waited", () => {
+    expect(runLine(run)).toBe("Which service owns the queue?");
+    expect(runLine({ ...run, step: " " })).toBe("Waiting for an answer");
+    expect(runClock(run, now)).toEqual({ text: "waiting 2h 00m", stale: true });
+  });
+
+  it("holds its bar still, because nothing is working", () => {
+    expect(runIsStill(run, now)).toBe(true);
+  });
+});
+
+describe("the one number on a run strip", () => {
+  const now = new Date("2026-08-22T12:00:00Z").getTime();
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+  const base = { status: "running" as const, startedAt: ago(12 * 60_000) };
+
+  it("counts the work while the agent reports", () => {
+    const run = { ...base, updatedAt: ago(10_000), beatAt: ago(10_000) };
+    expect(runClock(run, now)).toEqual({ text: "12m", stale: false });
+    expect(runIsStill(run, now)).toBe(false);
+  });
+
+  it("counts the silence once the agent stops", () => {
+    const run = { ...base, updatedAt: ago(9 * 60_000), beatAt: ago(9 * 60_000) };
+    expect(runClock(run, now)).toEqual({ text: "silent 9m", stale: true });
+    expect(runIsStill(run, now)).toBe(true);
   });
 });

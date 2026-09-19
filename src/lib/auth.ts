@@ -85,6 +85,8 @@ export type Actor = {
   kind: "human" | "agent";
   /** Set for an agent. The token opens this project and no other. */
   tokenProjectId?: string;
+  /** Set for an agent: the token it came with, which is what listens. */
+  tokenId?: string;
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -128,6 +130,7 @@ export async function getActor(): Promise<Actor | null> {
       color: holder.color,
       kind: "agent",
       tokenProjectId: holder.projectId,
+      tokenId: holder.tokenId,
     };
   }
 

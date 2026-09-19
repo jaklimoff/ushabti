@@ -20,7 +20,14 @@ export const POST = route<Ctx>(async (req, ctx) => {
     .values({ taskId, authorId: user.id, body: text })
     .returning();
 
-  await logActivity({ projectId, taskId, actorId: user.id, kind: "comment", data: {} });
+  // The id lets an agent reading the feed find the words it was addressed in.
+  await logActivity({
+    projectId,
+    taskId,
+    actorId: user.id,
+    kind: "comment",
+    data: { commentId: comment.id },
+  });
   await broadcast({ projectId, scope: "task", taskId, clientId: clientIdOf(req) });
   return json(
     { comment: { ...comment, author: { id: user.id, name: user.name, color: user.color } } },

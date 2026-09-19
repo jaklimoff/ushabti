@@ -3,7 +3,7 @@
 import { forwardRef, useMemo } from "react";
 import type { AgentRunDTO, TaskDTO } from "@/lib/types";
 import { buildCard, type CardChip } from "@/lib/card-view";
-import { elapsed, isOpen, lifeOf, LIFE_WORD, runLine } from "@/lib/run-state";
+import { isOpen, lifeOf, runClock, runIsStill, runLine } from "@/lib/run-state";
 import { useNow } from "@/components/ui/useElapsed";
 import { Chip } from "./Chip";
 import { useBoard } from "./store";
@@ -159,12 +159,7 @@ function Strip({
 function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
   const now = useNow(isOpen(run.status));
   const life = lifeOf(run, now);
-  const paused = run.status === "paused";
-
-  // A run that answers shows how long it has worked. One that has gone quiet
-  // shows how long ago it last said anything, because that is the number a
-  // person needs, and the strip has room for one.
-  const since = elapsed(life === "reporting" ? run.startedAt : run.updatedAt, now);
+  const clock = runClock(run, now);
 
   return (
     <div className={styles.runStrip} data-testid="card-run" data-life={life}>
@@ -174,15 +169,15 @@ function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
           {overlay ? "Drop to take over" : runLine(run)}
         </span>
         <span
-          className={`${styles.runTime} ${life === "reporting" ? "" : styles.runTimeStale}`}
+          className={`${styles.runTime} ${clock.stale ? styles.runTimeStale : ""}`}
           data-testid="card-run-time"
         >
-          {life === "reporting" ? since : `${LIFE_WORD[life]} ${since}`}
+          {clock.text}
         </span>
       </div>
       <span className={styles.runScan} aria-hidden>
         <span
-          className={`${styles.runScanFill} ${paused || life === "silent" ? styles.runScanPaused : ""}`}
+          className={`${styles.runScanFill} ${runIsStill(run, now) ? styles.runScanPaused : ""}`}
         />
       </span>
     </div>

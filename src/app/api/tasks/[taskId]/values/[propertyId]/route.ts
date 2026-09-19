@@ -28,7 +28,12 @@ export const PUT = route<Ctx>(async (req, ctx) => {
     taskId,
     actorId: user.id,
     kind: "value",
-    data: { property: prop.name, value: await describeValue(prop, value) },
+    // The name is for people; the id is for an agent, since a name can change.
+    data: {
+      property: prop.name,
+      propertyId,
+      value: await describeValue(prop, value),
+    },
   });
   await broadcast({ projectId, scope: "board", taskId, clientId: clientIdOf(req) });
   return json({ value });

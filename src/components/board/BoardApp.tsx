@@ -9,6 +9,7 @@ import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
 import { FilterChips } from "./Filters";
 import { ListCanvas } from "./ListCanvas";
+import { Listening } from "./Listening";
 import { Search } from "./Search";
 import { BoardProvider, useBoard } from "./store";
 import { TaskPanel } from "./TaskPanel";
@@ -73,6 +74,7 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           {/* The box searches the project, so it sits above the view strip
               rather than in it, beside the things that belong to no view. */}
           <Search onOpenTask={open} />
+          <Listening />
           <span
             className={live ? styles.liveDot : styles.liveDotOff}
             data-testid={live ? "live-dot" : "live-dot-off"}

@@ -62,6 +62,7 @@ const ADA: MemberDTO = {
   color: "#6d5bd0",
   role: "owner",
   kind: "human",
+  listeningAt: null,
 };
 
 function task(values: TaskDTO["values"] = {}, over: Partial<TaskDTO> = {}): TaskDTO {

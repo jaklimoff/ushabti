@@ -51,6 +51,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         prefix: minted.prefix,
         createdAt: row.createdAt.toISOString(),
         lastUsedAt: null,
+        listeningAt: null,
       },
       /** Shown once. It is never readable again. */
       secret: minted.token,
