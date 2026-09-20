@@ -34,6 +34,10 @@ report:
   in production a proxy writes it. Make that proxy replace the header rather
   than add to it, or a caller names its own address and the limit means
   nothing.
+- **The address in a reset link comes from `x-forwarded-host`.** The same
+  trust, and the same instruction: have the proxy **replace** that header as
+  well. A caller that names the host writes the address the owner then copies
+  out of the page and sends to somebody, and the token in it is real.
 - **A password reset is a person, not an email.** There is no email in the
   system. The owner of a project makes a member a one-time link, good for 24
   hours, and sends it by hand; the token is stored as a SHA-256 digest and

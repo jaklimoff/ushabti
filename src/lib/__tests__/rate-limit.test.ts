@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   addressOf,
   createLimiter,
+  loginByAddress,
+  loginByEmail,
+  resetByAddress,
   retryAfterSeconds,
+  signupByAddress,
+  tokenByAddress,
   TRIES,
   tooManyMessage,
   WINDOW_MS,
@@ -97,6 +102,26 @@ describe("what the caller is told", () => {
     expect(retryAfterSeconds(10 * MINUTE)).toBe(600);
     expect(retryAfterSeconds(1_400)).toBe(2);
     expect(retryAfterSeconds(0)).toBe(1);
+  });
+});
+
+describe("the keys", () => {
+  it("keeps the five apart, so one attack never spends another's budget", () => {
+    const address = "203.0.113.7";
+    const keys = [
+      loginByAddress(address),
+      loginByEmail(address),
+      signupByAddress(address),
+      tokenByAddress(address),
+      resetByAddress(address),
+    ];
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("names a dead reset link by the address it came from", () => {
+    // A key per account would itself say that the account is real.
+    expect(resetByAddress("203.0.113.7")).toBe("reset:ip:203.0.113.7");
+    expect(resetByAddress("unknown")).toBe("reset:ip:unknown");
   });
 });
 

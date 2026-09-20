@@ -9,6 +9,13 @@
  * moment is an argument — so a unit test drives the whole rule.
  */
 
+/**
+ * What a reset token starts with. Its own word, and not the agent tokens'
+ * `ush_`: a link that leaks into a log or a chat should say which kind of
+ * secret it is, and a secret scanner should be able to tell them apart.
+ */
+export const RESET_PREFIX = "ushr_";
+
 /** How long a link works. Long enough to reach somebody by hand. */
 export const RESET_HOURS = 24;
 

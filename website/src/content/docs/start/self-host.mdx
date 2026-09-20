@@ -57,6 +57,11 @@ having in front of it.
 The address is the first value of `x-forwarded-for`, which is your proxy's job to write. Have it
 **replace** the header rather than add to it — `proxy_set_header X-Forwarded-For $remote_addr;` in
 nginx — or a caller can name any address it likes and get a fresh ten tries each time.
+
+Have it replace **`X-Forwarded-Host`** as well — `proxy_set_header X-Forwarded-Host $host;`. That
+header is where a [reset link](/ushabti/guides/people/#a-forgotten-password) gets the address it
+carries, so a caller that names the host writes the address the owner copies out of the page and
+sends to a colleague. The token in it is real, which is what makes it worth writing.
 </Aside>
 
 ## Which image, which tag

@@ -45,14 +45,16 @@ nobody could break the circle. The owner withdraws an invite from its row, which
 ## A forgotten password
 
 There is no email in Ushabti, so there is no "forgot my password" form to fill in. The way back is a
-person who can vouch for you: **the owner of a project you are in**.
+person who can vouch for you: **the owner of any project you are in**. Any of them will do — the
+link is about your account and not about their board — and that holds even if you own a project
+yourself. Owning one does not stop another project's owner making you a link.
 
 In **Settings → People**, the owner presses **Reset password** on that member's row. The row asks
 first — *"Make a reset link for Ada? It signs them out everywhere once used."* — and then shows one
 link with a copy button:
 
 ```
-https://your-board.example.com/reset/ush_…
+https://your-board.example.com/reset/ushr_…
 ```
 
 **It is shown once.** Reloading the page hides it for good, exactly as an agent token is: the table
@@ -75,9 +77,10 @@ It never says whether an account exists — the page is open to anybody with a U
 The owner never learns the new password, and never sees the old one; the link sets a password, it
 does not read one.
 
-And there is no self-service form. If you are the owner of every project you are in, nobody can make
-you a link, so keep that password somewhere safe. Asking any *other* owner of a project you are both
-in works — the link is about your account, not about their board.
+And there is no self-service form, so **one person must have somebody to ask**. Every project you
+are a member of is a way back — ask the owner of any of them, whether or not you own a project of
+your own. Only a person who is in no project but their own has nobody to ask, and their password is
+the one to keep somewhere safe.
 </Aside>
 
 **Your own password**, when you still know it, changes at `/account`, which also ends every other

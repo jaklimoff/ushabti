@@ -35,9 +35,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   one for the same person. Used, old, replaced or invented, it says one
   sentence — "This link does not work any more. Ask the owner of your project
   for a new one." — and never whether an account exists. The token is stored as
-  a digest, exactly as an agent token is, and ten dead links from one address
-  in ten minutes are answered `429`. Only a person, and only the owner, can
-  make one: an agent can neither make a link nor use one.
+  a digest, exactly as an agent token is, and carries its own prefix, `ushr_`,
+  so a leaked link and an agent token are told apart at a glance. Ten dead
+  links from one address in ten minutes are answered `429`, counted on the page
+  as well as on the route. Only a person, and only the owner, can make one: an
+  agent can neither make a link nor use one.
 - **A task can be archived, and put back.** _Archive task_ in the task panel
   takes a card off every board and every list and keeps everything on it: the
   values, the checklist, the comments, the history and the link. The panel then

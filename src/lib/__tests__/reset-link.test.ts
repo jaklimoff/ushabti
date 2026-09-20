@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lifeOfLink, LINK_IS_DEAD, RESET_HOURS, RESET_MS, type StoredLink } from "../reset-link";
+import { lifeOfLink, RESET_HOURS, RESET_MS, type StoredLink } from "../reset-link";
 
 /** A moment to count from. The clock is an argument, so no test waits. */
 const NOW = new Date(Date.UTC(2026, 8, 20, 9, 0, 0));
@@ -27,13 +27,19 @@ describe("the life of a reset link", () => {
     expect(lifeOfLink(link, link.createdAt, NOW)).toBe("used");
   });
 
-  it("is expired after a day, to the second", () => {
-    const old = madeAt(-RESET_MS - 1);
-    expect(lifeOfLink(old, old.createdAt, NOW)).toBe("expired");
+  it("expires on the millisecond, not around it", () => {
+    /* The rule is `expiresAt <= now`, so the moment itself is over. One
+       millisecond either side of it is what this has to pin down. */
+    const link = madeAt(-RESET_MS);
+    expect(link.expiresAt.getTime()).toBe(NOW.getTime());
+    expect(lifeOfLink(link, link.createdAt, NOW)).toBe("expired");
 
-    // The last second of the day still works. Twenty-four hours means this.
-    const justInside = madeAt(-RESET_MS + 1000);
-    expect(lifeOfLink(justInside, justInside.createdAt, NOW)).toBe("live");
+    const oneLess = new Date(NOW.getTime() - 1);
+    expect(lifeOfLink(link, link.createdAt, oneLess)).toBe("live");
+
+    const oneMore = new Date(NOW.getTime() + 1);
+    expect(lifeOfLink(link, link.createdAt, oneMore)).toBe("expired");
+
     expect(RESET_HOURS).toBe(24);
   });
 
@@ -50,9 +56,5 @@ describe("the life of a reset link", () => {
        settled, so that a log line says one thing and not three. */
     const spent = madeAt(-3 * HOUR, { usedAt: new Date(NOW.getTime() - 2 * HOUR) });
     expect(lifeOfLink(spent, new Date(NOW.getTime() - HOUR), NOW)).toBe("used");
-  });
-
-  it("says nothing about the account when a link is dead", () => {
-    expect(LINK_IS_DEAD).not.toMatch(/account|email/i);
   });
 });

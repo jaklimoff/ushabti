@@ -21,7 +21,8 @@ Sign-in counts against two keys — the calling address and the email in the bod
 over the limit refuses the call before the password is read. A sign-in that works counts nothing
 and clears the count for that email. Sign-up counts a refusal against the calling address only; a
 sign-up that works counts nothing. A reset link that does not work counts against the calling
-address, and against nothing else.
+address and against nothing else — whether it was opened as a page at `/reset/<token>` or sent to
+the route below, because otherwise the page would test tokens for free.
 
 The address is the first value of `x-forwarded-for`. The count lives in the memory of one process,
 so it is forgotten by a restart. See
@@ -145,7 +146,7 @@ back into an account whose password nobody knows — see
 **Auth** — none. The token in the body is the whole of it.
 
 ```json title="request"
-{ "token": "ush_…", "password": "at-least-eight" }
+{ "token": "ushr_…", "password": "at-least-eight" }
 ```
 
 | Field | Rules |
@@ -170,6 +171,10 @@ called.
 <Aside type="note" title="One message, and nothing about the account">
 A dead link and an invented one answer the same sentence, and neither names an email. The count is
 kept per address only — a key per account would itself say that the account is real.
+
+The page at `/reset/<token>` counts on the same key. It has to: it decides between a form and a
+sentence, so a guesser who was not counted there could find a live token for nothing and spend a try
+only once it worked. Over the limit, the page stops looking tokens up at all and shows the sentence.
 </Aside>
 
 ---
