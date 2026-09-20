@@ -458,6 +458,49 @@ test.describe("Ushabti board", () => {
     expect(await viewOrder(page)).toEqual(["PHASES", "BOARD"]);
   });
 
+  test("a column folds to a strip, takes a card, and opens again", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Folding"));
+
+    await addTask(page, "Todo", "Fold me across");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    const shipped = column(page, "Shipped");
+    const open = page.getByRole("button", { name: "Open the column Shipped" });
+
+    await page.getByRole("button", { name: "Fold the column Shipped" }).click();
+    await expect(open).toBeVisible();
+    await expect(shipped.getByTestId("column-name")).toHaveText("Shipped");
+    await expect(shipped.getByTestId("column-count")).toHaveText("0");
+
+    // Giving the width back is the whole point of the fold.
+    const strip = await shipped.boundingBox();
+    expect(strip!.width).toBeLessThan(80);
+
+    await page.goto(`/p/${projectId}`);
+    await expect(open).toBeVisible();
+
+    // A folded column is still a drop target, so nothing is lost on a strip.
+    await dragCard(page, "Fold me across", await centreOf(page, "Shipped"));
+    await expect(shipped.getByTestId("column-count")).toHaveText("1");
+    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(0);
+
+    await open.click();
+    await expect(shipped.getByText("Fold me across")).toBeVisible();
+
+    // A phone is a narrow board, and a strip has to stay narrow on one.
+    await page.setViewportSize({ width: 390, height: 780 });
+    await page.getByRole("button", { name: "Fold the column Shipped" }).click();
+    const onPhone = await shipped.boundingBox();
+    expect(onPhone!.width).toBeLessThan(80);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    // The fold is this browser's and nothing about it reached the project.
+    await page.evaluate(() => window.localStorage.clear());
+    await page.goto(`/p/${projectId}`);
+    await expect(shipped.getByRole("button", { name: "Add a task to Shipped" })).toBeVisible();
+  });
+
   test("add a column, which is a new option on the grouping property", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Columns"));
