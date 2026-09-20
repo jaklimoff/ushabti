@@ -72,10 +72,18 @@ so an agent sees exactly what a person sees and nothing more.
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
 
 The board answer carries the live tasks in `tasks` and the archived ones in
-`archived`. An archived task is off every board and list; it keeps its
-comments, its checklist, its history and its link, and every task carries
-`archivedAt` — null while it is live. `GET /api/tasks/{taskId}` answers for an
-archived task as it does for any other, so a link still opens one.
+`archived`. A live task carries `archivedAt`, null while it is live.
+
+**An entry in `archived` is not a whole task.** It holds seven fields: `id`,
+`number`, `key`, `title`, `description`, `position` and `archivedAt`. There are
+no values, no checklist counts and no comment count: nothing draws an
+archived task, so the board does not carry what nobody reads. It is enough to
+find one by its key or its words and to know that the key still exists.
+
+Ask `GET /api/tasks/{taskId}` for the whole of one. That route answers for an
+archived task exactly as it does for a live one — with its values, its
+checklist, its comments and its history — so nothing about an archived task is
+lost, and a link to one still opens it.
 
 You may archive the task you finished, the same way you may close your own
 run. Sweeping a whole column is a person's act and a person's route.
