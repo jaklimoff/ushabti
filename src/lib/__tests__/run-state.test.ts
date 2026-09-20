@@ -5,6 +5,7 @@ import {
   isOpen,
   leaseLeft,
   lifeOf,
+  obeys,
   progressOf,
   REPORT_LEASE_MS,
   runClock,
@@ -24,6 +25,32 @@ describe("run state", () => {
     expect(isOpen("stopped")).toBe(false);
     expect(isOpen("taken_over")).toBe(false);
     expect(isOpen("lost")).toBe(false);
+  });
+});
+
+describe("obeying a control word", () => {
+  it("clears a pause only when the agent says it paused", () => {
+    expect(obeys("pause", "paused")).toBe(true);
+    expect(obeys("pause", "running")).toBe(false);
+    expect(obeys("pause", "waiting")).toBe(false);
+  });
+
+  it("clears a resume only when the agent says it runs again", () => {
+    expect(obeys("resume", "running")).toBe(true);
+    expect(obeys("resume", "paused")).toBe(false);
+  });
+
+  it("clears a stop with any closed status", () => {
+    expect(obeys("stop", "stopped")).toBe(true);
+    expect(obeys("stop", "done")).toBe(true);
+    expect(obeys("stop", "failed")).toBe(true);
+    expect(obeys("stop", "running")).toBe(false);
+    expect(obeys("stop", "paused")).toBe(false);
+  });
+
+  it("has nothing to clear when nobody asked", () => {
+    expect(obeys(null, "paused")).toBe(false);
+    expect(obeys(null, "stopped")).toBe(false);
   });
 });
 

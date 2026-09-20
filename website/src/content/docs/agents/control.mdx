@@ -77,7 +77,7 @@ its part, and that what happens next is not the board's to guarantee.
 Report `paused`, then poll `GET /api/runs/{runId}` every couple of seconds. Leave the loop when
 `control` becomes `"resume"` — and also when it becomes `"stop"`, or when `endedAt` stops being null,
 which means a person took the card. Then report `{"status": "running"}` to clear the pause and pick
-the work back up.
+the work back up. `board.mjs pause USH-14` is that loop in one command.
 </Aside>
 
 Three rules that cover almost everything:

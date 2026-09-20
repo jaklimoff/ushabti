@@ -6,7 +6,7 @@ import { agentOnly, body, broadcast, clientIdOf, guard, json, optionalStr, route
 import { logActivity } from "@/lib/queries";
 import { addLog, beat, loadRun, replaceSteps, runContext, setCurrentStep } from "@/lib/runs";
 import { CLOSED_STATUSES, RUN_STATUSES, type RunStatus } from "@/lib/types";
-import { isOpen } from "@/lib/run-state";
+import { isOpen, obeys } from "@/lib/run-state";
 
 type Ctx = { params: Promise<{ runId: string }> };
 
@@ -128,12 +128,3 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   // The control word is the answer to the report, not a field of the run.
   return json({ run, control: run.control });
 });
-
-/** True when the status the agent reports answers what the person asked for. */
-function obeys(control: string | null, status: RunStatus): boolean {
-  if (!control) return false;
-  if (control === "pause") return status === "paused";
-  if (control === "resume") return status === "running";
-  if (control === "stop") return CLOSED_STATUSES.includes(status);
-  return false;
-}

@@ -395,13 +395,14 @@ node board.mjs comment USH-14 "…"
 node board.mjs check USH-14 "A failed send retries five times"
 node board.mjs describe USH-14 --file draft.md   # only if empty, or yours
 node board.mjs ask USH-14 "Which service owns the queue?"
+node board.mjs pause USH-14                # answer a Pause, wait for Resume
 node board.mjs finish USH-14
 node board.mjs watch --on assigned --run 'claude -p {prompt}'
 ```
 
-`step` prints `control: none | pause | stop`, and exit code 9 means the card
-was taken over. Those two are the whole contract, and `SKILL.md` says so in the
-words a model needs.
+`step` prints `control: none | pause | stop`, `pause` answers the first of
+those and waits for Resume, and exit code 9 means the card was taken over.
+That is the whole contract, and `SKILL.md` says so in the words a model needs.
 
 For another framework, put the text of `SKILL.md` in the system prompt and ship
 `board.mjs` next to your agent. It needs Node 18 or later and nothing else.

@@ -5,6 +5,19 @@ export function isOpen(status: RunStatus): boolean {
   return !CLOSED_STATUSES.includes(status);
 }
 
+/**
+ * True when the status an agent reports answers what a person asked for.
+ * The request stays on the run until then, and the panel says it is waiting
+ * for an answer; a report that says something else is not an answer.
+ */
+export function obeys(control: string | null, status: RunStatus): boolean {
+  if (!control) return false;
+  if (control === "pause") return status === "paused";
+  if (control === "resume") return status === "running";
+  if (control === "stop") return CLOSED_STATUSES.includes(status);
+  return false;
+}
+
 /* ------------------------------------------------------------------ */
 /* Is anybody still there?                                             */
 /* ------------------------------------------------------------------ */

@@ -236,6 +236,7 @@ const commands = {
   check <key> "<item>"                add a checklist item
   describe <key> "<markdown>"         write the description, if it is empty or yours
   ask <key> "<question>"              ask a person, wait, and end your session
+  pause <key> [--for 5]               answer a Pause: stop, wait for Resume, go on
   finish <key> [--status done|failed] [--log "<line>"]
 
   watch --run "<command>" [--on assigned,mention,created] [--goal "<job>"]
@@ -488,6 +489,65 @@ http://localhost:3000.`);
       log: "asked a question",
     });
     console.log(`${task.key}: waiting for an answer. End your session now.`);
+  },
+
+  /**
+   * The answer to a Pause. The board cannot stop a process on another
+   * machine, so a person's Pause is a request, and only the agent can say it
+   * has stopped. This says it — the report that clears the request — and
+   * then waits here for Resume.
+   *
+   * It waits for `--for` minutes at most, because a harness gives one command
+   * a bounded time, and then says to run it again. Running it again reports
+   * "still paused", which keeps the lease alive: the board closes a run that
+   * has not reported for half an hour, and paused is not dead.
+   */
+  async pause() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const run = data.runs.find((r) => r.taskId === task.id);
+    if (!run) fail(`No open run on ${task.key}. It was taken over, or never claimed.`, 9);
+
+    const first = run.status !== "paused";
+    const answer = await call(
+      "PATCH",
+      `/api/runs/${run.id}`,
+      first ? { status: "paused", step: "Paused", log: "paused" } : { status: "paused" },
+    );
+    if (answer.control === "stop") {
+      console.log("control: stop");
+      return;
+    }
+    console.log(`${task.key}: paused. Waiting for Resume.`);
+
+    const every = Math.max(1, Number(flags.every ?? 3)) * 1000;
+    const until = Date.now() + Math.max(1, Number(flags.for ?? 5)) * 60_000;
+    while (Date.now() < until) {
+      await sleep(every);
+      let current;
+      try {
+        current = (await request("GET", `/api/runs/${run.id}`)).run;
+      } catch (err) {
+        if (err.status === 404) fail(`${task.key}: the run is gone. Stop work.`, 9);
+        continue; // the board is away for a moment; the lease is long
+      }
+      // A person took the card, or the board closed the run. Either way it is not ours.
+      if (current.endedAt) fail(`${task.key}: the run is over. Stop work, do not re-claim it.`, 9);
+      if (current.control === "stop") {
+        console.log("control: stop");
+        return;
+      }
+      if (current.control === "resume") {
+        await call("PATCH", `/api/runs/${run.id}`, {
+          status: "running",
+          step: "Resumed",
+          log: "resumed",
+        });
+        console.log(`${task.key}: resumed. control: none`);
+        return;
+      }
+    }
+    console.log(`${task.key}: still paused. Run pause ${task.key} again to keep waiting.`);
   },
 
   async finish() {

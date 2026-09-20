@@ -52,6 +52,7 @@ node board.mjs comment USH-14 "tests are green"
 node board.mjs claim USH-14 --goal "…" --plan "a|b|c" --step "…"
 node board.mjs beat USH-14 --every 120 --for 60     # say "still here"
 node board.mjs step USH-14 --say "…" --index 2 --log "…"
+node board.mjs pause USH-14                         # answer a Pause, wait for Resume
 node board.mjs finish USH-14 --status done --log "…"
 ```
 
@@ -61,6 +62,8 @@ Details worth knowing:
 - `--plan` is pipe-separated.
 - An unknown property or option **fails with the real list** rather than guessing at what you meant.
 - `step` prints `control: none | pause | stop`, so the model sees what the board is asking.
+  `pause` is the answer to the first: it reports `paused`, waits for Resume, and reports `running`
+  again, so the request on the panel clears instead of hanging on "It answers on its next report".
 - **Exit code 9** means the card is not yours — a `409` from the server, or no open run.
 - `claim` finishes by telling you to start the heartbeat: `node board.mjs beat USH-14 &`.
 

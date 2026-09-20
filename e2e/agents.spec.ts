@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import path from "node:path";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import {
   addTask,
@@ -10,6 +12,23 @@ import {
   register,
   unique,
 } from "./helpers";
+
+const BOARD_MJS = path.resolve(process.cwd(), "examples/skill/ushabti/board.mjs");
+
+/** The shipped client, run the way an agent runs it, against this board. */
+function runClient(token: string, args: string[]) {
+  const base = test.info().project.use.baseURL;
+  if (!base) throw new Error("The tests need a baseURL.");
+  const child = spawn(process.execPath, [BOARD_MJS, ...args], {
+    env: { ...process.env, USHABTI_URL: base.replace(/\/$/, ""), USHABTI_TOKEN: token },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (chunk) => (output += chunk));
+  child.stderr.on("data", (chunk) => (output += chunk));
+  const exited = new Promise<number | null>((done) => child.on("exit", (code) => done(code)));
+  return { child, exited, output: () => output };
+}
 
 /** The calls an agent makes, with the token in place of a session cookie. */
 function agentApi(request: APIRequestContext, token: string) {
@@ -112,8 +131,27 @@ test.describe("Agents on the board", () => {
     const answer = await (await api.patch(`/api/runs/${run.id}`, { step: "Waiting" })).json();
     expect(answer.control).toBe("pause");
 
-    await api.patch(`/api/runs/${run.id}`, { status: "paused" });
+    /* ---- and the shipped client answers it, then waits for Resume ---- */
+
+    const pausing = runClient(token, ["pause", task.key, "--every", "1", "--for", "1"]);
+    try {
+      await expect(page.getByTestId("panel-run-pending")).toBeHidden();
+      await expect(panel).toContainText("paused");
+      await expect(held.getByTestId("card-run-step")).toHaveText("Paused");
+
+      await panel.getByRole("button", { name: "Resume" }).click();
+      const code = await Promise.race([
+        pausing.exited,
+        new Promise<"timeout">((done) => setTimeout(() => done("timeout"), 20_000)),
+      ]);
+      expect(code, pausing.output()).toBe(0);
+      expect(pausing.output()).toContain(`${task.key}: resumed`);
+    } finally {
+      pausing.child.kill("SIGTERM");
+    }
     await expect(page.getByTestId("panel-run-pending")).toBeHidden();
+    await expect(panel.getByRole("button", { name: "Pause" })).toBeVisible();
+    await expect(held.getByTestId("card-run-step")).toHaveText("Resumed");
 
     /* ---- Take over ends it at once ----------------------------------- */
 

@@ -103,8 +103,10 @@ Keep it short. A refined task is one a person reads in a minute.
   Nobody can force this. A person asked; you answer.
   - `stop` → `node board.mjs finish USH-14 --status stopped`, then stop. Say
     why in a comment first if you have something half done.
-  - `pause` → report `--say "Paused"`, then poll `task USH-14` until the run is
-    gone or the pause clears.
+  - `pause` → `node board.mjs pause USH-14`. It tells the board you stopped,
+    waits, and returns `resumed` when a person presses Resume. If it returns
+    `still paused`, run it again. If it prints `control: stop`, finish with
+    `--status stopped`. Exit code 9 means the card is not yours any more.
 - **Exit code 9 means the card is not yours any more.** Somebody pressed Take
   over or dragged the card. Stop work, do not re-claim it, tell the person.
 - **One open run per task.** Claiming a held task fails with 9. Pick another.
