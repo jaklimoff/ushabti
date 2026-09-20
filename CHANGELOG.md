@@ -10,6 +10,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A guessing attack is slowed.** Ten failures inside ten minutes are answered
+  `429` with a `Retry-After` header and one sentence the sign-in and sign-up
+  forms show inline: "Too many tries. Wait 8 minutes and try again." Sign-in is
+  counted per address and per email, sign-up per address, and a bad agent token
+  per address, which covers every JSON route at once. Only failures count: a
+  sign-in that works counts nothing and clears the count for that email, and a
+  token that works is never counted and never slowed. The count lives in the
+  memory of one process, which is enough for the one server the image is built
+  for; the self-host page says so.
 - **A column can be folded to a strip.** The **«** in a column header turns it
   into a narrow strip that still shows its name and its count; pressing the
   strip opens it again. A card dragged onto a strip lands at the end of that

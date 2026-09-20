@@ -1,11 +1,25 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectInvites, projectMembers, users } from "@/db/schema";
-import { createSession, hashPassword, HttpError, signupIsOpen } from "@/lib/auth";
+import { createSession, hashPassword, HttpError, refuseIfLimited, signupIsOpen } from "@/lib/auth";
 import { body, broadcast, json, route, str } from "@/lib/api";
 import { pickAvatarColor } from "@/lib/colors";
+import { addressOf, limiter, signupByAddress } from "@/lib/rate-limit";
 
 export const POST = route(async (req: Request) => {
+  const key = signupByAddress(addressOf(req.headers));
+  refuseIfLimited(key);
+  try {
+    return await signUp(req);
+  } catch (err) {
+    /* Only a refused sign-up counts. A team all joining on their first
+       morning from one office address must never lock the rest out. */
+    if (err instanceof HttpError) limiter.hit(key);
+    throw err;
+  }
+});
+
+async function signUp(req: Request): Promise<Response> {
   const input = await body<{ email?: string; password?: string; name?: string }>(req);
 
   const email = str(input.email, "Email", { max: 200 }).toLowerCase();
@@ -59,4 +73,4 @@ export const POST = route(async (req: Request) => {
 
   await createSession(user.id);
   return json({ user });
-});
+}

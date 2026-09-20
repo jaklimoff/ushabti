@@ -6,6 +6,13 @@ import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers, projects, sessions, users } from "@/db/schema";
 import { bearerToken, holderOfToken } from "./agents";
+import {
+  addressOf,
+  limiter,
+  retryAfterSeconds,
+  tokenByAddress,
+  tooManyMessage,
+} from "./rate-limit";
 
 const scrypt = promisify(scryptCb) as (
   password: string,
@@ -67,7 +74,8 @@ export type CurrentUser = {
 
 /**
  * Whether this instance still takes new accounts. A board on the open internet
- * wants to stop after the team has signed up; there is no rate limit yet.
+ * wants to stop after the team has signed up; the limiter slows a stranger,
+ * this shuts the door.
  */
 export function signupIsOpen(): boolean {
   return (process.env.USHABTI_SIGNUP ?? "open").toLowerCase() !== "closed";
@@ -120,10 +128,19 @@ export async function requireUser(): Promise<CurrentUser> {
 
 /** The token first, then the cookie. Null when the request carries neither. */
 export async function getActor(): Promise<Actor | null> {
-  const token = bearerToken((await headers()).get("authorization"));
+  const head = await headers();
+  const token = bearerToken(head.get("authorization"));
   if (token) {
     const holder = await holderOfToken(token);
-    if (!holder) throw new HttpError(401, "That token is not valid any more.");
+    /* The token is looked up first on purpose: a good one is never counted
+       and never waits, however hard somebody else is guessing from the same
+       address. Only a token that opens nothing is a guess. */
+    if (!holder) {
+      const key = tokenByAddress(addressOf(head));
+      refuseIfLimited(key);
+      limiter.hit(key);
+      throw new HttpError(401, "That token is not valid any more.");
+    }
     return {
       id: holder.id,
       name: holder.name,
@@ -149,9 +166,25 @@ export class HttpError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** Headers the answer must carry. A 429 says how long to wait in one. */
+    readonly headers?: Record<string, string>,
   ) {
     super(message);
   }
+}
+
+/**
+ * Refuses a caller that has spent its tries.
+ *
+ * One sentence, so a form can show it, and a `Retry-After` in seconds, so an
+ * agent waits the right length of time instead of hammering.
+ */
+export function refuseIfLimited(key: string): void {
+  const wait = limiter.waitMs(key);
+  if (wait <= 0) return;
+  throw new HttpError(429, tooManyMessage(wait), {
+    "Retry-After": String(retryAfterSeconds(wait)),
+  });
 }
 
 export type Membership = {

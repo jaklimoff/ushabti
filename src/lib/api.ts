@@ -9,8 +9,8 @@ export function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
 }
 
-export function fail(status: number, message: string) {
-  return NextResponse.json({ error: message }, { status });
+export function fail(status: number, message: string, headers?: Record<string, string>) {
+  return NextResponse.json({ error: message }, { status, headers });
 }
 
 /** Wraps a route handler so thrown HttpErrors become clean JSON responses. */
@@ -19,7 +19,7 @@ export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response
     try {
       return await handler(req, ctx);
     } catch (err) {
-      if (err instanceof HttpError) return fail(err.status, err.message);
+      if (err instanceof HttpError) return fail(err.status, err.message, err.headers);
       console.error("[ushabti] route error", err);
       return fail(500, "Something went wrong on the server.");
     }
