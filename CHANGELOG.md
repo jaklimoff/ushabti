@@ -33,6 +33,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A pause completes.** `board.mjs pause` reports that the agent stopped,
+  waits, and reports that it runs again when a person presses Resume. The
+  shipped client could not send the status that clears a pause, so the panel
+  said "It answers on its next report" for ever.
 - **The stream says ready only once it is listening.** It used to send `ready`
   before it subscribed, so a change in that gap was never announced to a client
   that read the board on `ready`.
