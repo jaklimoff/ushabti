@@ -60,6 +60,7 @@ export function Column({
   onCompose,
   onOpenTask,
   onAddTask,
+  onFold,
 }: {
   column: BoardColumn;
   selectedTaskId: string | null;
@@ -73,6 +74,8 @@ export function Column({
   onCompose: (place: ComposerPlace | null) => void;
   onOpenTask: (task: TaskDTO) => void;
   onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
+  /** Folds this column to a strip, or opens it again. This browser only. */
+  onFold: (folded: boolean) => void;
 }) {
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -101,6 +104,7 @@ export function Column({
 
   const className = [
     styles.column,
+    column.folded ? styles.columnFolded : "",
     column.isNone ? styles.columnNone : "",
     isOver ? styles.columnOver : "",
     sortable.isDragging ? styles.columnDragging : "",
@@ -108,16 +112,48 @@ export function Column({
     .filter(Boolean)
     .join(" ");
 
+  const place = {
+    transform: CSS.Translate.toString(sortable.transform),
+    transition: sortable.transition ?? undefined,
+  };
+
+  /*
+   * The strip is the header stood on its end, and the whole of it is the
+   * button that opens the column again. It carries the drop target, so a card
+   * dragged onto it still lands at the end of the column and nothing is lost.
+   *
+   * There is no grip here on purpose. A grip inside a button is two answers to
+   * one press, and the column order belongs to the option everybody shares
+   * while a fold belongs to this browser. Open the column to move it.
+   */
+  if (column.folded) {
+    return (
+      <div ref={sortable.setNodeRef} className={className} data-testid="column" style={place}>
+        <button
+          ref={setDropRef}
+          className={styles.strip}
+          data-testid="column-strip"
+          title="Open this column"
+          aria-label={`Open the column ${column.name}`}
+          onClick={() => onFold(false)}
+        >
+          <span
+            className={styles.colDot}
+            style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
+          />
+          <span className={styles.colCount} data-testid="column-count">
+            {column.tasks.length}
+          </span>
+          <span className={styles.stripName} data-testid="column-name">
+            {column.name}
+          </span>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div
-      ref={sortable.setNodeRef}
-      className={className}
-      data-testid="column"
-      style={{
-        transform: CSS.Translate.toString(sortable.transform),
-        transition: sortable.transition ?? undefined,
-      }}
-    >
+    <div ref={sortable.setNodeRef} className={className} data-testid="column" style={place}>
       <div className={styles.colHead}>
         {draggable ? (
           <span
@@ -146,7 +182,9 @@ export function Column({
             {column.name}
           </span>
         </span>
-        <span className={styles.colCount}>{column.tasks.length}</span>
+        <span className={styles.colCount} data-testid="column-count">
+          {column.tasks.length}
+        </span>
         <span style={{ flex: 1 }} />
         <button
           className={styles.colAdd}
@@ -158,6 +196,14 @@ export function Column({
           }}
         >
           +
+        </button>
+        <button
+          className={`${styles.colAdd} ${styles.colFold}`}
+          aria-label={`Fold the column ${column.name}`}
+          title="Fold this column to a strip"
+          onClick={() => onFold(true)}
+        >
+          «
         </button>
       </div>
 
