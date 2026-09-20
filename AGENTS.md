@@ -183,7 +183,10 @@ and what is easy to get wrong.
   the pick with the sentence `clashSaid()` builds, and the promote route
   answers 409 with the same sentence. It counts the property and not the
   operator, because nobody reading two chips can tell a pair that narrows from
-  a pair that can never both pass. `mergeFilters` stays a plain joining — the
+  a pair that can never both pass. That counts a date, which is the price: two
+  date rules inside one set are still two rules on purpose, but a date rule of
+  a lens on a property the view already dates is refused with the rest.
+  `mergeFilters` stays a plain joining — the
   guard belongs at the two doors a rule comes in by, and a lens can become a
   clash after it is written, which is why both doors carry it.
 - **Every rule has to pass, and "is not" keeps the empties.** A filter narrows;
