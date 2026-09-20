@@ -5,9 +5,9 @@ import { currentSessionId, hashPassword, HttpError, requireUser, verifyPassword 
 import { body, json, route } from "@/lib/api";
 
 /**
- * There is no password reset, so this is the only way back from a password you
- * think has leaked. Every other session ends with the change: whoever knew the
- * old one is signed out.
+ * The way back from a password you think has leaked, and still know. Every
+ * other session ends with the change: whoever knew the old one is signed out.
+ * A password nobody knows is the reset link's job, not this route's.
  */
 export const POST = route(async (req: Request) => {
   const user = await requireUser();

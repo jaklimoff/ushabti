@@ -68,8 +68,8 @@ invites somebody by adding their email in **Settings → People**; that email ma
 Worth stating plainly, so you do not go looking:
 
 - **The rate limit** is ten failures in ten minutes, per key, and there is no variable for either
-  number. The keys are the address for sign-in, sign-up and agent tokens, and the email address for
-  sign-in. A sign-in that works counts nothing and clears the count for that email. Over the limit
+  number. The keys are the address for sign-in, sign-up, agent tokens and reset links, and the email
+  address for sign-in. A sign-in that works counts nothing and clears the count for that email. Over the limit
   the answer is `429` with `Retry-After`. The count is held in the memory of one process, so a
   restart forgets it and a second process counts separately — see
   [Host it for your team](/ushabti/start/self-host/).
@@ -78,4 +78,7 @@ Worth stating plainly, so you do not go looking:
   anybody can pick any colour stops meaning anything.
 - **The run lease** is 30 minutes without a report; a run reads *quiet* after 6 minutes.
 - **There is no SMTP setting**, because there is no email anywhere in the product — no invites, no
-  password reset, no notifications.
+  notifications, and no reset mail. A forgotten password is answered by the owner of a project, who
+  makes a link and sends it by hand: [A forgotten
+  password](/ushabti/guides/people/#a-forgotten-password).
+- **The life of a reset link** is 24 hours and one use.

@@ -124,6 +124,10 @@ function Members() {
             member={member}
             isSelf={member.id === user.id}
             canRemove={member.role !== "owner" && (isOwner || member.id === user.id)}
+            /* Never the owner's own row: /account changes a password you know,
+               and an agent has no password to change. */
+            canReset={isOwner && member.role !== "owner"}
+            projectId={data.project.id}
             onRemove={() => void remove(member)}
           />
         ))}
@@ -188,14 +192,33 @@ function MemberRow({
   member,
   isSelf,
   canRemove,
+  canReset,
+  projectId,
   onRemove,
 }: {
   member: MemberDTO;
   isSelf: boolean;
   canRemove: boolean;
+  canReset: boolean;
+  projectId: string;
   onRemove: () => void;
 }) {
+  const { notify } = useBoard();
   const confirm = useConfirm();
+  const reset = useConfirm();
+  /** The link, held until the person leaves the page, as a token is. */
+  const [link, setLink] = useState<string | null>(null);
+
+  async function makeLink() {
+    try {
+      const res = await api.post<{ link: string }>(
+        `/api/projects/${projectId}/members/${member.id}/reset`,
+      );
+      setLink(res.link);
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not make a reset link.");
+    }
+  }
 
   if (confirm.asking) {
     return (
@@ -212,24 +235,51 @@ function MemberRow({
     );
   }
 
+  if (reset.asking) {
+    return (
+      <ConfirmRow
+        question={`Make a reset link for ${member.name}? It signs them out everywhere once used.`}
+        confirmLabel="Yes, make a link"
+        onConfirm={() => reset.confirm(() => void makeLink())}
+        onCancel={reset.cancel}
+      />
+    );
+  }
+
   return (
-    <Row>
-      <Avatar name={member.name} color={member.color} size={22} />
-      <span className={styles.memberName}>{member.name}</span>
-      <span className={styles.memberMail}>{member.email}</span>
-      {member.role === "owner" && <Tag accent>owner</Tag>}
-      <Spacer />
-      {canRemove && (
-        <IconButton
-          danger
-          label={isSelf ? "Leave the project" : `Remove ${member.name}`}
-          title={isSelf ? "Leave the project" : "Remove from the project"}
-          onClick={confirm.ask}
-        >
-          ✕
-        </IconButton>
+    <>
+      <Row>
+        <Avatar name={member.name} color={member.color} size={22} />
+        <span className={styles.memberName}>{member.name}</span>
+        <span className={styles.memberMail}>{member.email}</span>
+        {member.role === "owner" && <Tag accent>owner</Tag>}
+        <Spacer />
+        {canReset && (
+          <Button variant="ghost" onClick={reset.ask}>
+            Reset password
+          </Button>
+        )}
+        {canRemove && (
+          <IconButton
+            danger
+            label={isSelf ? "Leave the project" : `Remove ${member.name}`}
+            title={isSelf ? "Leave the project" : "Remove from the project"}
+            onClick={confirm.ask}
+          >
+            ✕
+          </IconButton>
+        )}
+      </Row>
+      {link && (
+        <div className={styles.resetLink} data-testid="reset-link">
+          <Note>
+            Send this to {member.name}. It works once, for 24 hours. Reloading this page hides it
+            for good.
+          </Note>
+          <CopyField value={link} label="the reset link" loud />
+        </div>
       )}
-    </Row>
+    </>
   );
 }
 

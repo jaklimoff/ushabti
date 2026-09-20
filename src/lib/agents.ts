@@ -5,17 +5,23 @@ import { db } from "@/db";
 import { agentTokens, projectMembers, users } from "@/db/schema";
 import type { AgentDTO } from "./types";
 
-/** Every token starts with this, so a leak is easy to search for. */
+/** Every agent token starts with this, so a leak is easy to search for. */
 export const TOKEN_PREFIX = "ush_";
 
 /** How much of the token the list shows. Enough to tell two of them apart. */
-const VISIBLE = TOKEN_PREFIX.length + 8;
+const VISIBLE = 8;
 
 export type MintedToken = { token: string; hash: string; prefix: string };
 
-export function mintToken(): MintedToken {
-  const token = TOKEN_PREFIX + randomBytes(32).toString("base64url");
-  return { token, hash: hashToken(token), prefix: token.slice(0, VISIBLE) };
+/**
+ * One maker for every secret this product hands out. A reset link asks for its
+ * own prefix, `ushr_`, so that a leaked link and an agent token are told apart
+ * at a glance in a log or by a secret scanner — and `bearerToken()` refuses a
+ * reset token outright, because `ushr_` does not start with `ush_`.
+ */
+export function mintToken(prefix: string = TOKEN_PREFIX): MintedToken {
+  const token = prefix + randomBytes(32).toString("base64url");
+  return { token, hash: hashToken(token), prefix: token.slice(0, prefix.length + VISIBLE) };
 }
 
 /**

@@ -79,11 +79,15 @@ export function createLimiter(): Limiter {
 /** The one limiter this process counts in. */
 export const limiter = createLimiter();
 
-/* The four keys. They live together so that nothing else invents a fifth. */
+/* The five keys. They live together so that nothing else invents a sixth. */
 export const loginByAddress = (address: string) => `login:ip:${address}`;
 export const loginByEmail = (email: string) => `login:email:${email}`;
 export const signupByAddress = (address: string) => `signup:ip:${address}`;
 export const tokenByAddress = (address: string) => `token:ip:${address}`;
+/* A reset link is a long random token, so this counts a stranger walking the
+   address space. There is no key for the account: the address is all a dead
+   link tells us, and a key per account would say that the account is real. */
+export const resetByAddress = (address: string) => `reset:ip:${address}`;
 
 /**
  * Who is calling.

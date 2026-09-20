@@ -11,7 +11,7 @@ These routes are for people. **A bearer token is ignored here** — an agent has
 and no password to change.
 
 <Aside type="caution" title="Ten failures in ten minutes">
-`register` and `login` are rate limited. Ten **failures** inside ten minutes answer
+`register`, `login` and `reset` are rate limited. Ten **failures** inside ten minutes answer
 
 ```json title="429 — and a Retry-After header in seconds"
 { "error": "Too many tries. Wait 8 minutes and try again." }
@@ -20,7 +20,9 @@ and no password to change.
 Sign-in counts against two keys — the calling address and the email in the body — and either one
 over the limit refuses the call before the password is read. A sign-in that works counts nothing
 and clears the count for that email. Sign-up counts a refusal against the calling address only; a
-sign-up that works counts nothing.
+sign-up that works counts nothing. A reset link that does not work counts against the calling
+address and against nothing else — whether it was opened as a page at `/reset/<token>` or sent to
+the route below, because otherwise the page would test tokens for free.
 
 The address is the first value of `x-forwarded-for`. The count lives in the memory of one process,
 so it is forgotten by a restart. See
@@ -135,6 +137,48 @@ Changes your password and **signs every other session out**.
 
 ---
 
+## `POST /api/auth/reset`
+
+Sets a password with a link the owner of a project made, and signs this browser in. This is the way
+back into an account whose password nobody knows — see
+[A forgotten password](/ushabti/guides/people/#a-forgotten-password).
+
+**Auth** — none. The token in the body is the whole of it.
+
+```json title="request"
+{ "token": "ushr_…", "password": "at-least-eight" }
+```
+
+| Field | Rules |
+| --- | --- |
+| `token` | the token out of `/reset/<token>`, made by [`POST …/members/{userId}/reset`](/ushabti/api/projects/#post-apiprojectsprojectidmembersuseridreset) |
+| `password` | required, **at least 8 characters** |
+
+It works once and for 24 hours, and a newer link for the same person puts the older ones out of use.
+Setting the password **ends every session of that account**, then opens one for the browser that
+called.
+
+```json title="200 — and a Set-Cookie"
+{ "ok": true }
+```
+
+| Status | Message |
+| --- | --- |
+| `400` | `The password must have at least 8 characters.` |
+| `400` | `This link does not work any more. Ask the owner of your project for a new one.` — used, expired, superseded or never real, all four the same |
+| `429` | `Too many tries. Wait N minutes and try again.` — after ten dead links from this address |
+
+<Aside type="note" title="One message, and nothing about the account">
+A dead link and an invented one answer the same sentence, and neither names an email. The count is
+kept per address only — a key per account would itself say that the account is real.
+
+The page at `/reset/<token>` counts on the same key. It has to: it decides between a form and a
+sentence, so a guesser who was not counted there could find a live token for nothing and spend a try
+only once it worked. Over the limit, the page stops looking tokens up at all and shows the sentence.
+</Aside>
+
+---
+
 ## `GET /api/auth/sessions`
 
 ```json title="200"
@@ -147,9 +191,10 @@ Unexpired sessions for your account, not counting the one asking.
 
 Ends every session except this one. `200 {"ok": true}`.
 
-<Aside type="tip" title="This is the only lever you have">
-There is no password reset in Ushabti, and no email of any kind. If you no longer trust a password,
-change it — which signs the others out — or sign out everywhere from `/account`.
+<Aside type="tip" title="The two levers you have">
+There is no email of any kind in Ushabti. If you no longer trust a password, change it — which signs
+the others out — or sign out everywhere from `/account`. If you cannot sign in at all, the owner of
+a project you are in makes you a [reset link](#post-apiauthreset).
 </Aside>
 
 ---

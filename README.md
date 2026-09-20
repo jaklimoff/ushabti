@@ -91,6 +91,8 @@ Board  ·  Phases  ·  By assignee            ← views you create
   once your team has registered and the instance stops taking new accounts.
 - **Your own account.** Change your name, pick your colour from the palette,
   change your password, and sign every other session out.
+- **A way back in.** There is no email, so a forgotten password is answered by
+  a person: the owner of a project makes a one-time link that lasts a day.
 - **Projects with members.** The owner adds people by email.
 - **Agents.** A project can have machine members. An agent signs in with a
   token, uses the same JSON API the browser uses, and while it works a strip
