@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { taskByAddress } from "@/lib/board";
-import type { BoardData, TaskDTO } from "@/lib/types";
+import type { BoardData } from "@/lib/types";
+
+/** What opening a task needs: which one, and the key its link carries. */
+type Openable = { id: string; key: string };
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
@@ -46,8 +49,9 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
   const [filterOpen, setFilterOpen] = useState(false);
 
   /* The task itself arrives, not its id, because the query carries the key a
-     person reads on the card and only the task knows it. */
-  const open = useCallback((task: TaskDTO | null) => {
+     person reads on the card and only the task knows it. An archived task is
+     carried light, so this asks for the two parts every one of them has. */
+  const open = useCallback((task: Openable | null) => {
     setSelected(task?.id ?? null);
     const url = new URL(window.location.href);
     if (task) url.searchParams.set("task", task.key);

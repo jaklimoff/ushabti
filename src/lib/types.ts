@@ -97,6 +97,27 @@ export type TaskDTO = {
   commentCount: number;
 };
 
+/**
+ * An archived task, as the board carries it.
+ *
+ * It is deliberately not a `TaskDTO`: no values, no checklist and no comment
+ * counts. Nothing draws an archived task, so loading those on every board read
+ * would be work nobody sees, and a type of its own means no screen can pass one
+ * where a card is wanted. What is here is what a search reads — the key, the
+ * title and the description — plus the rank it keeps and the moment it went.
+ * Everything else comes from `GET /api/tasks/{id}`, which the panel asks for
+ * anyway.
+ */
+export type ArchivedTaskDTO = {
+  id: string;
+  number: number;
+  key: string;
+  title: string;
+  description: string;
+  position: string;
+  archivedAt: string;
+};
+
 /* ------------------------------------------------------------------ */
 /* The card view                                                       */
 /* ------------------------------------------------------------------ */
@@ -476,10 +497,17 @@ export type BoardData = {
    * The archived ones, which no view draws. They are here because a search
    * looks at every task in the project and answers on the keystroke, and
    * because a link to an archived task has to open its panel. Keeping them in
-   * a list of their own rather than a flag on every task means no screen can
-   * draw one by forgetting to ask.
+   * a list of their own, in a lighter shape, means no screen can draw one by
+   * forgetting to ask.
    */
-  archived: TaskDTO[];
+  archived: ArchivedTaskDTO[];
+  /**
+   * How many tasks hold a value for each property, archived ones included.
+   * The question before a property is deleted names this, because the cascade
+   * does not care whether a task is on a board and the browser can no longer
+   * count what it is not carrying.
+   */
+  valueCounts: Record<string, number>;
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];
 };

@@ -21,6 +21,7 @@ import type {
   AgentRunDetailDTO,
   ChecklistItemDTO,
   RunControl,
+  TaskDTO,
   TaskDetailDTO,
   TaskValue,
 } from "@/lib/types";
@@ -56,11 +57,18 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const [tab, setTab] = useState<"comments" | "activity" | "agent">("comments");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useDismiss<HTMLDivElement>(() => setMenuOpen(false), menuOpen);
+  /* The clock the archived row reads. It ticks only while that row is drawn,
+     so "just now" becomes "1 minute ago" without a reload and nothing else
+     re-renders for it. */
+  const now = useNow(!!detail?.archivedAt);
 
-  /* An archived task has no card, and its panel still opens: a link and a
-     search hit both end here. It is the one screen that reads both lists. */
-  const boardTask =
-    data.tasks.find((t) => t.id === taskId) ?? data.archived.find((t) => t.id === taskId) ?? null;
+  /*
+   * An archived task has no card, and its panel still opens: a link and a
+   * search hit both end here. The board carries an archived task light — no
+   * values, no counts — so this panel draws the answer it fetched itself,
+   * which is the whole task either way.
+   */
+  const boardTask: TaskDTO | null = data.tasks.find((t) => t.id === taskId) ?? detail;
 
   const load = useCallback(async () => {
     try {
@@ -242,7 +250,10 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           archived task is a whole task that no view is drawing. */}
       {boardTask.archivedAt && (
         <div className={styles.archivedRow} data-testid="archived-row">
-          <span>Archived {longAgo(boardTask.archivedAt)}</span>
+          {/* The words come from a clock, and the server reads its clock a
+              moment before the browser reads its own. React is told so, rather
+              than being left to find the two texts disagree on a boundary. */}
+          <span suppressHydrationWarning>Archived {longAgo(boardTask.archivedAt, now)}</span>
           <span className={styles.archivedSep}>·</span>
           <button
             className={styles.archivedBack}

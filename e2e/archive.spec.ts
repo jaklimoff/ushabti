@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { addTask, card, column, confirmDelete, createProject, register, unique } from "./helpers";
+import {
+  addTask,
+  card,
+  column,
+  confirmDelete,
+  createProject,
+  gotoSettings,
+  register,
+  unique,
+} from "./helpers";
 
 type Page = import("@playwright/test").Page;
 
@@ -73,9 +82,29 @@ test.describe("Archiving a task", () => {
 
     await expect(column(page, "Shipped").getByTestId("card")).toHaveCount(0);
     await expect(card(page, "Still to do").first()).toBeVisible();
+    // The board says how many went, in the server's own number.
+    await expect(page.getByTestId("toast")).toContainText("Archived 2 tasks");
+
+    /* An empty column is not proof of an archive: a delete would leave the
+       same board. So find one of them, see the word on its row, open it, and
+       read its own history. */
+    await page.getByTestId("search-box").fill("first shipped");
+    const hit = page.getByTestId("search-hit").first();
+    await expect(hit).toContainText("First shipped");
+    await expect(hit).toContainText("archived");
+    await hit.click();
+
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+    await page.getByRole("button", { name: /^Activity/ }).click();
+    await expect(page.getByText(/archived the task/)).toBeVisible();
+
+    // And it comes back where it was.
+    await page.getByRole("button", { name: "Put it back" }).click();
+    await expect(card(page, "First shipped").first()).toBeVisible();
+    await expect(column(page, "Shipped").getByTestId("column-count")).toHaveText("1");
 
     await page.reload();
-    await expect(column(page, "Shipped").getByTestId("card")).toHaveCount(0);
+    await expect(column(page, "Shipped").getByTestId("column-count")).toHaveText("1");
   });
 
   test("a search still finds an archived task, says so, and its link opens it", async ({
@@ -106,5 +135,36 @@ test.describe("Archiving a task", () => {
     await expect(page.getByTestId("task-title")).toHaveValue("Rate limit the sign-in route");
     await expect(page.getByTestId("archived-row")).toBeVisible();
     await expect(page.getByTestId("card")).toHaveCount(0);
+  });
+
+  /*
+   * The cascade behind a delete does not care whether a task is on a board, so
+   * a question that counted only the cards would name half the cost.
+   */
+  test("the cost of a delete counts the archived tasks too", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Cost"));
+
+    for (const title of ["Live estimate", "Archived estimate"]) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "XL", exact: true }).click();
+      if (title === "Archived estimate") await archiveOpenTask(page);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    // One card left on the board, two values in the project.
+    await expect(page.getByTestId("card")).toHaveCount(1);
+
+    await gotoSettings(page, projectId);
+    await page.getByRole("button", { name: "Delete the property Estimate" }).click();
+    await expect(
+      page.getByText("Delete Estimate? 5 options and 2 values go with it."),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    // And the key rename counts them as well, because it renames them too.
+    await gotoSettings(page, projectId, "project");
+    await page.getByLabel("Project key", { exact: true }).fill("ZZZ");
+    await expect(page.getByText(/2 tasks are called .*today/)).toBeVisible();
   });
 });

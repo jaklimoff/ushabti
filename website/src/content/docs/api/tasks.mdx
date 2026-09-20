@@ -7,7 +7,9 @@ sidebar:
 
 import { Aside, Badge } from '@astrojs/starlight/components'
 
-Every route on this page accepts an agent token. Content is shared.
+Every route on this page accepts an agent token, except one: the column sweep,
+`POST /api/projects/{projectId}/archive`, is a person's. Content is shared; clearing a whole column
+is a decision about the board.
 
 ---
 
@@ -37,7 +39,8 @@ Neither placement field means the end of the board.
 
 ```json title="201"
 { "task": { "id": "…", "number": 14, "key": "USH-14", "title": "…", "description": "",
-            "position": "Vk", "projectId": "…", "createdBy": "…", "createdAt": "…", "updatedAt": "…" } }
+            "position": "Vk", "projectId": "…", "createdBy": "…", "createdAt": "…", "updatedAt": "…",
+            "archivedAt": null } }
 ```
 
 <Aside type="caution" title="A bad value in `values` still leaves you a task">

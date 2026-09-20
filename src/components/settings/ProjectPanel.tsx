@@ -20,7 +20,9 @@ export function ProjectPanel() {
   const [confirmText, setConfirmText] = useState("");
   const [confirming, setConfirming] = useState(false);
 
-  const taskCount = data.tasks.length;
+  /* Every task of the project, archived ones too: a rename renames their keys
+     as well, and a delete takes them with it. */
+  const taskCount = data.tasks.length + data.archived.length;
   const keyChanged = key !== data.project.key && key.length > 0;
 
   async function save(patch: { name?: string; key?: string }) {

@@ -69,8 +69,17 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     }
   ],
 
-  "archived": [              // the same shape, with a date in `archivedAt`
+  "archived": [              // lighter: no values, no counts
+    {
+      "id": "…", "number": 9, "key": "USH-9",
+      "title": "Ship the release image", "description": "",
+      "position": "Va", "archivedAt": "…"
+    }
   ],
+
+  "valueCounts": {           // how many tasks hold a value for each property,
+    "<propertyId>": 42       // archived ones included
+  },
 
   "runs": [                  // OPEN runs only, at most one per task
     {
@@ -120,12 +129,17 @@ A rule pointing at a deleted property or option is thrown away **on every read**
 still hold it; you will never see it. So a rule that reaches you is guaranteed to be readable — and
 you should never write back what you were not given.
 
-### 5. `tasks` is live, and `archived` is everything else
+### 5. `tasks` is live, and `archived` is lighter
 
 An [archived task](/ushabti/guides/task-panel/#archived-and-put-back) is on no board and in no list,
 so it is never in `tasks` — the two lists never overlap. It is in `archived` because the browser's
-search reads every task in the project and a link to one still opens its panel. Draw `tasks`; treat
-`archived` as the answer to "does this key still exist?".
+search reads every task in the project and a link to one still opens its panel.
+
+`archived` carries **only** the id, number, key, title, description, rank and `archivedAt`. No
+values, no checklist and no comment counts: nothing draws an archived task, so loading those on
+every board read would be work nobody sees. Ask `GET /api/tasks/{taskId}` for the whole of one.
+
+Draw `tasks`; treat `archived` as the answer to "does this key still exist?".
 
 ### 6. Reading the board can close a run
 

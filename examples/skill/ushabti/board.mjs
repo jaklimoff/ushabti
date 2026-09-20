@@ -120,17 +120,27 @@ async function board() {
 /**
  * A task by its key (USH-14, or just 14) or by its id.
  *
- * The archived tasks answer too. They are off every board, but they keep their
- * key, so `task` and `restore` still reach one by the name a person says.
+ * Only the live tasks answer. An archived task keeps its key, so it is found
+ * here and then refused by name: claiming one, reporting on one or ticking its
+ * checklist would be work on a task nobody can see. Put it back first. The two
+ * commands that are about an archived task — `task` and `restore` — ask for it
+ * with `archived`.
  */
-function findTask(data, wanted) {
+function findTask(data, wanted, { archived = false } = {}) {
   const term = String(wanted ?? "").trim();
   if (!term) fail("Name a task, by key (USH-14) or by id.");
   const key = /^\d+$/.test(term) ? `${data.project.key}-${term}` : term.toUpperCase();
-  const all = [...data.tasks, ...(data.archived ?? [])];
-  const task = all.find((t) => t.key.toUpperCase() === key || t.id === term);
-  if (!task) fail(`No task ${term} on this board.`);
-  return task;
+  const matches = (t) => t.key.toUpperCase() === key || t.id === term;
+
+  const live = data.tasks.find(matches);
+  if (live) return live;
+
+  const gone = (data.archived ?? []).find(matches);
+  if (gone) {
+    if (archived) return gone;
+    fail(`${gone.key} is archived. Put it back first: node board.mjs restore ${gone.key}`);
+  }
+  fail(`No task ${term} on this board.`);
 }
 
 function findProperty(data, wanted) {
@@ -300,10 +310,15 @@ http://localhost:3000.`);
 
   async task() {
     const data = await board();
-    const task = findTask(data, positional[0]);
+    const task = findTask(data, positional[0], { archived: true });
     const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
 
     console.log(`${task.key}  ${detail.title}`);
+    /* A task that is off every board says so before anything else on it is
+       read, or the rest reads as a task somebody could pick up. */
+    if (detail.archivedAt) {
+      console.log(`  ARCHIVED — off every board and list. Put it back: restore ${task.key}`);
+    }
     for (const p of data.properties) {
       const text = valueText(data, p, detail.values[p.id]);
       if (text) console.log(`  ${p.name}: ${text}`);
@@ -368,7 +383,7 @@ http://localhost:3000.`);
 
   async restore() {
     const data = await board();
-    const task = findTask(data, positional[0]);
+    const task = findTask(data, positional[0], { archived: true });
     await call("DELETE", `/api/tasks/${task.id}/archive`);
     console.log(`${task.key} put back`);
   },

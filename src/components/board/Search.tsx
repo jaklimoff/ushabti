@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { hitNote, searchTasks, type SearchHit } from "@/lib/search";
-import type { TaskDTO } from "@/lib/types";
+import { hitNote, searchTasks, type Searchable, type SearchHit } from "@/lib/search";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useShortcut } from "./keys";
 import { useBoard } from "./store";
@@ -20,7 +19,7 @@ import styles from "./board.module.css";
  * The box sits above the view strip because what it finds does not belong to a
  * view. The filter, which does, sits inside the strip.
  */
-export function Search({ onOpenTask }: { onOpenTask: (task: TaskDTO) => void }) {
+export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void }) {
   const { data, visibleTasks } = useBoard();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);

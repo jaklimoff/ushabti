@@ -17,7 +17,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   returns it to the rank it never lost. A search still finds an archived task
   and says _archived_ on the row, which with its link is the way back to one.
   **↓** on a column header archives everything in that column at once, after a
-  question in the header that names the count. Archive is now the everyday way
+  question in the header that names the count, and the board says how many
+  went. Archive is now the everyday way
   to make a task go away; delete stays for a mistake. An agent may archive the
   task it finished — `board.mjs archive USH-14` — but only a person can sweep a
   column.

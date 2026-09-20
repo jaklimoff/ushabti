@@ -1,6 +1,16 @@
 import type { TaskDTO } from "./types";
 
 /**
+ * What a search reads of a task. A live task answers it and so does an
+ * archived one, which the board carries in a lighter shape — the words, the
+ * key, the rank it is tied in, and whether it is archived.
+ */
+export type Searchable = Pick<
+  TaskDTO,
+  "id" | "number" | "key" | "title" | "description" | "position"
+> & { archivedAt?: string | null };
+
+/**
  * Finding one task by its key, its title or its words.
  *
  * The whole board is already in the browser — every task, with its description
@@ -24,7 +34,7 @@ export const SEARCH_LIMIT = 12;
 const SNIPPET_LENGTH = 90;
 
 export type SearchHit = {
-  task: TaskDTO;
+  task: Searchable;
   /**
    * The line of the description the words were found on, and only when the
    * key and the title do not carry them. A hit has to say why it is a hit.
@@ -42,7 +52,7 @@ export type SearchHit = {
  * description last — a word in a paragraph is the weakest reason to put a row
  * at the top.
  */
-function rankOf(task: TaskDTO, whole: string, words: string[]): number {
+function rankOf(task: Searchable, whole: string, words: string[]): number {
   const key = task.key.toLowerCase();
   if (key === whole || String(task.number) === whole) return 0;
   if (key.startsWith(whole)) return 1;
@@ -71,13 +81,13 @@ function lineWith(description: string, words: string[]): string | null {
  * Archived comes first because it is the stronger reason: a task no view can
  * draw is not merely outside the one on screen.
  */
-export function hitNote(task: TaskDTO, shown: boolean): string | null {
+export function hitNote(task: Searchable, shown: boolean): string | null {
   if (task.archivedAt) return "archived";
   return shown ? null : "not in this view";
 }
 
 export function searchTasks(
-  tasks: TaskDTO[],
+  tasks: Searchable[],
   query: string,
   limit: number = SEARCH_LIMIT,
 ): SearchHit[] {

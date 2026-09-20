@@ -149,10 +149,13 @@ These are consequences of the design, not defects. Read them before you build on
 - **A list draws every row it shows.** Like the board, and for the same reason: above a few thousand tasks it needs paging. A row is cheaper than a card, so the ceiling is higher, not different.
 - **A list shows what a card shows.** Its columns are the project's card view, so the property a board groups by is missing from a list until somebody puts it back on the card in Settings → Card view — the default leaves it off because a board's columns already say it. The alternative was worse: a rule that restored it would make the column vanish the day somebody edited an unrelated row.
 - **A board loads all its tasks at once.** Fine for a few thousand. It needs paging above that.
-- **The browser loads the archived tasks too.** They are in `archived` beside
-  `tasks`, because the search reads every task in the project and a link to an
-  archived one still opens its panel. No view draws them. It follows the line
-  below: the day a board pages, the archive has to become a query first.
+- **The browser loads the archived tasks too**, in `archived` beside `tasks`,
+  because the search reads every task in the project and a link to an archived
+  one still opens its panel. They are carried light — the key, the title, the
+  description, the rank and the date — with no values and no counts, so a long
+  archive costs a row of words each and nothing more. No view draws them. It
+  follows the line below: the day a board pages, the archive has to become a
+  query first.
 - **Search reads the board the browser already has**, which is why it answers on
   the keystroke and asks the server nothing. It follows the line above: the day
   a board pages, search has to become a query. It looks at the key, the title

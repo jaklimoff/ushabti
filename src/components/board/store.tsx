@@ -17,6 +17,7 @@ import { applyFilters, EMPTY_FILTERS } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
   AgentRunDTO,
+  ArchivedTaskDTO,
   BoardData,
   CardView,
   FilterRule,
@@ -131,6 +132,15 @@ type Store = {
   moveProperty: (propertyId: string, afterId: string | null) => Promise<void>;
   deleteProperty: (propertyId: string) => Promise<void>;
 };
+
+/** The parts of a task patch that an archived task still carries. */
+function archivedPart(patch: Partial<TaskDTO>): Partial<ArchivedTaskDTO> {
+  const next: Partial<ArchivedTaskDTO> = {};
+  if (patch.title !== undefined) next.title = patch.title;
+  if (patch.description !== undefined) next.description = patch.description;
+  if (patch.position !== undefined) next.position = patch.position;
+  return next;
+}
 
 const BoardContext = createContext<Store | null>(null);
 
@@ -308,10 +318,18 @@ export function BoardProvider({
   );
 
   /* --- helpers -------------------------------------------------------- */
+  /*
+   * Both lists, because a title and a description are the two things an
+   * archived task still carries — and the search row draws them. A tab skips
+   * its own broadcast, so nothing else would correct a rename made here.
+   */
   const patchLocalTask = useCallback((taskId: string, patch: Partial<TaskDTO>) => {
     setData((current) => ({
       ...current,
       tasks: current.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+      archived: current.archived.map((t) =>
+        t.id === taskId ? { ...t, ...archivedPart(patch) } : t,
+      ),
     }));
   }, []);
 
@@ -396,7 +414,18 @@ export function BoardProvider({
         return {
           ...current,
           tasks: current.tasks.filter((t) => t.id !== taskId),
-          archived: [...current.archived, { ...task, archivedAt: at }],
+          archived: [
+            ...current.archived,
+            {
+              id: task.id,
+              number: task.number,
+              key: task.key,
+              title: task.title,
+              description: task.description,
+              position: task.position,
+              archivedAt: at,
+            },
+          ],
         };
       });
       await guarded(async () => {
@@ -406,22 +435,22 @@ export function BoardProvider({
     [guarded],
   );
 
+  /*
+   * This one waits for the board rather than drawing the answer itself. An
+   * archived task is carried light, without the values and the counts a card
+   * needs, and it returns to the rank it never lost — which only the server
+   * knows. Taking it out of the archived list first would leave it in neither
+   * list for a moment, and a task in neither list is a task that was removed,
+   * which closes its panel.
+   */
   const restoreTask = useCallback<Store["restoreTask"]>(
     async (taskId) => {
-      setData((current) => {
-        const task = current.archived.find((t) => t.id === taskId);
-        if (!task) return current;
-        return {
-          ...current,
-          tasks: [...current.tasks, { ...task, archivedAt: null }],
-          archived: current.archived.filter((t) => t.id !== taskId),
-        };
-      });
       await guarded(async () => {
         await api.del(`/api/tasks/${taskId}/archive`);
+        await refresh();
       });
     },
-    [guarded],
+    [guarded, refresh],
   );
 
   /* How many cards went is the server's answer, because the sweep names a
@@ -516,6 +545,7 @@ export function BoardProvider({
     [notify, refresh],
   );
 
+  /* Only the live list: an archived task carries no counts to go stale. */
   const syncTaskCounts = useCallback<Store["syncTaskCounts"]>((taskId, counts) => {
     setData((current) => {
       const task = current.tasks.find((t) => t.id === taskId);

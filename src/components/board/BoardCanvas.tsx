@@ -259,6 +259,13 @@ export function BoardCanvas({
   const partial = !!groupProperty && filters.rules.some((r) => r.propertyId === groupProperty.id);
   const columnsDraggable = groupProperty?.type === "select" && !partial;
 
+  /* How many cards went is the server's number, so the board says it rather
+     than the one the question named a moment ago. */
+  const sweepColumn = async (propertyId: string | null, value: TaskValue) => {
+    const gone = await archiveColumn(propertyId, value);
+    if (gone > 0) notify(`Archived ${gone} ${gone === 1 ? "task" : "tasks"}.`, "info");
+  };
+
   /*
    * A column may be swept only when the cards in it are the whole column. The
    * sweep names a property and a value, so under any rule the server would
@@ -535,9 +542,7 @@ export function BoardCanvas({
                 onOpenTask={onOpenTask}
                 onAddTask={addTask}
                 onArchiveAll={
-                  sweepable
-                    ? () => void archiveColumn(groupProperty?.id ?? null, column.value)
-                    : null
+                  sweepable ? () => void sweepColumn(groupProperty?.id ?? null, column.value) : null
                 }
                 onFold={(on) => fold(column.id, on)}
               />
