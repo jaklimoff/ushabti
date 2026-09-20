@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useRef, useState } from "react";
 import type { BoardColumn } from "@/lib/board";
 import type { TaskDTO } from "@/lib/types";
+import { useConfirm } from "@/components/ui/ConfirmRow";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
 
@@ -60,6 +61,7 @@ export function Column({
   onCompose,
   onOpenTask,
   onAddTask,
+  onArchiveAll,
   onFold,
 }: {
   column: BoardColumn;
@@ -74,11 +76,19 @@ export function Column({
   onCompose: (place: ComposerPlace | null) => void;
   onOpenTask: (task: TaskDTO) => void;
   onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
+  /**
+   * Archives every task in this column, or null when the column cannot be
+   * swept: with no grouping property there is no column to name, and under a
+   * filter the cards on screen are not the whole column, so the question and
+   * the act would be two different things.
+   */
+  onArchiveAll: (() => void) | null;
   /** Folds this column to a strip, or opens it again. This browser only. */
   onFold: (folded: boolean) => void;
 }) {
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const sweep = useConfirm();
 
   const sortable = useSortable({
     id: COLUMN_PREFIX + column.id,
@@ -154,58 +164,100 @@ export function Column({
 
   return (
     <div ref={sortable.setNodeRef} className={className} data-testid="column" style={place}>
-      <div className={styles.colHead}>
-        {draggable ? (
-          <span
-            className={styles.grip}
-            title="Drag to reorder the column"
-            {...sortable.attributes}
-            {...sortable.listeners}
-            aria-label={`Reorder the column ${column.name}`}
+      {/* The board has no dialogs, so the header itself becomes the question
+          and names in real numbers what it is about to do. The cards stay on
+          screen behind it: they are what the number counts. */}
+      {sweep.asking ? (
+        <div
+          className={`${styles.colHead} ${styles.colHeadAsking}`}
+          role="alertdialog"
+          aria-label={`Archive everything in ${column.name}`}
+        >
+          <span className={styles.colConfirm} data-testid="column-confirm">
+            Archive {column.tasks.length} {column.tasks.length === 1 ? "task" : "tasks"} in{" "}
+            {column.name}?{" "}
+            {column.tasks.length === 1
+              ? "It leaves the board and keeps its history."
+              : "They leave the board and keep their history."}
+          </span>
+          <button
+            className={styles.colConfirmYes}
+            autoFocus
+            onClick={() => sweep.confirm(() => onArchiveAll?.())}
           >
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
+            Yes, archive
+          </button>
+          <button className={styles.colConfirmNo} onClick={sweep.cancel}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className={styles.colHead}>
+          {draggable ? (
+            <span
+              className={styles.grip}
+              title="Drag to reorder the column"
+              {...sortable.attributes}
+              {...sortable.listeners}
+              aria-label={`Reorder the column ${column.name}`}
+            >
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+          ) : (
+            <span style={{ width: 10 }} />
+          )}
+          <span className={styles.colTitle}>
+            <span
+              className={styles.colDot}
+              style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
+            />
+            <span className={styles.colName} data-testid="column-name">
+              {column.name}
+            </span>
           </span>
-        ) : (
-          <span style={{ width: 10 }} />
-        )}
-        <span className={styles.colTitle}>
-          <span
-            className={styles.colDot}
-            style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
-          />
-          <span className={styles.colName} data-testid="column-name">
-            {column.name}
+          <span className={styles.colCount} data-testid="column-count">
+            {column.tasks.length}
           </span>
-        </span>
-        <span className={styles.colCount} data-testid="column-count">
-          {column.tasks.length}
-        </span>
-        <span style={{ flex: 1 }} />
-        <button
-          className={styles.colAdd}
-          aria-label={`Add a task to the top of ${column.name}`}
-          title="Add a task to the top of this column"
-          onClick={() => {
-            onCompose("top");
-            setDraft("");
-          }}
-        >
-          +
-        </button>
-        <button
-          className={`${styles.colAdd} ${styles.colFold}`}
-          aria-label={`Fold the column ${column.name}`}
-          title="Fold this column to a strip"
-          onClick={() => onFold(true)}
-        >
-          «
-        </button>
-      </div>
+          <span style={{ flex: 1 }} />
+          <button
+            className={styles.colAdd}
+            aria-label={`Add a task to the top of ${column.name}`}
+            title="Add a task to the top of this column"
+            onClick={() => {
+              onCompose("top");
+              setDraft("");
+            }}
+          >
+            +
+          </button>
+          {/* Archive is how a column that has done its job is emptied. It is
+            offered only when the whole column is on screen. */}
+          {onArchiveAll && column.tasks.length > 0 && (
+            <button
+              className={`${styles.colAdd} ${styles.colArchive}`}
+              data-testid="column-archive"
+              aria-label={`Archive everything in ${column.name}`}
+              title="Archive everything in this column"
+              onClick={sweep.ask}
+            >
+              ↓
+            </button>
+          )}
+          <button
+            className={`${styles.colAdd} ${styles.colFold}`}
+            aria-label={`Fold the column ${column.name}`}
+            title="Fold this column to a strip"
+            onClick={() => onFold(true)}
+          >
+            «
+          </button>
+        </div>
+      )}
 
       <div className={styles.colBody} ref={setDropRef} data-testid="column-body">
         {composing === "top" && (

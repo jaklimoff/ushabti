@@ -11,6 +11,10 @@ import type { TaskDTO } from "./types";
  * writes nothing and ends by opening one task. So it looks at every task in
  * the project rather than at the ones the view is drawing, and a hit the view
  * is not showing is worth saying so about rather than worth throwing away.
+ *
+ * An archived task is the same case carried one step further: no view draws
+ * it, and a search is the way back to it. So the caller hands in the archived
+ * tasks beside the live ones, and the row says which it found.
  */
 
 /** How many hits the box draws. A longer list is a second board. */
@@ -59,6 +63,17 @@ function lineWith(description: string, words: string[]): string | null {
     return said.length > SNIPPET_LENGTH ? `${said.slice(0, SNIPPET_LENGTH - 1).trimEnd()}…` : said;
   }
   return null;
+}
+
+/**
+ * The word a hit carries about itself, or null when there is nothing to say.
+ *
+ * Archived comes first because it is the stronger reason: a task no view can
+ * draw is not merely outside the one on screen.
+ */
+export function hitNote(task: TaskDTO, shown: boolean): string | null {
+  if (task.archivedAt) return "archived";
+  return shown ? null : "not in this view";
 }
 
 export function searchTasks(

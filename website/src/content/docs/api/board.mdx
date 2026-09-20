@@ -63,9 +63,13 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
       "id": "…", "number": 14, "key": "USH-14",
       "title": "Write the offline queue tests", "description": "",
       "position": "Vk", "createdAt": "…", "updatedAt": "…",
+      "archivedAt": null,
       "values": { "<propertyId>": "<value>" },
       "checklistTotal": 4, "checklistDone": 2, "commentCount": 3
     }
+  ],
+
+  "archived": [              // the same shape, with a date in `archivedAt`
   ],
 
   "runs": [                  // OPEN runs only, at most one per task
@@ -84,7 +88,7 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
 
 Note it is **not** wrapped in a `board` key.
 
-## Five things a caller has to know
+## Six things a caller has to know
 
 ### 1. `tasks` is flat, and the order is global
 
@@ -116,7 +120,14 @@ A rule pointing at a deleted property or option is thrown away **on every read**
 still hold it; you will never see it. So a rule that reaches you is guaranteed to be readable — and
 you should never write back what you were not given.
 
-### 5. Reading the board can close a run
+### 5. `tasks` is live, and `archived` is everything else
+
+An [archived task](/ushabti/guides/task-panel/#archived-and-put-back) is on no board and in no list,
+so it is never in `tasks` — the two lists never overlap. It is in `archived` because the browser's
+search reads every task in the project and a link to one still opens its panel. Draw `tasks`; treat
+`archived` as the answer to "does this key still exist?".
+
+### 6. Reading the board can close a run
 
 The [lease sweep](/ushabti/agents/runs/#the-lease) runs on this path. A `GET` may close any run whose
 agent has not reported for thirty minutes, and broadcast that it did. That is not a side effect to

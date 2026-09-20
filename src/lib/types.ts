@@ -85,6 +85,12 @@ export type TaskDTO = {
   position: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * When somebody archived it, or null while it is live. An archived task is
+   * on no board and in no list; a search still finds it and its link still
+   * opens it.
+   */
+  archivedAt: string | null;
   values: Record<string, TaskValue>;
   checklistTotal: number;
   checklistDone: number;
@@ -464,7 +470,16 @@ export type BoardData = {
   views: ViewDTO[];
   /** What a card carries, read afresh: a row naming a dead property is gone. */
   cardView: CardView;
+  /** The live tasks. Every board, every list and every filter reads only these. */
   tasks: TaskDTO[];
+  /**
+   * The archived ones, which no view draws. They are here because a search
+   * looks at every task in the project and answers on the keystroke, and
+   * because a link to an archived task has to open its panel. Keeping them in
+   * a list of their own rather than a flag on every task means no screen can
+   * draw one by forgetting to ask.
+   */
+  archived: TaskDTO[];
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];
 };

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { searchTasks } from "../search";
+import { hitNote, searchTasks } from "../search";
 import type { TaskDTO } from "../types";
+
+const WHEN = "2026-02-01T00:00:00.000Z";
 
 function task(over: Partial<TaskDTO> & { number: number }): TaskDTO {
   return {
@@ -11,6 +13,7 @@ function task(over: Partial<TaskDTO> & { number: number }): TaskDTO {
     position: String(over.number).padStart(3, "0"),
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    archivedAt: null,
     values: {},
     checklistTotal: 0,
     checklistDone: 0,
@@ -85,5 +88,28 @@ describe("searchTasks", () => {
 
   it("draws no more than it was asked for", () => {
     expect(searchTasks(TASKS, "dp", 2)).toHaveLength(2);
+  });
+
+  it("finds an archived task, because nothing else can reach one", () => {
+    const gone = task({ number: 20, title: "Ship the release image", archivedAt: WHEN });
+    expect(keys("release", [...TASKS, gone])).toContain("DP-20");
+  });
+});
+
+describe("The word on a hit", () => {
+  it("says nothing about a task the view is drawing", () => {
+    expect(hitNote(task({ number: 1 }), true)).toBeNull();
+  });
+
+  it("says so when the view is not drawing it", () => {
+    expect(hitNote(task({ number: 1 }), false)).toBe("not in this view");
+  });
+
+  it("says archived, which is the stronger reason of the two", () => {
+    const gone = task({ number: 1, archivedAt: WHEN });
+    expect(hitNote(gone, false)).toBe("archived");
+    /* No view draws an archived task, so the flag the caller worked out from
+       the view it is on must not be able to change the word. */
+    expect(hitNote(gone, true)).toBe("archived");
   });
 });

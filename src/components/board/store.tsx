@@ -76,6 +76,12 @@ type Store = {
   }) => Promise<TaskDTO | null>;
   patchTask: (taskId: string, patch: { title?: string; description?: string }) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
+  /** Takes a task off every board and list. Everything on it stays. */
+  archiveTask: (taskId: string) => Promise<void>;
+  /** Puts an archived task back where its rank says it belongs. */
+  restoreTask: (taskId: string) => Promise<void>;
+  /** Archives every live task in one column. A person's act, so it asks first. */
+  archiveColumn: (propertyId: string | null, value: TaskValue) => Promise<number>;
   moveTask: (input: {
     taskId: string;
     beforeId: string | null;
@@ -343,6 +349,7 @@ export function BoardProvider({
           checklistDone: 0,
           commentCount: 0,
           description: task.description ?? "",
+          archivedAt: null,
         };
         setData((current) => ({ ...current, tasks: [...current.tasks, complete] }));
         return complete;
@@ -366,12 +373,77 @@ export function BoardProvider({
 
   const deleteTask = useCallback<Store["deleteTask"]>(
     async (taskId) => {
-      setData((current) => ({ ...current, tasks: current.tasks.filter((t) => t.id !== taskId) }));
+      setData((current) => ({
+        ...current,
+        tasks: current.tasks.filter((t) => t.id !== taskId),
+        archived: current.archived.filter((t) => t.id !== taskId),
+      }));
       await guarded(async () => {
         await api.del(`/api/tasks/${taskId}`);
       });
     },
     [guarded],
+  );
+
+  /* The card leaves the board at once and joins the archived list, so a search
+     finds it and its panel stays open on the row that puts it back. */
+  const archiveTask = useCallback<Store["archiveTask"]>(
+    async (taskId) => {
+      const at = new Date().toISOString();
+      setData((current) => {
+        const task = current.tasks.find((t) => t.id === taskId);
+        if (!task) return current;
+        return {
+          ...current,
+          tasks: current.tasks.filter((t) => t.id !== taskId),
+          archived: [...current.archived, { ...task, archivedAt: at }],
+        };
+      });
+      await guarded(async () => {
+        await api.post(`/api/tasks/${taskId}/archive`, {});
+      });
+    },
+    [guarded],
+  );
+
+  const restoreTask = useCallback<Store["restoreTask"]>(
+    async (taskId) => {
+      setData((current) => {
+        const task = current.archived.find((t) => t.id === taskId);
+        if (!task) return current;
+        return {
+          ...current,
+          tasks: [...current.tasks, { ...task, archivedAt: null }],
+          archived: current.archived.filter((t) => t.id !== taskId),
+        };
+      });
+      await guarded(async () => {
+        await api.del(`/api/tasks/${taskId}/archive`);
+      });
+    },
+    [guarded],
+  );
+
+  /* How many cards went is the server's answer, because the sweep names a
+     value and the board is only drawing part of the project. */
+  const archiveColumn = useCallback<Store["archiveColumn"]>(
+    async (propertyId, value) => {
+      if (!propertyId) return 0;
+      wrote();
+      try {
+        const res = await api.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
+          propertyId,
+          value,
+        });
+        await refresh();
+        return res.archived;
+      } catch (err) {
+        notify(err instanceof Error ? err.message : "The column did not archive.");
+        await refresh();
+        return 0;
+      }
+    },
+    [notify, projectId, refresh, wrote],
   );
 
   const moveTask = useCallback<Store["moveTask"]>(
@@ -725,6 +797,9 @@ export function BoardProvider({
     createTask,
     patchTask,
     deleteTask,
+    archiveTask,
+    restoreTask,
+    archiveColumn,
     moveTask,
     setValue,
     syncTaskCounts,

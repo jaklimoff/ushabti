@@ -29,14 +29,26 @@ export function isReachable(columns: BoardColumn[], taskId: string | null): bool
   return columns.some((c) => reachable(c).some((t) => t.id === taskId));
 }
 
-/** The value of the group property, turned into a column id. */
-export function columnIdForTask(task: TaskDTO, property: PropertyDTO | null): string {
+/**
+ * One value of the group property, turned into a column id.
+ *
+ * The sweep that archives a column asks this too, on the server, so that "in
+ * this column" means the same thing on both sides of the wire.
+ */
+export function columnIdForValue(
+  value: TaskValue | undefined,
+  property: { type: PropertyDTO["type"] } | null,
+): string {
   if (!property) return NO_VALUE;
-  const value = task.values[property.id];
   if (property.type === "checkbox") return value === true ? "true" : "false";
   if (value === null || value === undefined || value === "") return NO_VALUE;
   if (Array.isArray(value)) return value.length ? String(value[0]) : NO_VALUE;
   return String(value);
+}
+
+/** The value of the group property, turned into a column id. */
+export function columnIdForTask(task: TaskDTO, property: PropertyDTO | null): string {
+  return columnIdForValue(property ? task.values[property.id] : null, property);
 }
 
 export function buildColumns(
@@ -229,6 +241,27 @@ export function formatDate(value: string): string {
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   return shortDate(parsed);
+}
+
+/**
+ * How long ago, in words rather than in the short form a feed uses. One row
+ * says it, at the top of an archived task, and a row of prose says "3 days
+ * ago" where a timestamp column says "3d".
+ */
+export function longAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (diff < minute) return "just now";
+  if (diff < hour) return plural(Math.floor(diff / minute), "minute");
+  if (diff < day) return plural(Math.floor(diff / hour), "hour");
+  if (diff < 30 * day) return plural(Math.floor(diff / day), "day");
+  return `on ${shortDate(new Date(iso))}`;
+}
+
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? "" : "s"} ago`;
 }
 
 export function relativeTime(iso: string): string {

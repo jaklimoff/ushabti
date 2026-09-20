@@ -117,12 +117,18 @@ async function board() {
   return cache;
 }
 
-/** A task by its key (USH-14, or just 14) or by its id. */
+/**
+ * A task by its key (USH-14, or just 14) or by its id.
+ *
+ * The archived tasks answer too. They are off every board, but they keep their
+ * key, so `task` and `restore` still reach one by the name a person says.
+ */
 function findTask(data, wanted) {
   const term = String(wanted ?? "").trim();
   if (!term) fail("Name a task, by key (USH-14) or by id.");
   const key = /^\d+$/.test(term) ? `${data.project.key}-${term}` : term.toUpperCase();
-  const task = data.tasks.find((t) => t.key.toUpperCase() === key || t.id === term);
+  const all = [...data.tasks, ...(data.archived ?? [])];
+  const task = all.find((t) => t.key.toUpperCase() === key || t.id === term);
   if (!task) fail(`No task ${term} on this board.`);
   return task;
 }
@@ -230,6 +236,8 @@ const commands = {
   new "<title>" [--set "Name=Value"]  create a task
   set <key> "<Property>" "<Value>"    set one property (names, not ids)
   comment <key> "<text>"              leave a note
+  archive <key>                       take it off the board, keep its history
+  restore <key>                       put an archived task back
   claim <key> --goal "<what>" [--plan "a|b|c"] [--step "<now>"]
   beat <key> [--every 120] [--for 60]  say "still here" until the session ends
   step <key> --say "<now>" [--index 2] [--log "<line>"]
@@ -345,6 +353,24 @@ http://localhost:3000.`);
     if (!body) fail('Give the text: comment USH-14 "the tests pass"');
     await call("POST", `/api/tasks/${task.id}/comments`, { body });
     console.log(`${task.key}: comment left`);
+  },
+
+  /**
+   * Archiving is how a task that is over goes away. Delete is for a mistake,
+   * and an agent does not delete.
+   */
+  async archive() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    await call("POST", `/api/tasks/${task.id}/archive`, {});
+    console.log(`${task.key} archived`);
+  },
+
+  async restore() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    await call("DELETE", `/api/tasks/${task.id}/archive`);
+    console.log(`${task.key} put back`);
   },
 
   async claim() {

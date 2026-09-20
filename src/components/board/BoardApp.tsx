@@ -36,8 +36,10 @@ export function BoardApp({
 function BoardShell({ initialTask }: { initialTask: string | null }) {
   const { data, user, view, live, toasts, groupProperty, filters, visibleTasks, setFilters } =
     useBoard();
+  /* A link to an archived task opens its panel, and the board behind it still
+     does not draw the card. So the address is answered from both lists. */
   const [selected, setSelected] = useState<string | null>(
-    () => taskByAddress(data.tasks, initialTask)?.id ?? null,
+    () => taskByAddress([...data.tasks, ...data.archived], initialTask)?.id ?? null,
   );
   /* The chip line and the Filter button are on two rows but are one control,
      so the row can hold its space open while somebody is choosing. */
@@ -57,10 +59,17 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
   // would make the panel reload — and reset — every time the board re-renders.
   const closePanel = useCallback(() => open(null), [open]);
 
-  /* a task that another person removed must not keep the panel open */
+  /* a task that another person removed must not keep the panel open. An
+     archived one is not removed: it keeps its panel, and its way back. */
   useEffect(() => {
-    if (selected && !data.tasks.some((t) => t.id === selected)) open(null);
-  }, [data.tasks, open, selected]);
+    if (
+      selected &&
+      !data.tasks.some((t) => t.id === selected) &&
+      !data.archived.some((t) => t.id === selected)
+    ) {
+      open(null);
+    }
+  }, [data.archived, data.tasks, open, selected]);
 
   return (
     <div className={styles.shell}>

@@ -64,10 +64,24 @@ so an agent sees exactly what a person sees and nothing more.
 | Rename or rewrite   | `PATCH /api/tasks/{taskId}`                         |
 | Set one property    | `PUT /api/tasks/{taskId}/values/{propertyId}`       |
 | Move a card         | `POST /api/tasks/{taskId}/move`                     |
+| Archive a task      | `POST /api/tasks/{taskId}/archive`                  |
+| Put it back         | `DELETE /api/tasks/{taskId}/archive`                |
 | Add a checklist item| `POST /api/tasks/{taskId}/checklist`                |
 | Comment             | `POST /api/tasks/{taskId}/comments`                 |
 | What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
+
+The board answer carries the live tasks in `tasks` and the archived ones in
+`archived`. An archived task is off every board and list; it keeps its
+comments, its checklist, its history and its link, and every task carries
+`archivedAt` — null while it is live. `GET /api/tasks/{taskId}` answers for an
+archived task as it does for any other, so a link still opens one.
+
+You may archive the task you finished, the same way you may close your own
+run. Sweeping a whole column is a person's act and a person's route.
+`board.mjs archive USH-14` and `board.mjs restore USH-14` are the short way.
+Say _archived_ and _put back_. Never "closed" or "done": those are words of the
+owner's Status property, which they may rename tomorrow.
 
 The board answer carries `properties`, so an agent finds the property it wants
 by name and reads the option ids out of it. **Never hardcode a property or an

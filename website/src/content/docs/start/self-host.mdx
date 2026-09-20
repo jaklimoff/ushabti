@@ -140,7 +140,8 @@ docker compose -f docker-compose.prod.yml exec db \
   pg_dump -U ushabti ushabti | gzip > ushabti-$(date +%F).sql.gz
 ```
 
-There is no archive and no undo in the product, so a deleted task is gone. The backup is the undo.
+A task you archive keeps everything and can be put back, but a **deleted** task is gone: there is no
+undo for a delete. The backup is the undo.
 
 A backup nobody has restored is a guess, so try one into an empty database before you need it:
 

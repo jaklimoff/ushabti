@@ -46,6 +46,12 @@ your shoulder: "Writing the tests", not "invoking tool". `--index` counts from
 zero and marks everything before it done. `--log` is the transcript line in the
 panel; leave it out and the `--say` line is logged instead.
 
+`node board.mjs archive USH-14` takes a task off every board and list and keeps
+its history, its comments and its link; `restore` puts it back. Archive is how
+a task that is over goes away — say _archived_ and _put back_, never "closed"
+or "done", which are words of the owner's Status property. Deleting a task is
+for a mistake, and an agent does not delete.
+
 ## When the watcher woke you
 
 If `USHABTI_RUN` is set, you did not start this work: `board.mjs watch` did,

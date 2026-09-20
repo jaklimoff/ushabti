@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { searchTasks, type SearchHit } from "@/lib/search";
+import { hitNote, searchTasks, type SearchHit } from "@/lib/search";
 import type { TaskDTO } from "@/lib/types";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useShortcut } from "./keys";
@@ -14,7 +14,8 @@ import styles from "./board.module.css";
  * It searches the project and not the view: a search opens one task and
  * changes nothing else, so hiding a hit because a filter is on would only
  * leave a person searching for a task they can see the key of. A hit the view
- * is not drawing says so on its own row instead.
+ * is not drawing says so on its own row instead — and so does an archived
+ * task, which no view draws at all and which this box is the way back to.
  *
  * The box sits above the view strip because what it finds does not belong to a
  * view. The filter, which does, sits inside the strip.
@@ -29,7 +30,12 @@ export function Search({ onOpenTask }: { onOpenTask: (task: TaskDTO) => void }) 
   const close = useCallback(() => setOpen(false), []);
   const ref = useDismiss<HTMLDivElement>(close, open);
 
-  const hits = useMemo(() => searchTasks(data.tasks, query), [data.tasks, query]);
+  /* The archived tasks join the live ones here and nowhere else on the board.
+     A search is what makes an archived task reachable again. */
+  const hits = useMemo(
+    () => searchTasks([...data.tasks, ...data.archived], query),
+    [data.archived, data.tasks, query],
+  );
   /* Which hits the view is drawing. A search reaches past the filter, so it
      owes the person a word about the ones the board behind it is not showing. */
   const shown = useMemo(() => new Set(visibleTasks.map((t) => t.id)), [visibleTasks]);
@@ -45,6 +51,8 @@ export function Search({ onOpenTask }: { onOpenTask: (task: TaskDTO) => void }) 
      highlight that was near the bottom of a longer list. */
   const highlighted = hits.length ? Math.min(at, hits.length - 1) : 0;
   const listOpen = open && query.trim() !== "";
+
+  const note = (hit: SearchHit) => hitNote(hit.task, shown.has(hit.task.id));
 
   function openHit(hit: SearchHit) {
     onOpenTask(hit.task);
@@ -128,9 +136,16 @@ export function Search({ onOpenTask }: { onOpenTask: (task: TaskDTO) => void }) 
                   <span className={styles.searchLine}>
                     <span className={styles.searchKey}>{hit.task.key}</span>
                     <span className={styles.searchTitle}>{hit.task.title}</span>
-                    {!shown.has(hit.task.id) && (
-                      <span className={styles.searchAway} title="A filter on this view hides it">
-                        not in this view
+                    {note(hit) && (
+                      <span
+                        className={styles.searchAway}
+                        title={
+                          hit.task.archivedAt
+                            ? "It is archived. Open it to put it back."
+                            : "A filter on this view hides it"
+                        }
+                      >
+                        {note(hit)}
                       </span>
                     )}
                   </span>
