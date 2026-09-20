@@ -719,6 +719,7 @@ export function sampleTask(properties: PropertyDTO[], members: MemberDTO[], key:
     position: "V",
     createdAt: SAMPLE_TIME,
     updatedAt: SAMPLE_TIME,
+    archivedAt: null,
     values,
     checklistTotal: 4,
     checklistDone: 3,

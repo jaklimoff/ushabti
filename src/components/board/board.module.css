@@ -488,6 +488,58 @@
   font-size: 12px;
 }
 
+.colArchive {
+  font-size: 12px;
+}
+
+/* ------------------------------------------- archiving a whole column */
+
+/* The question needs the room the name, the count and the two buttons took,
+   so the row gives up its gap and wraps. */
+.colHeadAsking {
+  flex-wrap: wrap;
+  gap: 6px;
+  background: #191d22;
+}
+
+.colConfirm {
+  flex: 1 1 100%;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--danger-text);
+}
+
+.colConfirmYes,
+.colConfirmNo {
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+/* The same red the ConfirmRow off the board wears, in the board's own CSS. */
+.colConfirmYes {
+  margin-left: auto;
+  border: 1px solid rgba(224, 87, 77, 0.35);
+  color: #d2726a;
+}
+
+.colConfirmYes:hover {
+  background: rgba(224, 87, 77, 0.12);
+  color: var(--danger-soft);
+}
+
+.colConfirmNo {
+  color: var(--muted);
+}
+
+.colConfirmNo:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
 /* ------------------------------------------------------- a folded column */
 
 /* Folding gives the width back and keeps what the column is for: its name,

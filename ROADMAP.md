@@ -102,9 +102,8 @@ Everything off the board, brought up to the board's standard.
    heading to press. What a board would need is a control of its own beside the
    filter, and an answer to what a drag means inside a sorted column — the list
    answers it by holding still, and a board would have to do the same.
-2. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
-3. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
-4. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
+2. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
+3. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
 
 ## Later
 
@@ -120,7 +119,10 @@ Everything off the board, brought up to the board's standard.
 - **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
 - **Import.** Read a Trello or Jira export and map lists to options.
 - **Attachments.** Files on a task.
-- **Undo.** At least for a delete.
+- **Undo.** At least for a delete. Archive is the answer for a task that is
+  simply over; delete still has no way back.
+- **A page that lists archived tasks.** Today a search and the task's own link
+  are the two ways back to one, which is enough to find a task you can name.
 - **A narrow-screen board.** The panel already overlays below 900 px, but the board itself needs a real phone layout.
 
 ## Before anyone else runs this
@@ -147,6 +149,13 @@ These are consequences of the design, not defects. Read them before you build on
 - **A list draws every row it shows.** Like the board, and for the same reason: above a few thousand tasks it needs paging. A row is cheaper than a card, so the ceiling is higher, not different.
 - **A list shows what a card shows.** Its columns are the project's card view, so the property a board groups by is missing from a list until somebody puts it back on the card in Settings → Card view — the default leaves it off because a board's columns already say it. The alternative was worse: a rule that restored it would make the column vanish the day somebody edited an unrelated row.
 - **A board loads all its tasks at once.** Fine for a few thousand. It needs paging above that.
+- **The browser loads the archived tasks too**, in `archived` beside `tasks`,
+  because the search reads every task in the project and a link to an archived
+  one still opens its panel. They are carried light — the key, the title, the
+  description, the rank and the date — with no values and no counts, so a long
+  archive costs a row of words each and nothing more. No view draws them. It
+  follows the line below: the day a board pages, the archive has to become a
+  query first.
 - **Search reads the board the browser already has**, which is why it answers on
   the keystroke and asks the server nothing. It follows the line above: the day
   a board pages, search has to become a query. It looks at the key, the title

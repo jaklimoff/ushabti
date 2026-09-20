@@ -46,6 +46,36 @@
   transition: background 220ms var(--ease);
 }
 
+/* An archived task says so above everything else, because it explains why no
+   board is drawing it. It is one quiet row, not a banner. */
+.archivedRow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #191d22;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.archivedSep {
+  color: var(--faint);
+}
+
+.archivedBack {
+  color: var(--accent-soft);
+  font-size: 11.5px;
+  border-radius: 4px;
+  padding: 1px 4px;
+  transition: background 140ms var(--ease);
+}
+
+.archivedBack:hover {
+  background: var(--bg-hover);
+}
+
 .head {
   flex: 0 0 auto;
   padding: 13px 16px 14px;

@@ -64,10 +64,32 @@ so an agent sees exactly what a person sees and nothing more.
 | Rename or rewrite   | `PATCH /api/tasks/{taskId}`                         |
 | Set one property    | `PUT /api/tasks/{taskId}/values/{propertyId}`       |
 | Move a card         | `POST /api/tasks/{taskId}/move`                     |
+| Archive a task      | `POST /api/tasks/{taskId}/archive`                  |
+| Put it back         | `DELETE /api/tasks/{taskId}/archive`                |
 | Add a checklist item| `POST /api/tasks/{taskId}/checklist`                |
 | Comment             | `POST /api/tasks/{taskId}/comments`                 |
 | What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
+
+The board answer carries the live tasks in `tasks` and the archived ones in
+`archived`. A live task carries `archivedAt`, null while it is live.
+
+**An entry in `archived` is not a whole task.** It holds seven fields: `id`,
+`number`, `key`, `title`, `description`, `position` and `archivedAt`. There are
+no values, no checklist counts and no comment count: nothing draws an
+archived task, so the board does not carry what nobody reads. It is enough to
+find one by its key or its words and to know that the key still exists.
+
+Ask `GET /api/tasks/{taskId}` for the whole of one. That route answers for an
+archived task exactly as it does for a live one — with its values, its
+checklist, its comments and its history — so nothing about an archived task is
+lost, and a link to one still opens it.
+
+You may archive the task you finished, the same way you may close your own
+run. Sweeping a whole column is a person's act and a person's route.
+`board.mjs archive USH-14` and `board.mjs restore USH-14` are the short way.
+Say _archived_ and _put back_. Never "closed" or "done": those are words of the
+owner's Status property, which they may rename tomorrow.
 
 The board answer carries `properties`, so an agent finds the property it wants
 by name and reads the option ids out of it. **Never hardcode a property or an

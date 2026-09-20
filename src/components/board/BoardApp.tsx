@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { taskByAddress } from "@/lib/board";
-import type { BoardData, TaskDTO } from "@/lib/types";
+import type { BoardData } from "@/lib/types";
+
+/** What opening a task needs: which one, and the key its link carries. */
+type Openable = { id: string; key: string };
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
@@ -36,16 +39,19 @@ export function BoardApp({
 function BoardShell({ initialTask }: { initialTask: string | null }) {
   const { data, user, view, live, toasts, groupProperty, filters, visibleTasks, setFilters } =
     useBoard();
+  /* A link to an archived task opens its panel, and the board behind it still
+     does not draw the card. So the address is answered from both lists. */
   const [selected, setSelected] = useState<string | null>(
-    () => taskByAddress(data.tasks, initialTask)?.id ?? null,
+    () => taskByAddress([...data.tasks, ...data.archived], initialTask)?.id ?? null,
   );
   /* The chip line and the Filter button are on two rows but are one control,
      so the row can hold its space open while somebody is choosing. */
   const [filterOpen, setFilterOpen] = useState(false);
 
   /* The task itself arrives, not its id, because the query carries the key a
-     person reads on the card and only the task knows it. */
-  const open = useCallback((task: TaskDTO | null) => {
+     person reads on the card and only the task knows it. An archived task is
+     carried light, so this asks for the two parts every one of them has. */
+  const open = useCallback((task: Openable | null) => {
     setSelected(task?.id ?? null);
     const url = new URL(window.location.href);
     if (task) url.searchParams.set("task", task.key);
@@ -57,10 +63,17 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
   // would make the panel reload — and reset — every time the board re-renders.
   const closePanel = useCallback(() => open(null), [open]);
 
-  /* a task that another person removed must not keep the panel open */
+  /* a task that another person removed must not keep the panel open. An
+     archived one is not removed: it keeps its panel, and its way back. */
   useEffect(() => {
-    if (selected && !data.tasks.some((t) => t.id === selected)) open(null);
-  }, [data.tasks, open, selected]);
+    if (
+      selected &&
+      !data.tasks.some((t) => t.id === selected) &&
+      !data.archived.some((t) => t.id === selected)
+    ) {
+      open(null);
+    }
+  }, [data.archived, data.tasks, open, selected]);
 
   return (
     <div className={styles.shell}>

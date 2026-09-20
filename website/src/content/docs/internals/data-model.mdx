@@ -57,7 +57,7 @@ needs a second code path and a nullable column beside the first.
 | `properties` | name, type, rank, and a small `config`. Where it sits on a card is the project's `card_view`, not this |
 | `property_options` | name, colour, rank. Select types only |
 | `views` | name, kind (`board` or `list`), grouping property, rank, and the filter rules and sort in `config` |
-| `tasks` | title, description, number, rank. **One order per project** |
+| `tasks` | title, description, number, rank, and `archived_at`. **One order per project** |
 | `checklist_items` | text, done, rank |
 | `comments` | body and author. Never edited |
 | `activity` | one row per thing that happened, with a free-form `data` object |
@@ -85,10 +85,21 @@ confirmation counts them out loud.
 Deleting a **user** takes their tokens and runs, but their comments and activity survive with a null
 author, so the record of what happened does not develop holes.
 
+<Aside type="note" title="Archiving is one nullable column">
+`tasks.archived_at` is null while a task is live and holds a moment once somebody archives it.
+There is no archive table and nothing is copied: an archived task keeps its row, its rank, its
+values, its checklist, its comments and its history, and the board simply does not read it. A
+partial index — `(project_id, position) where archived_at is null` — keeps the read every page load
+makes off the archived rows however many pile up.
+
+It is the one soft delete in the schema, and it is not a delete: **delete still deletes**, with the
+cascades above. See [Archived, and put back](/ushabti/guides/task-panel/#archived-and-put-back).
+</Aside>
+
 <Aside type="note" title="What is deliberately absent">
-No archive table, no soft deletes, no audit log beyond `activity`, no attachments and no files on
-disk. Everything Ushabti holds is in Postgres, so `pg_dump` is a complete backup — and, since there
-is no undo, it is also the only one.
+No audit log beyond `activity`, no attachments and no files on disk. Everything Ushabti holds is in
+Postgres, so `pg_dump` is a complete backup — and, since a delete has no undo, it is also the only
+one.
 </Aside>
 
 <LinkCard

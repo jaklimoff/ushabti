@@ -171,10 +171,23 @@ export const tasks = pgTable(
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * When somebody archived this task. Null for a live task. It is a mark on
+     * the row and not a property: Status is the owner's and may be renamed or
+     * deleted, while "off the board but still here" is the product's own idea.
+     * An archived task keeps every row that points at it.
+     */
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("tasks_project_number_key").on(t.projectId, t.number),
     index("tasks_project_position_idx").on(t.projectId, t.position),
+    // The board reads the live tasks of one project in rank order, and that is
+    // the read on every page load. A partial index keeps the archived rows out
+    // of it for good, however many of them pile up.
+    index("tasks_project_live_idx")
+      .on(t.projectId, t.position)
+      .where(sql`${t.archivedAt} is null`),
   ],
 );
 

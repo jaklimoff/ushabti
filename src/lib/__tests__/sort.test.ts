@@ -96,6 +96,7 @@ function task(id: string, values: TaskDTO["values"] = {}, over: Partial<TaskDTO>
     position: id,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    archivedAt: null,
     values,
     checklistTotal: 0,
     checklistDone: 0,

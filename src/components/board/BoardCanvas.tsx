@@ -203,6 +203,7 @@ export function BoardCanvas({
     visibleTasks,
     moveTask,
     createTask,
+    archiveColumn,
     patchOption,
     runOf,
     controlRun,
@@ -257,6 +258,21 @@ export function BoardCanvas({
    */
   const partial = !!groupProperty && filters.rules.some((r) => r.propertyId === groupProperty.id);
   const columnsDraggable = groupProperty?.type === "select" && !partial;
+
+  /* How many cards went is the server's number, so the board says it rather
+     than the one the question named a moment ago. */
+  const sweepColumn = async (propertyId: string | null, value: TaskValue) => {
+    const gone = await archiveColumn(propertyId, value);
+    if (gone > 0) notify(`Archived ${gone} ${gone === 1 ? "task" : "tasks"}.`, "info");
+  };
+
+  /*
+   * A column may be swept only when the cards in it are the whole column. The
+   * sweep names a property and a value, so under any rule the server would
+   * archive tasks this board is not drawing — and the count in the question
+   * would not be the count that went.
+   */
+  const sweepable = !!groupProperty && filters.rules.length === 0;
 
   /* One card at a time carries the cursor, and that card is the board's only
      tab stop: Tab reaches the board once instead of once for every card, and
@@ -525,6 +541,9 @@ export function BoardCanvas({
                 onCompose={(place) => setComposing(place ? { columnId: column.id, place } : null)}
                 onOpenTask={onOpenTask}
                 onAddTask={addTask}
+                onArchiveAll={
+                  sweepable ? () => void sweepColumn(groupProperty?.id ?? null, column.value) : null
+                }
                 onFold={(on) => fold(column.id, on)}
               />
             ))}
