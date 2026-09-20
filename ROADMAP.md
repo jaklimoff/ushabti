@@ -117,7 +117,7 @@ Everything off the board, brought up to the board's standard.
   filtered to "my tasks" is one named person's tasks on everybody's screen.
 - **A run history.** A closed run keeps its rows, but nothing shows them. Only the activity line survives on screen.
 - **Bulk edit.** Select several cards, set one property on all of them.
-- **Email invites.** Today the person must register first, and only then can the owner add their email.
+- **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
 - **Import.** Read a Trello or Jira export and map lists to options.
 - **Attachments.** Files on a task.
 - **Undo.** At least for a delete.

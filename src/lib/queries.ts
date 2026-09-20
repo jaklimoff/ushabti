@@ -7,6 +7,7 @@ import {
   agentTokens,
   checklistItems,
   comments,
+  projectInvites,
   projectMembers,
   projects,
   properties,
@@ -241,7 +242,7 @@ function withOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
 export async function loadBoard(projectId: string, role: string): Promise<BoardData> {
   const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
-  const [memberRows, propRows, optRows, viewRows, taskRows] = await Promise.all([
+  const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows] = await Promise.all([
     db
       .select({
         id: users.id,
@@ -260,6 +261,11 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
       .innerJoin(users, eq(users.id, projectMembers.userId))
       .where(eq(projectMembers.projectId, projectId))
       .orderBy(asc(users.name)),
+    db
+      .select({ email: projectInvites.email, createdAt: projectInvites.createdAt })
+      .from(projectInvites)
+      .where(eq(projectInvites.projectId, projectId))
+      .orderBy(asc(projectInvites.createdAt)),
     db
       .select()
       .from(properties)
@@ -364,6 +370,7 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
       role,
     },
     members,
+    invites: inviteRows.map((i) => ({ email: i.email, createdAt: i.createdAt.toISOString() })),
     properties: propertyList,
     views: viewList,
     cardView,

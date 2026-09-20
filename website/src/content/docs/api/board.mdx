@@ -24,6 +24,7 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     "role": "owner"          // YOUR role — the same board answers differently to a member
   },
 
+  "invites": [ { "email": "…", "createdAt": "…" } ],   // added before they had an account
   "members": [               // people AND agents, by name
     { "id": "…", "name": "Ada", "email": "ada@example.com",
       "color": "#6d5bd0", "role": "owner", "kind": "human" },

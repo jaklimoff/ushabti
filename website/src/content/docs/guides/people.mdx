@@ -33,9 +33,14 @@ ordinary rows.
 
 **Settings → People**, owner only. Add them by email.
 
-They must already have an account: there are no email invites, because there is no email. If the
-address is unknown the page says so inline — *"No account uses that email. Ask them to register
-first."* — and offers a copyable sign-up link for this instance to send them.
+A person who already has an account is a member at once. One who does not is **invited**: the email
+waits in the list with an *invited* tag, the page hands you a copyable sign-up link to send them,
+and they are in the moment they sign up with that email. No email is sent — there is no email in
+the product — so sending the link is yours to do.
+
+An invited email gets through a closed board (`USHABTI_SIGNUP=closed`). That is the point of it:
+before, a closed board told the owner *"ask them to register"* and the person *"ask the owner"*, and
+nobody could break the circle. The owner withdraws an invite from its row, which asks first.
 
 ## Owner and member
 

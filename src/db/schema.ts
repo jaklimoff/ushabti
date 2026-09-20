@@ -86,6 +86,31 @@ export const projectMembers = pgTable(
   ],
 );
 
+/**
+ * An email the owner added before it had an account. Whoever registers with
+ * it joins the project at once, and the row goes. It is also the one way in
+ * through a closed sign-up, which is why the register route reads it: without
+ * it the owner is told "ask them to register" and the person "ask the owner",
+ * and nobody can break the circle.
+ */
+export const projectInvites = pgTable(
+  "project_invites",
+  {
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    invitedBy: uuid("invited_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.email] }),
+    index("project_invites_email_idx").on(t.email),
+  ],
+);
+
 /* ------------------------------------------------------------------ */
 /* Custom properties                                                   */
 /* ------------------------------------------------------------------ */

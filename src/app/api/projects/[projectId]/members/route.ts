@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { projectMembers, users } from "@/db/schema";
+import { projectInvites, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
 
@@ -15,7 +15,29 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const email = str(input.email, "Email", { max: 200 }).toLowerCase();
 
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (!user) throw new HttpError(404, "No account uses that email. Ask them to register first.");
+
+  /* No account yet: remember the email. The person joins when they sign up
+     with it, and a closed sign-up lets them through for it. */
+  if (!user) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new HttpError(400, "That email address does not look correct.");
+    }
+    const invited = await db
+      .select({ email: projectInvites.email })
+      .from(projectInvites)
+      .where(and(eq(projectInvites.projectId, projectId), eq(projectInvites.email, email)))
+      .limit(1);
+    if (invited.length) throw new HttpError(409, "That email is already invited.");
+    const [invite] = await db
+      .insert(projectInvites)
+      .values({ projectId, email, invitedBy: actor.id })
+      .returning({ email: projectInvites.email, createdAt: projectInvites.createdAt });
+    await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
+    return json(
+      { invite: { email: invite.email, createdAt: invite.createdAt.toISOString() } },
+      201,
+    );
+  }
 
   const existing = await db
     .select()
