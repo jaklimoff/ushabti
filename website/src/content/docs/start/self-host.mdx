@@ -42,10 +42,20 @@ the default binding is deliberately local-only.
 
 </Steps>
 
-<Aside type="danger" title="Do not skip the proxy">
-There is **no rate limit** on sign-in. Nothing in Ushabti slows a password-guessing attack, and there
-is no password reset to recover from one. Put it behind a proxy that limits requests, and read
-[Security](/ushabti/internals/security/) before it faces the internet.
+<Aside type="caution" title="What the rate limit does, and what it does not">
+Ushabti counts **ten failures in ten minutes** and then answers `429` with a `Retry-After` header,
+for a wrong password by address and by email, for a refused sign-up by address, and for a bad agent
+token by address. A sign-in that works counts nothing and clears the count for that email, so
+nobody is locked out by their own team.
+
+The count lives **in the memory of one process**. Restarting the container forgets it, and two
+Ushabti processes behind one address would each count to ten. This is enough for the single server
+the image is built for; it is not a defence against a botnet, and there is still no password reset.
+A proxy that limits requests is worth having in front of it.
+
+The address is the first value of `x-forwarded-for`, which is your proxy's job to write. Have it
+**replace** the header rather than add to it — `proxy_set_header X-Forwarded-For $remote_addr;` in
+nginx — or a caller can name any address it likes and get a fresh ten tries each time.
 </Aside>
 
 ## Which image, which tag

@@ -34,9 +34,12 @@ cookie is tried instead.
 | Stored as | a random id in `sessions` | a SHA-256 digest — the plain text is shown once |
 | Flags | `httpOnly`, `SameSite=Lax`, `secure` in production | — |
 
-<Aside type="danger" title="There is no rate limit">
-Not on sign-in, not on sign-up, not on token use. Put a proxy in front of anything reachable from the
-internet — see [Security](/ushabti/internals/security/).
+<Aside type="caution" title="Ten failures in ten minutes">
+A wrong password, a refused sign-up and a token that opens nothing are counted per calling address —
+and a wrong password also per email. The eleventh answers `429` with a `Retry-After` in seconds and
+`{"error": "Too many tries. Wait 8 minutes and try again."}`. **A token that works is never counted
+and never waits.** The count is held in the memory of one process, so put a proxy in front of
+anything reachable from the internet.
 </Aside>
 
 ## Who may call what
@@ -69,6 +72,7 @@ Every failure is the same envelope, at the status the route chose:
 | `403` | The wrong project, or a gate above. |
 | `404` | Not there — or not yours. |
 | `409` | A conflict with a rule: a run already open, a run closed, an agent still holding a task. |
+| `429` | Ten failures from this address in ten minutes. The answer carries `Retry-After` in seconds. |
 | `500` | `Something went wrong on the server.` Anything unexpected, logged server-side. |
 
 ## Bodies

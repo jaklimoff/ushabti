@@ -355,6 +355,13 @@ harnesses it started and closes their runs as `lost`.
 | 403  | The token belongs to another project, or a route only a person may call. |
 | 404  | The task, run or project is not there.                        |
 | 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. |
+| 429  | Ten bad tokens came from your address inside ten minutes. Wait, do not retry in a loop. |
+
+A token that works is never counted and never slowed, so a working agent never
+meets the 429. If you do meet it, the token is wrong: fix it rather than retry.
+The answer carries `Retry-After` in seconds and reads
+`{"error": "Too many tries. Wait 8 minutes and try again."}`. The same limit
+sits on sign-in and sign-up, which an agent does not use.
 
 ## Teaching an agent to use this
 

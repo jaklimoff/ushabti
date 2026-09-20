@@ -67,6 +67,12 @@ invites somebody by adding their email in **Settings → People**; that email ma
 
 Worth stating plainly, so you do not go looking:
 
+- **The rate limit** is ten failures in ten minutes, per key, and there is no variable for either
+  number. The keys are the address for sign-in, sign-up and agent tokens, and the email address for
+  sign-in. A sign-in that works counts nothing and clears the count for that email. Over the limit
+  the answer is `429` with `Retry-After`. The count is held in the memory of one process, so a
+  restart forgets it and a second process counts separately — see
+  [Host it for your team](/ushabti/start/self-host/).
 - **Session length** is 30 days. The cookie is `ushabti_session`, `httpOnly`, `SameSite=Lax`.
 - **The colour palette** is twelve fixed colours for options and eight for avatars. A board where
   anybody can pick any colour stops meaning anything.

@@ -125,7 +125,6 @@ Everything off the board, brought up to the board's standard.
 
 ## Before anyone else runs this
 
-- **Rate limiting on sign-in, sign-up and agent tokens.** Nothing stops a guessing attack today. Put a proxy in front until this is done. `USHABTI_SIGNUP=closed` at least stops new accounts.
 - **Password reset.** There is no way back into an account you cannot sign in to. You can change a password you still know, on `/account`.
 - **Webhooks.** There is no call out when something changes. An agent listens
   on the stream instead, which `board.mjs watch` does for it; a service that
@@ -161,4 +160,10 @@ These are consequences of the design, not defects. Read them before you build on
   board never closes it for silence, because waiting is silence on purpose.
 - **The watcher needs a POSIX shell.** `--run` goes through `sh`, and stopping a
   session stops its process group. On Windows, run it under WSL.
+- **The rate limit is one process deep.** Ten failed sign-ins, sign-ups or agent
+  tokens in ten minutes are answered 429 — per address, and per email on
+  sign-in. The count is in memory, so a restart forgets it and a second process
+  would keep a count of its own. A proxy that limits requests is still worth
+  having in front, and it is the proxy that writes the `x-forwarded-for` the
+  limit reads. `USHABTI_SIGNUP=closed` stops new accounts altogether.
 - **Pause and Stop are cooperative.** Ushabti cannot reach into another machine. An agent that ignores the control word keeps running; the log records the request, and Take over always works.
