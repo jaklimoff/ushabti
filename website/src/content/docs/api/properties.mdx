@@ -163,6 +163,48 @@ necessarily what is stored.
 
 ---
 
+## A person's own rules
+
+A view carries two sets of rules: `filters`, which everybody on the board sees, and `lens`, which is
+the rules the caller added to that view and nobody else's. A board shows the view's plus the
+caller's; the caller's only ever narrow further.
+
+Both read the same way and use the same rule shape.
+
+### `lens` on a view
+
+Every view in the board answer carries it:
+
+```json
+{ "id": "…", "name": "Board", "filters": { "rules": [ … ] }, "lens": { "rules": [ … ] }, … }
+```
+
+<Aside type="caution" title="An agent has none">
+`lens` is the rules of whoever asked. An agent has no screen to narrow, so it always reads
+`{ "rules": [] }` and never anybody else's. `filters` is unchanged and is still the whole team's
+answer — which is what an agent should be working from.
+</Aside>
+
+### `PUT /api/views/{viewId}/lens` <Badge text="human only" variant="caution" size="small" />
+
+```json title="request"
+{ "filters": { "rules": [ … ] } }
+```
+
+Replaces the caller's own rules on that view. Rules are read and cleaned on the way in, exactly as a
+view's are. An empty list removes them. **Nothing is broadcast**: the change moves one screen, so no
+other browser is told about it.
+
+`403 Only a person can do this.` for an agent.
+
+### `POST /api/views/{viewId}/lens/promote` <Badge text="human only" variant="caution" size="small" />
+
+No body. Appends the caller's rules to the view's `filters`, in that order, and empties the caller's
+own — one transaction under the project lock. Any member may call it. It broadcasts, so everybody's
+board narrows.
+
+---
+
 ## Value shapes by type
 
 The one validator, shared by the values `PUT`, the task-create `values` bag and the move `values` bag.

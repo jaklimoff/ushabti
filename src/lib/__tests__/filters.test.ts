@@ -5,6 +5,7 @@ import {
   describeRule,
   hasAnswer,
   matches,
+  mergeFilters,
   readFilters,
   seedNote,
   seedValues,
@@ -596,5 +597,79 @@ describe("a question with an answer", () => {
         estimate,
       ),
     ).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* The view's rules and mine                                           */
+/* ------------------------------------------------------------------ */
+
+describe("a view's rules and one person's", () => {
+  const ofView: FilterRule = { propertyId: labels.id, op: "is", values: ["o-bug"] };
+  const mine: FilterRule = { propertyId: status.id, op: "is", values: ["o-todo"] };
+
+  it("puts the view's first and mine after, because that is how the strip reads", () => {
+    expect(mergeFilters({ rules: [ofView] }, { rules: [mine] }).rules).toEqual([ofView, mine]);
+  });
+
+  it("answers one set when the other is empty", () => {
+    expect(mergeFilters({ rules: [ofView] }, { rules: [] }).rules).toEqual([ofView]);
+    expect(mergeFilters({ rules: [] }, { rules: [mine] }).rules).toEqual([mine]);
+    expect(mergeFilters({ rules: [] }, { rules: [] }).rules).toEqual([]);
+  });
+
+  /* This is the whole rule of the feature: mine narrows, and can never widen. */
+  it("narrows and never widens", () => {
+    const tasks = [
+      task("a", { "p-status": "o-todo", "p-labels": ["o-bug"] }),
+      task("b", { "p-status": "o-done", "p-labels": ["o-bug"] }),
+      task("c", { "p-status": "o-todo", "p-labels": ["o-ux"] }),
+    ];
+
+    const shared = applyFilters(tasks, { rules: [ofView] }, properties);
+    expect(shared.map((t) => t.id)).toEqual(["a", "b"]);
+
+    const both = applyFilters(
+      tasks,
+      mergeFilters({ rules: [ofView] }, { rules: [mine] }),
+      properties,
+    );
+    expect(both.map((t) => t.id)).toEqual(["a"]);
+
+    // Adding a rule of my own can only take cards away from what the view shows.
+    const ids = new Set(shared.map((t) => t.id));
+    expect(both.every((t) => ids.has(t.id))).toBe(true);
+  });
+
+  it("drops a column when either set names the grouping property", () => {
+    const columns = [
+      { id: "c1", value: "o-todo" },
+      { id: "c2", value: "o-done" },
+    ];
+    const byView = allowedColumns(columns, mergeFilters({ rules: [mine] }, { rules: [] }), status);
+    const byMine = allowedColumns(columns, mergeFilters({ rules: [] }, { rules: [mine] }), status);
+    expect(byView.map((c) => c.id)).toEqual(["c1"]);
+    expect(byMine.map((c) => c.id)).toEqual(["c1"]);
+  });
+
+  /* Otherwise my own lens hides the card I just made, and nothing says why. */
+  it("seeds a task for both sets", () => {
+    const seed = seedValues(mergeFilters({ rules: [ofView] }, { rules: [mine] }), properties, null);
+    expect(seed).toEqual({ "p-labels": ["o-bug"], "p-status": "o-todo" });
+  });
+
+  /*
+   * A lens is saved once and read for months, so it outlives the option it
+   * names exactly as a view's rule does. Both sets go through the same reading.
+   */
+  it("is read afresh on both sets", () => {
+    const saved = { rules: [{ propertyId: status.id, op: "is", values: ["o-gone"] }] };
+    const alive = { rules: [{ propertyId: labels.id, op: "is", values: ["o-bug"] }] };
+
+    const merged = mergeFilters(readFilters(alive, properties), readFilters(saved, properties));
+    expect(merged.rules).toEqual([{ propertyId: labels.id, op: "is", values: ["o-bug"] }]);
+
+    const other = mergeFilters(readFilters(saved, properties), readFilters(alive, properties));
+    expect(other.rules).toEqual([{ propertyId: labels.id, op: "is", values: ["o-bug"] }]);
   });
 });

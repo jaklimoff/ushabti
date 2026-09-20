@@ -162,6 +162,20 @@ and what is easy to get wrong.
   have to run in four places and would still lose a race. A rule nobody can see
   must never keep hiding cards, which is why the chips and the hiding are drawn
   from the same reading.
+- **A filter a person adds is theirs, and the two sets join by being put end to
+  end.** `view_lenses` holds one person's rules for one view; the view's rules
+  are the team's. `mergeFilters()` is the one place they meet — the view's
+  first, then theirs — and everything that hides, counts, seeds or drops a
+  column reads that one answer, so `visibleTasks`, `allowedColumns`,
+  `seedValues` and the pill's count can never disagree with the screen. The
+  strip is the only place the two are told apart, because it is the only place
+  where it matters which ✕ you pressed. A lens narrows and can never widen: a
+  member cannot see past a view's rule, which is what the main view is for.
+  `readFilters()` runs on both sets, on the server and on every write. Writing
+  a lens broadcasts nothing — it moves one screen, and the stream is for what
+  the team shares — while **Put on the view** is one transaction under the
+  project lock and does broadcast. An agent has no lens and never reads one:
+  `filters` on the view DTO stays the view's.
 - **Every rule has to pass, and "is not" keeps the empties.** A filter narrows;
   there is no "any of these rules". A task with no priority is not High, so
   `Priority is not High` shows it. Jira's `!=` drops those, which is how people

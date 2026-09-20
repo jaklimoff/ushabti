@@ -44,6 +44,6 @@ export default async function BoardPage({
     throw err;
   }
 
-  const board = await loadBoard(projectId, role);
+  const board = await loadBoard(projectId, role, user.id);
   return <BoardApp initial={board} user={user} initialTask={task ?? null} />;
 }

@@ -1,13 +1,16 @@
 import { expect, test, type Browser } from "@playwright/test";
 import {
+  addFilter,
   addTask,
   card,
   column,
   createProject,
   dragCard,
   gotoSettings,
+  putFilterOnView,
   register,
   saved,
+  signIn,
   settles,
   unique,
   type Account,
@@ -140,6 +143,65 @@ test.describe("Two people on one board", () => {
     await owner.page.goto(`/p/${projectId}`);
     await card(owner.page, "Give it to a friend").click();
     await expect(panel.getByRole("button", { name: "Friend Person" })).toBeVisible();
+
+    await owner.context.close();
+    await friend.context.close();
+  });
+
+  /*
+   * The fault this feature exists to fix: a member who filtered to their own
+   * name used to re-filter the board for the whole team. So the rule stays on
+   * one screen until somebody says otherwise, in as many words.
+   */
+  test("a filter one person adds reaches the other only when they say so", async ({ browser }) => {
+    const owner = await freshPage(browser);
+    const friend = await freshPage(browser);
+
+    const ownerAccount = await register(owner.page, "Owner Person");
+    const projectId = await createProject(owner.page, unique("Lens"));
+    const friendAccount = await register(friend.page, "Friend Person");
+
+    await gotoSettings(owner.page, projectId, "people");
+    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
+    await owner.page.getByRole("button", { name: "Add member" }).click();
+    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+
+    await owner.page.goto(`/p/${projectId}`);
+    await addTask(owner.page, "Todo", "Urgent work");
+    await owner.page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await owner.page.getByRole("button", { name: "Close task" }).click();
+    await addTask(owner.page, "Todo", "Ordinary work");
+    await owner.page.getByRole("button", { name: "Close task" }).click();
+
+    await friend.page.goto(`/p/${projectId}`);
+    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
+    await expect(card(friend.page, "Ordinary work")).toBeVisible();
+
+    await addFilter(owner.page, "Priority", "Urgent");
+    await expect(card(owner.page, "Ordinary work")).toHaveCount(0);
+
+    /* The friend's board must not move. A shared write arrives in well under
+       this, so a board that was going to narrow would have narrowed by now. */
+    await friend.page.waitForTimeout(2500);
+    await expect(card(friend.page, "Ordinary work")).toBeVisible();
+    await expect(friend.page.getByTestId("filter-row")).toHaveCount(0);
+
+    /* The rule is saved against the person and not held in the tab, so the
+       same person on another machine finds it waiting for them. */
+    const elsewhere = await freshPage(browser);
+    await signIn(elsewhere.page, ownerAccount);
+    await elsewhere.page.goto(`/p/${projectId}`);
+    await expect(elsewhere.page.getByTestId("filter-chip")).toHaveText("Priority is Urgent");
+    await expect(card(elsewhere.page, "Ordinary work")).toHaveCount(0);
+    await elsewhere.context.close();
+
+    // One press, and it is the team's question.
+    await putFilterOnView(owner.page);
+
+    await expect(card(friend.page, "Ordinary work")).toHaveCount(0, { timeout: 15_000 });
+    await expect(friend.page.getByTestId("filter-chip")).toHaveText("Priority is Urgent");
+    // It is the view's on their side too, so nothing there says "only you".
+    await expect(friend.page.getByTestId("filter-mine")).toHaveCount(0);
 
     await owner.context.close();
     await friend.context.close();

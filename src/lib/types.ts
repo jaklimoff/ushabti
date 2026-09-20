@@ -331,8 +331,16 @@ export type ViewDTO = {
   groupById: string | null;
   position: string;
   isDefault: boolean;
-  /** Which tasks this view shows. Every rule has to pass. */
+  /** Which tasks this view shows, for everybody. Every rule has to pass. */
   filters: ViewFilters;
+  /**
+   * The rules the person asking added to this view, which only they see. They
+   * narrow what `filters` already says and can never widen it.
+   *
+   * It carries the reader's own rules and nobody else's, so an agent — which
+   * has no lens — always reads an empty set here.
+   */
+  lens: ViewFilters;
   /**
    * The order a list draws them in, or null for the rank every view shares.
    * A board keeps one it was given but never reads it, exactly as it keeps a

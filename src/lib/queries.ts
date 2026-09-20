@@ -15,6 +15,7 @@ import {
   taskValues,
   tasks,
   users,
+  viewLenses,
   views,
 } from "@/db/schema";
 import { HttpError } from "./auth";
@@ -158,8 +159,13 @@ type ViewRow = typeof views.$inferSelect;
  * A view as the board sees it. The filters go through `readFilters`, so a rule
  * whose property or option was deleted never leaves this function. That is the
  * only cleanup there is: nothing rewrites a view when a property goes.
+ *
+ * `lens` is the rules the person reading added to this view, and only theirs.
+ * It is read the same way and for the same reason: a lens is saved once and
+ * read for months, so it outlives the property it names just as a view's rule
+ * does. Nothing is passed for an agent, which has no lens.
  */
-export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[]): ViewDTO {
+export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unknown): ViewDTO {
   return {
     id: row.id,
     name: row.name,
@@ -170,6 +176,7 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[]): ViewDTO {
     position: row.position,
     isDefault: row.isDefault,
     filters: readFilters((row.config as { filters?: unknown } | null)?.filters, propertyList),
+    lens: readFilters(lens, propertyList),
     sort: readSort((row.config as { sort?: unknown } | null)?.sort, propertyList),
   };
 }
@@ -326,7 +333,35 @@ async function loadValueCounts(projectId: string): Promise<Record<string, number
   return counts;
 }
 
-export async function loadBoard(projectId: string, role: string): Promise<BoardData> {
+/**
+ * The rules one person added to the views of this project, by view id.
+ *
+ * Only ever this one person's. A lens is not a shared row, so asking for
+ * anybody else's — or asking as an agent, which has none — answers nothing.
+ */
+async function loadLenses(
+  projectId: string,
+  viewerId: string | null,
+): Promise<Map<string, unknown>> {
+  if (!viewerId) return new Map();
+  const rows = await db
+    .select({ viewId: viewLenses.viewId, filters: viewLenses.filters })
+    .from(viewLenses)
+    .innerJoin(views, eq(views.id, viewLenses.viewId))
+    .where(and(eq(viewLenses.userId, viewerId), eq(views.projectId, projectId)));
+  return new Map(rows.map((r) => [r.viewId, r.filters]));
+}
+
+/**
+ * `viewerId` is the person asking, so each view can carry their own lens and
+ * nobody else's. An agent passes null: it reads the view's filters, which is
+ * what the whole team sees, and a person's own narrowing never reaches it.
+ */
+export async function loadBoard(
+  projectId: string,
+  role: string,
+  viewerId: string | null = null,
+): Promise<BoardData> {
   const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
   const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows, archivedRows, valueCounts] =
@@ -377,6 +412,8 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
       loadValueCounts(projectId),
     ]);
 
+  const lenses = await loadLenses(projectId, viewerId);
+
   /* Only the live ones. Nothing draws an archived task, so its values are
      fetched when its panel asks for them and not before. */
   const taskIds = taskRows.map((t) => t.id);
@@ -396,7 +433,7 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
 
   const propertyList = withOptions(propRows, optRows);
 
-  const viewList: ViewDTO[] = viewRows.map((v) => toViewDTO(v, propertyList));
+  const viewList: ViewDTO[] = viewRows.map((v) => toViewDTO(v, propertyList, lenses.get(v.id)));
 
   /* The card a project has before anybody arranges one is the card it drew
      before this page existed, and that card leaves out the columns. So the
