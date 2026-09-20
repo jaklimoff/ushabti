@@ -10,8 +10,8 @@ import { Aside, LinkCard, CardGrid, Card } from '@astrojs/starlight/components'
 ## Accounts
 
 **Sign up** at `/register`: a name, an email and a password of at least eight characters. The
-password field has a **Show / Hide** reveal, because there is no reset and a typo would lock the
-account for good.
+password field has a **Show / Hide** reveal, because a typo here costs somebody else an afternoon —
+see [A forgotten password](#a-forgotten-password) below.
 
 Passwords are scrypt hashes with a random salt. A session is a random identifier in the database
 behind an `httpOnly` cookie that lasts thirty days, and in production it is marked `secure` — so a
@@ -42,6 +42,48 @@ An invited email gets through a closed board (`USHABTI_SIGNUP=closed`). That is 
 before, a closed board told the owner *"ask them to register"* and the person *"ask the owner"*, and
 nobody could break the circle. The owner withdraws an invite from its row, which asks first.
 
+## A forgotten password
+
+There is no email in Ushabti, so there is no "forgot my password" form to fill in. The way back is a
+person who can vouch for you: **the owner of a project you are in**.
+
+In **Settings → People**, the owner presses **Reset password** on that member's row. The row asks
+first — *"Make a reset link for Ada? It signs them out everywhere once used."* — and then shows one
+link with a copy button:
+
+```
+https://your-board.example.com/reset/ush_…
+```
+
+**It is shown once.** Reloading the page hides it for good, exactly as an agent token is: the table
+keeps a SHA-256 digest and never the link itself. Send it by whatever channel your team already
+has.
+
+The person opens it, types one new password of at least eight characters, and presses **Set the
+password**. That signs them in here and **ends every other session of the account** — so a link
+that went astray costs the thief every browser they were sitting in.
+
+A link **works once and lasts 24 hours**. Making a new one for the same person puts the older ones
+out of use at that moment. A link that is used, old, replaced or invented shows one sentence and
+nothing else:
+
+> This link does not work any more. Ask the owner of your project for a new one.
+
+It never says whether an account exists — the page is open to anybody with a URL.
+
+<Aside type="caution" title="Two things this does not do">
+The owner never learns the new password, and never sees the old one; the link sets a password, it
+does not read one.
+
+And there is no self-service form. If you are the owner of every project you are in, nobody can make
+you a link, so keep that password somewhere safe. Asking any *other* owner of a project you are both
+in works — the link is about your account, not about their board.
+</Aside>
+
+**Your own password**, when you still know it, changes at `/account`, which also ends every other
+session. The owner's row never offers *Reset password* for that reason, and an agent's row never
+does either: an agent has no password, only [tokens](/ushabti/agents/).
+
 ## Owner and member
 
 Everybody in a project sees and edits everything in it. There are no per-task and no per-field
@@ -68,7 +110,7 @@ values with it.
 **Owner only** — and, in every case, a person rather than an agent:
 
 - delete a property, delete an option, delete a view
-- add a member, remove another member
+- add a member, remove another member, make a member a reset link
 - create an agent, remove an agent, issue a token, revoke a token
 - rename the project, change the key, delete the project
 

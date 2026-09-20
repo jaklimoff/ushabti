@@ -445,3 +445,38 @@ export const agentRunLog = pgTable(
   },
   (t) => [index("agent_run_log_run_idx").on(t.runId)],
 );
+
+/* ------------------------------------------------------------------ */
+/* A way back into an account                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One link that sets one password. There is no email in Ushabti, so the person
+ * who vouches for you is the owner of a project you are in: they make the link
+ * and send it by whatever channel the team already has.
+ *
+ * The plain token is shown once and never stored, exactly as an agent token
+ * is: only its SHA-256 digest is kept. A row is read afresh and never cleaned
+ * up, so a link that is spent, old or superseded stays here until it expires
+ * and the reader is the one that calls it dead.
+ */
+export const passwordResets = pgTable(
+  "password_resets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    hash: text("hash").notNull(),
+    /** The owner who made it. Null once that account is gone. */
+    madeBy: uuid("made_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    /** When somebody set a password with it. A link works once. */
+    usedAt: timestamp("used_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("password_resets_hash_key").on(t.hash),
+    index("password_resets_user_idx").on(t.userId),
+  ],
+);

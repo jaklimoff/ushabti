@@ -104,8 +104,9 @@ export function Account({ user, version }: { user: SessionUser; version: string 
 }
 
 /**
- * There is no password reset, so this is the only way back from one you think
- * has leaked. Changing it ends every other session.
+ * The way back from a password you think has leaked, and still know. Changing
+ * it ends every other session. One you cannot remember is a different way
+ * back: the owner of a project makes a link.
  */
 function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind"]) => void }) {
   const [current, setCurrent] = useState("");
@@ -183,7 +184,7 @@ function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind
           <Field
             label="New"
             error={error}
-            note="At least 8 characters. There is no password reset — keep it somewhere safe."
+            note="At least 8 characters. Keep it somewhere safe: a password nobody knows needs a link from the owner of your project."
           >
             <Input
               size="lg"

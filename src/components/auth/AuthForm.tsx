@@ -40,115 +40,130 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
   }
 
   return (
-    <div className={styles.wrap}>
-      <div className={styles.card}>
-        <Brand />
-        <h1 className={styles.h1}>{register ? "Create an account" : "Sign in"}</h1>
-        {/* The pitch belongs where somebody is deciding, not where they sign
-            in every morning. A closed board keeps the form: an invited email
-            still gets in, and the server refuses the rest. */}
-        {register && signupOpen && (
-          <p className={styles.tagline}>
-            A small, fast task board. You define the properties; the board follows them.
-          </p>
-        )}
-        {register && !signupOpen && (
-          <p className={styles.tagline}>
-            This board is closed. It takes a new account only for an email its owner invited, so
-            sign up with that one.
-          </p>
-        )}
+    <AuthCard title={register ? "Create an account" : "Sign in"}>
+      {/* The pitch belongs where somebody is deciding, not where they sign in
+          every morning. A closed board keeps the form: an invited email still
+          gets in, and the server refuses the rest. */}
+      {register && signupOpen && (
+        <p className={styles.tagline}>
+          A small, fast task board. You define the properties; the board follows them.
+        </p>
+      )}
+      {register && !signupOpen && (
+        <p className={styles.tagline}>
+          This board is closed. It takes a new account only for an email its owner invited, so sign
+          up with that one.
+        </p>
+      )}
 
-        <form className={styles.form} onSubmit={submit}>
-          {register && (
-            <div className={styles.field}>
-              <span className="label">Name</span>
-              <Input
-                size="lg"
-                block
-                autoFocus
-                value={name}
-                aria-label="Your name"
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ada Lovelace"
-                autoComplete="name"
-                required
-              />
-            </div>
-          )}
+      <form className={styles.form} onSubmit={submit}>
+        {register && (
           <div className={styles.field}>
-            <span className="label">Email</span>
+            <span className="label">Name</span>
             <Input
               size="lg"
               block
-              autoFocus={!register}
-              type="email"
-              value={email}
-              aria-label="Your email"
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
+              autoFocus
+              value={name}
+              aria-label="Your name"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ada Lovelace"
+              autoComplete="name"
               required
             />
           </div>
-          <div className={styles.field}>
-            <span className="label">Password</span>
-            <div className={styles.passwordRow}>
-              <Input
-                size="lg"
-                block
-                type={show ? "text" : "password"}
-                value={password}
-                aria-label="Your password"
-                minLength={register ? 8 : undefined}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={register ? "At least 8 characters" : "Your password"}
-                autoComplete={register ? "new-password" : "current-password"}
-                required
-              />
-              {/*
-               * A reveal rather than a second field. There is no password
-               * reset, so a typo here locks the account for good.
-               */}
-              <button
-                type="button"
-                className={styles.reveal}
-                aria-pressed={show}
-                aria-label={show ? "Hide the password" : "Show the password"}
-                onClick={() => setShow((v) => !v)}
-              >
-                {show ? "Hide" : "Show"}
-              </button>
-            </div>
-            {register && (
-              <span className={styles.hint}>
-                At least 8 characters. There is no password reset yet — keep it somewhere safe.
-              </span>
-            )}
+        )}
+        <div className={styles.field}>
+          <span className="label">Email</span>
+          <Input
+            size="lg"
+            block
+            autoFocus={!register}
+            type="email"
+            value={email}
+            aria-label="Your email"
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
+        </div>
+        <div className={styles.field}>
+          <span className="label">Password</span>
+          <div className={styles.passwordRow}>
+            <Input
+              size="lg"
+              block
+              type={show ? "text" : "password"}
+              value={password}
+              aria-label="Your password"
+              minLength={register ? 8 : undefined}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={register ? "At least 8 characters" : "Your password"}
+              autoComplete={register ? "new-password" : "current-password"}
+              required
+            />
+            {/*
+             * A reveal rather than a second field. A typo here means asking
+             * the owner of a project for a way back in, which is a person's
+             * afternoon rather than a second field's.
+             */}
+            <button
+              type="button"
+              className={styles.reveal}
+              aria-pressed={show}
+              aria-label={show ? "Hide the password" : "Show the password"}
+              onClick={() => setShow((v) => !v)}
+            >
+              {show ? "Hide" : "Show"}
+            </button>
           </div>
-
-          {error && (
-            <div className={styles.error} role="alert">
-              {error}
-            </div>
-          )}
-
-          <Button size="lg" block type="submit" disabled={busy} className={styles.submit}>
-            {busy ? "One moment…" : register ? "Create account" : "Sign in"}
-          </Button>
-        </form>
-
-        <div className={styles.switch}>
-          {register ? (
-            <>
-              Already have an account? <Link href="/login">Sign in</Link>
-            </>
-          ) : (
-            <>
-              New here? <Link href="/register">Create an account</Link>
-            </>
+          {register && (
+            <span className={styles.hint}>
+              At least 8 characters. Keep it somewhere safe: if you forget it, the owner of a
+              project you are in has to make you a way back.
+            </span>
           )}
         </div>
+
+        {error && (
+          <div className={styles.error} role="alert">
+            {error}
+          </div>
+        )}
+
+        <Button size="lg" block type="submit" disabled={busy} className={styles.submit}>
+          {busy ? "One moment…" : register ? "Create account" : "Sign in"}
+        </Button>
+      </form>
+
+      <div className={styles.switch}>
+        {register ? (
+          <>
+            Already have an account? <Link href="/login">Sign in</Link>
+          </>
+        ) : (
+          <>
+            New here? <Link href="/register">Create an account</Link>
+          </>
+        )}
+      </div>
+    </AuthCard>
+  );
+}
+
+/**
+ * The shell every page outside the board shares: the mark, the name, and one
+ * narrow card. Sign in, sign up and a reset link all wear it, so none of them
+ * declares this geometry again.
+ */
+export function AuthCard({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <div className={styles.wrap}>
+      <div className={styles.card}>
+        <Brand />
+        {title && <h1 className={styles.h1}>{title}</h1>}
+        {children}
       </div>
     </div>
   );

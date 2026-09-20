@@ -952,3 +952,19 @@
   background: var(--bg-hover);
   color: var(--accent-soft);
 }
+
+/* ---- a way back into an account ------------------------------------- */
+
+/* Under the member's row, and gone on the next page load: the link is
+   readable here and nowhere again. */
+.resetLink {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0 13px 11px 45px;
+  padding: 11px 13px;
+  border-radius: var(--r-md);
+  background: var(--bg-input);
+  border: 1px solid rgba(63, 176, 200, 0.3);
+  animation: ushabti-fade-in 160ms var(--ease);
+}

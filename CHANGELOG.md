@@ -23,6 +23,21 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   shortens. An agent has no rules of its own and reads only the view's, which is
   what the team shares. This answers the fault where a member who filtered to
   their own name re-filtered the board for everybody, live.
+- **There is a way back into an account with a forgotten password.** There is
+  no email in Ushabti, so the way back is a person who can vouch for you: the
+  owner of a project you are in. **Settings → People** now carries _Reset
+  password_ on a member's row. It asks first — "Make a reset link for Ada? It
+  signs them out everywhere once used." — and then shows one link, with a copy
+  button, readable there and never again. The owner sends it by whatever
+  channel the team already has. The person opens it, types one new password,
+  and is signed in; every other session of that account ends in the same
+  breath. A link works once, lasts 24 hours, and is put out of use by a newer
+  one for the same person. Used, old, replaced or invented, it says one
+  sentence — "This link does not work any more. Ask the owner of your project
+  for a new one." — and never whether an account exists. The token is stored as
+  a digest, exactly as an agent token is, and ten dead links from one address
+  in ten minutes are answered `429`. Only a person, and only the owner, can
+  make one: an agent can neither make a link nor use one.
 - **A task can be archived, and put back.** _Archive task_ in the task panel
   takes a card off every board and every list and keeps everything on it: the
   values, the checklist, the comments, the history and the link. The panel then

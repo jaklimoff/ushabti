@@ -162,6 +162,33 @@ Removing **somebody else** is owner only. Removing **yourself** is anybody's, an
 
 The membership row goes; the `users` row stays, so the person's tasks, comments and activity remain.
 
+### `POST /api/projects/{projectId}/members/{userId}/reset` <Badge text="owner only" variant="caution" size="small" />
+
+Makes that member a way back into their account, for
+[a forgotten password](/ushabti/guides/people/#a-forgotten-password). Send no body.
+
+```json title="201 — the only copy"
+{ "link": "https://your-board.example.com/reset/ush_…" }
+```
+
+The link is readable in this answer and never again: the table keeps a SHA-256 digest of the token,
+its account, who made it, when it expires and when it was used. It works **once**, for **24 hours**,
+and making a new one for the same person puts the older ones out of use. The person spends it at
+[`POST /api/auth/reset`](/ushabti/api/auth/#post-apiauthreset), which ends every session that account
+had.
+
+The address in the link is the one the call arrived at (`x-forwarded-host`, then `host`), so behind a
+proxy it is the address the team uses.
+
+| Status | Message |
+| --- | --- |
+| `400` | `Change your own password on your account page.` — the owner's own row has `/account` |
+| `400` | `An agent has no password. Issue it a token instead.` |
+| `403` | `Only the owner can make a reset link.` |
+| `404` | `That person is not in this project.` |
+
+Nothing is written to the project's activity: this is about an account, not about the board.
+
 ---
 
 ## Agents

@@ -125,7 +125,6 @@ Everything off the board, brought up to the board's standard.
 
 ## Before anyone else runs this
 
-- **Password reset.** There is no way back into an account you cannot sign in to. You can change a password you still know, on `/account`.
 - **Webhooks.** There is no call out when something changes. An agent listens
   on the stream instead, which `board.mjs watch` does for it; a service that
   cannot hold a socket open still has to poll.
