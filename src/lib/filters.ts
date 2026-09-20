@@ -253,6 +253,42 @@ export function mergeFilters(viewFilters: ViewFilters, lens: ViewFilters): ViewF
   return { rules: [...viewFilters.rules, ...lens.rules] };
 }
 
+/** True when this set already asks something about this property. */
+export function asksAbout(filters: ViewFilters, propertyId: string): boolean {
+  return filters.rules.some((rule) => rule.propertyId === propertyId);
+}
+
+/**
+ * The property a person's rules and the view's rules both name, or null.
+ *
+ * One property, one rule, whoever asked. A lens may only narrow, so a second
+ * rule about a property the view already speaks about is a trap: "Priority is
+ * High" on the view and "Priority is Low" of mine empties the board with two
+ * chips and nothing that says why, and **Put on the view** would hand that to
+ * the team. It counts the property and not the operator, because nobody
+ * reading two chips can tell a pair that narrows from a pair that can never
+ * both pass.
+ *
+ * This is the one place that decides it, so the panel that refuses the pick
+ * and the route that refuses the promote always agree, exactly as `hasAnswer`
+ * serves the panel and the reader. `mergeFilters` stays a plain joining: the
+ * guard belongs at the two doors a rule comes in by.
+ */
+export function clashOf(
+  viewFilters: ViewFilters,
+  lens: ViewFilters,
+  properties: PropertyDTO[],
+): PropertyDTO | null {
+  const rule = lens.rules.find((r) => asksAbout(viewFilters, r.propertyId));
+  if (!rule) return null;
+  return properties.find((p) => p.id === rule.propertyId) ?? null;
+}
+
+/** The one sentence both doors say, so a person hears the same thing twice. */
+export function clashSaid(property: PropertyDTO): string {
+  return `The view already filters ${property.name}. Remove it for everyone first.`;
+}
+
 /* ------------------------------------------------------------------ */
 /* Using them                                                          */
 /* ------------------------------------------------------------------ */

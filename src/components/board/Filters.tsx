@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  asksAbout,
+  clashSaid,
   describeRule,
   hasAnswer,
   isBareOp,
@@ -345,13 +347,15 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
      answer to what this board is about, and a member narrowing their screen
      must not re-answer it for everybody. The way onto the view is one press in
      the strip, and it is named. */
-  const { data, filters, lens, setLens } = useBoard();
+  const { data, filters, viewFilters, lens, setLens } = useBoard();
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
   /** Where in the view the rule went, or null while it has no answer yet. */
   const [slot, setSlot] = useState<number | null>(null);
   const [draft, setDraft] = useState<FilterRule | null>(null);
+  /** The line that says why a property was not taken, or null. */
+  const [refused, setRefused] = useState<string | null>(null);
 
   function reset() {
     setPickedId(null);
@@ -359,6 +363,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
     setAt(0);
     setSlot(null);
     setDraft(null);
+    setRefused(null);
   }
 
   function close() {
@@ -401,6 +406,17 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
     const property = data.properties.find((p) => p.id === propertyId);
     if (!property) return;
     /*
+     * The view already asks about this property, and a rule of mine may only
+     * narrow. A second rule beside it would empty the board with two chips
+     * that fight each other, so the panel says so and writes nothing. The
+     * view's rule is not mine to change from here: the ✕ on its own chip is
+     * the way out, and it asks for everybody before it goes.
+     */
+    if (asksAbout(viewFilters, property.id)) {
+      setRefused(clashSaid(property));
+      return;
+    }
+    /*
      * A second "is" rule about one property could only narrow the first, so
      * picking it again opens the rule that is already there. A date is left
      * alone: "after March" and "before June" are two rules on purpose.
@@ -411,6 +427,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
     setPickedId(property.id);
     setQuery("");
     setAt(0);
+    setRefused(null);
   }
 
   /* The one place a rule arrives, changes or goes. It lands in my lens. */
@@ -477,6 +494,8 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
                   onChange={(e) => {
                     setQuery(e.target.value);
                     setAt(0);
+                    // Looking for another property is the answer to the line.
+                    setRefused(null);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "ArrowDown") {
@@ -494,6 +513,13 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
                   }}
                 />
               </div>
+              {/* The list stays where it is, so the next property is one
+                  press away and nothing on the board has moved. */}
+              {refused && (
+                <span className={styles.filterNote} role="status" data-testid="filter-refused">
+                  {refused}
+                </span>
+              )}
               <Rows
                 rows={rows}
                 at={at}
