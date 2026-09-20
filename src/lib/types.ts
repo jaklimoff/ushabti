@@ -449,9 +449,17 @@ export type ProjectDTO = {
   role: string;
 };
 
+/** An email the owner added before it had an account. */
+export type InviteDTO = {
+  email: string;
+  createdAt: string;
+};
+
 export type BoardData = {
   project: ProjectDTO;
   members: MemberDTO[];
+  /** Emails invited and not yet signed up. They join the moment they do. */
+  invites: InviteDTO[];
   properties: PropertyDTO[];
   views: ViewDTO[];
   /** What a card carries, read afresh: a row naming a dead property is gone. */

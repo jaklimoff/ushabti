@@ -49,9 +49,9 @@ accounts. Anything else, including unset, leaves sign-up open.
 USHABTI_SIGNUP=closed
 ```
 
-`/register` then says *"This board is closed — it is not taking new accounts. Ask whoever runs it to
-make one for you."*, and `POST /api/auth/register` refuses with 403. Existing accounts are
-unaffected, and the owner can still add members by email.
+`/register` then says the board is closed and takes a new account only for an invited email, and
+`POST /api/auth/register` refuses any other with 403. Existing accounts are unaffected. An owner
+invites somebody by adding their email in **Settings → People**; that email may then sign up.
 
 ## Read, but rarely set
 

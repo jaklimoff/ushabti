@@ -121,8 +121,23 @@ confirmation — the interface does, by making you type the key.
 { "email": "ada@example.com" }
 ```
 
-The person must already have an account: there are no invitations, because there is no email in the
-product. The role is always `member` and cannot be chosen.
+If an account uses that email, it becomes a member at once and the answer carries `member`. If none
+does, the email is remembered as an invite and the answer carries `invite` instead:
+
+```json title="201, no account yet"
+{ "invite": { "email": "ada@example.com", "createdAt": "…" } }
+```
+
+Whoever registers with that email joins the project as they sign up — through a closed board too.
+The role is always `member` and cannot be chosen. Invites are listed on the board as `invites`.
+
+| Status | Message |
+| --- | --- |
+| `409` | `That email is already invited.` |
+
+### `DELETE /api/projects/{projectId}/invites/{email}` <Badge text="owner only" variant="caution" size="small" />
+
+Withdraws an invite. The email is URL-encoded in the path. `404` when no invite uses it.
 
 ```json title="201"
 { "member": { "id": "…", "name": "Ada", "email": "ada@example.com", "color": "#6d5bd0", "role": "member" } }

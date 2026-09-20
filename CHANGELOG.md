@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The owner can invite a person who has no account yet.** Adding an unknown
+  email in Settings → People remembers it as an invite; the person joins the
+  project the moment they sign up with it, through a closed board too. The row
+  shows _invited_ until then, and the owner can withdraw it. Before, a closed
+  board told the owner "ask them to register" and the person "ask the owner".
 - **`n` makes a new task.** On a board it opens the composer at the top of the
   column the cursor is in, or the first column; on a list, at the end. It stays
   out of a field you are typing in and out of the task panel.

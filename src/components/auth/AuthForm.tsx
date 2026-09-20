@@ -39,33 +39,23 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
     }
   }
 
-  if (register && !signupOpen) {
-    return (
-      <div className={styles.wrap}>
-        <div className={styles.card}>
-          <Brand />
-          <h1 className={styles.h1}>This board is closed</h1>
-          <p className={styles.tagline}>
-            It is not taking new accounts. Ask whoever runs it to make one for you.
-          </p>
-          <div className={styles.switch}>
-            Already have an account? <Link href="/login">Sign in</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.wrap}>
       <div className={styles.card}>
         <Brand />
         <h1 className={styles.h1}>{register ? "Create an account" : "Sign in"}</h1>
         {/* The pitch belongs where somebody is deciding, not where they sign
-            in every morning. */}
-        {register && (
+            in every morning. A closed board keeps the form: an invited email
+            still gets in, and the server refuses the rest. */}
+        {register && signupOpen && (
           <p className={styles.tagline}>
             A small, fast task board. You define the properties; the board follows them.
+          </p>
+        )}
+        {register && !signupOpen && (
+          <p className={styles.tagline}>
+            This board is closed. It takes a new account only for an email its owner invited, so
+            sign up with that one.
           </p>
         )}
 

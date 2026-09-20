@@ -11,7 +11,7 @@ import { CopyField } from "@/components/ui/CopyField";
 import { Input } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
-import type { AgentDTO, MemberDTO } from "@/lib/types";
+import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
@@ -61,6 +61,7 @@ function Members() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [invited, setInvited] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const isOwner = data.project.role === "owner";
   const origin = useSyncExternalStore(
@@ -75,8 +76,14 @@ function Members() {
     if (!value || busy) return;
     setBusy(true);
     setError(null);
+    setInvited(null);
     try {
-      await api.post(`/api/projects/${data.project.id}/members`, { email: value });
+      const answer = await api.post<{ invite?: InviteDTO }>(
+        `/api/projects/${data.project.id}/members`,
+        { email: value },
+      );
+      // No account yet, so the email waits as an invite: say what happens next.
+      if (answer.invite) setInvited(answer.invite.email);
       setEmail("");
       await refresh();
     } catch (err) {
@@ -97,8 +104,16 @@ function Members() {
     }
   }
 
+  async function withdraw(invite: InviteDTO) {
+    try {
+      await api.del(`/api/projects/${data.project.id}/invites/${encodeURIComponent(invite.email)}`);
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not withdraw that invite.");
+    }
+  }
+
   const people = data.members.filter((m) => m.kind === "human");
-  const unknownEmail = error !== null && error.includes("No account");
 
   return (
     <Section title="Members">
@@ -110,6 +125,14 @@ function Members() {
             isSelf={member.id === user.id}
             canRemove={member.role !== "owner" && (isOwner || member.id === user.id)}
             onRemove={() => void remove(member)}
+          />
+        ))}
+        {data.invites.map((invite) => (
+          <InviteRow
+            key={invite.email}
+            invite={invite}
+            canWithdraw={isOwner}
+            onWithdraw={() => void withdraw(invite)}
           />
         ))}
 
@@ -124,6 +147,7 @@ function Members() {
               onChange={(e) => {
                 setEmail(e.target.value);
                 setError(null);
+                setInvited(null);
               }}
               onKeyDown={(e) => e.key === "Enter" && void invite()}
             />
@@ -131,21 +155,25 @@ function Members() {
               {busy ? "Adding…" : "Add member"}
             </Button>
             {error ? (
+              <span
+                style={{ width: "100%", fontSize: 11.5, color: "var(--danger-text)" }}
+                role="alert"
+              >
+                {error}
+              </span>
+            ) : invited && signUpLink ? (
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 7 }}>
-                <span style={{ fontSize: 11.5, color: "var(--danger-text)" }} role="alert">
-                  {error}
-                </span>
-                {unknownEmail && signUpLink && (
-                  <>
-                    <Note>Send them the sign-up link, then add their email here.</Note>
-                    <CopyField value={signUpLink} label="the sign-up link" />
-                  </>
-                )}
+                <Note>
+                  {invited} has no account yet, so it is invited. Send them this link; they are in
+                  the moment they sign up with that email.
+                </Note>
+                <CopyField value={signUpLink} label="the sign-up link" />
               </div>
             ) : (
               <span style={{ width: "100%" }}>
                 <Note>
-                  The person needs an Ushabti account first. There are no email invites yet.
+                  A person with an account joins at once. One without is invited, and joins when
+                  they sign up with that email — even on a closed board.
                 </Note>
               </span>
             )}
@@ -196,6 +224,48 @@ function MemberRow({
           danger
           label={isSelf ? "Leave the project" : `Remove ${member.name}`}
           title={isSelf ? "Leave the project" : "Remove from the project"}
+          onClick={confirm.ask}
+        >
+          ✕
+        </IconButton>
+      )}
+    </Row>
+  );
+}
+
+function InviteRow({
+  invite,
+  canWithdraw,
+  onWithdraw,
+}: {
+  invite: InviteDTO;
+  canWithdraw: boolean;
+  onWithdraw: () => void;
+}) {
+  const confirm = useConfirm();
+
+  if (confirm.asking) {
+    return (
+      <ConfirmRow
+        question={`Withdraw the invite for ${invite.email}? They can no longer join by signing up.`}
+        confirmLabel="Yes, withdraw"
+        onConfirm={() => confirm.confirm(onWithdraw)}
+        onCancel={confirm.cancel}
+      />
+    );
+  }
+
+  return (
+    <Row data-testid="invite-row">
+      <Avatar name={invite.email} color="var(--text-muted)" size={22} />
+      <span className={styles.memberMail}>{invite.email}</span>
+      <Tag>invited</Tag>
+      <Spacer />
+      {canWithdraw && (
+        <IconButton
+          danger
+          label={`Withdraw the invite for ${invite.email}`}
+          title="Withdraw the invite"
           onClick={confirm.ask}
         >
           ✕

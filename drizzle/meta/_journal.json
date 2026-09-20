@@ -43,6 +43,13 @@
       "when": 1789744880229,
       "tag": "0005_agent_presence",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789910385706,
+      "tag": "0006_project_invites",
+      "breakpoints": true
     }
   ]
 }
