@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { viewLenses, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
-import { mergeFilters, readFilters } from "@/lib/filters";
+import { clashOf, clashSaid, mergeFilters, readFilters } from "@/lib/filters";
 import { loadProperties, viewProjectId, withProjectLock } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ viewId: string }> };
@@ -18,6 +18,10 @@ type Ctx = { params: Promise<{ viewId: string }> };
  *
  * Any member may press it. Writing a view's filters is a person's act, not an
  * agent's, which is what `humanOnly` says here as it does on the view route.
+ *
+ * It refuses, with 409 and one sentence, a lens that names a property the view
+ * already filters: two rules about one property are a trap, and this hands
+ * them to the whole team at once.
  */
 export const POST = route<Ctx>(async (req, ctx) => {
   const { viewId } = await ctx.params;
@@ -42,10 +46,17 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .limit(1);
 
     const config = (view.config ?? {}) as { filters?: unknown };
-    const filters = mergeFilters(
-      readFilters(config.filters, properties),
-      readFilters(lens?.filters, properties),
-    );
+    const ofView = readFilters(config.filters, properties);
+    const mine = readFilters(lens?.filters, properties);
+
+    /* One property, one rule. The panel will not start a second rule about a
+       property the view already filters, but a rule of mine becomes one the
+       moment somebody else puts that property on the view — so the door the
+       team comes through says it again, and nothing is written. */
+    const clash = clashOf(ofView, mine, properties);
+    if (clash) throw new HttpError(409, clashSaid(clash));
+
+    const filters = mergeFilters(ofView, mine);
 
     await tx
       .update(views)

@@ -414,6 +414,85 @@ test.describe("Filters inside a view", () => {
     await expect(card(page, "First task")).toHaveCount(0);
     await expect(page.getByTestId("task-count")).toHaveText("1 of 2 tasks");
   });
+
+  /* One property, one rule. A second rule beside the view's would empty the
+     board with two chips that fight each other, and say nothing about why. */
+  test("a property the view already filters is refused where it is picked", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Clash"));
+
+    await addTask(page, "Todo", "Urgent thing");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    // Priority is the view's now, so everybody on this board is asking it.
+    await addFilter(page, "Priority", "Urgent");
+    await putFilterOnView(page);
+
+    // Nothing of mine may be written while the panel says no.
+    let wrote = 0;
+    page.on("request", (req) => {
+      if (/\/api\/views\/[0-9a-f-]+\/lens/.test(req.url())) wrote += 1;
+    });
+
+    await page.getByTestId("filter-button").click();
+    const search = page.getByTestId("filter-search");
+    await search.fill("Priority");
+    await search.press("Enter");
+
+    await expect(page.getByTestId("filter-refused")).toHaveText(
+      "The view already filters Priority. Remove it for everyone first.",
+    );
+    // The panel did not move on: there is nothing to answer with.
+    await expect(page.getByTestId("filter-box")).toHaveCount(0);
+    // The view's one chip, and nothing of mine anywhere.
+    await expect(page.getByTestId("filter-chip")).toHaveCount(1);
+    await expect(page.getByTestId("filter-mine")).toHaveCount(0);
+    await expect(page.getByTestId("filter-button")).toContainText("Filter 1");
+    expect(wrote).toBe(0);
+
+    // Another property is still one press away, and the line goes with it.
+    await search.fill("Status");
+    await expect(page.getByTestId("filter-refused")).toHaveCount(0);
+    await search.press("Enter");
+    await expect(page.getByTestId("filter-box")).toBeVisible();
+  });
+
+  /* The panel cannot see a clash that arrives after my rule does: somebody
+     else puts that property on the view while I hold mine. So the door the
+     team comes through says it again, and writes nothing. */
+  test("Put on the view refuses a rule about a property the view filters", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("PromoteClash"));
+
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const view = board.views[0];
+    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
+    const key = (name: string) =>
+      priority.options.find((o: { name: string }) => o.name === name).id;
+
+    const ofView = { propertyId: priority.id, op: "is", values: [key("Urgent")] };
+    const mine = { propertyId: priority.id, op: "is", values: [key("High")] };
+
+    await page.request.patch(`/api/views/${view.id}`, { data: { filters: { rules: [ofView] } } });
+    // A lens is written as it is: the clash is only a clash at the two doors.
+    const saved = await page.request.put(`/api/views/${view.id}/lens`, {
+      data: { filters: { rules: [mine] } },
+    });
+    expect(saved.ok()).toBeTruthy();
+
+    const promoted = await page.request.post(`/api/views/${view.id}/lens/promote`);
+    expect(promoted.status()).toBe(409);
+    expect((await promoted.json()).error).toBe(
+      "The view already filters Priority. Remove it for everyone first.",
+    );
+
+    // Nothing moved: the view keeps its one rule, and mine is still mine.
+    const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const kept = after.views.find((v: { id: string }) => v.id === view.id);
+    expect(kept.filters.rules).toEqual([ofView]);
+    expect(kept.lens.rules).toEqual([mine]);
+  });
 });
 
 /* On a phone the row has no room to wrap, so it scrolls sideways and the tail

@@ -72,8 +72,10 @@ The panel asks two questions in one place that does not move:
    toggles the highlighted value and the list **stays open**, because a rule usually names more than
    one.
 
-Picking a property that already has a rule reopens that rule rather than making a second one. Date
-rules are the exception: `after March` and `before June` are two rules on purpose.
+Picking a property that already has a rule of yours reopens that rule rather than making a second
+one. Date rules are the exception within one set: `after March` and `before June` are two rules on
+purpose. Across the two sets there is no exception — if the view already dates a property, you
+cannot add a date rule of your own about it. See [Yours and the view's](#yours-and-the-views).
 
 <Aside type="tip" title="Escape keeps what you typed">
 Nothing in Ushabti has a Cancel. Escape closes the panel, and the rule you were building is saved if
@@ -123,6 +125,12 @@ The row reads left to right in the order the rules are applied:
   may press it, and the other people's boards narrow within a second.
 - `✕` on one of the view's chips asks first, in the chip itself: **Remove for everyone? Remove**.
   Escape or a click elsewhere puts the chip back.
+
+One property carries one rule, whoever asked: if the view already filters Priority, the panel says
+so where you pick it — *The view already filters Priority. Remove it for everyone first* — and
+writes nothing, because two rules about one property can contradict each other and empty the board.
+That counts dates too, which is what it costs: a view dated `before June` takes no `after March` of
+yours, so use the view's `✕`, or another view.
 
 The **Filter** pill counts every rule hiding cards on your screen, whoever added it.
 

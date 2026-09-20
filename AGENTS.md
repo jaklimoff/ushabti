@@ -176,6 +176,19 @@ and what is easy to get wrong.
   the team shares — while **Put on the view** is one transaction under the
   project lock and does broadcast. An agent has no lens and never reads one:
   `filters` on the view DTO stays the view's.
+- **One property carries one rule, whoever asked.** Two rules about one
+  property empty the board with two chips that fight each other, and promoting
+  them hands that to the team. `clashOf()` in `src/lib/filters.ts` is the one
+  place that decides it, as `hasAnswer()` is for a question: the panel refuses
+  the pick with the sentence `clashSaid()` builds, and the promote route
+  answers 409 with the same sentence. It counts the property and not the
+  operator, because nobody reading two chips can tell a pair that narrows from
+  a pair that can never both pass. That counts a date, which is the price: two
+  date rules inside one set are still two rules on purpose, but a date rule of
+  a lens on a property the view already dates is refused with the rest.
+  `mergeFilters` stays a plain joining — the
+  guard belongs at the two doors a rule comes in by, and a lens can become a
+  clash after it is written, which is why both doors carry it.
 - **Every rule has to pass, and "is not" keeps the empties.** A filter narrows;
   there is no "any of these rules". A task with no priority is not High, so
   `Priority is not High` shows it. Jira's `!=` drops those, which is how people
