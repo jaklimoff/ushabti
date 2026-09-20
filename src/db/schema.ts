@@ -297,6 +297,36 @@ export const views = pgTable(
   (t) => [index("views_project_idx").on(t.projectId)],
 );
 
+/**
+ * The rules one person added to one view, which only that person sees.
+ *
+ * A filter on the view is the team's answer to "what is this board about". A
+ * filter a person adds is their own question, and broadcasting it re-filtered
+ * the board for everybody who was looking. So a person's rules live here,
+ * beside the view rather than on it, and the board shows the view's plus
+ * theirs. They never widen: every rule of both sets has to pass.
+ *
+ * Only a person has one. An agent reads the view's filters and nothing else.
+ */
+export const viewLenses = pgTable(
+  "view_lenses",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    viewId: uuid("view_id")
+      .notNull()
+      .references(() => views.id, { onDelete: "cascade" }),
+    /** `{ rules: FilterRule[] }`, read through `readFilters` exactly as a view's is. */
+    filters: jsonb("filters").notNull().default({ rules: [] }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.viewId] }),
+    index("view_lenses_view_idx").on(t.viewId),
+  ],
+);
+
 /* ------------------------------------------------------------------ */
 /* Agents                                                              */
 /* ------------------------------------------------------------------ */

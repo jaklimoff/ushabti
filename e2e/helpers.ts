@@ -82,6 +82,9 @@ export async function addTask(page: Page, columnName: string, title: string) {
 /**
  * Adds a rule: pick the property, then say what about it. Picking the property
  * on its own writes nothing, which is the point of the two steps.
+ *
+ * A rule added here is this person's own, so it lands on their lens. Nobody
+ * else's board moves until somebody presses "Put on the view".
  */
 export async function addFilter(page: Page, property: string, value: string) {
   await page.getByTestId("filter-button").click();
@@ -91,9 +94,17 @@ export async function addFilter(page: Page, property: string, value: string) {
 
   const box = page.getByTestId("filter-box");
   await box.fill(value);
-  await settles(page, /\/api\/views\/[0-9a-f-]+$/, () => box.press("Enter"));
+  await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () => box.press("Enter"));
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("filter-menu")).toHaveCount(0);
+}
+
+/** Puts the rules this person added on the view, for everybody. */
+export async function putFilterOnView(page: Page) {
+  await settles(page, /\/api\/views\/[0-9a-f-]+\/lens\/promote$/, () =>
+    page.getByTestId("filter-promote").click(),
+  );
+  await expect(page.getByTestId("filter-promote")).toHaveCount(0);
 }
 
 /* ------------------------------------------------------------------ */

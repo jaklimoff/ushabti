@@ -46,8 +46,10 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     // kind is "board" or "list". A list has no columns, so groupById may be
     // null — and when it is not, it is remembered rather than read.
     // sort is the order a list draws its rows in, or null for the shared rank.
+    // filters is the whole team's. lens is the rules you added to this view,
+    // which only you see; an agent always reads none.
     { "id": "…", "name": "Board", "kind": "board", "groupById": "…", "position": "V",
-      "isDefault": true, "filters": { "rules": [] }, "sort": null }
+      "isDefault": true, "filters": { "rules": [] }, "lens": { "rules": [] }, "sort": null }
   ],
 
   "cardView": {              // what every card carries, already read afresh
@@ -127,7 +129,8 @@ The same trap exists on the server, which is why every ordering query asks for `
 
 A rule pointing at a deleted property or option is thrown away **on every read**. The database may
 still hold it; you will never see it. So a rule that reaches you is guaranteed to be readable — and
-you should never write back what you were not given.
+you should never write back what you were not given. The same goes for `lens`, the rules you added to
+a view yourself.
 
 ### 5. `tasks` is live, and `archived` is lighter
 

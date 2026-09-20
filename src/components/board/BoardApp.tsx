@@ -37,7 +37,7 @@ export function BoardApp({
 }
 
 function BoardShell({ initialTask }: { initialTask: string | null }) {
-  const { data, user, view, live, toasts, groupProperty, filters, visibleTasks, setFilters } =
+  const { data, user, view, live, toasts, groupProperty, filters, lens, visibleTasks, setLens } =
     useBoard();
   /* A link to an archived task opens its panel, and the board behind it still
      does not draw the card. So the address is answered from both lists. */
@@ -123,9 +123,14 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
               <span>
                 No task passes {filters.rules.length === 1 ? "the filter" : "all the filters"}.
               </span>
-              <button className={styles.ghost} onClick={() => void setFilters([])}>
-                Clear the filter
-              </button>
+              {/* Only the rules this person added. A rule of the view belongs
+                  to the whole board, and it goes through the question its own
+                  chip asks rather than through a button on an empty screen. */}
+              {lens.rules.length > 0 && (
+                <button className={styles.ghost} onClick={() => void setLens([])}>
+                  Clear {lens.rules.length === 1 ? "your filter" : "your filters"}
+                </button>
+              )}
             </div>
           </div>
         )}

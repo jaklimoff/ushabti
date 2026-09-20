@@ -177,6 +177,10 @@ The roadmap frames this as "a filter that says *me*" under **Later**. That under
 missing thing is not a keyword, it is any notion of a personal lens. Combined with **M3**, a team
 member has no non-destructive way to answer "what am I supposed to be doing?"
 
+> **Answered on 2026-09-20 (USH-17).** A filter a person adds is now their own, in `view_lenses`,
+> and the board shows the view's rules plus theirs. Putting them on the view for everybody is one
+> named press. The roadmap line has gone with it.
+
 **M3 — No task search.** Roadmap "Next" #2, correctly placed. Without it, and without sorting, a
 board past a hundred cards is navigated only by eye.
 

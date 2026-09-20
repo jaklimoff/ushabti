@@ -28,7 +28,7 @@ export default async function SettingsLayout({
     throw err;
   }
 
-  const board = await loadBoard(projectId, role);
+  const board = await loadBoard(projectId, role, user.id);
   return (
     <SettingsShell initial={board} user={user} version={version}>
       {children}

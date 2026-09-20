@@ -74,6 +74,10 @@ so an agent sees exactly what a person sees and nothing more.
 The board answer carries the live tasks in `tasks` and the archived ones in
 `archived`. A live task carries `archivedAt`, null while it is live.
 
+A view's `filters` is the whole team's, and it is the only filter you read: the
+rules a person adds to their own screen are theirs, never yours, and never
+reach `filters` until that person puts them on the view.
+
 **An entry in `archived` is not a whole task.** It holds seven fields: `id`,
 `number`, `key`, `title`, `description`, `position` and `archivedAt`. There are
 no values, no checklist counts and no comment count: nothing draws an
