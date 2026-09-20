@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
 import { cardItems, defaultCardView, readCardView } from "@/lib/card-view";
 import type { CardItem } from "@/lib/card-view";
-import { applyFilters, EMPTY_FILTERS } from "@/lib/filters";
+import { applyFilters, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
   AgentRunDTO,
@@ -40,8 +40,18 @@ type Store = {
   user: SessionUser;
   view: ViewDTO | null;
   groupProperty: PropertyDTO | null;
-  /** The rules of the view on screen. */
+  /**
+   * Every rule that hides a card on this screen: the view's, then mine.
+   *
+   * Everything that hides, counts, seeds or drops a column reads this one
+   * answer. The two sets are told apart in the strip, where it matters which
+   * of them a ✕ takes away, and nowhere else.
+   */
   filters: ViewFilters;
+  /** The rules of the view itself. Everybody on the board sees these. */
+  viewFilters: ViewFilters;
+  /** The rules I added to this view. Only I see them. */
+  lens: ViewFilters;
   /**
    * The tasks that view shows. Everything that counts tasks reads this, so the
    * columns, the count in the strip and the empty state can never disagree.
@@ -49,6 +59,13 @@ type Store = {
   visibleTasks: TaskDTO[];
   /** Writes the rules of the view. They save at once, like the grouping does. */
   setFilters: (rules: FilterRule[]) => Promise<void>;
+  /** Writes my own rules on this view. They save at once, exactly as those do. */
+  setLens: (rules: FilterRule[]) => Promise<void>;
+  /**
+   * Puts my rules on the view, for everybody, and empties my lens. One write,
+   * so the board never holds the same question twice.
+   */
+  promoteLens: () => Promise<void>;
   /** The order the view draws its rows in, or null for the shared rank. */
   sort: ViewSort | null;
   /** Writes that order. It saves at once, exactly as a rule does. */
@@ -283,7 +300,11 @@ export function BoardProvider({
     [data.properties, view],
   );
 
-  const filters = view?.filters ?? EMPTY_FILTERS;
+  const viewFilters = view?.filters ?? EMPTY_FILTERS;
+  const lens = view?.lens ?? EMPTY_FILTERS;
+  /* One answer for the screen. A filter narrows and never widens, so mine only
+     goes on the end of the view's. */
+  const filters = useMemo(() => mergeFilters(viewFilters, lens), [viewFilters, lens]);
   const sort = view?.sort ?? null;
 
   /*
@@ -603,6 +624,43 @@ export function BoardProvider({
     [updateView, view],
   );
 
+  /*
+   * A lens is written like a filter and broadcast like nothing at all: it
+   * changes one screen, so no other browser is told. The board still redraws
+   * here at once, because the view it belongs to is carrying it.
+   */
+  const setLens = useCallback<Store["setLens"]>(
+    async (rules) => {
+      if (!view) return;
+      const id = view.id;
+      setData((current) => ({
+        ...current,
+        views: current.views.map((v) => (v.id === id ? { ...v, lens: { rules } } : v)),
+      }));
+      await guarded(async () => {
+        await api.put(`/api/views/${id}/lens`, { filters: { rules } });
+      });
+    },
+    [guarded, view],
+  );
+
+  const promoteLens = useCallback<Store["promoteLens"]>(async () => {
+    if (!view) return;
+    const id = view.id;
+    /* The same joining the server does, and the same the screen was already
+       showing, so nothing moves when the answer comes back. */
+    const promoted = mergeFilters(view.filters, view.lens);
+    setData((current) => ({
+      ...current,
+      views: current.views.map((v) =>
+        v.id === id ? { ...v, filters: promoted, lens: EMPTY_FILTERS } : v,
+      ),
+    }));
+    await guarded(async () => {
+      await api.post(`/api/views/${id}/lens/promote`);
+    });
+  }, [guarded, view]);
+
   const setSort = useCallback<Store["setSort"]>(
     async (next) => {
       if (!view) return;
@@ -810,8 +868,12 @@ export function BoardProvider({
     view,
     groupProperty,
     filters,
+    viewFilters,
+    lens,
     visibleTasks,
     setFilters,
+    setLens,
+    promoteLens,
     sort,
     setSort,
     cardItems: items,

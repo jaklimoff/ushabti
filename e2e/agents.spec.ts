@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import {
+  addFilter,
   addTask,
   backdateRun,
   card,
@@ -9,6 +10,7 @@ import {
   createProject,
   dragCard,
   gotoSettings,
+  putFilterOnView,
   register,
   unique,
 } from "./helpers";
@@ -305,6 +307,52 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Yes, revoke" }).click();
     await expect(page.getByTestId("agent-secret")).toBeHidden();
     expect((await api.get(`/api/projects/${first}/board`)).status()).toBe(401);
+  });
+
+  /*
+   * A lens is one person's screen. An agent works from the board the team
+   * shares, so it never reads one and never writes one — which is also what
+   * keeps a token that got loose from hiding the work from everybody.
+   */
+  test("an agent reads the view's filters and never a person's own", async ({ page, request }) => {
+    await register(page, "Lens Owner");
+    const projectId = await createProject(page, unique("AgentLens"));
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Looker");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Looker" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+    const api = agentApi(request, token);
+
+    await page.goto(`/p/${projectId}`);
+    await addTask(page, "Todo", "Work for a machine");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addFilter(page, "Priority", "Urgent");
+
+    // The person's board is narrowed. The agent's is not.
+    const before = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    for (const view of before.views) {
+      expect(view.filters.rules).toEqual([]);
+      expect(view.lens.rules).toEqual([]);
+    }
+
+    const viewId = before.views[0].id;
+    expect((await api.put(`/api/views/${viewId}/lens`, { filters: { rules: [] } })).status()).toBe(
+      403,
+    );
+    expect((await api.post(`/api/views/${viewId}/lens/promote`)).status()).toBe(403);
+
+    // Once a person puts the rules on the view, they are the board's own.
+    await putFilterOnView(page);
+    const after = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const view = after.views.find((v: { id: string }) => v.id === viewId);
+    expect(view.filters.rules).toHaveLength(1);
+    expect(view.lens.rules).toEqual([]);
   });
 
   test("dragging a card an agent holds takes it over", async ({ page, request }) => {

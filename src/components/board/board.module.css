@@ -1645,6 +1645,65 @@ button.listHeadCell:focus-visible {
   color: var(--text-2);
 }
 
+/* Where the view's rules end and mine begin. A hairline, because the two sets
+   do the same thing to the cards and a second chip style would read as two
+   features rather than one line of filters. */
+.filterDivider {
+  width: 1px;
+  height: 14px;
+  margin: 0 3px;
+  background: var(--line-menu);
+}
+
+/* Who can see the rules to the left of it, and the one way to change that. */
+.filterMine {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--t-small);
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+.filterPromote {
+  padding: 0 7px;
+  height: 22px;
+  border-radius: 5px;
+  font-size: var(--t-small);
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-menu);
+}
+
+.filterPromote:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+/* The chip asks its own question where it stands. The board has no dialogs,
+   and a rule of the view goes for everybody who is looking at it. */
+.filterChipAsking {
+  border-color: var(--danger-soft);
+}
+
+.filterChipGo {
+  height: 100%;
+  padding: 0 8px;
+  font-size: var(--t-small);
+  color: var(--danger-text);
+}
+
+.filterChipGo:hover {
+  color: var(--danger);
+}
+
+/* One sentence at two widths. Both are in the page and one is drawn, so the
+   row never has to be measured and nothing moves after it is painted. */
+.narrow {
+  display: none;
+}
+
 /* Nothing passed. The board is not empty, so it must not read as empty. */
 .filterBlank {
   position: absolute;
@@ -1799,5 +1858,38 @@ button.listHeadCell:focus-visible {
 
   .searchPop {
     width: 280px;
+  }
+}
+
+/*
+ * A phone. The chips no longer wrap, because four wrapped lines of them push
+ * the board off the screen; the row scrolls sideways instead and the tail
+ * shortens to match.
+ */
+@media (max-width: 560px) {
+  .filterRow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  /* A scroller clips what hangs out of it, and a chip's panel is a child of
+     the chip. So while a panel is open the row stops scrolling and wraps
+     again: a wrapped row costs a line, a clipped panel cannot be used at all. */
+  .filterRow:has(.filterPop) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .filterRow .filterPop {
+    width: min(234px, calc(100vw - 28px));
+  }
+
+  .wide {
+    display: none;
+  }
+
+  .narrow {
+    display: inline;
   }
 }

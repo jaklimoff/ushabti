@@ -112,8 +112,6 @@ Everything off the board, brought up to the board's standard.
 - **Relative dates in a filter.** A date rule names a day today, so "due this
   week" has to be rewritten every week. A relative window has to read the same
   on the server and in the browser, which a clock in two time zones does not.
-- **A filter that says "me".** A person rule names one member, so a shared view
-  filtered to "my tasks" is one named person's tasks on everybody's screen.
 - **A run history.** A closed run keeps its rows, but nothing shows them. Only the activity line survives on screen.
 - **Bulk edit.** Select several cards, set one property on all of them.
 - **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.

@@ -39,7 +39,7 @@ import {
 } from "@/lib/board";
 import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
-import type { TaskDTO, TaskValue } from "@/lib/types";
+import type { FilterRule, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column, type ComposerPlace } from "./Column";
 import { useShortcut } from "./keys";
@@ -572,7 +572,7 @@ export function BoardCanvas({
 }
 
 function AddColumn() {
-  const { groupProperty, filters, addOption, setFilters } = useBoard();
+  const { groupProperty, viewFilters, lens, addOption, setFilters, setLens } = useBoard();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
@@ -589,14 +589,23 @@ function AddColumn() {
      * A rule about the grouping property decides the columns, so a column made
      * under one would fail it and vanish the moment it was named. Nobody makes
      * a column in order not to see it: the new option joins the rule instead.
+     *
+     * Whichever set the rule is in is the set that is written. A rule of the
+     * view is the team's, so the column joins it for everybody; a rule of mine
+     * is mine, and the view is not touched.
      */
     if (!optionId) return;
-    const rules = filters.rules.map((rule) =>
-      rule.propertyId === groupProperty.id && rule.op === "is"
-        ? { ...rule, values: [...(rule.values ?? []), optionId] }
-        : rule,
-    );
-    if (rules.some((rule, i) => rule !== filters.rules[i])) await setFilters(rules);
+    const join = (rules: FilterRule[]) =>
+      rules.map((rule) =>
+        rule.propertyId === groupProperty.id && rule.op === "is"
+          ? { ...rule, values: [...(rule.values ?? []), optionId] }
+          : rule,
+      );
+
+    const onView = join(viewFilters.rules);
+    if (onView.some((rule, i) => rule !== viewFilters.rules[i])) await setFilters(onView);
+    const mine = join(lens.rules);
+    if (mine.some((rule, i) => rule !== lens.rules[i])) await setLens(mine);
   }
 
   return (

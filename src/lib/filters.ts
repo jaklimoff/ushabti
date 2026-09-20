@@ -235,6 +235,24 @@ function liveKeys(property: PropertyDTO): Set<string> | null {
   return null;
 }
 
+/**
+ * The view's rules and one person's, as the one set that decides their screen.
+ *
+ * A filter narrows and never widens, so the two sets join by being put end to
+ * end: every rule of both has to pass, exactly as two rules of a view do. The
+ * view's come first because they are the ones everybody is looking at, and
+ * because the strip draws them in this order.
+ *
+ * Everything that hides, counts or seeds reads this one answer, so a person's
+ * screen can never disagree with itself. What a person may *remove* is the
+ * only place the two are told apart, and that is the strip's business.
+ */
+export function mergeFilters(viewFilters: ViewFilters, lens: ViewFilters): ViewFilters {
+  if (lens.rules.length === 0) return viewFilters;
+  if (viewFilters.rules.length === 0) return lens;
+  return { rules: [...viewFilters.rules, ...lens.rules] };
+}
+
 /* ------------------------------------------------------------------ */
 /* Using them                                                          */
 /* ------------------------------------------------------------------ */

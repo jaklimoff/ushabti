@@ -22,6 +22,7 @@ import {
   type PropertyType,
   type ViewSort,
 } from "@/lib/types";
+import { useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
@@ -340,7 +341,11 @@ function Ask({
  * and not before, so nobody else on the board sees a half-made question.
  */
 export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
-  const { data, filters, setFilters } = useBoard();
+  /* A rule somebody adds here is their own. The view's rules are the team's
+     answer to what this board is about, and a member narrowing their screen
+     must not re-answer it for everybody. The way onto the view is one press in
+     the strip, and it is named. */
+  const { data, filters, lens, setLens } = useBoard();
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
@@ -363,11 +368,13 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
 
   const ref = useDismiss<HTMLDivElement>(close, open);
 
+  // Every rule that hides a card on this screen, the view's and mine alike:
+  // the pill says what the board is doing, not who asked for it.
   const count = filters.rules.length;
   // The property may have been deleted by somebody else while the panel is
   // open, in which case there is nothing left to ask about.
   const picked = pickedId ? (data.properties.find((p) => p.id === pickedId) ?? null) : null;
-  const rule = picked ? ((slot !== null ? filters.rules[slot] : null) ?? draft) : null;
+  const rule = picked ? ((slot !== null ? lens.rules[slot] : null) ?? draft) : null;
 
   const summary = useMemo(() => {
     const map = new Map<string, string>();
@@ -398,29 +405,29 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
      * picking it again opens the rule that is already there. A date is left
      * alone: "after March" and "before June" are two rules on purpose.
      */
-    const found = filters.rules.findIndex((r) => r.propertyId === property.id && isSetOp(r.op));
+    const found = lens.rules.findIndex((r) => r.propertyId === property.id && isSetOp(r.op));
     setSlot(found >= 0 ? found : null);
-    setDraft(found >= 0 ? filters.rules[found] : emptyRule(property));
+    setDraft(found >= 0 ? lens.rules[found] : emptyRule(property));
     setPickedId(property.id);
     setQuery("");
     setAt(0);
   }
 
-  /* The one place a rule arrives, changes or goes. */
+  /* The one place a rule arrives, changes or goes. It lands in my lens. */
   function change(next: FilterRule) {
     setDraft(next);
     if (hasAnswer(next)) {
       if (slot === null) {
-        setSlot(filters.rules.length);
-        void setFilters([...filters.rules, next]);
+        setSlot(lens.rules.length);
+        void setLens([...lens.rules, next]);
       } else {
-        void setFilters(filters.rules.map((r, i) => (i === slot ? next : r)));
+        void setLens(lens.rules.map((r, i) => (i === slot ? next : r)));
       }
       return;
     }
     // The answer was taken back, so the rule goes with it.
     if (slot !== null) {
-      void setFilters(filters.rules.filter((_, i) => i !== slot));
+      void setLens(lens.rules.filter((_, i) => i !== slot));
       setSlot(null);
     }
   }
@@ -507,19 +514,41 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
 /* ------------------------------------------------------------------ */
 
 /**
- * A filtered board says so on its own line, and the line is the control. It
- * exists while the view has a rule, and also while the panel is open, so the
- * first answer does not push the board down a line under an open panel.
+ * A filtered board says so on its own line, and the line is the control.
+ *
+ * Two sets of chips sit on it: the view's, which everybody on the board sees,
+ * and mine, which nobody else does. They read the same and sit in the same
+ * order the board reads them in — the view's first, then mine — because they
+ * do the same thing to the cards. Only a thin divider and the tail say which
+ * is which, and a second chip style would make them look like two features.
+ *
+ * The line exists while any rule hides a card, and also while the panel is
+ * open, so the first answer does not push the board down a line under an open
+ * panel.
  */
 export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
-  const { data, view, filters, sort, setSort, cardItems, setFilters } = useBoard();
+  const {
+    data,
+    view,
+    filters,
+    viewFilters,
+    lens,
+    sort,
+    setSort,
+    cardItems,
+    setFilters,
+    setLens,
+    promoteLens,
+  } = useBoard();
   /* A sort belongs to a list. A board keeps one it was given and never reads
      it, so it must not draw a chip for an order it is not in. */
   const shownSort = view?.kind === "list" ? sort : null;
   if (filters.rules.length === 0 && !shownSort && !panelOpen) return null;
 
-  function write(rules: FilterRule[]) {
-    void setFilters(rules);
+  /** One rule of a set, changed or taken out. Both sets go the same way. */
+  function edited(rules: FilterRule[], at: number, next: FilterRule | null): FilterRule[] {
+    if (!next || !hasAnswer(next)) return rules.filter((_, i) => i !== at);
+    return rules.map((r, i) => (i === at ? next : r));
   }
 
   return (
@@ -527,30 +556,71 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
       {shownSort && (
         <SortChip sort={shownSort} items={cardItems} onClear={() => void setSort(null)} />
       )}
-      {filters.rules.map((rule, i) => {
+
+      {viewFilters.rules.map((rule, i) => {
         const property = data.properties.find((p) => p.id === rule.propertyId);
         if (!property) return null;
         return (
           <Chip
-            key={`${rule.propertyId}-${i}`}
+            key={`view-${rule.propertyId}-${i}`}
             rule={rule}
             property={property}
             members={data.members}
-            onChange={(next) =>
-              write(
-                hasAnswer(next)
-                  ? filters.rules.map((r, at) => (at === i ? next : r))
-                  : filters.rules.filter((_, at) => at !== i),
-              )
-            }
-            onRemove={() => write(filters.rules.filter((_, at) => at !== i))}
+            shared
+            onChange={(next) => void setFilters(edited(viewFilters.rules, i, next))}
+            onRemove={() => void setFilters(edited(viewFilters.rules, i, null))}
           />
         );
       })}
-      {filters.rules.length > 0 && (
-        <button className={styles.filterClear} data-testid="filter-clear" onClick={() => write([])}>
-          Clear
-        </button>
+
+      {/* Only where the two meet. One set on its own needs nothing said. */}
+      {viewFilters.rules.length > 0 && lens.rules.length > 0 && (
+        <span className={styles.filterDivider} data-testid="filter-divider" aria-hidden />
+      )}
+
+      {lens.rules.map((rule, i) => {
+        const property = data.properties.find((p) => p.id === rule.propertyId);
+        if (!property) return null;
+        return (
+          <Chip
+            key={`mine-${rule.propertyId}-${i}`}
+            rule={rule}
+            property={property}
+            members={data.members}
+            onChange={(next) => void setLens(edited(lens.rules, i, next))}
+            onRemove={() => void setLens(edited(lens.rules, i, null))}
+          />
+        );
+      })}
+
+      {lens.rules.length > 0 && (
+        <>
+          {/* Mine only. The view's rules are the team's and go one at a time,
+              through the question their own ✕ asks. */}
+          <button
+            className={styles.filterClear}
+            data-testid="filter-clear"
+            title="Remove the filters you added"
+            onClick={() => void setLens([])}
+          >
+            Clear
+          </button>
+          <span className={styles.filterMine} data-testid="filter-mine">
+            {/* The same sentence twice, because a phone has no room for the
+                long one and the row must not wrap or clip. */}
+            <span className={styles.wide}>· Only you see this —</span>
+            <span className={styles.narrow}>Only you ·</span>
+            <button
+              className={styles.filterPromote}
+              data-testid="filter-promote"
+              title="Everybody on this board will see these filters"
+              onClick={() => void promoteLens()}
+            >
+              <span className={styles.wide}>Put on the view</span>
+              <span className={styles.narrow}>Put on view</span>
+            </button>
+          </span>
+        </>
       )}
     </div>
   );
@@ -593,22 +663,60 @@ function SortChip({
   );
 }
 
+/**
+ * One rule, and the two ways it can go.
+ *
+ * `shared` says the rule is the view's, so taking it away takes it away from
+ * everybody who is looking at this board. The board has no dialogs, so the
+ * chip becomes the question where it stands, exactly as a settings row does,
+ * and it names who pays: "Remove for everyone?". Escape or a click elsewhere
+ * puts the chip back.
+ */
 function Chip({
   rule,
   property,
   members,
+  shared = false,
   onChange,
   onRemove,
 }: {
   rule: FilterRule;
   property: PropertyDTO;
   members: MemberDTO[];
+  shared?: boolean;
   onChange: (rule: FilterRule) => void;
   onRemove: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
+  const asking = useConfirm();
   const said = describeRule(rule, property, members);
+  const ref = useDismiss<HTMLDivElement>(() => {
+    setOpen(false);
+    asking.cancel();
+  }, open || asking.asking);
+
+  if (asking.asking) {
+    return (
+      <div className={styles.filterAnchor} ref={ref}>
+        <span
+          className={`${styles.filterChip} ${styles.filterChipAsking}`}
+          role="alertdialog"
+          aria-label={`Remove the filter ${said} for everyone?`}
+          data-testid="filter-chip-question"
+        >
+          <span className={styles.filterChipBody}>Remove for everyone?</span>
+          <button
+            className={styles.filterChipGo}
+            autoFocus
+            data-testid="filter-chip-remove"
+            onClick={() => asking.confirm(onRemove)}
+          >
+            Remove
+          </button>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.filterAnchor} ref={ref}>
@@ -616,6 +724,7 @@ function Chip({
         <button
           className={styles.filterChipBody}
           data-testid="filter-chip"
+          data-shared={shared ? "true" : undefined}
           aria-expanded={open}
           title="Change this filter"
           onClick={() => setOpen((v) => !v)}
@@ -624,9 +733,11 @@ function Chip({
         </button>
         <button
           className={styles.filterChipX}
-          aria-label={`Remove the filter ${said}`}
-          title="Remove"
-          onClick={onRemove}
+          aria-label={
+            shared ? `Remove the filter ${said} for everyone` : `Remove the filter ${said}`
+          }
+          title={shared ? "Remove for everyone" : "Remove"}
+          onClick={() => (shared ? asking.ask() : onRemove())}
         >
           ✕
         </button>

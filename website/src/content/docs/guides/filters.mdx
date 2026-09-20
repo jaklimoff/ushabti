@@ -7,8 +7,11 @@ sidebar:
 
 import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
 
-A filter belongs to a view and shows only some of its tasks. It saves the instant a rule has an
-answer, like everything else here.
+A filter shows only some of a view's tasks. It saves the instant a rule has an answer, like
+everything else here.
+
+A rule you add is **yours**: it narrows your screen and nobody else's. A view may also carry rules of
+its own, which everybody sees. See [Yours and the view's](#yours-and-the-views).
 
 Three decisions make Ushabti's filters behave differently from the ones you are used to. They are
 worth reading before the mechanics.
@@ -96,7 +99,42 @@ A row under the view strip, one button per rule:
 - `Labels is bug, feature +2` — more than two collapses
 - `Estimate is over 3` · `Due is before 2026-09-01` · `Title contains login`
 
-Click a chip to reopen that rule; its ✕ removes it. **Clear** at the end of the row removes them all.
+Click a chip to reopen that rule; its ✕ removes it. **Clear** at the end of the row removes the ones
+you added.
+
+## Yours and the view's
+
+The board shows the view's rules, plus yours. Nothing else: there is no "mine differs from the
+view's" state and no Reset.
+
+A rule you add through the Filter pill is **yours**. It is saved against you and that view, so it
+survives a reload and follows you to another browser — and nobody else's board moves.
+
+The row reads left to right in the order the rules are applied:
+
+```
+[Labels is bug ✕] │ [Assignee is Jack ✕] Clear · Only you see this — Put on the view
+```
+
+- Left of the divider: the **view's** rules, which everybody sees.
+- Right of it: **yours**. `✕` takes one away; **Clear** takes them all away and never touches the
+  view's.
+- **Put on the view** copies your rules onto the view, for everybody, and empties yours. Any member
+  may press it, and the other people's boards narrow within a second.
+- `✕` on one of the view's chips asks first, in the chip itself: **Remove for everyone? Remove**.
+  Escape or a click elsewhere puts the chip back.
+
+The **Filter** pill counts every rule hiding cards on your screen, whoever added it.
+
+<Aside type="note" title="You cannot see past a view's rule">
+Your rules only ever **narrow** what the view already shows. A view filtered to `Labels is bug` shows
+you bugs, and nothing you add will bring the rest back. That is what the rules on a view are for —
+and if a view is hiding work you need, make another view, or make it the [main
+view](/ushabti/guides/views/).
+</Aside>
+
+On a phone the row scrolls sideways rather than wrapping, and the tail shortens to
+`Only you · Put on view`.
 
 ## When a filter names the grouping property
 
@@ -137,8 +175,9 @@ away on the spot — a rule whose property is gone, an operator that is not allo
 value that is no longer a live option. A rule left with no answer goes with it.
 
 That reading happens in two places that have to agree: on the server when a board is read, and again
-on every write to the view. So the chips you see and the cards that are hidden always come from the
-same reading. **A rule nobody can see must never keep hiding cards.**
+on every write. So the chips you see and the cards that are hidden always come from the same reading,
+and both sets of rules — the view's and yours — go through it. **A rule nobody can see must never
+keep hiding cards.**
 
 <Aside type="note" title="One exception, deliberately">
 A `person` rule naming somebody who has left the project **survives**. Asking about the tasks they
@@ -147,8 +186,10 @@ left behind is still a fair question, and the answer is still useful.
 
 ## Who may set one
 
-Any person in the project. **An agent may not** <Badge text="human only" variant="caution" size="small" /> —
-a token that could write filters could hide work from the people.
+Any person in the project, for their own screen and for the view alike. **An agent may not**
+<Badge text="human only" variant="caution" size="small" /> — a token that could write filters could
+hide work from the people. An agent has no rules of its own either: it reads the view's filters and
+never anybody's personal ones.
 
 <LinkCard
   title="Search"

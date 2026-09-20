@@ -10,6 +10,19 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A filter you add is yours; one press puts it on the view.** A rule you add
+  through the Filter pill narrows your screen and nobody else's. It is saved
+  against you and that view, so it survives a reload and follows you to another
+  browser. A view may still carry rules of its own, which everybody sees; the
+  board shows those plus yours, and yours only ever narrow further. The chip row
+  says which is which: the view's chips, a thin divider, then yours, **Clear**,
+  and a muted tail — _Only you see this — Put on the view_. **Put on the view**
+  copies your rules onto the view for the whole team in one write, and any
+  member may press it. Removing one of the view's chips asks in the chip itself
+  first: _Remove for everyone?_ On a phone the row scrolls sideways and the tail
+  shortens. An agent has no rules of its own and reads only the view's, which is
+  what the team shares. This answers the fault where a member who filtered to
+  their own name re-filtered the board for everybody, live.
 - **A task can be archived, and put back.** _Archive task_ in the task panel
   takes a card off every board and every list and keeps everything on it: the
   values, the checklist, the comments, the history and the link. The panel then

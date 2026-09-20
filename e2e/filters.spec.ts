@@ -5,6 +5,7 @@ import {
   card,
   column,
   createProject,
+  putFilterOnView,
   register,
   saved,
   settles,
@@ -128,7 +129,8 @@ test.describe("Filters inside a view", () => {
     await page.getByRole("button", { name: /^Board/ }).click();
     await expect(chip(page, "Priority is Urgent")).toBeVisible();
 
-    // It is on the view, not in this tab, so a reload finds it again.
+    // It is saved against this person and this view, not held in this tab, so
+    // a reload finds it again.
     await page.goto(`/p/${projectId}`);
     await expect(chip(page, "Priority is Urgent")).toBeVisible();
     await expect(card(page, "Only task")).toHaveCount(0);
@@ -288,5 +290,157 @@ test.describe("Filters inside a view", () => {
     await page.goto(`/p/${projectId}`);
     await expect(page.getByTestId("filter-row")).toHaveCount(0);
     await expect(card(page, "Only task")).toBeVisible();
+  });
+
+  /* ---------------------------------------------------------------- */
+  /* Yours, and the view's                                             */
+  /* ---------------------------------------------------------------- */
+
+  test("a rule I add says it is mine, and one press makes it the view's", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Mine"));
+
+    await addTask(page, "Todo", "Urgent thing");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await addFilter(page, "Priority", "Urgent");
+
+    // The row says who can see it, and offers the one way to change that.
+    await expect(page.getByTestId("filter-mine")).toBeVisible();
+    await expect(page.getByText("Only you see this")).toBeVisible();
+    // Nothing is on the view yet, so there is no divider to draw.
+    await expect(page.getByTestId("filter-divider")).toHaveCount(0);
+
+    await putFilterOnView(page);
+
+    // The rule is the view's now: the same chip, and nothing left that is mine.
+    await expect(chip(page, "Priority is Urgent")).toBeVisible();
+    await expect(page.getByTestId("filter-mine")).toHaveCount(0);
+    await expect(page.getByTestId("filter-clear")).toHaveCount(0);
+    await expect(page.getByTestId("filter-button")).toContainText("Filter 1");
+
+    // And it stays the view's over a reload.
+    await page.goto(`/p/${projectId}`);
+    await expect(chip(page, "Priority is Urgent")).toBeVisible();
+    await expect(page.getByTestId("filter-mine")).toHaveCount(0);
+  });
+
+  test("the view's chips come first, then a divider, then mine", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("BothSets"));
+
+    await addTask(page, "Todo", "Urgent thing");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    // One rule on the view, for everybody.
+    await addFilter(page, "Priority", "Urgent");
+    await putFilterOnView(page);
+
+    // One rule of my own on top of it.
+    await addFilter(page, "Status", "Todo");
+    await expect(page.getByTestId("filter-divider")).toBeVisible();
+    await expect(page.getByTestId("filter-chip")).toHaveCount(2);
+
+    // The view's first, mine after, because that is the order they are read in.
+    const said = await page.getByTestId("filter-chip").allInnerTexts();
+    expect(said.map((t) => t.trim())).toEqual(["Priority is Urgent", "Status is Todo"]);
+
+    // Clear takes away mine and leaves the view's where it is.
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+      page.getByTestId("filter-clear").click(),
+    );
+    await expect(page.getByTestId("filter-chip")).toHaveCount(1);
+    await expect(chip(page, "Priority is Urgent")).toBeVisible();
+    await expect(page.getByTestId("filter-divider")).toHaveCount(0);
+  });
+
+  test("removing a rule of the view asks in the chip first", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("AskingFirst"));
+
+    await addTask(page, "Todo", "Urgent thing");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await addFilter(page, "Priority", "Urgent");
+    await putFilterOnView(page);
+
+    const cross = page.getByRole("button", {
+      name: "Remove the filter Priority is Urgent for everyone",
+    });
+
+    // The board has no dialogs: the chip becomes the question where it stands.
+    await cross.click();
+    await expect(page.getByText("Remove for everyone?")).toBeVisible();
+
+    // Escape puts the chip back, and the rule is still on the view.
+    await page.keyboard.press("Escape");
+    await expect(page.getByText("Remove for everyone?")).toHaveCount(0);
+    await expect(chip(page, "Priority is Urgent")).toBeVisible();
+
+    await cross.click();
+    await settles(page, /\/api\/views\/[0-9a-f-]+$/, () =>
+      page.getByTestId("filter-chip-remove").click(),
+    );
+    await expect(page.getByTestId("filter-row")).toHaveCount(0);
+  });
+
+  test("a task added under both sets is seeded for both", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("SeedBoth"));
+
+    await addTask(page, "Todo", "First task");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await addFilter(page, "Priority", "Urgent");
+    await putFilterOnView(page);
+    await addFilter(page, "Labels", "bug");
+
+    // The composer names both, or the card is written and hidden at once.
+    await page.getByRole("button", { name: "Add a task to the top of Todo" }).first().click();
+    await expect(page.getByText("sets Priority Urgent, Labels bug")).toBeVisible();
+
+    const box = page.getByPlaceholder("What needs doing?");
+    await box.fill("Second task");
+    await box.press("Enter");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    // The new card passes both sets. The first one never had a label, so my
+    // own rule is hiding it — which is the rule doing its job.
+    await expect(card(page, "Second task")).toBeVisible();
+    await expect(card(page, "First task")).toHaveCount(0);
+    await expect(page.getByTestId("task-count")).toHaveText("1 of 2 tasks");
+  });
+});
+
+/* On a phone the row has no room to wrap, so it scrolls sideways and the tail
+   shortens. Nothing about the rules changes with the width. */
+test.describe("Filters on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 } });
+
+  test("the chips scroll sideways and the tail is short", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Phone"));
+
+    await addTask(page, "Todo", "Urgent thing");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await addFilter(page, "Priority", "Urgent");
+
+    await expect(page.getByText("Only you ·")).toBeVisible();
+    await expect(page.getByText("Put on view")).toBeVisible();
+    await expect(page.getByText("Only you see this")).toBeHidden();
+
+    // One line of chips, however many there are: the row scrolls instead.
+    const row = page.getByTestId("filter-row");
+    const height = await row.evaluate((el) => el.clientHeight);
+    await addFilter(page, "Status", "Todo");
+    await addFilter(page, "Labels", "bug");
+    expect(await row.evaluate((el) => el.clientHeight)).toBe(height);
+    expect(await row.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   });
 });
