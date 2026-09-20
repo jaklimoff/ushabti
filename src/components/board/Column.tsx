@@ -48,12 +48,16 @@ function SortableTask({
   );
 }
 
+export type ComposerPlace = "top" | "bottom";
+
 export function Column({
   column,
   selectedTaskId,
   cursorTaskId,
   draggable,
   addNote,
+  composing,
+  onCompose,
   onOpenTask,
   onAddTask,
 }: {
@@ -63,10 +67,13 @@ export function Column({
   draggable: boolean;
   /** What the filter will put on the new task, or "" when it puts nothing. */
   addNote: string;
+  /** Where the composer is open in this column, if it is. The board holds it,
+      so that a key pressed on the board can open it too. */
+  composing: ComposerPlace | null;
+  onCompose: (place: ComposerPlace | null) => void;
   onOpenTask: (task: TaskDTO) => void;
   onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
 }) {
-  const [composing, setComposing] = useState<"top" | "bottom" | null>(null);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -89,7 +96,7 @@ export function Column({
     const title = draft.trim();
     if (title) onAddTask(column, title, composing === "top");
     setDraft("");
-    setComposing(null);
+    onCompose(null);
   }
 
   const className = [
@@ -146,7 +153,7 @@ export function Column({
           aria-label={`Add a task to the top of ${column.name}`}
           title="Add a task to the top of this column"
           onClick={() => {
-            setComposing("top");
+            onCompose("top");
             setDraft("");
           }}
         >
@@ -162,7 +169,7 @@ export function Column({
             setDraft={setDraft}
             note={addNote}
             commit={commit}
-            cancel={() => setComposing(null)}
+            cancel={() => onCompose(null)}
           />
         )}
 
@@ -189,7 +196,7 @@ export function Column({
             setDraft={setDraft}
             note={addNote}
             commit={commit}
-            cancel={() => setComposing(null)}
+            cancel={() => onCompose(null)}
           />
         )}
 
@@ -197,7 +204,7 @@ export function Column({
           <button
             className={styles.emptyDrop}
             onClick={() => {
-              setComposing("bottom");
+              onCompose("bottom");
               setDraft("");
             }}
             title="Add a task"

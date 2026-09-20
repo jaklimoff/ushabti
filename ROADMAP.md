@@ -102,11 +102,9 @@ Everything off the board, brought up to the board's standard.
    heading to press. What a board would need is a control of its own beside the
    filter, and an answer to what a drag means inside a sorted column — the list
    answers it by holding still, and a board would have to do the same.
-2. **Keyboard shortcuts.** `n` for a new task. `/` for search, the arrow keys
-   between cards and `Esc` to close are done.
-3. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
-4. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
-5. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
+2. **Archive instead of delete.** A deleted task is gone for good today. Archive keeps it out of the board but keeps the history.
+3. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
+4. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
 
 ## Later
 

@@ -39,7 +39,8 @@ import {
 import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
 import type { TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
-import { COLUMN_PREFIX, CONTAINER_PREFIX, Column } from "./Column";
+import { COLUMN_PREFIX, CONTAINER_PREFIX, Column, type ComposerPlace } from "./Column";
+import { useShortcut } from "./keys";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
 
@@ -208,6 +209,11 @@ export function BoardCanvas({
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [preview, setPreview] = useState<BoardColumn[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
+  /* One composer at a time. The board holds it rather than each column, so
+     `n` can open it in the column the cursor is in. */
+  const [composing, setComposing] = useState<{ columnId: string; place: ComposerPlace } | null>(
+    null,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // The filters of the view are already off `visibleTasks`, so every part of
@@ -426,6 +432,14 @@ export function BoardCanvas({
     if (task) onOpenTask(task);
   }
 
+  /* `n` makes a task where the cursor is: the top of its column, which is
+     where the header's own button puts one. With no cursor, the first column. */
+  useShortcut("n", () => {
+    if (activeTaskId || activeColumnId) return;
+    const column = columns.find((c) => c.tasks.some((t) => t.id === cursorTaskId)) ?? columns[0];
+    if (column) setComposing({ columnId: column.id, place: "top" });
+  });
+
   /* Focus and the cursor are the same thing, so a click or a Tab onto a card
      moves the cursor with it. */
   function onCardFocus(event: React.FocusEvent<HTMLDivElement>) {
@@ -491,6 +505,8 @@ export function BoardCanvas({
                 selectedTaskId={selectedTaskId}
                 cursorTaskId={cursorTaskId}
                 draggable={columnsDraggable && !column.isNone}
+                composing={composing?.columnId === column.id ? composing.place : null}
+                onCompose={(place) => setComposing(place ? { columnId: column.id, place } : null)}
                 onOpenTask={onOpenTask}
                 onAddTask={addTask}
               />

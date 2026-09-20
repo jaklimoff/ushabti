@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **`n` makes a new task.** On a board it opens the composer at the top of the
+  column the cursor is in, or the first column; on a list, at the end. It stays
+  out of a field you are typing in and out of the task panel.
 - **An agent can wait for work.** `board.mjs watch` holds the board's stream
   open and starts a harness session — Claude Code, Codex, pi, OpenCode, any
   command that takes a prompt and exits — when a task is assigned to the agent,

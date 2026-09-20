@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { searchTasks, type SearchHit } from "@/lib/search";
 import type { TaskDTO } from "@/lib/types";
 import { useDismiss } from "@/components/ui/useDismiss";
-import { isTyping } from "./keys";
+import { useShortcut } from "./keys";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 
@@ -34,20 +34,12 @@ export function Search({ onOpenTask }: { onOpenTask: (task: TaskDTO) => void }) 
      owes the person a word about the ones the board behind it is not showing. */
   const shown = useMemo(() => new Set(visibleTasks.map((t) => t.id)), [visibleTasks]);
 
-  /* `/` is the way in from anywhere on the board. It is a printable character,
-     so it belongs to whatever field has the focus first. */
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isTyping(event.target)) return;
-      event.preventDefault();
-      boxRef.current?.focus();
-      boxRef.current?.select();
-      setOpen(true);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  /* `/` is the way in from anywhere on the board. */
+  useShortcut("/", () => {
+    boxRef.current?.focus();
+    boxRef.current?.select();
+    setOpen(true);
+  });
 
   /* A hit can go: somebody else deletes the task, or the words change under a
      highlight that was near the bottom of a longer list. */
