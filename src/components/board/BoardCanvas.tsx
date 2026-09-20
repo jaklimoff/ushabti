@@ -27,16 +27,18 @@ import {
   horizontalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   buildColumns,
   cursorTarget,
   firstTask,
+  isReachable,
   sortByPosition,
   type BoardColumn,
   type CursorStep,
 } from "@/lib/board";
 import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
+import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import type { TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column, type ComposerPlace } from "./Column";
@@ -195,6 +197,7 @@ export function BoardCanvas({
 }) {
   const {
     data,
+    view,
     groupProperty,
     filters,
     visibleTasks,
@@ -215,6 +218,16 @@ export function BoardCanvas({
     null,
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+  const viewId = view?.id ?? "";
+
+  /* The columns this browser has folded, for the view on screen. A fold is one
+     person's answer to their own screen, so it lives in their browser and
+     never in the project — nobody else's board moves. */
+  const folded = useSyncExternalStore(subscribeFolded, () => foldedOf(viewId), noFolds);
+
+  function fold(columnId: string, on: boolean) {
+    writeFolded(viewId, setFolded(folded, columnId, on));
+  }
 
   // The filters of the view are already off `visibleTasks`, so every part of
   // the board below this line — the columns, the drag preview, the cursor —
@@ -229,7 +242,11 @@ export function BoardCanvas({
     [visibleTasks, data.members, filters, groupProperty],
   );
 
-  const columns = preview ?? base;
+  const columns = useMemo(() => {
+    const list = preview ?? base;
+    if (!folded.length) return list;
+    return list.map((c) => (folded.includes(c.id) ? { ...c, folded: true } : c));
+  }, [preview, base, folded]);
 
   /*
    * A column may not be dragged while a rule hides some of its neighbours. The
@@ -246,10 +263,7 @@ export function BoardCanvas({
      the arrows do the walking. A cursor whose card left the board falls back to
      the first card, so the board is never a dead end. */
   const cursorTaskId = useMemo(
-    () =>
-      cursor && columns.some((c) => c.tasks.some((t) => t.id === cursor))
-        ? cursor
-        : firstTask(columns),
+    () => (cursor && isReachable(columns, cursor) ? cursor : firstTask(columns)),
     [columns, cursor],
   );
 
@@ -436,7 +450,9 @@ export function BoardCanvas({
      where the header's own button puts one. With no cursor, the first column. */
   useShortcut("n", () => {
     if (activeTaskId || activeColumnId) return;
-    const column = columns.find((c) => c.tasks.some((t) => t.id === cursorTaskId)) ?? columns[0];
+    const column =
+      columns.find((c) => c.tasks.some((t) => t.id === cursorTaskId)) ??
+      columns.find((c) => !c.folded);
     if (column) setComposing({ columnId: column.id, place: "top" });
   });
 
@@ -504,11 +520,12 @@ export function BoardCanvas({
                 addNote={addNote}
                 selectedTaskId={selectedTaskId}
                 cursorTaskId={cursorTaskId}
-                draggable={columnsDraggable && !column.isNone}
+                draggable={columnsDraggable && !column.isNone && !column.folded}
                 composing={composing?.columnId === column.id ? composing.place : null}
                 onCompose={(place) => setComposing(place ? { columnId: column.id, place } : null)}
                 onOpenTask={onOpenTask}
                 onAddTask={addTask}
+                onFold={(on) => fold(column.id, on)}
               />
             ))}
           </SortableContext>

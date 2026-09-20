@@ -5,6 +5,7 @@ import {
   cursorTarget,
   clampPanelWidth,
   firstTask,
+  isReachable,
   NO_VALUE,
   PANEL_MIN_WIDTH,
   taskByAddress,
@@ -149,6 +150,35 @@ describe("board cursor", () => {
     const columns = board(["a"], [], ["b"]);
     expect(cursorTarget(columns, "a", "right")).toBe("b");
     expect(cursorTarget(columns, "b", "left")).toBe("a");
+  });
+
+  /*
+   * A folded column draws no cards, so the cursor has nothing to land on there
+   * and steps over it exactly as it steps over an empty one. One walker, one
+   * answer: a second rule for folding would be a second way to be wrong.
+   */
+  it("steps over a folded column", () => {
+    const columns = board(["a"], ["x", "y"], ["b"]);
+    columns[1].folded = true;
+    expect(cursorTarget(columns, "a", "right")).toBe("b");
+    expect(cursorTarget(columns, "b", "left")).toBe("a");
+  });
+
+  it("puts the cursor back on the board when its card is folded away", () => {
+    const columns = board(["a", "b"], ["x"]);
+    columns[0].folded = true;
+    expect(isReachable(columns, "a")).toBe(false);
+    expect(isReachable(columns, "x")).toBe(true);
+    /* The card is still in that column, but no key can reach it any more. */
+    expect(cursorTarget(columns, "a", "down")).toBe("x");
+    expect(firstTask(columns)).toBe("x");
+  });
+
+  it("has nowhere to go when every column is folded", () => {
+    const columns = board(["a"], ["b"]);
+    for (const column of columns) column.folded = true;
+    expect(firstTask(columns)).toBeNull();
+    expect(cursorTarget(columns, "a", "right")).toBeNull();
   });
 
   it("stops at the side of the board", () => {

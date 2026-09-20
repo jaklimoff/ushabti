@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A column can be folded to a strip.** The **«** in a column header turns it
+  into a narrow strip that still shows its name and its count; pressing the
+  strip opens it again. A card dragged onto a strip lands at the end of that
+  column, and the arrow keys step over it as they step over an empty one. The
+  fold is kept in your browser, per view, so it survives a reload and changes
+  nothing for anybody else.
 - **The owner can invite a person who has no account yet.** Adding an unknown
   email in Settings → People remembers it as an invite; the person joins the
   project the moment they sign up with it, through a closed board too. The row

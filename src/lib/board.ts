@@ -10,8 +10,24 @@ export type BoardColumn = {
   /** The value written to the group property when a card lands here. */
   value: TaskValue;
   isNone: boolean;
+  /** Folded to a strip in this browser. Nobody else's board knows. */
+  folded?: boolean;
   tasks: TaskDTO[];
 };
+
+/**
+ * The cards the cursor can reach in a column. A folded column draws none, so
+ * it holds none as far as a key is concerned — the same answer an empty column
+ * already gives, which is why the walk below needs no second rule for it.
+ */
+function reachable(column: BoardColumn): TaskDTO[] {
+  return column.folded ? [] : column.tasks;
+}
+
+/** Whether the cursor can sit on this card. */
+export function isReachable(columns: BoardColumn[], taskId: string | null): boolean {
+  return columns.some((c) => reachable(c).some((t) => t.id === taskId));
+}
 
 /** The value of the group property, turned into a column id. */
 export function columnIdForTask(task: TaskDTO, property: PropertyDTO | null): string {
@@ -115,7 +131,8 @@ export type CursorStep = "up" | "down" | "left" | "right" | "first" | "last";
 /** The card the cursor starts on: the top of the first column that has one. */
 export function firstTask(columns: BoardColumn[]): string | null {
   for (const column of columns) {
-    if (column.tasks.length) return column.tasks[0].id;
+    const tasks = reachable(column);
+    if (tasks.length) return tasks[0].id;
   }
   return null;
 }
@@ -123,18 +140,19 @@ export function firstTask(columns: BoardColumn[]): string | null {
 /**
  * The card the cursor lands on, or null when there is nowhere to go. Sideways
  * it holds the row and steps over a column with no cards, because an empty
- * column has nothing to put the cursor on. Nothing wraps: the board is a map,
- * and a map has edges.
+ * column has nothing to put the cursor on. A folded column is stepped over for
+ * the same reason: it draws no cards, so there is nothing there to reach.
+ * Nothing wraps: the board is a map, and a map has edges.
  */
 export function cursorTarget(
   columns: BoardColumn[],
   taskId: string | null,
   step: CursorStep,
 ): string | null {
-  const at = columns.findIndex((c) => c.tasks.some((t) => t.id === taskId));
+  const at = columns.findIndex((c) => reachable(c).some((t) => t.id === taskId));
   if (at < 0) return firstTask(columns);
 
-  const tasks = columns[at].tasks;
+  const tasks = reachable(columns[at]);
   const row = tasks.findIndex((t) => t.id === taskId);
 
   switch (step) {
@@ -149,7 +167,7 @@ export function cursorTarget(
     default: {
       const way = step === "left" ? -1 : 1;
       for (let i = at + way; i >= 0 && i < columns.length; i += way) {
-        const beside = columns[i].tasks;
+        const beside = reachable(columns[i]);
         if (beside.length) return beside[Math.min(row, beside.length - 1)].id;
       }
       return null;
