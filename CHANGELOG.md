@@ -98,6 +98,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A rule of yours can no longer contradict the view's.** Picking a property
+  the view already filters used to start a second, blank rule beside it:
+  answering it emptied the board with two chips that fought each other and
+  nothing that said why, and **Put on the view** then handed both to the team.
+  The panel now says it where you pick the property — _The view already filters
+  Priority. Remove it for everyone first_ — and writes nothing. **Put on the
+  view** says the same and keeps your rules where they are. The way out is the
+  ✕ on the view's own chip, which asks for everybody first.
 - **A pause completes.** `board.mjs pause` reports that the agent stopped,
   waits, and reports that it runs again when a person presses Resume. The
   shipped client could not send the status that clears a pause, so the panel

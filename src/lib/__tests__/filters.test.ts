@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   allowedColumns,
   applyFilters,
+  asksAbout,
+  clashOf,
+  clashSaid,
   describeRule,
   hasAnswer,
   matches,
@@ -671,5 +674,55 @@ describe("a view's rules and one person's", () => {
 
     const other = mergeFilters(readFilters(saved, properties), readFilters(alive, properties));
     expect(other.rules).toEqual([{ propertyId: labels.id, op: "is", values: ["o-bug"] }]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Two rules about one property                                        */
+/* ------------------------------------------------------------------ */
+
+describe("a rule of mine about a property the view already filters", () => {
+  const ofView: FilterRule = { propertyId: status.id, op: "is", values: ["o-todo"] };
+
+  it("says when a set already asks about a property", () => {
+    expect(asksAbout({ rules: [ofView] }, status.id)).toBe(true);
+    expect(asksAbout({ rules: [ofView] }, labels.id)).toBe(false);
+    expect(asksAbout({ rules: [] }, status.id)).toBe(false);
+  });
+
+  /* The trap the guard exists for: two chips, an empty board, no reason. */
+  it("names the property both sets speak about", () => {
+    const mine: FilterRule = { propertyId: status.id, op: "is", values: ["o-done"] };
+    expect(clashOf({ rules: [ofView] }, { rules: [mine] }, properties)).toBe(status);
+  });
+
+  it("finds nothing when the two sets speak about different properties", () => {
+    const mine: FilterRule = { propertyId: labels.id, op: "is", values: ["o-bug"] };
+    expect(clashOf({ rules: [ofView] }, { rules: [mine] }, properties)).toBeNull();
+    expect(clashOf({ rules: [ofView] }, { rules: [] }, properties)).toBeNull();
+    expect(clashOf({ rules: [] }, { rules: [mine] }, properties)).toBeNull();
+  });
+
+  /* A person who reads two chips cannot tell a pair that narrows from a pair
+     that can never both pass, so the property is what counts. */
+  it("counts the property and not the operator", () => {
+    const mine: FilterRule = { propertyId: status.id, op: "is_not", values: ["o-done"] };
+    expect(clashOf({ rules: [ofView] }, { rules: [mine] }, properties)).toBe(status);
+
+    const before: FilterRule = { propertyId: due.id, op: "before", text: "2026-06-01" };
+    const after: FilterRule = { propertyId: due.id, op: "after", text: "2026-03-01" };
+    expect(clashOf({ rules: [before] }, { rules: [after] }, properties)).toBe(due);
+  });
+
+  it("finds nothing when the property is gone", () => {
+    const gone: FilterRule = { propertyId: "p-gone", op: "is", values: ["o-x"] };
+    expect(clashOf({ rules: [gone] }, { rules: [gone] }, properties)).toBeNull();
+  });
+
+  /* One sentence, said the same way by the panel and by the promote route. */
+  it("says the property by name and where the way out is", () => {
+    expect(clashSaid(status)).toBe(
+      "The view already filters Status. Remove it for everyone first.",
+    );
   });
 });

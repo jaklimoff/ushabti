@@ -124,6 +124,10 @@ The row reads left to right in the order the rules are applied:
 - `✕` on one of the view's chips asks first, in the chip itself: **Remove for everyone? Remove**.
   Escape or a click elsewhere puts the chip back.
 
+One property carries one rule, whoever asked: if the view already filters Priority, the panel says
+so where you pick it — *The view already filters Priority. Remove it for everyone first* — and
+writes nothing, because two rules about one property can contradict each other and empty the board.
+
 The **Filter** pill counts every rule hiding cards on your screen, whoever added it.
 
 <Aside type="note" title="You cannot see past a view's rule">
