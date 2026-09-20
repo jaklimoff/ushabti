@@ -17,6 +17,7 @@ import { applyFilters, EMPTY_FILTERS } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
   AgentRunDTO,
+  ArchivedTaskDTO,
   BoardData,
   CardView,
   FilterRule,
@@ -76,6 +77,12 @@ type Store = {
   }) => Promise<TaskDTO | null>;
   patchTask: (taskId: string, patch: { title?: string; description?: string }) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
+  /** Takes a task off every board and list. Everything on it stays. */
+  archiveTask: (taskId: string) => Promise<void>;
+  /** Puts an archived task back where its rank says it belongs. */
+  restoreTask: (taskId: string) => Promise<void>;
+  /** Archives every live task in one column. A person's act, so it asks first. */
+  archiveColumn: (propertyId: string | null, value: TaskValue) => Promise<number>;
   moveTask: (input: {
     taskId: string;
     beforeId: string | null;
@@ -125,6 +132,15 @@ type Store = {
   moveProperty: (propertyId: string, afterId: string | null) => Promise<void>;
   deleteProperty: (propertyId: string) => Promise<void>;
 };
+
+/** The parts of a task patch that an archived task still carries. */
+function archivedPart(patch: Partial<TaskDTO>): Partial<ArchivedTaskDTO> {
+  const next: Partial<ArchivedTaskDTO> = {};
+  if (patch.title !== undefined) next.title = patch.title;
+  if (patch.description !== undefined) next.description = patch.description;
+  if (patch.position !== undefined) next.position = patch.position;
+  return next;
+}
 
 const BoardContext = createContext<Store | null>(null);
 
@@ -302,10 +318,18 @@ export function BoardProvider({
   );
 
   /* --- helpers -------------------------------------------------------- */
+  /*
+   * Both lists, because a title and a description are the two things an
+   * archived task still carries — and the search row draws them. A tab skips
+   * its own broadcast, so nothing else would correct a rename made here.
+   */
   const patchLocalTask = useCallback((taskId: string, patch: Partial<TaskDTO>) => {
     setData((current) => ({
       ...current,
       tasks: current.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+      archived: current.archived.map((t) =>
+        t.id === taskId ? { ...t, ...archivedPart(patch) } : t,
+      ),
     }));
   }, []);
 
@@ -343,6 +367,7 @@ export function BoardProvider({
           checklistDone: 0,
           commentCount: 0,
           description: task.description ?? "",
+          archivedAt: null,
         };
         setData((current) => ({ ...current, tasks: [...current.tasks, complete] }));
         return complete;
@@ -366,12 +391,88 @@ export function BoardProvider({
 
   const deleteTask = useCallback<Store["deleteTask"]>(
     async (taskId) => {
-      setData((current) => ({ ...current, tasks: current.tasks.filter((t) => t.id !== taskId) }));
+      setData((current) => ({
+        ...current,
+        tasks: current.tasks.filter((t) => t.id !== taskId),
+        archived: current.archived.filter((t) => t.id !== taskId),
+      }));
       await guarded(async () => {
         await api.del(`/api/tasks/${taskId}`);
       });
     },
     [guarded],
+  );
+
+  /* The card leaves the board at once and joins the archived list, so a search
+     finds it and its panel stays open on the row that puts it back. */
+  const archiveTask = useCallback<Store["archiveTask"]>(
+    async (taskId) => {
+      const at = new Date().toISOString();
+      setData((current) => {
+        const task = current.tasks.find((t) => t.id === taskId);
+        if (!task) return current;
+        return {
+          ...current,
+          tasks: current.tasks.filter((t) => t.id !== taskId),
+          archived: [
+            ...current.archived,
+            {
+              id: task.id,
+              number: task.number,
+              key: task.key,
+              title: task.title,
+              description: task.description,
+              position: task.position,
+              archivedAt: at,
+            },
+          ],
+        };
+      });
+      await guarded(async () => {
+        await api.post(`/api/tasks/${taskId}/archive`, {});
+      });
+    },
+    [guarded],
+  );
+
+  /*
+   * This one waits for the board rather than drawing the answer itself. An
+   * archived task is carried light, without the values and the counts a card
+   * needs, and it returns to the rank it never lost — which only the server
+   * knows. Taking it out of the archived list first would leave it in neither
+   * list for a moment, and a task in neither list is a task that was removed,
+   * which closes its panel.
+   */
+  const restoreTask = useCallback<Store["restoreTask"]>(
+    async (taskId) => {
+      await guarded(async () => {
+        await api.del(`/api/tasks/${taskId}/archive`);
+        await refresh();
+      });
+    },
+    [guarded, refresh],
+  );
+
+  /* How many cards went is the server's answer, because the sweep names a
+     value and the board is only drawing part of the project. */
+  const archiveColumn = useCallback<Store["archiveColumn"]>(
+    async (propertyId, value) => {
+      if (!propertyId) return 0;
+      wrote();
+      try {
+        const res = await api.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
+          propertyId,
+          value,
+        });
+        await refresh();
+        return res.archived;
+      } catch (err) {
+        notify(err instanceof Error ? err.message : "The column did not archive.");
+        await refresh();
+        return 0;
+      }
+    },
+    [notify, projectId, refresh, wrote],
   );
 
   const moveTask = useCallback<Store["moveTask"]>(
@@ -444,6 +545,7 @@ export function BoardProvider({
     [notify, refresh],
   );
 
+  /* Only the live list: an archived task carries no counts to go stale. */
   const syncTaskCounts = useCallback<Store["syncTaskCounts"]>((taskId, counts) => {
     setData((current) => {
       const task = current.tasks.find((t) => t.id === taskId);
@@ -725,6 +827,9 @@ export function BoardProvider({
     createTask,
     patchTask,
     deleteTask,
+    archiveTask,
+    restoreTask,
+    archiveColumn,
     moveTask,
     setValue,
     syncTaskCounts,

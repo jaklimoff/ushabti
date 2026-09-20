@@ -6,6 +6,7 @@ import {
   clampPanelWidth,
   firstTask,
   isReachable,
+  longAgo,
   NO_VALUE,
   PANEL_MIN_WIDTH,
   taskByAddress,
@@ -38,6 +39,7 @@ function task(id: string, values: TaskDTO["values"] = {}, position = "V"): TaskD
     position,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+    archivedAt: null,
     values,
     checklistTotal: 0,
     checklistDone: 0,
@@ -243,5 +245,55 @@ describe("how wide the panel may be", () => {
 
   it("answers a width that is not a number at all", () => {
     expect(clampPanelWidth(Number.NaN, 1440)).toBe(PANEL_MIN_WIDTH);
+  });
+});
+
+describe("how long ago, in words", () => {
+  const archived = "2026-09-01T12:00:00.000Z";
+  const at = (ms: number) => new Date(archived).getTime() + ms;
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  it("says just now inside the first minute", () => {
+    expect(longAgo(archived, at(0))).toBe("just now");
+    expect(longAgo(archived, at(59_000))).toBe("just now");
+  });
+
+  it("counts minutes, hours and days, and says one of each in the singular", () => {
+    expect(longAgo(archived, at(minute))).toBe("1 minute ago");
+    expect(longAgo(archived, at(5 * minute))).toBe("5 minutes ago");
+    expect(longAgo(archived, at(hour))).toBe("1 hour ago");
+    expect(longAgo(archived, at(3 * hour))).toBe("3 hours ago");
+    expect(longAgo(archived, at(day))).toBe("1 day ago");
+    expect(longAgo(archived, at(3 * day))).toBe("3 days ago");
+  });
+
+  it("goes on to months and years rather than to a calendar date", () => {
+    expect(longAgo(archived, at(30 * day))).toBe("1 month ago");
+    expect(longAgo(archived, at(90 * day))).toBe("3 months ago");
+    expect(longAgo(archived, at(365 * day))).toBe("1 year ago");
+    expect(longAgo(archived, at(800 * day))).toBe("2 years ago");
+  });
+
+  /*
+   * The row is drawn on the server for a task opened by its link and again in
+   * the browser. A reading that asked a calendar would answer in whatever zone
+   * the reader sits in, and the two would disagree by a day.
+   */
+  it("reads the same in every time zone", () => {
+    const old = at(400 * day);
+    const zones = ["UTC", "Pacific/Kiritimati", "Pacific/Niue", "Asia/Kolkata"];
+    const said = new Set<string>();
+    for (const zone of zones) {
+      process.env.TZ = zone;
+      said.add(longAgo(archived, old));
+    }
+    process.env.TZ = "UTC";
+    expect([...said]).toEqual(["1 year ago"]);
+  });
+
+  it("never counts backwards when two clocks disagree", () => {
+    expect(longAgo(archived, at(-4000))).toBe("just now");
   });
 });

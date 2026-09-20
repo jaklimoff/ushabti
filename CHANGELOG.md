@@ -10,6 +10,18 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A task can be archived, and put back.** _Archive task_ in the task panel
+  takes a card off every board and every list and keeps everything on it: the
+  values, the checklist, the comments, the history and the link. The panel then
+  carries one row — "Archived 3 days ago · Put it back" — and putting it back
+  returns it to the rank it never lost. A search still finds an archived task
+  and says _archived_ on the row, which with its link is the way back to one.
+  **↓** on a column header archives everything in that column at once, after a
+  question in the header that names the count, and the board says how many
+  went. Archive is now the everyday way
+  to make a task go away; delete stays for a mistake. An agent may archive the
+  task it finished — `board.mjs archive USH-14` — but only a person can sweep a
+  column.
 - **A guessing attack is slowed.** Ten failures inside ten minutes are answered
   `429` with a `Retry-After` header and one sentence the sign-in and sign-up
   forms show inline: "Too many tries. Wait 8 minutes and try again." Sign-in is

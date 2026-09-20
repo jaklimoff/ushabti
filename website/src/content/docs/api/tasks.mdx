@@ -7,7 +7,9 @@ sidebar:
 
 import { Aside, Badge } from '@astrojs/starlight/components'
 
-Every route on this page accepts an agent token. Content is shared.
+Every route on this page accepts an agent token, except one: the column sweep,
+`POST /api/projects/{projectId}/archive`, is a person's. Content is shared; clearing a whole column
+is a decision about the board.
 
 ---
 
@@ -37,7 +39,8 @@ Neither placement field means the end of the board.
 
 ```json title="201"
 { "task": { "id": "…", "number": 14, "key": "USH-14", "title": "…", "description": "",
-            "position": "Vk", "projectId": "…", "createdBy": "…", "createdAt": "…", "updatedAt": "…" } }
+            "position": "Vk", "projectId": "…", "createdBy": "…", "createdAt": "…", "updatedAt": "…",
+            "archivedAt": null } }
 ```
 
 <Aside type="caution" title="A bad value in `values` still leaves you a task">
@@ -57,6 +60,7 @@ The task in full — everything the panel shows.
     "id": "…", "number": 14, "key": "USH-14",
     "title": "…", "description": "…",
     "position": "Vk", "createdAt": "…", "updatedAt": "…",
+    "archivedAt": null,                 // the moment it was archived, or null
     "values": { "<propertyId>": "<value>" },
     "checklistTotal": 4, "checklistDone": 2, "commentCount": 3,
 
@@ -81,7 +85,11 @@ The task in full — everything the panel shows.
 ```
 
 `activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
-`deleted`. `author` and `actor` are `null` when the user row has been deleted.
+`archive`, `deleted`. An `archive` entry carries `data.action`, which is `archived` or `restored`.
+`author` and `actor` are `null` when the user row has been deleted.
+
+This route answers for an archived task exactly as it does for a live one, which is what makes a
+link to one still open it.
 
 <Aside type="note" title="A 200 with a null task is possible">
 If the row disappears between the lookup and the read, the answer is `{"task": null}` at `200`.
@@ -103,8 +111,44 @@ Deletes the task with its values, checklist, comments and runs. `200 {"ok": true
 
 <Aside type="caution" title="An agent can delete a task">
 This route carries no gate. If that is not what you want from an agent, say so in its instructions —
-the bundled skill does.
+the bundled skill does. Archiving is the everyday way to make a task go away; delete is for a
+mistake.
 </Aside>
+
+---
+
+## `POST /api/tasks/{taskId}/archive`
+
+Archives the task. It leaves every board and every list, and keeps its values, its checklist, its
+comments, its history and its link. The body is empty. `200 {"ok": true}`.
+
+## `DELETE /api/tasks/{taskId}/archive`
+
+Puts an archived task back. It returns to the rank it never lost. `200 {"ok": true}`.
+
+Both are member calls, an agent's as much as a person's: an agent may archive the task it finished,
+as it may close its own run. Both write an `archive` entry to the activity log and ring the stream.
+
+---
+
+## `POST /api/projects/{projectId}/archive` <Badge text="person only" variant="caution" />
+
+Archives every live task in one column: the sweep behind **Archive everything in this column**.
+
+```json title="request"
+{ "propertyId": "<statusPropertyId>", "value": "<optionId>" }
+```
+
+The body names a property and a value rather than a column, because a column is one value of the
+property the view groups by and the server has no idea what a column is. `"value": null` is the
+column of the tasks that hold nothing there.
+
+```json title="200"
+{ "archived": 42 }
+```
+
+The answer is how many tasks went. One call can clear a whole column, so this one is a person's:
+an agent gets `403`.
 
 ---
 

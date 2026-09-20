@@ -23,13 +23,32 @@ pixels wide it covers the board instead.
   browser, so behind a reverse proxy it points at the proxy.
 - **The lead pill** beside it shows the lead select property's option, in its colour. A coloured
   band runs down the left edge of the panel in the same colour.
-- **⋯** holds *Copy link* and *Delete task*.
+- **⋯** holds *Copy link*, *Archive task* and *Delete task*.
 - **✕** closes it, and so does <kbd>Escape</kbd> when you are not typing.
 
+## Archived, and put back
+
+**Archive task** takes the card off every board and every list and keeps everything else: the
+values, the checklist, the comments, the history and the link. The panel stays open and grows one
+row at the top:
+
+```
+Archived 3 days ago · Put it back
+```
+
+**Put it back** returns it to the rank it never lost, so it lands where it was.
+
+There is no page that lists archived tasks. The two ways back to one are the
+[search](/ushabti/guides/search/), which finds it and says *archived* on the row, and its link,
+which opens its panel with the board behind it not drawing the card.
+
+A whole column is archived at once from its header — see
+[Archiving a column](/ushabti/guides/board/#archiving-a-column).
+
 <Aside type="caution" title="Delete task does not ask">
-It goes immediately, and it takes the values, the checklist, the comments and any run with it. There
-is no archive and no undo in Ushabti. The [backup](/ushabti/start/self-host/#backing-it-up) is the
-undo.
+It goes immediately, and it takes the values, the checklist, the comments and any run with it.
+Archive is the everyday way to make a task go away; delete is for a mistake, and there is no undo
+for it. The [backup](/ushabti/start/self-host/#backing-it-up) is the undo.
 </Aside>
 
 ## Title
@@ -86,8 +105,9 @@ The last sixty entries, newest first, written as sentences:
 2h    Ada created the task
 ```
 
-Values, titles, descriptions, checklist items, comments and every run event are recorded. An agent
-appears here exactly like a person, because to the activity log it is one.
+Values, titles, descriptions, checklist items, comments, archiving — *"Ada archived the task"*,
+*"Ada put the task back"* — and every run event are recorded. An agent appears here exactly like a
+person, because to the activity log it is one.
 
 ## The Agent tab
 

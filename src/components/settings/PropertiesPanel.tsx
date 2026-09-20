@@ -125,11 +125,10 @@ function PropertyRow({
   const canMoveUp = upTarget !== undefined;
   const canMoveDown = downTarget !== undefined;
 
-  // How much a delete costs, in the numbers the person can check.
-  const values = data.tasks.filter((t) => {
-    const v = t.values[property.id];
-    return Array.isArray(v) ? v.length > 0 : v !== null && v !== undefined && v !== "";
-  }).length;
+  /* How much a delete costs, in the numbers the person can check. The count
+     comes from the server because the cascade does not care whether a task is
+     on a board: the values of an archived task go the same way. */
+  const values = data.valueCounts[property.id] ?? 0;
   const cost = [
     property.options.length
       ? `${property.options.length} ${property.options.length === 1 ? "option" : "options"}`

@@ -29,14 +29,26 @@ export function isReachable(columns: BoardColumn[], taskId: string | null): bool
   return columns.some((c) => reachable(c).some((t) => t.id === taskId));
 }
 
-/** The value of the group property, turned into a column id. */
-export function columnIdForTask(task: TaskDTO, property: PropertyDTO | null): string {
+/**
+ * One value of the group property, turned into a column id.
+ *
+ * The sweep that archives a column asks this too, on the server, so that "in
+ * this column" means the same thing on both sides of the wire.
+ */
+export function columnIdForValue(
+  value: TaskValue | undefined,
+  property: { type: PropertyDTO["type"] } | null,
+): string {
   if (!property) return NO_VALUE;
-  const value = task.values[property.id];
   if (property.type === "checkbox") return value === true ? "true" : "false";
   if (value === null || value === undefined || value === "") return NO_VALUE;
   if (Array.isArray(value)) return value.length ? String(value[0]) : NO_VALUE;
   return String(value);
+}
+
+/** The value of the group property, turned into a column id. */
+export function columnIdForTask(task: TaskDTO, property: PropertyDTO | null): string {
+  return columnIdForValue(property ? task.values[property.id] : null, property);
 }
 
 export function buildColumns(
@@ -199,7 +211,10 @@ export function clampPanelWidth(width: number, windowWidth: number): number {
  * that is the word they say out loud. A link written before that was true
  * carries the uuid, so both are answered here and neither one breaks.
  */
-export function taskByAddress(tasks: TaskDTO[], address: string | null): TaskDTO | null {
+export function taskByAddress<T extends { id: string; key: string }>(
+  tasks: T[],
+  address: string | null,
+): T | null {
   if (!address) return null;
   const wanted = address.trim().toLowerCase();
   return (
@@ -229,6 +244,40 @@ export function formatDate(value: string): string {
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
   return shortDate(parsed);
+}
+
+/**
+ * How long ago, in words rather than in the short form a feed uses. One row
+ * says it, at the top of an archived task, and a row of prose says "3 days
+ * ago" where a timestamp column says "3d".
+ *
+ * It takes the clock rather than reading it, exactly as `elapsed` does, and it
+ * never reaches for a calendar. That is deliberate: this row is drawn on the
+ * server for a task opened by its link and again in the browser, and a date
+ * made of `getMonth()` and `getDate()` is read in whatever zone the reader is
+ * in — the same trap the written-out month names below exist for. Months and
+ * years are counted here in plain arithmetic, so the two renders agree
+ * wherever they run.
+ */
+export function longAgo(iso: string, now: number = Date.now()): string {
+  const diff = now - new Date(iso).getTime();
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  /* The average length of a month and a year. A row that says "2 months ago"
+     is not making a claim a calendar could disagree with. */
+  const month = 30 * day;
+  const year = 365 * day;
+  if (diff < minute) return "just now";
+  if (diff < hour) return plural(Math.floor(diff / minute), "minute");
+  if (diff < day) return plural(Math.floor(diff / hour), "hour");
+  if (diff < month) return plural(Math.floor(diff / day), "day");
+  if (diff < year) return plural(Math.floor(diff / month), "month");
+  return plural(Math.floor(diff / year), "year");
+}
+
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? "" : "s"} ago`;
 }
 
 export function relativeTime(iso: string): string {

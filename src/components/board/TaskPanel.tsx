@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
-import { clampPanelWidth, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
+import { clampPanelWidth, longAgo, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
 import { tint } from "@/lib/colors";
 import {
@@ -21,6 +21,7 @@ import type {
   AgentRunDetailDTO,
   ChecklistItemDTO,
   RunControl,
+  TaskDTO,
   TaskDetailDTO,
   TaskValue,
 } from "@/lib/types";
@@ -45,6 +46,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     setValue,
     patchTask,
     deleteTask,
+    archiveTask,
+    restoreTask,
     addOption,
     syncTaskCounts,
     controlRun,
@@ -54,8 +57,18 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const [tab, setTab] = useState<"comments" | "activity" | "agent">("comments");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useDismiss<HTMLDivElement>(() => setMenuOpen(false), menuOpen);
+  /* The clock the archived row reads. It ticks only while that row is drawn,
+     so "just now" becomes "1 minute ago" without a reload and nothing else
+     re-renders for it. */
+  const now = useNow(!!detail?.archivedAt);
 
-  const boardTask = data.tasks.find((t) => t.id === taskId) ?? null;
+  /*
+   * An archived task has no card, and its panel still opens: a link and a
+   * search hit both end here. The board carries an archived task light — no
+   * values, no counts — so this panel draws the answer it fetched itself,
+   * which is the whole task either way.
+   */
+  const boardTask: TaskDTO | null = data.tasks.find((t) => t.id === taskId) ?? detail;
 
   const load = useCallback(async () => {
     try {
@@ -232,6 +245,30 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
 
       <div className={styles.accent} data-testid="panel-accent" style={{ background: accent }} />
 
+      {/* One row, at the top, on an archived task. It says how long ago and
+          offers the way back; nothing else about the panel changes, because an
+          archived task is a whole task that no view is drawing. */}
+      {boardTask.archivedAt && (
+        <div className={styles.archivedRow} data-testid="archived-row">
+          {/* The words come from a clock, and the server reads its clock a
+              moment before the browser reads its own. React is told so, rather
+              than being left to find the two texts disagree on a boundary. */}
+          <span suppressHydrationWarning>Archived {longAgo(boardTask.archivedAt, now)}</span>
+          <span className={styles.archivedSep}>·</span>
+          <button
+            className={styles.archivedBack}
+            onClick={async () => {
+              await restoreTask(taskId);
+              /* The task's own history gained a line, and this panel is the
+                 thing showing it. */
+              await load();
+            }}
+          >
+            Put it back
+          </button>
+        </div>
+      )}
+
       <div className={styles.head} style={{ background: tint(accent, 0.06) }} ref={menuRef}>
         <div className={styles.headRow}>
           <button
@@ -273,6 +310,23 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 <span className={styles.menuDot} />
                 Copy link
               </button>
+              {/* Archive is the everyday way to make a task go away: the
+                  panel stays open on the row that puts it back. Delete is for
+                  a mistake, and it is still the one that ends things. */}
+              {!boardTask.archivedAt && (
+                <button
+                  className={styles.menuItem}
+                  data-testid="archive-task"
+                  onClick={async () => {
+                    setMenuOpen(false);
+                    await archiveTask(taskId);
+                    await load();
+                  }}
+                >
+                  <span className={styles.menuDot} />
+                  Archive task
+                </button>
+              )}
               <button
                 className={`${styles.menuItem} ${styles.menuItemDanger}`}
                 onClick={() => {
@@ -437,6 +491,8 @@ function describeActivity(entry: {
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;
     case "comment":
       return `${who} left a comment`;
+    case "archive":
+      return d.action === "restored" ? `${who} put the task back` : `${who} archived the task`;
     case "run":
       return `${who} ${RUN_WORDS[d.action ?? ""] ?? "changed the run"}`;
     default:

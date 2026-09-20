@@ -75,6 +75,7 @@ function task(values: TaskDTO["values"] = {}, over: Partial<TaskDTO> = {}): Task
     position: "V",
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
+    archivedAt: null,
     values,
     checklistTotal: 0,
     checklistDone: 0,

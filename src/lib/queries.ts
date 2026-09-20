@@ -1,6 +1,6 @@
 import "server-only";
 import { byPos } from "@/lib/order";
-import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   activity,
@@ -28,6 +28,7 @@ import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
 import type {
   ActivityDTO,
   ActivityFeedEntryDTO,
+  ArchivedTaskDTO,
   BoardData,
   CardView,
   ChecklistItemDTO,
@@ -239,51 +240,15 @@ function withOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
 /* Board                                                               */
 /* ------------------------------------------------------------------ */
 
-export async function loadBoard(projectId: string, role: string): Promise<BoardData> {
-  const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
-
-  const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows] = await Promise.all([
-    db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        color: users.color,
-        kind: users.kind,
-        role: projectMembers.role,
-        /* The newest moment any live token of this agent held the stream.
-           Two watchers on one agent are one agent listening. */
-        listeningAt: sql<
-          Date | string | null
-        >`(select max(${agentTokens.listeningAt}) from ${agentTokens} where ${agentTokens.agentId} = ${users}.id and ${agentTokens.projectId} = ${projectId} and ${agentTokens.revokedAt} is null)`,
-      })
-      .from(projectMembers)
-      .innerJoin(users, eq(users.id, projectMembers.userId))
-      .where(eq(projectMembers.projectId, projectId))
-      .orderBy(asc(users.name)),
-    db
-      .select({ email: projectInvites.email, createdAt: projectInvites.createdAt })
-      .from(projectInvites)
-      .where(eq(projectInvites.projectId, projectId))
-      .orderBy(asc(projectInvites.createdAt)),
-    db
-      .select()
-      .from(properties)
-      .where(eq(properties.projectId, projectId))
-      .orderBy(byPos(properties.position)),
-    db
-      .select({
-        id: propertyOptions.id,
-        propertyId: propertyOptions.propertyId,
-        name: propertyOptions.name,
-        color: propertyOptions.color,
-        position: propertyOptions.position,
-      })
-      .from(propertyOptions)
-      .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
-      .where(eq(properties.projectId, projectId))
-      .orderBy(byPos(propertyOptions.position)),
-    db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
+/**
+ * The live tasks of one project, in the rank order every view shares.
+ *
+ * It asks for the live ones alone, so it walks the partial index and never
+ * touches an archived row — and the three count subqueries below, which run
+ * once per row, are never run for a task nobody draws.
+ */
+function liveTaskRows(projectId: string) {
+  return (
     db
       .select({
         id: tasks.id,
@@ -294,19 +259,126 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
         createdAt: tasks.createdAt,
         updatedAt: tasks.updatedAt,
         /* `${tasks.id}` writes a bare `"id"` in a selected column, and inside
-           a subquery that name belongs to the inner table. The counts then
-           compare a task to a comment and every card reads zero. Name the
-           table. */
+         a subquery that name belongs to the inner table. The counts then
+         compare a task to a comment and every card reads zero. Name the
+         table. */
         checklistTotal: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks}.id)`,
         checklistDone: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks}.id and ci.done)`,
         commentCount: sql<number>`(select count(*)::int from ${comments} c where c.task_id = ${tasks}.id)`,
       })
       .from(tasks)
-      .where(eq(tasks.projectId, projectId))
+      .where(and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt)))
       // the number keeps the order stable if two ranks ever match
-      .orderBy(byPos(tasks.position), asc(tasks.number)),
-  ]);
+      .orderBy(byPos(tasks.position), asc(tasks.number))
+  );
+}
 
+/**
+ * The archived tasks, in the few columns a search and a link need. No values
+ * and no counts: nothing draws an archived task, and its panel asks for the
+ * rest itself.
+ */
+function archivedTaskRows(projectId: string) {
+  return db
+    .select({
+      id: tasks.id,
+      number: tasks.number,
+      title: tasks.title,
+      description: tasks.description,
+      position: tasks.position,
+      archivedAt: tasks.archivedAt,
+    })
+    .from(tasks)
+    .where(and(eq(tasks.projectId, projectId), isNotNull(tasks.archivedAt)))
+    .orderBy(byPos(tasks.position), asc(tasks.number));
+}
+
+/**
+ * How many tasks hold a real value for each property, archived ones included.
+ *
+ * The question the owner answers before deleting a property has to name what
+ * the cascade really takes, and the cascade does not care whether a task is on
+ * a board. Counting in the browser cannot answer it any more: the board no
+ * longer carries the values of an archived task, and one day it will not carry
+ * every live task either.
+ *
+ * Empty is what the card and the filter call empty — no row, null, "" or an
+ * empty list — so the number reads the same as the board does.
+ */
+async function loadValueCounts(projectId: string): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ propertyId: taskValues.propertyId, count: sql<number>`count(*)::int` })
+    .from(taskValues)
+    .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
+    .where(
+      and(
+        eq(tasks.projectId, projectId),
+        sql`${taskValues.value} is not null
+            and ${taskValues.value} <> 'null'::jsonb
+            and ${taskValues.value} <> '""'::jsonb
+            and ${taskValues.value} <> '[]'::jsonb`,
+      ),
+    )
+    .groupBy(taskValues.propertyId);
+
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.propertyId] = row.count;
+  return counts;
+}
+
+export async function loadBoard(projectId: string, role: string): Promise<BoardData> {
+  const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+
+  const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows, archivedRows, valueCounts] =
+    await Promise.all([
+      db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          color: users.color,
+          kind: users.kind,
+          role: projectMembers.role,
+          /* The newest moment any live token of this agent held the stream.
+           Two watchers on one agent are one agent listening. */
+          listeningAt: sql<
+            Date | string | null
+          >`(select max(${agentTokens.listeningAt}) from ${agentTokens} where ${agentTokens.agentId} = ${users}.id and ${agentTokens.projectId} = ${projectId} and ${agentTokens.revokedAt} is null)`,
+        })
+        .from(projectMembers)
+        .innerJoin(users, eq(users.id, projectMembers.userId))
+        .where(eq(projectMembers.projectId, projectId))
+        .orderBy(asc(users.name)),
+      db
+        .select({ email: projectInvites.email, createdAt: projectInvites.createdAt })
+        .from(projectInvites)
+        .where(eq(projectInvites.projectId, projectId))
+        .orderBy(asc(projectInvites.createdAt)),
+      db
+        .select()
+        .from(properties)
+        .where(eq(properties.projectId, projectId))
+        .orderBy(byPos(properties.position)),
+      db
+        .select({
+          id: propertyOptions.id,
+          propertyId: propertyOptions.propertyId,
+          name: propertyOptions.name,
+          color: propertyOptions.color,
+          position: propertyOptions.position,
+        })
+        .from(propertyOptions)
+        .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
+        .where(eq(properties.projectId, projectId))
+        .orderBy(byPos(propertyOptions.position)),
+      db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
+      liveTaskRows(projectId),
+      archivedTaskRows(projectId),
+      loadValueCounts(projectId),
+    ]);
+
+  /* Only the live ones. Nothing draws an archived task, so its values are
+     fetched when its panel asks for them and not before. */
   const taskIds = taskRows.map((t) => t.id);
   const [valueRows, runs] = await Promise.all([
     taskIds.length
@@ -345,10 +417,23 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     position: t.position,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
+    /* This list is the live one by construction, so the field is not read
+       from the row: a task here is never archived. */
+    archivedAt: null,
     values: valuesByTask.get(t.id) ?? {},
     checklistTotal: t.checklistTotal,
     checklistDone: t.checklistDone,
     commentCount: t.commentCount,
+  }));
+
+  const archivedList: ArchivedTaskDTO[] = archivedRows.map((t) => ({
+    id: t.id,
+    number: t.number,
+    key: `${projectRow.key}-${t.number}`,
+    title: t.title,
+    description: t.description,
+    position: t.position,
+    archivedAt: (t.archivedAt as Date).toISOString(),
   }));
 
   const members: MemberDTO[] = memberRows.map((m) => ({
@@ -375,6 +460,8 @@ export async function loadBoard(projectId: string, role: string): Promise<BoardD
     views: viewList,
     cardView,
     tasks: taskList,
+    archived: archivedList,
+    valueCounts,
     runs,
   };
 }
@@ -393,6 +480,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       position: tasks.position,
       createdAt: tasks.createdAt,
       updatedAt: tasks.updatedAt,
+      archivedAt: tasks.archivedAt,
       projectKey: projects.key,
     })
     .from(tasks)
@@ -474,6 +562,9 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     position: row.position,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    /* The detail answers for an archived task exactly as it does for a live
+       one: the panel opens on a link, and a run that finished keeps its log. */
+    archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,
     values,
     checklistTotal: checklist.length,
     checklistDone: checklist.filter((c) => c.done).length,
