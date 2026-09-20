@@ -167,6 +167,23 @@ test.describe("A list view", () => {
     await expect(page.getByRole("button", { name: /^Comments/ })).toBeVisible();
   });
 
+  test("n opens the composer at the end", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("ListKey"));
+    await addTask(page, "Todo", "One row");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addListView(page, "Rows");
+
+    await listRow(page, "One row").first().focus();
+    await page.keyboard.press("n");
+    const input = page.getByPlaceholder("What needs doing?");
+    await expect(input).toBeFocused();
+    await input.fill("Made with n");
+    await input.press("Enter");
+    await expect(listRow(page, "Made with n").first()).toBeVisible();
+    expect(projectId).toBeTruthy();
+  });
+
   test("moves a row with the keyboard alone", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Lift"));

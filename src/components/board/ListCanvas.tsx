@@ -27,6 +27,7 @@ import { listColumns, listTemplate } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
 import { canSort, nextSort, sortTasks } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
+import { useShortcut } from "./keys";
 import { useBoard } from "./store";
 import { TaskRow, pinProps } from "./TaskRow";
 import styles from "./board.module.css";
@@ -97,6 +98,11 @@ export function ListCanvas({
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // A list has one composer, at the end, so `n` has one place to open it.
+  useShortcut("n", () => {
+    if (!activeTaskId) setComposing(true);
+  });
 
   const columns = useMemo(() => listColumns(cardItems), [cardItems]);
   const template = useMemo(() => listTemplate(columns), [columns]);

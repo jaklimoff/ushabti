@@ -228,6 +228,37 @@ test.describe("Ushabti board", () => {
     await expect(drawn.getByTitle("Comments")).toHaveText("1");
   });
 
+  test("n opens a composer in the column the cursor is in", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("NewKey"));
+    await addTask(page, "In Progress", "Where the cursor is");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    // The cursor is on a card in In Progress, so that is where n adds.
+    await card(page, "Where the cursor is").first().focus();
+    await page.keyboard.press("n");
+    const input = page.getByPlaceholder("What needs doing?");
+    await expect(input).toBeFocused();
+    await expect(column(page, "In Progress").getByPlaceholder("What needs doing?")).toBeVisible();
+    await input.fill("Made with n");
+    await input.press("Enter");
+    await expect(column(page, "In Progress").getByText("Made with n")).toBeVisible();
+
+    // In a field, n is a letter. The panel opened on the new task; its title
+    // takes the key, and no composer appears.
+    const title = page.getByTestId("task-panel").getByRole("textbox").first();
+    await title.focus();
+    await page.keyboard.press("n");
+    await expect(page.getByPlaceholder("What needs doing?")).toHaveCount(0);
+
+    // Nothing focused: the cursor rests on the top card of the first column
+    // that has one, and n follows it there.
+    await page.goto(`/p/${projectId}`);
+    await expect(card(page, "Made with n").first()).toBeVisible();
+    await page.keyboard.press("n");
+    await expect(column(page, "In Progress").getByPlaceholder("What needs doing?")).toBeVisible();
+  });
+
   test("a card moves with the keyboard alone", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Keyboard"));
