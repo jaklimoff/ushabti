@@ -64,6 +64,13 @@
       "when": 1789939951059,
       "tag": "0008_view_lenses",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789942006352,
+      "tag": "0009_password_resets",
+      "breakpoints": true
     }
   ]
 }
