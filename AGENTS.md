@@ -73,9 +73,9 @@ and what is easy to get wrong.
 - **A view is dragged by naming what it landed on, never a rank.** The strip
   and the settings page write the same one order, so `landedAfter` in
   `store.tsx` is the only place that works the neighbour out and the route is
-  the only place that makes a rank, under the project lock, exactly as a
-  property's is — and a property is dragged by the same route, `moveProperty`
-  taking what it landed on and reading that one helper.
+  the only place that makes a rank, under the project lock. A property in
+  Settings is dragged the same way: `moveProperty` takes what it landed on and
+  asks that one helper.
   A pill is a button first: the drag starts after five pixels and dnd-kit
   swallows the click that follows, so picking a view and moving one cannot
   happen at once. The pill's colour follows the view and not its place, because
