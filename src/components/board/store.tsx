@@ -106,7 +106,8 @@ type Store = {
     afterId: string | null;
     values?: Record<string, TaskValue>;
   }) => Promise<void>;
-  setValue: (taskId: string, propertyId: string, value: TaskValue) => Promise<void>;
+  /** Answers whether the write went through, so a caller that drew it early can put it right. */
+  setValue: (taskId: string, propertyId: string, value: TaskValue) => Promise<boolean>;
   /** Feeds the checklist and comment counts of an open task back to its card. */
   syncTaskCounts: (
     taskId: string,
@@ -354,14 +355,21 @@ export function BoardProvider({
     }));
   }, []);
 
+  /*
+   * The refresh corrects the board, which is all most writes draw early. A
+   * write that is drawn somewhere else as well — the panel of an archived task
+   * has no card — needs to hear that it was refused, so the answer says so.
+   */
   const guarded = useCallback(
-    async (work: () => Promise<void>) => {
+    async (work: () => Promise<void>): Promise<boolean> => {
       wrote();
       try {
         await work();
+        return true;
       } catch (err) {
         notify(err instanceof Error ? err.message : "The change did not save.");
         await refresh();
+        return false;
       }
     },
     [notify, refresh, wrote],
@@ -547,7 +555,7 @@ export function BoardProvider({
           t.id === taskId ? { ...t, values: { ...t.values, [propertyId]: value } } : t,
         ),
       }));
-      await guarded(async () => {
+      return guarded(async () => {
         await api.put(`/api/tasks/${taskId}/values/${propertyId}`, { value });
       });
     },

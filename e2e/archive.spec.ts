@@ -219,6 +219,44 @@ test.describe("Archiving a task", () => {
   });
 
   /*
+   * The panel draws a value before the server has taken it, and on an archived
+   * task the panel is the only place it is drawn. A refused write left the
+   * value that was thrown away on screen, and only reopening the panel
+   * corrected it.
+   */
+  test("a refused value write on an archived task draws the old value again", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Refused"));
+
+    await addTask(page, "Todo", "Rotate the backup key");
+    await archiveOpenTask(page);
+
+    // The value the server really holds.
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/values\/[0-9a-f-]+$/, () =>
+      priority(page, "Low").click(),
+    );
+    await expect(priority(page, "Low")).toHaveAttribute("title", "Click to clear");
+
+    await page.route("**/api/tasks/*/values/*", async (route) => {
+      if (route.request().method() !== "PUT") return route.fallback();
+      return route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "The change did not save." }),
+      });
+    });
+
+    await priority(page, "High").click();
+
+    // The refusal is told, which is the half that always worked.
+    await expect(page.getByTestId("toast")).toContainText("The change did not save.");
+
+    // And the panel draws what the server holds, not what was clicked.
+    await expect(priority(page, "Low")).toHaveAttribute("title", "Click to clear");
+    await expect(priority(page, "High")).toHaveAttribute("title", "High");
+  });
+
+  /*
    * The panel counts its own writes and throws away a read of the task that
    * one of them overtook. A write it hands to the store counts the same: on an
    * archived task the values are drawn from that read, so an answer that went

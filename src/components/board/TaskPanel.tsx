@@ -168,9 +168,13 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       setDetail((current) =>
         current ? { ...current, values: { ...current.values, [propertyId]: value } } : current,
       );
-      await counted(() => setValue(taskId, propertyId, value));
+      const saved = await counted(() => setValue(taskId, propertyId, value));
+      /* The store puts the board right when a write is refused, and nothing
+         puts this copy right. On an archived task it is the only copy, so the
+         value the person sees is the one that was thrown away. */
+      if (!saved) await reload();
     },
-    [counted, setValue, taskId],
+    [counted, reload, setValue, taskId],
   );
 
   // Only a different task clears what is on screen. A new `load` identity must
