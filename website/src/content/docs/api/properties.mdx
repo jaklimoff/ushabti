@@ -197,11 +197,19 @@ other browser is told about it.
 
 `403 Only a person can do this.` for an agent.
 
+`409 The view already filters Priority. Remove it for everyone first.` when a rule names a property
+the view's own `filters` already asks about. One property carries one rule, whoever asked: two rules
+about one property empty the board with two chips that fight each other.
+
 ### `POST /api/views/{viewId}/lens/promote` <Badge text="human only" variant="caution" size="small" />
 
 No body. Appends the caller's rules to the view's `filters`, in that order, and empties the caller's
 own — one transaction under the project lock. Any member may call it. It broadcasts, so everybody's
 board narrows.
+
+`409 The view already filters Priority. Remove it for everyone first.` when the caller's rules name a
+property the view already filters. A lens written before the view named that property becomes a clash
+without anybody writing it, which is why this door says it again and writes nothing.
 
 ---
 

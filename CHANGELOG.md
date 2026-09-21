@@ -106,6 +106,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   Priority. Remove it for everyone first_ — and writes nothing. **Put on the
   view** says the same and keeps your rules where they are. The way out is the
   ✕ on the view's own chip, which asks for everybody first.
+- **The filters you add hold still when one is refused.** Writing a rule
+  through the API about a property the view already filters is now refused
+  there too, with the same sentence, so no screen can be narrowed past the way
+  back. A refused **Put on the view** no longer shows the contradicting board
+  for a moment before it snaps back: the board waits for the answer, and says
+  what the answer was. Escape out of _Remove for everyone?_ puts the focus back
+  on the chip you pressed, so the next Tab carries on from the row instead of
+  the top of the page.
 - **A pause completes.** `board.mjs pause` reports that the agent stopped,
   waits, and reports that it runs again when a person presses Resume. The
   shipped client could not send the status that clears a pause, so the panel

@@ -78,6 +78,12 @@ A view's `filters` is the whole team's, and it is the only filter you read: the
 rules a person adds to their own screen are theirs, never yours, and never
 reach `filters` until that person puts them on the view.
 
+The two routes that write those rules are a person's, and answer `403` to a
+token: `PUT /api/views/{viewId}/lens` and `POST /api/views/{viewId}/lens/promote`.
+Both answer `409` and one sentence — _The view already filters Priority. Remove
+it for everyone first._ — when a rule names a property the view already
+filters, because one property carries one rule, whoever asked.
+
 **An entry in `archived` is not a whole task.** It holds seven fields: `id`,
 `number`, `key`, `title`, `description`, `position` and `archivedAt`. There are
 no values, no checklist counts and no comment count: nothing draws an
