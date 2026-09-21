@@ -272,6 +272,16 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A run history row no longer says the board closed a run it did not.**
+  `lost` is written by two different things: the lease, when a run has said
+  nothing for thirty minutes, and an agent itself, as its last message when it
+  is being shut down. The row read both as the first, so a run whose agent was
+  killed six minutes in read as one that had stopped answering for half an
+  hour. A row whose run ended inside its lease now reads **shut down**; one the
+  lease really closed still reads **lost**. It is worked out from the two
+  moments the row already carries, so old runs read right too and nothing has
+  to be written again.
+
 - **`/` reaches the search box while cards are picked.** Below 900 px the pick
   bar takes the box off the top bar, and the key went on asking for a box
   nobody could see, so it did nothing at all. It now leaves every picked card

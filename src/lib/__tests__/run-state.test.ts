@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   duration,
   elapsed,
+  endedWord,
   isOpen,
   isWaiting,
   leaseEndsAt,
   leaseLeft,
   lifeOf,
+  lostBy,
   MAX_REPORT_FOR_MS,
   obeys,
   pastRunWords,
@@ -307,16 +309,93 @@ describe("the words of a run that is over", () => {
   });
 
   it("gives every ending its own word", () => {
-    const wordOf = (status: typeof run.status | "failed" | "stopped" | "taken_over" | "lost") =>
+    const wordOf = (status: typeof run.status | "failed" | "stopped" | "taken_over") =>
       pastRunWords({ ...run, status: status as typeof run.status }, now).ended;
     expect(wordOf("failed")).toBe("failed");
     expect(wordOf("stopped")).toBe("stopped");
     expect(wordOf("taken_over")).toBe("taken over");
-    expect(wordOf("lost")).toBe("lost");
   });
 
   it("falls back to the last report when a run holds no end", () => {
     const odd = { ...run, endedAt: null };
     expect(pastRunWords(odd, now).length).toBe("14m");
+  });
+});
+
+/*
+ * Both runs below are rows out of production, timestamps and all. They are
+ * the two things `lost` says, and the board used to read them both aloud as
+ * the lease.
+ */
+describe("the two things a lost run says", () => {
+  // The clock only writes the "when", so one fixed moment holds both rows.
+  const now = new Date("2026-09-21T22:00:00Z").getTime();
+
+  /*
+   * USH-72's own run. The agent claimed at 20:46:03, the e2e server was
+   * killed by a pattern at 20:52:38, the background `board.mjs beat` died
+   * with it, and its SIGTERM handler reported `lost`. One report wrote
+   * `updated_at`, `beat_at` and `ended_at` in the same millisecond, and the
+   * lease still had 23 minutes to run.
+   */
+  const shutDown = {
+    status: "lost" as const,
+    startedAt: "2026-09-21T20:46:03.655Z",
+    updatedAt: "2026-09-21T20:52:38.897Z",
+    reportDueAt: null,
+    endedAt: "2026-09-21T20:52:38.897Z",
+  };
+
+  /*
+   * A run the lease really did close. Its last report was 16:42:29 and the
+   * sweep stamped 17:14:39 — after the lease, because the sweep runs on a
+   * read and the next read came 32 minutes later.
+   */
+  const swept = {
+    status: "lost" as const,
+    startedAt: "2026-09-21T15:13:12.436Z",
+    updatedAt: "2026-09-21T16:42:29.497Z",
+    reportDueAt: null,
+    endedAt: "2026-09-21T17:14:39.608Z",
+  };
+
+  it("does not call a run the lease never reached lost", () => {
+    expect(leaseEndsAt(shutDown)).toBe(new Date("2026-09-21T21:22:38.897Z").getTime());
+    expect(lostBy(shutDown)).toBe("agent");
+    expect(pastRunWords(shutDown, now)).toEqual({
+      when: "1 hour ago",
+      length: "6m",
+      ended: "shut down",
+    });
+  });
+
+  it("still calls a run the lease closed lost", () => {
+    expect(lostBy(swept)).toBe("lease");
+    expect(pastRunWords(swept, now).ended).toBe("lost");
+  });
+
+  it("reads the deadline a report named, not the ordinary lease", () => {
+    // An agent that asked for an hour and was killed ten minutes later is
+    // shut down, not lost, even though the ordinary thirty minutes would say
+    // the same. The one that matters is the deadline it named.
+    const asked = {
+      ...shutDown,
+      reportDueAt: "2026-09-21T21:46:03.655Z",
+      updatedAt: "2026-09-21T20:46:03.655Z",
+    };
+    expect(lostBy(asked)).toBe("agent");
+    // And one that ran past the hour it asked for is the lease's again.
+    expect(lostBy({ ...asked, endedAt: "2026-09-21T21:50:00.000Z" })).toBe("lease");
+  });
+
+  it("answers the same however long ago the run was", () => {
+    const later = now + 30 * 24 * 60 * 60_000;
+    expect(pastRunWords(shutDown, later).ended).toBe("shut down");
+    expect(pastRunWords(swept, later).ended).toBe("lost");
+  });
+
+  it("says nothing new about a run that ended any other way", () => {
+    expect(endedWord({ ...shutDown, status: "done" })).toBe("finished");
+    expect(endedWord({ ...shutDown, status: "stopped" })).toBe("stopped");
   });
 });
