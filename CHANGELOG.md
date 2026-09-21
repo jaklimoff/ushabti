@@ -149,6 +149,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A row of a task's run history is lighter, and the list is ordered by when
+  each run started.** `pastRuns` on `GET /api/tasks/{taskId}` no longer carries
+  `stepsTotal`, `stepsDone` or `lastLog`: nothing drew them, and filling them
+  read the plan and a log line of twenty runs on every task read. A whole run,
+  counts and plan and log, is still `GET /api/runs/{runId}`.
 - **A property is dragged into place in Settings → Properties.** Each row has a
   grip on its left, as a view's row does. Space lifts the row, the arrows move
   it, Space puts it down. The ↑ and ↓ buttons are gone: the grip is the same

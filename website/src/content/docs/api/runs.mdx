@@ -111,7 +111,8 @@ Reads a run back. **Not agent-only** — a person's session works too, which is 
 This is the route a paused agent polls while it waits for `resume`. It is also how one run of a
 task's history is read whole: a closed run answers here exactly as an open one does, and
 [`GET /api/tasks/{taskId}`](/ushabti/api/tasks/#get-apitaskstaskid) lists the closed ones in
-`pastRuns`.
+`pastRuns`. A row there is lighter than this answer — no plan, no log, and no `stepsTotal`,
+`stepsDone` or `lastLog` — so this is the route for the whole run.
 
 ---
 
@@ -156,8 +157,8 @@ Any member may call it, not only the owner. Stopping a runaway agent is ordinary
 | `updatedAt` | a **report** — never a beat | the last thing the agent *said*. **The lease counts this.** |
 | `beatAt` | a report **and** a beat | the last sign the process is *alive* |
 | `endedAt` | the server | `null` while open |
-| `stepsTotal` / `stepsDone` | derived | the progress bar |
-| `lastLog` | derived | the newest log line |
+| `stepsTotal` / `stepsDone` | derived | the progress bar. **Not on a `pastRuns` row.** |
+| `lastLog` | derived | the newest log line. **Not on a `pastRuns` row.** |
 
 <Aside type="danger" title="Never let a heartbeat write updatedAt">
 If you are reimplementing this server-side: a beat that touched `updated_at` would let a heartbeat
