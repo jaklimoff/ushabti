@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -443,7 +443,13 @@ export const agentRunLog = pgTable(
     text: text("text").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("agent_run_log_run_idx").on(t.runId)],
+  (t) => [
+    index("agent_run_log_run_idx").on(t.runId),
+    // The tail of one run's log, and the newest line of twenty runs at once,
+    // both read this table by run and newest first. Without the second column
+    // the newest line of a busy run is a sort of everything that run ever said.
+    index("agent_run_log_run_time_idx").on(t.runId, desc(t.createdAt)),
+  ],
 );
 
 /* ------------------------------------------------------------------ */
@@ -478,5 +484,86 @@ export const passwordResets = pgTable(
   (t) => [
     uniqueIndex("password_resets_hash_key").on(t.hash),
     index("password_resets_user_idx").on(t.userId),
+  ],
+);
+
+/* ------------------------------------------------------------------ */
+/* Webhooks                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A call out of the board, for a service that cannot hold a socket open.
+ *
+ * It rings the same doorbell the stream rings: that something changed and
+ * where, never what. The receiver then reads the feed, exactly as an agent
+ * on the stream does.
+ *
+ * The secret is stored whole, unlike an agent token, because the server signs
+ * every body with it. It is still shown once: the page keeps a prefix so a
+ * person can tell two apart, and the only way to see another is to roll it.
+ */
+export const webhooks = pgTable(
+  "webhooks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    /** The HMAC key. Whole, because the signature is made from it. */
+    secret: text("secret").notNull(),
+    /** Enough of the secret to tell two of them apart in the list. */
+    prefix: text("prefix").notNull(),
+    /**
+     * The feed words that ring it, as a list of strings. An empty list means
+     * every kind, and it is read afresh like a filter: a word nobody knows is
+     * thrown away on the way out rather than cleaned up in the table.
+     */
+    kinds: jsonb("kinds").notNull().default([]),
+    /** Off keeps the row and rings nothing. */
+    active: boolean("active").notNull().default(true),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("webhooks_project_idx").on(t.projectId)],
+);
+
+/**
+ * One attempt to ring one webhook, and the record of how it went.
+ *
+ * The body is kept as it was built, so a retry sends the same bytes the first
+ * try did and a receiver that skips a delivery it has seen can do so by its
+ * id. `nextTryAt` is when the sender should pick it up; null means there is
+ * nothing more to do, either because it was taken or because the tries ran out.
+ */
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    webhookId: uuid("webhook_id")
+      .notNull()
+      .references(() => webhooks.id, { onDelete: "cascade" }),
+    /** The doorbell, as it will be sent and signed. */
+    body: jsonb("body").notNull(),
+    tries: integer("tries").notNull().default(0),
+    /** When the sender should try. Null when it is over, either way. */
+    nextTryAt: timestamp("next_try_at", { withTimezone: true }),
+    /** The HTTP code of the last try, or null if nothing answered. */
+    code: integer("code"),
+    /** Why the last try failed, in one line. Null while it has not. */
+    error: text("error"),
+    /** When the receiver took it. Null until it does. */
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The page reads the newest delivery of one webhook, and the sweep reads
+    // the oldest. Both walk this index.
+    index("webhook_deliveries_hook_time_idx").on(t.webhookId, desc(t.createdAt)),
+    // The sender asks one question: what is due now. A partial index keeps
+    // every finished delivery out of it for good.
+    index("webhook_deliveries_due_idx")
+      .on(t.nextTryAt)
+      .where(sql`${t.nextTryAt} is not null`),
   ],
 );

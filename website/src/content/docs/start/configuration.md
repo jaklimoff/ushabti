@@ -53,6 +53,25 @@ USHABTI_SIGNUP=closed
 `POST /api/auth/register` refuses any other with 403. Existing accounts are unaffected. An owner
 invites somebody by adding their email in **Settings → People**; that email may then sign up.
 
+### `USHABTI_WEBHOOK_PRIVATE`
+
+Set to `1` — and only that — to let a [webhook](/ushabti/api/webhooks/) be pointed at a **private,
+loopback or link-local** address. Unset, which is the default, those are refused.
+
+```bash
+USHABTI_WEBHOOK_PRIVATE=1
+```
+
+A webhook is the one request a person tells the server to make for them. Left open, the settings
+page becomes a way to read what else is reachable from the board: `http://169.254.169.254/…` is a
+cloud's metadata service, and `http://127.0.0.1:5432/` says whether a database is listening. The
+check runs when the URL is saved and again before every try, resolving the name each time, so a
+public name that starts pointing inside is refused then.
+
+Set it when your receiver really is on that network — an internal CI runner, a service on the same
+compose network. `docker-compose.yml`, the development one, sets it already, because a developer's
+receiver is on their own machine. `docker-compose.prod.yml` deliberately does not.
+
 ## Read, but rarely set
 
 | Variable                  | Default              | What it does                                                          |

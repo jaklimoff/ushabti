@@ -64,11 +64,11 @@ export async function createProject(page: Page, name: string): Promise<string> {
   return page.url().split("/p/")[1].split("?")[0];
 }
 
-/** Settings is five pages now, so a test says which one it wants. */
+/** Settings is a rail of pages now, so a test says which one it wants. */
 export async function gotoSettings(
   page: Page,
   projectId: string,
-  section: "properties" | "card" | "views" | "people" | "project" = "properties",
+  section: "properties" | "card" | "views" | "people" | "webhooks" | "project" = "properties",
 ) {
   await page.goto(`/p/${projectId}/settings/${section}`);
 }

@@ -518,3 +518,93 @@ export type BoardData = {
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];
 };
+
+/* ------------------------------------------------------------------ */
+/* Webhooks                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The feed words a webhook can ring for. They are the kinds the activity
+ * table already writes, and nothing else: a webhook rings what the feed
+ * records, and the feed is the record.
+ *
+ * A change that writes no feed line — a view, a property, the card view —
+ * rings nothing, on purpose.
+ */
+export const WEBHOOK_KINDS = [
+  "created",
+  "title",
+  "description",
+  "value",
+  "checklist",
+  "comment",
+  "run",
+  "archive",
+  "deleted",
+  "reset",
+] as const;
+
+export type WebhookKind = (typeof WEBHOOK_KINDS)[number];
+
+/** What each word means on the settings page, in the person's language. */
+export const WEBHOOK_KIND_LABEL: Record<WebhookKind, string> = {
+  created: "Task created",
+  title: "Title",
+  description: "Description",
+  value: "A property value",
+  checklist: "Checklist",
+  comment: "Comment",
+  run: "Agent run",
+  archive: "Archived",
+  deleted: "Deleted",
+  reset: "Reset link",
+};
+
+/**
+ * The body of one delivery. It is the doorbell the stream rings, written
+ * down: that something changed and where, never what.
+ *
+ * There is no title here, no value, and no before and after. The receiver
+ * reads `GET /api/projects/{projectId}/activity?after=…` with its own token,
+ * exactly as an agent on the stream does, and skips a `delivery` it has seen.
+ */
+export type WebhookPayload = {
+  /** This delivery, so a receiver can skip one twice. */
+  delivery: string;
+  projectId: string;
+  projectKey: string;
+  kind: string;
+  /** Null on a line about the project rather than about a task. */
+  taskId: string | null;
+  taskKey: string | null;
+  /** When the feed line was written. */
+  at: string;
+};
+
+/** How the last try went, as the settings page says it. */
+export type WebhookDeliveryState = "delivered" | "waiting" | "failed";
+
+export type WebhookDeliveryDTO = {
+  id: string;
+  state: WebhookDeliveryState;
+  /** The HTTP code of the last try, or null if nothing answered. */
+  code: number | null;
+  /** Why the last try failed, in one line. Null while it has not. */
+  error: string | null;
+  tries: number;
+  /** When it was queued. The page counts from here. */
+  at: string;
+};
+
+export type WebhookDTO = {
+  id: string;
+  url: string;
+  /** Enough of the secret to tell two apart. The whole of it is shown once. */
+  prefix: string;
+  /** The kinds it rings for. Empty means every kind. */
+  kinds: WebhookKind[];
+  active: boolean;
+  createdAt: string;
+  /** The newest delivery, which is the line the page shows. */
+  lastDelivery: WebhookDeliveryDTO | null;
+};

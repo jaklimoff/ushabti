@@ -26,6 +26,11 @@ services:
     environment:
       DATABASE_URL: postgres://ushabti:ushabti@db:5432/ushabti
       NODE_ENV: development
+      # A webhook may be pointed at a private address here, because a
+      # developer's receiver is on their own machine. docker-compose.prod.yml
+      # deliberately does not set this: on a server it would make a webhook a
+      # way to reach whatever else is on that network.
+      USHABTI_WEBHOOK_PRIVATE: "1"
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
     ports:

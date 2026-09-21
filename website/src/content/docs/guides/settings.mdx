@@ -1,14 +1,14 @@
 ---
 title: Settings
-description: The five settings pages, what each one owns, and how Ushabti asks before it destroys something.
+description: The settings pages, what each one owns, and how Ushabti asks before it destroys something.
 sidebar:
   order: 10
 ---
 
 import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
 
-**Settings** in the top bar, or `/p/{projectId}/settings`. Five pages behind a rail, each with its
-own address, so a document can link to one.
+**Settings** in the top bar, or `/p/{projectId}/settings`. A rail of pages, each with its own
+address, so a document can link to one. The owner sees one more than a member does.
 
 | Page                                         | What lives there                                                           |
 | -------------------------------------------- | -------------------------------------------------------------------------- |
@@ -16,6 +16,7 @@ own address, so a document can link to one.
 | [Card view](/ushabti/guides/card-view/) `…/settings/card`         | What a card on the board carries, where each row sits and how it reads. |
 | [Views](/ushabti/guides/views/) `…/settings/views`                | Rename, regroup, reorder and delete views, and name the main one.   |
 | [People](/ushabti/guides/people/) `…/settings/people`             | Members, agents, and the tokens that connect them.                 |
+| [Webhooks](/ushabti/api/webhooks/) `…/settings/webhooks`          | A call out of the board when something changes. The owner's alone. |
 | Project `…/settings/project`                 | The project name, the task-key prefix, and deleting the project.            |
 
 The rail counts what is on each page, and its foot names the version you are running.
@@ -37,6 +38,8 @@ Those numbers are counted, not estimated. The full set:
 | Leave a project   | *Leave this project? Only the owner can put you back.*                              |
 | Remove an agent   | *Remove Builder? Its tokens stop working at once. Its comments and its activity stay.* |
 | Revoke a token    | *Revoke this token? Builder stops working within one request.*                       |
+| Delete a webhook  | *Delete this webhook? example.com/ushabti stops being called, and its deliveries go with it.* |
+| Roll a secret     | *Roll the secret? Every delivery is signed with the new one from now on, and a receiver that has not been told it will refuse them.* |
 
 <Aside type="caution" title="Two controls have not caught up">
 **Deleting an option** and **deleting a task** still happen on the first click, with no question. The
