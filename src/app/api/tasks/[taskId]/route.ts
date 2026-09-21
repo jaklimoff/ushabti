@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { tasks } from "@/db/schema";
+import { projects, tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
-import { loadTaskDetail, logActivity, taskProjectId } from "@/lib/queries";
+import { deletedLine, goesAt } from "@/lib/deleted";
+import { loadTaskDetail, logActivity, sweepDeleted, taskProjectId } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -47,24 +48,59 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   return json({ ok: true });
 });
 
+/**
+ * Deletes the task, for thirty days.
+ *
+ * The row is marked rather than taken away. It leaves every board, list,
+ * search and count in the same breath — every read asks `deletedAt` — and
+ * every route about it answers `404`, which is what delete means to whoever
+ * holds the id. What it does not mean any more is that the work is gone: the
+ * drawer lists it, one press puts it back whole, and the key it comes back
+ * with is the key it had.
+ *
+ * The answer says when that stops being true. A caller reading `goesAt` needs
+ * nothing else to tell somebody how long they have.
+ */
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { taskId } = await ctx.params;
   const projectId = await taskProjectId(taskId);
   if (!projectId) throw new HttpError(404, "Task not found.");
   const { user } = await guard(projectId);
 
+  const at = new Date();
   const [row] = await db
-    .select({ title: tasks.title })
-    .from(tasks)
-    .where(eq(tasks.id, taskId))
+    .update(tasks)
+    .set({ deletedAt: at })
+    .where(and(eq(tasks.id, taskId), isNull(tasks.deletedAt)))
+    .returning({ title: tasks.title, number: tasks.number });
+  if (!row) throw new HttpError(404, "Task not found.");
+
+  const [project] = await db
+    .select({ key: projects.key })
+    .from(projects)
+    .where(eq(projects.id, projectId))
     .limit(1);
-  await db.delete(tasks).where(eq(tasks.id, taskId));
+
+  const goes = goesAt(at);
   await logActivity({
     projectId,
     actorId: user.id,
     kind: "deleted",
-    data: { title: row?.title ?? "" },
+    /* No `taskId`: `activity.task_id` cascades, so a line naming the task
+       would be swept away with the task it is the record of. The key is what
+       points at it instead, and the key outlives the row. */
+    data: deletedLine({
+      action: "deleted",
+      key: `${project.key}-${row.number}`,
+      title: row.title,
+      goesAt: goes,
+    }),
   });
+
+  /* The sweep is on the write, as the reset links are. One delete pays for
+     the rows of this project that ran out. */
+  await sweepDeleted(projectId, at);
+
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
-  return json({ ok: true });
+  return json({ ok: true, goesAt: goes });
 });

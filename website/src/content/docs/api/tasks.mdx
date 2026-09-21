@@ -97,7 +97,8 @@ history row. It says who ran this, when, and how it ended. Ask
 for a closed run exactly as it does for an open one, counts and plan and log and all.
 
 `activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
-`archive`, `deleted`. An `archive` entry carries `data.action`, which is `archived` or `restored`.
+`archive`, `deleted`. An `archive` entry carries `data.action`, which is `archived` or `restored`,
+and so does a `deleted` one — see [the activity feed](/ushabti/api/projects/#the-deleted-line).
 `author` and `actor` are `null` when the user row has been deleted.
 
 This route answers for an archived task exactly as it does for a live one, which is what makes a
@@ -119,12 +120,70 @@ Both optional, ≤ 400 and ≤ 20000 characters. `""` clears the description. `2
 
 ## `DELETE /api/tasks/{taskId}`
 
-Deletes the task with its values, checklist, comments and runs. `200 {"ok": true}`.
+Deletes the task. It leaves every board, list, search and count at once, and **every route about it
+answers `404`** from that moment — the task, its values, its checklist, its comments and its runs.
+That is what delete means to whoever holds the id.
+
+What it does not mean is that the work is gone. The task can come back whole for thirty days, and
+the answer says when that stops being true.
+
+```json title="200"
+{ "ok": true, "goesAt": "2026-10-21T09:13:44.000Z" }
+```
+
+After `goesAt` a sweep takes the row away for good, with its values, its checklist, its comments,
+its runs and its history. Thirty days is the window for every project; it is not a setting.
+
+It writes a `deleted` entry to the activity log and rings the stream with `board`.
 
 <Aside type="caution" title="An agent can delete a task">
 This route carries no gate. If that is not what you want from an agent, say so in its instructions —
 the bundled skill does. Archiving is the everyday way to make a task go away; delete is for a
-mistake.
+mistake, and a mistake now has thirty days of way back.
+</Aside>
+
+## `POST /api/tasks/{taskId}/restore`
+
+Undoes a delete. The body is empty. `200 {"ok": true}`.
+
+This is the **one route that may still see a deleted task**; every other one answers `404` for it.
+The task comes back with the key it had, the rank it had, and its values, checklist, comments, runs
+and history. One deleted while it was archived comes back archived — a put back undoes the delete
+and nothing else.
+
+It is a member call, an agent's as much as a person's, exactly as the delete is.
+
+**It is idempotent**, like the archive pair: restoring a task that is not deleted answers
+`200 {"ok": true}`, writes no activity line and rings nothing. A task past its thirty days is gone,
+so it answers `404`.
+
+## `GET /api/projects/{projectId}/deleted`
+
+What is in the drawer of one project: the deleted tasks that can still come back, **newest first**.
+
+```json title="200"
+{
+  "deleted": [
+    { "id": "…", "number": 14, "key": "USH-14", "title": "Write the queue tests",
+      "position": "Vk",
+      "deletedAt": "2026-09-21T09:13:44.000Z", "goesAt": "2026-10-21T09:13:44.000Z" }
+  ],
+  "windowDays": 30
+}
+```
+
+A row is carried light, as an archived one is: no values, no counts and no description. Nothing
+draws a deleted task — the row says what it was and how long is left, and the way back is the only
+thing you can do with it.
+
+Any member may read it, a person or an agent. It is a read of its own and **not part of the board
+answer**, because a deleted task must reach no board.
+
+<Aside type="note" title="Reading it sweeps, and so does deleting">
+There is no timer in Ushabti. The rows whose window is over are taken away by the next delete in
+that project, or by the next read of this route. So a project that deletes one task and then never
+deletes another keeps that row past its thirty days until somebody looks — hidden from every read
+the whole time.
 </Aside>
 
 ---

@@ -24,6 +24,20 @@
   gap: 5px;
 }
 
+/* One list, with whatever says what it is above it. The page is a column of
+   these, so the gap between two lists is the gap between two sections. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.h2 {
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--text);
+}
+
 .h1 {
   font-size: var(--t-h1);
   font-weight: 600;
@@ -64,6 +78,16 @@
   color: var(--text);
 }
 
+/* The same two words on a deleted row, which opens nothing: every route about
+   a deleted task answers 404, so there is no panel behind it. */
+.gone {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+}
+
 .key {
   flex: 0 0 auto;
   font-family: var(--font-mono);
@@ -88,18 +112,39 @@
   white-space: nowrap;
 }
 
-/* A phone. The line the task opens by takes the whole width, and the moment
-   and the button share the one below it. */
+/* How long is left. It is the one word on the row that runs out, so it is the
+   one that is drawn to be read before the others. */
+.left {
+  flex: 0 0 auto;
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* A phone. The line the task is named on takes the whole width, and the
+   moment, the days left and the button share the one below it. */
 @media (max-width: 560px) {
   .row {
     flex-wrap: wrap;
   }
 
-  .open {
+  .open,
+  .gone {
     flex: 1 0 100%;
   }
 
   .when {
+    margin-right: auto;
+  }
+
+  /* A deleted row has two words where an archived one has one. They stay
+     together at the left, so the days left is what pushes the button over. */
+  .dead .when {
+    margin-right: 0;
+  }
+
+  .left {
     margin-right: auto;
   }
 }

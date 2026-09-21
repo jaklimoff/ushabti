@@ -68,6 +68,9 @@ so an agent sees exactly what a person sees and nothing more.
 | Move a card         | `POST /api/tasks/{taskId}/move`                     |
 | Archive a task      | `POST /api/tasks/{taskId}/archive`                  |
 | Put it back         | `DELETE /api/tasks/{taskId}/archive`                |
+| Delete a task       | `DELETE /api/tasks/{taskId}`                        |
+| Undo that delete    | `POST /api/tasks/{taskId}/restore`                  |
+| What was deleted    | `GET /api/projects/{projectId}/deleted`             |
 | Add a checklist item| `POST /api/tasks/{taskId}/checklist`                |
 | Tick one, or untick | `PATCH /api/checklist/{itemId}` with `done`         |
 | Comment             | `POST /api/tasks/{taskId}/comments`                 |
@@ -154,6 +157,63 @@ because nothing on it says which half. Put an archived task back before you set 
 Status Ready` — so that a model never handles an id, and a bulk set is a list of ids by
 definition. Ten `set` calls say the same thing in the words the skill is for; reach for this route
 when you are writing your own client and the ten calls are the cost.
+
+## A delete lasts thirty days
+
+Archiving is the everyday way to make a task go away. Delete is for a mistake,
+and a mistake now has a way back.
+
+`DELETE /api/tasks/{taskId}` marks the task instead of taking it away. It
+leaves every board, list, search and count at once, and **every route about it
+answers `404`** — the task, its values, its checklist, its comments and its
+runs. That is what delete means to whoever holds the id. The answer says when
+it stops being true:
+
+```json
+{ "ok": true, "goesAt": "2026-10-21T09:13:44.000Z" }
+```
+
+After `goesAt` the task is taken away for good, with everything on it. Thirty
+days is the window, it is the same for every project, and it is not a setting.
+
+`POST /api/tasks/{taskId}/restore` is the way back, and it is the one route
+that may still see a deleted task. The task comes back with **the key it had**,
+the rank it had and everything on it; one deleted while it was archived comes
+back archived. It is idempotent, like the archive pair: a put back on a task
+that is already back answers `{"ok": true}` and writes nothing.
+
+`GET /api/projects/{projectId}/deleted` lists what can still come back, newest
+first:
+
+```json
+{
+  "deleted": [
+    { "id": "…", "number": 14, "key": "USH-14", "title": "…", "position": "Vk",
+      "deletedAt": "2026-09-21T09:13:44.000Z", "goesAt": "2026-10-21T09:13:44.000Z" }
+  ],
+  "windowDays": 30
+}
+```
+
+All three take a token. A delete is content, not the shape of the board, so an
+agent may make them — but archive the task you finished; delete is still for a
+mistake.
+
+**Read the feed line, not the kind.** `kind` stays `deleted` and the line now
+says which way round it went:
+
+```json
+{ "action": "deleted", "key": "USH-14", "title": "…", "goesAt": "2026-10-21T09:13:44.000Z" }
+```
+
+`action` is `deleted` or `restored`, and `goesAt` is null on a put back. A
+watcher that treated every `deleted` line as a task going away now hears a task
+coming back as well. `taskId` is null on both, because `activity.task_id`
+cascades and a line naming the task would be swept away with it — the key is
+what points at it instead.
+
+`board.mjs` has no verb for any of this. A deleted task is a `404` to it, and
+the drawer is a person's to open.
 
 ## Runs: showing what you are doing
 

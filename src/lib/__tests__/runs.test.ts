@@ -106,7 +106,7 @@ vi.mock("../activity", async (importOriginal) => {
 });
 
 const { logActivity } = await import("../activity");
-const { loadOpenRuns, loadTaskRuns } = await import("../runs");
+const { loadOpenRuns, loadTaskRuns, ON_A_TASK_YOU_CAN_SEE } = await import("../runs");
 
 /** The ORDER BY of one read, in the words Postgres is handed. */
 function orderOf(reads: { order: unknown[] }): string {
@@ -233,5 +233,23 @@ describe("the runs of one task", () => {
     expect(pastRuns[0]).not.toHaveProperty("stepsTotal");
     expect(pastRuns[0]).not.toHaveProperty("stepsDone");
     expect(pastRuns[0]).not.toHaveProperty("lastLog");
+  });
+});
+
+/*
+ * A deleted task keeps its open run, because a put back has to give the work
+ * back with everything else. Nothing draws that run, though, and the lease
+ * leaves it open for up to half an hour — so the board must not read it, or
+ * `me` counts a run on a task nobody can reach.
+ */
+describe("the runs the board reads", () => {
+  it("asks for a task that is still there", () => {
+    const said = new PgDialect().sqlToQuery(ON_A_TASK_YOU_CAN_SEE).sql;
+
+    expect(said).toContain('"tasks"');
+    expect(said).toContain('"deleted_at" is null');
+    // Joined to the run rather than to any task: a row of its own, per run.
+    expect(said).toContain('"agent_runs"."task_id"');
+    expect(said.startsWith("exists (select 1 from")).toBe(true);
   });
 });

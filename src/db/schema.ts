@@ -178,16 +178,34 @@ export const tasks = pgTable(
      * An archived task keeps every row that points at it.
      */
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    /**
+     * When somebody deleted this task. Null for a task that is still here.
+     *
+     * A delete is a mark for the same reason an archive is, and it says a
+     * different thing: an archived task is over, a deleted one was a mistake.
+     * The row leaves every board, list, search and count at once and comes
+     * back whole for thirty days; after that the sweep takes it and the
+     * cascade below with it. The key is kept, so a task comes back as the
+     * USH-14 it was.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("tasks_project_number_key").on(t.projectId, t.number),
     index("tasks_project_position_idx").on(t.projectId, t.position),
     // The board reads the live tasks of one project in rank order, and that is
     // the read on every page load. A partial index keeps the archived rows out
-    // of it for good, however many of them pile up.
+    // of it for good, however many of them pile up. A deleted row is out of it
+    // too: nothing on a board draws one.
     index("tasks_project_live_idx")
       .on(t.projectId, t.position)
-      .where(sql`${t.archivedAt} is null`),
+      .where(sql`${t.archivedAt} is null and ${t.deletedAt} is null`),
+    // The drawer reads one project's deleted rows newest first, and the sweep
+    // reads the old ones of one project. Both walk this index, and it holds
+    // only the few rows inside the window.
+    index("tasks_project_deleted_idx")
+      .on(t.projectId, desc(t.deletedAt))
+      .where(sql`${t.deletedAt} is not null`),
   ],
 );
 

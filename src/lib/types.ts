@@ -118,6 +118,27 @@ export type ArchivedTaskDTO = {
   archivedAt: string;
 };
 
+/**
+ * A deleted task, as the drawer lists it.
+ *
+ * It is not on the board answer and never reaches a board: a deleted task is
+ * gone from every view, every list, every search and every count, which is
+ * what delete means. The one page that shows it asks for it itself.
+ *
+ * `goesAt` is the moment the sweep takes it. It is on the row rather than
+ * counted in the browser, so the page and the server can never disagree about
+ * how long is left.
+ */
+export type DeletedTaskDTO = {
+  id: string;
+  number: number;
+  key: string;
+  title: string;
+  position: string;
+  deletedAt: string;
+  goesAt: string;
+};
+
 /* ------------------------------------------------------------------ */
 /* The card view                                                       */
 /* ------------------------------------------------------------------ */

@@ -31,6 +31,14 @@ you leave the box. Delete asks in its own row first.
 `deleted`, `reset`. Pick none and it rings for every one of them. A change that
 writes no feed line — a view, a property, the card view — rings nothing.
 
+**`deleted` rings both ways.** A delete can be undone for thirty days, so the
+word covers a task going and a task coming back. The doorbell says only that
+something happened, as always; the feed line it rang about carries
+`data.action`, which is `deleted` or `restored`. A receiver that treated every
+`deleted` ring as a task going away has to read the action now. The line has no
+task id either way — `activity.task_id` cascades, so a line naming the task
+would be swept away with it — and carries `data.key` instead.
+
 ## The payload
 
 ```json
