@@ -235,6 +235,48 @@ project mark goes too. Everything comes back the moment nothing is picked.
 
 A [list](/ushabti/guides/list/) picks the same way, with the same bar.
 
+## On a phone
+
+Below **560 px** the board draws **one column, the width of the screen**, and stops scrolling
+sideways. Two 272 px columns need 576 px, so below that a second one cannot honestly be drawn.
+Above 560 px nothing changes at all.
+
+Over the column is a **strip of column pills**: a dot, the name, and how many cards are in it, with
+the column on screen filled. It sits below the filter chips and above the board, and it is not a
+second view strip — it names columns rather than views, it carries no sort and no filter, and its
+pills never drag, because the column order belongs to the property everybody shares. **+ New
+column** is the last pill.
+
+Three ways reach another column, and all three move the same one thing:
+
+<div class="keys">
+
+| How | What it does |
+| --- | ------------ |
+| A pill | Shows that column. |
+| A swipe | 60 px sideways, and further sideways than up or down. A finger going left brings in the next column; going right, the one before. A finger going up or down scrolls the column, as it always did. |
+| <kbd>←</kbd> <kbd>→</kbd> | The same keys the board has everywhere else. The cursor walks to a card in the next column that has one, and the board follows it there — see [Keyboard](/ushabti/guides/keyboard/). |
+
+</div>
+
+A board **opens on the first column every time**. Which column you were on is not remembered: it
+would be a second hidden state, and the strip above says where you are in one glance.
+
+What is different down here, and why:
+
+- **No drag.** There is one column on screen, so a card has nowhere to be carried. To move a card,
+  open it and set the grouping property in the panel — that is the one value a drop across a board
+  writes. **Set…** in the [pick bar](#picking-several-cards) does several at once. With the drag
+  sensors off, a finger going sideways belongs to the board.
+- **No column drag**, for the same reason, and **no folding**: a fold gives width back, and there is
+  no width here to give. A fold you made on a wider window is ignored rather than cleared, so the
+  wider window gets it back.
+- **The check that picks a card is always drawn**, on a card and on a list row, because a finger
+  cannot hover.
+
+A [list](/ushabti/guides/list/) changes nothing on a phone: it is one column of rows already, so it
+has no strip, and a row keeps its columns.
+
 ## The top bar
 
 <CardGrid>

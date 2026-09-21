@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   addFilter,
+  addListTask,
   addListView,
   addTask,
   column,
@@ -9,6 +10,7 @@ import {
   listHead,
   listOrder,
   listRow,
+  overflow,
   register,
   saved,
   settles,
@@ -417,5 +419,32 @@ test.describe("A list view", () => {
     // The list is still there beside it, not replaced by the panel.
     await expect(page.getByTestId("list-view")).toBeVisible();
     await expect(listRow(page, "Open me")).toBeVisible();
+  });
+});
+
+/*
+ * A list is one column of rows already, so a phone changes nothing about it:
+ * no strip, and a row keeps the columns the card view gives it. What is
+ * measured here is that it still fits, and that the way in still works.
+ */
+test.describe("A list on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 } });
+
+  test("fits the screen, keeps its columns, and still adds a task", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Pocket"));
+    await addTask(page, "Todo", "First thing");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addListView(page, "Rows");
+
+    await expect(listRow(page, "First thing")).toBeVisible();
+    /* The strip of column pills belongs to a board: a list has one column. */
+    await expect(page.getByTestId("column-pill")).toHaveCount(0);
+    expect(await overflow(page)).toBe(0);
+
+    await addListTask(page, "Second thing");
+    await page.getByRole("button", { name: "Close task" }).click();
+    expect(await listOrder(page)).toEqual(["First thing", "Second thing"]);
+    expect(await overflow(page)).toBe(0);
   });
 });

@@ -488,6 +488,103 @@
   gap: 7px;
 }
 
+/* ------------------------------------------------ the columns on a phone */
+
+/*
+ * Which column is on screen, and the way to another one. It is drawn only
+ * below 560 px, where the columns cannot stand side by side.
+ *
+ * It is not a second view strip: it names columns and not views, it carries
+ * no sort, no filter and no count of its own, and nothing in it drags. The
+ * column order belongs to the property everybody shares.
+ */
+.columnStrip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  background: var(--bg-sub);
+  border-bottom: 1px solid var(--line-faint);
+}
+
+/*
+ * More columns than the screen holds: the row pans, as the view strip does,
+ * and fades at each end that has more — the scrollbar is hidden, so the fade
+ * is the only thing that says so. The pill of the column on screen is scrolled
+ * back into view, because a strip that has panned past it says nothing.
+ */
+.columnPills {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.columnPills::-webkit-scrollbar {
+  display: none;
+}
+
+/* The three things a column header says: the colour, the name, the count. */
+.columnPill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  flex: 0 0 auto;
+  padding: 0 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  touch-action: manipulation;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.columnPillOn {
+  background: #171b20;
+  color: var(--text);
+}
+
+.columnPill:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+
+/* A new column is the last pill, because that is where a new column goes. */
+.columnStrip .addColumn {
+  width: auto;
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.columnStrip .addColumnButton {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 5px;
+}
+
+/* The strip is one row high and the form is four, so it hangs below it. */
+.columnStrip .addColumnForm {
+  position: absolute;
+  z-index: 40;
+  top: 40px;
+  right: 12px;
+  width: min(262px, calc(100vw - 24px));
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.6);
+}
+
 /* -------------------------------------------------------------- canvas */
 
 .canvasWrap {
@@ -817,6 +914,9 @@
  * It has the card's own background behind it because it covers whatever the
  * card view put in that corner. A place of its own would move every chip on
  * every card the moment a pointer arrived, and a card holds still.
+ *
+ * The button is the place it is pressed and the box inside it is what is
+ * drawn, so a finger can be given more room without the check growing.
  */
 .cardPick {
   position: absolute;
@@ -827,14 +927,21 @@
   height: 15px;
   display: grid;
   place-items: center;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+
+.cardPickBox {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--bg-card);
   color: var(--accent);
   font-size: 10px;
   line-height: 1;
-  opacity: 0;
-  transition: opacity 120ms var(--ease);
 }
 
 /* On hover it is an offer; once anything is picked it is the way out, on
@@ -846,11 +953,11 @@
 
 /* A check that is standing on every card has to be seen from across the
    board, and an empty one on a dark card was a rumour of a box. */
-.cardPick[data-on="true"] {
+.cardPick[data-on="true"] .cardPickBox {
   border-color: var(--line-menu);
 }
 
-.cardPicked .cardPick {
+.cardPicked .cardPickBox {
   border-color: var(--accent);
 }
 
@@ -870,9 +977,36 @@
   text-indent: 17px;
 }
 
-.cardPick:hover {
+.cardPick:hover .cardPickBox {
   border-color: var(--accent);
   background: var(--bg-card-hover);
+}
+
+/*
+ * A finger cannot hover, so the offer has to be standing there already. The
+ * check is drawn on every card and every row, and the first line of a card
+ * keeps the same distance from it that it keeps while anything is picked —
+ * a check over the first chip is a check that hides what it sits on.
+ */
+@media (hover: none) {
+  /* It is also the only way in down here, so it is given the 24 px a finger
+     needs: the button grows around the box and the box stays the size it was,
+     so the check reads the same and a miss no longer opens the task. */
+  .cardPick {
+    top: 1px;
+    left: 1px;
+    width: 24px;
+    height: 24px;
+    opacity: 1;
+  }
+
+  .cardTop {
+    padding-left: 17px;
+  }
+
+  .card:not(:has(.cardTop)) .cardTitle {
+    text-indent: 17px;
+  }
 }
 
 /* The cursor. One card carries it, the arrow keys move it, and it reads
@@ -1156,6 +1290,37 @@
 @media (max-width: 520px) {
   .crumbName {
     display: none;
+  }
+}
+
+/*
+ * A phone board. Two 272 px columns need 576, so from here the board draws one
+ * column the width of the screen and the canvas stops scrolling sideways. The
+ * strip above is the way to the others, and so is a swipe.
+ */
+@media (max-width: 560px) {
+  .canvas {
+    overflow-x: hidden;
+    padding: 10px;
+  }
+
+  .column {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* A fold gives width back, and there is no width here to give: the screen
+     holds one column either way. The button goes; what this browser folded is
+     ignored rather than cleared, so a wider window gets its folds back. */
+  .colFold {
+    display: none;
+  }
+
+  /* Under 16 px iOS zooms the page in on a field that takes the focus, and
+     leaves it zoomed. */
+  .composerInput {
+    font-size: 16px;
   }
 }
 
@@ -1495,6 +1660,14 @@ button.listHeadCell:focus-visible {
 .listPick:hover {
   border-color: var(--accent);
   background: var(--bg-card-hover);
+}
+
+/* A finger cannot hover, so the check stands on every row, as it does on
+   every card. The gutter it sits in is always there, so nothing moves. */
+@media (hover: none) {
+  .listPick {
+    opacity: 1;
+  }
 }
 
 .listKey {

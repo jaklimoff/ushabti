@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -20,6 +20,7 @@ import {
   type ViewKind,
 } from "@/lib/types";
 import { useDismiss } from "@/components/ui/useDismiss";
+import { useEdgeFade } from "./edges";
 import { FilterButton, SortButton } from "./Filters";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
@@ -57,8 +58,9 @@ export function ViewStrip({
   const plusRef = useRef<HTMLButtonElement>(null);
   const [popLeft, setPopLeft] = useState(14);
 
-  const stripRef = useRef<HTMLDivElement>(null);
-  const [edges, setEdges] = useState({ start: false, end: false });
+  /* The same row the column strip is: pills that pan, and a fade at each end
+     that has more. */
+  const { ref: stripRef, fade, measure } = useEdgeFade(data.views.length);
 
   const taskCount = data.tasks.length;
   const shown = visibleTasks.length;
@@ -72,25 +74,6 @@ export function ViewStrip({
     const left = anchor.left - host.left - width / 2 + anchor.width / 2;
     setPopLeft(Math.max(10, Math.min(left, host.width - width - 10)));
   }, [adding, ref]);
-
-  /* Views past the edge were invisible: the strip scrolls with no scrollbar. */
-  const measure = useCallback(() => {
-    const el = stripRef.current;
-    if (!el) return;
-    setEdges({
-      start: el.scrollLeft > 2,
-      end: el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
-    });
-  }, []);
-
-  useEffect(() => {
-    measure();
-    const el = stripRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [measure, data.views.length]);
 
   /* Three pills all reading "List" is a mess that costs four lines to stop. */
   function untakenListName(): string {
@@ -124,10 +107,6 @@ export function ViewStrip({
     if (!over || active.id === over.id) return;
     void moveView(String(active.id), String(over.id));
   }
-
-  const fade = [edges.start ? styles.fadeStart : "", edges.end ? styles.fadeEnd : ""]
-    .filter(Boolean)
-    .join(" ");
 
   return (
     <div className={styles.views} ref={ref}>
