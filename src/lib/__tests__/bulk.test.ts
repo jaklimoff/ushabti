@@ -128,9 +128,9 @@ describe("onBoardSaid", () => {
 
 describe("readArchiveAsk", () => {
   it("reads the tasks the bar picked", () => {
-    expect(readArchiveAsk({ taskIds: ["a", "b"] })).toEqual({
+    expect(readArchiveAsk({ taskIds: [id(1), id(2)] })).toEqual({
       ok: true,
-      ask: { kind: "tasks", ids: ["a", "b"] },
+      ask: { kind: "tasks", ids: [id(1), id(2)] },
     });
   });
 
@@ -153,9 +153,9 @@ describe("readArchiveAsk", () => {
   /* A caller that named the tasks knows which tasks it meant, and a property
      beside them could only disagree. */
   it("lets the tasks decide when the body carries both", () => {
-    expect(readArchiveAsk({ taskIds: ["a"], propertyId: "status", value: "done" })).toEqual({
+    expect(readArchiveAsk({ taskIds: [id(1)], propertyId: "status", value: "done" })).toEqual({
       ok: true,
-      ask: { kind: "tasks", ids: ["a"] },
+      ask: { kind: "tasks", ids: [id(1)] },
     });
   });
 
@@ -171,14 +171,20 @@ describe("readArchiveAsk", () => {
   });
 
   /* The list of ids is read by the same rules a bulk set reads it by: the
-     same ceiling, the same sentences, and duplicates joined. */
+     same shape, the same ceiling, the same sentences, and duplicates joined.
+     There is one reading of a list of ids, so there is one place to change
+     it. */
   it("reads the ids by the bulk rules", () => {
-    expect(readArchiveAsk({ taskIds: ["a", "a"] })).toEqual({
+    expect(readArchiveAsk({ taskIds: [id(1), id(1)] })).toEqual({
       ok: true,
-      ask: { kind: "tasks", ids: ["a"] },
+      ask: { kind: "tasks", ids: [id(1)] },
     });
     expect(readArchiveAsk({ taskIds: [] })).toEqual({ ok: false, said: "Name at least one task." });
-    expect(readArchiveAsk({ taskIds: "a" })).toEqual({
+    expect(readArchiveAsk({ taskIds: [id(1), "not-a-uuid"] })).toEqual({
+      ok: false,
+      said: "Name the tasks as a list of ids.",
+    });
+    expect(readArchiveAsk({ taskIds: id(1) })).toEqual({
       ok: false,
       said: "Name the tasks as a list of ids.",
     });
