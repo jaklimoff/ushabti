@@ -8,6 +8,7 @@ import {
   putFilterOnView,
   register,
   saved,
+  savedLens,
   settles,
   unique,
 } from "./helpers";
@@ -43,7 +44,7 @@ test.describe("Filters inside a view", () => {
     await expect(page.getByTestId("filter-button")).toContainText("Filter 1");
 
     // The ✕ on the chip is how a rule goes.
-    await settles(page, /\/api\/views\//, () =>
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
       page.getByRole("button", { name: "Remove the filter Priority is Urgent" }).click(),
     );
     await expect(card(page, "Ordinary thing")).toBeVisible();
@@ -71,13 +72,13 @@ test.describe("Filters inside a view", () => {
     await expect(editor).toBeVisible();
 
     // Adding High widens the rule, then dropping Urgent narrows it again.
-    await settles(page, /\/api\/views\//, () =>
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
       editor.getByRole("option", { name: "High" }).click(),
     );
     await expect(card(page, "Urgent thing")).toBeVisible();
     await expect(card(page, "High thing")).toBeVisible();
 
-    await settles(page, /\/api\/views\//, () =>
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
       editor.getByRole("option", { name: "Urgent" }).click(),
     );
     await expect(chip(page, "Priority is High")).toBeVisible();
@@ -106,7 +107,9 @@ test.describe("Filters inside a view", () => {
     // Nothing is in Backlog, so the board says so rather than looking broken.
     await expect(page.getByText("No task passes the filter")).toBeVisible();
 
-    await settles(page, /\/api\/views\//, () => page.getByTestId("filter-clear").click());
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+      page.getByTestId("filter-clear").click(),
+    );
     await expect(column(page, "Todo")).toBeVisible();
     await expect(card(page, "Only task")).toBeVisible();
   });
@@ -174,11 +177,49 @@ test.describe("Filters inside a view", () => {
     await page.getByRole("button", { name: "New column" }).click();
     const box = page.getByPlaceholder("Column name");
     await box.fill("Blocked");
-    await settles(page, /\/api\/views\//, () => box.press("Enter"));
+    // The rule is mine, so the column joins my lens and the view is untouched.
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () => box.press("Enter"));
 
     // Nobody makes a column in order not to see it.
     await expect(column(page, "Blocked")).toBeVisible();
     await expect(chip(page, "Status is Backlog, Blocked")).toBeVisible();
+    await expect(page.getByTestId("filter-mine")).toBeVisible();
+  });
+
+  /* The same again where the rule is the team's. The column joins the view's
+     set, for everybody, and nothing of mine is written. */
+  test("a new column joins the view's own rule, for everybody", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("NewColumnOnView"));
+
+    await addFilter(page, "Status", "Backlog");
+    await putFilterOnView(page);
+    await expect(chip(page, "Status is Backlog")).toBeVisible();
+    await expect(page.getByTestId("filter-mine")).toHaveCount(0);
+    await expect(column(page, "Todo")).toHaveCount(0);
+
+    let mine = 0;
+    page.on("request", (req) => {
+      if (/\/lens$/.test(new URL(req.url()).pathname)) mine += 1;
+    });
+
+    await page.getByRole("button", { name: "New column" }).click();
+    const box = page.getByPlaceholder("Column name");
+    await box.fill("Blocked");
+    await settles(page, /\/api\/views\/[0-9a-f-]+$/, () => box.press("Enter"));
+
+    await expect(column(page, "Blocked")).toBeVisible();
+    await expect(chip(page, "Status is Backlog, Blocked")).toBeVisible();
+    // The rule is still the team's, and nothing of mine was written.
+    await expect(page.getByTestId("filter-mine")).toHaveCount(0);
+    expect(mine).toBe(0);
+
+    // It is the view that carries it, so a reload finds the column and the
+    // rule where the whole team keeps them.
+    await page.goto(`/p/${projectId}`);
+    await expect(column(page, "Blocked")).toBeVisible();
+    await expect(chip(page, "Status is Backlog, Blocked")).toBeVisible();
+    await expect(page.getByTestId("filter-chip").first()).toHaveAttribute("data-shared", "true");
   });
 
   test("a date rule is made empty and filled in afterwards", async ({ page }) => {
@@ -212,7 +253,7 @@ test.describe("Filters inside a view", () => {
     await expect(page.getByTestId("task-count")).toHaveText("2 tasks");
 
     await page.getByRole("button", { name: "is before" }).click();
-    await settles(page, /\/api\/views\//, async () => {
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, async () => {
       await page.getByTestId("filter-box").fill("2026-10-01");
       await page.getByTestId("filter-box").press("Enter");
     });
@@ -252,14 +293,14 @@ test.describe("Filters inside a view", () => {
     // The arrow keys walk the values; Enter takes the one under them.
     const box = page.getByTestId("filter-box");
     await expect(box).toBeFocused();
-    await settles(page, /\/api\/views\//, () => box.press("Enter"));
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () => box.press("Enter"));
     await expect(chip(page, "Priority is Urgent")).toBeVisible();
     await expect(card(page, "Ordinary thing")).toHaveCount(0);
 
     // The panel stays open, because a set rule usually names more than one.
     await expect(page.getByTestId("filter-menu")).toBeVisible();
     await box.press("ArrowDown");
-    await settles(page, /\/api\/views\//, () => box.press("Enter"));
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () => box.press("Enter"));
     await expect(chip(page, "Priority is Urgent, High")).toBeVisible();
 
     // ‹ goes back to the property list without touching the rule.
@@ -374,11 +415,22 @@ test.describe("Filters inside a view", () => {
     // The board has no dialogs: the chip becomes the question where it stands.
     await cross.click();
     await expect(page.getByText("Remove for everyone?")).toBeVisible();
+    await expect(page.getByTestId("filter-chip-remove")).toBeFocused();
 
     // Escape puts the chip back, and the rule is still on the view.
     await page.keyboard.press("Escape");
     await expect(page.getByText("Remove for everyone?")).toHaveCount(0);
     await expect(chip(page, "Priority is Urgent")).toBeVisible();
+
+    /* The question took the focus, so the chip takes it back. Without this it
+       falls to the body and the next Tab starts at the top of the page. */
+    await expect(cross).toBeFocused();
+
+    // Which is why the keyboard alone can ask again.
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("Remove for everyone?")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(cross).toBeFocused();
 
     await cross.click();
     await settles(page, /\/api\/views\/[0-9a-f-]+$/, () =>
@@ -474,12 +526,14 @@ test.describe("Filters inside a view", () => {
     const ofView = { propertyId: priority.id, op: "is", values: [key("Urgent")] };
     const mine = { propertyId: priority.id, op: "is", values: [key("High")] };
 
-    await page.request.patch(`/api/views/${view.id}`, { data: { filters: { rules: [ofView] } } });
-    // A lens is written as it is: the clash is only a clash at the two doors.
+    /* Mine goes on first, when the view asks nothing and there is no clash to
+       see. The view takes that property afterwards, which is the one way the
+       two sets can ever hold one property: both doors refuse it from now on. */
     const saved = await page.request.put(`/api/views/${view.id}/lens`, {
       data: { filters: { rules: [mine] } },
     });
     expect(saved.ok()).toBeTruthy();
+    await page.request.patch(`/api/views/${view.id}`, { data: { filters: { rules: [ofView] } } });
 
     const promoted = await page.request.post(`/api/views/${view.id}/lens/promote`);
     expect(promoted.status()).toBe(409);
@@ -492,6 +546,150 @@ test.describe("Filters inside a view", () => {
     const kept = after.views.find((v: { id: string }) => v.id === view.id);
     expect(kept.filters.rules).toEqual([ofView]);
     expect(kept.lens.rules).toEqual([mine]);
+  });
+
+  /* A refused promote must not move the board first. The board it would draw
+     is the contradicting one the refusal exists to prevent, so this one write
+     waits for the answer. */
+  test("a refused Put on the view says so and the board holds still", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("PromoteRefusedUI"));
+
+    await addTask(page, "Todo", "Urgent thing");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await addFilter(page, "Priority", "Urgent");
+    await expect(chip(page, "Priority is Urgent")).toBeVisible();
+
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const view = board.views[0];
+    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
+    const high = priority.options.find((o: { name: string }) => o.name === "High").id;
+
+    /* This screen must not learn what the view has just been given, or it
+       would refuse the press itself. That is the race the route is there for:
+       somebody else names my property while I am holding a rule about it. */
+    const boardRead = /\/api\/projects\/[0-9a-f-]+\/board/;
+    await page.route(boardRead, (r) => r.abort());
+    await page.request.patch(`/api/views/${view.id}`, {
+      data: { filters: { rules: [{ propertyId: priority.id, op: "is", values: [high] }] } },
+    });
+
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens\/promote$/, () =>
+      page.getByTestId("filter-promote").click(),
+    );
+
+    await expect(page.getByTestId("toast")).toHaveText(
+      "The view already filters Priority. Remove it for everyone first.",
+    );
+    // Nothing moved. The rule is still mine, and the press is still there.
+    await expect(page.getByTestId("filter-mine")).toBeVisible();
+    await expect(page.getByTestId("filter-promote")).toBeVisible();
+    await expect(page.getByTestId("filter-chip")).toHaveCount(1);
+    await expect(chip(page, "Priority is Urgent")).toBeVisible();
+    await expect(card(page, "Urgent thing")).toBeVisible();
+
+    // And once this screen can see the clash, the press costs no round trip.
+    await page.unroute(boardRead);
+    let asked = 0;
+    page.on("request", (req) => {
+      if (/\/lens\/promote$/.test(new URL(req.url()).pathname)) asked += 1;
+    });
+    await page.goto(`/p/${projectId}`);
+    await expect(page.getByTestId("filter-divider")).toBeVisible();
+
+    await page.getByTestId("filter-promote").click();
+    await expect(page.getByTestId("toast")).toHaveText(
+      "The view already filters Priority. Remove it for everyone first.",
+    );
+    expect(asked).toBe(0);
+  });
+
+  /* The panel is not the only way a lens is written. The route is the other
+     door, and it says the same sentence. */
+  test("writing a lens refuses a property the view already filters", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("LensClash"));
+
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const view = board.views[0];
+    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
+    const key = (name: string) =>
+      priority.options.find((o: { name: string }) => o.name === name).id;
+
+    const ofView = { propertyId: priority.id, op: "is", values: [key("Urgent")] };
+    const mine = { propertyId: priority.id, op: "is", values: [key("High")] };
+
+    await page.request.patch(`/api/views/${view.id}`, { data: { filters: { rules: [ofView] } } });
+
+    const refused = await page.request.put(`/api/views/${view.id}/lens`, {
+      data: { filters: { rules: [mine] } },
+    });
+    expect(refused.status()).toBe(409);
+    expect((await refused.json()).error).toBe(
+      "The view already filters Priority. Remove it for everyone first.",
+    );
+
+    // Nothing was written, so there is no second rule waiting to be promoted.
+    expect(await savedLens(view.id)).toBeNull();
+
+    // Another property is still mine to ask about.
+    const status = board.properties.find((p: { name: string }) => p.name === "Status");
+    const todo = status.options.find((o: { name: string }) => o.name === "Todo").id;
+    const ok = await page.request.put(`/api/views/${view.id}/lens`, {
+      data: { filters: { rules: [{ propertyId: status.id, op: "is", values: [todo] }] } },
+    });
+    expect(ok.ok()).toBeTruthy();
+  });
+
+  /* ---------------------------------------------------------------- */
+  /* Read afresh, on the way in and on the way out                     */
+  /* ---------------------------------------------------------------- */
+
+  /* A lens is saved once and read for months, so it outlives what it names.
+     Both readings are here: the one on the write, and the one the board does. */
+  test("a lens drops a rule that names nothing, written and read alike", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("LensAfresh"));
+
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const view = board.views[0];
+    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
+    const urgent = priority.options.find((o: { name: string }) => o.name === "Urgent").id;
+
+    // A property that is gone, an option that is gone, and one live rule.
+    const written = await page.request.put(`/api/views/${view.id}/lens`, {
+      data: {
+        filters: {
+          rules: [
+            { propertyId: "11111111-1111-1111-1111-111111111111", op: "is", values: ["nothing"] },
+            { propertyId: priority.id, op: "is", values: [urgent, "22222222-gone"] },
+          ],
+        },
+      },
+    });
+    expect(written.ok()).toBeTruthy();
+
+    // The write read them first, so the row itself holds only what can be read.
+    expect(await savedLens(view.id)).toEqual({
+      rules: [{ propertyId: priority.id, op: "is", values: [urgent] }],
+    });
+
+    // The board says the same, because it reads the row afresh again.
+    const withLens = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(withLens.views.find((v: { id: string }) => v.id === view.id).lens.rules).toEqual([
+      { propertyId: priority.id, op: "is", values: [urgent] },
+    ]);
+
+    // Now the option goes, under a lens nobody rewrites. The row still names
+    // it; the board must not, or a rule nobody can see keeps hiding cards.
+    const option = await page.request.delete(`/api/options/${urgent}`);
+    expect(option.ok()).toBeTruthy();
+    expect((await savedLens(view.id))?.rules).toHaveLength(1);
+
+    const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(after.views.find((v: { id: string }) => v.id === view.id).lens.rules).toEqual([]);
   });
 });
 

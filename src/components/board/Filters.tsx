@@ -721,6 +721,20 @@ function Chip({
     asking.cancel();
   }, open || asking.asking);
 
+  /*
+   * The question takes the focus, so putting the chip back has to give it
+   * back. Escape unmounts the Remove button, and focus would fall to the body:
+   * the next Tab then starts at the top of the page, a long way from the row
+   * the person was working on. The ✕ is where they were, so that is where
+   * they go back to.
+   */
+  const cross = useRef<HTMLButtonElement>(null);
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current && !asking.asking) cross.current?.focus();
+    asked.current = asking.asking;
+  }, [asking.asking]);
+
   if (asking.asking) {
     return (
       <div className={styles.filterAnchor} ref={ref}>
@@ -759,6 +773,7 @@ function Chip({
         </button>
         <button
           className={styles.filterChipX}
+          ref={cross}
           aria-label={
             shared ? `Remove the filter ${said} for everyone` : `Remove the filter ${said}`
           }

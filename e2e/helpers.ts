@@ -255,6 +255,32 @@ export async function backdateRun(runId: string, minutes: number): Promise<void>
 }
 
 /**
+ * The lens row of a view as it is stored, or null when there is none.
+ *
+ * The board reads a lens afresh before it hands it out, so the answer cannot
+ * say what was written down. This asks the table, which is the only way to see
+ * that the write did its own reading rather than saving a rule whole.
+ *
+ * A project made by a test has one person in it, so the view says enough.
+ */
+export async function savedLens(viewId: string): Promise<{ rules: unknown[] } | null> {
+  const client = new Client({
+    connectionString:
+      process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti",
+  });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ filters: { rules: unknown[] } }>(
+      "select filters from view_lenses where view_id = $1",
+      [viewId],
+    );
+    return rows[0]?.filters ?? null;
+  } finally {
+    await client.end();
+  }
+}
+
+/**
  * Drags one element onto another, then waits for the write to come back.
  *
  * dnd-kit listens to pointer events and needs real movement, so this walks

@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
 import { cardItems, defaultCardView, readCardView } from "@/lib/card-view";
 import type { CardItem } from "@/lib/card-view";
-import { applyFilters, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
+import { applyFilters, clashOf, clashSaid, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
   AgentRunDTO,
@@ -644,22 +644,35 @@ export function BoardProvider({
     [guarded, view],
   );
 
+  /*
+   * This one write waits for the answer and then reads the board, and it is
+   * the only one that does.
+   *
+   * Every other write draws itself at once and puts itself back if the server
+   * refuses, because the worst a refusal shows is the board the person meant.
+   * A promote is refused for naming a property the view already filters, so
+   * drawing it first shows two chips that fight each other over an emptied
+   * board — the very screen the refusal exists to prevent — for as long as the
+   * round trip takes. The toast then arrives beside a board that has moved.
+   */
   const promoteLens = useCallback<Store["promoteLens"]>(async () => {
     if (!view) return;
     const id = view.id;
-    /* The same joining the server does, and the same the screen was already
-       showing, so nothing moves when the answer comes back. */
-    const promoted = mergeFilters(view.filters, view.lens);
-    setData((current) => ({
-      ...current,
-      views: current.views.map((v) =>
-        v.id === id ? { ...v, filters: promoted, lens: EMPTY_FILTERS } : v,
-      ),
-    }));
+
+    /* What the route will say, said here first, so a clash this screen can
+       already see costs nobody a round trip. */
+    const clash = clashOf(view.filters, view.lens, data.properties);
+    if (clash) return notify(clashSaid(clash));
+
     await guarded(async () => {
       await api.post(`/api/views/${id}/lens/promote`);
+      /* The board comes back from the server rather than being worked out
+         here. The joining is the same, but a set made before the write would
+         be written over a board that arrived while the write was in flight.
+         Nothing flashes, because this write already waited for its answer. */
+      await refresh();
     });
-  }, [guarded, view]);
+  }, [data.properties, guarded, notify, refresh, view]);
 
   const setSort = useCallback<Store["setSort"]>(
     async (next) => {
