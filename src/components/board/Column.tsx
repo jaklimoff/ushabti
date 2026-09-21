@@ -24,12 +24,14 @@ function SortableTask({
   selected,
   cursor,
   onOpen,
+  onPick,
 }: {
   task: TaskDTO;
   columnId: string;
   selected: boolean;
   cursor: boolean;
   onOpen: () => void;
+  onPick: (event: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -45,6 +47,7 @@ function SortableTask({
       cursor={cursor}
       ghost={isDragging}
       onOpen={onOpen}
+      onPick={onPick}
       style={{
         transform: CSS.Translate.toString(transform),
         transition: transition ?? undefined,
@@ -76,6 +79,7 @@ export function Column({
   composing,
   onCompose,
   onOpenTask,
+  onPickTask,
   onAddTask,
   onArchiveAll,
   onFold,
@@ -93,6 +97,8 @@ export function Column({
   composing: ComposerPlace | null;
   onCompose: (place: ComposerPlace | null) => void;
   onOpenTask: (task: TaskDTO) => void;
+  /** Picks one card of this column, or puts it back. Shift asks for the run. */
+  onPickTask: (taskId: string, event: React.MouseEvent) => void;
   onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
   /**
    * Archives every task in this column, or null when the column cannot be
@@ -301,6 +307,7 @@ export function Column({
               selected={selectedTaskId === task.id}
               cursor={cursorTaskId === task.id}
               onOpen={() => onOpenTask(task)}
+              onPick={(event) => onPickTask(task.id, event)}
             />
           ))}
         </SortableContext>

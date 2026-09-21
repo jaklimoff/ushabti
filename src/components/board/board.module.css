@@ -115,6 +115,96 @@
   color: var(--accent-soft);
 }
 
+/* --------------------------------------------------------- picked cards */
+
+/*
+ * The bar that says what is picked. It is in the top bar beside the search
+ * box, and only while something is picked: the view strip below holds what
+ * belongs to a view, and a handful of cards picked for a moment does not.
+ */
+.pickBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 4px 0 8px;
+  border-radius: 5px;
+  background: var(--bg-hover);
+  box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.35);
+}
+
+.pickCount {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--accent-soft);
+}
+
+.pickSet {
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-4);
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.pickSet:hover {
+  background: var(--bg-card-hover);
+  color: var(--text);
+}
+
+.pickClear {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--faint);
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.pickClear:hover {
+  background: var(--bg-card-hover);
+  color: var(--text);
+}
+
+/* The control the task panel sets one value with, given room to stand in. */
+.pickControl {
+  padding: 2px 0;
+}
+
+/*
+ * A phone. The top bar is already exactly full at 390 px, so the bar has to be
+ * given room rather than added to it. The crumbs go, because the mark still
+ * names the project and the view strip underneath still names the view, and
+ * the search box narrows. Both come back the moment nothing is picked.
+ */
+@media (max-width: 560px) {
+  .top:has(.pickBar) .crumbName,
+  .top:has(.pickBar) .crumbSep,
+  .top:has(.pickBar) .crumbView {
+    display: none;
+  }
+
+  .top:has(.pickBar) .searchAnchor {
+    flex: 0 1 92px;
+  }
+}
+
 /* ---------------------------------------------------------- view strip */
 
 .views {
@@ -661,6 +751,55 @@
 
 .cardSelected {
   box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.55);
+}
+
+/* A picked card wears a border and nothing more. The step count, the count in
+   the bar and the rest of it are in the top bar, where a board of forty cards
+   can still be read. */
+.cardPicked {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/*
+ * The check, over the top-left corner.
+ *
+ * It has the card's own background behind it because it covers whatever the
+ * card view put in that corner. A place of its own would move every chip on
+ * every card the moment a pointer arrived, and a card holds still.
+ */
+.cardPick {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 2;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--accent);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+
+/* On hover it is an offer; once anything is picked it is the way out, on
+   every card at once. */
+.card:hover .cardPick,
+.cardPick[data-on="true"] {
+  opacity: 1;
+}
+
+.cardPicked .cardPick {
+  border-color: var(--accent);
+}
+
+.cardPick:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-hover);
 }
 
 /* The cursor. One card carries it, the arrow keys move it, and it reads

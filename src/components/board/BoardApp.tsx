@@ -14,6 +14,7 @@ import { FilterChips } from "./Filters";
 import { ListCanvas } from "./ListCanvas";
 import { Listening } from "./Listening";
 import { Search } from "./Search";
+import { Selection } from "./Selection";
 import { BoardProvider, useBoard } from "./store";
 import { TaskPanel } from "./TaskPanel";
 import { ViewStrip } from "./ViewStrip";
@@ -98,6 +99,10 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           <span className={styles.crumbSep}>/</span>
           <span className={styles.crumbView}>{view?.name ?? "Board"}</span>
           <div className={styles.spacer} />
+          {/* What is picked belongs to no view either, so it stands beside the
+              search box and not in the strip. It is here only while something
+              is picked. */}
+          <Selection />
           {/* The box searches the project, so it sits above the view strip
               rather than in it, beside the things that belong to no view. */}
           <Search onOpenTask={open} />

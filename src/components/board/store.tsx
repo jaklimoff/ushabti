@@ -113,6 +113,30 @@ type Store = {
   }) => Promise<void>;
   /** Answers whether the write went through, so a caller that drew it early can put it right. */
   setValue: (taskId: string, propertyId: string, value: TaskValue) => Promise<boolean>;
+
+  /**
+   * The tasks picked for one change to all of them.
+   *
+   * It is `picked` and not `selected`, because "selected" already means the
+   * one task the panel is open on. Only what this view draws is in here: a
+   * card a filter hides leaves the count quietly, and leaves the write with
+   * it, so the bar can never say three where the board shows two. A filter
+   * hides a card; it does not unpick it.
+   */
+  picked: string[];
+  /** Picks one card, or puts it back. The next range is measured from it. */
+  togglePick: (taskId: string) => void;
+  /**
+   * Picks every card between the last one picked and this one. The run is
+   * given as the column's own cards, top to bottom, because a range is a
+   * range of the screen and only the column knows its order. With the last
+   * pick somewhere else, there is no run: this one card is picked instead.
+   */
+  pickTo: (taskId: string, columnTaskIds: string[]) => void;
+  /** Nothing is picked. Escape, the ✕ and a change of view all end here. */
+  clearPicks: () => void;
+  /** Sets one property on every picked task, in one call. */
+  setPickedValue: (propertyId: string, value: TaskValue) => Promise<void>;
   /** Feeds the checklist and comment counts of an open task back to its card. */
   syncTaskCounts: (
     taskId: string,
@@ -270,7 +294,21 @@ export function BoardProvider({
   const viewId =
     lastViewId || (initial.views.find((v) => v.isDefault)?.id ?? initial.views[0]?.id ?? "");
 
-  const setViewId = useCallback((id: string) => writeLastView(projectId, id), [projectId]);
+  /* What is picked belongs to the board on screen, so moving to another view
+     ends it. The ids are kept as they were picked, and what the view draws is
+     worked out below. */
+  const [pickedRaw, setPickedRaw] = useState<string[]>([]);
+  /* The card the next range is measured from: the last one picked by hand. */
+  const anchor = useRef<string | null>(null);
+
+  const setViewId = useCallback(
+    (id: string) => {
+      setPickedRaw([]);
+      anchor.current = null;
+      writeLastView(projectId, id);
+    },
+    [projectId],
+  );
 
   const notify = useCallback((text: string, kind: Toast["kind"] = "error") => {
     const id = (toastSeq.current += 1);
@@ -388,6 +426,46 @@ export function BoardProvider({
     () => applyFilters(data.tasks, filters, data.properties),
     [data.properties, data.tasks, filters],
   );
+
+  /*
+   * Only what the view draws. Everything that counts the picks, writes them or
+   * says how many there are reads this one answer, so the bar, the border on
+   * the card and the ids the route is sent can never disagree — exactly as
+   * `visibleTasks` is the one answer about the cards themselves.
+   */
+  const pickedHere = useMemo(() => {
+    if (pickedRaw.length === 0) return pickedRaw;
+    const drawn = new Set(visibleTasks.map((t) => t.id));
+    return pickedRaw.filter((id) => drawn.has(id));
+  }, [pickedRaw, visibleTasks]);
+
+  const togglePick = useCallback<Store["togglePick"]>((taskId) => {
+    anchor.current = taskId;
+    setPickedRaw((current) =>
+      current.includes(taskId) ? current.filter((id) => id !== taskId) : [...current, taskId],
+    );
+  }, []);
+
+  const pickTo = useCallback<Store["pickTo"]>((taskId, columnTaskIds) => {
+    const from = anchor.current ? columnTaskIds.indexOf(anchor.current) : -1;
+    const to = columnTaskIds.indexOf(taskId);
+    /* The last pick is in another column, or gone. A run across two columns
+       is two runs, so this picks the one card and starts again from it. */
+    if (from < 0 || to < 0) {
+      anchor.current = taskId;
+      setPickedRaw((current) => (current.includes(taskId) ? current : [...current, taskId]));
+      return;
+    }
+    /* The anchor stays where it is, so a second Shift-click measures the run
+       from the same card rather than from the end of the last one. */
+    const run = columnTaskIds.slice(Math.min(from, to), Math.max(from, to) + 1);
+    setPickedRaw((current) => [...current, ...run.filter((id) => !current.includes(id))]);
+  }, []);
+
+  const clearPicks = useCallback<Store["clearPicks"]>(() => {
+    anchor.current = null;
+    setPickedRaw([]);
+  }, []);
 
   const runsByTask = useMemo(() => {
     const map = new Map<string, AgentRunDTO>();
@@ -620,6 +698,37 @@ export function BoardProvider({
       });
     },
     [guarded],
+  );
+
+  /*
+   * One call, not one for each card. Ten calls coerce the value ten times,
+   * ring the doorbell ten times, and can stop halfway with nothing on screen
+   * saying where. The cards move at once and the refusal puts them back, like
+   * every other write here.
+   *
+   * The picks stand afterwards. Setting a second property on the same cards is
+   * the next thing a person does, and clearing them would take it away.
+   */
+  const setPickedValue = useCallback<Store["setPickedValue"]>(
+    async (propertyId, value) => {
+      const ids = pickedHere;
+      if (ids.length === 0) return;
+      const wanted = new Set(ids);
+      setData((current) => ({
+        ...current,
+        tasks: current.tasks.map((t) =>
+          wanted.has(t.id) ? { ...t, values: { ...t.values, [propertyId]: value } } : t,
+        ),
+      }));
+      await guarded(async () => {
+        await api.post(`/api/projects/${projectId}/tasks/values`, {
+          taskIds: ids,
+          propertyId,
+          value,
+        });
+      });
+    },
+    [guarded, pickedHere, projectId],
   );
 
   const controlRun = useCallback<Store["controlRun"]>(
@@ -963,6 +1072,11 @@ export function BoardProvider({
     archiveColumn,
     moveTask,
     setValue,
+    picked: pickedHere,
+    togglePick,
+    pickTo,
+    clearPicks,
+    setPickedValue,
     syncTaskCounts,
     createView,
     updateView,
