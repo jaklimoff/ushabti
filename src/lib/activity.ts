@@ -56,12 +56,19 @@ export async function logActivityAll(entries: ActivityEntry[]) {
      that cannot be queued is lost, exactly as an event on a dropped socket
      is: the feed is the record, and a receiver reads it to catch up. */
   try {
-    const rung: Rung[] = entries.map((entry) => ({
-      projectId: entry.projectId,
-      taskId: entry.taskId ?? null,
-      kind: entry.kind,
-      at,
-    }));
+    const rung: Rung[] = entries.map((entry) => {
+      /* One import writes a line on the project and one on every task it
+         made. They are one change, so they ring one doorbell: `queueWebhooks`
+         folds the lines that share this. */
+      const importId = entry.data?.importId;
+      return {
+        projectId: entry.projectId,
+        taskId: entry.taskId ?? null,
+        kind: entry.kind,
+        at,
+        importId: typeof importId === "string" ? importId : null,
+      };
+    });
     await queueWebhooks(rung);
     kickSender();
   } catch {

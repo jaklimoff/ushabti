@@ -70,7 +70,14 @@ export async function createProject(page: Page, name: string): Promise<string> {
 export async function gotoSettings(
   page: Page,
   projectId: string,
-  section: "properties" | "card" | "views" | "people" | "webhooks" | "project" = "properties",
+  section:
+    | "properties"
+    | "card"
+    | "views"
+    | "people"
+    | "webhooks"
+    | "import"
+    | "project" = "properties",
 ) {
   await page.goto(`/p/${projectId}/settings/${section}`);
 }

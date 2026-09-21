@@ -39,8 +39,14 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
     { slug: "people", label: "People", count: data.members.length },
     /* A URL and a secret are access, so the read is the owner's too. A member
        who cannot see the page is not offered it. */
+    /* An import makes properties and options, and the shape of a project is
+       the owner's. A member who cannot press the button is not offered the
+       page that leads to it. */
     ...(data.project.role === "owner"
-      ? [{ slug: "webhooks", label: "Webhooks", count: null }]
+      ? [
+          { slug: "webhooks", label: "Webhooks", count: null },
+          { slug: "import", label: "Import", count: null },
+        ]
       : []),
     { slug: "project", label: "Project", count: null },
   ];
