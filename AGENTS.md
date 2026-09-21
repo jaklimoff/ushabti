@@ -71,9 +71,11 @@ and what is easy to get wrong.
   moves what `defaultGroupById` answers: on a project that never arranged a
   card view, the main view is the one that says which property the columns are.
 - **A view is dragged by naming what it landed on, never a rank.** The strip
-  and the settings page write the same one order, so `moveView` in `store.tsx`
-  is the only place that works the neighbour out and the route is the only
-  place that makes a rank, under the project lock, exactly as a property's is.
+  and the settings page write the same one order, so `landedAfter` in
+  `store.tsx` is the only place that works the neighbour out and the route is
+  the only place that makes a rank, under the project lock, exactly as a
+  property's is — and a property is dragged by the same route, `moveProperty`
+  taking what it landed on and reading that one helper.
   A pill is a button first: the drag starts after five pixels and dnd-kit
   swallows the click that follows, so picking a view and moving one cannot
   happen at once. The pill's colour follows the view and not its place, because

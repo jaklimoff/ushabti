@@ -53,17 +53,13 @@ export function PropertiesPanel() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  /* The drag names the row it landed after, never a rank. The rank is made on
-     the server, under the project lock, exactly as a view's is. */
+  /* The drag names the row it landed on, never a rank. The store works the
+     neighbour out, as it does for a view, and the rank is made on the server
+     under the project lock. */
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const list = data.properties;
-    const to = list.findIndex((p) => p.id === over.id);
-    if (to < 0) return;
-    const rest = list.filter((p) => p.id !== active.id);
-    // The property it now sits behind. Null is the top of the list.
-    void moveProperty(String(active.id), rest[to - 1]?.id ?? null);
+    void moveProperty(String(active.id), String(over.id));
   }
 
   async function create() {
