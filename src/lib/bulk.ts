@@ -1,3 +1,5 @@
+import { isId } from "./ids";
+
 /**
  * The rules one bulk write obeys, apart from the database.
  *
@@ -28,10 +30,12 @@ export type IdsRead = { ok: true; ids: string[] } | { ok: false; said: string };
  */
 export function readTaskIds(raw: unknown): IdsRead {
   if (!Array.isArray(raw)) return { ok: false, said: "Name the tasks as a list of ids." };
-  /* An empty string is a bad entry like any other, and is refused rather than
-     dropped: a caller that sent one meant a task, and a call that quietly set
-     two of the three it named would be the half-set board in miniature. */
-  if (raw.some((id) => typeof id !== "string" || id === "")) {
+  /* An empty string, and anything else that is not an id, is a bad entry like
+     any other: refused rather than dropped. A caller that sent one meant a
+     task, and a call that quietly set two of the three it named would be the
+     half-set board in miniature. The shape is the same one every path id is
+     read by, so a bad id in a body cannot reach the database either. */
+  if (raw.some((id) => !isId(id))) {
     return { ok: false, said: "Name the tasks as a list of ids." };
   }
   const ids = Array.from(new Set(raw as string[]));

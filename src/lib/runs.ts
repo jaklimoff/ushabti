@@ -16,6 +16,7 @@ import {
 import { db } from "@/db";
 import { agentRunLog, agentRunSteps, agentRuns, tasks, users } from "@/db/schema";
 import { logActivity } from "./activity";
+import { readId } from "./api";
 import { HttpError } from "./auth";
 import { publish } from "./events";
 import type { Tx } from "./queries";
@@ -325,6 +326,7 @@ async function withDetail(row: RunRow): Promise<AgentRunDetailDTO> {
 
 /** The project and the open run of a task, or 404. */
 export async function runContext(runId: string) {
+  readId(runId, "run");
   const [row] = await db
     .select({
       id: agentRuns.id,

@@ -1,21 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { BULK_LIMIT, readTaskIds, rowsSaid, type BulkRow } from "../bulk";
 
-const many = (count: number) => Array.from({ length: count }, (_, i) => `t-${i}`);
+/** A real id, because `readTaskIds` reads the shape as every path id is read. */
+const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+
+const many = (count: number) => Array.from({ length: count }, (_, i) => id(i));
 
 describe("readTaskIds", () => {
   it("takes a list of ids", () => {
-    expect(readTaskIds(["a", "b"])).toEqual({ ok: true, ids: ["a", "b"] });
+    expect(readTaskIds([id(1), id(2)])).toEqual({ ok: true, ids: [id(1), id(2)] });
   });
 
   it("refuses anything that is not a list", () => {
-    for (const raw of [undefined, null, "a", 7, { 0: "a" }]) {
+    for (const raw of [undefined, null, id(1), 7, { 0: id(1) }]) {
       expect(readTaskIds(raw)).toEqual({ ok: false, said: "Name the tasks as a list of ids." });
     }
   });
 
   it("refuses a list with something other than an id in it", () => {
-    expect(readTaskIds(["a", 7])).toEqual({
+    expect(readTaskIds([id(1), 7])).toEqual({
+      ok: false,
+      said: "Name the tasks as a list of ids.",
+    });
+  });
+
+  /* A bad id in a body is refused where a bad id in a path is: before the
+     database sees it. Postgres answers a word that is not a UUID with an error
+     nobody can tell from a fault of ours, which the caller reads as 500. */
+  it("refuses a word that is not a UUID", () => {
+    expect(readTaskIds([id(1), "not-a-uuid"])).toEqual({
       ok: false,
       said: "Name the tasks as a list of ids.",
     });
@@ -24,7 +37,7 @@ describe("readTaskIds", () => {
   /* An empty string is refused, not dropped. Dropping it would set two of the
      three tasks the call named and answer as though it had set them all. */
   it("refuses an empty id rather than leaving it out", () => {
-    expect(readTaskIds(["a", ""])).toEqual({
+    expect(readTaskIds([id(1), ""])).toEqual({
       ok: false,
       said: "Name the tasks as a list of ids.",
     });
@@ -38,7 +51,7 @@ describe("readTaskIds", () => {
   /* The same id twice is one task. Two rows about one task in one statement
      is what the upsert refuses outright, so they are joined before counting. */
   it("names each task once", () => {
-    expect(readTaskIds(["a", "b", "a"])).toEqual({ ok: true, ids: ["a", "b"] });
+    expect(readTaskIds([id(1), id(2), id(1)])).toEqual({ ok: true, ids: [id(1), id(2)] });
   });
 
   it(`takes ${BULK_LIMIT} tasks and refuses one more`, () => {
@@ -54,7 +67,7 @@ describe("readTaskIds", () => {
 
   /* The limit counts tasks, not ids, so a duplicate does not spend one. */
   it("counts after joining the duplicates", () => {
-    expect(readTaskIds([...many(BULK_LIMIT), "t-0"]).ok).toBe(true);
+    expect(readTaskIds([...many(BULK_LIMIT), id(0)]).ok).toBe(true);
   });
 });
 

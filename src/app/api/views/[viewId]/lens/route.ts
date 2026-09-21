@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { viewLenses, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, guard, humanOnly, json, route } from "@/lib/api";
+import { body, guard, humanOnly, json, readId, route } from "@/lib/api";
 import { clashOf, clashSaid, readFilters } from "@/lib/filters";
 import { loadProperties } from "@/lib/queries";
 
@@ -27,7 +27,9 @@ export const PUT = route<Ctx>(async (req, ctx) => {
   const { viewId } = await ctx.params;
   /* One read answers both questions this route asks of the view: which project
      guards it, and what it already filters. It asked for the same row twice,
-     and the panel writes on every rule a person changes. */
+     and the panel writes on every rule a person changes. So the id is read
+     here rather than by `viewProjectId`, which this route does not call. */
+  readId(viewId, "view");
   const [view] = await db
     .select({ projectId: views.projectId, config: views.config })
     .from(views)

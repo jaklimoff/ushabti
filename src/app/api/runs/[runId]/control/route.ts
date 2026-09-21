@@ -4,7 +4,7 @@ import { agentRuns } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
 import { logActivity } from "@/lib/queries";
-import { addLog, closeRun, loadRun } from "@/lib/runs";
+import { addLog, closeRun, loadRun, runContext } from "@/lib/runs";
 import { RUN_CONTROLS, type RunControl, type RunStatus } from "@/lib/types";
 import { isOpen } from "@/lib/run-state";
 
@@ -22,17 +22,9 @@ type Ctx = { params: Promise<{ runId: string }> };
  */
 export const POST = route<Ctx>(async (req, ctx) => {
   const { runId } = await ctx.params;
-  const [context] = await db
-    .select({
-      id: agentRuns.id,
-      projectId: agentRuns.projectId,
-      taskId: agentRuns.taskId,
-      status: agentRuns.status,
-    })
-    .from(agentRuns)
-    .where(eq(agentRuns.id, runId))
-    .limit(1);
-  if (!context) throw new HttpError(404, "Run not found.");
+  // The same read the other run routes make, which is also where a run id is
+  // read for shape. This route asked for four of its columns by hand.
+  const context = await runContext(runId);
 
   const { user } = await guard(context.projectId);
   // Pause and Stop mean nothing if the agent can write them itself.
