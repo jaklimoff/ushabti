@@ -88,9 +88,10 @@ filters, because one property carries one rule, whoever asked.
 
 **An entry in `archived` is not a whole task.** It holds seven fields: `id`,
 `number`, `key`, `title`, `description`, `position` and `archivedAt`. There are
-no values, no checklist counts and no comment count: nothing draws an
+no values, no checklist counts and no comment count: no view draws an
 archived task, so the board does not carry what nobody reads. It is enough to
-find one by its key or its words and to know that the key still exists.
+find one by its key or its words, to know that the key still exists, and to
+list them, which is what the archive page at `/p/{projectId}/archived` does.
 
 Ask `GET /api/tasks/{taskId}` for the whole of one. That route answers for an
 archived task exactly as it does for a live one — with its values, its

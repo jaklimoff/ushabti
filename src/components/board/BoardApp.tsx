@@ -91,7 +91,9 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
     <div className={styles.shell}>
       <div className={styles.main}>
         <div className={styles.top}>
-          <div className={styles.mark}>{data.project.key.slice(0, 1)}</div>
+          <div className={styles.mark} data-testid="board-mark">
+            {data.project.key.slice(0, 1)}
+          </div>
           <span className={styles.crumbName}>{data.project.name}</span>
           <span className={styles.crumbSep}>/</span>
           <span className={styles.crumbView}>{view?.name ?? "Board"}</span>
@@ -105,8 +107,17 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
             data-testid={live ? "live-dot" : "live-dot-off"}
             title={live ? "Live: changes from others arrive by themselves" : "Not live right now"}
           />
-          {/* A 26 px ⚙ was the only route to settings, and the only
-              pictograph in an otherwise geometric set. */}
+          {/* The two project pages, beside each other because they are the
+              two places off the board. A 26 px ⚙ was the only route to
+              settings, and the only pictograph in an otherwise geometric
+              set. */}
+          <Link
+            className={styles.iconLink}
+            href={`/p/${data.project.id}/archived`}
+            title="The tasks that are archived"
+          >
+            Archive
+          </Link>
           <Link
             className={styles.iconLink}
             href={`/p/${data.project.id}/settings/properties`}

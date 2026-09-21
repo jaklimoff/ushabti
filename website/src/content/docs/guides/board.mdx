@@ -76,13 +76,29 @@ deleted: each task keeps its values, its checklist, its comments, its history an
 one of them can be put back from its own panel — see
 [the task panel](/ushabti/guides/task-panel/#archived-and-put-back).
 
-This is the answer to a Shipped column that grows without limit.
+This is the answer to a Shipped column that grows without limit. What went is on
+[the archive page](#the-archive).
 
 - **A person only.** One press can clear forty cards, so an agent cannot make this call. An agent
   may archive the one task it finished.
 - **Not while a filter is on.** The button is absent then. The sweep names a value of the grouping
   property, so under a rule it would archive tasks this board is not drawing — and the count in the
   question would not be the count that went. Clear the filter and the button is back.
+
+## The archive
+
+**Archive** in the top bar, beside **Settings**, opens `/p/{project}/archived`: every archived task
+of the project, newest first, with the key, the title and when it went. It is not a view — no view
+draws an archived task — which is why it is a page of its own and not a pill in the view strip.
+
+- **The key and the title open the task**, exactly as its link does.
+- **Put back** returns one to the rank it never lost, so it lands where it was. The row goes, and a
+  line says which task is back.
+- **The box at the top narrows the list** by key and title, which are what a row shows.
+
+The page draws the archived tasks your browser already carries, so it answers as you type and asks
+the server nothing until you put one back. Who archived a task is not on the row: open it and the
+[activity log](/ushabti/guides/task-panel/#activity) says who and when.
 
 ## Adding a column
 
@@ -144,6 +160,10 @@ what it will write before it writes it — see [Filters](/ushabti/guides/filters
   <Card title="The live dot" icon="rocket">
     On: *"Live: changes from others arrive by themselves."* Off: *"Not live right now."* It is the
     state of one server-sent-events connection per tab.
+  </Card>
+  <Card title="Archive and Settings" icon="setting">
+    The two pages of a project that are not the board. **Archive** lists what has been archived;
+    **Settings** holds the properties, the card, the views, the people and the project itself.
   </Card>
   <Card title="The view strip" icon="list-format">
     Every view, the `+` to add one, the **Sort** and **Filter** pills, and a count. Drag a pill to

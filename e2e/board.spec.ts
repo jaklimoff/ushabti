@@ -9,6 +9,7 @@ import {
   createProject,
   dragCard,
   dragOnto,
+  overflow,
   register,
   settles,
   sortBoard,
@@ -713,5 +714,26 @@ test.describe("Ordering a board on a phone", () => {
     await sortBoard(page, "Priority");
     expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
     await expect(page.getByTestId("sort-chip")).toBeVisible();
+  });
+
+  /*
+   * The top bar is exactly full at this width: the spacer between the name and
+   * the search box has nothing left to give. So one more link would push the
+   * bar off the side, and the mark — which is all that names the project down
+   * here — would be squashed, both of them without a sound.
+   */
+  test("the top bar fits, and the mark keeps its width", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Pocket"));
+
+    /* By their titles: an empty board says "Settings" in its hint as well, and
+       this is about the two links in the bar. */
+    await expect(page.getByTitle("The tasks that are archived")).toBeVisible();
+    await expect(page.getByTitle("Project settings")).toBeVisible();
+    expect(await overflow(page)).toBe(0);
+
+    const mark = await page.getByTestId("board-mark").boundingBox();
+    expect(mark!.width).toBe(18);
+    expect(mark!.height).toBe(18);
   });
 });
