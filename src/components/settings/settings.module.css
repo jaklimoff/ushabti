@@ -380,6 +380,38 @@
   color: var(--danger-soft);
 }
 
+/*
+ * A finger needs 24 px, and these two were 11 and 15. The buttons hold a
+ * 24 px square on a phone; the colour and the ✕ stay the size they were.
+ * The swatch keeps its size by padding, which the background is clipped to,
+ * which is also why the colour is set as `background-color`: the `background`
+ * shorthand would put the clip back to the whole button. A mouse hits 11 px,
+ * so a wide screen keeps its tight chip.
+ */
+@media (max-width: 620px) {
+  /* The chip gives up its own padding to pay for them: the space each mark
+     now holds around itself reads as the gap the chip used to draw, so two
+     options still sit side by side on a phone. */
+  .option {
+    height: 26px;
+    gap: 0;
+    padding: 0;
+  }
+  .swatchBtn {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+    padding: 6px;
+    /* 9 px less the 6 px of padding leaves the 3 px corner it always had. */
+    border-radius: 9px;
+    background-clip: content-box;
+  }
+  .optionRemove {
+    width: 24px;
+    height: 24px;
+  }
+}
+
 .optionAdd {
   display: inline-flex;
   align-items: center;
@@ -960,6 +992,67 @@
 .makeMain:focus-visible {
   background: var(--bg-hover);
   color: var(--accent-soft);
+}
+
+/* The parts of a view row. On a wide screen this is the plain row it always
+   was: the name sits its own width and the two boxes are pushed right. */
+.viewMain {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.viewShape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.viewPair {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/*
+ * On a phone one line holds a grip, a name, a word, two labels and two boxes,
+ * and the name is what gives way: it was 18 px wide and the word in it was
+ * cut. Two deliberate lines instead, as the property row has. The first line
+ * is which view this is and what can be done to it; the second is the shape
+ * it has, and it may wrap again between the two pairs.
+ * The element is named because the row's own display comes from
+ * `components/ui/` and a class alone does not beat it.
+ */
+@media (max-width: 620px) {
+  div.viewHead {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    grid-template-areas:
+      "grip name main tools"
+      "shape shape shape shape";
+    gap: 8px 10px;
+  }
+  .viewHead .grip {
+    grid-area: grip;
+  }
+  .viewName {
+    grid-area: name;
+    width: 100%;
+  }
+  .viewMain {
+    grid-area: main;
+  }
+  .viewShape {
+    grid-area: shape;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+  .viewTools {
+    grid-area: tools;
+  }
 }
 
 /* ---- a way back into an account ------------------------------------- */
