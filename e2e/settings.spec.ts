@@ -298,7 +298,9 @@ test.describe("Settings on a small tablet", () => {
     const projectId = await createProject(page, unique("Pocket"));
 
     await gotoSettings(page, projectId, "views");
-    await expect(page.getByTestId("user-name")).toHaveText(account.name);
+    const person = page.getByTestId("user-name");
+    await expect(person).toBeVisible();
+    await expect(person).toHaveText(account.name);
     expect(await overflow(page)).toBe(0);
   });
 });
