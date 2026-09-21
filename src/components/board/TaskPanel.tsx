@@ -928,6 +928,12 @@ function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) 
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
+  /* Escape blurs the field, and the blur is what saves. The draft is state, so
+     it still holds the thrown-away words while that blur runs; a ref changes
+     at once, so the blur reads this instead. Focusing the field again clears
+     it. */
+  const thrown = useRef(false);
+
   /* The field shows what the task says, and the draft only while somebody is
      writing in it. A title another person changed is therefore on screen at
      once, and never has to be copied into the draft afterwards. */
@@ -948,12 +954,14 @@ function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) 
       value={text}
       rows={1}
       onFocus={() => {
+        thrown.current = false;
         setDraft(value);
         setEditing(true);
       }}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         setEditing(false);
+        if (thrown.current) return;
         const trimmed = draft.trim();
         if (trimmed && trimmed !== value) onCommit(trimmed);
       }}
@@ -963,8 +971,7 @@ function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) 
           (e.target as HTMLTextAreaElement).blur();
         }
         if (e.key === "Escape") {
-          setDraft(value);
-          setEditing(false);
+          thrown.current = true;
           (e.target as HTMLTextAreaElement).blur();
         }
       }}
