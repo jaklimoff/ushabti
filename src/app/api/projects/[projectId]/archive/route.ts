@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { activity, tasks, taskValues } from "@/db/schema";
+import { tasks, taskValues } from "@/db/schema";
+import { logActivityAll } from "@/lib/activity";
 import { body, broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
 import { columnIdForValue } from "@/lib/board";
 import type { TaskValue } from "@/lib/types";
@@ -56,8 +57,10 @@ export const POST = route<Ctx>(async (req, ctx) => {
   if (ids.length) {
     await db.update(tasks).set({ archivedAt: new Date() }).where(inArray(tasks.id, ids));
     /* One line on each task, exactly as archiving one task writes one line:
-       the history of a task says what happened to it, however it happened. */
-    await db.insert(activity).values(
+       the history of a task says what happened to it, however it happened.
+       Through the funnel, and not by hand: a line written past it rings no
+       webhook, and a column being swept is a change worth hearing about. */
+    await logActivityAll(
       ids.map((taskId) => ({
         projectId,
         taskId,

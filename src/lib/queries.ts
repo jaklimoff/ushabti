@@ -25,6 +25,7 @@ import { readFilters } from "./filters";
 import { readSort } from "./sort";
 import { rankSequence } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
+import { kickSender } from "./webhooks";
 import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
 import type {
   ActivityDTO,
@@ -360,6 +361,12 @@ export async function loadBoard(
   role: string,
   viewerId: string | null = null,
 ): Promise<BoardData> {
+  /* The sender runs on the read path as the lease does, and for the same
+     reason: a board is read far more often than any schedule would fire, and
+     a retry a minute old should go out without a job this project would then
+     have to run, watch and ship. It is started, never awaited. */
+  kickSender();
+
   const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
   const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows, archivedRows, lenses] =
