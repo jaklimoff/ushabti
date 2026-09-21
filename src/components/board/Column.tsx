@@ -1,7 +1,12 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  type SortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useRef, useState } from "react";
 import type { BoardColumn } from "@/lib/board";
@@ -51,11 +56,22 @@ function SortableTask({
 
 export type ComposerPlace = "top" | "bottom";
 
+/**
+ * Nobody moves.
+ *
+ * A sorted column draws an order no drop can write, so the cards under a
+ * lifted one must not open a gap: the gap would promise a place the card
+ * cannot keep, and the card snapping back reads as the drag having failed.
+ * The card is still carried, because another column is still somewhere to go.
+ */
+const HELD: SortingStrategy = () => null;
+
 export function Column({
   column,
   selectedTaskId,
   cursorTaskId,
   draggable,
+  frozen,
   addNote,
   composing,
   onCompose,
@@ -68,6 +84,8 @@ export function Column({
   selectedTaskId: string | null;
   cursorTaskId: string | null;
   draggable: boolean;
+  /** The board is in a sort, so the cards in this column hold still. */
+  frozen: boolean;
   /** What the filter will put on the new task, or "" when it puts nothing. */
   addNote: string;
   /** Where the composer is open in this column, if it is. The board holds it,
@@ -273,7 +291,7 @@ export function Column({
 
         <SortableContext
           items={column.tasks.map((t) => t.id)}
-          strategy={verticalListSortingStrategy}
+          strategy={frozen ? HELD : verticalListSortingStrategy}
         >
           {column.tasks.map((task) => (
             <SortableTask

@@ -288,14 +288,15 @@ export const SORT_DIRECTIONS = ["asc", "desc"] as const;
 export type SortDirection = (typeof SORT_DIRECTIONS)[number];
 
 /**
- * The order a list is drawn in, when somebody has asked for one. `columnId` is
- * a property, or one of the parts a task has of its own — the same ids the
- * card view is made of, because a list's columns are the card view.
+ * The order a view is drawn in, when somebody has asked for one: the rows of a
+ * list, and the cards inside every column of a board. `columnId` is a property,
+ * or one of the parts a task has of its own — the same ids the card view is
+ * made of, because a list's columns are the card view.
  *
  * It writes nothing. The rank a task carries is the one order every view
  * shares and it stays where it is, so a view with a sort is showing an order
- * it cannot save — which is exactly why a sorted list cannot be dragged.
- * `src/lib/sort.ts` holds the comparing.
+ * it cannot save — which is exactly why a sorted view cannot be dragged into
+ * another order. `src/lib/sort.ts` holds the comparing.
  */
 export type ViewSort = {
   columnId: string;

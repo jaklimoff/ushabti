@@ -1441,6 +1441,30 @@ button.listHeadCell:focus-visible {
   );
 }
 
+/* Three bars, growing. The funnel above takes cards away; this one only puts
+   them in order, so it reads the other way round and nothing is cut off. */
+.sortMark {
+  width: 8px;
+  height: 6px;
+  flex: 0 0 8px;
+  background: currentColor;
+  opacity: 0.75;
+  clip-path: polygon(
+    0 0,
+    50% 0,
+    50% 1.5px,
+    0 1.5px,
+    0 2.25px,
+    75% 2.25px,
+    75% 3.75px,
+    0 3.75px,
+    0 4.5px,
+    100% 4.5px,
+    100% 6px,
+    0 6px
+  );
+}
+
 /* The property and the box sit on one line: picking a property turns it into
    the tag, and the box goes on to ask what about it. The panel never moves. */
 .askHead {

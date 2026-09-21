@@ -83,7 +83,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       /* No `humanOnly` here, and on purpose. A filter is guarded because it
          hides work from the people; a sort hides nothing and shows every task
          either way, so it sits with the grouping property rather than with the
-         filters. The same reading the list does, so a column that is gone
+         filters. The same reading the board does, so a column that is gone
          cannot be saved as an order. */
       config = { ...config, sort: readSort(input.sort, properties) };
     }
