@@ -112,6 +112,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The grips in Settings are easy to catch on a phone.** The grip on a
+  property row and on a view row was 13x20 px, under the 24 px a finger needs,
+  so a miss landed in the name box. The button is now a 24x24 px square. The
+  six dots did not change.
+
 - **`board.mjs check` reads the flag in either place, and refuses an empty
   item.** `check USH-14 --done "the item"` gave the item to the flag and then
   said there was no item at all, so an agent had to know that flags come last.
