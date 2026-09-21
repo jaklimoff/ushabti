@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull, lt, ne, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
 import { logActivity } from "./activity";
@@ -18,6 +18,15 @@ import type {
 
 /** The panel shows the tail of the log. The table keeps everything. */
 const LOG_TAIL = 40;
+
+/**
+ * How many closed runs a task hands out with itself.
+ *
+ * A history is for reading, not for auditing: twenty rows answer "what
+ * happened here lately" and keep the answer to one screen. Older runs are
+ * still in the table, and one of them in full is still `GET /api/runs/{id}`.
+ */
+const PAST_RUNS = 20;
 
 type RunRow = {
   id: string;
@@ -124,6 +133,43 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
   }
 }
 
+/**
+ * A list of runs, with the plan counts and the newest log line of each.
+ *
+ * The newest line is picked per run rather than off one ordered page of the
+ * table: twenty runs of one task can be forty lines of one of them, and a row
+ * whose last word went missing that way would be a lie the reader cannot see.
+ */
+async function shapeMany(rows: RunRow[]): Promise<AgentRunDTO[]> {
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((r) => r.id);
+  const [stepRows, logRows] = await Promise.all([
+    db
+      .select()
+      .from(agentRunSteps)
+      .where(inArray(agentRunSteps.runId, ids))
+      .orderBy(asc(agentRunSteps.index)),
+    db
+      .selectDistinctOn([agentRunLog.runId], { runId: agentRunLog.runId, text: agentRunLog.text })
+      .from(agentRunLog)
+      .where(inArray(agentRunLog.runId, ids))
+      .orderBy(agentRunLog.runId, desc(agentRunLog.createdAt)),
+  ]);
+
+  const stepsByRun = new Map<string, AgentRunStepDTO[]>();
+  for (const s of stepRows) {
+    const list = stepsByRun.get(s.runId) ?? [];
+    list.push({ id: s.id, text: s.text, state: s.state as RunStepState, index: s.index });
+    stepsByRun.set(s.runId, list);
+  }
+
+  const newestLog = new Map<string, string>();
+  for (const l of logRows) newestLog.set(l.runId, l.text);
+
+  return rows.map((row) => shape(row, stepsByRun.get(row.id) ?? [], newestLog.get(row.id) ?? null));
+}
+
 /** Every open run of a project, for the board. */
 export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
   await sweepLost(eq(agentRuns.projectId, projectId));
@@ -135,49 +181,46 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
     .where(and(eq(agentRuns.projectId, projectId), isNull(agentRuns.endedAt)))
     .orderBy(asc(agentRuns.startedAt));
 
-  if (rows.length === 0) return [];
-
-  const ids = rows.map((r) => r.id);
-  const [stepRows, logRows] = await Promise.all([
-    db
-      .select()
-      .from(agentRunSteps)
-      .where(inArray(agentRunSteps.runId, ids))
-      .orderBy(asc(agentRunSteps.index)),
-    db
-      .select()
-      .from(agentRunLog)
-      .where(inArray(agentRunLog.runId, ids))
-      .orderBy(desc(agentRunLog.createdAt))
-      .limit(ids.length * 4),
-  ]);
-
-  const stepsByRun = new Map<string, AgentRunStepDTO[]>();
-  for (const s of stepRows) {
-    const list = stepsByRun.get(s.runId) ?? [];
-    list.push({ id: s.id, text: s.text, state: s.state as RunStepState, index: s.index });
-    stepsByRun.set(s.runId, list);
-  }
-
-  const newestLog = new Map<string, string>();
-  for (const l of logRows) if (!newestLog.has(l.runId)) newestLog.set(l.runId, l.text);
-
-  return rows.map((row) => shape(row, stepsByRun.get(row.id) ?? [], newestLog.get(row.id) ?? null));
+  return shapeMany(rows);
 }
 
-/** The open run of one task, with its plan and the tail of its log. */
-export async function loadTaskRun(taskId: string): Promise<AgentRunDetailDTO | null> {
+/**
+ * The runs of one task: the open one in full, and the closed ones behind it.
+ *
+ * Both halves come out of one sweep on purpose. A run the lease closes while
+ * this read is happening belongs to the history in the same answer; reading
+ * the two apart would drop it out of both and the panel would show a task
+ * that never ran.
+ */
+export async function loadTaskRuns(
+  taskId: string,
+): Promise<{ run: AgentRunDetailDTO | null; pastRuns: AgentRunDTO[] }> {
   await sweepLost(eq(agentRuns.taskId, taskId));
 
-  const [row] = await db
-    .select(runColumns)
-    .from(agentRuns)
-    .innerJoin(users, eq(users.id, agentRuns.agentId))
-    .where(and(eq(agentRuns.taskId, taskId), isNull(agentRuns.endedAt)))
-    .limit(1);
+  const [openRows, closedRows] = await Promise.all([
+    db
+      .select(runColumns)
+      .from(agentRuns)
+      .innerJoin(users, eq(users.id, agentRuns.agentId))
+      .where(and(eq(agentRuns.taskId, taskId), isNull(agentRuns.endedAt)))
+      .limit(1),
+    db
+      .select(runColumns)
+      .from(agentRuns)
+      .innerJoin(users, eq(users.id, agentRuns.agentId))
+      .where(and(eq(agentRuns.taskId, taskId), isNotNull(agentRuns.endedAt)))
+      // Newest first. Two runs that ended in the same moment fall back to the
+      // order they started in, so the list never shuffles between reads.
+      .orderBy(desc(agentRuns.endedAt), desc(agentRuns.startedAt))
+      .limit(PAST_RUNS),
+  ]);
 
-  if (!row) return null;
-  return withDetail(row);
+  const [run, pastRuns] = await Promise.all([
+    openRows[0] ? withDetail(openRows[0]) : null,
+    shapeMany(closedRows),
+  ]);
+
+  return { run, pastRuns };
 }
 
 export async function loadRun(runId: string): Promise<AgentRunDetailDTO> {

@@ -952,3 +952,81 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* A run that is over. Nothing here moves, so the active box holds still. */
+.runStepStill {
+  animation: none;
+}
+
+/* ---- the runs that are over ---------------------------------------- */
+
+.past {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 14px 16px 22px;
+}
+
+.pastItem {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.pastRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 2px;
+  text-align: left;
+  color: var(--muted);
+}
+
+.pastRow:hover {
+  color: var(--text-3);
+}
+
+.pastAgent {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.pastDot {
+  color: var(--faint-3);
+}
+
+.pastWhen {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint-2);
+}
+
+.pastEnded {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* It takes what is left of the line, and the whole of the next one when what
+   is left is too little to read. */
+.pastGoal {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 12.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pastOpen {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 2px 0 12px;
+  animation: ushabti-fade-in 180ms var(--ease);
+}

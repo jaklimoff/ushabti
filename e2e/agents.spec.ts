@@ -388,6 +388,84 @@ test.describe("Agents on the board", () => {
     expect(afterDrag.status()).toBe(409);
   });
 
+  test("a run that is over can still be read on the task", async ({ page, request }) => {
+    await register(page, "History Owner");
+    const projectId = await createProject(page, unique("History"));
+    await addTask(page, "Todo", "Worked on yesterday");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Historian");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Historian" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find((t: { title: string }) => t.title === "Worked on yesterday");
+
+    /* ---- one run, from start to finish ------------------------------- */
+
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, {
+        goal: "Write the queue tests",
+        step: "Reading the queue module",
+        steps: ["Read the queue module", "Write the tests"],
+      })
+    ).json();
+    await api.patch(`/api/runs/${run.id}`, {
+      step: "Writing the tests",
+      stepIndex: 1,
+      log: "wrote tests/queue.spec.ts",
+    });
+    await api.patch(`/api/runs/${run.id}`, { status: "done", log: "opened PR #124" });
+
+    /* ---- the card says nothing, and the tab holds the record --------- */
+
+    await page.goto(`/p/${projectId}`);
+    const done = card(page, "Worked on yesterday").first();
+    await expect(done.getByTestId("card-run")).toBeHidden();
+
+    await done.click();
+    const tab = page.getByTestId("agent-tab");
+    await expect(tab).toBeVisible();
+    // No count beside the word, and nothing pulsing: nobody is working.
+    await expect(tab).toHaveText("Agent");
+    await tab.click();
+
+    await expect(page.getByTestId("panel-run")).toBeHidden();
+    const row = page.getByTestId("past-run").first();
+    await expect(row).toContainText("Historian");
+    await expect(row).toContainText("finished");
+    await expect(row).toContainText("Write the queue tests");
+
+    /* ---- pressing it opens the plan and the log as they were left ---- */
+
+    await expect(page.getByTestId("past-run-open")).toBeHidden();
+    await row.click();
+    const opened = page.getByTestId("past-run-open");
+    await expect(opened).toBeVisible();
+    await expect(opened).toContainText("Read the queue module");
+    await expect(opened.getByText("opened PR #124")).toBeVisible();
+    await expect(opened.getByText("wrote tests/queue.spec.ts")).toBeVisible();
+
+    // One row open at a time, and pressing it again closes it.
+    await row.click();
+    await expect(page.getByTestId("past-run-open")).toBeHidden();
+
+    /* ---- and an agent reads the same list off the task --------------- */
+
+    const detail = await (await api.get(`/api/tasks/${task.id}`)).json();
+    expect(detail.task.run).toBeNull();
+    expect(detail.task.pastRuns).toHaveLength(1);
+    expect(detail.task.pastRuns[0].status).toBe("done");
+    expect(detail.task.pastRuns[0].goal).toBe("Write the queue tests");
+    expect(detail.task.pastRuns[0].agent.name).toBe("Historian");
+  });
+
   test("an agent may write the board but not take it apart", async ({ page, request }) => {
     await register(page, "Careful Owner");
     const projectId = await createProject(page, unique("Limits"));

@@ -1,3 +1,4 @@
+import { longAgo } from "./board";
 import { CLOSED_STATUSES, type AgentRunDTO, type RunStatus, type RunStepState } from "./types";
 
 /** A run is open until it is done, failed, stopped, taken over or lost. */
@@ -148,6 +149,30 @@ export const STATUS_WORD: Record<RunStatus, string> = {
   taken_over: "taken over",
   lost: "lost",
 };
+
+/**
+ * The words of one closed run, in the order a history row reads them:
+ * when it started, how long it ran, how it ended.
+ *
+ * A closed run kept a length, not an age, so the length is worked out from
+ * the two moments the run holds and never from the clock. Only "when" moves,
+ * and it moves in days rather than in seconds, so no row has to tick.
+ *
+ * A run with no `endedAt` cannot reach this list, and the fall back to the
+ * last report is still the honest answer if one ever does.
+ */
+export function pastRunWords(
+  run: Pick<AgentRunDTO, "status" | "startedAt" | "endedAt" | "updatedAt">,
+  now: number = Date.now(),
+): { when: string; length: string; ended: string } {
+  const started = new Date(run.startedAt).getTime();
+  const ended = new Date(run.endedAt ?? run.updatedAt).getTime();
+  return {
+    when: longAgo(run.startedAt, now),
+    length: duration(ended - started),
+    ended: STATUS_WORD[run.status],
+  };
+}
 
 /** The word for an open run: what it does, or what nobody has heard from it. */
 export const LIFE_WORD: Record<RunLife, string> = {
