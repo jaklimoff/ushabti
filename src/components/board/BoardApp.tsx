@@ -19,6 +19,14 @@ import { TaskPanel } from "./TaskPanel";
 import { ViewStrip } from "./ViewStrip";
 import styles from "./board.module.css";
 
+/** The open task’s key, in the address bar, so the link is ready to paste. */
+function writeAddress(key: string | null) {
+  const url = new URL(window.location.href);
+  if (key) url.searchParams.set("task", key);
+  else url.searchParams.delete("task");
+  window.history.replaceState(null, "", url.toString());
+}
+
 export function BoardApp({
   initial,
   user,
@@ -56,27 +64,28 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
      carried light, so this asks for the two parts every one of them has. */
   const open = useCallback((task: Openable | null) => {
     setSelected(task?.id ?? null);
-    const url = new URL(window.location.href);
-    if (task) url.searchParams.set("task", task.key);
-    else url.searchParams.delete("task");
-    window.history.replaceState(null, "", url.toString());
+    writeAddress(task?.key ?? null);
   }, []);
 
   // TaskPanel builds its loader from this, so a new function on every render
   // would make the panel reload — and reset — every time the board re-renders.
   const closePanel = useCallback(() => open(null), [open]);
 
-  /* a task that another person removed must not keep the panel open. An
-     archived one is not removed: it keeps its panel, and its way back. */
+  /* A task that another person removed must not keep the panel open. The board
+     answers that here rather than in an effect, so the panel is never drawn one
+     more time on a task that has already gone. An archived one is not removed:
+     it keeps its panel, and its way back. */
+  const removed =
+    selected !== null &&
+    !data.tasks.some((t) => t.id === selected) &&
+    !data.archived.some((t) => t.id === selected);
+  const openTask = removed ? null : selected;
+
+  /* The address still names the task that went. Only the address bar is
+     written here; what the panel shows was decided above. */
   useEffect(() => {
-    if (
-      selected &&
-      !data.tasks.some((t) => t.id === selected) &&
-      !data.archived.some((t) => t.id === selected)
-    ) {
-      open(null);
-    }
-  }, [data.archived, data.tasks, open, selected]);
+    if (removed) writeAddress(null);
+  }, [removed]);
 
   return (
     <div className={styles.shell}>
@@ -118,9 +127,9 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         {/* The same tasks, drawn two ways. Everything above and below this line
             is the view's, whichever shape it takes. */}
         {view?.kind === "list" ? (
-          <ListCanvas selectedTaskId={selected} onOpenTask={open} />
+          <ListCanvas selectedTaskId={openTask} onOpenTask={open} />
         ) : (
-          <BoardCanvas selectedTaskId={selected} onOpenTask={open} />
+          <BoardCanvas selectedTaskId={openTask} onOpenTask={open} />
         )}
 
         {/* The project has tasks; this view is hiding all of them. Saying so
@@ -166,7 +175,7 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         )}
       </div>
 
-      {selected && <TaskPanel taskId={selected} onClose={closePanel} />}
+      {openTask && <TaskPanel taskId={openTask} onClose={closePanel} />}
 
       <Toasts toasts={toasts} />
     </div>
