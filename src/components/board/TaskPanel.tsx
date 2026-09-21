@@ -53,7 +53,16 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     controlRun,
     notify,
   } = useBoard();
-  const [detail, setDetail] = useState<TaskDetailDTO | null>(null);
+  /*
+   * What the last read answered, and the task it was asked about. Only a
+   * different task clears what is on screen, and holding the two together is
+   * how: an answer about the task before this one simply does not match, so
+   * there is nothing to reset afterwards. Nothing unmounts either, which is
+   * what keeps the note somebody is part-way through writing in the comment
+   * box when a new `load` arrives.
+   */
+  const [loaded, setLoaded] = useState<{ taskId: string; task: TaskDetailDTO | null } | null>(null);
+  const detail = loaded?.taskId === taskId ? loaded.task : null;
   const [tab, setTab] = useState<"comments" | "activity" | "agent">("comments");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useDismiss<HTMLDivElement>(() => setMenuOpen(false), menuOpen);
@@ -121,24 +130,43 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     return write();
   }, []);
 
-  const load = useCallback(async () => {
+  /*
+   * The task the last read was started for. The panel stays where it is when
+   * somebody opens another task, so a slow read of the one before it is still
+   * on its way when the new one lands. Its answer is about a task nobody is
+   * looking at any more: put away, it leaves the panel with nothing to draw
+   * and no reason to read again. The counter above cannot see this, because
+   * opening another task is not a write.
+   */
+  const asked = useRef(taskId);
+
+  /* The read is something outside React, so what comes back from it is put on
+     screen in the promise’s own callback rather than in the line that started
+     the read. The effect below only asks; this is where the answer lands. */
+  const load = useCallback(() => {
     const at = writes.current;
-    try {
-      const res = await api.get<{ task: TaskDetailDTO | null }>(`/api/tasks/${taskId}`);
-      if (writes.current !== at) return;
-      setDetail(res.task);
-      if (!res.task) {
+    asked.current = taskId;
+    return api
+      .get<{ task: TaskDetailDTO | null }>(`/api/tasks/${taskId}`)
+      .then((res) => {
+        if (writes.current !== at || asked.current !== taskId) return;
+        setLoaded({ taskId, task: res.task });
+        if (!res.task) {
+          onClose();
+          return;
+        }
+        syncTaskCounts(taskId, {
+          checklistTotal: res.task.checklist.length,
+          checklistDone: res.task.checklist.filter((c) => c.done).length,
+          commentCount: res.task.comments.length,
+        });
+      })
+      .catch(() => {
+        /* A read that was overtaken must not close the panel either: the task
+           it failed on is not the one on screen. */
+        if (asked.current !== taskId) return;
         onClose();
-        return;
-      }
-      syncTaskCounts(taskId, {
-        checklistTotal: res.task.checklist.length,
-        checklistDone: res.task.checklist.filter((c) => c.done).length,
-        commentCount: res.task.comments.length,
       });
-    } catch {
-      onClose();
-    }
   }, [onClose, syncTaskCounts, taskId]);
 
   /* A write of this panel’s own ends by reading the task again, so the read a
@@ -165,8 +193,13 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
    */
   const writeValue = useCallback(
     async (propertyId: string, value: TaskValue) => {
-      setDetail((current) =>
-        current ? { ...current, values: { ...current.values, [propertyId]: value } } : current,
+      setLoaded((current) =>
+        current?.taskId === taskId && current.task
+          ? {
+              ...current,
+              task: { ...current.task, values: { ...current.task.values, [propertyId]: value } },
+            }
+          : current,
       );
       const saved = await counted(() => setValue(taskId, propertyId, value));
       /* The store puts the board right when a write is refused, and nothing
@@ -176,13 +209,6 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     },
     [counted, reload, setValue, taskId],
   );
-
-  // Only a different task clears what is on screen. A new `load` identity must
-  // not, because that unmounts the comment list and destroys the note the
-  // person is part-way through writing.
-  useEffect(() => {
-    setDetail(null);
-  }, [taskId]);
 
   useEffect(() => {
     void load();
@@ -777,31 +803,34 @@ function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) 
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (!editing) setDraft(value);
-  }, [editing, value]);
+  /* The field shows what the task says, and the draft only while somebody is
+     writing in it. A title another person changed is therefore on screen at
+     once, and never has to be copied into the draft afterwards. */
+  const text = editing ? draft : value;
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [draft, editing]);
+  }, [text]);
 
   return (
     <textarea
       ref={ref}
       className={styles.title}
       data-testid="task-title"
-      value={draft}
+      value={text}
       rows={1}
-      onFocus={() => setEditing(true)}
+      onFocus={() => {
+        setDraft(value);
+        setEditing(true);
+      }}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         setEditing(false);
         const trimmed = draft.trim();
         if (trimmed && trimmed !== value) onCommit(trimmed);
-        else setDraft(value);
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
@@ -822,9 +851,12 @@ function Description({ value, onCommit }: { value: string; onCommit: (v: string)
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
 
-  useEffect(() => {
-    if (!editing) setDraft(value);
-  }, [editing, value]);
+  /* Nothing reads the draft until the editor opens, so the click that opens it
+     is what fills it in. */
+  function edit() {
+    setDraft(value);
+    setEditing(true);
+  }
 
   return (
     <div className={styles.block}>
@@ -861,10 +893,10 @@ function Description({ value, onCommit }: { value: string; onCommit: (v: string)
       ) : (
         <div
           className={styles.desc}
-          onClick={() => setEditing(true)}
+          onClick={edit}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && setEditing(true)}
+          onKeyDown={(e) => e.key === "Enter" && edit()}
         >
           {value.trim() ? <Markdown text={value} /> : "Add a description…"}
         </div>
@@ -886,12 +918,27 @@ function Checklist({
   reload: () => Promise<void>;
   onError: (message: string) => void;
 }) {
-  const [local, setLocal] = useState<ChecklistItemDTO[]>(items);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  /* A box ticks before the server answers. The change is kept beside the list
+     it was made on, so the next read of the task replaces both at once: a list
+     that came back is never drawn under a tick it already carries. */
+  const [edited, setEdited] = useState<{
+    of: ChecklistItemDTO[];
+    list: ChecklistItemDTO[];
+  } | null>(null);
+  const local = edited?.of === items ? edited.list : items;
 
-  useEffect(() => setLocal(items), [items]);
+  const change = useCallback(
+    (next: (list: ChecklistItemDTO[]) => ChecklistItemDTO[]) => {
+      setEdited((current) => ({
+        of: items,
+        list: next(current?.of === items ? current.list : items),
+      }));
+    },
+    [items],
+  );
 
   const done = local.filter((i) => i.done).length;
 
@@ -942,7 +989,7 @@ function Checklist({
             className={`${styles.box} ${item.done ? styles.boxOn : ""}`}
             aria-label={item.done ? "Mark as open" : "Mark as done"}
             onClick={() => {
-              setLocal((list) => list.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)));
+              change((list) => list.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)));
               void run(() => api.patch(`/api/checklist/${item.id}`, { done: !item.done }));
             }}
           />
@@ -979,7 +1026,7 @@ function Checklist({
             aria-label={`Remove ${item.text}`}
             title="Remove"
             onClick={() => {
-              setLocal((list) => list.filter((i) => i.id !== item.id));
+              change((list) => list.filter((i) => i.id !== item.id));
               void run(() => api.del(`/api/checklist/${item.id}`));
             }}
           >
