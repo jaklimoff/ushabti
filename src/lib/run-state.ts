@@ -1,5 +1,11 @@
 import { longAgo } from "./board";
-import { CLOSED_STATUSES, type AgentRunDTO, type RunStatus, type RunStepState } from "./types";
+import {
+  CLOSED_STATUSES,
+  type AgentRunDTO,
+  type AgentRunRowDTO,
+  type RunStatus,
+  type RunStepState,
+} from "./types";
 
 /** A run is open until it is done, failed, stopped, taken over or lost. */
 export function isOpen(status: RunStatus): boolean {
@@ -162,7 +168,7 @@ export const STATUS_WORD: Record<RunStatus, string> = {
  * last report is still the honest answer if one ever does.
  */
 export function pastRunWords(
-  run: Pick<AgentRunDTO, "status" | "startedAt" | "endedAt" | "updatedAt">,
+  run: Pick<AgentRunRowDTO, "status" | "startedAt" | "endedAt" | "updatedAt">,
   now: number = Date.now(),
 ): { when: string; length: string; ended: string } {
   const started = new Date(run.startedAt).getTime();

@@ -213,14 +213,25 @@ describe("the runs of one task", () => {
     expect(fake.asked.filter((a) => a.limit === 21)).toHaveLength(1);
     expect(open?.id).toBe("run-3");
     expect(pastRuns.map((p) => p.id)).toEqual(["run-2", "run-1"]);
+    // The open run keeps its plan and its last word: the card draws them.
+    expect(open).toHaveProperty("stepsTotal");
   });
 
-  it("hands back no open run when every run of the task is over", async () => {
-    fake.holds([run({ id: "run-1", startedAt: at("10:00"), endedAt: at("10:40") })]);
+  it("reads nothing a history row does not draw", async () => {
+    fake.holds([
+      run({ id: "run-2", startedAt: at("11:00"), endedAt: at("11:30") }),
+      run({ id: "run-1", startedAt: at("10:00"), endedAt: at("10:40") }),
+    ]);
 
     const { run: open, pastRuns } = await loadTaskRuns("task-1");
 
     expect(open).toBeNull();
-    expect(pastRuns.map((p) => p.id)).toEqual(["run-1"]);
+    expect(pastRuns.map((p) => p.id)).toEqual(["run-2", "run-1"]);
+    // One statement and no more: the steps and the log of twenty runs used to
+    // be read here to fill three fields the list never drew.
+    expect(fake.asked).toHaveLength(1);
+    expect(pastRuns[0]).not.toHaveProperty("stepsTotal");
+    expect(pastRuns[0]).not.toHaveProperty("stepsDone");
+    expect(pastRuns[0]).not.toHaveProperty("lastLog");
   });
 });

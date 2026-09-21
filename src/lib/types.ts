@@ -380,9 +380,10 @@ export type TaskDetailDTO = TaskDTO & {
   run: AgentRunDetailDTO | null;
   /**
    * The runs that are over, newest first, at most twenty. A row of the
-   * history, not a whole run: one of those in full is `GET /api/runs/{id}`.
+   * history, not a whole run: no plan, no log and no counts. One of those in
+   * full is `GET /api/runs/{id}`.
    */
-  pastRuns: AgentRunDTO[];
+  pastRuns: AgentRunRowDTO[];
 };
 
 /* ------------------------------------------------------------------ */
@@ -424,7 +425,16 @@ export type AgentRunLogDTO = {
   createdAt: string;
 };
 
-export type AgentRunDTO = {
+/**
+ * A run, in the columns the run itself holds.
+ *
+ * This is what a history row is. The counts and the last log line are not
+ * here, because they come from two other tables and a row of the history
+ * draws none of them: who, when, how long, how it ended, what it was for. An
+ * agent reading `pastRuns` wants the goal and the outcome. One of those runs
+ * whole, counts and plan and log, is still `GET /api/runs/{runId}`.
+ */
+export type AgentRunRowDTO = {
   id: string;
   taskId: string;
   status: RunStatus;
@@ -439,6 +449,10 @@ export type AgentRunDTO = {
   beatAt: string;
   endedAt: string | null;
   agent: { id: string; name: string; color: string };
+};
+
+/** A run with what the card of a live run draws: the progress and the last word. */
+export type AgentRunDTO = AgentRunRowDTO & {
   stepsTotal: number;
   stepsDone: number;
   /** The newest line of the log. The panel shows the rest. */

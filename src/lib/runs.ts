@@ -10,6 +10,7 @@ import type {
   AgentRunDTO,
   AgentRunDetailDTO,
   AgentRunLogDTO,
+  AgentRunRowDTO,
   AgentRunStepDTO,
   RunControl,
   RunStatus,
@@ -60,7 +61,8 @@ const runColumns = {
   agentColor: users.color,
 };
 
-function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): AgentRunDTO {
+/** A run in its own columns. It reads no other table, which is the point. */
+function shapeRow(row: RunRow): AgentRunRowDTO {
   return {
     id: row.id,
     taskId: row.taskId,
@@ -73,6 +75,12 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
     beatAt: row.beatAt.toISOString(),
     endedAt: row.endedAt?.toISOString() ?? null,
     agent: { id: row.agentId, name: row.agentName, color: row.agentColor },
+  };
+}
+
+function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): AgentRunDTO {
+  return {
+    ...shapeRow(row),
     stepsTotal: steps.length,
     stepsDone: steps.filter((s) => s.state === "done").length,
     lastLog,
@@ -134,11 +142,12 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
 }
 
 /**
- * A list of runs, with the plan counts and the newest log line of each.
+ * The open runs, with the plan counts and the newest log line of each. A card
+ * draws all three; a history row draws none of them and is shaped by `shapeRow`.
  *
  * The newest line is picked per run rather than off one ordered page of the
- * table: twenty runs of one task can be forty lines of one of them, and a row
- * whose last word went missing that way would be a lie the reader cannot see.
+ * table: one talkative agent can be the whole page, and a row whose last word
+ * went missing that way would be a lie the reader cannot see.
  */
 async function shapeMany(rows: RunRow[]): Promise<AgentRunDTO[]> {
   if (rows.length === 0) return [];
@@ -196,10 +205,14 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
  *
  * One task holds one open run — `agent_runs_open_task_key` says so — so the
  * newest `PAST_RUNS + 1` rows always hold `PAST_RUNS` closed ones.
+ *
+ * The history rows are the run rows and nothing else. The counts and the last
+ * log line are two more tables, and a row draws neither of them; the run that
+ * a person opens is read whole, one at a time, by `GET /api/runs/{id}`.
  */
 export async function loadTaskRuns(
   taskId: string,
-): Promise<{ run: AgentRunDetailDTO | null; pastRuns: AgentRunDTO[] }> {
+): Promise<{ run: AgentRunDetailDTO | null; pastRuns: AgentRunRowDTO[] }> {
   await sweepLost(eq(agentRuns.taskId, taskId));
 
   const rows = await db
@@ -218,12 +231,10 @@ export async function loadTaskRuns(
   const openRow = rows.find((row) => row.endedAt === null) ?? null;
   const closedRows = rows.filter((row) => row.endedAt !== null).slice(0, PAST_RUNS);
 
-  const [run, pastRuns] = await Promise.all([
-    openRow ? withDetail(openRow) : null,
-    shapeMany(closedRows),
-  ]);
-
-  return { run, pastRuns };
+  return {
+    run: openRow ? await withDetail(openRow) : null,
+    pastRuns: closedRows.map(shapeRow),
+  };
 }
 
 export async function loadRun(runId: string): Promise<AgentRunDetailDTO> {

@@ -475,6 +475,10 @@ test.describe("Agents on the board", () => {
     expect(detail.task.pastRuns[0].status).toBe("done");
     expect(detail.task.pastRuns[0].goal).toBe("Write the queue tests");
     expect(detail.task.pastRuns[0].agent.name).toBe("Historian");
+    // A row is the run and nothing read off another table. The plan, the log
+    // and the counts taken from them are GET /api/runs/{id}.
+    expect(detail.task.pastRuns[0]).not.toHaveProperty("stepsTotal");
+    expect(detail.task.pastRuns[0]).not.toHaveProperty("lastLog");
   });
 
   test("an agent may write the board but not take it apart", async ({ page, request }) => {
