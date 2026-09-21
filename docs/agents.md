@@ -67,6 +67,7 @@ so an agent sees exactly what a person sees and nothing more.
 | Archive a task      | `POST /api/tasks/{taskId}/archive`                  |
 | Put it back         | `DELETE /api/tasks/{taskId}/archive`                |
 | Add a checklist item| `POST /api/tasks/{taskId}/checklist`                |
+| Tick one, or untick | `PATCH /api/checklist/{itemId}` with `done`         |
 | Comment             | `POST /api/tasks/{taskId}/comments`                 |
 | What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
@@ -435,6 +436,7 @@ node board.mjs step USH-14 --index 1 --say "Writing the tests" --log "…"
 node board.mjs set USH-14 Status Ready     # names, never ids
 node board.mjs comment USH-14 "…"
 node board.mjs check USH-14 "A failed send retries five times"
+node board.mjs check USH-14 "retries five times" --done   # tick it; --undone puts it back
 node board.mjs describe USH-14 --file draft.md   # only if empty, or yours
 node board.mjs ask USH-14 "Which service owns the queue?"
 node board.mjs pause USH-14                # answer a Pause, wait for Resume

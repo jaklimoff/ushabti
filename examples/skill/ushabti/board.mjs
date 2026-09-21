@@ -143,6 +143,28 @@ function findTask(data, wanted, { archived = false } = {}) {
   fail(`No task ${term} on this board.`);
 }
 
+/**
+ * A checklist item of one task, by its text. The whole text first, then the
+ * one item it is part of.
+ *
+ * It refuses on nothing and on several, and prints the list, exactly as an
+ * unknown property does. A tick on the wrong criterion says work is finished
+ * that nobody has done, and nothing on the card would say otherwise.
+ */
+function findItem(task, checklist, wanted) {
+  const term = String(wanted).trim().toLowerCase();
+  if (!checklist.length) fail(`${task.key} has no checklist items.`);
+
+  const whole = checklist.filter((i) => i.text.trim().toLowerCase() === term);
+  const part = whole.length ? whole : checklist.filter((i) => i.text.toLowerCase().includes(term));
+  if (part.length === 1) return part[0];
+
+  const lines = (items) => items.map(itemLine).join("\n");
+  if (!part.length)
+    fail(`No item of ${task.key} matches "${wanted}". It has:\n${lines(checklist)}`);
+  fail(`"${wanted}" matches ${part.length} items of ${task.key}:\n${lines(part)}`);
+}
+
 function findProperty(data, wanted) {
   const term = String(wanted ?? "")
     .trim()
@@ -205,6 +227,8 @@ function optionId(property, wanted) {
 /* Printing                                                            */
 /* ------------------------------------------------------------------ */
 
+const itemLine = (item) => `  [${item.done ? "x" : " "}] ${item.text}`;
+
 function valueText(data, property, value) {
   if (
     value === null ||
@@ -251,7 +275,7 @@ const commands = {
   claim <key> --goal "<what>" [--plan "a|b|c"] [--step "<now>"]
   beat <key> [--every 120] [--for 60]  say "still here" until the session ends
   step <key> --say "<now>" [--index 2] [--log "<line>"]
-  check <key> "<item>"                add a checklist item
+  check <key> "<item>" [--done]       add an item, or tick one; --undone unticks
   describe <key> "<markdown>"         write the description, if it is empty or yours
   ask <key> "<question>"              ask a person, wait, and end your session
   pause <key> [--for 5]               answer a Pause: stop, wait for Resume, go on
@@ -324,7 +348,7 @@ http://localhost:3000.`);
       if (text) console.log(`  ${p.name}: ${text}`);
     }
     if (detail.description.trim()) console.log(`\n${detail.description.trim()}\n`);
-    for (const item of detail.checklist) console.log(`  [${item.done ? "x" : " "}] ${item.text}`);
+    for (const item of detail.checklist) console.log(itemLine(item));
     for (const c of detail.comments) console.log(`  ${c.author?.name ?? "?"}: ${c.body}`);
     if (detail.run) {
       console.log(`  run ${detail.run.id} — ${detail.run.agent.name}, ${detail.run.status}`);
@@ -474,13 +498,28 @@ http://localhost:3000.`);
     console.log(`control: ${answer.control ?? "none"}`);
   },
 
+  /**
+   * One verb for the checklist. `check` with the text adds the item; with
+   * `--done` it ticks the item that text names, and `--undone` puts it back.
+   * A second command for the same noun would be two ways to say one thing.
+   */
   async check() {
     const data = await board();
     const task = findTask(data, positional[0]);
     const text = positional[1];
     if (!text) fail('Give the item: check USH-14 "Retries stop after five tries"');
-    await call("POST", `/api/tasks/${task.id}/checklist`, { text });
-    console.log(`${task.key}: checklist item added`);
+
+    if (flags.done === undefined && flags.undone === undefined) {
+      await call("POST", `/api/tasks/${task.id}/checklist`, { text });
+      console.log(`${task.key}: checklist item added`);
+      return;
+    }
+
+    const done = flags.done !== undefined;
+    const { checklist } = (await call("GET", `/api/tasks/${task.id}`)).task;
+    const item = findItem(task, checklist, text);
+    await call("PATCH", `/api/checklist/${item.id}`, { done });
+    console.log(`${task.key}:${itemLine({ ...item, done })}`);
   },
 
   /**

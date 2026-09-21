@@ -10,6 +10,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An agent can tick a checklist item.** `board.mjs check USH-14 "the item"`
+  added one and nothing ticked it, so an agent that met an acceptance criterion
+  had to call the API by hand. `--done` now ticks the item those words name —
+  the whole text, or one part of it that fits only that item — and `--undone`
+  puts it back. Words that fit nothing, or that fit two items, tick nothing and
+  print the checklist instead, because a tick on the wrong criterion says work
+  is finished that nobody has done.
 - **A filter you add is yours; one press puts it on the view.** A rule you add
   through the Filter pill narrows your screen and nobody else's. It is saved
   against you and that view, so it survives a reload and follows you to another

@@ -44,6 +44,18 @@ function boardUrl(): string {
   return base.replace(/\/$/, "");
 }
 
+/** One board.mjs command, run the way an agent runs it. */
+function runBoard(token: string, args: string[]): Promise<{ code: number | null; output: string }> {
+  const child = spawn(process.execPath, [BOARD_MJS, ...args], {
+    env: { ...process.env, USHABTI_URL: boardUrl(), USHABTI_TOKEN: token },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (chunk) => (output += chunk));
+  child.stderr.on("data", (chunk) => (output += chunk));
+  return new Promise((done) => child.on("exit", (code) => done({ code, output })));
+}
+
 async function taskByTitle(request: APIRequestContext, projectId: string, title: string) {
   const board = await (await request.get(`/api/projects/${projectId}/board`)).json();
   const task = board.tasks.find((t: { title: string }) => t.title === title);
@@ -256,5 +268,54 @@ test.describe("Agents that wait for work", () => {
     } finally {
       watcher.kill("SIGTERM");
     }
+  });
+});
+
+test.describe("An agent's checklist", () => {
+  test("board.mjs adds an item, ticks the one its words name, and refuses to guess", async ({
+    page,
+  }) => {
+    await register(page, "Checklist Owner");
+    const projectId = await createProject(page, unique("Checklist"));
+    await addTask(page, "Todo", "Make the queue retry");
+    await page.getByRole("button", { name: "Close task" }).click();
+    const token = await connectAgent(page, projectId, "Ticker");
+    const { task } = await taskByTitle(page.request, projectId, "Make the queue retry");
+
+    for (const text of ["A failed send retries five times", "A failed send gives up"]) {
+      const added = await runBoard(token, ["check", task.key, text]);
+      expect(added.code, added.output).toBe(0);
+    }
+
+    /** What the board holds, so the tick is read back through the API. */
+    const state = async () => {
+      const detail = (await (await page.request.get(`/api/tasks/${task.id}`)).json()).task;
+      return Object.fromEntries(
+        detail.checklist.map((i: { text: string; done: boolean }) => [i.text, i.done]),
+      );
+    };
+
+    // The whole text is not needed — one part that fits only one item is.
+    const ticked = await runBoard(token, ["check", task.key, "retries five", "--done"]);
+    expect(ticked.code, ticked.output).toBe(0);
+    expect(await state()).toEqual({
+      "A failed send retries five times": true,
+      "A failed send gives up": false,
+    });
+
+    // Both items carry these words, so they name neither, and nothing moves.
+    const several = await runBoard(token, ["check", task.key, "A failed send", "--done"]);
+    expect(several.code).toBe(1);
+    expect(several.output).toContain("matches 2 items");
+    const none = await runBoard(token, ["check", task.key, "the disk is full", "--done"]);
+    expect(none.code).toBe(1);
+    expect(none.output).toContain("A failed send gives up");
+
+    const back = await runBoard(token, ["check", task.key, "retries five", "--undone"]);
+    expect(back.code, back.output).toBe(0);
+    expect(await state()).toEqual({
+      "A failed send retries five times": false,
+      "A failed send gives up": false,
+    });
   });
 });
