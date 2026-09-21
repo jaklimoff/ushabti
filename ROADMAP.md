@@ -97,12 +97,7 @@ Everything off the board, brought up to the board's standard.
 
 ## Next — the things that make daily use better
 
-1. **Sorting on a board.** A list orders itself by any of its columns; a board
-   still shows the one card order every view shares, because a board has no
-   heading to press. What a board would need is a control of its own beside the
-   filter, and an answer to what a drag means inside a sorted column — the list
-   answers it by holding still, and a board would have to do the same.
-2. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
+1. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
 
 ## Later
 
@@ -135,13 +130,11 @@ Everything off the board, brought up to the board's standard.
 These are consequences of the design, not defects. Read them before you build on top.
 
 - **One card order for all views.** A task has a single `position`. Moving a card in the Board view also moves it in the Phases view, and moving a row in a list moves it on every board. This keeps a drag to one row write. A per-view order needs a second table. A list is the one screen that shows this order whole; on a board you only ever see part of it.
-- **A sort is a list's alone.** A view stores one either way, but only a list
-  reads it: a board has no heading to press, and its columns are already an
-  order of a kind. A board that is given a sort keeps it, unread, exactly as it
-  keeps a grouping property it is not using.
-- **A sorted list cannot be dragged.** A drag writes a rank, and a sorted list
-  is not showing ranks, so the rows hold still until the order is given back.
-  There is one order in a project and this is the price of it.
+- **A sorted view cannot be dragged inside itself.** A drag writes a rank, and
+  a sorted list or a sorted column is not showing ranks, so the rows and the
+  cards hold still until the order is given back. A card can still be carried
+  to another column, because that writes a value and not a rank. There is one
+  order in a project and this is the price of it.
 - **A list draws every row it shows.** Like the board, and for the same reason: above a few thousand tasks it needs paging. A row is cheaper than a card, so the ceiling is higher, not different.
 - **A list shows what a card shows.** Its columns are the project's card view, so the property a board groups by is missing from a list until somebody puts it back on the card in Settings → Card view — the default leaves it off because a board's columns already say it. The alternative was worse: a rule that restored it would make the column vanish the day somebody edited an unrelated row.
 - **A board loads all its tasks at once.** Fine for a few thousand. It needs paging above that.
