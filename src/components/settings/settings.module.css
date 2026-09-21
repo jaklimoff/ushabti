@@ -1080,3 +1080,127 @@
     margin-left: 13px;
   }
 }
+
+/* ---- webhooks -------------------------------------------------------- */
+
+.hookBox {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.hookBox:last-child {
+  border-bottom: 0;
+}
+
+/* The kinds, the secret and the last delivery sit under the URL row, indented
+   to the same place an agent's token rows are. */
+.hookUnder {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 0 13px 13px;
+}
+
+.kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.kindChip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  font-size: var(--t-micro);
+  color: var(--faint);
+  white-space: nowrap;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease),
+    border-color 140ms var(--ease);
+}
+
+.kindChip:hover {
+  background: var(--bg-hover);
+  color: var(--text-3);
+}
+
+.kindChipOn {
+  border-color: rgba(63, 176, 200, 0.45);
+  color: var(--accent-soft);
+}
+
+/* One line: delivered 2m ago, or failed 4m ago — 500. */
+.hookLast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
+.hookDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--faint-3);
+  flex: 0 0 auto;
+}
+
+.hookDotOk {
+  background: #4f8a5b;
+}
+
+.hookDotBad {
+  background: var(--danger-text);
+}
+
+.hookDotWaiting {
+  animation: ushabti-pulse 1.6s var(--ease) infinite;
+}
+
+.hookFail {
+  color: var(--danger-text);
+}
+
+.hookTools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* The secret, the once it is readable. Loud, like a fresh agent token. */
+.hookSecret {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 11px;
+  border-radius: var(--r-md);
+  background: var(--bg-input);
+  border: 1px solid rgba(63, 176, 200, 0.3);
+  animation: ushabti-fade-in 160ms var(--ease);
+}
+
+/* A phone shows the URL on a line of its own; the tools wrap under it. */
+@media (max-width: 560px) {
+  .hookUnder {
+    padding: 0 11px 11px;
+  }
+}
+
+/* A refused address, said beside the box that holds it. The board has no
+   dialogs, so a refusal is a line in the row. */
+.hookError {
+  width: 100%;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--danger-text);
+}

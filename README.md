@@ -103,6 +103,12 @@ Board  ·  Phases  ·  By assignee            ← views you create
   hands you the token and the three commands that put it to work, with your
   board's own address already in them, and then says when the agent answered.
   See [docs/agents.md](docs/agents.md).
+- **Webhooks.** An agent waits on the stream, but a serverless function or a CI
+  job has nowhere to wait from. The owner gives a URL in **Settings →
+  Webhooks** and the board posts to it when something changes: the kind, the
+  task and the moment, signed with HMAC-SHA256, and never the change itself —
+  the receiver reads the board for that. See
+  [docs/webhooks.md](docs/webhooks.md).
 
 ![The task panel](docs/task.png)
 

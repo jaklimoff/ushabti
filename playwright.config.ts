@@ -20,6 +20,10 @@ export default defineConfig({
   // machine.
   webServer: {
     command: process.env.CI ? "npm run start" : "npm run dev",
+    // The webhook specs start a receiver of their own on a free port of this
+    // machine, which is a loopback address and refused by default. A test
+    // server is allowed to call one; nothing else in the suite reads this.
+    env: { USHABTI_WEBHOOK_PRIVATE: "1" },
     url: process.env.BASE_URL ?? baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

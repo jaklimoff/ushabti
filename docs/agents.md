@@ -311,6 +311,16 @@ to keep the socket open. An event says *that* something changed, never what:
 server-sent events drop whatever happens while the socket is down, so nothing
 may depend on them arriving.
 
+### A webhook, if you cannot hold a socket
+
+Some harnesses have nowhere to listen from: a serverless function, a CI job, a
+chat bot. The owner of a project can give Ushabti a URL instead, in **Settings
+→ Webhooks**, and Ushabti posts to it. It rings this same doorbell — the kind,
+the task and the moment, never the change — signed with HMAC-SHA256, and the
+receiver reads the feed below for what actually happened. It is the owner's to
+make: an agent cannot create one, and a token is refused by every webhook
+route. See [webhooks.md](webhooks.md).
+
 ### The feed is what it rang about
 
 ```http

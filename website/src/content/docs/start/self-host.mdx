@@ -42,6 +42,26 @@ the default binding is deliberately local-only.
 
 </Steps>
 
+<Aside type="caution" title="A webhook cannot reach inside your network by default">
+A [webhook](/ushabti/api/webhooks/) is the one request a person tells the server to make for them,
+so Ushabti refuses a **loopback, private or link-local** address: `169.254.169.254` is a cloud's
+metadata service, `127.0.0.1:5432` says whether a database is listening, and `10.0.0.5` is
+whatever your neighbour is running. The check runs when the URL is saved and again before every
+try, resolving the name each time, so a public name that starts pointing inside is refused then.
+
+If your receiver really is on that network — an internal CI runner, a service on the same compose
+network — set
+[`USHABTI_WEBHOOK_PRIVATE=1`](/ushabti/start/configuration/#ushabti_webhook_private):
+
+```bash
+echo "USHABTI_WEBHOOK_PRIVATE=1" >> .env
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Only the owner of a project can make a webhook at all, and an agent token is refused by every one
+of its routes. This flag decides how far a webhook may reach once one exists.
+</Aside>
+
 <Aside type="caution" title="What the rate limit does, and what it does not">
 Ushabti counts **ten failures in ten minutes** and then answers `429` with a `Retry-After` header,
 for a wrong password by address and by email, for a refused sign-up by address, for a bad agent

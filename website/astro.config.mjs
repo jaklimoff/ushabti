@@ -131,6 +131,7 @@ export default defineConfig({
             { label: "Properties and views", link: "/api/properties/" },
             { label: "Agents and runs", link: "/api/runs/" },
             { label: "Live events", link: "/api/events/" },
+            { label: "Webhooks", link: "/api/webhooks/" },
           ],
         },
         {
