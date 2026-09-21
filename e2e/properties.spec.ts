@@ -5,8 +5,10 @@ import {
   column,
   confirmDelete,
   createProject,
+  dragOnto,
   gotoSettings,
   propertyBox,
+  propertyRowOrder,
   register,
   saved,
   unique,
@@ -93,6 +95,47 @@ test.describe("Custom properties", () => {
 
     await page.goto(`/p/${projectId}`);
     await expect(card(page, "Estimate goes away")).not.toContainText("XL");
+  });
+
+  test("a property is dragged into its place, and stays there", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("PropOrder"));
+
+    await gotoSettings(page, projectId);
+    expect((await propertyRowOrder(page)).slice(0, 2)).toEqual(["Status", "Priority"]);
+
+    await dragOnto(
+      page,
+      page.getByRole("button", { name: "Move Priority" }),
+      page.getByLabel("Name of the Status property"),
+      /^\/api\/properties\/[0-9a-f-]+$/,
+    );
+    expect((await propertyRowOrder(page)).slice(0, 2)).toEqual(["Priority", "Status"]);
+
+    // The order is the server's, so it survives the page going away.
+    await page.reload();
+    expect((await propertyRowOrder(page)).slice(0, 2)).toEqual(["Priority", "Status"]);
+  });
+
+  test("the keyboard moves a property as well as the pointer", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("PropKeys"));
+
+    await gotoSettings(page, projectId);
+    await page.getByRole("button", { name: "Move Status" }).focus();
+
+    // Space lifts the row, the arrows move it, Space puts it down.
+    await page.keyboard.press("Space");
+    // dnd-kit measures the rows after the lift, so the first arrow needs the
+    // frame that comes with it.
+    await page.waitForTimeout(120);
+    await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(120);
+    await page.keyboard.press("Space");
+
+    await expect
+      .poll(async () => (await propertyRowOrder(page)).slice(0, 2))
+      .toEqual(["Priority", "Status"]);
   });
 
   test("text, number and checkbox properties keep their value", async ({ page }) => {

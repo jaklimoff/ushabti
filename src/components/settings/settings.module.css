@@ -218,18 +218,22 @@
 }
 
 /*
- * Below 720 px the row used to wrap, which dropped the arrows onto a second
+ * Below 720 px the row used to wrap, which dropped the tools onto a second
  * line and left the card toggle stranded on the first. Two deliberate rows
- * instead of one accidental one.
+ * instead of one accidental one. The grip keeps the name company, because a
+ * grip on a line of its own is a line that says nothing.
  */
 @media (max-width: 620px) {
   .propHead {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto 1fr auto;
     grid-template-areas:
-      "name name"
-      "tags tools";
+      "grip name name"
+      "tags tags tools";
     gap: 8px 10px;
+  }
+  .propHead .grip {
+    grid-area: grip;
   }
   .propName {
     grid-area: name;
@@ -892,7 +896,7 @@
   text-wrap: pretty;
 }
 
-/* ---------------------------------------------------------- view order */
+/* ------------------------------------------- the order of views and rows */
 
 /* The one thing that lifts a row. The rest of the row keeps its caret. */
 .grip {
