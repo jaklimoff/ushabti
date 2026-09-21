@@ -6,6 +6,7 @@ import {
   leaseLeft,
   lifeOf,
   obeys,
+  pastRunWords,
   progressOf,
   REPORT_LEASE_MS,
   runClock,
@@ -189,5 +190,46 @@ describe("the one number on a run strip", () => {
     const run = { ...base, updatedAt: ago(9 * 60_000), beatAt: ago(9 * 60_000) };
     expect(runClock(run, now)).toEqual({ text: "silent 9m", stale: true });
     expect(runIsStill(run, now)).toBe(true);
+  });
+});
+
+describe("the words of a run that is over", () => {
+  const now = new Date("2026-08-22T12:00:00Z").getTime();
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+  const day = 24 * 60 * 60_000;
+
+  const run = {
+    status: "done" as const,
+    startedAt: ago(2 * day),
+    endedAt: ago(2 * day - 14 * 60_000),
+    updatedAt: ago(2 * day - 14 * 60_000),
+  };
+
+  it("says when it started, how long it ran and how it ended", () => {
+    expect(pastRunWords(run, now)).toEqual({
+      when: "2 days ago",
+      length: "14m",
+      ended: "finished",
+    });
+  });
+
+  it("keeps the length it had, however long ago that was", () => {
+    const older = { ...run, startedAt: ago(40 * day), endedAt: ago(40 * day - 14 * 60_000) };
+    expect(pastRunWords(older, now).length).toBe("14m");
+    expect(pastRunWords(older, now).when).toBe("1 month ago");
+  });
+
+  it("gives every ending its own word", () => {
+    const wordOf = (status: typeof run.status | "failed" | "stopped" | "taken_over" | "lost") =>
+      pastRunWords({ ...run, status: status as typeof run.status }, now).ended;
+    expect(wordOf("failed")).toBe("failed");
+    expect(wordOf("stopped")).toBe("stopped");
+    expect(wordOf("taken_over")).toBe("taken over");
+    expect(wordOf("lost")).toBe("lost");
+  });
+
+  it("falls back to the last report when a run holds no end", () => {
+    const odd = { ...run, endedAt: null };
+    expect(pastRunWords(odd, now).length).toBe("14m");
   });
 });

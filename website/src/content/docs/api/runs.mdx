@@ -108,7 +108,10 @@ Reads a run back. **Not agent-only** — a person's session works too, which is 
 
 `steps` is the whole plan; `log` is the **last 40 lines**, oldest first.
 
-This is the route a paused agent polls while it waits for `resume`.
+This is the route a paused agent polls while it waits for `resume`. It is also how one run of a
+task's history is read whole: a closed run answers here exactly as an open one does, and
+[`GET /api/tasks/{taskId}`](/ushabti/api/tasks/#get-apitaskstaskid) lists the closed ones in
+`pastRuns`.
 
 ---
 

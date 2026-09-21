@@ -158,8 +158,11 @@ test.describe("Agents on the board", () => {
     /* ---- Take over ends it at once ----------------------------------- */
 
     await page.getByTestId("panel-run").getByRole("button", { name: "Take over" }).click();
+    // The buttons and the bar go with the run. The tab stays, because the run
+    // is now a record, and the row says how it ended. The row is waited for
+    // first: it is what proves the panel has read the task again.
+    await expect(page.getByTestId("past-run").first()).toContainText("taken over");
     await expect(page.getByTestId("panel-run")).toBeHidden();
-    await expect(page.getByTestId("agent-tab")).toBeHidden();
     await expect(held.getByTestId("card-run")).toBeHidden();
 
     const afterTakeOver = await api.patch(`/api/runs/${run.id}`, { step: "Still going" });
@@ -273,8 +276,16 @@ test.describe("Agents on the board", () => {
     // The run is over, so the agent's next word is refused like any other.
     expect((await api.patch(`/api/runs/${run.id}`, { step: "Back!" })).status()).toBe(409);
 
+    /* A run the board closed is a run that is over, so the panel keeps it the
+       way it keeps any other: the tab stays and the row says `lost`. What goes
+       is the block a live run draws — the buttons and the scanning bar, which
+       have nothing left to act on. Each line here waits for something to be
+       there before it asks what is gone, because an empty panel answers
+       "hidden" to every question while its read is still out. */
     await held.click();
-    await expect(page.getByTestId("agent-tab")).toBeHidden();
+    await page.getByTestId("agent-tab").click();
+    await expect(page.getByTestId("past-run").first()).toContainText("lost");
+    await expect(page.getByTestId("panel-run")).toBeHidden();
     await page.getByRole("button", { name: /^Activity/ }).click();
     await expect(page.getByText("stopped answering")).toBeVisible();
   });
@@ -386,6 +397,84 @@ test.describe("Agents on the board", () => {
     await expect(page.getByTestId("card-run")).toBeHidden();
     const afterDrag = await api.patch(`/api/runs/${run.id}`, { step: "Still going" });
     expect(afterDrag.status()).toBe(409);
+  });
+
+  test("a run that is over can still be read on the task", async ({ page, request }) => {
+    await register(page, "History Owner");
+    const projectId = await createProject(page, unique("History"));
+    await addTask(page, "Todo", "Worked on yesterday");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Historian");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Historian" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find((t: { title: string }) => t.title === "Worked on yesterday");
+
+    /* ---- one run, from start to finish ------------------------------- */
+
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, {
+        goal: "Write the queue tests",
+        step: "Reading the queue module",
+        steps: ["Read the queue module", "Write the tests"],
+      })
+    ).json();
+    await api.patch(`/api/runs/${run.id}`, {
+      step: "Writing the tests",
+      stepIndex: 1,
+      log: "wrote tests/queue.spec.ts",
+    });
+    await api.patch(`/api/runs/${run.id}`, { status: "done", log: "opened PR #124" });
+
+    /* ---- the card says nothing, and the tab holds the record --------- */
+
+    await page.goto(`/p/${projectId}`);
+    const done = card(page, "Worked on yesterday").first();
+    await expect(done.getByTestId("card-run")).toBeHidden();
+
+    await done.click();
+    const tab = page.getByTestId("agent-tab");
+    await expect(tab).toBeVisible();
+    // No count beside the word, and nothing pulsing: nobody is working.
+    await expect(tab).toHaveText("Agent");
+    await tab.click();
+
+    await expect(page.getByTestId("panel-run")).toBeHidden();
+    const row = page.getByTestId("past-run").first();
+    await expect(row).toContainText("Historian");
+    await expect(row).toContainText("finished");
+    await expect(row).toContainText("Write the queue tests");
+
+    /* ---- pressing it opens the plan and the log as they were left ---- */
+
+    await expect(page.getByTestId("past-run-open")).toBeHidden();
+    await row.click();
+    const opened = page.getByTestId("past-run-open");
+    await expect(opened).toBeVisible();
+    await expect(opened).toContainText("Read the queue module");
+    await expect(opened.getByText("opened PR #124")).toBeVisible();
+    await expect(opened.getByText("wrote tests/queue.spec.ts")).toBeVisible();
+
+    // One row open at a time, and pressing it again closes it.
+    await row.click();
+    await expect(page.getByTestId("past-run-open")).toBeHidden();
+
+    /* ---- and an agent reads the same list off the task --------------- */
+
+    const detail = await (await api.get(`/api/tasks/${task.id}`)).json();
+    expect(detail.task.run).toBeNull();
+    expect(detail.task.pastRuns).toHaveLength(1);
+    expect(detail.task.pastRuns[0].status).toBe("done");
+    expect(detail.task.pastRuns[0].goal).toBe("Write the queue tests");
+    expect(detail.task.pastRuns[0].agent.name).toBe("Historian");
   });
 
   test("an agent may write the board but not take it apart", async ({ page, request }) => {

@@ -364,6 +364,14 @@ http://localhost:3000.`);
       for (const s of detail.run.steps)
         console.log(`    ${s.state === "done" ? "x" : "-"} ${s.text}`);
     }
+    /* The runs that are over, newest first. One line each: the plan and the
+       log of one of them are at GET /api/runs/{id}. */
+    for (const past of detail.pastRuns ?? []) {
+      const ran = Math.round((new Date(past.endedAt) - new Date(past.startedAt)) / 60000);
+      console.log(
+        `  ran ${past.id} — ${past.agent.name}, ${past.status} after ${ran}m: ${past.goal}`,
+      );
+    }
   },
 
   async new() {

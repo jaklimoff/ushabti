@@ -126,6 +126,20 @@ PATCH /api/runs/{runId}
 Closing stamps `ended_at`, writes the activity entry, and clears any outstanding control word if the
 status answers it.
 
+## After it closes
+
+The card goes quiet and the buttons and the bar go with the run. The Agent tab stays, because the
+run is now a record.
+
+`GET /api/tasks/{taskId}` carries the closed runs of that task in `pastRuns`, newest first, at most
+twenty. The tab lists them under the open run, or alone when there is none: a row says who, when it
+started, how long it ran, how it ended and what it set out to do, and pressing it opens that run's
+plan and log as they were left. A failed run reads in its word, in the same colour as the rest — a
+record in red shouts about yesterday.
+
+One of those rows in full is [`GET /api/runs/{runId}`](/ushabti/api/runs/#get-apirunsrunid), which
+answers for a closed run exactly as it does for an open one.
+
 ## What a person sees while this happens
 
 | Time since the last **report** | The card says                          | The panel says |

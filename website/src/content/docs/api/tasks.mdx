@@ -79,10 +79,20 @@ The task in full — everything the panel shows.
         "actor": { "id": "…", "name": "Ada", "color": "#6d5bd0" } }
     ],
 
-    "run": null                         // or the open run, with `steps` and the last 40 `log` lines
+    "run": null,                        // or the open run, with `steps` and the last 40 `log` lines
+
+    "pastRuns": [                       // the runs that are over, NEWEST first, at most 20
+      { "id": "…", "goal": "Write the queue tests", "step": "…", "status": "done",
+        "startedAt": "…", "endedAt": "…", "stepsTotal": 3, "stepsDone": 3,
+        "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" } }
+    ]
   }
 }
 ```
+
+A row of `pastRuns` is a run without its plan and its log. Ask
+[`GET /api/runs/{runId}`](/ushabti/api/runs/#get-apirunsrunid) for one of those in full; it answers
+for a closed run exactly as it does for an open one.
 
 `activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
 `archive`, `deleted`. An `archive` entry carries `data.action`, which is `archived` or `restored`.

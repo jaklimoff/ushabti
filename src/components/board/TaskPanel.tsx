@@ -13,12 +13,16 @@ import {
   leaseLeft,
   lifeOf,
   LIFE_WORD,
+  pastRunWords,
   progressOf,
   runLine,
   STATUS_WORD,
 } from "@/lib/run-state";
 import type {
+  AgentRunDTO,
   AgentRunDetailDTO,
+  AgentRunLogDTO,
+  AgentRunStepDTO,
   ChecklistItemDTO,
   RunControl,
   TaskDTO,
@@ -334,10 +338,16 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     remember(widen(panel.getBoundingClientRect().width + way * step));
   }
 
-  // The agent tab only exists while a run does. Deriving the shown tab rather
-  // than resetting it in an effect keeps the choice in one place.
+  /*
+   * The agent tab exists while a run does, and it stays for the record: a task
+   * an agent worked on yesterday still answers "what did it do?". Deriving the
+   * shown tab rather than resetting it in an effect keeps the choice in one
+   * place.
+   */
   const run = detail?.run ?? null;
-  const shownTab = tab === "agent" && !run ? "comments" : tab;
+  const pastRuns = detail?.pastRuns ?? [];
+  const anyRun = run ?? pastRuns[0] ?? null;
+  const shownTab = tab === "agent" && !anyRun ? "comments" : tab;
 
   /* The board knows every task this panel can be opened on, so there is
      nothing left to wait for before the head is drawn. */
@@ -529,15 +539,17 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               >
                 Activity
               </button>
-              {run && (
+              {/* No count on the label. The tab opens; the list is the
+                  count. The dot pulses only while an agent is working. */}
+              {anyRun && (
                 <button
                   className={`${styles.tab} ${shownTab === "agent" ? styles.tabOn : ""}`}
                   onClick={() => setTab("agent")}
                   data-testid="agent-tab"
                 >
                   <span
-                    className={`${styles.tabDot} ${run.status === "running" ? styles.tabDotLive : ""}`}
-                    style={{ background: run.agent.color }}
+                    className={`${styles.tabDot} ${run?.status === "running" ? styles.tabDotLive : ""}`}
+                    style={{ background: anyRun.agent.color }}
                   />
                   Agent
                 </button>
@@ -575,14 +587,19 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               </div>
             )}
 
-            {run && shownTab === "agent" && (
-              <AgentRunBlock
-                run={run}
-                onControl={async (control) => {
-                  await controlRun(run.id, control);
-                  await reload();
-                }}
-              />
+            {shownTab === "agent" && (
+              <>
+                {run && (
+                  <AgentRunBlock
+                    run={run}
+                    onControl={async (control) => {
+                      await controlRun(run.id, control);
+                      await reload();
+                    }}
+                  />
+                )}
+                {pastRuns.length > 0 && <PastRuns runs={pastRuns} />}
+              </>
             )}
           </>
         )}
@@ -706,43 +723,11 @@ function AgentRunBlock({
               style={{ width: `${progressOf(run) * 100}%`, background: run.agent.color }}
             />
           </span>
-          <div className={styles.runPlan}>
-            {run.steps.map((step) => (
-              <div key={step.id} className={styles.runStep}>
-                <span
-                  className={`${styles.runStepBox} ${
-                    step.state === "done"
-                      ? styles.runStepDone
-                      : step.state === "active"
-                        ? styles.runStepActive
-                        : ""
-                  }`}
-                  style={step.state === "done" ? { background: run.agent.color } : undefined}
-                />
-                <span
-                  className={`${styles.runStepText} ${
-                    step.state === "done" ? styles.runStepStruck : ""
-                  }`}
-                >
-                  {step.text}
-                </span>
-                {step.state === "active" && <span className={styles.runSince}>{since}</span>}
-              </div>
-            ))}
-          </div>
+          <RunPlan steps={run.steps} color={run.agent.color} since={since} />
         </>
       )}
 
-      {run.log.length > 0 && (
-        <div className={styles.runLog} data-testid="panel-run-log">
-          {run.log.map((line) => (
-            <div key={line.id} className={styles.runLogRow}>
-              <span className={styles.runLogTime}>{relativeTime(line.createdAt)}</span>
-              <span className={styles.runLogText}>{line.text}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <RunLog log={run.log} />
 
       {waiting ? (
         <div className={styles.runNote} data-testid="panel-run-waiting">
@@ -794,6 +779,146 @@ function AgentRunBlock({
           whoever wants it.
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The plan of a run. A live run says how long it has been on the step it is
+ * on; a run that is over says nothing there, because nothing is moving.
+ */
+function RunPlan({
+  steps,
+  color,
+  since,
+}: {
+  steps: AgentRunStepDTO[];
+  color: string;
+  since?: string;
+}) {
+  return (
+    <div className={styles.runPlan} data-testid="panel-run-plan">
+      {steps.map((step) => (
+        <div key={step.id} className={styles.runStep}>
+          <span
+            className={`${styles.runStepBox} ${
+              step.state === "done"
+                ? styles.runStepDone
+                : step.state === "active"
+                  ? `${styles.runStepActive} ${since ? "" : styles.runStepStill}`
+                  : ""
+            }`}
+            style={step.state === "done" ? { background: color } : undefined}
+          />
+          <span
+            className={`${styles.runStepText} ${step.state === "done" ? styles.runStepStruck : ""}`}
+          >
+            {step.text}
+          </span>
+          {step.state === "active" && since && <span className={styles.runSince}>{since}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The log of a run, as it was written. */
+function RunLog({ log }: { log: AgentRunLogDTO[] }) {
+  if (log.length === 0) return null;
+  return (
+    <div className={styles.runLog} data-testid="panel-run-log">
+      {log.map((line) => (
+        <div key={line.id} className={styles.runLogRow}>
+          <span className={styles.runLogTime}>{relativeTime(line.createdAt)}</span>
+          <span className={styles.runLogText}>{line.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The runs that are over, newest first.
+ *
+ * A row is a record and reads like one: who, when, how long, how it ended and
+ * what it set out to do. A failed run gets no colour of its own — the strip on
+ * a card uses colour to say something is alive now, and a record in red would
+ * shout about yesterday. Pressing a row opens the plan and the log as they
+ * were left, one row at a time, because two open rows are a list nobody can
+ * read.
+ */
+function PastRuns({ runs }: { runs: AgentRunDTO[] }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  /* What the opened rows answered. A run that is over never changes, so it is
+     read once and kept for as long as the panel is on this task. */
+  const [seen, setSeen] = useState<Record<string, AgentRunDetailDTO>>({});
+  const [failed, setFailed] = useState<string | null>(null);
+
+  async function press(runId: string) {
+    if (openId === runId) {
+      setOpenId(null);
+      return;
+    }
+    setOpenId(runId);
+    setFailed(null);
+    if (seen[runId]) return;
+    try {
+      const res = await api.get<{ run: AgentRunDetailDTO }>(`/api/runs/${runId}`);
+      setSeen((current) => ({ ...current, [runId]: res.run }));
+    } catch {
+      setFailed(runId);
+    }
+  }
+
+  return (
+    <div className={styles.past} data-testid="panel-past-runs">
+      <span className="label">Earlier runs</span>
+      {runs.map((run) => {
+        const words = pastRunWords(run);
+        const open = openId === run.id;
+        const detail = seen[run.id];
+        return (
+          <div key={run.id} className={styles.pastItem}>
+            <button
+              className={styles.pastRow}
+              data-testid="past-run"
+              aria-expanded={open}
+              onClick={() => void press(run.id)}
+            >
+              <Avatar name={run.agent.name} color={run.agent.color} size={16} kind="agent" />
+              <span className={styles.pastAgent}>{run.agent.name}</span>
+              <span className={styles.pastDot}>·</span>
+              <span className={styles.pastWhen}>{words.when}</span>
+              <span className={styles.pastDot}>·</span>
+              <span className={styles.pastWhen}>{words.length}</span>
+              <span className={styles.pastDot}>·</span>
+              <span className={styles.pastEnded}>{words.ended}</span>
+              {/* The goal takes the rest of the line, and a line of its own
+                  on a screen too narrow to hold both. */}
+              <span className={styles.pastGoal}>{run.goal}</span>
+            </button>
+            {open && (
+              <div className={styles.pastOpen} data-testid="past-run-open">
+                {detail ? (
+                  <>
+                    {detail.steps.length > 0 && (
+                      <RunPlan steps={detail.steps} color={run.agent.color} />
+                    )}
+                    <RunLog log={detail.log} />
+                    {detail.steps.length === 0 && detail.log.length === 0 && (
+                      <span className={styles.runNote}>This run left no plan and no log.</span>
+                    )}
+                  </>
+                ) : (
+                  <span className={styles.runNote}>
+                    {failed === run.id ? "That run did not load." : "Loading…"}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
