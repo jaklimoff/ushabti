@@ -158,12 +158,12 @@ test.describe("Agents on the board", () => {
     /* ---- Take over ends it at once ----------------------------------- */
 
     await page.getByTestId("panel-run").getByRole("button", { name: "Take over" }).click();
+    // The buttons and the bar go with the run. The tab stays, because the run
+    // is now a record, and the row says how it ended. The row is waited for
+    // first: it is what proves the panel has read the task again.
+    await expect(page.getByTestId("past-run").first()).toContainText("taken over");
     await expect(page.getByTestId("panel-run")).toBeHidden();
     await expect(held.getByTestId("card-run")).toBeHidden();
-    // The buttons and the bar go with the run. The tab stays, because the run
-    // is now a record, and the row says how it ended.
-    await expect(page.getByTestId("agent-tab")).toBeVisible();
-    await expect(page.getByTestId("past-run").first()).toContainText("taken over");
 
     const afterTakeOver = await api.patch(`/api/runs/${run.id}`, { step: "Still going" });
     expect(afterTakeOver.status()).toBe(409);
@@ -276,8 +276,16 @@ test.describe("Agents on the board", () => {
     // The run is over, so the agent's next word is refused like any other.
     expect((await api.patch(`/api/runs/${run.id}`, { step: "Back!" })).status()).toBe(409);
 
+    /* A run the board closed is a run that is over, so the panel keeps it the
+       way it keeps any other: the tab stays and the row says `lost`. What goes
+       is the block a live run draws — the buttons and the scanning bar, which
+       have nothing left to act on. Each line here waits for something to be
+       there before it asks what is gone, because an empty panel answers
+       "hidden" to every question while its read is still out. */
     await held.click();
-    await expect(page.getByTestId("agent-tab")).toBeHidden();
+    await page.getByTestId("agent-tab").click();
+    await expect(page.getByTestId("past-run").first()).toContainText("lost");
+    await expect(page.getByTestId("panel-run")).toBeHidden();
     await page.getByRole("button", { name: /^Activity/ }).click();
     await expect(page.getByText("stopped answering")).toBeVisible();
   });
