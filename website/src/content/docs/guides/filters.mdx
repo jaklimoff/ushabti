@@ -58,6 +58,20 @@ everything else. A checkbox never gets one — off is a value, not emptiness.
 Text compares case-insensitively. A number rule needs the value to really be a number. Dates compare
 as `YYYY-MM-DD` strings — no `Date` object, no timezone, so the server and your browser always agree.
 
+## "Blocked" is a rule and not a property
+
+One word in the property list is not a property: **Blocked**. It asks whether the task is waiting on
+another one, and it reads as a checkbox — *Blocked* or *Not blocked*, one rule, one answer.
+
+There is no property behind it and nobody has to add one. A blocked-by link is not a field on a
+task, so the board has one fixed word for it, the way a card has one fixed row for its key. Nothing
+writes it: a task added to a board filtered to *Blocked* is written with no link and no value for it
+— the only rule the composer cannot fill in.
+
+Because the word cannot be deleted, a rule about it is never thrown away. See
+[Blocked by](/ushabti/guides/board/#blocked-by) for what makes a task blocked, and for what makes it
+stop.
+
 ## Using it
 
 The **Filter** pill sits at the right of the view strip, showing the rule count when there is one.

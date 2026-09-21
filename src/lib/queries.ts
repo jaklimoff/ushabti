@@ -12,6 +12,7 @@ import {
   projects,
   properties,
   propertyOptions,
+  taskLinks,
   taskValues,
   tasks,
   users,
@@ -24,6 +25,7 @@ import { readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
+import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readSort } from "./sort";
 import { rankSequence } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
@@ -43,6 +45,7 @@ import type {
   PropertyType,
   TaskDTO,
   TaskDetailDTO,
+  TaskLinkDTO,
   TaskValue,
   ViewDTO,
   ViewKind,
@@ -310,6 +313,99 @@ function archivedTaskRows(projectId: string) {
     .orderBy(byPos(tasks.position), asc(tasks.number));
 }
 
+/* ------------------------------------------------------------------ */
+/* Links                                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every blocked-by link of one project, as the pairs of ids they are.
+ *
+ * Both ends of a link are always in one project — the write refuses anything
+ * else — so joining on one end names the whole set. The circle check walks
+ * these, under the project lock, in the transaction that writes the new one.
+ */
+export async function projectLinks(projectId: string, tx: Tx): Promise<LinkEdge[]> {
+  return tx
+    .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
+    .from(taskLinks)
+    .innerJoin(tasks, eq(tasks.id, taskLinks.toId))
+    .where(eq(tasks.projectId, projectId));
+}
+
+/** A task as a link route needs it: the key it wears and the board it is on. */
+export type TaskCard = { id: string; key: string; projectId: string; gone: boolean };
+
+/**
+ * A few tasks by id, with the key a person says out loud.
+ *
+ * The key is built from the project prefix and never stored, so naming a task
+ * in a sentence — the circle refusal, the feed line — means reading both. The
+ * transaction is passed in when the answer has to be the one the lock is
+ * holding.
+ */
+export async function taskCards(ids: string[], tx?: Tx): Promise<Map<string, TaskCard>> {
+  if (ids.length === 0) return new Map();
+  const rows = await (tx ?? db)
+    .select({
+      id: tasks.id,
+      number: tasks.number,
+      projectId: tasks.projectId,
+      deletedAt: tasks.deletedAt,
+      projectKey: projects.key,
+    })
+    .from(tasks)
+    .innerJoin(projects, eq(projects.id, tasks.projectId))
+    .where(inArray(tasks.id, ids));
+
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      {
+        id: r.id,
+        key: `${r.projectKey}-${r.number}`,
+        projectId: r.projectId,
+        gone: r.deletedAt !== null,
+      },
+    ]),
+  );
+}
+
+/**
+ * The tasks at the other end of one task's links, one direction at a time.
+ *
+ * An archived task is here: over is what archived usually means, and a link
+ * nobody can see is a link nobody can remove. A deleted one is not, because a
+ * deleted task is off every board, list, search and count.
+ */
+async function linkedTasks(taskId: string, way: "blockedBy" | "blocks") {
+  const mine = way === "blockedBy" ? taskLinks.toId : taskLinks.fromId;
+  const other = way === "blockedBy" ? taskLinks.fromId : taskLinks.toId;
+  return db
+    .select({
+      id: tasks.id,
+      number: tasks.number,
+      title: tasks.title,
+      archivedAt: tasks.archivedAt,
+    })
+    .from(taskLinks)
+    .innerJoin(tasks, eq(tasks.id, other))
+    .where(and(eq(mine, taskId), isNull(tasks.deletedAt)))
+    .orderBy(asc(tasks.number));
+}
+
+/** What these tasks hold for the one property the project calls done. */
+async function doneValues(
+  ids: string[],
+  doneWhen: DoneWhen | null,
+): Promise<Map<string, TaskValue>> {
+  if (!doneWhen || ids.length === 0) return new Map();
+  const rows = await db
+    .select({ taskId: taskValues.taskId, value: taskValues.value })
+    .from(taskValues)
+    .where(and(inArray(taskValues.taskId, ids), eq(taskValues.propertyId, doneWhen.propertyId)));
+  return new Map(rows.map((r) => [r.taskId, r.value as TaskValue]));
+}
+
 /**
  * How many tasks hold a real value for one property, archived ones included.
  *
@@ -435,11 +531,19 @@ export async function loadBoard(
   /* Only the live ones. Nothing draws an archived task, so its values are
      fetched when its panel asks for them and not before. */
   const taskIds = taskRows.map((t) => t.id);
-  const [valueRows, runs] = await Promise.all([
+  const [valueRows, runs, linkRows] = await Promise.all([
     taskIds.length
       ? db.select().from(taskValues).where(inArray(taskValues.taskId, taskIds))
       : Promise.resolve([]),
     loadOpenRuns(projectId),
+    /* Only what the cards on this board wait on. What they block is the
+       panel's half of the chain, and the panel asks for it itself. */
+    taskIds.length
+      ? db
+          .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
+          .from(taskLinks)
+          .where(inArray(taskLinks.toId, taskIds))
+      : Promise.resolve([]),
   ]);
 
   const valuesByTask = new Map<string, Record<string, TaskValue>>();
@@ -463,6 +567,36 @@ export async function loadBoard(
     defaultView?.groupById ?? null,
   );
 
+  /*
+   * What each card waits on, as the keys of the blockers that are not over.
+   *
+   * Over is read afresh here, exactly as a filter is: archived always counts,
+   * and the project may name one option of one property beside it. A link to
+   * a task that was deleted is not counted at all — a deleted task is off
+   * every board, list and count, and a chain glyph is a count.
+   */
+  const doneWhen = readDoneWhen(projectRow.doneWhen, propertyList);
+  const blockers = new Map<string, { number: number; over: boolean }>();
+  for (const t of taskRows) {
+    blockers.set(t.id, {
+      number: t.number,
+      over: isOver({ archivedAt: null, values: valuesByTask.get(t.id) ?? {} }, doneWhen),
+    });
+  }
+  for (const t of archivedRows) blockers.set(t.id, { number: t.number, over: true });
+
+  const waitsOn = new Map<string, number[]>();
+  for (const link of linkRows) {
+    const blocker = blockers.get(link.fromId);
+    if (!blocker || blocker.over) continue;
+    const list = waitsOn.get(link.toId);
+    if (list) list.push(blocker.number);
+    else waitsOn.set(link.toId, [blocker.number]);
+  }
+  /* The glyph's tooltip names them, so the order has to be the same on every
+     read. The number is the one order a key has. */
+  for (const list of waitsOn.values()) list.sort((a, b) => a - b);
+
   const taskList: TaskDTO[] = taskRows.map((t) => ({
     id: t.id,
     number: t.number,
@@ -479,6 +613,7 @@ export async function loadBoard(
     checklistTotal: t.checklistTotal,
     checklistDone: t.checklistDone,
     commentCount: t.commentCount,
+    blockedBy: (waitsOn.get(t.id) ?? []).map((n) => `${projectRow.key}-${n}`),
   }));
 
   const archivedList: ArchivedTaskDTO[] = archivedRows.map((t) => ({
@@ -508,6 +643,7 @@ export async function loadBoard(
       key: projectRow.key,
       ownerId: projectRow.ownerId,
       role,
+      doneWhen,
     },
     members,
     invites: inviteRows.map((i) => ({ email: i.email, createdAt: i.createdAt.toISOString() })),
@@ -535,7 +671,9 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       createdAt: tasks.createdAt,
       updatedAt: tasks.updatedAt,
       archivedAt: tasks.archivedAt,
+      projectId: tasks.projectId,
       projectKey: projects.key,
+      doneWhen: projects.doneWhen,
     })
     .from(tasks)
     .innerJoin(projects, eq(projects.id, tasks.projectId))
@@ -544,7 +682,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 
   if (!row) return null;
 
-  const [valueRows, checkRows, commentRows, activityRows, runs] = await Promise.all([
+  const [valueRows, checkRows, commentRows, activityRows, runs, waits, holds] = await Promise.all([
     db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
     db
       .select()
@@ -580,7 +718,30 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       .orderBy(desc(activity.createdAt))
       .limit(60),
     loadTaskRuns(taskId),
+    linkedTasks(taskId, "blockedBy"),
+    linkedTasks(taskId, "blocks"),
   ]);
+
+  /* Over is the project's word, read afresh: a property or an option that is
+     gone falls back to archived. One read answers for both lists. */
+  const doneWhen = readDoneWhen(row.doneWhen, await loadProperties(row.projectId));
+  const heldValues = await doneValues(
+    [...waits, ...holds].map((t) => t.id),
+    doneWhen,
+  );
+  const asLink = (t: (typeof waits)[number]): TaskLinkDTO => ({
+    id: t.id,
+    key: `${row.projectKey}-${t.number}`,
+    title: t.title,
+    over: isOver(
+      {
+        archivedAt: t.archivedAt ? t.archivedAt.toISOString() : null,
+        values: doneWhen ? { [doneWhen.propertyId]: heldValues.get(t.id) ?? null } : {},
+      },
+      doneWhen,
+    ),
+  });
+  const links = { blockedBy: waits.map(asLink), blocks: holds.map(asLink) };
 
   const values: Record<string, TaskValue> = {};
   for (const v of valueRows) values[v.propertyId] = v.value as TaskValue;
@@ -623,6 +784,8 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     checklistTotal: checklist.length,
     checklistDone: checklist.filter((c) => c.done).length,
     commentCount: commentList.length,
+    blockedBy: links.blockedBy.filter((t) => !t.over).map((t) => t.key),
+    links,
     checklist,
     comments: commentList,
     activity: activityList,

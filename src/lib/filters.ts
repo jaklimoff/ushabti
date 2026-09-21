@@ -23,6 +23,54 @@ import {
 export const EMPTY_FILTERS: ViewFilters = { rules: [] };
 
 /* ------------------------------------------------------------------ */
+/* The one rule that is not about a property                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * "Is this task waiting on another one?"
+ *
+ * It is a built-in rule the way `_key` is a built-in row of the card: a fixed
+ * word, not a property, and nothing writes it. A blocked-by link is not a
+ * field on a task, so there is no property to filter by and adding one would
+ * put a fixed field back on the board.
+ *
+ * The word is read as a checkbox, so every part of a filter already knows
+ * what to do with it: one operator, two values, a chip that says "Blocked" or
+ * "Not blocked". `readFilters` keeps it, because a word cannot be deleted,
+ * and `seedValues` skips it, because there is nothing to write.
+ */
+export const BLOCKED_KEY = "_blocked";
+
+/**
+ * The rule's stand-in property. A checkbox is what it reads like, so it is
+ * one: the menu, the chip and the matching all follow from the type.
+ */
+export const BLOCKED_PROPERTY: PropertyDTO = {
+  id: BLOCKED_KEY,
+  name: "Blocked",
+  type: "checkbox",
+  position: "",
+  config: {},
+  options: [],
+};
+
+/**
+ * The properties a filter may ask about: the project's, and the one word that
+ * is not a property. The panel and the chips read this; nothing else does,
+ * because nothing else may put "Blocked" where a property belongs.
+ */
+export function filterProperties(properties: PropertyDTO[]): PropertyDTO[] {
+  return [...properties, BLOCKED_PROPERTY];
+}
+
+/** The properties by id, with the built-in word among them. */
+function byIdWithBlocked(properties: PropertyDTO[]): Map<string, PropertyDTO> {
+  const byId = new Map(properties.map((p) => [p.id, p]));
+  byId.set(BLOCKED_KEY, BLOCKED_PROPERTY);
+  return byId;
+}
+
+/* ------------------------------------------------------------------ */
 /* What each type may ask                                              */
 /* ------------------------------------------------------------------ */
 
@@ -113,7 +161,12 @@ function isEmpty(value: TaskValue, type: PropertyType): boolean {
 
 /** True when one task passes one rule. An unreadable rule passes everything. */
 export function matches(task: TaskDTO, rule: FilterRule, property: PropertyDTO): boolean {
-  const value = task.values[rule.propertyId] ?? null;
+  /* The built-in word reads off the links rather than off the values, and
+     nothing else about it differs: it is a checkbox from here down. */
+  const value =
+    rule.propertyId === BLOCKED_KEY
+      ? (task.blockedBy?.length ?? 0) > 0
+      : (task.values[rule.propertyId] ?? null);
   const type = property.type;
 
   switch (rule.op) {
@@ -187,7 +240,7 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
   const list = (raw as { rules?: unknown })?.rules;
   if (!Array.isArray(list)) return EMPTY_FILTERS;
 
-  const byId = new Map(properties.map((p) => [p.id, p]));
+  const byId = byIdWithBlocked(properties);
   const rules: FilterRule[] = [];
 
   for (const entry of list) {
@@ -290,7 +343,10 @@ export function clashOf(
 ): PropertyDTO | null {
   const rule = lens.rules.find((r) => asksAbout(viewFilters, r.propertyId));
   if (!rule) return null;
-  return properties.find((p) => p.id === rule.propertyId) ?? null;
+  /* The built-in word counts as a property here: two rules about it fight
+     each other exactly as two about Priority would, and it has a name to put
+     in the sentence. */
+  return byIdWithBlocked(properties).get(rule.propertyId) ?? null;
 }
 
 /** The one sentence both doors say, so a person hears the same thing twice. */
@@ -309,7 +365,7 @@ export function applyFilters(
   properties: PropertyDTO[],
 ): TaskDTO[] {
   if (filters.rules.length === 0) return tasks;
-  const byId = new Map(properties.map((p) => [p.id, p]));
+  const byId = byIdWithBlocked(properties);
   return tasks.filter((task) =>
     filters.rules.every((rule) => {
       const property = byId.get(rule.propertyId);
@@ -371,6 +427,9 @@ export function seedValues(
 
   for (const rule of filters.rules) {
     if (rule.op !== "is" || rule.propertyId === groupPropertyId) continue;
+    /* Nothing writes a link from the composer, and a value for a word that is
+       not a property would be written to a property that is not there. */
+    if (rule.propertyId === BLOCKED_KEY) continue;
     const keys = rule.values ?? [];
     if (keys.length !== 1 || keys[0] === NO_VALUE_KEY) continue;
     const property = byId.get(rule.propertyId);

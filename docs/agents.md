@@ -68,6 +68,8 @@ so an agent sees exactly what a person sees and nothing more.
 | Move a card         | `POST /api/tasks/{taskId}/move`                     |
 | Archive a task      | `POST /api/tasks/{taskId}/archive`                  |
 | Put it back         | `DELETE /api/tasks/{taskId}/archive`                |
+| Say what it waits on| `POST /api/tasks/{taskId}/blockers`                 |
+| Take that back      | `DELETE /api/tasks/{taskId}/blockers/{blockerId}`   |
 | Delete a task       | `DELETE /api/tasks/{taskId}`                        |
 | Undo that delete    | `POST /api/tasks/{taskId}/restore`                  |
 | What was deleted    | `GET /api/projects/{projectId}/deleted`             |
@@ -83,6 +85,13 @@ The board answer carries the live tasks in `tasks` and the archived ones in
 A view's `filters` is the whole team's, and it is the only filter you read: the
 rules a person adds to their own screen are theirs, never yours, and never
 reach `filters` until that person puts them on the view.
+
+**A rule may name no property at all.** One `propertyId` is a fixed word rather
+than an id: `_blocked`, which asks whether the task is waiting on another one.
+It is in no row of `properties`, so look it up there and you find nothing —
+read it as a checkbox whose value is `blockedBy` being non-empty. It is the
+only such word, and it cannot be deleted, so a view keeps a rule about it for
+ever.
 
 The two routes that write those rules are a person's, and answer `403` to a
 token: `PUT /api/views/{viewId}/lens` and `POST /api/views/{viewId}/lens/promote`.
@@ -114,6 +123,50 @@ archived task answers `{"ok": true}`, keeps the moment it first went and writes
 no second line. Putting a live task back does nothing at all.
 Say _archived_ and _put back_. Never "closed" or "done": those are words of the
 owner's Status property, which they may rename tomorrow.
+
+## What a task waits on
+
+A task can say which tasks it is blocked by. Both ends are tasks on the same
+board, and the link has one kind: `from` blocks `to`.
+
+```bash
+# USH-71 waits on USH-12. The body names the blocker by id.
+curl -s -X POST $USHABTI/api/tasks/$USH71/blockers \
+  -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" \
+  -d "{\"blockerId\": \"$USH12\"}"
+
+# And take it back again.
+curl -s -X DELETE $USHABTI/api/tasks/$USH71/blockers/$USH12 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+`board.mjs link USH-71 --blocked-by USH-12` is the short way, and
+`--blocks USH-30` says it the other way round. `unlink` takes the same flags.
+`board.mjs task USH-71` prints **Blocked by** and **Blocks**.
+
+Both calls take a token: a link is content, like a value or a comment, not the
+shape of the board. Say what a task waits on rather than writing it in a
+comment, where nothing can read it.
+
+A link that is already there answers `{"ok": true}` and writes nothing, so a
+retry is free. A link that would close a circle is refused with `409` and one
+sentence — _USH-12 already waits on USH-71, so this would be a circle._ — and a
+task told to wait on itself is refused with _A task cannot wait on itself._
+
+**A blocker stops blocking when it is over.** Over means archived, and it also
+means the one option the owner named in **Settings → Project**, if they named
+one. Nothing here is hardcoded: read `project.doneWhen` on the board answer,
+which is `{ "propertyId": …, "optionId": … }` or null. A task carries
+`blockedBy`, the keys of the blockers that are **not** over — so an empty list
+means the task is free to pick up, whatever links it holds.
+
+`GET /api/tasks/{taskId}` carries both ends in `links`:
+`{ "blockedBy": [...], "blocks": [...] }`, each row `{ id, key, title, over }`.
+A row that is over is still in the list; it just holds nothing up.
+
+There is no `--on unblocked`. A task becomes free because somebody changed
+*another* task, so watch for `value` and `archive` lines in the feed and read
+`blockedBy` again.
 
 The board answer carries `properties`, so an agent finds the property it wants
 by name and reads the option ids out of it. **Never hardcode a property or an
@@ -504,6 +557,11 @@ GET /api/projects/{projectId}/activity?after=2026-09-18T15:28:52.024Z
   "now": "2026-09-18T15:29:11.002Z"
 }
 ```
+
+A `link` line says one task was made to wait on another, or stopped waiting:
+`data: { "action": "linked" | "unlinked", "blockerKey": "USH-12" }`. It is
+written on the task that gained the blocker. A blocker going over writes no
+line of its own — nothing happened to that task.
 
 `taskId` and `taskKey` are **null** on a line about the project rather than
 about a task. `reset` — the owner made somebody a reset link, with

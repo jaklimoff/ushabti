@@ -1030,3 +1030,88 @@
   padding: 2px 0 12px;
   animation: ushabti-fade-in 180ms var(--ease);
 }
+
+/* ------------------------------------------------------------------ */
+/* What a task waits on                                                */
+/* ------------------------------------------------------------------ */
+
+.linkAdd {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--faint-2);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.linkAdd:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+}
+
+.linkKey {
+  flex: none;
+  font-size: 11px;
+  color: var(--faint-2);
+}
+
+.linkTitle {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A blocker that is over is still in the list and no longer holds anything
+   up. One line through it says both. */
+.linkOver {
+  color: var(--faint-2);
+  text-decoration: line-through;
+}
+
+.linkRemove {
+  flex: none;
+  border: 0;
+  background: none;
+  color: var(--faint-3);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.linkRow:hover .linkRemove,
+.linkRemove:focus-visible {
+  opacity: 1;
+}
+
+.linkRemove:hover {
+  color: var(--text);
+}
+
+.linkRefused {
+  font-size: 11.5px;
+  color: var(--faint-2);
+}
+
+@media (hover: none) {
+  /* There is no hover to wait for, and the ✕ is the only way a link goes. It
+     is drawn, and given the 24 px a finger needs, exactly as the check that
+     picks a card is. */
+  .linkRemove {
+    width: 24px;
+    height: 24px;
+    opacity: 1;
+  }
+}

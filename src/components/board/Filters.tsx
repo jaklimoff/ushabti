@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   asksAbout,
+  BLOCKED_KEY,
   clashSaid,
   describeRule,
+  filterProperties,
   hasAnswer,
   isBareOp,
   isSetOp,
@@ -311,32 +313,36 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
   const count = filters.rules.length;
   // The property may have been deleted by somebody else while the panel is
   // open, in which case there is nothing left to ask about.
-  const picked = pickedId ? (data.properties.find((p) => p.id === pickedId) ?? null) : null;
+  /* The project's properties, and the one word that is not one. A link is not
+     a field, so "Blocked" has no property to be — it is a fixed word, the way
+     a card's key is a fixed row. */
+  const askable = useMemo(() => filterProperties(data.properties), [data.properties]);
+  const picked = pickedId ? (askable.find((p) => p.id === pickedId) ?? null) : null;
   const rule = picked ? ((slot !== null ? lens.rules[slot] : null) ?? draft) : null;
 
   const summary = useMemo(() => {
     const map = new Map<string, string>();
     for (const r of filters.rules) {
-      const property = data.properties.find((p) => p.id === r.propertyId);
+      const property = askable.find((p) => p.id === r.propertyId);
       if (property) map.set(r.propertyId, describeRule(r, property, data.members));
     }
     return map;
-  }, [data.members, data.properties, filters.rules]);
+  }, [askable, data.members, filters.rules]);
 
   const rows: Row[] = useMemo(() => {
     const wanted = query.trim().toLowerCase();
-    return data.properties
+    return askable
       .filter((p) => !wanted || p.name.toLowerCase().includes(wanted))
       .map((p) => ({
         id: p.id,
         name: p.name,
-        color: propertyColor(p),
+        color: p.id === BLOCKED_KEY ? BUILTIN_DOT : propertyColor(p),
         note: summary.get(p.id),
       }));
-  }, [data.properties, query, summary]);
+  }, [askable, query, summary]);
 
   function pick(propertyId: string) {
-    const property = data.properties.find((p) => p.id === propertyId);
+    const property = askable.find((p) => p.id === propertyId);
     if (!property) return;
     /*
      * The view already asks about this property, and a rule of mine may only
@@ -583,6 +589,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
     setLens,
     promoteLens,
   } = useBoard();
+  const askable = filterProperties(data.properties);
   /* One order, drawn two ways, so one chip says it either way: a board is in
      the order as much as a list is, and the ✕ is the way out of both. */
   if (filters.rules.length === 0 && !sort && !panelOpen) return null;
@@ -598,7 +605,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
       {sort && <SortChip sort={sort} items={cardItems} onClear={() => void setSort(null)} />}
 
       {viewFilters.rules.map((rule, i) => {
-        const property = data.properties.find((p) => p.id === rule.propertyId);
+        const property = askable.find((p) => p.id === rule.propertyId);
         if (!property) return null;
         return (
           <Chip
@@ -619,7 +626,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
       )}
 
       {lens.rules.map((rule, i) => {
-        const property = data.properties.find((p) => p.id === rule.propertyId);
+        const property = askable.find((p) => p.id === rule.propertyId);
         if (!property) return null;
         return (
           <Chip

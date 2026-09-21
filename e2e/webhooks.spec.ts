@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { expect, test, type Locator } from "@playwright/test";
+import { WEBHOOK_KINDS } from "../src/lib/types";
 import { addTask, createProject, inDatabase, overflow, register, unique } from "./helpers";
 
 /**
@@ -293,11 +294,11 @@ test.describe("Webhooks", () => {
         await expect(page.getByTestId("webhook-secret")).toBeVisible();
 
         expect(await overflow(page)).toBe(0);
-        // Everything, and the ten feed words behind it.
+        // Everything, and the eleven feed words behind it.
         await forAFinger(page.getByRole("group", { name: "What rings this webhook" }), 1);
         await expect(
           page.getByRole("group", { name: "What rings this webhook" }).getByRole("button"),
-        ).toHaveCount(11);
+        ).toHaveCount(WEBHOOK_KINDS.length + 1);
       } finally {
         await hook.stop();
       }

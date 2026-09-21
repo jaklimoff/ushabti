@@ -184,6 +184,36 @@ Under the box is a line saying what will happen: `Enter to add · Esc to cancel`
 `Enter to add · sets Priority Urgent` when a filter is going to fill something in. The composer says
 what it will write before it writes it — see [Filters](/ushabti/guides/filters/).
 
+## Blocked by
+
+A task can say which tasks it waits on. Open the task, press **⋯** and choose **Blocked by…**, then
+type the key or the title of the task that blocks it. **Blocks** is the other end of the same
+chain, and each list adds the same way, by the **+** beside its heading.
+
+A row is a key, a title and a **✕**. The ✕ asks nothing: unlinking costs one key to undo, and the
+question is for what cannot be undone.
+
+The card says one thing about it: a small grey chain beside the key, with the blockers in its
+tooltip. Never a list and never a count — a board where half the cards are waiting has to stay
+readable, and the panel is where the chain lives. It is drawn rather than typed, so it is the same
+shade and the same shape whatever fonts a machine has.
+
+**A blocker stops blocking when it is over.** Over means archived, and it also means the one option
+the owner named under **Done when** in [Settings → Project](/ushabti/guides/settings/#the-project-page).
+Archive the blocker and the chain glyph goes by itself; the link is still there, struck through in
+the panel, because it happened.
+
+A circle is refused with one sentence — *USH-12 already waits on USH-71, so this would be a circle.*
+— and so is a task told to wait on itself. Nothing is written when either is refused.
+
+A task with no links draws nothing at all in the panel. That is why the way in is the menu: a
+heading over an empty list, on every task in the project, would cost more than the line it saved.
+
+<Aside type="note" title="One link kind, on one board">
+`blocks` is the only kind of link there is, and both ends have to be tasks on the same board. There
+is no graph, no Gantt and no dates — see [the roadmap](https://github.com/jaklimoff/ushabti/blob/main/ROADMAP.md).
+</Aside>
+
 ## Picking several cards
 
 Moving ten cards to a new owner one at a time is the tenth-time friction a team notices most. So a

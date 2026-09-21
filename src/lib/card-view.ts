@@ -724,6 +724,7 @@ export function sampleTask(properties: PropertyDTO[], members: MemberDTO[], key:
     checklistTotal: 4,
     checklistDone: 3,
     commentCount: 2,
+    blockedBy: [],
   };
 }
 

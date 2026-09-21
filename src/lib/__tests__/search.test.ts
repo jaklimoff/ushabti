@@ -18,6 +18,7 @@ function task(over: Partial<TaskDTO> & { number: number }): TaskDTO {
     checklistTotal: 0,
     checklistDone: 0,
     commentCount: 0,
+    blockedBy: [],
     ...over,
   };
 }

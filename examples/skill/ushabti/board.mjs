@@ -254,6 +254,47 @@ function valueText(data, property, value) {
   return String(value);
 }
 
+/**
+ * One line for a whole list of links, or nothing when there are none.
+ *
+ * A blocker that is over is still named and said to be over, so an agent can
+ * see the chain is clear rather than see it disappear.
+ */
+function linkLines(head, rows) {
+  if (!rows?.length) return;
+  const said = rows.map((r) => `${r.key}${r.over ? " (over)" : ""} ${r.title}`).join(", ");
+  console.log(`  ${head}: ${said}`);
+}
+
+/**
+ * Both link verbs. The flag names the direction, because "link A B" does not
+ * say which of the two is waiting.
+ */
+async function linkWork(method) {
+  const data = await board();
+  const task = findTask(data, positional[0], { archived: true });
+
+  const way = flags["blocked-by"] ? "blocked-by" : flags.blocks ? "blocks" : null;
+  const named = way ? flags[way] : null;
+  if (!way || named === "true") {
+    fail("Say which way: --blocked-by USH-12, or --blocks USH-30.");
+  }
+  const other = findTask(data, named, { archived: true });
+
+  /* One route writes both: which end of the link this task is on is the only
+     difference between them. */
+  const waits = way === "blocked-by" ? task : other;
+  const blocker = way === "blocked-by" ? other : task;
+
+  if (method === "POST") {
+    await call("POST", `/api/tasks/${waits.id}/blockers`, { blockerId: blocker.id });
+    console.log(`${waits.key} waits on ${blocker.key}`);
+  } else {
+    await call("DELETE", `/api/tasks/${waits.id}/blockers/${blocker.id}`);
+    console.log(`${waits.key} no longer waits on ${blocker.key}`);
+  }
+}
+
 function taskLine(data, task) {
   const run = data.runs.find((r) => r.taskId === task.id);
   const bits = data.properties
@@ -281,6 +322,9 @@ const commands = {
   comment <key> "<text>"              leave a note
   archive <key>                       take it off the board, keep its history
   restore <key>                       put an archived task back
+  link <key> --blocked-by <key>       say what a task waits on
+  link <key> --blocks <key>           say what waits on it
+  unlink <key> --blocked-by <key>     take the link away again
   claim <key> --goal "<what>" [--plan "a|b|c"] [--step "<now>"]
   beat <key> [--every 120] [--for 60]  say "still here" until the session ends
   step <key> --say "<now>" [--index 2] [--log "<line>"] [--for 45]
@@ -357,6 +401,11 @@ http://localhost:3000.`);
       const text = valueText(data, p, detail.values[p.id]);
       if (text) console.log(`  ${p.name}: ${text}`);
     }
+    /* Before the description, because what a task waits on decides whether
+       it can be picked up at all. A blocker that is over is named and said to
+       be over, so an agent can see the chain is clear. */
+    linkLines("Blocked by", detail.links?.blockedBy);
+    linkLines("Blocks", detail.links?.blocks);
     if (detail.description.trim()) console.log(`\n${detail.description.trim()}\n`);
     for (const item of detail.checklist) console.log(itemLine(item));
     for (const c of detail.comments) console.log(`  ${c.author?.name ?? "?"}: ${c.body}`);
@@ -373,6 +422,18 @@ http://localhost:3000.`);
         `  ran ${past.id} — ${past.agent.name}, ${past.status} after ${ran}m: ${past.goal}`,
       );
     }
+  },
+
+  /*
+   * A link is content, so an agent writes one. The flag names the direction,
+   * because "link A B" does not say which of them waits.
+   */
+  async link() {
+    await linkWork("POST");
+  },
+
+  async unlink() {
+    await linkWork("DELETE");
   },
 
   async new() {

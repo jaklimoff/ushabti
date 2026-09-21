@@ -64,6 +64,15 @@ export const projects = pgTable("projects", {
    * row naming a property that is gone.
    */
   cardView: jsonb("card_view"),
+  /**
+   * What this project calls done: `{ propertyId, optionId }`, or null.
+   *
+   * A blocker stops blocking when it is over, and no status is hardcoded, so
+   * the project says which option means it. Null falls back to archived, and
+   * so does a row naming a property or an option that is gone: it is read
+   * afresh through `readDoneWhen`, never cleaned up, exactly as a filter is.
+   */
+  doneWhen: jsonb("done_when"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -231,6 +240,35 @@ export const taskValues = pgTable(
   ],
 );
 
+/**
+ * One task waiting on another. `from` blocks `to`.
+ *
+ * The kind is a column with one word in it, `blocks`, and it is part of the
+ * key: a second kind of link later costs a value, not a migration. Both ends
+ * cascade, so a deleted task takes its links with it, and an archived one
+ * keeps every row that points at it — archived is what "over" usually means,
+ * and a blocker that is over still has to be nameable in the panel.
+ */
+export const taskLinks = pgTable(
+  "task_links",
+  {
+    fromId: uuid("from_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    toId: uuid("to_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    /** blocks. The only kind there is. */
+    kind: text("kind").notNull().default("blocks"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.fromId, t.toId, t.kind] }),
+    // "What is this task waiting on?" is the question every board read asks.
+    index("task_links_to_idx").on(t.toId),
+  ],
+);
+
 export const checklistItems = pgTable(
   "checklist_items",
   {
@@ -268,7 +306,7 @@ export const activity = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
-    /** created | title | description | value | checklist | comment | run | archive | reset | deleted */
+    /** created | title | description | value | checklist | comment | run | archive | link | reset | deleted */
     kind: text("kind").notNull(),
     data: jsonb("data").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

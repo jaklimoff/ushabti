@@ -121,6 +121,17 @@ type Store = {
   }) => Promise<void>;
   /** Answers whether the write went through, so a caller that drew it early can put it right. */
   setValue: (taskId: string, propertyId: string, value: TaskValue) => Promise<boolean>;
+  /**
+   * Says that one task waits on another, or takes that back. `waitsId` is the
+   * task that does the waiting.
+   *
+   * It lives here rather than in the panel because a write has to be counted:
+   * a read of the board that went out before the click would otherwise land
+   * on top of it and quietly take the chain glyph off again. It throws instead
+   * of notifying, because a refused link — a circle — is answered in the row
+   * the person is looking at, and not in a toast that goes in five seconds.
+   */
+  linkBlocker: (waitsId: string, blockerId: string, on: boolean) => Promise<void>;
 
   /**
    * The tasks picked for one change to all of them.
@@ -538,25 +549,68 @@ export function BoardProvider({
   );
 
   /* --- tasks ---------------------------------------------------------- */
+  /*
+   * Two questions about a write that can free a card which is not the card
+   * being written.
+   *
+   * What a task waits on is worked out on the server, because over is a rule
+   * about another task — archived, or holding the one option this project
+   * calls done. So the browser cannot see that a task somebody just archived
+   * has stopped holding another one up, and the write has to be followed by a
+   * read of the board.
+   *
+   * These two say when that can have happened, so the read is asked for only
+   * then. A board with no links, and a project that never named an option,
+   * pay nothing.
+   */
+  const holdsUpACard = useCallback(
+    (taskId: string) => {
+      const key = data.tasks.find((t) => t.id === taskId)?.key;
+      return !!key && data.tasks.some((t) => t.blockedBy.includes(key));
+    },
+    [data.tasks],
+  );
+
+  const saysDone = useCallback(
+    (propertyId: string) => data.project.doneWhen?.propertyId === propertyId,
+    [data.project.doneWhen],
+  );
+
   const createTask = useCallback<Store["createTask"]>(
     async (input) => {
       wrote();
       try {
-        const { task } = await api.post<{ task: TaskDTO & { key: string } }>(
-          `/api/projects/${projectId}/tasks`,
-          {
-            title: input.title,
-            values: input.values ?? {},
-            afterId: input.afterId ?? null,
-            atTop: input.atTop ?? false,
-          },
-        );
+        /* What the route really answers: the row it wrote, and the key it
+           wears. Not a whole card — calling it one is how a card reached the
+           board without the fields that are counted or joined. */
+        const { task } = await api.post<{
+          task: Pick<
+            TaskDTO,
+            | "id"
+            | "number"
+            | "key"
+            | "title"
+            | "description"
+            | "position"
+            | "createdAt"
+            | "updatedAt"
+          >;
+        }>(`/api/projects/${projectId}/tasks`, {
+          title: input.title,
+          values: input.values ?? {},
+          afterId: input.afterId ?? null,
+          atTop: input.atTop ?? false,
+        });
+        /* The route answers with the row it wrote and the key it wears, and
+           nothing that is counted or joined. A task a moment old has none of
+           those: no checklist, no comments, and nothing to wait on. */
         const complete: TaskDTO = {
           ...task,
           values: input.values ?? {},
           checklistTotal: 0,
           checklistDone: 0,
           commentCount: 0,
+          blockedBy: [],
           description: task.description ?? "",
           archivedAt: null,
         };
@@ -594,6 +648,7 @@ export function BoardProvider({
         data.tasks.find((t) => t.id === taskId)?.key ??
         data.archived.find((t) => t.id === taskId)?.key ??
         null;
+      const holdsUp = holdsUpACard(taskId);
 
       setData((current) => ({
         ...current,
@@ -605,12 +660,14 @@ export function BoardProvider({
       try {
         const said = await api.del<{ goesAt?: string }>(`/api/tasks/${taskId}`);
         if (key) notify(deletedSaid(key, said?.goesAt ?? null), "info");
+        /* A deleted task is on no board, so it blocks nothing any more. */
+        if (holdsUp) await refresh();
       } catch (err) {
         notify(err instanceof Error ? err.message : "The change did not save.");
         await refresh();
       }
     },
-    [data.archived, data.tasks, notify, refresh, wrote],
+    [data.archived, data.tasks, holdsUpACard, notify, refresh, wrote],
   );
 
   /* The card leaves the board at once and joins the archived list, so a search
@@ -618,6 +675,8 @@ export function BoardProvider({
   const archiveTask = useCallback<Store["archiveTask"]>(
     async (taskId) => {
       const at = new Date().toISOString();
+      /* Read before the row leaves the list it is read from. */
+      const holdsUp = holdsUpACard(taskId);
       setData((current) => {
         const task = current.tasks.find((t) => t.id === taskId);
         if (!task) return current;
@@ -641,8 +700,11 @@ export function BoardProvider({
       await guarded(async () => {
         await api.post(`/api/tasks/${taskId}/archive`, {});
       });
+      /* An archived task is over, whatever else the project calls over, so
+         every card that was waiting on this one is free now. */
+      if (holdsUp) await refresh();
     },
-    [guarded],
+    [guarded, holdsUpACard, refresh],
   );
 
   /*
@@ -738,8 +800,11 @@ export function BoardProvider({
         });
         patchLocalTask(taskId, { position: res.position });
       });
+      /* A card carried into another column writes that column's value, which
+         may be the one the project calls done. */
+      if (Object.keys(values ?? {}).some(saysDone)) await refresh();
     },
-    [guarded, patchLocalTask],
+    [guarded, patchLocalTask, refresh, saysDone],
   );
 
   const setValue = useCallback<Store["setValue"]>(
@@ -750,11 +815,25 @@ export function BoardProvider({
           t.id === taskId ? { ...t, values: { ...t.values, [propertyId]: value } } : t,
         ),
       }));
-      return guarded(async () => {
+      const saved = await guarded(async () => {
         await api.put(`/api/tasks/${taskId}/values/${propertyId}`, { value });
       });
+      if (saved && saysDone(propertyId)) await refresh();
+      return saved;
     },
-    [guarded],
+    [guarded, refresh, saysDone],
+  );
+
+  const linkBlocker = useCallback<Store["linkBlocker"]>(
+    async (waitsId, blockerId, on) => {
+      wrote();
+      if (on) await api.post(`/api/tasks/${waitsId}/blockers`, { blockerId });
+      else await api.del(`/api/tasks/${waitsId}/blockers/${blockerId}`);
+      /* What a card waits on is worked out on the server, so the board is
+         read again rather than patched here. */
+      await refresh();
+    },
+    [refresh, wrote],
   );
 
   /*
@@ -784,8 +863,9 @@ export function BoardProvider({
           value,
         });
       });
+      if (saysDone(propertyId)) await refresh();
     },
-    [guarded, pickedHere, projectId],
+    [guarded, pickedHere, projectId, refresh, saysDone],
   );
 
   /*
@@ -1159,6 +1239,7 @@ export function BoardProvider({
     archiveColumn,
     moveTask,
     setValue,
+    linkBlocker,
     picked: pickedHere,
     isPicked,
     togglePick,
