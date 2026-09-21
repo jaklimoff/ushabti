@@ -41,10 +41,11 @@ or let Playwright start one for you. On CI, and whenever `CI` is set, Playwright
 runs `npm run start` instead, so the tests exercise what the image ships.
 
 `npm run start` is the production build: `node .next/standalone/server.js`, the
-same server the image runs. It reads `PORT` and `HOSTNAME`. It carries the copy
-of `.env` the build made, not the file on disk, so anything you changed since
-then has to come from the command line. Build first, then start it on a free
-port and point the tests at it:
+same server the image runs. `PORT` picks the port, and it binds `0.0.0.0`
+unless `HOST` names another address. It carries the copy of `.env` the build
+made, not the file on disk, so anything you changed since then — or never had —
+has to come from the command line. Build first, then start it on a free port
+and point the tests at it:
 
 ```sh
 npm run build
@@ -52,11 +53,21 @@ DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti PORT=3101 npm run
 BASE_URL=http://localhost:3101 npm run test:e2e
 ```
 
-Set `CI` as well and Playwright starts that same server for you, on `PORT`:
+Set `CI` as well and Playwright starts that same server for you, on `PORT`.
+`DATABASE_URL` belongs on this one too, because the server it starts is the
+standalone one and reads the `.env` the build copied rather than the file on
+disk. Without it every route answers 500 and Playwright only says it timed
+out:
 
 ```sh
-CI=1 PORT=3101 npm run test:e2e
+CI=1 PORT=3101 DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti npm run test:e2e
 ```
+
+`npm run start` binds `0.0.0.0` because the image does, and because a shell
+that exports `HOSTNAME` — `docker exec` does, and so do some Linux profiles —
+would otherwise hand the server the machine's own name to bind, and
+`localhost` would refuse. Use `HOST` when you mean a different address:
+`HOST=127.0.0.1 PORT=3101 npm run start`.
 
 ## Rules for a change
 

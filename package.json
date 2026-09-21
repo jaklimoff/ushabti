@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "next dev -p 3050 -H 0.0.0.0",
     "build": "next build",
-    "start": "node scripts/standalone-assets.mjs && node .next/standalone/server.js",
+    "start": "node scripts/standalone-assets.mjs && HOSTNAME=${HOST:-0.0.0.0} node .next/standalone/server.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

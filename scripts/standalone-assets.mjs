@@ -8,6 +8,12 @@
 // It loads nothing. It runs before the server, from a tree that may hold only
 // what the build left, and a dependency here would be one more thing between a
 // person and a working start.
+//
+// The `start` script beside it then sets `HOSTNAME=${HOST:-0.0.0.0}`, because
+// the server binds whatever `HOSTNAME` holds. A shell that exports it — a
+// `docker exec` session does, and so do some Linux profiles — would otherwise
+// have the server bind the machine's own name, and `localhost` refuse. `HOST`
+// is the way to ask for another address on purpose.
 import { existsSync, cpSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
