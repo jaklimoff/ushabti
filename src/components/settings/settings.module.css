@@ -1195,3 +1195,12 @@
     padding: 0 11px 11px;
   }
 }
+
+/* A refused address, said beside the box that holds it. The board has no
+   dialogs, so a refusal is a line in the row. */
+.hookError {
+  width: 100%;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--danger-text);
+}

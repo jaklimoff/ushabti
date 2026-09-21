@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addTask, createProject, register, unique } from "./helpers";
+import { addTask, createProject, inDatabase, register, unique } from "./helpers";
 
 /**
  * A webhook has to be able to reach something, so the test is the receiver.
@@ -183,6 +183,92 @@ test.describe("Webhooks", () => {
        tens. The margin is wide on purpose: what is under test is that the
        network is not on this path at all, not how fast a laptop is. */
     expect(hooked - plain).toBeLessThan(1000);
+  });
+
+  /*
+   * An address the board refuses. The scheme rule holds whatever
+   * USHABTI_WEBHOOK_PRIVATE says, so this test reads the same on a machine
+   * where a loopback receiver is allowed — which is every machine that runs
+   * this suite.
+   */
+  test("a URL the board will not call is refused in the row, with no dialog", async ({ page }) => {
+    await register(page, "Owner Person");
+    const projectId = await createProject(page, unique("Refused"));
+    await page.goto(`/p/${projectId}/settings/webhooks`);
+
+    await page.getByLabel("URL of the new webhook").fill("ftp://example.com/hook");
+    await page.getByRole("button", { name: "Add webhook" }).click();
+
+    const said = page.getByTestId("webhook-error");
+    await expect(said).toBeVisible();
+    await expect(said).toHaveText(/starts with http/);
+    // Nothing was made, and nothing opened on top of the page.
+    await expect(page.getByTestId("webhook-box")).toHaveCount(0);
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+
+    // Typing again takes the sentence away, and a real URL is taken.
+    await page.getByLabel("URL of the new webhook").fill("https://example.com/hook");
+    await expect(said).toHaveCount(0);
+    await page.getByRole("button", { name: "Add webhook" }).click();
+    await expect(page.getByTestId("webhook-box")).toHaveCount(1);
+  });
+
+  /*
+   * Turning a webhook off has to stop the deliveries already queued behind
+   * it, not only the next one. The delivery is written straight into the
+   * table so that the row is waiting while the webhook is switched, which a
+   * click on the board is too quick to arrange.
+   */
+  test("a webhook that is off does not ring what was already queued", async ({ page, request }) => {
+    const hook = await receiver();
+    try {
+      await register(page, "Owner Person");
+      const projectId = await createProject(page, unique("Switched"));
+      await page.goto(`/p/${projectId}/settings/webhooks`);
+      await page.getByLabel("URL of the new webhook").fill(hook.url);
+      await page.getByRole("button", { name: "Add webhook" }).click();
+      await expect(page.getByTestId("webhook-secret")).toBeVisible();
+
+      await page.getByRole("button", { name: "Turn off" }).click();
+      await expect(page.getByRole("button", { name: "Turn on" })).toBeVisible();
+
+      const hookId = await inDatabase(async (client) => {
+        const { rows } = await client.query<{ id: string }>(
+          "select id from webhooks where project_id = $1",
+          [projectId],
+        );
+        return rows[0].id;
+      });
+      const queue = () =>
+        inDatabase(async (client) => {
+          await client.query(
+            `insert into webhook_deliveries (webhook_id, body, next_try_at)
+             values ($1, $2::jsonb, now())`,
+            [hookId, JSON.stringify({ delivery: "x", kind: "test" })],
+          );
+        });
+
+      const cookies = await page.context().cookies();
+      const jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+      /* The board read is where the sender is started, so this is the whole
+         of what a drain looks like from outside. */
+      const drain = async () => {
+        await request.get(`/api/projects/${projectId}/board`, { headers: { cookie: jar } });
+        await page.waitForTimeout(1200);
+      };
+
+      await queue();
+      await drain();
+      expect(hook.rings).toHaveLength(0);
+
+      // Back on, and the one that was waiting goes out.
+      await page.getByRole("button", { name: "Turn on" }).click();
+      await expect(page.getByRole("button", { name: "Turn off" })).toBeVisible();
+      await drain();
+      expect(hook.rings.length).toBeGreaterThan(0);
+    } finally {
+      await hook.stop();
+    }
   });
 
   /*

@@ -87,6 +87,22 @@ body       {"delivery":"9d2d9d6e-9a6f-4f63-9b1e-6b2b0b6a4c11","projectId":"2f1a7
 signature  sha256=861a870d23c4a8089c8af6c498dd30e1bafb67b299080feb2ec792de5088f70d
 ```
 
+## Which addresses are allowed
+
+A webhook is the one request a person tells the server to make for them, so the address has to be
+one a stranger could reach too. Ushabti refuses a **loopback** (`127.0.0.0/8`, `0.0.0.0/8`, `::1`,
+`localhost`), **private** (`10/8`, `172.16/12`, `192.168/16`, `fc00::/7`) or **link-local**
+(`169.254.0.0/16` — the cloud metadata address — and `fe80::/10`) host, and a URL that carries a
+name and password. It checks when the URL is saved and again before every try, resolving the name
+each time.
+
+<Aside type="caution" title="A private receiver is opt-in">
+Set [`USHABTI_WEBHOOK_PRIVATE=1`](/ushabti/start/configuration/#ushabti_webhook_private) on the
+server if your receiver really is on that network. Left unset — the default — those addresses are
+refused, so a webhook cannot be used to read what else is reachable from the board. The scheme
+rule and the no-credentials rule hold whatever the flag says.
+</Aside>
+
 ## Delivery and retries
 
 The first try goes at once. A failed try is made again after **1 minute**, then **5 minutes**, then

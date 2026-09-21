@@ -25,7 +25,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   dropped — the feed is the way to catch up. Nothing waits for the network: a
   change writes one row per webhook and returns, so a receiver that is down
   costs one INSERT and slows nobody's board. **Roll the secret** makes another
-  one, once. The last twenty deliveries of each webhook are kept.
+  one, once. The last twenty deliveries of each webhook are kept. A webhook
+  cannot be pointed at a **loopback, private or link-local** address, or at a
+  URL carrying a name and password: a board that called those would tell its
+  owner what else is on the network it runs in. The address is checked when it
+  is saved and again before every try, resolving the name each time, and the
+  refusal is a plain sentence in the row. Set `USHABTI_WEBHOOK_PRIVATE=1` on
+  the server when the receiver really is on that network.
 - **Archiving a whole column now writes its lines through the one funnel.**
   It wrote them straight to the table, which was invisible until there was
   something hanging on the funnel: a swept column rang no webhook. The rows

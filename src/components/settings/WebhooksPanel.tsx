@@ -88,9 +88,12 @@ function Hooks({
   reload: () => Promise<void>;
   projectId: string;
 }) {
-  const { notify } = useBoard();
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  /* Why the last URL was refused. It is a sentence in the row rather than a
+     toast: a refused address has to stay on screen beside the box that holds
+     it, because the next thing the person does is edit that box. */
+  const [error, setError] = useState<string | null>(null);
   /** The plain secrets, held until the person leaves the page. */
   const [secrets, setSecrets] = useState<Record<string, string>>({});
 
@@ -98,6 +101,7 @@ function Hooks({
     const trimmed = url.trim();
     if (!trimmed || busy) return;
     setBusy(true);
+    setError(null);
     try {
       const res = await api.post<{ webhook: WebhookDTO; secret: string }>(
         `/api/projects/${projectId}/webhooks`,
@@ -107,7 +111,7 @@ function Hooks({
       setUrl("");
       await reload();
     } catch (err) {
-      notify(err instanceof Error ? err.message : "Could not add the webhook.");
+      setError(err instanceof Error ? err.message : "Could not add the webhook.");
     } finally {
       setBusy(false);
     }
@@ -153,19 +157,30 @@ function Hooks({
             style={{ flex: 1, minWidth: 180 }}
             aria-label="URL of the new webhook"
             value={url}
+            invalid={error !== null}
             placeholder="https://example.com/ushabti"
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setError(null);
+            }}
             onKeyDown={(e) => e.key === "Enter" && void add()}
           />
           <Button onClick={() => void add()} disabled={busy}>
             Add webhook
           </Button>
-          <span style={{ width: "100%" }}>
-            <Note>
-              The secret is made here and shown once. Keep it: it is what signs every body, and the
-              only way to another one is to roll it.
-            </Note>
-          </span>
+          {error ? (
+            <span className={styles.hookError} role="alert" data-testid="webhook-error">
+              {error}
+            </span>
+          ) : (
+            <span style={{ width: "100%" }}>
+              <Note>
+                The secret is made here and shown once. Keep it: it is what signs every body, and
+                the only way to another one is to roll it. The address has to be one a stranger
+                could reach too — a private or loopback address is refused.
+              </Note>
+            </span>
+          )}
         </Foot>
       </Card>
     </Section>
@@ -191,15 +206,35 @@ function HookBox({
   const confirm = useConfirm();
   const roll = useConfirm();
   const [url, setUrl] = useState(hook.url);
+  /* Why the last save was refused, said in the row itself. */
+  const [error, setError] = useState<string | null>(null);
+  /* How many deliveries the delete takes. Null while the server is counting. */
+  const [deliveries, setDeliveries] = useState<number | null>(null);
   const base = `/api/projects/${projectId}/webhooks/${hook.id}`;
 
   async function save(patch: Record<string, unknown>) {
+    setError(null);
     try {
       await api.patch(base, patch);
       await reload();
     } catch (err) {
-      notify(err instanceof Error ? err.message : "Could not save.");
-      setUrl(hook.url);
+      /* A refused address stays beside the box that holds it. The box keeps
+         what was typed, so the sentence and the text it is about agree. */
+      setError(err instanceof Error ? err.message : "Could not save.");
+    }
+  }
+
+  /* What the delete costs, in the numbers a person can check, asked when the
+     row is pressed so no read of this page pays for it. */
+  async function askDelete() {
+    setDeliveries(null);
+    confirm.ask();
+    try {
+      const answer = await api.get<{ deliveries: number }>(`${base}/count`);
+      setDeliveries(answer.deliveries);
+    } catch {
+      confirm.cancel();
+      notify("Could not count what goes with it.");
     }
   }
 
@@ -233,9 +268,17 @@ function HookBox({
   }
 
   if (confirm.asking) {
+    const kept =
+      deliveries === null ? null : `${deliveries} ${deliveries === 1 ? "delivery" : "deliveries"}`;
     return (
       <ConfirmRow
-        question={`Delete this webhook? ${short(hook.url)} stops being called, and its deliveries go with it.`}
+        question={
+          kept === null
+            ? `Delete this webhook? Counting what goes with it…`
+            : `Delete this webhook? ${short(hook.url)} stops being called, and its ${kept} go with it.`
+        }
+        /* A question that does not name its cost must not be answerable. */
+        pending={deliveries === null}
         confirmLabel="Yes, delete"
         onConfirm={() => confirm.confirm(() => void remove())}
         onCancel={confirm.cancel}
@@ -277,13 +320,19 @@ function HookBox({
           danger
           label={`Delete the webhook ${hook.prefix}`}
           title="Delete this webhook"
-          onClick={confirm.ask}
+          onClick={() => void askDelete()}
         >
           ✕
         </IconButton>
       </Row>
 
       <div className={styles.hookUnder}>
+        {error && (
+          <span className={styles.hookError} role="alert" data-testid="webhook-error">
+            {error}
+          </span>
+        )}
+
         <Kinds kinds={hook.kinds} onPick={(kinds) => void save({ kinds })} />
 
         {secret && (

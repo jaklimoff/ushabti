@@ -94,6 +94,34 @@ body       {"delivery":"9d2d9d6e-9a6f-4f63-9b1e-6b2b0b6a4c11","projectId":"2f1a7
 signature  sha256=861a870d23c4a8089c8af6c498dd30e1bafb67b299080feb2ec792de5088f70d
 ```
 
+## Which addresses are allowed
+
+A webhook is the one place where a person tells the server to make a request
+for them, so the address has to be one a stranger could reach too. Ushabti
+refuses, at the moment it is saved and again before every try:
+
+- a **loopback** address — `127.0.0.0/8`, `0.0.0.0/8`, `::1`, and `localhost`
+  by any of its names;
+- a **private** address — `10/8`, `172.16/12`, `192.168/16`, `fc00::/7`;
+- a **link-local** address — `169.254.0.0/16`, which is where a cloud keeps
+  its metadata service, and `fe80::/10`;
+- a URL with a **name and password** in it, which goes to whoever answers and
+  hides the real host — `http://example.com@169.254.169.254/` is not a call to
+  example.com.
+
+A redirect is a failure too (`redirect: "error"`), so point the webhook at the
+address it ends up at. A name is resolved before each try, so a host that
+answers publicly today and points inside tomorrow is refused then rather than
+called.
+
+**If your receiver really is on that network**, set `USHABTI_WEBHOOK_PRIVATE=1`
+in the server's environment and those addresses are allowed. It is off by
+default on purpose: a self-hoster should say so once, deliberately, rather than
+find out by accident. The two rules above it — the scheme, and no credentials
+— hold whatever the flag says.
+
+The refusal is a plain sentence in the row, beside the box that holds the URL.
+
 ## Delivery
 
 The first try goes at once. A try that fails is made again after **1 minute**,

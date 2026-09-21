@@ -1,9 +1,17 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, notInArray, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { lookup } from "node:dns/promises";
 import { db } from "@/db";
 import { projects, tasks, webhookDeliveries, webhooks } from "@/db/schema";
 import { mintToken } from "./agents";
+import {
+  isPrivateHost,
+  isPrivateIp,
+  privateAddressesAllowed,
+  privateSentence,
+  refuseAddress,
+} from "./webhook-address";
 import { HttpError } from "./auth";
 import { str } from "./api";
 import {
@@ -238,6 +246,11 @@ export async function drainWebhooks(now: () => Date = () => new Date()): Promise
             isNull(webhookDeliveries.deliveredAt),
             isNotNull(webhookDeliveries.nextTryAt),
             lte(webhookDeliveries.nextTryAt, now()),
+            /* Turning a webhook off has to stop it at once, including the
+               deliveries already in the queue behind it. Without this a hook
+               switched off in the middle of a retry schedule still rang, up
+               to half an hour later. */
+            eq(webhooks.active, true),
           ),
         )
         .orderBy(asc(webhookDeliveries.nextTryAt))
@@ -259,11 +272,50 @@ type DueRow = {
   secret: string;
 };
 
+/**
+ * Whether this address may be called, asked again at the moment of the call.
+ *
+ * The route already refused a private literal when the URL was saved. This is
+ * the harder half: a name is resolved here, so a host that answered publicly
+ * on Monday and points at 10.0.0.5 today is refused on the try rather than on
+ * the save. It answers a sentence, or null.
+ */
+async function refuseAtSendTime(url: string, allowPrivate: boolean): Promise<string | null> {
+  const said = refuseAddress(url, allowPrivate);
+  if (said) return said;
+  if (allowPrivate) return null;
+
+  const host = new URL(url).hostname.replace(/^\[|\]$/g, "");
+  // A literal was already answered above; only a name is left to resolve.
+  if (isPrivateHost(host) || isPrivateIp(host)) return null;
+
+  try {
+    const answers = await lookup(host, { all: true });
+    const inside = answers.find((a) => isPrivateIp(a.address));
+    if (inside) return privateSentence(`${host} (${inside.address})`);
+  } catch {
+    /* A name that does not resolve is not a refusal. The try itself will fail
+       in a moment and say so in the words the resolver used. */
+  }
+  return null;
+}
+
 /** One try. It always writes an answer, so a row is never due twice over. */
 async function sendOne(row: DueRow, now: Date): Promise<void> {
   const payload = row.body as WebhookPayload;
   const body = JSON.stringify(payload);
   const tries = row.tries + 1;
+
+  const refused = await refuseAtSendTime(row.url, privateAddressesAllowed());
+  if (refused) {
+    /* No retry: the answer would be the same in half an hour, and each try
+       would be another request nobody may make. */
+    await db
+      .update(webhookDeliveries)
+      .set({ tries, code: null, error: refused, nextTryAt: null })
+      .where(eq(webhookDeliveries.id, row.id));
+    return;
+  }
 
   try {
     const res = await fetch(row.url, {
@@ -399,18 +451,13 @@ export async function countDeliveries(webhookId: string): Promise<number> {
  * A URL the sender can actually post to. Nothing else is a webhook.
  *
  * It sits here rather than in the route because both routes read one, and
- * because a route file may export nothing but its methods.
+ * because a route file may export nothing but its methods. What counts as an
+ * address is `webhook-address.ts`, which the sender asks again before it
+ * calls one.
  */
 export function webhookUrl(raw: unknown): string {
   const text = str(raw, "The URL", { max: 500 });
-  let parsed: URL;
-  try {
-    parsed = new URL(text);
-  } catch {
-    throw new HttpError(400, "That does not look like a URL.");
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new HttpError(400, "A webhook URL starts with http:// or https://.");
-  }
-  return parsed.toString();
+  const refused = refuseAddress(text, privateAddressesAllowed());
+  if (refused) throw new HttpError(400, refused);
+  return new URL(text).toString();
 }

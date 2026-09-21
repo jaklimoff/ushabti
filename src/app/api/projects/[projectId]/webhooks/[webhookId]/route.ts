@@ -8,12 +8,18 @@ import { readKinds } from "@/lib/webhook-delivery";
 
 type Ctx = { params: Promise<{ projectId: string; webhookId: string }> };
 
-/** The owner of the project this webhook belongs to, or a refusal. */
+/**
+ * The owner of the project this webhook belongs to, or a refusal.
+ *
+ * Who is asking is settled before anything is read. Looking the webhook up
+ * first answered an anonymous caller `404` instead of `401`, which is both
+ * the wrong answer and a way to ask whether an id exists without signing in.
+ */
 async function owner(projectId: string, webhookId: string) {
-  const belongsTo = await webhookProjectId(webhookId);
-  if (!belongsTo || belongsTo !== projectId) throw new HttpError(404, "Webhook not found.");
   const { user, membership } = await guard(projectId);
   ownerOnly(user, membership, "change a webhook");
+  const belongsTo = await webhookProjectId(webhookId);
+  if (!belongsTo || belongsTo !== projectId) throw new HttpError(404, "Webhook not found.");
 }
 
 /**
