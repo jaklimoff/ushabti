@@ -106,6 +106,21 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
    */
   const writes = useRef(0);
 
+  /*
+   * One rule, two subjects: the panel writes some things itself and hands the
+   * rest to the store, and a read that went out before either of them is as
+   * stale. So every write the panel starts is counted here, before it goes.
+   *
+   * The store keeps a count of its own, for its own read of the board. Two
+   * counters for two reads is the smaller answer: one number would be bumped
+   * by writes the other read cannot see, and a read dropped for a write that
+   * did not touch it is a read lost for nothing.
+   */
+  const counted = useCallback(<T,>(write: () => Promise<T>): Promise<T> => {
+    writes.current += 1;
+    return write();
+  }, []);
+
   const load = useCallback(async () => {
     const at = writes.current;
     try {
@@ -126,13 +141,37 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     }
   }, [onClose, syncTaskCounts, taskId]);
 
-  /* A write of this panel’s own ends by reading the task again. It is counted
-     here, so the read a broadcast started before it is dropped rather than
-     landing on top of it. */
-  const reload = useCallback(async () => {
-    writes.current += 1;
-    await load();
-  }, [load]);
+  /* A write of this panel’s own ends by reading the task again, so the read a
+     broadcast started before it is dropped rather than landing on top of it. */
+  const reload = useCallback(() => counted(load), [counted, load]);
+
+  /* What the panel hands to the store is counted on the way out, as its own
+     writes are. */
+  const patch = useCallback(
+    (fields: { title?: string; description?: string }) => counted(() => patchTask(taskId, fields)),
+    [counted, patchTask, taskId],
+  );
+
+  const makeOption = useCallback(
+    (propertyId: string, name: string) => counted(() => addOption(propertyId, name)),
+    [addOption, counted],
+  );
+
+  /*
+   * The store draws a new value on the card at once. An archived task has no
+   * card, and its values are drawn from this read, so the panel patches the
+   * same answer here. Reading the task again instead would leave the old
+   * value on screen for the whole round trip, which is the fault in miniature.
+   */
+  const writeValue = useCallback(
+    async (propertyId: string, value: TaskValue) => {
+      setDetail((current) =>
+        current ? { ...current, values: { ...current.values, [propertyId]: value } } : current,
+      );
+      await counted(() => setValue(taskId, propertyId, value));
+    },
+    [counted, setValue, taskId],
+  );
 
   // Only a different task clears what is on screen. A new `load` identity must
   // not, because that unmounts the comment list and destroys the note the
@@ -390,7 +429,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           )}
         </div>
 
-        <TitleField value={shown.title} onCommit={(title) => void patchTask(taskId, { title })} />
+        <TitleField value={shown.title} onCommit={(title) => void patch({ title })} />
       </div>
 
       <div className={styles.body}>
@@ -420,10 +459,10 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                       property={property}
                       value={shown.values[property.id] ?? null}
                       members={data.members}
-                      onChange={(value: TaskValue) => void setValue(taskId, property.id, value)}
+                      onChange={(value: TaskValue) => void writeValue(property.id, value)}
                       onAddOption={
                         property.type === "select" || property.type === "multi_select"
-                          ? (name) => addOption(property.id, name)
+                          ? (name) => makeOption(property.id, name)
                           : undefined
                       }
                     />
@@ -435,7 +474,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
             <div className={styles.section}>
               <Description
                 value={shown.description}
-                onCommit={(description) => void patchTask(taskId, { description })}
+                onCommit={(description) => void patch({ description })}
               />
 
               <Checklist
@@ -483,7 +522,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 detail={detail}
                 me={user}
                 description={shown.description}
-                onUseAsDescription={(description) => patchTask(taskId, { description })}
+                onUseAsDescription={(description) => patch({ description })}
                 reload={reload}
                 onError={notify}
               />
