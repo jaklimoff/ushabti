@@ -48,6 +48,16 @@ const BATCH = 20;
 /** How many passes one drain makes before it leaves the rest to the next. */
 const MAX_PASSES = 20;
 
+/**
+ * How many deliveries of a batch are in flight at once.
+ *
+ * One at a time, twenty shut ports at five seconds each held every project's
+ * queue for a hundred seconds, and a **Send a test** on another board waited
+ * behind them. It is a small number on purpose: a drain is housekeeping, and
+ * it must not look like a flood to a receiver that has several webhooks.
+ */
+const SEND_AT_ONCE = 8;
+
 export type MintedSecret = { secret: string; prefix: string };
 
 export function mintSecret(): MintedSecret {
@@ -258,11 +268,36 @@ export async function drainWebhooks(now: () => Date = () => new Date()): Promise
         .limit(BATCH);
 
       if (due.length === 0) return;
-      for (const row of due) await sendOne(row, now());
+      await sendBatch(due, now);
     }
   } finally {
     globalForSender.__ushabtiDraining = false;
   }
+}
+
+/**
+ * Sends one batch, `SEND_AT_ONCE` of them at a time.
+ *
+ * A row is taken by one lane and by no other, so the claim is the one the
+ * drain already made: the flag above says one drain in this process, the
+ * query says a row is due, and `sendOne` always writes an answer, which takes
+ * the row out of the next pass. Nothing here sends a delivery twice.
+ *
+ * The pass waits for the whole batch before it asks for the next one, so a
+ * row that is still in flight is never selected again.
+ */
+async function sendBatch(due: DueRow[], now: () => Date): Promise<void> {
+  let next = 0;
+  const take = (): DueRow | null => (next < due.length ? due[next++] : null);
+
+  const lane = async () => {
+    for (let row = take(); row !== null; row = take()) await sendOne(row, now());
+  };
+
+  /* `sendOne` writes its own failures and does not throw. `allSettled` is for
+     the one that somehow does: a lane that fell over must not take the rows
+     of the other lanes with it. */
+  await Promise.allSettled(Array.from({ length: Math.min(SEND_AT_ONCE, due.length) }, lane));
 }
 
 type DueRow = {
