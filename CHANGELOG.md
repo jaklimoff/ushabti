@@ -10,6 +10,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A run that is over can still be read.** The Agent tab of a task used to
+  exist only while an agent was working, and a run took its plan and its log
+  away with it when it closed. The tab now stays for as long as the task has
+  ever had a run. Under the open one — or alone, with nothing pulsing — it
+  lists the runs that are over, newest first: who, when it started, how long it
+  ran, how it ended and what it set out to do. Press a row and that run's plan
+  and log open in place, as they were left. Nothing changed on the card. An
+  agent reads the same list in `pastRuns` on `GET /api/tasks/{taskId}`, and one
+  of those runs in full at `GET /api/runs/{runId}`.
 - **A board can be sorted, as a list can.** A **Sort** button beside **Filter**
   opens a list of everything a card carries: press one and every column draws
   its cards in that order, press it again to turn the order around, and a third

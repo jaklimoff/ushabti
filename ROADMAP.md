@@ -97,10 +97,7 @@ Everything off the board, brought up to the board's standard.
 
 ## Next — the things that make daily use better
 
-1. **A run history.** A closed run keeps its rows, but nothing shows them.
-   Only the activity line survives on screen. The Agent tab of the panel should
-   list past runs and open one in place.
-2. **Webhooks.** There is no call out when something changes. An agent listens
+1. **Webhooks.** There is no call out when something changes. An agent listens
    on the stream instead, which `board.mjs watch` does for it; a service that
    cannot hold a socket open still has to poll.
 

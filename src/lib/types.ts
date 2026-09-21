@@ -378,6 +378,11 @@ export type TaskDetailDTO = TaskDTO & {
   activity: ActivityDTO[];
   /** The open run of this task, with its plan and its log. */
   run: AgentRunDetailDTO | null;
+  /**
+   * The runs that are over, newest first, at most twenty. A row of the
+   * history, not a whole run: one of those in full is `GET /api/runs/{id}`.
+   */
+  pastRuns: AgentRunDTO[];
 };
 
 /* ------------------------------------------------------------------ */

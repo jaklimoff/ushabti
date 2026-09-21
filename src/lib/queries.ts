@@ -24,7 +24,7 @@ import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
 import { readSort } from "./sort";
 import { rankSequence } from "./rank";
-import { loadOpenRuns, loadTaskRun } from "./runs";
+import { loadOpenRuns, loadTaskRuns } from "./runs";
 import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
 import type {
   ActivityDTO,
@@ -522,7 +522,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 
   if (!row) return null;
 
-  const [valueRows, checkRows, commentRows, activityRows, run] = await Promise.all([
+  const [valueRows, checkRows, commentRows, activityRows, runs] = await Promise.all([
     db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
     db
       .select()
@@ -557,7 +557,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       .where(eq(activity.taskId, taskId))
       .orderBy(desc(activity.createdAt))
       .limit(60),
-    loadTaskRun(taskId),
+    loadTaskRuns(taskId),
   ]);
 
   const values: Record<string, TaskValue> = {};
@@ -604,7 +604,8 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     checklist,
     comments: commentList,
     activity: activityList,
-    run,
+    run: runs.run,
+    pastRuns: runs.pastRuns,
   };
 }
 
