@@ -441,6 +441,14 @@ holds the list alone. A row says who, when it started, how long it ran, how it
 ended and what it set out to do, and pressing it opens that run's plan and log
 in place.
 
+`lost` is the one status that says two things, so the row says which. The
+board writes `lost` when a run missed its lease, and an agent writes the same
+word as its own last message when it is being shut down. A row whose run ended
+**inside** its lease reads **shut down**; one the lease closed reads **lost**.
+The row works it out from the two moments it already carries — `endedAt`
+against `updatedAt` plus the thirty minutes, or against `reportDueAt` — so the
+answer is the same whenever anybody reads it.
+
 Older runs are still in the table. Nothing sweeps them yet, and nothing deletes
 one.
 

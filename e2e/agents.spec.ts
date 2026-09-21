@@ -290,6 +290,44 @@ test.describe("Agents on the board", () => {
     await expect(page.getByText("stopped answering")).toBeVisible();
   });
 
+  /*
+   * The other half of the same word. An agent that is being shut down reports
+   * `lost` itself, inside its lease, and the history must not tell a person
+   * that the board closed a run nobody had heard from.
+   */
+  test("an agent that says it is being shut down reads as shut down", async ({ page, request }) => {
+    await register(page, "Shutdown Owner");
+    const projectId = await createProject(page, unique("Shutdown"));
+    await addTask(page, "Todo", "Stopped with its session");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Reis");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Reis" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find((t: { title: string }) => t.title === "Stopped with its session");
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, { goal: "Reviewing a PR", step: "Working" })
+    ).json();
+
+    // Its last word, minutes into a lease of thirty.
+    await api.patch(`/api/runs/${run.id}`, { status: "lost", log: "the agent was stopped" });
+
+    await page.goto(`/p/${projectId}`);
+    await card(page, "Stopped with its session").first().click();
+    await page.getByTestId("agent-tab").click();
+    const row = page.getByTestId("past-run").first();
+    await expect(row).toContainText("shut down");
+    await expect(row).not.toContainText("lost");
+  });
+
   test("a long step says how long it takes, and the board waits for it", async ({
     page,
     request,

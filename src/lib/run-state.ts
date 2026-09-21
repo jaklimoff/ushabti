@@ -127,6 +127,32 @@ export function leaseLeft(run: RunLease, now: number = Date.now()): number {
   return Math.max(0, leaseEndsAt(run) - now);
 }
 
+/** What the ending word reads: the lease, and the moment the run ended. */
+type RunEnding = RunLease & Partial<Pick<AgentRunRowDTO, "endedAt">>;
+
+/**
+ * Who ended a run that reads `lost`: the board's lease, or the agent itself.
+ *
+ * One word says two things. The board writes `lost` when a run missed its
+ * lease and nobody knows what happened. An agent writes the same word as its
+ * own last message when it is being shut down and wants the card back at
+ * once. Told apart by the status alone they cannot be, so a person reading
+ * "lost" gets the wrong story half the time.
+ *
+ * The two moments the run already holds tell them apart. `sweepLost` stamps
+ * `endedAt` at the moment it acts and leaves `updatedAt` where the last
+ * report put it, so a run the board closed always ends at or after the lease
+ * it was judged by. A run that ended before its lease was still inside it,
+ * and the last word was its agent's own.
+ *
+ * It reads no clock. Both moments are on the row, so the answer never changes
+ * with when somebody reads it.
+ */
+export function lostBy(run: RunEnding): "lease" | "agent" {
+  const ended = new Date(run.endedAt ?? run.updatedAt).getTime();
+  return ended >= leaseEndsAt(run) ? "lease" : "agent";
+}
+
 /**
  * An agent reports the step it is on, and everything before that is finished.
  * Keeping the rule here rather than in the route means one place decides what
@@ -214,6 +240,19 @@ export const STATUS_WORD: Record<RunStatus, string> = {
 };
 
 /**
+ * How a closed run ended, in one word.
+ *
+ * Every status has a word of its own, and `lost` has two, because it is the
+ * one status two different things write. A run the lease closed is `lost`;
+ * one whose agent said goodbye was `shut down`. `lostBy` decides which, and
+ * it decides here so that no screen has to.
+ */
+export function endedWord(run: Pick<AgentRunRowDTO, "status"> & RunEnding): string {
+  if (run.status !== "lost") return STATUS_WORD[run.status];
+  return lostBy(run) === "lease" ? "lost" : "shut down";
+}
+
+/**
  * The words of one closed run, in the order a history row reads them:
  * when it started, how long it ran, how it ended.
  *
@@ -225,7 +264,8 @@ export const STATUS_WORD: Record<RunStatus, string> = {
  * last report is still the honest answer if one ever does.
  */
 export function pastRunWords(
-  run: Pick<AgentRunRowDTO, "status" | "startedAt" | "endedAt" | "updatedAt">,
+  run: Pick<AgentRunRowDTO, "status" | "startedAt" | "endedAt" | "updatedAt"> &
+    Partial<Pick<AgentRunRowDTO, "reportDueAt">>,
   now: number = Date.now(),
 ): { when: string; length: string; ended: string } {
   const started = new Date(run.startedAt).getTime();
@@ -233,7 +273,7 @@ export function pastRunWords(
   return {
     when: longAgo(run.startedAt, now),
     length: duration(ended - started),
-    ended: STATUS_WORD[run.status],
+    ended: endedWord(run),
   };
 }
 

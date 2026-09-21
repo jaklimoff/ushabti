@@ -180,6 +180,12 @@ it started, how long it ran, how it ended and what it set out to do, and pressin
 run's plan and log as they were left. A failed run reads in its word, in the same colour as the
 rest — a record in red shouts about yesterday.
 
+`lost` is the one status that says two things, so the row says which. The board writes `lost` when
+a run missed its lease; an agent writes the same word as its own last message when it is being shut
+down. A row whose run ended **inside** its lease reads *shut down*; one the lease closed reads
+*lost*. The row works it out from the two moments it already carries, so the answer never changes
+with when somebody reads it.
+
 A row carries only what it says. The plan, the log and the three fields read off them —
 `stepsTotal`, `stepsDone` and `lastLog` — are not on it. One of those rows in full is
 [`GET /api/runs/{runId}`](/ushabti/api/runs/#get-apirunsrunid), which answers for a closed run
