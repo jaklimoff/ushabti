@@ -135,7 +135,8 @@ type Store = {
   /**
    * Puts one view where another one sits. A drag names the view it landed on,
    * not a rank: the strip and the settings page then say the same thing in the
-   * same words, and only this one place works the neighbours out.
+   * same words, and `landedAfter` is the one place that works the neighbour
+   * out.
    */
   moveView: (viewId: string, overId: string) => Promise<void>;
 
@@ -147,7 +148,12 @@ type Store = {
   deleteOption: (optionId: string) => Promise<void>;
   addProperty: (name: string, type: PropertyType, options?: string[]) => Promise<void>;
   patchProperty: (propertyId: string, patch: { name?: string }) => Promise<void>;
-  moveProperty: (propertyId: string, afterId: string | null) => Promise<void>;
+  /**
+   * Puts one property where another one sits. A drag names the property it
+   * landed on, not a rank, and the neighbour is worked out by the same
+   * `landedAfter` a view's drag uses.
+   */
+  moveProperty: (propertyId: string, overId: string) => Promise<void>;
   deleteProperty: (propertyId: string) => Promise<void>;
 };
 
@@ -158,6 +164,25 @@ function archivedPart(patch: Partial<TaskDTO>): Partial<ArchivedTaskDTO> {
   if (patch.description !== undefined) next.description = patch.description;
   if (patch.position !== undefined) next.position = patch.position;
   return next;
+}
+
+/**
+ * Where a dragged row lands. A drag names what it landed on, so this is the
+ * one place that works the neighbour out: the list in its new order, and the
+ * row the dragged one now sits behind. That id is null at the front of the
+ * list; the whole answer is null when the drag changed nothing.
+ */
+function landedAfter<T extends { id: string }>(
+  list: T[],
+  id: string,
+  overId: string,
+): { ordered: T[]; afterId: string | null } | null {
+  const from = list.findIndex((item) => item.id === id);
+  const to = list.findIndex((item) => item.id === overId);
+  if (from < 0 || to < 0 || from === to) return null;
+  const ordered = list.filter((item) => item.id !== id);
+  ordered.splice(to, 0, list[from]);
+  return { ordered, afterId: ordered[to - 1]?.id ?? null };
 }
 
 const BoardContext = createContext<Store | null>(null);
@@ -746,19 +771,12 @@ export function BoardProvider({
    */
   const moveView = useCallback<Store["moveView"]>(
     async (id, overId) => {
-      const list = data.views;
-      const from = list.findIndex((v) => v.id === id);
-      const to = list.findIndex((v) => v.id === overId);
-      if (from < 0 || to < 0 || from === to) return;
+      const landed = landedAfter(data.views, id, overId);
+      if (!landed) return;
 
-      const ordered = list.filter((v) => v.id !== id);
-      ordered.splice(to, 0, list[from]);
-      // The view it now sits behind. Null is the front of the strip.
-      const afterId = ordered[to - 1]?.id ?? null;
-
-      setData((current) => ({ ...current, views: ordered }));
+      setData((current) => ({ ...current, views: landed.ordered }));
       await guarded(async () => {
-        await api.patch(`/api/views/${id}`, { afterId });
+        await api.patch(`/api/views/${id}`, { afterId: landed.afterId });
       });
     },
     [data.views, guarded],
@@ -856,21 +874,16 @@ export function BoardProvider({
    * order is ours to work out; the broadcast reconciles it.
    */
   const moveProperty = useCallback<Store["moveProperty"]>(
-    async (propertyId, afterId) => {
-      setData((current) => {
-        const list = current.properties;
-        const moving = list.find((p) => p.id === propertyId);
-        if (!moving) return current;
-        const rest = list.filter((p) => p.id !== propertyId);
-        const at = afterId === null ? 0 : rest.findIndex((p) => p.id === afterId) + 1;
-        if (afterId !== null && at === 0) return current;
-        return { ...current, properties: [...rest.slice(0, at), moving, ...rest.slice(at)] };
-      });
+    async (propertyId, overId) => {
+      const landed = landedAfter(data.properties, propertyId, overId);
+      if (!landed) return;
+
+      setData((current) => ({ ...current, properties: landed.ordered }));
       await guarded(async () => {
-        await api.patch(`/api/properties/${propertyId}`, { afterId });
+        await api.patch(`/api/properties/${propertyId}`, { afterId: landed.afterId });
       });
     },
-    [guarded],
+    [data.properties, guarded],
   );
 
   const deleteProperty = useCallback<Store["deleteProperty"]>(
