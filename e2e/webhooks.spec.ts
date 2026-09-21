@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addTask, createProject, inDatabase, register, unique } from "./helpers";
+import { expect, test, type Locator } from "@playwright/test";
+import { addTask, createProject, inDatabase, overflow, register, unique } from "./helpers";
 
 /**
  * A webhook has to be able to reach something, so the test is the receiver.
@@ -304,14 +304,6 @@ test.describe("Webhooks", () => {
     });
   });
 });
-
-/** How far the page can be pushed sideways. A phone has nowhere to push it. */
-async function overflow(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const doc = document.documentElement;
-    return Math.max(doc.scrollWidth - doc.clientWidth, 0);
-  });
-}
 
 /** Every one of these is big enough for a finger, and there are as many as asked. */
 async function forAFinger(rows: Locator, count: number) {

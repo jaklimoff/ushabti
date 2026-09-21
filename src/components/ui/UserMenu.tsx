@@ -30,7 +30,9 @@ export function UserMenu({ user, extra }: { user: SessionUser; extra?: React.Rea
         onClick={() => setOpen((v) => !v)}
       >
         <Avatar name={user.name} color={user.color} size={20} />
-        <span className={styles.name}>{user.name}</span>
+        <span className={styles.name} data-testid="user-name">
+          {user.name}
+        </span>
         <span className={styles.caret}>▾</span>
       </button>
       {open && (

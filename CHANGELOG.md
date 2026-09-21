@@ -29,6 +29,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A small tablet keeps the names in the top bar.** The project name and your
+  own name used to go at 560 px, where the bar still had 118 px of room. They
+  go at 520 px now, which is where the room runs out, and between 520 px and
+  560 px the box that finds a task shortens first rather than the names.
+
 - **The `deleted` activity line says which way round it went.** `kind` stays
   `deleted` for a delete and for a put back, and `data` now carries `action` —
   `deleted` or `restored` — beside `key`, `title` and `goesAt`, which is null
@@ -49,7 +54,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   rank it never lost. The key and the title open the task, and a box narrows
   the list by key and title. A search and the task's own link were the two ways
   back to one before this, which is enough to find a task you can name and
-  nothing for one you cannot. To make room for the link, a screen 560 px wide
+  nothing for one you cannot. To make room for the link, a screen 520 px wide
   or narrower now leaves out the project name in the board's top bar — the
   mark beside it says the same thing — and your own name beside your avatar,
   on every page that draws the user menu.
