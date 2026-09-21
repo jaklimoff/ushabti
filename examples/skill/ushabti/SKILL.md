@@ -42,6 +42,18 @@ node board.mjs set USH-14 Status Ready
 node board.mjs finish USH-14
 ```
 
+Before a step you know is long — a build, a whole test suite, a wait for
+somebody — say how long the next word takes:
+
+```bash
+node board.mjs step USH-14 --say "Running the whole suite" --for 45
+```
+
+The board then waits forty-five minutes for your next report instead of
+thirty, and closes the run as lost only after that. Sixty minutes is the most
+it grants, and your next `step` puts the ordinary thirty back. The heartbeat
+cannot do this: it says the process is alive, never that the work moves.
+
 `--say` is the line on the card. Write it for a person reading the board over
 your shoulder: "Writing the tests", not "invoking tool". `--index` counts from
 zero and marks everything before it done. `--log` is the transcript line in the

@@ -10,6 +10,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A long step no longer reads as a dead agent.** An agent can say how long
+  its next word will take — `step USH-14 --say "Running the suite" --for 45` —
+  and the board waits that long, up to an hour, before it closes the run as
+  lost. Its next report puts the ordinary thirty minutes back. A heartbeat
+  still cannot hold a card open. This release adds a column to `agent_runs`,
+  so run `npm run db:migrate` before you start it.
+
 - **A webhook rings when something changes.** An agent waits on the stream,
   but a serverless function, a CI job or a chat bot has nowhere to wait from,
   so it had to poll. **Settings → Webhooks** is a new page, the owner's alone:

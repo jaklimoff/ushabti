@@ -6,7 +6,7 @@ import { agentOnly, body, broadcast, clientIdOf, guard, json, optionalStr, route
 import { logActivity } from "@/lib/queries";
 import { addLog, beat, loadRun, replaceSteps, runContext, setCurrentStep } from "@/lib/runs";
 import { CLOSED_STATUSES, RUN_STATUSES, type RunStatus } from "@/lib/types";
-import { isOpen, obeys } from "@/lib/run-state";
+import { isOpen, obeys, reportForMs } from "@/lib/run-state";
 
 type Ctx = { params: Promise<{ runId: string }> };
 
@@ -41,6 +41,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     log?: string;
     status?: string;
     beat?: boolean;
+    reportFor?: number;
   }>(req);
 
   /*
@@ -64,7 +65,25 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     return json({ run: beating, control: beating.control });
   }
 
-  const patch: Record<string, unknown> = { updatedAt: new Date(), beatAt: new Date() };
+  /*
+   * An ordinary report is due again in the ordinary time, so it clears the
+   * deadline the last one may have named. A report that names one stretches
+   * the lease once, for the step it is starting and no longer.
+   */
+  const patch: Record<string, unknown> = {
+    updatedAt: new Date(),
+    beatAt: new Date(),
+    reportDueAt: null,
+  };
+
+  if (input.reportFor !== undefined) {
+    const minutes = input.reportFor;
+    if (typeof minutes !== "number" || !Number.isFinite(minutes) || minutes <= 0) {
+      throw new HttpError(400, "reportFor is a number of minutes above zero.");
+    }
+    patch.reportDueAt = new Date(Date.now() + reportForMs(minutes));
+  }
+
   const goal = optionalStr(input.goal, "Goal", 200);
   const step = optionalStr(input.step, "Step", 200);
   if (goal !== undefined) patch.goal = goal.trim();

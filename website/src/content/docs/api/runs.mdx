@@ -72,6 +72,7 @@ One route for reporting, beating and closing.
 | `stepIndex` | a whole number, zero or more. Before it: done. It: active. After it: waiting. |
 | `log` | ≤ 400 characters. **Omit it while sending `step` and the step is logged instead.** |
 | `status` | `running` · `paused` · `done` · `failed` · `stopped` · `lost` |
+| `reportFor` | minutes until the next report, a number above zero. Writes `report_due_at`, at most 60 minutes ahead. Any other report clears it. |
 
 ```json title="200"
 { "run": { … }, "control": "pause" }
@@ -83,12 +84,15 @@ asked for something. A bare heartbeat gets it too.
 | Status | Message |
 | --- | --- |
 | `400` | `stepIndex must be a whole number, zero or more.` |
+| `400` | `reportFor is a number of minutes above zero.` |
 | `400` | `Only a person takes a task over.` — an agent sending `taken_over` |
 | `403` | `That run belongs to another agent.` |
 | `409` | `That run is closed.` |
 
 A report writes **both** `updated_at` and `beat_at`. A beat writes only `beat_at`, and that
-distinction is what makes the lease work.
+distinction is what makes the lease work. `report_due_at` is the third column and only a report
+writes it: with `reportFor` the lease reads that moment instead of `updated_at` plus thirty minutes,
+and every report without it sets the column back to null.
 
 ### Closing statuses
 
@@ -155,6 +159,7 @@ Any member may call it, not only the owner. Stopping a runaway agent is ordinary
 | `control` | **a person only** | the outstanding request, or `null` |
 | `startedAt` | the server | when the run opened |
 | `updatedAt` | a **report** — never a beat | the last thing the agent *said*. **The lease counts this.** |
+| `reportDueAt` | a report carrying `reportFor` — never a beat | when the next report is due, or `null` for the ordinary lease |
 | `beatAt` | a report **and** a beat | the last sign the process is *alive* |
 | `endedAt` | the server | `null` while open |
 | `stepsTotal` / `stepsDone` | derived | the progress bar. **Not on a `pastRuns` row.** |

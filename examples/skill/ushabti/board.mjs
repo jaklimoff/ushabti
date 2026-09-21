@@ -283,7 +283,7 @@ const commands = {
   restore <key>                       put an archived task back
   claim <key> --goal "<what>" [--plan "a|b|c"] [--step "<now>"]
   beat <key> [--every 120] [--for 60]  say "still here" until the session ends
-  step <key> --say "<now>" [--index 2] [--log "<line>"]
+  step <key> --say "<now>" [--index 2] [--log "<line>"] [--for 45]
   check <key> "<item>" [--done]       add an item, or tick one; --undone unticks
   describe <key> "<markdown>"         write the description, if it is empty or yours
   ask <key> "<question>"              ask a person, wait, and end your session
@@ -506,6 +506,10 @@ http://localhost:3000.`);
     if (flags.say) patch.step = flags.say;
     if (flags.log) patch.log = flags.log;
     if (flags.index !== undefined) patch.stepIndex = Number(flags.index);
+    // `--for` says how long the next word takes. The board stretches the
+    // lease that once, so a long build does not read as a dead agent. A beat
+    // cannot do this: an agent says it by hand, about the step it starts.
+    if (flags.for !== undefined) patch.reportFor = Number(flags.for);
     if (flags.plan)
       patch.steps = String(flags.plan)
         .split("|")

@@ -1,0 +1,1 @@
+ALTER TABLE "agent_runs" ADD COLUMN "report_due_at" timestamp with time zone;

@@ -168,6 +168,10 @@ PATCH /api/runs/{runId}
 - `steps` — a new plan, if the work turned out different.
 - `status` — `running`, `paused`, `waiting`, `done`, `failed`, or `lost` if
   you are being shut down and want the card back on the board at once.
+- `reportFor` — minutes until your next report. Send it before a step you know
+  is long, such as a build or a test suite, and the board waits that long
+  before it calls the run lost. It only ever stretches the thirty minutes, and
+  sixty is the most it grants. Your next report clears it again.
 
 The answer is `{ "run": …, "control": … }`.
 
@@ -201,6 +205,24 @@ report reads as `quiet`, not `silent`.
 stops when the run ends, it gives up after an hour, and when it is killed with
 your session it closes the run itself, which is the fastest honest answer the
 board can get.
+
+### Say how long the next word takes
+
+A beat cannot hold the run open, so a step that is longer than the lease needs
+a report that says so:
+
+```http
+PATCH /api/runs/{runId}
+{ "step": "Running the whole suite", "reportFor": 45 }
+```
+
+Use it before the step, not after: a build, a full test suite, a wait for
+somebody. The board then expects your next word in forty-five minutes instead
+of thirty. Sixty minutes is the most one report can ask for, a shorter figure
+keeps the ordinary thirty, and the next report puts the ordinary lease back.
+
+This is a report and not a timer. You write it once, by hand, about the step
+you are starting, which is why it may do what a beat may not.
 
 ### Obey the control word
 
@@ -491,6 +513,7 @@ node board.mjs list --free                 # what nobody is working on
 node board.mjs task USH-14                 # one task in full
 node board.mjs claim USH-14 --goal "…" --plan "a|b|c"
 node board.mjs step USH-14 --index 1 --say "Writing the tests" --log "…"
+node board.mjs step USH-14 --say "Running the suite" --for 45   # a long step
 node board.mjs set USH-14 Status Ready     # names, never ids
 node board.mjs comment USH-14 "…"
 node board.mjs check USH-14 "A failed send retries five times"
