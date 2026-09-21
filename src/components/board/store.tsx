@@ -103,6 +103,13 @@ type Store = {
    * row that failed must not read as one that went.
    */
   restoreTask: (taskId: string) => Promise<boolean>;
+  /**
+   * Puts a deleted task back, with its key, its rank and everything on it. It
+   * answers whether it went through, for the same reason a put back from the
+   * archive does: the drawer says so in words, and a row that failed must not
+   * read as one that went.
+   */
+  undeleteTask: (taskId: string) => Promise<boolean>;
   /** Archives every live task in one column. A person's act, so it asks first. */
   archiveColumn: (propertyId: string | null, value: TaskValue) => Promise<number>;
   moveTask: (input: {
@@ -629,6 +636,21 @@ export function BoardProvider({
     [guarded, refresh],
   );
 
+  /*
+   * This one waits for the board as well, and for a stronger reason: a deleted
+   * task is on no list the browser holds, so there is nothing here to draw it
+   * from. It comes back live or archived — whichever it was — and only the
+   * server knows which.
+   */
+  const undeleteTask = useCallback<Store["undeleteTask"]>(
+    async (taskId) =>
+      guarded(async () => {
+        await api.post(`/api/tasks/${taskId}/restore`, {});
+        await refresh();
+      }),
+    [guarded, refresh],
+  );
+
   /* How many cards went is the server's answer, because the sweep names a
      value and the board is only drawing part of the project. */
   const archiveColumn = useCallback<Store["archiveColumn"]>(
@@ -1078,6 +1100,7 @@ export function BoardProvider({
     deleteTask,
     archiveTask,
     restoreTask,
+    undeleteTask,
     archiveColumn,
     moveTask,
     setValue,

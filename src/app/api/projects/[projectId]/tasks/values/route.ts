@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks, taskValues } from "@/db/schema";
 import { logActivityAll } from "@/lib/activity";
@@ -52,12 +52,13 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const value = await coerceValue(property, input.value ?? null);
 
   /* Every id has to be a live task of this project. A task of another project
-     is simply not among the rows, and the sentence is the same either way:
-     what a token may not see, it may not name. */
+     is simply not among the rows, and a deleted one is not either, because
+     every read hides it. The sentence is the same either way: what a token
+     may not see, it may not name. */
   const rows = await db
     .select({ id: tasks.id, archivedAt: tasks.archivedAt })
     .from(tasks)
-    .where(and(eq(tasks.projectId, projectId), inArray(tasks.id, ids)));
+    .where(and(eq(tasks.projectId, projectId), inArray(tasks.id, ids), isNull(tasks.deletedAt)));
 
   const said = rowsSaid(ids, rows);
   if (said) throw new HttpError(400, said);

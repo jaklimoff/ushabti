@@ -1,6 +1,6 @@
 import "server-only";
 import { byPos } from "@/lib/order";
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   activity,
@@ -20,6 +20,7 @@ import {
 } from "@/db/schema";
 import { HttpError } from "./auth";
 import { readCardView } from "./card-view";
+import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
 import { readSort } from "./sort";
@@ -35,6 +36,7 @@ import type {
   CardView,
   ChecklistItemDTO,
   CommentDTO,
+  DeletedTaskDTO,
   MemberDTO,
   PropertyDTO,
   PropertyType,
@@ -252,8 +254,8 @@ function withOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
  * The live tasks of one project, in the rank order every view shares.
  *
  * It asks for the live ones alone, so it walks the partial index and never
- * touches an archived row — and the three count subqueries below, which run
- * once per row, are never run for a task nobody draws.
+ * touches an archived or a deleted row — and the three count subqueries
+ * below, which run once per row, are never run for a task nobody draws.
  */
 function liveTaskRows(projectId: string) {
   return (
@@ -275,7 +277,9 @@ function liveTaskRows(projectId: string) {
         commentCount: sql<number>`(select count(*)::int from ${comments} c where c.task_id = ${tasks}.id)`,
       })
       .from(tasks)
-      .where(and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt)))
+      .where(
+        and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt), isNull(tasks.deletedAt)),
+      )
       // the number keeps the order stable if two ranks ever match
       .orderBy(byPos(tasks.position), asc(tasks.number))
   );
@@ -285,6 +289,10 @@ function liveTaskRows(projectId: string) {
  * The archived tasks, in the few columns a search and a link need. No values
  * and no counts: nothing draws an archived task, and its panel asks for the
  * rest itself.
+ *
+ * A task deleted while it was archived is not here. It is deleted, and a
+ * deleted task never reaches the browser; the drawer lists it, and putting it
+ * back makes it archived again.
  */
 function archivedTaskRows(projectId: string) {
   return db
@@ -297,7 +305,9 @@ function archivedTaskRows(projectId: string) {
       archivedAt: tasks.archivedAt,
     })
     .from(tasks)
-    .where(and(eq(tasks.projectId, projectId), isNotNull(tasks.archivedAt)))
+    .where(
+      and(eq(tasks.projectId, projectId), isNotNull(tasks.archivedAt), isNull(tasks.deletedAt)),
+    )
     .orderBy(byPos(tasks.position), asc(tasks.number));
 }
 
@@ -315,14 +325,20 @@ function archivedTaskRows(projectId: string) {
  *
  * Empty is what the card and the filter call empty — no row, null, "" or an
  * empty list — so the number reads the same as the board does.
+ *
+ * A deleted task is not counted. Its values will go with it when the sweep
+ * takes it, so naming them in the question would price a cost the owner
+ * cannot see and did not ask about.
  */
 export async function countPropertyValues(propertyId: string): Promise<number> {
   const [row] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(taskValues)
+    .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
     .where(
       and(
         eq(taskValues.propertyId, propertyId),
+        isNull(tasks.deletedAt),
         sql`${taskValues.value} is not null
             and ${taskValues.value} <> 'null'::jsonb
             and ${taskValues.value} <> '""'::jsonb
@@ -617,6 +633,86 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 }
 
 /* ------------------------------------------------------------------ */
+/* The drawer: what was deleted, and what has run out                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Takes away every deleted task of one project whose window is over.
+ *
+ * It runs on the write and on the read of the drawer, as the reset links are
+ * swept by the write that makes one and as the lease closes a lost run on the
+ * read path. There is no timer in Ushabti and this must not be the reason for
+ * the first one.
+ *
+ * The price is named rather than hidden: a project that deletes one task and
+ * then never deletes another, and never opens the drawer, keeps that row past
+ * its thirty days. Nobody can see it — every read hides it — and the next
+ * delete or the next look in the drawer takes it.
+ *
+ * This is the hard delete, and it is the one the route used to do: the
+ * cascades on `tasks` take the values, the checklist, the comments, the runs
+ * and the activity with it.
+ */
+export async function sweepDeleted(projectId: string, now = new Date()): Promise<number> {
+  const gone = await db
+    .delete(tasks)
+    .where(
+      and(
+        eq(tasks.projectId, projectId),
+        isNotNull(tasks.deletedAt),
+        lt(tasks.deletedAt, sweepCutoff(now.getTime())),
+      ),
+    )
+    .returning({ id: tasks.id });
+  return gone.length;
+}
+
+/**
+ * What is in the drawer of one project, newest deleted first.
+ *
+ * It sweeps first, so the page never lists a row that is already past its
+ * window and a put back can never answer for one.
+ *
+ * The rows are carried light, as the archived ones are: no values, no counts
+ * and no description. A deleted task is not drawn anywhere — the row says
+ * what it was and how long is left, and the way back is the only thing you
+ * can do with it.
+ */
+export async function loadDeletedTasks(
+  projectId: string,
+  now = new Date(),
+): Promise<DeletedTaskDTO[]> {
+  await sweepDeleted(projectId, now);
+
+  const rows = await db
+    .select({
+      id: tasks.id,
+      number: tasks.number,
+      title: tasks.title,
+      position: tasks.position,
+      deletedAt: tasks.deletedAt,
+      projectKey: projects.key,
+    })
+    .from(tasks)
+    .innerJoin(projects, eq(projects.id, tasks.projectId))
+    .where(and(eq(tasks.projectId, projectId), isNotNull(tasks.deletedAt)))
+    .orderBy(desc(tasks.deletedAt), asc(tasks.number));
+
+  return rows.map((row) => {
+    const at = (row.deletedAt as Date).toISOString();
+    return {
+      id: row.id,
+      number: row.number,
+      key: `${row.projectKey}-${row.number}`,
+      title: row.title,
+      position: row.position,
+      deletedAt: at,
+      goesAt: goesAt(at),
+    };
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Activity                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -671,7 +767,34 @@ export async function loadActivityFeed(
   }));
 }
 
+/**
+ * The project one task is in, or null when there is no such task to see.
+ *
+ * Every task route starts here, so this is the one place a deleted task turns
+ * into a `404`. That is what delete means to whoever holds the id: the task is
+ * gone, its values, its checklist, its comments and its runs answer nothing,
+ * and no route has to remember the rule for itself.
+ *
+ * Put back is the one exception, and it asks below.
+ */
 export async function taskProjectId(taskId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ projectId: tasks.projectId })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), isNull(tasks.deletedAt)))
+    .limit(1);
+  return row?.projectId ?? null;
+}
+
+/**
+ * The same question for the one route that has to see a deleted task.
+ *
+ * Put back is the way out of the drawer, so it must find what every other
+ * route hides. It answers for a live task too, which is what makes a second
+ * put back free: the update names the state it changes from and writes
+ * nothing, exactly as a second archive does.
+ */
+export async function taskProjectIdEvenDeleted(taskId: string): Promise<string | null> {
   const [row] = await db
     .select({ projectId: tasks.projectId })
     .from(tasks)
