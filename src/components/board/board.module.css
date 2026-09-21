@@ -1622,6 +1622,10 @@ button.listHeadCell:focus-visible {
  * and nothing that was never on a card belongs among them. It sits inside the
  * first cell, which is the one held in place, so a list scrolled sideways
  * keeps its checks beside its keys.
+ *
+ * The button is the place it is pressed and the box inside it is what is
+ * drawn, exactly as on a card, so a finger can be given more room without the
+ * check growing.
  */
 .listPick {
   position: absolute;
@@ -1633,13 +1637,20 @@ button.listHeadCell:focus-visible {
   height: 14px;
   display: grid;
   place-items: center;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+
+.listPickBox {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
   border: 1px solid var(--line);
   border-radius: 4px;
   color: var(--accent);
   font-size: 9px;
   line-height: 1;
-  opacity: 0;
-  transition: opacity 120ms var(--ease);
 }
 
 /* On hover it is an offer; once anything is picked it is the way out, on
@@ -1649,15 +1660,15 @@ button.listHeadCell:focus-visible {
   opacity: 1;
 }
 
-.listPick[data-on="true"] {
+.listPick[data-on="true"] .listPickBox {
   border-color: var(--line-menu);
 }
 
-.listRowPicked .listPick {
+.listRowPicked .listPickBox {
   border-color: var(--accent);
 }
 
-.listPick:hover {
+.listPick:hover .listPickBox {
   border-color: var(--accent);
   background: var(--bg-card-hover);
 }
@@ -1665,7 +1676,14 @@ button.listHeadCell:focus-visible {
 /* A finger cannot hover, so the check stands on every row, as it does on
    every card. The gutter it sits in is always there, so nothing moves. */
 @media (hover: none) {
+  /* It is also the only way in down here, so it is given the 24 px a finger
+     needs, as the check on a card is: the button grows around the box and the
+     box stays the size it was. The left edge gives back the five pixels the
+     button gained on that side, so the check itself does not move. */
   .listPick {
+    left: 2px;
+    width: 24px;
+    height: 24px;
     opacity: 1;
   }
 }
