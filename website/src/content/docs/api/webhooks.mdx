@@ -38,9 +38,14 @@ secret**.
 ```
 
 `kind` is one of the words the activity feed writes: `created`, `title`, `description`, `value`,
-`checklist`, `comment`, `run`, `archive`, `deleted`, `reset`. A webhook that names none of them
-rings for all of them. A change that writes no feed line — a view, a property, the card view —
+`checklist`, `comment`, `run`, `archive`, `link`, `deleted`, `reset`. A webhook that names none of
+them rings for all of them. A change that writes no feed line — a view, a property, the card view —
 rings nothing.
+
+`link` rings both ways, as `deleted` does: a task was made to wait on another, or stopped waiting.
+`taskKey` is the task that gained or lost the blocker; the blocker's own key is on the feed line, in
+`data.blockerKey`, beside `data.action`, which is `linked` or `unlinked`. A blocker becoming over
+rings nothing, because nothing happened to that task.
 
 `taskId` and `taskKey` are **null** on a line about the project rather than about a task. **Send a
 test** carries `kind: "test"` and no task, because there is no feed line behind it.

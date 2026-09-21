@@ -50,9 +50,12 @@ test.describe("What a task waits on", () => {
     await expect(page.getByTestId("link-row")).toContainText("Wire the queue");
     await page.getByRole("button", { name: "Close task" }).click();
 
-    /* One glyph on the card, and nothing else: no list, no count. */
+    /* One glyph on the card, and nothing else: no list, no count. It is drawn
+       rather than typed, because the character for it is in none of the fonts
+       this board asks for and Chromium drew the missing-glyph box. */
     const chain = card(page, "Ship the thing").getByTestId("card-chain");
     await expect(chain).toBeVisible();
+    await expect(chain.locator("svg")).toHaveCount(1);
     await expect(chain).toHaveAttribute("title", `Blocked by ${wireKey}`);
     await expect(card(page, "Plumb the drain").getByTestId("card-chain")).toHaveCount(0);
 

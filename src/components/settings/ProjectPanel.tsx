@@ -136,6 +136,10 @@ export function ProjectPanel() {
               value={doneProperty?.id ?? ""}
               disabled={!isOwner || selects.length === 0}
               onChange={(e) => {
+                /* The same property again is the same question, so it is not
+                   asked twice: re-picking it would otherwise throw away the
+                   option that is already the answer. */
+                if (e.target.value === (doneProperty?.id ?? "")) return;
                 setPickedId(e.target.value);
                 /* Another property is another question, so the old answer
                    goes now rather than when the new one arrives. */
@@ -179,6 +183,11 @@ export function ProjectPanel() {
         {selects.length === 0 && (
           <Row>
             <Note>This board has no select property with options, so archived is the answer.</Note>
+          </Row>
+        )}
+        {!isOwner && (
+          <Row>
+            <Note>Only the owner can change what this project calls done.</Note>
           </Row>
         )}
       </Card>

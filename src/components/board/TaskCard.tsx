@@ -165,7 +165,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
               aria-label={`Blocked by ${task.blockedBy.join(", ")}`}
               role="img"
             >
-              ⛓
+              <Chain />
             </span>
           )}
         </Strip>
@@ -204,6 +204,33 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
     </div>
   );
 });
+
+/**
+ * Two links of a chain, drawn rather than typed.
+ *
+ * The character for it, U+26D3, is in none of the fonts this board asks for,
+ * so Chromium drew the missing-glyph box — and where a colour-emoji font did
+ * answer, it came out in colour, which no `color` can grey. A path is the
+ * same shade and the same shape on every machine, and it takes the colour of
+ * the text around it.
+ */
+function Chain() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+      focusable="false"
+    >
+      <rect x="0.9" y="5.1" width="9" height="5.8" rx="2.9" />
+      <rect x="6.1" y="5.1" width="9" height="5.8" rx="2.9" />
+    </svg>
+  );
+}
 
 /** The header and the footer are the same shape: a left end and a right end. */
 function Strip({

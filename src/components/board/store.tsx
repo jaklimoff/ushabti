@@ -121,6 +121,17 @@ type Store = {
   }) => Promise<void>;
   /** Answers whether the write went through, so a caller that drew it early can put it right. */
   setValue: (taskId: string, propertyId: string, value: TaskValue) => Promise<boolean>;
+  /**
+   * Says that one task waits on another, or takes that back. `waitsId` is the
+   * task that does the waiting.
+   *
+   * It lives here rather than in the panel because a write has to be counted:
+   * a read of the board that went out before the click would otherwise land
+   * on top of it and quietly take the chain glyph off again. It throws instead
+   * of notifying, because a refused link — a circle — is answered in the row
+   * the person is looking at, and not in a toast that goes in five seconds.
+   */
+  linkBlocker: (waitsId: string, blockerId: string, on: boolean) => Promise<void>;
 
   /**
    * The tasks picked for one change to all of them.
@@ -813,6 +824,18 @@ export function BoardProvider({
     [guarded, refresh, saysDone],
   );
 
+  const linkBlocker = useCallback<Store["linkBlocker"]>(
+    async (waitsId, blockerId, on) => {
+      wrote();
+      if (on) await api.post(`/api/tasks/${waitsId}/blockers`, { blockerId });
+      else await api.del(`/api/tasks/${waitsId}/blockers/${blockerId}`);
+      /* What a card waits on is worked out on the server, so the board is
+         read again rather than patched here. */
+      await refresh();
+    },
+    [refresh, wrote],
+  );
+
   /*
    * One call, not one for each card. Ten calls coerce the value ten times,
    * ring the doorbell ten times, and can stop halfway with nothing on screen
@@ -1216,6 +1239,7 @@ export function BoardProvider({
     archiveColumn,
     moveTask,
     setValue,
+    linkBlocker,
     picked: pickedHere,
     isPicked,
     togglePick,

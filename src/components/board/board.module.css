@@ -1056,9 +1056,10 @@
    chip, because it is not a row of the card view: nothing arranged it and
    nothing can take it off. Grey, because it says "not yet", not "wrong". */
 .cardChain {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
   color: var(--muted);
-  font-size: 11px;
-  line-height: 1;
   opacity: 0.85;
 }
 

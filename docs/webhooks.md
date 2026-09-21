@@ -28,8 +28,16 @@ you leave the box. Delete asks in its own row first.
 
 **Which kinds.** The words are the ones the activity feed writes: `created`,
 `title`, `description`, `value`, `checklist`, `comment`, `run`, `archive`,
-`deleted`, `reset`. Pick none and it rings for every one of them. A change that
-writes no feed line — a view, a property, the card view — rings nothing.
+`link`, `deleted`, `reset`. Pick none and it rings for every one of them. A
+change that writes no feed line — a view, a property, the card view — rings
+nothing.
+
+**`link` rings both ways**, as `deleted` does: a task was made to wait on
+another, or stopped waiting. The ring names the task that gained or lost the
+blocker in `taskKey`, and nothing else — the blocker's own key is on the feed
+line, in `data.blockerKey`, beside `data.action`, which is `linked` or
+`unlinked`. A blocker becoming over writes no line and rings nothing: nothing
+happened to that task.
 
 **`deleted` rings both ways.** A delete can be undone for thirty days, so the
 word covers a task going and a task coming back. The doorbell says only that

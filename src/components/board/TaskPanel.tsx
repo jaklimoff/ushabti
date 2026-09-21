@@ -696,7 +696,7 @@ function Links({
   reload: () => Promise<void>;
   onError: (message: string) => void;
 }) {
-  const { data, refresh } = useBoard();
+  const { data, linkBlocker } = useBoard();
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
   /** The sentence a refused link came back with — a circle, or itself. */
@@ -728,17 +728,21 @@ function Links({
   const ends = (way: LinkWay, other: string) =>
     way === "blockedBy" ? { to: taskId, from: other } : { to: other, from: taskId };
 
+  /* Both go through the store, which counts the write before it sends it: a
+     read of the board that was already out would otherwise land on top of it
+     and take the chain glyph off again. The card comes off the board and the
+     lists off this read, so both are asked for. */
   async function add(way: LinkWay, other: string) {
     const { to, from } = ends(way, other);
     try {
-      await api.post(`/api/tasks/${to}/blockers`, { blockerId: from });
+      await linkBlocker(to, from, true);
       setQuery("");
       setRefused(null);
       setAdding(null);
       await reload();
-      /* The card's chain glyph comes off the board, not off this read. */
-      await refresh();
     } catch (err) {
+      /* A circle is answered in the row somebody is looking at, never in a
+         toast: the sentence says what to do instead. */
       setRefused(err instanceof Error ? err.message : "That link did not save.");
     }
   }
@@ -746,9 +750,8 @@ function Links({
   async function remove(way: LinkWay, other: string) {
     const { to, from } = ends(way, other);
     try {
-      await api.del(`/api/tasks/${to}/blockers/${from}`);
+      await linkBlocker(to, from, false);
       await reload();
-      await refresh();
     } catch (err) {
       onError(err instanceof Error ? err.message : "That link did not go.");
     }

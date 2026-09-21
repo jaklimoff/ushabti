@@ -86,6 +86,13 @@ A view's `filters` is the whole team's, and it is the only filter you read: the
 rules a person adds to their own screen are theirs, never yours, and never
 reach `filters` until that person puts them on the view.
 
+**A rule may name no property at all.** One `propertyId` is a fixed word rather
+than an id: `_blocked`, which asks whether the task is waiting on another one.
+It is in no row of `properties`, so look it up there and you find nothing —
+read it as a checkbox whose value is `blockedBy` being non-empty. It is the
+only such word, and it cannot be deleted, so a view keeps a rule about it for
+ever.
+
 The two routes that write those rules are a person's, and answer `403` to a
 token: `PUT /api/views/{viewId}/lens` and `POST /api/views/{viewId}/lens/promote`.
 Both answer `409` and one sentence — _The view already filters Priority. Remove

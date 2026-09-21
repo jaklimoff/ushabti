@@ -76,6 +76,13 @@ export type LinkEdge = { fromId: string; toId: string };
  * An over blocker is not skipped here. Over is read afresh and changes with a
  * value; a circle written while one end was done would come back the moment
  * somebody moved it.
+ *
+ * It walks every link of the project once: one breadth-first pass over the
+ * edges, which the caller has already read inside the transaction that writes
+ * the new one. That is the price of the guard, and it is paid on a link being
+ * made and on nothing else — never on a board read. A project would need tens
+ * of thousands of links before the walk cost more than the round trip that
+ * carried it, and a board with that many is a graph, which is out of scope.
  */
 export function wouldCircle(edges: LinkEdge[], fromId: string, toId: string): boolean {
   if (fromId === toId) return true;
