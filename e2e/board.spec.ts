@@ -737,3 +737,28 @@ test.describe("Ordering a board on a phone", () => {
     expect(mark!.height).toBe(18);
   });
 });
+
+/*
+ * A small tablet, and a window as narrow as one. Both names used to go at
+ * 560 px, where the bar still had 118 px of room. They go at 520 px now, and
+ * the box that finds a task is what gives its width up first.
+ */
+test.describe("The top bar on a small tablet", () => {
+  test.use({ viewport: { width: 560, height: 820 } });
+
+  test("keeps the project name and the person's name", async ({ page }) => {
+    const account = await register(page);
+    const name = unique("Pocket");
+    await createProject(page, name);
+
+    await expect(page.getByTestId("board-crumb")).toHaveText(name);
+    await expect(page.getByTestId("user-name")).toHaveText(account.name);
+    expect(await overflow(page)).toBe(0);
+
+    /* And gives them up on a phone, where there is no room for them. */
+    await page.setViewportSize({ width: 390, height: 820 });
+    await expect(page.getByTestId("board-crumb")).toBeHidden();
+    await expect(page.getByTestId("user-name")).toBeHidden();
+    expect(await overflow(page)).toBe(0);
+  });
+});

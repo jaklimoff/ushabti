@@ -288,6 +288,21 @@ test.describe("Settings on a phone", () => {
   });
 });
 
+/* The bar over settings carries the same name as the board's, so it keeps it
+   at the same width. */
+test.describe("Settings on a small tablet", () => {
+  test.use({ viewport: { width: 560, height: 820 } });
+
+  test("the bar keeps the person's name", async ({ page }) => {
+    const account = await register(page);
+    const projectId = await createProject(page, unique("Pocket"));
+
+    await gotoSettings(page, projectId, "views");
+    await expect(page.getByTestId("user-name")).toHaveText(account.name);
+    expect(await overflow(page)).toBe(0);
+  });
+});
+
 /**
  * Every box draws the whole of its own text.
  *
