@@ -119,7 +119,7 @@ runs this.
 
 ---
 
-## Done — v1.2 (2026-09-21)
+## Done since v1.1, not yet released
 
 - **A webhook rings when something changes.** An agent listens on the stream;
   a serverless function, a CI job or a chat bot has nowhere to listen from.
