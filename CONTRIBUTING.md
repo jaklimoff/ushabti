@@ -53,7 +53,14 @@ DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti PORT=3101 npm run
 BASE_URL=http://localhost:3101 npm run test:e2e
 ```
 
+Point the tests at `localhost` and never at a bare IP, because the session
+cookie of a production build is `Secure` and Playwright's request context will
+not send a `Secure` cookie to an IP address. `playwright.config.ts` refuses
+such a `BASE_URL` and says the same thing.
+
 Set `CI` as well and Playwright starts that same server for you, on `PORT`.
+It builds `http://localhost:` and the port itself, so this recipe needs no
+`BASE_URL`.
 `DATABASE_URL` belongs on this one too, because the server it starts is the
 standalone one and reads the `.env` the build copied rather than the file on
 disk. Without it every route answers 500 and Playwright only says it timed
@@ -67,7 +74,8 @@ CI=1 PORT=3101 DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti np
 that exports `HOSTNAME` — `docker exec` does, and so do some Linux profiles —
 would otherwise hand the server the machine's own name to bind, and
 `localhost` would refuse. Use `HOST` when you mean a different address:
-`HOST=127.0.0.1 PORT=3101 npm run start`.
+`HOST=127.0.0.1 PORT=3101 npm run start`. That is the address the server
+listens on; `BASE_URL` still says `localhost`.
 
 ## Rules for a change
 
