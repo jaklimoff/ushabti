@@ -271,7 +271,7 @@ describe("the drain", () => {
     vi.stubEnv("USHABTI_WEBHOOK_PRIVATE", "1");
   });
 
-  it("sends eight at once and no more", async () => {
+  it("sends four at once and no more", async () => {
     let release = () => {};
     const held = new Promise<Response>((done) => {
       release = () => done(new Response("ok"));
@@ -287,8 +287,9 @@ describe("the drain", () => {
     const drained = drainWebhooks();
     await settle();
 
-    // Eight are in flight. The other twelve wait for a lane, not for a pass.
-    expect(sent).toHaveBeenCalledTimes(8);
+    /* Four are in flight, one database connection each, and the other sixteen
+       wait for a lane rather than for a pass. */
+    expect(sent).toHaveBeenCalledTimes(4);
 
     release();
     await drained;

@@ -53,10 +53,13 @@ const MAX_PASSES = 20;
  *
  * One at a time, twenty shut ports at five seconds each held every project's
  * queue for a hundred seconds, and a **Send a test** on another board waited
- * behind them. It is a small number on purpose: a drain is housekeeping, and
- * it must not look like a flood to a receiver that has several webhooks.
+ * behind them. Four is enough to stop that, and it is four rather than more
+ * because every lane holds a database connection for the answer it writes:
+ * the pool is twelve, and a person clicking on the board needs what is left.
+ * The drain waits on endpoints, not on the database, so wider lanes buy
+ * little and cost the board a connection each.
  */
-const SEND_AT_ONCE = 8;
+const SEND_AT_ONCE = 4;
 
 export type MintedSecret = { secret: string; prefix: string };
 
@@ -161,6 +164,11 @@ async function queueForProject(projectId: string, rung: Rung[]): Promise<void> {
  * project with five webhooks paid ten of them for housekeeping. The window
  * numbers each webhook's deliveries newest first, and everything past the
  * twentieth goes.
+ *
+ * The webhooks are named twice on purpose. The subquery alone leaves the
+ * outer half of the statement asking about every row in the table, and the
+ * planner reads that as a sequential scan of all of them: the same rule said
+ * twice takes it back to the index this webhook's deliveries are on.
  */
 async function sweepDeliveries(hookIds: string[]): Promise<void> {
   if (hookIds.length === 0) return;
@@ -174,6 +182,7 @@ async function sweepDeliveries(hookIds: string[]): Promise<void> {
       where ${inArray(webhookDeliveries.webhookId, hookIds)}
     ) as ranked
     where ${webhookDeliveries.id} = ranked.id
+      and ${inArray(webhookDeliveries.webhookId, hookIds)}
       and ranked.place > ${KEEP_DELIVERIES}
       and ${webhookDeliveries.nextTryAt} is null
   `);
