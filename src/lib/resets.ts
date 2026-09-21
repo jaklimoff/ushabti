@@ -23,11 +23,9 @@ const newer = alias(passwordResets, "newer");
  * Ushabti and this table must not be the reason for the first one: one row
  * arrives per link, and nothing ever took one away.
  *
- * A row is swept when it is spent or when its day is over. Both are dead for
- * reasons of their own, so no surviving link changes its answer — and the two
- * writes are one transaction, so the new row is in the table before anything
- * leaves it. A spent link that was also the newest would otherwise disappear
- * on its own and hand the one before it back its life.
+ * A row goes when it is spent or when its day is over. Both are already dead
+ * by a rule of their own, so no link that survives the sweep reads any
+ * differently for it.
  */
 export async function makeResetToken(userId: string, madeBy: string): Promise<string> {
   const minted = mintToken(RESET_PREFIX);

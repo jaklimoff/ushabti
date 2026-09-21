@@ -113,7 +113,7 @@ function PropertyRow({
   upTarget: string | null | undefined;
   downTarget: string | undefined;
 }) {
-  const { cardItems, setCardView, patchProperty, moveProperty, deleteProperty, addOption } =
+  const { cardItems, setCardView, patchProperty, moveProperty, deleteProperty, addOption, notify } =
     useBoard();
   const [name, setName] = useState(property.name);
   const [adding, setAdding] = useState(false);
@@ -140,8 +140,9 @@ function PropertyRow({
       setValues(answer.values);
     } catch {
       /* The question cannot name what it costs, so it is not asked. The row
-         comes back and the person can press again. */
+         comes back, and it says why rather than closing for no reason. */
       confirm.cancel();
+      notify("Could not count what goes with it.");
     }
   }
 
@@ -163,6 +164,9 @@ function PropertyRow({
               ? `Delete ${property.name}? Counting what goes with it…`
               : `Delete ${property.name}? ${cost} go with it.`
           }
+          /* Until the count lands the question does not name its cost, and a
+             question that names no cost must not be answerable. */
+          pending={values === null}
           onConfirm={() => confirm.confirm(() => void deleteProperty(property.id))}
           onCancel={confirm.cancel}
         />

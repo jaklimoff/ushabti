@@ -207,15 +207,32 @@ test.describe("Settings", () => {
     expect(await board.json()).not.toHaveProperty("valueCounts");
 
     /* Pressing the row asks for it, and the question names what it found.
-       Dropping the task in Todo wrote one Status value. */
+       Dropping the task in Todo wrote one Status value.
+
+       The count is held on the wire here, because the moment worth testing is
+       the one a fast machine never shows: the question is on screen and does
+       not yet name its cost. It must not be answerable in that moment. */
     await gotoSettings(page, projectId, "properties");
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(/\/api\/properties\/[^/]+\/count$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+
     const box = propertyBox(page, "Status");
-    const [counted] = await Promise.all([
-      page.waitForResponse((r) => /\/api\/properties\/[^/]+\/count$/.test(r.url())),
-      box.getByRole("button", { name: "Delete the property Status" }).click(),
-    ]);
-    expect(counted.ok()).toBeTruthy();
+    await box.getByRole("button", { name: "Delete the property Status" }).click();
+
+    const yes = page.getByRole("button", { name: "Yes, delete" });
+    await expect(page.getByText("Delete Status? Counting what goes with it…")).toBeVisible();
+    await expect(yes).toBeDisabled();
+
+    release();
+    await expect(yes).toBeEnabled();
     await expect(page.getByText("Delete Status? 5 options and 1 value go with it.")).toBeVisible();
+    await page.unroute(/\/api\/properties\/[^/]+\/count$/);
   });
 
   test("a new board says where its columns come from", async ({ page }) => {
