@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { hitNote, searchTasks, type Searchable, type SearchHit } from "@/lib/search";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useShortcut } from "./keys";
@@ -20,7 +21,7 @@ import styles from "./board.module.css";
  * view. The filter, which does, sits inside the strip.
  */
 export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void }) {
-  const { data, visibleTasks } = useBoard();
+  const { data, visibleTasks, picked, clearPicks } = useBoard();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [at, setAt] = useState(0);
@@ -39,8 +40,20 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
      owes the person a word about the ones the board behind it is not showing. */
   const shown = useMemo(() => new Set(visibleTasks.map((t) => t.id)), [visibleTasks]);
 
-  /* `/` is the way in from anywhere on the board. */
+  /*
+   * `/` is the way in from anywhere on the board, and it wins over a pick.
+   *
+   * Below 900 px the pick bar takes the box off the top bar, so the key had
+   * nothing to focus and did nothing at all. A search hides nothing, writes
+   * nothing and ends by opening one task, while a pick is a handful of cards
+   * held for a moment — so one press drops the picks and the box is there.
+   *
+   * The drop is flushed because a box that is not drawn cannot take the
+   * focus. The bar has to be gone, and the box back on the bar, before the
+   * focus is asked for.
+   */
   useShortcut("/", () => {
+    if (picked.length) flushSync(() => clearPicks());
     boxRef.current?.focus();
     boxRef.current?.select();
     setOpen(true);

@@ -272,6 +272,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **`/` reaches the search box while cards are picked.** Below 900 px the pick
+  bar takes the box off the top bar, and the key went on asking for a box
+  nobody could see, so it did nothing at all. It now leaves every picked card
+  out and puts the cursor in the box, on one press: a search hides nothing and
+  ends by opening one task. The check in a list gutter also holds the 24 px
+  square a finger needs where there is no hover, as the check on a card does;
+  the check itself is the 14 px it was.
+
 - **An id that is not a UUID answers `400`, not `500`.** Every id column is a
   UUID, so Postgres refused to cast a word like `not-a-uuid` and the refusal
   reached the caller as `500 Something went wrong on the server.` — our fault,

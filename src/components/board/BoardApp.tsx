@@ -91,7 +91,9 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
   return (
     <div className={styles.shell}>
       <div className={styles.main}>
-        <div className={styles.top}>
+        {/* The bar itself is named, so a test that measures what hangs out
+            of it holds the bar and not whatever the mark sits in. */}
+        <div className={styles.top} data-testid="top-bar">
           <div className={styles.mark} data-testid="board-mark">
             {data.project.key.slice(0, 1)}
           </div>

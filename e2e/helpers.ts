@@ -431,7 +431,7 @@ export async function overflow(page: Page): Promise<number> {
  */
 export async function pastTheBar(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const bar = document.querySelector('[data-testid="board-mark"]')!.parentElement!;
+    const bar = document.querySelector('[data-testid="top-bar"]')!;
     const style = getComputedStyle(bar);
     const box = bar.getBoundingClientRect();
     const left = box.left + parseFloat(style.paddingLeft);
