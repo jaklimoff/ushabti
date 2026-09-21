@@ -11,7 +11,8 @@ property **you** define — including the ones a normal board hardcodes, such as
 Status and Priority. A view is a board grouped by one of those properties, so
 the same tasks can be looked at from more than one angle.
 
-Free, open source, and yours to run. No seats, no trial, no locked features.
+Free and open source, yours to run. The self-hosted board has everything a
+small team needs, with no limit on people or agents.
 
 **[Read the documentation](https://jaklimoff.github.io/ushabti/)** — the
 guides, every property type, the whole JSON API and the agent protocol, in one
@@ -43,12 +44,15 @@ last plugin broke. A team of three needs none of that. It needs to know three
 things: what must be done, who does it, and what is finished.
 
 The free options are rarely free. Trials stop. Starter plans hold the useful
-part back. Too many open source alternatives are a road to a cloud edition.
+part back. Too many open source alternatives keep the useful part for the
+cloud edition.
 
 So Ushabti is:
 
-- **Actually free.** No seat limit, no locked feature, no clock. For one person
-  or for twenty, today and later.
+- **Free to run yourself.** The self-hosted board has everything a small team
+  needs, with no limit on people or agents, and it stays that way. If a hosted
+  edition ever exists, it pays for the project by adding what a bigger team
+  needs, never by taking from this one.
 - **Small by intent, not by neglect.** A task, a status, an owner. The features
   stop where the value stops.
 - **Ready for agents.** Humans and agents use the same board and the same API.
