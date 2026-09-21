@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { createServer, type Server } from "node:http";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { addTask, createProject, register, unique } from "./helpers";
 
 /**
@@ -184,4 +184,54 @@ test.describe("Webhooks", () => {
        network is not on this path at all, not how fast a laptop is. */
     expect(hooked - plain).toBeLessThan(1000);
   });
+
+  /*
+   * The page holds still sideways on a phone, and every control on it is big
+   * enough to press. Measured rather than looked at, like the other two
+   * settings pages that carry a phone test.
+   */
+  test.describe("on a phone", () => {
+    test.use({ viewport: { width: 390, height: 780 } });
+
+    test("the webhooks page fits the screen, chips and all", async ({ page }) => {
+      const hook = await receiver();
+      try {
+        await register(page);
+        const projectId = await createProject(page, unique("Pocket"));
+        await page.goto(`/p/${projectId}/settings/webhooks`);
+        await expect(page.getByRole("heading", { name: "Webhooks" })).toBeVisible();
+        expect(await overflow(page)).toBe(0);
+
+        await page.getByLabel("URL of the new webhook").fill(hook.url);
+        await page.getByRole("button", { name: "Add webhook" }).click();
+        await expect(page.getByTestId("webhook-secret")).toBeVisible();
+
+        expect(await overflow(page)).toBe(0);
+        // Everything, and the ten feed words behind it.
+        await forAFinger(page.getByRole("group", { name: "What rings this webhook" }), 1);
+        await expect(
+          page.getByRole("group", { name: "What rings this webhook" }).getByRole("button"),
+        ).toHaveCount(11);
+      } finally {
+        await hook.stop();
+      }
+    });
+  });
 });
+
+/** How far the page can be pushed sideways. A phone has nowhere to push it. */
+async function overflow(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const doc = document.documentElement;
+    return Math.max(doc.scrollWidth - doc.clientWidth, 0);
+  });
+}
+
+/** Every one of these is big enough for a finger, and there are as many as asked. */
+async function forAFinger(rows: Locator, count: number) {
+  await expect(rows).toHaveCount(count);
+  for (let i = 0; i < count; i += 1) {
+    const box = await rows.nth(i).boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(22);
+  }
+}
