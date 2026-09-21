@@ -120,6 +120,50 @@ test.describe("Ushabti board", () => {
     await expect(page.getByText(/created the task/)).toBeVisible();
   });
 
+  test("Escape throws the edit away and writes nothing", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Escape"));
+    await addTask(page, "Todo", "Keep the old title");
+
+    // Something worth losing: a description that is already saved.
+    await page.getByText("Add a description…").click();
+    const editor = page.getByPlaceholder("Write in markdown…");
+    await editor.fill("The words that were saved.");
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+$/, () => editor.blur());
+    await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
+
+    const key = await page.getByTestId("task-key").innerText();
+
+    // From here on the task must not be written to. The route counts what
+    // goes out, because the screen alone cannot tell a write that was made
+    // from one that was not.
+    const writes: string[] = [];
+    await page.route(/\/api\/tasks\/[0-9a-f-]+$/, async (route) => {
+      const request = route.request();
+      if (request.method() !== "GET") writes.push(`${request.method()} ${request.url()}`);
+      await route.continue();
+    });
+
+    await page.getByTestId("markdown").click();
+    await editor.fill("Words nobody asked to keep.");
+    await editor.press("Escape");
+    await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
+
+    const title = page.getByTestId("task-title");
+    await title.click();
+    await title.fill("A title nobody asked to keep");
+    await title.press("Escape");
+
+    // A write would already be in flight; give it the chance to arrive.
+    await page.waitForTimeout(500);
+    expect(writes).toEqual([]);
+
+    // And the server agrees: the task still says what it said.
+    await page.goto(`/p/${projectId}?task=${key}`);
+    await expect(page.getByTestId("task-title")).toHaveValue("Keep the old title");
+    await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
+  });
+
   test("set a property from the panel and see it on the card", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Props"));

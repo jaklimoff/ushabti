@@ -129,6 +129,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Escape in the task title throws the edit away.** Escape was meant to drop
+  what you had typed, but it blurred the box, and a blur is what saves a field.
+  The old title came back on screen while the new one went to the server, so
+  the words returned on the next read. Escape now writes nothing and the title
+  stays as it was. The description editor already behaved, and a test now holds
+  both to it.
+
 - **Settings → Views fits a phone.** On a narrow screen a view row put
   everything on one line, so a name box fell to 18 px and the word in it was
   cut. The row now uses two lines, as a property row does: the grip, the name
