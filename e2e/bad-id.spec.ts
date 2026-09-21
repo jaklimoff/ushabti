@@ -38,6 +38,21 @@ test.describe("An id that is not a UUID", () => {
       await said(await page.request.patch(`/api/views/${BAD}`, { data: { name: "Anything" } })),
     ).toEqual([400, "That is not a view id."]);
 
+    /* A run's control word. This route reads the run by hand rather than
+       through `runContext`, which is how it kept its 500 the first time. */
+    expect(
+      await said(
+        await page.request.post(`/api/runs/${BAD}/control`, { data: { control: "pause" } }),
+      ),
+    ).toEqual([400, "That is not a run id."]);
+
+    /* A lens. This route reads the view in one go, for the project and the
+       rules at once, so it reads the id above that read rather than through
+       `viewProjectId`. */
+    expect(
+      await said(await page.request.put(`/api/views/${BAD}/lens`, { data: { filters: null } })),
+    ).toEqual([400, "That is not a view id."]);
+
     // And the project itself, which every project route reads through `guard`.
     expect(await said(await page.request.get(`/api/projects/${BAD}/board`))).toEqual([
       400,

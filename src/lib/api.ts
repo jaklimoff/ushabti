@@ -77,7 +77,9 @@ export function readId(value: unknown, what: string): string {
  */
 export async function guard(projectId: string) {
   const user = await requireActor();
-  // After the caller is known, so a stranger still hears "sign in first".
+  /* After the caller is known, so a project route still answers a stranger
+     "sign in first". A task route cannot: it reads the task to find the
+     project, so `taskProjectId` has already read the id by then. */
   readId(projectId, "project");
   if (user.tokenProjectId && user.tokenProjectId !== projectId) {
     throw new HttpError(403, "That token belongs to another project.");
