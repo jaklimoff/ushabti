@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useBoard } from "@/components/board/store";
+import { api } from "@/lib/client";
 import { fallbackRow, KIND_OF_TYPE, setCardPlace, viewOf } from "@/lib/card-view";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
@@ -112,12 +113,14 @@ function PropertyRow({
   upTarget: string | null | undefined;
   downTarget: string | undefined;
 }) {
-  const { data, cardItems, setCardView, patchProperty, moveProperty, deleteProperty, addOption } =
+  const { cardItems, setCardView, patchProperty, moveProperty, deleteProperty, addOption } =
     useBoard();
   const [name, setName] = useState(property.name);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const confirm = useConfirm();
+  /* How many values the delete takes. Null while the server is counting. */
+  const [values, setValues] = useState<number | null>(null);
   /* Where a property sits on a card belongs to the card view, so this reads
      from there and writes there. This page keeps the short answer; the card
      view page has the long one. */
@@ -127,13 +130,26 @@ function PropertyRow({
 
   /* How much a delete costs, in the numbers the person can check. The count
      comes from the server because the cascade does not care whether a task is
-     on a board: the values of an archived task go the same way. */
-  const values = data.valueCounts[property.id] ?? 0;
+     on a board: the values of an archived task go the same way. It is asked
+     here, when the row is pressed, so no board read pays for it. */
+  async function ask() {
+    setValues(null);
+    confirm.ask();
+    try {
+      const answer = await api.get<{ values: number }>(`/api/properties/${property.id}/count`);
+      setValues(answer.values);
+    } catch {
+      /* The question cannot name what it costs, so it is not asked. The row
+         comes back and the person can press again. */
+      confirm.cancel();
+    }
+  }
+
   const cost = [
     property.options.length
       ? `${property.options.length} ${property.options.length === 1 ? "option" : "options"}`
       : null,
-    `${values} ${values === 1 ? "value" : "values"}`,
+    values === null ? null : `${values} ${values === 1 ? "value" : "values"}`,
   ]
     .filter(Boolean)
     .join(" and ");
@@ -142,7 +158,11 @@ function PropertyRow({
     return (
       <div className={styles.propBox} data-testid="property-box">
         <ConfirmRow
-          question={`Delete ${property.name}? ${cost} go with it.`}
+          question={
+            values === null
+              ? `Delete ${property.name}? Counting what goes with it…`
+              : `Delete ${property.name}? ${cost} go with it.`
+          }
           onConfirm={() => confirm.confirm(() => void deleteProperty(property.id))}
           onCancel={confirm.cancel}
         />
@@ -216,7 +236,7 @@ function PropertyRow({
               danger
               label={`Delete the property ${property.name}`}
               title="Delete this property and every value in it"
-              onClick={confirm.ask}
+              onClick={() => void ask()}
             >
               ✕
             </IconButton>

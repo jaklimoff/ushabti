@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 import {
+  addTask,
   column,
   createProject,
   dragOnto,
   gotoSettings,
+  propertyBox,
   register,
   saved,
   unique,
@@ -191,6 +193,29 @@ test.describe("Settings", () => {
     await expect(go).toBeEnabled();
     await go.click();
     await page.waitForURL("**/projects");
+  });
+
+  test("the delete row counts the values, and the board read does not", async ({ page }) => {
+    await register(page, "Owner Person");
+    const projectId = await createProject(page, unique("Counting"));
+    await addTask(page, "Todo", "One task with a status");
+
+    /* The count used to ride on every board read. Nothing carries it now, so
+       the daily read no longer pays for a number the owner reads once. */
+    const board = await page.request.get(`/api/projects/${projectId}/board`);
+    expect(board.ok()).toBeTruthy();
+    expect(await board.json()).not.toHaveProperty("valueCounts");
+
+    /* Pressing the row asks for it, and the question names what it found.
+       Dropping the task in Todo wrote one Status value. */
+    await gotoSettings(page, projectId, "properties");
+    const box = propertyBox(page, "Status");
+    const [counted] = await Promise.all([
+      page.waitForResponse((r) => /\/api\/properties\/[^/]+\/count$/.test(r.url())),
+      box.getByRole("button", { name: "Delete the property Status" }).click(),
+    ]);
+    expect(counted.ok()).toBeTruthy();
+    await expect(page.getByText("Delete Status? 5 options and 1 value go with it.")).toBeVisible();
   });
 
   test("a new board says where its columns come from", async ({ page }) => {

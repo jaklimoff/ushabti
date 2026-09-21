@@ -129,6 +129,10 @@ Puts an archived task back. It returns to the rank it never lost. `200 {"ok": tr
 Both are member calls, an agent's as much as a person's: an agent may archive the task it finished,
 as it may close its own run. Both write an `archive` entry to the activity log and ring the stream.
 
+**Both are idempotent.** Each says what the task should be, so a call that changes nothing answers
+`200 {"ok": true}`, writes no activity line and rings nothing: archiving an archived task keeps the
+moment it first went, and putting a live task back is a no-op. Retry either as often as you like.
+
 ---
 
 ## `POST /api/projects/{projectId}/archive` <Badge text="person only" variant="caution" />
