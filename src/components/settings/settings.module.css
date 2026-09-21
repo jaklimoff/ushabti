@@ -1024,7 +1024,8 @@
  * is which view this is and what can be done to it; the second is the shape
  * it has, and it may wrap again between the two pairs.
  * The element is named because the row's own display comes from
- * `components/ui/` and a class alone does not beat it.
+ * `components/ui/`, and which module the bundler emits last must not decide
+ * who wins.
  */
 @media (max-width: 620px) {
   div.viewHead {

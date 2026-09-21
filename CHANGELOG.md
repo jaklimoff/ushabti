@@ -125,7 +125,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   cut. The row now uses two lines, as a property row does: the grip, the name
   and the row's buttons on the first, **Shows as** and **Columns by** on the
   second. The colour swatch and the ✕ of an option, 11 and 15 px, now hold a
-  24 px square for a finger; the colour and the mark did not grow.
+  24 px square for a finger; the colour and the mark stay about the size they were.
 
 - **The grips in Settings are easy to catch on a phone.** The grip on a
   property row and on a view row was 13x20 px, under the 24 px a finger needs,
