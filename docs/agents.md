@@ -103,7 +103,11 @@ checklist, its comments and its history — so nothing about an archived task is
 lost, and a link to one still opens it.
 
 You may archive the task you finished, the same way you may close your own
-run. Sweeping a whole column is a person's act and a person's route.
+run. Archiving several at once is a person's act and a person's route:
+`POST /api/projects/{projectId}/archive` answers `403` to a token. It takes
+either `{"taskIds": [...]}` — the tasks somebody picked on the board — or
+`{"propertyId": …, "value": …}`, which is one whole column. Both answer
+`{"archived": n}`, the number that really moved.
 `board.mjs archive USH-14` and `board.mjs restore USH-14` are the short way.
 Both calls say what the task should be, so a retry costs nothing: archiving an
 archived task answers `{"ok": true}`, keeps the moment it first went and writes

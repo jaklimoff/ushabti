@@ -87,6 +87,8 @@ export function ListCanvas({
     setSort,
     moveTask,
     createTask,
+    togglePick,
+    pickTo,
     runOf,
     controlRun,
     notify,
@@ -144,6 +146,14 @@ export function ListCanvas({
     () => (cursor && rows.some((t) => t.id === cursor) ? cursor : (rows[0]?.id ?? null)),
     [cursor, rows],
   );
+
+  /* `x` picks the row the cursor is on, and puts it back. It is the whole
+     keyboard route into a pick: the checks are not tab stops, because the
+     list has one, exactly as the board does. */
+  useShortcut("x", () => {
+    if (activeTaskId) return;
+    if (cursorTaskId) togglePick(cursorTaskId);
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -247,6 +257,24 @@ export function ListCanvas({
       atTop: false,
     });
     if (task) onOpenTask(task);
+  }
+
+  /*
+   * Picking one row, and picking a run of them.
+   *
+   * A list is one column of rows, so the run is the whole list: the rows
+   * between two of them on screen are the rows between them in the one order
+   * the list is drawing. That is the difference from a board, where a run
+   * across two columns is two runs. Shift is the only thing that means "and
+   * the ones in between", so a plain press is always one row.
+   */
+  function pickRow(taskId: string, event: React.MouseEvent) {
+    if (event.shiftKey)
+      pickTo(
+        taskId,
+        rows.map((t) => t.id),
+      );
+    else togglePick(taskId);
   }
 
   /* Focus and the cursor are the same thing, so a click or a Tab onto a row
@@ -386,6 +414,7 @@ export function ListCanvas({
                   cursor={cursorTaskId === task.id}
                   frozen={sorted}
                   onOpen={() => onOpenTask(task)}
+                  onPick={(event) => pickRow(task.id, event)}
                 />
               ))}
             </SortableContext>
@@ -457,6 +486,7 @@ function SortableRow({
   cursor,
   frozen,
   onOpen,
+  onPick,
 }: {
   task: TaskDTO;
   columns: ReturnType<typeof listColumns>;
@@ -465,6 +495,7 @@ function SortableRow({
   /** A sorted list is not showing ranks, so there is no rank to drag one to. */
   frozen: boolean;
   onOpen: () => void;
+  onPick: (event: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -482,6 +513,7 @@ function SortableRow({
       cursor={cursor}
       ghost={isDragging}
       onOpen={onOpen}
+      onPick={onPick}
       style={{
         transform: CSS.Translate.toString(transform),
         transition: transition ?? undefined,

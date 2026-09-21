@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { BULK_LIMIT, readTaskIds, rowsSaid, type BulkRow } from "../bulk";
+import {
+  BULK_LIMIT,
+  onBoardSaid,
+  readArchiveAsk,
+  readTaskIds,
+  rowsSaid,
+  type BulkRow,
+} from "../bulk";
 
 /** A real id, because `readTaskIds` reads the shape as every path id is read. */
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -61,7 +68,7 @@ describe("readTaskIds", () => {
 
     expect(readTaskIds(many(BULK_LIMIT + 1))).toEqual({
       ok: false,
-      said: "That is more than 200 tasks. Set fewer at once.",
+      said: "That is more than 200 tasks at once. Name fewer.",
     });
   });
 
@@ -97,5 +104,94 @@ describe("rowsSaid", () => {
      leave the board half set, and the answer would have to say which half. */
   it("refuses the whole call for one bad id", () => {
     expect(rowsSaid(["a", "b", "c"], [live("a"), live("c")])).not.toBeNull();
+  });
+});
+
+describe("onBoardSaid", () => {
+  it("says nothing when the board has every named task", () => {
+    expect(onBoardSaid(["a", "b"], [{ id: "b" }, { id: "a" }])).toBeNull();
+  });
+
+  /* A task of another project is simply not among the rows the project's own
+     query found, and a deleted one is not either. One sentence answers both:
+     what a token may not see, it may not name. */
+  it("refuses a task that is not on this board", () => {
+    expect(onBoardSaid(["a", "b"], [{ id: "a" }])).toBe("One of those tasks is not on this board.");
+  });
+
+  /* Archiving says what the tasks should be, so a task that is already
+     archived is not a bad id. The count in the answer says what really moved. */
+  it("does not mind an archived task, because only the set route does", () => {
+    expect(onBoardSaid(["a"], [{ id: "a" }])).toBeNull();
+  });
+});
+
+describe("readArchiveAsk", () => {
+  it("reads the tasks the bar picked", () => {
+    expect(readArchiveAsk({ taskIds: [id(1), id(2)] })).toEqual({
+      ok: true,
+      ask: { kind: "tasks", ids: [id(1), id(2)] },
+    });
+  });
+
+  it("reads the column a header swept", () => {
+    expect(readArchiveAsk({ propertyId: "status", value: "done" })).toEqual({
+      ok: true,
+      ask: { kind: "column", propertyId: "status", value: "done" },
+    });
+  });
+
+  /* The column of the tasks that hold nothing there is a column like any
+     other, so a body with no value names it rather than naming nothing. */
+  it("takes a column with no value at all", () => {
+    expect(readArchiveAsk({ propertyId: "status" })).toEqual({
+      ok: true,
+      ask: { kind: "column", propertyId: "status", value: null },
+    });
+  });
+
+  /* A caller that named the tasks knows which tasks it meant, and a property
+     beside them could only disagree. */
+  it("lets the tasks decide when the body carries both", () => {
+    expect(readArchiveAsk({ taskIds: [id(1)], propertyId: "status", value: "done" })).toEqual({
+      ok: true,
+      ask: { kind: "tasks", ids: [id(1)] },
+    });
+  });
+
+  it("refuses a body that names neither", () => {
+    expect(readArchiveAsk({})).toEqual({
+      ok: false,
+      said: "Name the tasks, or the property the columns come from.",
+    });
+    expect(readArchiveAsk({ propertyId: 7 })).toEqual({
+      ok: false,
+      said: "Name the tasks, or the property the columns come from.",
+    });
+  });
+
+  /* The list of ids is read by the same rules a bulk set reads it by: the
+     same shape, the same ceiling, the same sentences, and duplicates joined.
+     There is one reading of a list of ids, so there is one place to change
+     it. */
+  it("reads the ids by the bulk rules", () => {
+    expect(readArchiveAsk({ taskIds: [id(1), id(1)] })).toEqual({
+      ok: true,
+      ask: { kind: "tasks", ids: [id(1)] },
+    });
+    expect(readArchiveAsk({ taskIds: [] })).toEqual({ ok: false, said: "Name at least one task." });
+    expect(readArchiveAsk({ taskIds: [id(1), "not-a-uuid"] })).toEqual({
+      ok: false,
+      said: "Name the tasks as a list of ids.",
+    });
+    expect(readArchiveAsk({ taskIds: id(1) })).toEqual({
+      ok: false,
+      said: "Name the tasks as a list of ids.",
+    });
+    expect(readArchiveAsk({ taskIds: many(BULK_LIMIT + 1) })).toEqual({
+      ok: false,
+      said: `That is more than ${BULK_LIMIT} tasks at once. Name fewer.`,
+    });
+    expect(readArchiveAsk({ taskIds: many(BULK_LIMIT) }).ok).toBe(true);
   });
 });
