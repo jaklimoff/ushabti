@@ -24,12 +24,14 @@
   @keyframes ring { from { transform: scale(1); opacity: .55; } to { transform: scale(1.7); opacity: 0; } }
   @keyframes fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
   @keyframes panelin { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+  /* A hint reads in capitals, the typed words do not. */
+  input.find::placeholder, input.ask::placeholder { color: #565c66; text-transform: uppercase; }
 </style>
 </helmet>
 
 <div style="height: 100vh; display: flex; background: #0a0b0d; color: #e8e9ec; font-family: 'IBM Plex Sans', sans-serif; overflow: hidden;">
 
-  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative;">
 
     <!-- ---------------------------------------------------------- top bar -->
     <div style="display: flex; align-items: center; gap: 12px; height: 46px; flex: 0 0 46px; padding: 0 14px; background: #0f1013; border-bottom: 1px solid #1c1f24;">
@@ -38,6 +40,46 @@
       <div style="font-size: 13px; color: #4e545e;">/</div>
       <div style="font-size: 13px; color: #a4aab3;">{{ viewName }}</div>
       <div style="flex: 1;"></div>
+      <!-- The box searches the project and not the view, so it sits above the
+           view strip. A hit the view is not drawing says so on its own row. -->
+      <div ref="{{ searchAnchorRef }}" style="position: relative; display: flex; align-items: center; flex: 0 1 208px; min-width: 0;">
+        <input class="find" value="{{ searchQuery }}" ref="{{ searchRef }}" onChange="{{ searchChange }}" onFocus="{{ searchFocus }}" onKeyDown="{{ searchKey }}" placeholder="Find a task" style="width: 100%; height: 26px; padding: 0 20px 0 9px; border: 1px solid {{ searchBorder }}; border-radius: 5px; outline: 0; background: #1b1e24; color: #e8e9ec; font: 400 11px 'IBM Plex Mono', monospace; letter-spacing: .06em;">
+        <!-- The key that opens the box, on the box. It goes once there are words. -->
+        <sc-if value="{{ searchSlash }}" hint-placeholder-val="{{ true }}">
+          <div style="position: absolute; right: 8px; pointer-events: none; font: 400 10px 'IBM Plex Mono', monospace; color: #4e545e;">/</div>
+        </sc-if>
+        <sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; top: 32px; right: 0; z-index: 60; width: 328px; padding: 6px; background: #14171b; border: 1px solid #262b32; border-radius: 9px; box-shadow: 0 16px 38px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 1px; animation: fadein 130ms ease;">
+            <sc-if value="{{ searchNone }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size: 11.5px; color: #8b919b; padding: 4px 6px;">No task by those words.</div>
+            </sc-if>
+            <sc-for list="{{ searchHits }}" as="h" hint-placeholder-count="4">
+              <div onMouseDown="{{ h.onDown }}" onClick="{{ h.onOpen }}" style="display: flex; flex-direction: column; gap: 2px; padding: 5px 6px; border-radius: 5px; cursor: default; background: {{ h.bg }};" style-hover="background: #1b1e24;">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                  <div style="flex: 0 0 auto; font: 400 10px 'IBM Plex Mono', monospace; color: #4e545e;">{{ h.key }}</div>
+                  <div style="min-width: 0; font-size: 11.5px; color: {{ h.fg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ h.title }}</div>
+                  <!-- A search reaches past the filter, so it owes a word about
+                       a hit the board behind it is not drawing. -->
+                  <sc-if value="{{ h.hasNote }}" hint-placeholder-val="{{ false }}">
+                    <div title="{{ h.noteTip }}" style="flex: 0 0 auto; margin-left: auto; font-size: 10px; color: #565c66; white-space: nowrap;">{{ h.note }}</div>
+                  </sc-if>
+                </div>
+                <sc-if value="{{ h.hasSnippet }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 10.5px; color: #8b919b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ h.snippet }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+      <!-- The agents that hold the stream open. An idle board says nothing
+           about machines at all. -->
+      <sc-for list="{{ listening }}" as="a" hint-placeholder-count="1">
+        <div title="{{ a.tip }}" style="position: relative; width: 18px; height: 18px; flex: 0 0 18px; display: inline-flex;">
+          <div style="position: absolute; inset: 0; border-radius: 50%; border: 1px solid {{ a.color }}; animation: ring 1.8s ease-out infinite; pointer-events: none;"></div>
+          <div style="width: 18px; height: 18px; border-radius: 50%; background: {{ a.color }}; display: grid; place-items: center; font: 500 9px 'IBM Plex Mono', monospace; color: #05242b;">◆</div>
+        </div>
+      </sc-for>
       <!-- Live: changes from others arrive by themselves. -->
       <div title="Live: changes from others arrive by themselves" style="width: 5px; height: 5px; border-radius: 50%; background: #3fb0c8; animation: pulse 2.2s ease-in-out infinite;"></div>
       <!-- A 26 px ⚙ was the only route to settings, and the only pictograph
@@ -64,49 +106,250 @@
     <!-- ------------------------------------------------------- view strip -->
     <div style="position: relative; display: flex; align-items: center; gap: 10px; height: 42px; flex: 0 0 42px; padding: 0 14px; border-bottom: 1px solid #16181c; background: #0c0d10;">
       <div style="display: flex; align-items: center; gap: 3px; flex: 0 1 auto; min-width: 66px; overflow-x: auto; overflow-y: hidden;">
-        <sc-for list="{{ views }}" as="v" hint-placeholder-count="2">
-          <div onClick="{{ v.onClick }}" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; white-space: nowrap; cursor: pointer; font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .09em; text-transform: uppercase; background: {{ v.bg }}; color: {{ v.fg }};" style-hover="color: #dfe1e5;">
-            <div style="width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: {{ v.dot }};"></div>
+        <!-- A pill is a button first: it becomes a drag only once the pointer
+             travels, so picking a view and moving one never happen at once.
+             Its colour follows the view, not its place in the strip. -->
+        <sc-for list="{{ views }}" as="v" hint-placeholder-count="3">
+          <div draggable="true" onDragStart="{{ v.onDragStart }}" onDragOver="{{ v.onDragOver }}" onDrop="{{ v.onDrop }}" onDragEnd="{{ v.onDragEnd }}" onClick="{{ v.onClick }}" title="Drag to reorder" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; white-space: nowrap; cursor: pointer; font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .09em; text-transform: uppercase; background: {{ v.bg }}; color: {{ v.fg }}; opacity: {{ v.opacity }}; box-shadow: {{ v.ring }};" style-hover="color: #dfe1e5;">
+            <sc-if value="{{ v.isBoard }}" hint-placeholder-val="{{ true }}">
+              <div style="width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: {{ v.dot }};"></div>
+            </sc-if>
+            <!-- The one place the two kinds sit side by side: a dot for a
+                 board, three lines for a list. -->
+            <sc-if value="{{ v.isList }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 8 8" width="8" height="8" style="flex: 0 0 8px; opacity: {{ v.markOpacity }};"><path d="M0.5 1.5h7M0.5 4h7M0.5 6.5h7" stroke="{{ v.dot }}" stroke-width="1.2" stroke-linecap="round"></path></svg>
+            </sc-if>
             {{ v.name }}
           </div>
         </sc-for>
       </div>
       <div onClick="{{ viewAddToggle }}" title="New view" style="flex: 0 0 22px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; color: #5d646f; font-size: 14px; cursor: pointer;" style-hover="background: #1b1e24; color: #9fd7e3;">+</div>
       <div style="flex: 1;"></div>
+
+      <!-- Adding a filter is two answers in one panel that does not move:
+           which property, then what about it. A rule somebody adds here is
+           their own until they put it on the view. -->
+      <div ref="{{ filterAnchorRef }}" style="position: relative; display: flex; align-items: center;">
+        <div onClick="{{ filterToggle }}" title="{{ filterTitle }}" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; white-space: nowrap; cursor: pointer; font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .09em; text-transform: uppercase; background: {{ filterBg }}; color: {{ filterFg }};" style-hover="color: #dfe1e5;">
+          <!-- Three bars, narrowing. A funnel at this size is a smudge. -->
+          <div style="width: 8px; height: 6px; flex: 0 0 8px; background: currentColor; opacity: .75; clip-path: polygon(0 0, 100% 0, 100% 1.5px, 0 1.5px, 0 2.25px, 87% 2.25px, 87% 3.75px, 0 3.75px, 0 4.5px, 62% 4.5px, 62% 6px, 0 6px);"></div>
+          {{ filterLabel }}
+        </div>
+        <sc-if value="{{ filterOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; top: 28px; right: 0; z-index: 40; width: 234px; padding: 11px 12px 12px; background: #14171b; border: 1px solid #262b32; border-radius: 9px; box-shadow: 0 16px 38px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 11px; animation: fadein 130ms ease;">
+            <sc-if value="{{ filterPicking }}" hint-placeholder-val="{{ true }}">
+              <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Show only tasks where</div>
+              <div style="display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #262b32; padding-bottom: 6px;">
+                <input class="ask" value="{{ propQuery }}" onChange="{{ propQueryChange }}" onKeyDown="{{ propQueryKey }}" ref="{{ focusRef }}" placeholder="Which property?" style="flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; color: #e8e9ec; font: 500 11.5px 'IBM Plex Mono', monospace; letter-spacing: .06em; padding: 2px 0;">
+              </div>
+              <!-- One property carries one rule. The panel refuses the pick
+                   with the sentence the server would answer with. -->
+              <sc-if value="{{ hasRefused }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size: 11.5px; line-height: 1.45; color: #8b919b; padding: 4px 6px;">{{ refused }}</div>
+              </sc-if>
+              <div style="display: flex; flex-direction: column; gap: 1px; max-height: 232px; overflow-y: auto; margin: 0 -4px;">
+                <sc-for list="{{ propRowsFilter }}" as="r" hint-placeholder-count="5">
+                  <div onMouseDown="{{ r.onDown }}" onClick="{{ r.onPick }}" style="display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border-radius: 5px; font-size: 11.5px; white-space: nowrap; cursor: default; background: {{ r.bg }}; color: {{ r.fg }};" style-hover="background: #1b1e24; color: #e8e9ec;">
+                    <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ r.color }};"></div>
+                    {{ r.name }}
+                    <div style="flex: 1;"></div>
+                    <div style="font-size: 10.5px; color: #565c66; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46%;">{{ r.note }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ filterAsking }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #262b32; padding-bottom: 6px;">
+                <div onMouseDown="{{ ask.onDown }}" onClick="{{ ask.onBack }}" title="Pick another property" style="display: flex; align-items: center; gap: 4px; flex: 0 0 auto; max-width: 46%; height: 20px; padding: 0 6px; border-radius: 4px; background: #1b2126; color: #cdd2d9; font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" style-hover="background: #1b1e24; color: #e8e9ec;">‹ {{ ask.name }}</div>
+                <input class="ask" type="{{ ask.inputType }}" value="{{ ask.query }}" onChange="{{ ask.onQuery }}" onKeyDown="{{ ask.onKey }}" onBlur="{{ ask.onBlur }}" ref="{{ focusRef }}" placeholder="{{ ask.placeholder }}" style="flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; color: #e8e9ec; font: 500 11.5px 'IBM Plex Mono', monospace; letter-spacing: .06em; padding: 2px 0; color-scheme: dark;">
+              </div>
+              <sc-if value="{{ ask.hasOps }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; flex-wrap: wrap; gap: 3px;">
+                  <sc-for list="{{ ask.ops }}" as="o" hint-placeholder-count="2">
+                    <div onMouseDown="{{ o.onDown }}" onClick="{{ o.onClick }}" style="display: flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 5px; cursor: pointer; font-size: 11.5px; background: {{ o.bg }}; color: {{ o.fg }};" style-hover="color: #dfe1e5;">{{ o.label }}</div>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ ask.isSet }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; flex-direction: column; gap: 1px; max-height: 232px; overflow-y: auto; margin: 0 -4px;">
+                  <sc-for list="{{ ask.rows }}" as="r" hint-placeholder-count="5">
+                    <div onMouseDown="{{ r.onDown }}" onClick="{{ r.onPick }}" style="display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border-radius: 5px; font-size: 11.5px; white-space: nowrap; cursor: default; background: {{ r.bg }}; color: {{ r.fg }};" style-hover="background: #1b1e24; color: #e8e9ec;">
+                      <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ r.color }}; opacity: {{ r.dotOpacity }};"></div>
+                      {{ r.name }}
+                      <div style="flex: 1;"></div>
+                      <div style="color: #3fb0c8; font-size: 10px; opacity: {{ r.tick }};">✓</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+      <!-- A filtered board says how much of itself it is showing. -->
       <div style="font: 400 11px 'IBM Plex Mono', monospace; color: #4e545e; white-space: nowrap;">{{ taskCountLabel }}</div>
 
       <sc-if value="{{ viewAdding }}" hint-placeholder-val="{{ false }}">
-        <div style="position: absolute; top: 38px; left: 14px; z-index: 40; width: 262px; padding: 11px 12px 12px; background: #14171b; border: 1px solid #262b32; border-radius: 9px; box-shadow: 0 16px 38px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 11px; animation: fadein 130ms ease;">
+        <div style="position: absolute; top: 38px; left: {{ viewPopLeft }}px; z-index: 40; width: 262px; padding: 11px 12px 12px; background: #14171b; border: 1px solid #262b32; border-radius: 9px; box-shadow: 0 16px 38px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 11px; animation: fadein 130ms ease;">
           <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">New view</div>
           <input value="{{ viewDraft }}" onChange="{{ viewDraftChange }}" onKeyDown="{{ viewDraftKey }}" ref="{{ viewDraftRef }}" placeholder="View name" style="border: 0; border-bottom: 1px solid #262b32; outline: 0; background: transparent; color: #e8e9ec; font: 500 11.5px 'IBM Plex Mono', monospace; letter-spacing: .06em; text-transform: uppercase; padding: 2px 0 6px;">
+          <!-- The name box keeps the caret, so the block that comes and goes
+               is the last one and nothing moves above the cursor. -->
           <div style="display: flex; flex-direction: column; gap: 6px;">
-            <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Columns by</div>
+            <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Shows as</div>
             <div style="display: flex; flex-wrap: wrap; gap: 3px;">
-              <sc-for list="{{ groupables }}" as="g" hint-placeholder-count="3">
-                <div onClick="{{ g.onClick }}" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; cursor: pointer; font-size: 11.5px; background: {{ g.bg }}; color: {{ g.fg }};" style-hover="color: #dfe1e5;">
-                  <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ g.color }}; opacity: {{ g.dotOpacity }};"></div>
-                  {{ g.name }}
+              <sc-for list="{{ viewKinds }}" as="k" hint-placeholder-count="2">
+                <div onClick="{{ k.onClick }}" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; cursor: pointer; font-size: 11.5px; background: {{ k.bg }}; color: {{ k.fg }};" style-hover="color: #dfe1e5;">
+                  <sc-if value="{{ k.isBoard }}" hint-placeholder-val="{{ true }}">
+                    <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: #4b8fbe; opacity: {{ k.markOpacity }};"></div>
+                  </sc-if>
+                  <sc-if value="{{ k.isList }}" hint-placeholder-val="{{ false }}">
+                    <svg viewBox="0 0 8 8" width="8" height="8" style="flex: 0 0 8px; opacity: {{ k.markOpacity }};"><path d="M0.5 1.5h7M0.5 4h7M0.5 6.5h7" stroke="#4b8fbe" stroke-width="1.2" stroke-linecap="round"></path></svg>
+                  </sc-if>
+                  {{ k.name }}
                 </div>
               </sc-for>
             </div>
           </div>
+          <sc-if value="{{ newIsBoard }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: #565c66;">Columns by</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 3px;">
+                <sc-for list="{{ groupables }}" as="g" hint-placeholder-count="3">
+                  <div onClick="{{ g.onClick }}" style="display: flex; align-items: center; height: 24px; gap: 7px; padding: 0 9px; border-radius: 5px; cursor: pointer; font-size: 11.5px; background: {{ g.bg }}; color: {{ g.fg }};" style-hover="color: #dfe1e5;">
+                    <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ g.color }}; opacity: {{ g.dotOpacity }};"></div>
+                    {{ g.name }}
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <!-- A list groups nothing, on purpose. -->
+          <sc-if value="{{ newIsList }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size: 11.5px; line-height: 1.45; color: #8b919b;">One row for each task, in the order the board already has.</div>
+          </sc-if>
           <div style="display: flex; align-items: center; gap: 7px;">
             <div onClick="{{ createView }}" style="padding: 4px 10px; border-radius: 5px; background: #3fb0c8; color: #05242b; font-size: 11.5px; font-weight: 600; cursor: pointer;">Create view</div>
             <div onClick="{{ viewCancel }}" style="padding: 4px 9px; border-radius: 5px; border: 1px solid #1f2229; color: #8b919b; font-size: 11.5px; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">Cancel</div>
           </div>
           <!-- Deleting used to live on the active pill, which put a delete
-               control under the cursor that had just selected the view. -->
-          <div style="font-size: 11.5px; color: #8b919b; padding-top: 2px; border-top: 1px solid #17191e; margin-top: 1px; cursor: pointer;" style-hover="color: #9fd7e3;">Rename, regroup or delete a view →</div>
+               control under the cursor that had just selected the view. The
+               main view is made in settings too. -->
+          <div style="font-size: 11.5px; color: #8b919b; padding-top: 2px; border-top: 1px solid #17191e; margin-top: 1px; cursor: pointer;" style-hover="color: #9fd7e3;">Change or delete a view →</div>
         </div>
       </sc-if>
     </div>
 
+    <!-- ------------------------------------------------------- filter row -->
+    <!-- The row exists only while a rule hides a card, a list is sorted, or
+         the panel is open. The view's rules come first, then mine; only a
+         hairline and the tail say which is which. -->
+    <sc-if value="{{ hasFilterRow }}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; align-items: center; gap: 5px; flex: 0 0 auto; min-height: 34px; padding: 5px 14px; border-bottom: 1px solid #16181c; background: #0c0d10; flex-wrap: wrap;">
+        <!-- The order a list is in, and the way back to the one a drag writes. -->
+        <sc-if value="{{ hasSortChip }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; height: 22px; border-radius: 5px; background: #171b20; border: 1px solid #262b32; white-space: nowrap;">
+            <div style="padding: 0 6px 0 8px; font: 400 11px 'IBM Plex Mono', monospace; letter-spacing: .04em; color: #9fd7e3;">{{ sortChipLabel }}</div>
+            <div onClick="{{ clearSort }}" title="Back to the board's own order, which is the one you can drag" style="padding: 0 7px 0 3px; font-size: 9px; color: #565c66; cursor: pointer;" style-hover="color: #ea8a80;">✕</div>
+          </div>
+        </sc-if>
+        <sc-for list="{{ ruleChips }}" as="r" hint-placeholder-count="2">
+          <sc-if value="{{ r.isDivider }}" hint-placeholder-val="{{ false }}">
+            <div style="width: 1px; height: 14px; margin: 0 3px; background: #262b32;"></div>
+          </sc-if>
+          <sc-if value="{{ r.isChip }}" hint-placeholder-val="{{ true }}">
+            <div style="position: relative; display: flex; align-items: center;">
+              <!-- A rule of the view goes for everybody, so its ✕ asks where
+                   the chip stands. The board has no dialogs. -->
+              <sc-if value="{{ r.asking }}" hint-placeholder-val="{{ false }}">
+                <div data-chip-remove="1" style="display: flex; align-items: center; height: 22px; border-radius: 5px; background: #171b20; border: 1px solid #ea8a80; white-space: nowrap;">
+                  <div style="padding: 0 6px 0 8px; font-size: 11.5px; color: #cdd2d9;">Remove for everyone?</div>
+                  <div onClick="{{ r.onConfirm }}" style="padding: 0 8px; font-size: 11.5px; color: #f0a49d; cursor: pointer;" style-hover="color: #e0574d;">Remove</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ r.idle }}" hint-placeholder-val="{{ true }}">
+                <div style="display: flex; align-items: center; height: 22px; border-radius: 5px; background: #171b20; border: 1px solid {{ r.border }}; white-space: nowrap;" style-hover="border-color: #262b32;">
+                  <div onClick="{{ r.onEdit }}" title="Change this filter" style="padding: 0 6px 0 8px; font-size: 11.5px; color: #cdd2d9; cursor: pointer;">{{ r.said }}</div>
+                  <div onClick="{{ r.onRemove }}" title="{{ r.removeTip }}" style="padding: 0 7px 0 3px; font-size: 9px; color: #565c66; cursor: pointer;" style-hover="color: #ea8a80;">✕</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ r.editing }}" hint-placeholder-val="{{ false }}">
+                <div ref="{{ r.popRef }}" style="position: absolute; top: 28px; left: 0; z-index: 40; width: 234px; padding: 11px 12px 12px; background: #14171b; border: 1px solid #262b32; border-radius: 9px; box-shadow: 0 16px 38px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 11px; animation: fadein 130ms ease;">
+                  <div style="display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #262b32; padding-bottom: 6px;">
+                    <!-- In a chip's own panel there is nowhere to go back to. -->
+                    <div style="flex: 0 0 auto; max-width: 46%; height: 20px; display: flex; align-items: center; padding: 0 6px; border-radius: 4px; background: #1b2126; color: #cdd2d9; font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ ask.name }}</div>
+                    <input class="ask" type="{{ ask.inputType }}" value="{{ ask.query }}" onChange="{{ ask.onQuery }}" onKeyDown="{{ ask.onKey }}" onBlur="{{ ask.onBlur }}" ref="{{ focusRef }}" placeholder="{{ ask.placeholder }}" style="flex: 1 1 auto; min-width: 0; border: 0; outline: 0; background: transparent; color: #e8e9ec; font: 500 11.5px 'IBM Plex Mono', monospace; letter-spacing: .06em; padding: 2px 0; color-scheme: dark;">
+                  </div>
+                  <sc-if value="{{ ask.hasOps }}" hint-placeholder-val="{{ true }}">
+                    <div style="display: flex; flex-wrap: wrap; gap: 3px;">
+                      <sc-for list="{{ ask.ops }}" as="o" hint-placeholder-count="2">
+                        <div onMouseDown="{{ o.onDown }}" onClick="{{ o.onClick }}" style="display: flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 5px; cursor: pointer; font-size: 11.5px; background: {{ o.bg }}; color: {{ o.fg }};" style-hover="color: #dfe1e5;">{{ o.label }}</div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ ask.isSet }}" hint-placeholder-val="{{ true }}">
+                    <div style="display: flex; flex-direction: column; gap: 1px; max-height: 232px; overflow-y: auto; margin: 0 -4px;">
+                      <sc-for list="{{ ask.rows }}" as="q" hint-placeholder-count="5">
+                        <div onMouseDown="{{ q.onDown }}" onClick="{{ q.onPick }}" style="display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border-radius: 5px; font-size: 11.5px; white-space: nowrap; cursor: default; background: {{ q.bg }}; color: {{ q.fg }};" style-hover="background: #1b1e24; color: #e8e9ec;">
+                          <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ q.color }}; opacity: {{ q.dotOpacity }};"></div>
+                          {{ q.name }}
+                          <div style="flex: 1;"></div>
+                          <div style="color: #3fb0c8; font-size: 10px; opacity: {{ q.tick }};">✓</div>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </sc-for>
+        <!-- Mine only. The view's rules are the team's and go one at a time. -->
+        <sc-if value="{{ hasLens }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ clearLens }}" title="Remove the filters you added" style="padding: 0 7px; height: 22px; display: flex; align-items: center; border-radius: 5px; font-size: 11.5px; color: #8b919b; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">Clear</div>
+          <div style="display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: #6b7280; white-space: nowrap;">
+            · Only you see this —
+            <div onClick="{{ promoteLens }}" title="Everybody on this board will see these filters" style="padding: 0 7px; height: 22px; display: flex; align-items: center; border-radius: 5px; font-size: 11.5px; color: #8b919b; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #262b32; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">Put on the view</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
     <!-- ---------------------------------------------------------- canvas -->
+    <!-- The same tasks, drawn two ways. Everything above this line is the
+         view's, whichever shape it takes. -->
+    <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ true }}">
     <div style="flex: 1; display: flex; min-height: 0;">
       <div style="flex: 1; display: flex; gap: 8px; padding: 12px; overflow-x: auto; overflow-y: hidden; min-width: 0; background: #0a0b0d; align-items: stretch;">
 
         <sc-for list="{{ columns }}" as="col" hint-placeholder-count="5">
+          <!-- Folding gives the width back and keeps what the column is for:
+               its name, how much is in it, and somewhere to drop a card. It is
+               one person's answer, so it stays in their browser. -->
+          <sc-if value="{{ col.folded }}" hint-placeholder-val="{{ false }}">
+            <div onDragOver="{{ col.onDragOver }}" onDragLeave="{{ col.onDragLeave }}" onDrop="{{ col.onDrop }}" style="display: flex; flex-direction: column; width: 40px; flex: 0 0 40px; min-height: 0; background: {{ col.bg }}; border: 1px {{ col.borderStyle }} {{ col.border }}; border-radius: 8px; overflow: hidden;">
+              <div onClick="{{ col.onUnfold }}" title="Open this column" style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; min-height: 0; padding: 11px 0 14px; cursor: pointer;" style-hover="background: #1b1e24;">
+                <div style="width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: {{ col.color }}; box-shadow: 0 0 0 3px {{ col.halo }};"></div>
+                <div style="padding: 1px 6px; border-radius: 20px; background: #161a1e; font: 400 10.5px 'IBM Plex Mono', monospace; color: #6b727d;">{{ col.count }}</div>
+                <!-- Turned on its side rather than cut short, so you can still
+                     tell which column it is. -->
+                <div style="writing-mode: vertical-rl; font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .11em; text-transform: uppercase; color: #d5dae1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 0;">{{ col.name }}</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ col.open }}" hint-placeholder-val="{{ true }}">
           <div onDragOver="{{ col.onDragOver }}" onDragLeave="{{ col.onDragLeave }}" onDrop="{{ col.onDrop }}" style="display: flex; flex-direction: column; width: 272px; flex: 0 0 272px; min-height: 0; background: {{ col.bg }}; border: 1px {{ col.borderStyle }} {{ col.border }}; border-radius: 8px; overflow: hidden; opacity: {{ col.opacity }};">
+            <!-- The header becomes the question and names in real numbers what
+                 it is about to do. The cards stay on screen behind it. -->
+            <sc-if value="{{ col.asking }}" hint-placeholder-val="{{ false }}">
+              <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 11px 11px 10px 9px; border-bottom: 1px solid #17191e; flex: 0 0 auto; background: #191d22;">
+                <div style="flex: 1 1 100%; font-size: 11px; line-height: 1.45; color: #f0a49d;">{{ col.askText }}</div>
+                <div onClick="{{ col.onArchiveYes }}" style="margin-left: auto; padding: 3px 9px; border-radius: 5px; border: 1px solid rgba(224,87,77,.35); color: #d2726a; font-size: 11px; cursor: pointer;" style-hover="background: rgba(224,87,77,.12); color: #ea8a80;">Yes, archive</div>
+                <div onClick="{{ col.onArchiveNo }}" style="padding: 3px 9px; border-radius: 5px; color: #8b919b; font-size: 11px; cursor: pointer;" style-hover="background: #1b1e24; color: #e8e9ec;">Cancel</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ col.idle }}" hint-placeholder-val="{{ true }}">
             <div draggable="{{ col.draggable }}" onDragStart="{{ col.onColDragStart }}" onDragEnd="{{ col.onColDragEnd }}" style="display: flex; align-items: center; gap: 10px; padding: 11px 11px 10px 9px; border-bottom: 1px solid #17191e; flex: 0 0 auto; cursor: {{ col.grab }};">
               <div title="Drag to reorder the column" style="display: grid; grid-template-columns: 2px 2px; gap: 3px; padding: 3px 2px; border-radius: 3px; opacity: {{ col.gripOpacity }};" style-hover="background: #191d22;">
                 <div style="width: 2px; height: 2px; border-radius: 50%; background: #2f353d;"></div>
@@ -123,62 +366,97 @@
               <div style="padding: 1px 6px; border-radius: 20px; background: #161a1e; font: 400 10.5px 'IBM Plex Mono', monospace; color: #6b727d;">{{ col.count }}</div>
               <div style="flex: 1;"></div>
               <div onClick="{{ col.onAddTop }}" title="Add a task to the top of this column" style="width: 19px; height: 19px; display: grid; place-items: center; border-radius: 5px; color: #5d646f; font-size: 14px; cursor: pointer;" style-hover="background: #1b1e24; color: #9fd7e3;">+</div>
+              <!-- Offered only while the whole column is on screen: under a
+                   filter the count would not be the count that goes. -->
+              <sc-if value="{{ col.canArchive }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ col.onArchiveAsk }}" title="Archive everything in this column" style="width: 19px; height: 19px; display: grid; place-items: center; border-radius: 5px; color: #5d646f; font-size: 12px; cursor: pointer;" style-hover="background: #1b1e24; color: #9fd7e3;">↓</div>
+              </sc-if>
+              <div onClick="{{ col.onFold }}" title="Fold this column to a strip" style="width: 19px; height: 19px; display: grid; place-items: center; border-radius: 5px; color: #5d646f; font-size: 12px; cursor: pointer;" style-hover="background: #1b1e24; color: #9fd7e3;">«</div>
             </div>
+            </sc-if>
 
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow-y: auto; min-height: 46px;">
+            <!-- The body scrolls; a card keeps its height. -->
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow-y: auto; min-height: 0;">
 
               <sc-if value="{{ col.composingTop }}" hint-placeholder-val="{{ false }}">
-                <div style="display: flex; flex-direction: column; gap: 8px; padding: 9px 10px; border-radius: 6px; background: #14171b; box-shadow: inset 0 0 0 1px rgba(63,176,200,.4);">
+                <div style="display: flex; flex: 0 0 auto; flex-direction: column; gap: 8px; padding: 9px 10px; border-radius: 6px; background: #14171b; box-shadow: inset 0 0 0 1px rgba(63,176,200,.4);">
                   <textarea value="{{ draft }}" onChange="{{ draftChange }}" onKeyDown="{{ draftKey }}" ref="{{ draftRef }}" placeholder="What needs doing?" style="width: 100%; min-height: 42px; resize: none; border: 0; outline: 0; background: transparent; color: #e8e9ec; font-family: inherit; font-size: 12.5px; line-height: 1.4; padding: 0;"></textarea>
-                  <div style="font: 400 9.5px 'IBM Plex Mono', monospace; letter-spacing: .05em; color: #3f4650;">Enter to add · Esc to cancel</div>
+                  <!-- A filtered board says what it is about to write, so the
+                       card it makes never disappears. -->
+                  <div style="font: 400 9.5px 'IBM Plex Mono', monospace; letter-spacing: .05em; color: #3f4650;">Enter to add · {{ composeNote }}</div>
                 </div>
               </sc-if>
 
+              <!-- A card draws the card view and decides nothing: which chips
+                   there are, where they sit and how they read all come from
+                   the project's card view. -->
               <sc-for list="{{ col.cards }}" as="c" hint-placeholder-count="3">
-                <div draggable="true" onDragStart="{{ c.onDragStart }}" onDragOver="{{ c.onDragOver }}" onDrop="{{ c.onDrop }}" onClick="{{ c.onOpen }}" style="display: flex; flex: 0 0 auto; flex-direction: column; gap: 7px; padding: 10px 11px 9px; border-radius: 6px; overflow: hidden; cursor: pointer; background: #14171b; box-shadow: {{ c.ring }}; opacity: {{ c.opacity }};" style-hover="background: #191c21;">
-                  <div style="display: flex; align-items: center; gap: 7px;">
-                    <sc-if value="{{ c.hasLead }}" hint-placeholder-val="{{ true }}">
-                      <div title="{{ c.leadLabel }}" style="width: 8px; height: 8px; flex: 0 0 8px; border-radius: 2px; background: {{ c.leadColor }};"></div>
-                    </sc-if>
-                    <div style="font: 400 10.5px 'IBM Plex Mono', monospace; color: #6b727d;">{{ c.key }}</div>
-                    <div style="flex: 1;"></div>
-                    <sc-for list="{{ c.dots }}" as="d" hint-placeholder-count="2">
-                      <div title="{{ d.name }}" style="width: 6px; height: 6px; border-radius: 50%; background: {{ d.color }};"></div>
-                    </sc-for>
-                    <sc-for list="{{ c.people }}" as="w" hint-placeholder-count="1">
-                      <div title="{{ w.name }}" style="width: 17px; height: 17px; flex: 0 0 17px; border-radius: 50%; background: {{ w.color }}; display: grid; place-items: center; font: 500 {{ w.size }}px 'IBM Plex Mono', monospace; color: {{ w.ink }};">{{ w.mark }}</div>
-                    </sc-for>
-                  </div>
+                <div draggable="true" onDragStart="{{ c.onDragStart }}" onDragOver="{{ c.onDragOver }}" onDrop="{{ c.onDrop }}" onClick="{{ c.onOpen }}" style="position: relative; display: flex; flex: 0 0 auto; flex-direction: column; gap: 7px; padding: 10px 11px 9px {{ c.padLeft }}px; border-radius: 6px; overflow: hidden; cursor: pointer; background: #14171b; box-shadow: {{ c.ring }}; opacity: {{ c.opacity }};" style-hover="background: #191c21;">
+                  <!-- The stripe down the left: one property wide, and only a
+                       property with colours of its own may take it. -->
+                  <sc-if value="{{ c.hasEdge }}" hint-placeholder-val="{{ false }}">
+                    <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: {{ c.edge }};"></div>
+                  </sc-if>
+                  <sc-if value="{{ c.hasHeader }}" hint-placeholder-val="{{ true }}">
+                    <div style="display: flex; align-items: center; gap: 7px;">
+                      <sc-for list="{{ c.header }}" as="k" hint-placeholder-count="3">
+                        <sc-if value="{{ k.isGap }}" hint-placeholder-val="{{ false }}"><div style="flex: 1;"></div></sc-if>
+                        <sc-if value="{{ k.isChip }}" hint-placeholder-val="{{ true }}">
+                          <div title="{{ k.tip }}" style="display: flex; align-items: center; gap: 5px; min-width: 0; padding: {{ k.pad }}; border: {{ k.border }}; border-radius: 4px; background: {{ k.fill }}; color: {{ k.ink }};">
+                            <sc-if value="{{ k.hasSwatch }}" hint-placeholder-val="{{ true }}"><div style="width: {{ k.sw }}px; height: {{ k.sw }}px; flex: 0 0 {{ k.sw }}px; border-radius: {{ k.swRadius }}; background: {{ k.swColor }};"></div></sc-if>
+                            <sc-if value="{{ k.hasPerson }}" hint-placeholder-val="{{ false }}"><div style="width: 17px; height: 17px; flex: 0 0 17px; border-radius: 50%; background: {{ k.faceColor }}; display: grid; place-items: center; font: 500 {{ k.faceSize }}px 'IBM Plex Mono', monospace; color: {{ k.faceInk }};">{{ k.faceMark }}</div></sc-if>
+                            <sc-if value="{{ k.bubble }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 12 12" width="11" height="11" style="flex: 0 0 11px;"><path d="M3 2h6a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5.2L3 11.3V9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="none" stroke="#a4aab3" stroke-width="1.1" stroke-linejoin="round"></path></svg></sc-if>
+                            <sc-if value="{{ k.hasBar }}" hint-placeholder-val="{{ false }}"><div style="width: 34px; height: 3px; border-radius: 2px; background: #1c2126; overflow: hidden;"><div style="height: 3px; border-radius: 2px; background: #3fb0c8; width: {{ k.barPercent }}%;"></div></div></sc-if>
+                            <sc-if value="{{ k.hasText }}" hint-placeholder-val="{{ true }}"><div style="font: {{ k.font }}; letter-spacing: {{ k.ls }}; color: {{ k.fg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.text }}</div></sc-if>
+                          </div>
+                        </sc-if>
+                      </sc-for>
+                    </div>
+                  </sc-if>
 
                   <div style="font-size: 12.5px; line-height: 1.35; color: #cdd2d9; text-wrap: pretty; word-break: break-word;">{{ c.title }}</div>
 
-                  <sc-if value="{{ c.hasFooter }}" hint-placeholder-val="{{ true }}">
-                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                      <sc-for list="{{ c.badges }}" as="b" hint-placeholder-count="1">
-                        <div style="display: flex; align-items: center; gap: 5px; padding: 2px 6px 2px 5px; border: 1px solid #23262c; border-radius: 4px;">
-                          <div style="width: 5px; height: 5px; border-radius: 50%; background: {{ b.color }};"></div>
-                          <div style="font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .04em; color: #a4aab3;">{{ b.text }}</div>
-                        </div>
-                      </sc-for>
-                      <sc-for list="{{ c.metas }}" as="m" hint-placeholder-count="1">
-                        <div style="font: 400 10px 'IBM Plex Mono', monospace; letter-spacing: .03em; color: #565c66;">{{ m.text }}</div>
-                      </sc-for>
-                      <sc-if value="{{ c.hasChecklist }}" hint-placeholder-val="{{ false }}">
-                        <div title="Checklist" style="display: flex; align-items: center; gap: 5px; font: 400 10px 'IBM Plex Mono', monospace; color: #565c66;">
-                          <div style="width: 34px; height: 3px; border-radius: 2px; background: #1c2126; overflow: hidden;">
-                            <div style="height: 3px; border-radius: 2px; background: #3fb0c8; width: {{ c.checkPercent }}%;"></div>
-                          </div>
-                          {{ c.checkLabel }}
-                        </div>
+                  <sc-if value="{{ c.hasBody }}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                      <sc-if value="{{ c.hasDesc }}" hint-placeholder-val="{{ false }}">
+                        <div style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: {{ c.descLines }}; overflow: hidden; font-size: 11.5px; line-height: 1.5; color: #8b919b; word-break: break-word;">{{ c.desc }}</div>
                       </sc-if>
-                      <sc-if value="{{ c.hasComments }}" hint-placeholder-val="{{ false }}">
-                        <div title="Comments" style="font: 400 10px 'IBM Plex Mono', monospace; letter-spacing: .03em; color: #565c66;">💬 {{ c.commentCount }}</div>
+                      <sc-if value="{{ c.hasBodyChips }}" hint-placeholder-val="{{ false }}">
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <sc-for list="{{ c.body }}" as="k" hint-placeholder-count="1">
+                            <div title="{{ k.tip }}" style="display: flex; align-items: center; gap: 5px; min-width: 0; padding: {{ k.pad }}; border: {{ k.border }}; border-radius: 4px; background: {{ k.fill }}; color: {{ k.ink }};">
+                              <sc-if value="{{ k.hasSwatch }}" hint-placeholder-val="{{ true }}"><div style="width: {{ k.sw }}px; height: {{ k.sw }}px; flex: 0 0 {{ k.sw }}px; border-radius: {{ k.swRadius }}; background: {{ k.swColor }};"></div></sc-if>
+                              <sc-if value="{{ k.hasPerson }}" hint-placeholder-val="{{ false }}"><div style="width: 17px; height: 17px; flex: 0 0 17px; border-radius: 50%; background: {{ k.faceColor }}; display: grid; place-items: center; font: 500 {{ k.faceSize }}px 'IBM Plex Mono', monospace; color: {{ k.faceInk }};">{{ k.faceMark }}</div></sc-if>
+                              <sc-if value="{{ k.bubble }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 12 12" width="11" height="11" style="flex: 0 0 11px;"><path d="M3 2h6a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5.2L3 11.3V9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="none" stroke="#a4aab3" stroke-width="1.1" stroke-linejoin="round"></path></svg></sc-if>
+                              <sc-if value="{{ k.hasBar }}" hint-placeholder-val="{{ false }}"><div style="width: 34px; height: 3px; border-radius: 2px; background: #1c2126; overflow: hidden;"><div style="height: 3px; border-radius: 2px; background: #3fb0c8; width: {{ k.barPercent }}%;"></div></div></sc-if>
+                              <sc-if value="{{ k.hasText }}" hint-placeholder-val="{{ true }}"><div style="font: {{ k.font }}; letter-spacing: {{ k.ls }}; color: {{ k.fg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.text }}</div></sc-if>
+                            </div>
+                          </sc-for>
+                        </div>
                       </sc-if>
                     </div>
                   </sc-if>
 
+                  <sc-if value="{{ c.hasFooter }}" hint-placeholder-val="{{ true }}">
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <sc-for list="{{ c.footer }}" as="k" hint-placeholder-count="4">
+                        <sc-if value="{{ k.isGap }}" hint-placeholder-val="{{ false }}"><div style="flex: 1;"></div></sc-if>
+                        <sc-if value="{{ k.isChip }}" hint-placeholder-val="{{ true }}">
+                          <div title="{{ k.tip }}" style="display: flex; align-items: center; gap: 5px; min-width: 0; padding: {{ k.pad }}; border: {{ k.border }}; border-radius: 4px; background: {{ k.fill }}; color: {{ k.ink }};">
+                            <sc-if value="{{ k.hasSwatch }}" hint-placeholder-val="{{ true }}"><div style="width: {{ k.sw }}px; height: {{ k.sw }}px; flex: 0 0 {{ k.sw }}px; border-radius: {{ k.swRadius }}; background: {{ k.swColor }};"></div></sc-if>
+                            <sc-if value="{{ k.hasPerson }}" hint-placeholder-val="{{ false }}"><div style="width: 17px; height: 17px; flex: 0 0 17px; border-radius: 50%; background: {{ k.faceColor }}; display: grid; place-items: center; font: 500 {{ k.faceSize }}px 'IBM Plex Mono', monospace; color: {{ k.faceInk }};">{{ k.faceMark }}</div></sc-if>
+                            <sc-if value="{{ k.bubble }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 12 12" width="11" height="11" style="flex: 0 0 11px;"><path d="M3 2h6a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5.2L3 11.3V9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="none" stroke="#a4aab3" stroke-width="1.1" stroke-linejoin="round"></path></svg></sc-if>
+                            <sc-if value="{{ k.hasBar }}" hint-placeholder-val="{{ false }}"><div style="width: 34px; height: 3px; border-radius: 2px; background: #1c2126; overflow: hidden;"><div style="height: 3px; border-radius: 2px; background: #3fb0c8; width: {{ k.barPercent }}%;"></div></div></sc-if>
+                            <sc-if value="{{ k.hasText }}" hint-placeholder-val="{{ true }}"><div style="font: {{ k.font }}; letter-spacing: {{ k.ls }}; color: {{ k.fg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.text }}</div></sc-if>
+                          </div>
+                        </sc-if>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+
                   <!-- The card stays quiet: one strip at the bottom — who,
-                       what, how long. The plan and the log are in the panel. -->
+                       what, how long. The plan and the log are in the panel.
+                       It is not a row of the card view: a run is not a field. -->
                   <sc-if value="{{ c.hasRun }}" hint-placeholder-val="{{ false }}">
                     <div style="display: flex; flex-direction: column; margin: 2px -11px -9px; background: rgba(63,176,200,.07); box-shadow: inset 0 1px 0 rgba(63,176,200,.16);">
                       <div style="display: flex; align-items: center; gap: 7px; padding: 7px 11px 8px;">
@@ -195,21 +473,23 @@
               </sc-for>
 
               <sc-if value="{{ col.composingBottom }}" hint-placeholder-val="{{ false }}">
-                <div style="display: flex; flex-direction: column; gap: 8px; padding: 9px 10px; border-radius: 6px; background: #14171b; box-shadow: inset 0 0 0 1px rgba(63,176,200,.4);">
+                <div style="display: flex; flex: 0 0 auto; flex-direction: column; gap: 8px; padding: 9px 10px; border-radius: 6px; background: #14171b; box-shadow: inset 0 0 0 1px rgba(63,176,200,.4);">
                   <textarea value="{{ draft }}" onChange="{{ draftChange }}" onKeyDown="{{ draftKey }}" ref="{{ draftRef }}" placeholder="What needs doing?" style="width: 100%; min-height: 42px; resize: none; border: 0; outline: 0; background: transparent; color: #e8e9ec; font-family: inherit; font-size: 12.5px; line-height: 1.4; padding: 0;"></textarea>
-                  <div style="font: 400 9.5px 'IBM Plex Mono', monospace; letter-spacing: .05em; color: #3f4650;">Enter to add · Esc to cancel</div>
+                  <div style="font: 400 9.5px 'IBM Plex Mono', monospace; letter-spacing: .05em; color: #3f4650;">Enter to add · {{ composeNote }}</div>
                 </div>
               </sc-if>
 
-              <sc-if value="{{ col.idle }}" hint-placeholder-val="{{ true }}">
-                <div onClick="{{ col.onAddBottom }}" title="Add a task" style="flex: 1; min-height: 34px; display: flex; align-items: flex-start; padding: 7px 9px; border-radius: 6px; border: 1px dashed transparent; color: transparent; font-size: 12px; cursor: pointer;" style-hover="border-color: #262b32; color: #565c66;">{{ col.emptyWord }}</div>
+              <sc-if value="{{ col.idleBody }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ col.onAddBottom }}" title="Add a task" style="flex: 1 0 auto; min-height: 34px; display: flex; align-items: flex-start; padding: 7px 9px; border-radius: 6px; border: 1px dashed transparent; color: transparent; font-size: 12px; cursor: pointer;" style-hover="border-color: #262b32; color: #565c66;">{{ col.emptyWord }}</div>
               </sc-if>
 
             </div>
           </div>
+          </sc-if>
         </sc-for>
 
-        <!-- A new column is a new option on the grouping property. -->
+        <!-- A new column is a new option on the grouping property. Made under
+             a rule about that property, it joins the rule. -->
         <sc-if value="{{ canAddColumn }}" hint-placeholder-val="{{ true }}">
           <div style="display: flex; flex-direction: column; width: 272px; flex: 0 0 272px; align-self: flex-start;">
             <sc-if value="{{ addingColumn }}" hint-placeholder-val="{{ false }}">
@@ -232,25 +512,135 @@
 
       </div>
     </div>
+    </sc-if>
+
+    <!-- ------------------------------------------------------------ list -->
+    <!-- A list is the same tasks lying down: the card view read across
+         instead of down. A row that is off the card is off the list, the edge
+         is the stripe and not a column, and the key and the title open the
+         row. It groups by nothing, on purpose. -->
+    <sc-if value="{{ isList }}" hint-placeholder-val="{{ false }}">
+    <div style="flex: 1; display: flex; min-height: 0; background: #0a0b0d;">
+      <div style="flex: 1; min-width: 0; overflow: auto; padding-bottom: 40px;">
+        <div style="min-width: min-content;">
+          <!-- A heading is pressed down, then up, then back to the order the
+               board keeps — the one a drag can write. -->
+          <div style="position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: {{ listCols }}; align-items: stretch; gap: 8px; height: 26px; padding: 0 12px 0 0; background: #0c0d10; border-bottom: 1px solid #1c1f24;">
+            <sc-for list="{{ listHead }}" as="h" hint-placeholder-count="8">
+              <div onClick="{{ h.onClick }}" title="{{ h.tip }}" style="display: flex; align-items: center; gap: 4px; min-width: 0; padding: 0 {{ h.padRight }}px 0 {{ h.padLeft }}px; justify-content: {{ h.justify }}; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: {{ h.fg }}; white-space: nowrap; overflow: hidden; cursor: pointer; position: {{ h.position }}; left: {{ h.left }}px; z-index: {{ h.z }}; background: {{ h.bg }}; box-shadow: {{ h.seam }};" style-hover="color: #a4aab3;">
+                <div style="min-width: 0; overflow: hidden; text-overflow: ellipsis;">{{ h.name }}</div>
+                <sc-if value="{{ h.hasArrow }}" hint-placeholder-val="{{ false }}"><div style="flex: 0 0 auto; font-size: 9px; line-height: 1;">{{ h.arrow }}</div></sc-if>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- A sort writes nothing, which is why a sorted list holds still:
+               the drag is off until the chip above takes the sort away. -->
+          <sc-for list="{{ listRows }}" as="r" hint-placeholder-count="8">
+            <div draggable="{{ r.draggable }}" onDragStart="{{ r.onDragStart }}" onDragOver="{{ r.onDragOver }}" onDrop="{{ r.onDrop }}" onDragEnd="{{ r.onDragEnd }}" onClick="{{ r.onOpen }}" style="position: relative; display: grid; grid-template-columns: {{ listCols }}; align-items: stretch; gap: 8px; min-height: 32px; padding: 0 12px 0 0; background: {{ r.bg }}; border-bottom: 1px solid #16181c; cursor: pointer; box-shadow: {{ r.ring }}; opacity: {{ r.opacity }};" style-hover="background: #14171b;">
+              <sc-for list="{{ r.cells }}" as="x" hint-placeholder-count="8">
+                <sc-if value="{{ x.isKey }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: sticky; left: {{ x.left }}px; z-index: 1; background: inherit; display: flex; align-items: center; min-width: 0; padding-left: 12px; font: 400 11px 'IBM Plex Mono', monospace; color: #6b7280; white-space: nowrap; box-shadow: {{ x.seam }};">
+                    <!-- The colour the card wears, down the side of the line. -->
+                    <sc-if value="{{ x.hasEdge }}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: {{ x.edge }};"></div></sc-if>
+                    {{ x.key }}
+                  </div>
+                </sc-if>
+                <sc-if value="{{ x.isTitle }}" hint-placeholder-val="{{ false }}">
+                  <div style="position: sticky; left: {{ x.left }}px; z-index: 1; background: inherit; display: flex; align-items: center; gap: 8px; min-width: 0; box-shadow: {{ x.seam }};">
+                    <div style="flex: 0 1 auto; min-width: 0; font-size: 12.5px; color: #cdd2d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ x.title }}</div>
+                    <sc-if value="{{ x.hasDesc }}" hint-placeholder-val="{{ false }}"><div style="flex: 0 1 auto; min-width: 0; font-size: 11.5px; color: #4e545e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ x.desc }}</div></sc-if>
+                    <!-- Who is working, and nothing else: a step that changes
+                         every few seconds on forty rows is noise. -->
+                    <sc-if value="{{ x.hasRun }}" hint-placeholder-val="{{ false }}"><div title="{{ x.runTip }}" style="flex: 0 0 auto; font: 500 9.5px 'IBM Plex Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: #6fbfd2; white-space: nowrap;">{{ x.runAgent }}</div></sc-if>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ x.isCell }}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; align-items: center; gap: 6px; min-width: 0; padding-right: {{ x.padRight }}px; justify-content: {{ x.justify }}; overflow: hidden; -webkit-mask-image: {{ x.mask }}; mask-image: {{ x.mask }};">
+                    <sc-for list="{{ x.chips }}" as="k" hint-placeholder-count="1">
+                      <div title="{{ k.tip }}" style="display: flex; align-items: center; gap: 5px; min-width: 0; padding: {{ k.pad }}; border: {{ k.border }}; border-radius: 4px; background: {{ k.fill }}; color: {{ k.ink }};">
+                        <sc-if value="{{ k.hasSwatch }}" hint-placeholder-val="{{ true }}"><div style="width: {{ k.sw }}px; height: {{ k.sw }}px; flex: 0 0 {{ k.sw }}px; border-radius: {{ k.swRadius }}; background: {{ k.swColor }};"></div></sc-if>
+                        <sc-if value="{{ k.hasPerson }}" hint-placeholder-val="{{ false }}"><div style="width: 17px; height: 17px; flex: 0 0 17px; border-radius: 50%; background: {{ k.faceColor }}; display: grid; place-items: center; font: 500 {{ k.faceSize }}px 'IBM Plex Mono', monospace; color: {{ k.faceInk }};">{{ k.faceMark }}</div></sc-if>
+                        <sc-if value="{{ k.bubble }}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 12 12" width="11" height="11" style="flex: 0 0 11px;"><path d="M3 2h6a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5.2L3 11.3V9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="none" stroke="#a4aab3" stroke-width="1.1" stroke-linejoin="round"></path></svg></sc-if>
+                        <sc-if value="{{ k.hasBar }}" hint-placeholder-val="{{ false }}"><div style="width: 34px; height: 3px; border-radius: 2px; background: #1c2126; overflow: hidden;"><div style="height: 3px; border-radius: 2px; background: #3fb0c8; width: {{ k.barPercent }}%;"></div></div></sc-if>
+                        <sc-if value="{{ k.hasText }}" hint-placeholder-val="{{ true }}"><div style="font: {{ k.font }}; letter-spacing: {{ k.ls }}; color: {{ k.fg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.text }}</div></sc-if>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </sc-for>
+              <!-- The hairline the row already has, scanning while the run
+                   reports. -->
+              <sc-if value="{{ r.hasRun }}" hint-placeholder-val="{{ false }}">
+                <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 1px; overflow: hidden; background: rgba(63,176,200,.12);">
+                  <div style="display: block; width: {{ r.scanWidth }}; height: 1px; background: #3fb0c8; opacity: {{ r.scanOpacity }}; animation: {{ r.scanAnim }};"></div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+
+          <!-- One composer, at the end: a list has one order. -->
+          <sc-if value="{{ listComposing }}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 6px 12px;">
+              <div style="display: flex; flex-direction: column; gap: 8px; padding: 9px 10px; border-radius: 6px; background: #14171b; box-shadow: inset 0 0 0 1px rgba(63,176,200,.4);">
+                <textarea value="{{ draft }}" onChange="{{ draftChange }}" onKeyDown="{{ draftKey }}" ref="{{ draftRef }}" placeholder="What needs doing?" style="width: 100%; min-height: 42px; resize: none; border: 0; outline: 0; background: transparent; color: #e8e9ec; font-family: inherit; font-size: 12.5px; line-height: 1.4; padding: 0;"></textarea>
+                <div style="font: 400 9.5px 'IBM Plex Mono', monospace; letter-spacing: .05em; color: #3f4650;">Enter to add · {{ composeNote }}</div>
+              </div>
+            </div>
+          </sc-if>
+          <!-- The only way into a list, so it is never invisible. -->
+          <sc-if value="{{ listIdle }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ listAdd }}" style="display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px; border-bottom: 1px solid #16181c; color: #4e545e; font-size: 12.5px; cursor: pointer;" style-hover="background: #14171b; color: #a4aab3;">
+              <div style="position: sticky; left: 12px;">+ Add a task</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- The project has tasks; this view is hiding all of them. Saying so is
+         the difference between a filter and a board that looks broken. -->
+    <sc-if value="{{ nothingPasses }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: auto; font-size: 12.5px; color: #8b919b;">
+          {{ blankText }}
+          <sc-if value="{{ hasLens }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ clearLens }}" style="padding: 4px 9px; border-radius: 5px; border: 1px solid #1f2229; color: #8b919b; font-size: 11.5px; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">{{ clearLensLabel }}</div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
   </div>
 
   <!-- ============================================================== PANEL -->
   <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ true }}">
-    <div style="width: 396px; flex: 0 0 396px; height: 100vh; display: flex; flex-direction: column; background: #0f1013; border-left: 1px solid #1c1f24; min-height: 0; animation: panelin 180ms ease;">
+    <div style="width: {{ panelW }}px; flex: 0 0 {{ panelW }}px; height: 100vh; position: relative; display: flex; flex-direction: column; background: #0f1013; border-left: 1px solid #1c1f24; min-height: 0; animation: panelin 180ms ease;">
 
+      <!-- The panel is dragged wider by its own left edge. There is no handle
+           to look at: the cursor over the line is the whole invitation. The
+           width is one person's answer, so it stays in their browser. -->
+      <div onPointerDown="{{ gripDown }}" title="Drag to widen" style="position: absolute; top: 0; left: -3px; width: 7px; height: 100%; z-index: 30; cursor: col-resize; background: {{ gripBg }};" style-hover="background: #262b32;"></div>
+
+      <!-- The band wears the colour of its card: the edge stripe, or the
+           first colour the card view puts on it. -->
       <div style="height: 3px; flex: 0 0 3px; background: {{ sel.accent }};"></div>
+
+      <!-- An archived task is a whole task that no view is drawing. One row
+           says how long ago and offers the way back; nothing else changes. -->
+      <sc-if value="{{ sel.archived }}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 8px 16px; border-bottom: 1px solid #1c1f24; background: #191d22; font-size: 11.5px; color: #8b919b;">
+          Archived {{ sel.archivedAgo }}
+          <div style="color: #565c66;">·</div>
+          <div onClick="{{ restoreTask }}" style="color: #9fd7e3; font-size: 11.5px; border-radius: 4px; padding: 1px 4px; cursor: pointer;" style-hover="background: #1b1e24;">Put it back</div>
+        </div>
+      </sc-if>
 
       <div style="flex: 0 0 auto; padding: 13px 16px 14px; border-bottom: 1px solid #1c1f24; display: flex; flex-direction: column; gap: 10px; background: {{ sel.accentTint }};">
         <div style="position: relative; display: flex; align-items: center; gap: 9px;">
           <!-- The key is the address of the task, so it is a button that
-               copies the link. -->
+               copies the link. The address bar already carries ?task=USH-11. -->
           <div onClick="{{ copyLink }}" title="Copy link to this task" style="font: 500 11px 'IBM Plex Mono', monospace; color: {{ keyColor }}; padding: 2px 5px; margin-left: -5px; border-radius: 5px; background: {{ keyBg }}; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">{{ keyLabel }}</div>
-          <sc-if value="{{ sel.hasLead }}" hint-placeholder-val="{{ true }}">
-            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 6px; border-radius: 5px; background: {{ sel.leadPillBg }}; color: #e8e9ec; font: 500 10px 'IBM Plex Mono', monospace; letter-spacing: .08em; text-transform: uppercase;">
-              <div style="width: 5px; height: 5px; border-radius: 50%; background: {{ sel.leadColor }};"></div>
-              {{ sel.leadName }}
-            </div>
-          </sc-if>
           <div style="flex: 1;"></div>
           <div onClick="{{ panelMenuToggle }}" title="More" style="width: 22px; height: 22px; display: grid; place-items: center; border-radius: 4px; color: #6b7280; font-size: 13px; cursor: pointer; background: {{ panelMenuBg }};" style-hover="background: #1b1e24; color: #dfe1e5;">⋯</div>
           <div onClick="{{ closePanel }}" title="Close (Esc)" style="width: 22px; height: 22px; display: grid; place-items: center; border-radius: 4px; color: #6b7280; font-size: 13px; cursor: pointer;" style-hover="background: #1b1e24; color: #dfe1e5;">✕</div>
@@ -260,6 +650,15 @@
                 <div style="width: 6px; height: 6px; border-radius: 50%; flex: none;"></div>
                 Copy link
               </div>
+              <!-- Archive is the everyday way to make a task go away: the
+                   panel stays open on the row that puts it back. Delete is for
+                   a mistake. -->
+              <sc-if value="{{ canArchive }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ archiveTask }}" style="display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 5px; font-size: 12px; color: #dfe1e5; cursor: pointer;" style-hover="background: #1b1e24;">
+                  <div style="width: 6px; height: 6px; border-radius: 50%; flex: none;"></div>
+                  Archive task
+                </div>
+              </sc-if>
               <div onClick="{{ deleteTask }}" style="display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 5px; font-size: 12px; color: #d2726a; cursor: pointer;" style-hover="background: rgba(224,87,77,.13); color: #ea8a80;">
                 <div style="width: 6px; height: 6px; border-radius: 50%; flex: none; background: #d2726a;"></div>
                 Delete task
@@ -406,7 +805,15 @@
               <textarea value="{{ descDraft }}" onChange="{{ descChange }}" onKeyDown="{{ descKey }}" onBlur="{{ descCommit }}" ref="{{ descRef }}" placeholder="Write in markdown…" style="width: 100%; min-height: 120px; padding: 9px 10px; border-radius: 7px; border: 1px solid #263038; background: #0b0c0f; color: #dfe1e5; font-family: inherit; font-size: 12.5px; line-height: 1.6; outline: none; resize: vertical;"></textarea>
             </sc-if>
             <sc-if value="{{ descReading }}" hint-placeholder-val="{{ true }}">
-              <div onClick="{{ descEdit }}" style="margin: 0 -8px; padding: 7px 8px; border-radius: 6px; font-size: 12.5px; line-height: 1.6; color: {{ descColor }}; text-wrap: pretty; cursor: text; min-height: 26px;" style-hover="background: #131518;">{{ descText }}</div>
+              <div onClick="{{ descEdit }}" style="margin: 0 -8px; padding: 7px 8px; border-radius: 6px; font-size: 12.5px; line-height: 1.6; color: {{ descColor }}; text-wrap: pretty; cursor: text; min-height: 26px;" style-hover="background: #131518;">
+                <sc-if value="{{ descEmpty }}" hint-placeholder-val="{{ false }}">Add a description…</sc-if>
+                <!-- Markdown, rendered where it is written. -->
+                <sc-for list="{{ descMd }}" as="b" hint-placeholder-count="2">
+                  <sc-if value="{{ b.isP }}" hint-placeholder-val="{{ true }}"><div style="margin: 0 0 {{ b.gap }}px;"><sc-for list="{{ b.segs }}" as="g" hint-placeholder-count="1"><span style="font-family: {{ g.ff }}; font-size: {{ g.fs }}; font-weight: {{ g.fw }}; font-style: {{ g.fi }}; color: {{ g.fg }}; background: {{ g.bg }}; padding: {{ g.pad }}; border: {{ g.border }}; border-radius: 4px;">{{ g.text }}</span></sc-for></div></sc-if>
+                  <sc-if value="{{ b.isList }}" hint-placeholder-val="{{ false }}"><div style="margin: 0 0 {{ b.gap }}px; padding-left: 18px;"><sc-for list="{{ b.items }}" as="li" hint-placeholder-count="2"><div style="margin: 3px 0; display: list-item; list-style: disc;"><sc-for list="{{ li.segs }}" as="g" hint-placeholder-count="1"><span style="font-family: {{ g.ff }}; font-size: {{ g.fs }}; font-weight: {{ g.fw }}; font-style: {{ g.fi }}; color: {{ g.fg }}; background: {{ g.bg }}; padding: {{ g.pad }}; border: {{ g.border }}; border-radius: 4px;">{{ g.text }}</span></sc-for></div></sc-for></div></sc-if>
+                  <sc-if value="{{ b.isPre }}" hint-placeholder-val="{{ false }}"><div style="margin: 0 0 {{ b.gap }}px; padding: 10px 12px; background: #0b0c0f; border: 1px solid #191c21; border-radius: 7px; overflow-x: auto; font: 400 11.5px/1.6 'IBM Plex Mono', monospace; color: #c3c8cf; white-space: pre;">{{ b.text }}</div></sc-if>
+                </sc-for>
+              </div>
             </sc-if>
           </div>
 
@@ -469,8 +876,31 @@
                     <div style="font-size: 12px; font-weight: 600; color: #dfe1e5;">{{ c.name }}</div>
                     <div style="font: 400 10.5px 'IBM Plex Mono', monospace; color: #4e545e;">{{ c.time }}</div>
                     <div style="flex: 1;"></div>
+                    <!-- An agent posts its draft here rather than writing over
+                         a person's words; one press makes it the description. -->
+                    <sc-if value="{{ c.canUse }}" hint-placeholder-val="{{ true }}">
+                      <div onClick="{{ c.onUse }}" title="Make this comment the description" style="font-size: 10.5px; color: #3f4650; cursor: pointer;" style-hover="color: #9fd7e3;">Use as description</div>
+                    </sc-if>
+                    <sc-if value="{{ c.mine }}" hint-placeholder-val="{{ false }}">
+                      <div onClick="{{ c.onDelete }}" title="Delete" style="font-size: 10px; color: #3f4650; cursor: pointer;" style-hover="color: #ea8a80;">✕</div>
+                    </sc-if>
                   </div>
-                  <div style="font-size: 12.5px; line-height: 1.5; color: #a8aeb7; text-wrap: pretty; white-space: pre-wrap; word-break: break-word;">{{ c.body }}</div>
+                  <!-- Replacing words that are there asks first, and says how
+                       many are lost. -->
+                  <sc-if value="{{ c.asking }}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; margin: 2px 0 3px; border-radius: 6px; background: rgba(224,87,77,.08); box-shadow: inset 0 0 0 1px rgba(224,87,77,.25);">
+                      <div style="flex: 1 1 100%; font-size: 11.5px; line-height: 1.45; color: #f0a49d;">{{ c.askText }}</div>
+                      <div onClick="{{ c.onUseYes }}" style="padding: 3px 9px; border-radius: 5px; border: 1px solid rgba(224,87,77,.35); color: #d2726a; font-size: 11px; cursor: pointer;" style-hover="background: rgba(224,87,77,.12); color: #ea8a80;">Yes, replace</div>
+                      <div onClick="{{ c.onUseNo }}" style="padding: 3px 9px; border-radius: 5px; color: #8b919b; font-size: 11px; cursor: pointer;" style-hover="background: #1b1e24; color: #e8e9ec;">Cancel</div>
+                    </div>
+                  </sc-if>
+                  <div style="font-size: 12.5px; line-height: 1.5; color: #a8aeb7; text-wrap: pretty; word-break: break-word; min-width: 0;">
+                    <sc-for list="{{ c.md }}" as="b" hint-placeholder-count="1">
+                      <sc-if value="{{ b.isP }}" hint-placeholder-val="{{ true }}"><div style="margin: 0 0 {{ b.gap }}px;"><sc-for list="{{ b.segs }}" as="g" hint-placeholder-count="1"><span style="font-family: {{ g.ff }}; font-size: {{ g.fs }}; font-weight: {{ g.fw }}; font-style: {{ g.fi }}; color: {{ g.fg }}; background: {{ g.bg }}; padding: {{ g.pad }}; border: {{ g.border }}; border-radius: 4px;">{{ g.text }}</span></sc-for></div></sc-if>
+                      <sc-if value="{{ b.isList }}" hint-placeholder-val="{{ false }}"><div style="margin: 0 0 {{ b.gap }}px; padding-left: 18px;"><sc-for list="{{ b.items }}" as="li" hint-placeholder-count="2"><div style="margin: 3px 0; display: list-item; list-style: disc;"><sc-for list="{{ li.segs }}" as="g" hint-placeholder-count="1"><span style="font-family: {{ g.ff }}; font-size: {{ g.fs }}; font-weight: {{ g.fw }}; font-style: {{ g.fi }}; color: {{ g.fg }}; background: {{ g.bg }}; padding: {{ g.pad }}; border: {{ g.border }}; border-radius: 4px;">{{ g.text }}</span></sc-for></div></sc-for></div></sc-if>
+                      <sc-if value="{{ b.isPre }}" hint-placeholder-val="{{ false }}"><div style="margin: 0 0 {{ b.gap }}px; padding: 10px 12px; background: #0b0c0f; border: 1px solid #191c21; border-radius: 7px; overflow-x: auto; font: 400 11.5px/1.6 'IBM Plex Mono', monospace; color: #c3c8cf; white-space: pre;">{{ b.text }}</div></sc-if>
+                    </sc-for>
+                  </div>
                 </div>
               </div>
             </sc-for>
@@ -480,7 +910,7 @@
               <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 11px 12px 9px; border-radius: 10px; background: #0b0c0f; box-shadow: {{ composerRing }};">
                 <textarea value="{{ commentDraft }}" onChange="{{ commentChange }}" onKeyDown="{{ commentKey }}" placeholder="{{ commentPlaceholder }}" rows="3" style="width: 100%; min-height: 54px; resize: none; border: 0; outline: 0; background: transparent; color: #dfe1e5; font-family: inherit; font-size: 12.5px; line-height: 1.55; padding: 0;"></textarea>
                 <div style="display: flex; align-items: center; gap: 9px; margin-top: 9px; padding-top: 9px; border-top: 1px solid #14171b;">
-                  <div style="font-size: 10.5px; color: #3f4650;">Cmd + Enter to send</div>
+                  <div style="font-size: 10.5px; color: #3f4650;">Markdown · Cmd + Enter to send</div>
                   <div style="flex: 1;"></div>
                   <div onClick="{{ sendComment }}" style="padding: 5px 12px; border-radius: 6px; background: {{ sendBg }}; color: {{ sendFg }}; font-size: 11.5px; font-weight: 600; cursor: pointer;">Comment</div>
                 </div>
@@ -584,11 +1014,42 @@
 </div>
 
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;openTask&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;openTask&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Board&quot;},&quot;card&quot;:{&quot;editor&quot;:&quot;select&quot;,&quot;options&quot;:[&quot;default&quot;,&quot;edge&quot;,&quot;filled&quot;],&quot;default&quot;:&quot;default&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Board&quot;}}">
 class Component extends DCLogic {
   PALETTE = ['#e0574d', '#d1913a', '#4f8a5b', '#3fb0c8', '#4b8fbe', '#6d5bd0', '#c2557a', '#b6763f', '#2f9e7a', '#7a8a2f', '#3d7fc1', '#8b8f98'];
   VIEW_DOTS = ['#3fb0c8', '#6d5bd0', '#2f9e7a', '#d1913a', '#c2557a', '#4b8fbe'];
   GROUPABLE = ['select', 'person', 'checkbox'];
+  /* Written out, never from the locale: the server and the browser disagree. */
+  MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  NONE = '__none__';
+  PANEL_MIN = 340;
+
+  /* Two property types that read the same way on a card share a kind. Adding
+     a property type means one line here. */
+  KIND_OF_TYPE = { select: 'select', multi_select: 'select', person: 'person', date: 'date', checkbox: 'flag', text: 'text', number: 'text' };
+  /* Five rows of the card view are not properties: they are the task row the
+     board already has, given rows so somebody can take them off. */
+  BUILTINS = {
+    _key: { name: 'Task ID', kind: 'id' },
+    _title: { name: 'Title', kind: 'title' },
+    _desc: { name: 'Description', kind: 'desc' },
+    _checklist: { name: 'Checklist', kind: 'checklist' },
+    _comments: { name: 'Comments', kind: 'comments' }
+  };
+  WIDTH_OF_TYPE = { select: 112, multi_select: 156, person: 140, date: 84, checkbox: 96, text: 168, number: 76 };
+  WIDTH_OF_BUILTIN = { _key: 72, _title: 0, _desc: 0, _checklist: 72, _comments: 66 };
+
+  OPS = {
+    select: ['is', 'is_not'], multi_select: ['is', 'is_not'], person: ['is', 'is_not'], checkbox: ['is'],
+    text: ['contains', 'not_contains', 'empty', 'not_empty'],
+    number: ['eq', 'gt', 'lt', 'empty', 'not_empty'],
+    date: ['on', 'before', 'after', 'empty', 'not_empty']
+  };
+  OP_LABEL = {
+    is: 'is', is_not: 'is not', contains: 'contains', not_contains: 'does not contain', eq: 'is', gt: 'is over', lt: 'is under',
+    on: 'is on', before: 'is before', after: 'is after', empty: 'is empty', not_empty: 'is not empty'
+  };
+  ASK = { select: 'Which value?', multi_select: 'Which value?', person: 'Who?', checkbox: 'Which value?', text: 'What words?', number: 'What number?', date: 'Which date?' };
 
   RUN_SCRIPT = [
     'reading run-state.ts and the lease test',
@@ -607,7 +1068,8 @@ class Component extends DCLogic {
       { id: 'm1', name: 'Ada Lovelace', color: '#6d5bd0', kind: 'human' },
       { id: 'm2', name: 'Grace Hopper', color: '#2f9e7a', kind: 'human' },
       { id: 'm3', name: 'Alan Turing', color: '#c2557a', kind: 'human' },
-      { id: 'ag1', name: 'builder', color: '#3fb0c8', kind: 'agent' }
+      /* An agent is a member of the project. This one holds the stream open. */
+      { id: 'ag1', name: 'builder', color: '#3fb0c8', kind: 'agent', listening: true }
     ],
     properties: [
       { id: 'status', name: 'Status', type: 'select', showOnCard: true, options: [
@@ -632,35 +1094,46 @@ class Component extends DCLogic {
         { id: 'lb5', name: 'docs', color: '#7a8a2f' } ] },
       { id: 'due', name: 'Due', type: 'date', showOnCard: true, options: [] }
     ],
+    /* A view has a kind, and a list is the same tasks lying down. The main
+       view is the one a board opens on and the one that cannot be deleted. A
+       list keeps groupById unread, so turning it back restores the columns. */
     views: [
-      { id: 'v1', name: 'Board', groupById: 'status' },
-      { id: 'v2', name: 'Phases', groupById: 'phase' }
+      { id: 'v1', name: 'Board', kind: 'board', groupById: 'status', isDefault: true, rules: [] },
+      { id: 'v2', name: 'Phases', kind: 'board', groupById: 'phase', rules: [] },
+      /* "is not" keeps the empties: a task with no priority is not Low. */
+      { id: 'v3', name: 'Open work', kind: 'list', groupById: 'status', rules: [{ propertyId: 'priority', op: 'is_not', values: ['pr4'] }] }
     ],
     viewId: 'v1',
+    /* One person's own rules for one view. Nobody else sees them. */
+    lens: { v1: [], v2: [], v3: [] },
+    /* A sort writes nothing; it only says what a list draws. */
+    sorts: { v3: null },
+    /* Which columns this browser folded. A fold never reaches the project. */
+    folded: { v1: [], v2: [] },
     tasks: [
       { id: 't1', key: 'USH-6', title: 'Live board: a change from somebody else arrives by itself', done: 3, total: 4, comments: 2,
-        desc: 'Poll while the tab is visible, stop when it is not. The panel listens for the same event so an open task reloads with the board.',
-        values: { status: 'st4', priority: 'pr1', assignee: 'm3', phase: 'ph2', estimate: 'es4', labels: ['lb2', 'lb3'], due: 'Aug 29' } },
+        desc: 'The stream is a **doorbell**; the feed is the record. The panel listens for the same event, so an open task follows the board.',
+        values: { status: 'st4', priority: 'pr1', assignee: 'm3', phase: 'ph2', estimate: 'es4', labels: ['lb2', 'lb3'], due: '2026-08-29' } },
       { id: 't2', key: 'USH-7', title: 'Column drop targets pick by pointer first, overlap second', done: 2, total: 3, comments: 1,
         desc: 'A column is as tall as the board, so an empty one loses every corner-distance sum to a small card one column over.',
-        values: { status: 'st3', priority: 'pr1', assignee: 'm3', phase: 'ph2', estimate: 'es4', labels: ['lb1', 'lb4'], due: 'Sep 04' } },
+        values: { status: 'st3', priority: 'pr1', assignee: 'm3', phase: 'ph2', estimate: 'es4', labels: ['lb1', 'lb4'], due: '2026-09-04' } },
       { id: 't3', key: 'USH-11', title: 'The lease closes a run whose agent stopped answering', done: 2, total: 5, comments: 3,
-        desc: 'A beat is not a report. `updated_at` is the last thing an agent said; `beat_at` is the last sign its process is alive. The lease counts reports and never beats.',
+        desc: 'A beat is not a report.\n\n- `updated_at` is the last thing an agent said.\n- `beat_at` is the last sign its process is alive.\n\nThe lease counts **reports** and never beats.',
         values: { status: 'st3', priority: 'pr1', assignee: 'ag1', phase: 'ph2', estimate: 'es3', labels: ['lb3'], due: '' } },
       { id: 't4', key: 'USH-9', title: 'Settings: one save model, and a destructive row that confirms in place', done: 4, total: 4, comments: 0,
         desc: 'A field saves on blur. Nothing else has a Save button.',
         values: { status: 'st4', priority: 'pr3', assignee: 'm1', phase: 'ph2', estimate: 'es3', labels: ['lb4'], due: '' } },
       { id: 't5', key: 'USH-2', title: 'Date, number and checkbox controls in the panel', done: 0, total: 3, comments: 1,
         desc: 'Every property type needs a control that reads as the same family.',
-        values: { status: 'st2', priority: 'pr3', assignee: 'm2', phase: 'ph2', estimate: 'es3', labels: ['lb2'], due: 'Sep 12' } },
-      { id: 't6', key: 'USH-18', title: 'Views: rename, regroup and delete away from the pill', done: 0, total: 2, comments: 0,
-        desc: 'Deleting used to live on the active pill, under the cursor that had just selected the view.',
+        values: { status: 'st2', priority: 'pr3', assignee: 'm2', phase: 'ph2', estimate: 'es3', labels: ['lb2'], due: '2026-09-12' } },
+      { id: 't6', key: 'USH-18', title: 'Views: put them in order, and make one the main one', done: 0, total: 2, comments: 0,
+        desc: 'A view is dragged by naming what it landed on, never a rank.',
         values: { status: 'st2', priority: 'pr4', assignee: 'm1', phase: 'ph3', estimate: 'es2', labels: ['lb4'], due: '' } },
-      { id: 't7', key: 'USH-16', title: 'Markdown in the description, rendered where it is written', done: 1, total: 2, comments: 1,
+      { id: 't7', key: 'USH-16', title: 'Markdown in comments, rendered where it is read', done: 1, total: 2, comments: 1,
         desc: 'Click to edit, Cmd + Enter to save.',
         values: { status: 'st2', priority: 'pr3', assignee: 'm2', phase: 'ph3', estimate: 'es3', labels: ['lb4'], due: '' } },
       { id: 't8', key: 'USH-14', title: 'The image ships the packages the migration script imports', done: 0, total: 3, comments: 2,
-        desc: 'Nothing imports the migration script, so its packages are named by hand in outputFileTracingIncludes.',
+        desc: 'Nothing imports the migration script, so its packages are named by hand in `outputFileTracingIncludes`.',
         values: { status: 'st1', priority: 'pr2', assignee: 'm3', phase: 'ph1', estimate: 'es2', labels: ['lb3'], due: '' } },
       { id: 't9', key: 'USH-21', title: 'Esc closes the panel from anywhere that is not a text box', done: 0, total: 0, comments: 0,
         desc: '',
@@ -673,7 +1146,11 @@ class Component extends DCLogic {
         values: { status: 'st5', priority: 'pr2', assignee: 'm1', phase: 'ph2', estimate: 'es3', labels: ['lb4'], due: '' } },
       { id: 't12', key: 'USH-24', title: 'The skill an agent installs with one command', done: 0, total: 2, comments: 0,
         desc: 'SKILL.md in the system prompt, board.mjs next to the agent.',
-        values: { status: '', priority: 'pr3', assignee: '', phase: 'ph4', estimate: 'es3', labels: ['lb5'], due: '' } }
+        values: { status: '', priority: '', assignee: '', phase: 'ph4', estimate: 'es3', labels: ['lb5'], due: '' } },
+      /* No view draws an archived task. The search box is the way back to it. */
+      { id: 't13', key: 'USH-4', title: 'Poll the board every five seconds', done: 0, total: 0, comments: 0, archivedAgo: '3 days ago',
+        desc: 'Replaced by the stream. A poll that ran while the tab was hidden cost a read a minute for nothing.',
+        values: { status: 'st5', priority: 'pr3', assignee: 'm2', phase: 'ph1', estimate: 'es2', labels: ['lb3'], due: '' } }
     ],
     run: {
       taskId: 't3',
@@ -705,20 +1182,24 @@ class Component extends DCLogic {
     },
     commentsById: {
       t3: [
-        { id: 'k1', who: 'm3', time: '4h', body: 'The heartbeat was holding cards open all day. Counting reports fixes it.' },
-        { id: 'k2', who: 'ag1', time: '12m', body: 'Reproduced with a killed session. Writing the case now.' },
+        { id: 'k1', who: 'm3', time: '4h', body: 'The heartbeat was holding cards open all day. Counting **reports** fixes it.' },
+        { id: 'k2', who: 'ag1', time: '12m', body: 'Reproduced with a killed session:\n\n```\nkill -9 $(pgrep -f board.mjs)\n```\n\nWriting the case now.' },
         { id: 'k3', who: 'm1', time: '3m', body: 'Please say on the card how long is left before the board takes it back.' }
       ]
     },
+    history: {},
     selected: 't3',
     tab: 'agent',
     openMenu: null,
     menuDraft: '',
     viewAdding: false,
     viewDraft: '',
-    viewGroup: 'priority',
+    viewKind: 'board',
+    viewGroup: 'status',
+    viewPopLeft: 14,
     addingColumn: false,
     columnDraft: '',
+    colAsking: null,
     composing: null,
     draft: '',
     descEditing: false,
@@ -726,8 +1207,20 @@ class Component extends DCLogic {
     addingItem: false,
     itemDraft: '',
     commentDraft: '',
+    commentAsking: null,
     panelMenuOpen: false,
+    panelW: 396,
+    gripDragging: false,
     userOpen: false,
+    searchQuery: '',
+    searchFocus: false,
+    searchAt: 0,
+    filterOpen: false,
+    propQuery: '',
+    propAt: 0,
+    refused: null,
+    ask: null,
+    chipAsking: null,
     toasts: [],
     seq: 0,
     tick: 0
@@ -741,16 +1234,70 @@ class Component extends DCLogic {
         if (s.run.n >= this.RUN_SCRIPT.length - 1) return {};
         const n = s.run.n + 1;
         const log = s.run.log.concat([{ time: 'now', text: this.RUN_SCRIPT[n] }]).slice(-6);
-        return { run: Object.assign({}, s.run, { n, log }) };
+        const next = { run: Object.assign({}, s.run, { n, log }) };
+        /* The agent ticks an item. The open panel follows what somebody else
+           did to its task, without a reload and without losing a draft. */
+        if (n === 3) {
+          const list = (s.checklists[s.run.taskId] || []).map(c => c.id === 'c3' ? Object.assign({}, c, { done: true }) : c);
+          next.checklists = Object.assign({}, s.checklists, { [s.run.taskId]: list });
+          next.tasks = s.tasks.map(t => t.id === s.run.taskId ? Object.assign({}, t, { done: list.filter(c => c.done).length, total: list.length }) : t);
+          next.run.log = log.concat([{ time: 'now', text: 'ticked “A killed session lets go of the card”' }]).slice(-6);
+        }
+        return next;
       });
     }, 4200);
+
+    this.onKey = e => {
+      const typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable);
+      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      /* `/` is the way into the search box from anywhere on the board. */
+      if (e.key === '/') {
+        e.preventDefault();
+        if (this.searchEl) { this.searchEl.focus(); this.searchEl.select(); }
+        return;
+      }
+      /* `n` makes a task where the cursor is: the top of the open task's
+         column, or the first column that is not folded. */
+      if (e.key === 'n') {
+        e.preventDefault();
+        this.newTaskHere();
+        return;
+      }
+      if (e.key === 'Escape' && this.state.selected) this.setState({ selected: null, panelMenuOpen: false });
+    };
+    window.addEventListener('keydown', this.onKey);
+
+    /* A click anywhere else puts a popover away, the way every menu here does. */
+    this.onDown = e => {
+      const s = this.state;
+      const t = e.target;
+      const inside = el => el && el.contains(t);
+      if (s.searchFocus && !inside(this.searchAnchor)) this.setState({ searchFocus: false });
+      if (s.filterOpen && !inside(this.filterAnchor)) this.closeFilter();
+      if (s.ask && s.ask.where === 'chip' && !inside(this.chipPop)) this.setState({ ask: null });
+      if (s.chipAsking && !(t.closest && t.closest('[data-chip-remove]'))) this.setState({ chipAsking: null });
+    };
+    document.addEventListener('mousedown', this.onDown);
   }
 
-  componentWillUnmount() { clearInterval(this.clock); clearInterval(this.runner); }
+  componentWillUnmount() {
+    clearInterval(this.clock);
+    clearInterval(this.runner);
+    window.removeEventListener('keydown', this.onKey);
+    document.removeEventListener('mousedown', this.onDown);
+  }
 
   tint(hex, a) {
     const n = parseInt(String(hex).slice(1), 16);
     return 'rgba(' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(',') + ',' + a + ')';
+  }
+
+  /** The ink that reads on a colour, for a chip that wears its colour behind the words. */
+  ink(hex) {
+    const n = parseInt(String(hex).slice(1), 16);
+    const ch = v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    const l = 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) + 0.0722 * ch(n & 255);
+    return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? '#14161a' : '#f6f8fa';
   }
 
   initials(name) {
@@ -758,6 +1305,11 @@ class Component extends DCLogic {
     if (parts.length === 0) return '?';
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  formatDate(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+    return m ? this.MONTHS[Number(m[2]) - 1] + ' ' + Number(m[3]) : String(iso);
   }
 
   notify(text) {
@@ -770,14 +1322,9 @@ class Component extends DCLogic {
 
   view() { return this.state.views.find(v => v.id === this.state.viewId) || this.state.views[0]; }
   property(id) { return this.state.properties.find(p => p.id === id) || null; }
-  groupProperty() { return this.property(this.view().groupById); }
+  groupProperty() { return this.view().kind === 'board' ? this.property(this.view().groupById) : null; }
   member(id) { return this.state.members.find(m => m.id === id) || null; }
-
-  /** The first select property that is not the column property. */
-  leadProperty() {
-    const gid = this.view().groupById;
-    return this.state.properties.find(p => p.type === 'select' && p.id !== gid && p.showOnCard !== false) || null;
-  }
+  liveTasks() { return this.state.tasks.filter(t => !t.archivedAgo); }
 
   /** A row of options fits as a segmented control only when it stays narrow. */
   fitsSegmented(property) {
@@ -794,7 +1341,602 @@ class Component extends DCLogic {
     }));
   }
 
-  buildColumns() {
+  face(member, size) {
+    if (!member) return { mark: '', color: 'transparent', ink: '#fff', size: 8 };
+    return member.kind === 'agent'
+      ? { mark: '◆', color: member.color, ink: '#05242b', size: Math.max(7.5, size * 0.5) }
+      : { mark: this.initials(member.name), color: member.color, ink: '#fff', size: Math.max(7.5, size * 0.44) };
+  }
+
+  /* ------------------------------------------------------------ filters */
+
+  isSetOp(op) { return op === 'is' || op === 'is_not'; }
+  isBareOp(op) { return op === 'empty' || op === 'not_empty'; }
+
+  /** A rule means something only once it has an answer. */
+  hasAnswer(rule) {
+    if (this.isBareOp(rule.op)) return true;
+    if (this.isSetOp(rule.op)) return (rule.values || []).length > 0;
+    return String(rule.text || '').trim() !== '';
+  }
+
+  /** Read afresh, never cleaned up: a rule nobody can see must never hide a card. */
+  readRules(rules) {
+    return (rules || []).filter(r => this.property(r.propertyId) && this.hasAnswer(r));
+  }
+
+  viewRules() { return this.readRules(this.view().rules); }
+  lensRules() { return this.readRules(this.state.lens[this.view().id]); }
+  /** The view's rules first, then mine. Everything that hides reads this one answer. */
+  mergedRules() { return this.viewRules().concat(this.lensRules()); }
+
+  keysOf(value, type) {
+    if (type === 'checkbox') return [value === true ? 'true' : 'false'];
+    if (Array.isArray(value)) return value.length ? value.map(String) : [this.NONE];
+    if (value === null || value === undefined || value === '') return [this.NONE];
+    return [String(value)];
+  }
+
+  isEmptyValue(value, type) {
+    if (type === 'checkbox') return false;
+    if (Array.isArray(value)) return value.length === 0;
+    return value === null || value === undefined || value === '';
+  }
+
+  matches(task, rule) {
+    const property = this.property(rule.propertyId);
+    if (!property) return true;
+    const value = task.values[rule.propertyId];
+    const text = String(rule.text || '').trim();
+    switch (rule.op) {
+      case 'empty': return this.isEmptyValue(value, property.type);
+      case 'not_empty': return !this.isEmptyValue(value, property.type);
+      case 'is':
+      case 'is_not': {
+        const wanted = rule.values || [];
+        if (!wanted.length) return true;
+        const hit = this.keysOf(value, property.type).some(k => wanted.indexOf(k) >= 0);
+        return rule.op === 'is' ? hit : !hit;
+      }
+      case 'on': return !!value && value === text;
+      case 'before': return !!value && value < text;
+      case 'after': return !!value && value > text;
+      case 'contains': return String(value || '').toLowerCase().indexOf(text.toLowerCase()) >= 0;
+      case 'not_contains': return String(value || '').toLowerCase().indexOf(text.toLowerCase()) < 0;
+      default: return true;
+    }
+  }
+
+  visibleTasks() {
+    const rules = this.mergedRules();
+    return this.liveTasks().filter(t => rules.every(r => this.matches(t, r)));
+  }
+
+  keyName(key, property) {
+    if (key === this.NONE) return property.type === 'person' ? 'Unassigned' : 'No ' + property.name.toLowerCase();
+    if (property.type === 'checkbox') return key === 'true' ? property.name : 'Not ' + property.name.toLowerCase();
+    if (property.type === 'person') return (this.member(key) || {}).name || '?';
+    return (property.options.find(o => o.id === key) || {}).name || '?';
+  }
+
+  keyColor(key, property) {
+    if (key === this.NONE) return '#3f4650';
+    if (property.type === 'checkbox') return key === 'true' ? '#4f8a5b' : '#6b7280';
+    if (property.type === 'person') return (this.member(key) || {}).color || '#3f4650';
+    return (property.options.find(o => o.id === key) || {}).color || '#3f4650';
+  }
+
+  describeRule(rule) {
+    const property = this.property(rule.propertyId);
+    if (!property) return '';
+    if (this.isBareOp(rule.op)) return property.name + ' ' + this.OP_LABEL[rule.op];
+    if (this.isSetOp(rule.op)) {
+      const keys = rule.values || [];
+      if (rule.op === 'is' && keys.length === 1 && (keys[0] === this.NONE || property.type === 'checkbox')) return this.keyName(keys[0], property);
+      const names = keys.map(k => this.keyName(k, property));
+      const said = names.length > 2 ? names.slice(0, 2).join(', ') + ' +' + (names.length - 2) : names.join(', ');
+      return property.name + ' ' + this.OP_LABEL[rule.op] + ' ' + said;
+    }
+    const text = property.type === 'date' ? this.formatDate(rule.text) : rule.text;
+    return (property.name + ' ' + this.OP_LABEL[rule.op] + ' ' + (text || '')).trim();
+  }
+
+  /** What a new task has to carry to survive the filters it is born into. */
+  seedValues(groupId) {
+    const seed = {};
+    this.mergedRules().forEach(rule => {
+      if (rule.op !== 'is' || rule.propertyId === groupId) return;
+      const keys = rule.values || [];
+      if (keys.length !== 1 || keys[0] === this.NONE) return;
+      const p = this.property(rule.propertyId);
+      if (p.type === 'multi_select') seed[p.id] = [keys[0]];
+      else if (p.type === 'checkbox') seed[p.id] = keys[0] === 'true';
+      else seed[p.id] = keys[0];
+    });
+    return seed;
+  }
+
+  seedNote(seed) {
+    const said = Object.keys(seed).map(id => {
+      const p = this.property(id);
+      const v = seed[id];
+      const key = Array.isArray(v) ? v[0] : v === true ? 'true' : String(v);
+      return p.name + ' ' + this.keyName(key, p);
+    });
+    return said.length ? 'sets ' + said.join(', ') : '';
+  }
+
+  setLens(rules) {
+    const id = this.view().id;
+    this.setState(s => ({ lens: Object.assign({}, s.lens, { [id]: rules }) }));
+  }
+
+  setViewRules(rules) {
+    const id = this.view().id;
+    this.setState(s => ({ views: s.views.map(v => v.id === id ? Object.assign({}, v, { rules }) : v) }));
+  }
+
+  /* Put on the view: one transaction, and everybody on the board sees it. */
+  promoteLens() {
+    const id = this.view().id;
+    const rules = this.viewRules().concat(this.lensRules());
+    this.setState(s => ({
+      views: s.views.map(v => v.id === id ? Object.assign({}, v, { rules }) : v),
+      lens: Object.assign({}, s.lens, { [id]: [] })
+    }));
+    this.notify('Everybody on this board now sees these filters.');
+  }
+
+  propertyRows() {
+    const wanted = this.state.propQuery.trim().toLowerCase();
+    return this.state.properties.filter(p => !wanted || p.name.toLowerCase().indexOf(wanted) >= 0);
+  }
+
+  closeFilter() { this.setState({ filterOpen: false, propQuery: '', propAt: 0, refused: null, ask: this.state.ask && this.state.ask.where === 'panel' ? null : this.state.ask }); }
+
+  /** Picking a property asks a question; it never answers it. */
+  pickProperty(propertyId) {
+    const property = this.property(propertyId);
+    if (!property) return;
+    /* One property carries one rule, whoever asked. */
+    if (this.viewRules().some(r => r.propertyId === propertyId)) {
+      this.setState({ refused: 'The view already filters ' + property.name + '. Remove it for everyone first.' });
+      return;
+    }
+    const lens = this.lensRules();
+    const found = lens.findIndex(r => r.propertyId === propertyId && this.isSetOp(r.op));
+    const op = this.OPS[property.type][0];
+    const rule = found >= 0 ? lens[found] : (this.isSetOp(op) ? { propertyId, op, values: [] } : { propertyId, op, text: '' });
+    this.setState({ ask: { where: 'panel', set: 'lens', index: found >= 0 ? found : null, rule, query: '', at: 0 }, propQuery: '', refused: null });
+  }
+
+  /** The one place a rule arrives, changes or goes. */
+  changeRule(next) {
+    const ask = this.state.ask;
+    if (!ask) return;
+    const rules = ask.set === 'view' ? this.viewRules() : this.lensRules();
+    const write = r => ask.set === 'view' ? this.setViewRules(r) : this.setLens(r);
+    let index = ask.index;
+    if (this.hasAnswer(next)) {
+      if (index === null) { index = rules.length; write(rules.concat([next])); }
+      else write(rules.map((r, i) => i === index ? next : r));
+    } else if (index !== null) {
+      write(rules.filter((_, i) => i !== index));
+      index = null;
+    }
+    this.setState({ ask: Object.assign({}, ask, { rule: next, index }) });
+  }
+
+  askVals() {
+    const ask = this.state.ask;
+    if (!ask) return { ops: [], rows: [], name: '', query: '', placeholder: '', inputType: 'text', isSet: false, hasOps: false };
+    const property = this.property(ask.rule.propertyId);
+    const rule = ask.rule;
+    const set = this.isSetOp(rule.op);
+    const bare = this.isBareOp(rule.op);
+    const keep = e => { if (e && e.preventDefault) e.preventDefault(); };
+    const chosen = rule.values || [];
+    const wanted = ask.query.trim().toLowerCase();
+    const keys = property.type === 'person' ? this.state.members.map(m => m.id).concat([this.NONE])
+      : property.type === 'checkbox' ? ['true', 'false']
+      : property.options.map(o => o.id).concat([this.NONE]);
+    const rows = set ? keys.map(k => ({ key: k, name: this.keyName(k, property), color: this.keyColor(k, property), on: chosen.indexOf(k) >= 0 }))
+      .filter(r => !wanted || r.name.toLowerCase().indexOf(wanted) >= 0) : [];
+    const toggle = key => {
+      this.changeRule(Object.assign({}, rule, { values: chosen.indexOf(key) >= 0 ? chosen.filter(k => k !== key) : chosen.concat([key]) }));
+      this.setState(s => ({ ask: s.ask ? Object.assign({}, s.ask, { query: '' }) : s.ask }));
+    };
+    const commitText = () => {
+      if (set || bare) return;
+      const text = ask.query.trim();
+      if (String(rule.text || '') !== text) this.changeRule(Object.assign({}, rule, { text }));
+    };
+    const ops = this.OPS[property.type];
+    return {
+      name: property.name,
+      placeholder: bare ? '' : this.ASK[property.type],
+      inputType: property.type === 'date' && !set && !bare ? 'date' : 'text',
+      query: ask.query,
+      isSet: set,
+      hasOps: ops.length > 1,
+      onDown: keep,
+      onBack: () => this.setState({ ask: null }),
+      onQuery: e => { const v = e.target.value; this.setState(s => ({ ask: Object.assign({}, s.ask, { query: v, at: 0 }) })); },
+      onBlur: commitText,
+      onKey: e => {
+        if (e.key === 'Escape') { commitText(); if (ask.where === 'panel') this.closeFilter(); else this.setState({ ask: null }); return; }
+        if (e.key === 'Backspace' && ask.query === '' && ask.where === 'panel') { e.preventDefault(); this.setState({ ask: null }); return; }
+        if (!set) { if (e.key === 'Enter') { e.preventDefault(); commitText(); if (ask.where === 'panel') this.closeFilter(); else this.setState({ ask: null }); } return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); this.setState(s => ({ ask: Object.assign({}, s.ask, { at: (s.ask.at + 1) % Math.max(rows.length, 1) }) })); }
+        if (e.key === 'ArrowUp') { e.preventDefault(); this.setState(s => ({ ask: Object.assign({}, s.ask, { at: (s.ask.at - 1 + rows.length) % Math.max(rows.length, 1) }) })); }
+        if (e.key === 'Enter' && rows[ask.at]) { e.preventDefault(); toggle(rows[ask.at].key); }
+      },
+      ops: ops.map(op => ({
+        label: this.OP_LABEL[op],
+        bg: rule.op === op ? '#1b2126' : 'transparent',
+        fg: rule.op === op ? '#e8e9ec' : '#8b919b',
+        onDown: keep,
+        /* Changing the operator keeps the answer it can carry and never invents one. */
+        onClick: () => {
+          if (this.isBareOp(op)) this.changeRule({ propertyId: property.id, op });
+          else if (this.isSetOp(op)) this.changeRule({ propertyId: property.id, op, values: set ? chosen : [] });
+          else this.changeRule({ propertyId: property.id, op, text: set ? '' : (rule.text || '') });
+        }
+      })),
+      rows: rows.map((r, i) => ({
+        name: r.name,
+        color: r.color,
+        dotOpacity: r.on ? 1 : 0.45,
+        tick: r.on ? 1 : 0,
+        bg: i === ask.at ? '#1b1e24' : 'transparent',
+        fg: r.on || i === ask.at ? '#e8e9ec' : '#a4aab3',
+        onDown: keep,
+        onPick: () => toggle(r.key)
+      }))
+    };
+  }
+
+  /* ---------------------------------------------------------- card view */
+
+  /**
+   * The card a project has before anybody arranges one. It is built against
+   * the main view's columns, because the card view belongs to the project and
+   * not to one view. The `card` prop stands in for what settings arranged.
+   */
+  cardView() {
+    const s = this.state;
+    const main = s.views.find(v => v.isDefault) || s.views[0];
+    const groupById = main.kind === 'board' ? main.groupById : null;
+    const rows = {
+      _key: { place: 'headerL', mode: 'text' },
+      _title: { place: 'title', mode: 'fixed' },
+      _desc: { place: 'off', mode: 'two' },
+      _checklist: { place: 'footerL', mode: 'bar' },
+      _comments: { place: 'footerL', mode: 'text' }
+    };
+    const lead = s.properties.find(p => p.type === 'select' && p.id !== groupById && p.showOnCard !== false);
+    const rest = [];
+    s.properties.forEach(p => {
+      const kind = this.KIND_OF_TYPE[p.type];
+      if (lead && p.id === lead.id) { rows[p.id] = { place: 'headerL', mode: 'colour' }; return; }
+      rest.push(p.id);
+      if (p.id === groupById || p.showOnCard === false) rows[p.id] = { place: 'off', mode: kind === 'person' ? 'avatar' : kind === 'select' ? 'both' : 'text' };
+      else if (p.type === 'multi_select') rows[p.id] = { place: 'headerR', mode: 'colour' };
+      else if (kind === 'person') rows[p.id] = { place: 'headerR', mode: 'avatar' };
+      else rows[p.id] = { place: 'footerL', mode: kind === 'select' ? 'both' : 'text' };
+    });
+    const order = (lead ? [lead.id] : []).concat(['_key', '_title', '_desc'], rest, ['_checklist', '_comments']);
+
+    const study = (this.props && this.props.card) || 'default';
+    /* The stripe is one property wide, and a stripe reads as one colour. */
+    if (study === 'edge' && rows.priority) rows.priority = { place: 'edge', mode: 'colour' };
+    if (study === 'filled' && rows.phase) rows.phase = { place: 'footerL', mode: 'fill' };
+    if (study === 'filled') rows._desc = { place: 'body', mode: 'one' };
+    return { order, rows };
+  }
+
+  cardItems() {
+    const view = this.cardView();
+    return view.order.map(id => {
+      const row = view.rows[id];
+      const property = this.property(id);
+      if (property) return { id, name: property.name, kind: this.KIND_OF_TYPE[property.type], place: row.place, mode: row.mode, property };
+      const b = this.BUILTINS[id];
+      return { id, name: b.name, kind: b.kind, place: row.place, mode: row.mode, property: null };
+    });
+  }
+
+  chip(item, value, extra) {
+    return Object.assign({ tip: item.name + ' · ' + value, swatch: null, fill: null, person: null, text: null, boxed: false, mono: true, bar: null, bubble: false }, extra);
+  }
+
+  chipColour(c) { return c ? ((c.swatch && c.swatch.color) || c.fill || (c.person && c.person.color) || null) : null; }
+
+  /** What a task holds for one row, as the parts the card draws. Empty is empty. */
+  chipsFor(item, task) {
+    const boxed = item.mode === 'boxed';
+    if (item.kind === 'id') return [this.chip(item, task.key, { text: task.key, boxed })];
+    if (item.kind === 'desc') {
+      const text = String(task.desc || '').trim();
+      return text ? [this.chip(item, text, { text, mono: false })] : [];
+    }
+    if (item.kind === 'checklist') {
+      if (!task.total) return [];
+      const count = task.done + '/' + task.total;
+      return [this.chip(item, count, { text: count, bar: item.mode === 'bar' ? { done: task.done, total: task.total } : null })];
+    }
+    if (item.kind === 'comments') {
+      if (!task.comments) return [];
+      return [this.chip(item, String(task.comments), { text: String(task.comments), bubble: true })];
+    }
+    const p = item.property;
+    if (!p) return [];
+    const value = task.values[p.id];
+    if (value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length)) return [];
+    if (item.kind === 'select') {
+      const ids = Array.isArray(value) ? value : [value];
+      return ids.map(id => p.options.find(o => o.id === id)).filter(Boolean).map(o => {
+        const filled = item.mode === 'fill';
+        return this.chip(item, o.name, {
+          swatch: item.mode === 'text' || filled ? null : { color: o.color, round: item.mode === 'both' },
+          fill: filled ? o.color : null,
+          text: item.mode === 'colour' ? null : o.name,
+          /* The fill is the box. A second outline around it says nothing. */
+          boxed: item.mode !== 'colour' && !filled
+        });
+      });
+    }
+    if (item.kind === 'person') {
+      const m = this.member(value);
+      if (!m) return [];
+      return [this.chip(item, m.name, { person: item.mode === 'text' ? null : m, text: item.mode === 'avatar' ? null : m.name, boxed: item.mode === 'both' })];
+    }
+    if (item.kind === 'date') {
+      const text = this.formatDate(value);
+      return [this.chip(item, text, { text, boxed })];
+    }
+    if (item.kind === 'flag') return value === true ? [this.chip(item, item.name, { text: item.name, boxed })] : [];
+    const text = String(value).slice(0, 40);
+    return [this.chip(item, text, { text, boxed })];
+  }
+
+  buildCard(items, task) {
+    const slots = { edge: null, headerL: [], headerR: [], body: null, bodyChips: [], footerL: [], footerR: [] };
+    items.forEach(item => {
+      if (item.place === 'off' || item.place === 'title') return;
+      if (item.place === 'edge') { slots.edge = this.chipColour(this.chipsFor(item, task)[0]); return; }
+      if (item.kind === 'desc' && item.place === 'body') {
+        const text = String(task.desc || '').trim();
+        if (text) slots.body = { text: this.plainText(text), lines: item.mode === 'one' ? 1 : 2 };
+        return;
+      }
+      const chips = this.chipsFor(item, task);
+      if (!chips.length) return;
+      const at = { headerL: 'headerL', headerR: 'headerR', footerL: 'footerL', footerR: 'footerR' }[item.place] || 'bodyChips';
+      slots[at] = slots[at].concat(chips);
+    });
+    return slots;
+  }
+
+  /** A list row: the same chips, kept under the column they came from. */
+  buildRow(items, task) {
+    const slots = { edge: null, desc: null, cells: {} };
+    items.forEach(item => {
+      if (item.place === 'off' || item.place === 'title') return;
+      if (item.place === 'edge') { slots.edge = this.chipColour(this.chipsFor(item, task)[0]); return; }
+      if (item.kind === 'desc') { slots.desc = this.plainText(String(task.desc || '').trim()) || null; return; }
+      /* A column's heading names the property, never the value, so a colour
+         with no word beside it gets its name back. */
+      const named = item.mode === 'colour' ? Object.assign({}, item, { mode: 'both' }) : item;
+      slots.cells[item.id] = this.chipsFor(named, task);
+    });
+    return slots;
+  }
+
+  /** The colour the panel takes: the stripe the card draws, or the first colour it leads with. */
+  cardAccent(items, task) {
+    const edge = items.find(i => i.place === 'edge');
+    if (edge) return this.chipColour(this.chipsFor(edge, task)[0]);
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].place === 'off' || items[i].place === 'title') continue;
+      const c = this.chipColour(this.chipsFor(items[i], task)[0]);
+      if (c) return c;
+    }
+    return null;
+  }
+
+  chipVals(c) {
+    const fill = c.fill;
+    const boxed = c.boxed;
+    const f = c.person ? this.face(c.person, 17) : null;
+    const round = c.swatch && c.swatch.round;
+    return {
+      isChip: true, isGap: false,
+      tip: c.tip,
+      pad: fill ? '2px 6px' : boxed ? '2px 6px 2px 5px' : '0',
+      border: boxed ? '1px solid #23262c' : '0',
+      fill: fill || 'transparent',
+      ink: fill ? this.ink(fill) : 'inherit',
+      hasSwatch: !!c.swatch,
+      sw: round ? 5 : 8,
+      swRadius: round ? '50%' : '2px',
+      swColor: c.swatch ? c.swatch.color : 'transparent',
+      hasPerson: !!c.person,
+      faceColor: f ? f.color : 'transparent', faceInk: f ? f.ink : '#fff', faceSize: f ? f.size : 8, faceMark: f ? f.mark : '',
+      bubble: c.bubble,
+      hasBar: !!c.bar,
+      barPercent: c.bar ? Math.round((c.bar.done / c.bar.total) * 100) : 0,
+      hasText: c.text !== null,
+      text: c.text || '',
+      font: !c.mono ? "400 11.5px 'IBM Plex Sans', sans-serif" : fill ? "600 10px 'IBM Plex Mono', monospace" : boxed ? "500 10px 'IBM Plex Mono', monospace" : "400 10px 'IBM Plex Mono', monospace",
+      ls: !c.mono ? 'normal' : (fill || boxed) ? '.04em' : '.03em',
+      fg: !c.mono ? '#8b919b' : fill ? 'inherit' : boxed ? '#a4aab3' : '#565c66'
+    };
+  }
+
+  /** A header and a footer are the same shape: a left end and a right end. */
+  strip(left, right) {
+    const out = left.map(c => this.chipVals(c));
+    if (right.length) return out.concat([{ isGap: true, isChip: false }], right.map(c => this.chipVals(c)));
+    return out;
+  }
+
+  /* --------------------------------------------------------------- list */
+
+  /** The columns of a list, settled the way the card view settles a card. */
+  listColumns(items) {
+    const cols = [];
+    items.forEach(item => {
+      if (item.place === 'off' || item.place === 'edge' || item.id === '_desc') return;
+      let width = this.WIDTH_OF_BUILTIN[item.id];
+      if (item.property) width = item.mode === 'avatar' ? 66 : this.WIDTH_OF_TYPE[item.property.type];
+      cols.push({ id: item.id, name: item.name, item, width: item.id === '_title' ? 0 : width, right: !!item.property && item.property.type === 'number', pin: null });
+    });
+    if (!cols.some(c => c.id === '_title')) {
+      const t = items.find(i => i.id === '_title');
+      cols.unshift({ id: '_title', name: t.name, item: t, width: 0, right: false, pin: null });
+    }
+    const lead = id => { const at = cols.findIndex(c => c.id === id); if (at > 0) cols.unshift(cols.splice(at, 1)[0]); };
+    lead('_title');
+    lead('_key');
+    /* The key and the title stay put while a wide list scrolls sideways. */
+    let left = 0;
+    for (let i = 0; i < cols.length; i++) {
+      if (cols[i].id !== '_key' && cols[i].id !== '_title') break;
+      cols[i].pin = left;
+      left += cols[i].width + 8;
+    }
+    return cols;
+  }
+
+  listTemplate(cols) {
+    return cols.map(c => c.width === 0 ? 'minmax(200px, 520px)' : c.width + 'px').concat(['1fr']).join(' ');
+  }
+
+  collator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
+
+  sortKey(item, task) {
+    if (item.kind === 'id') return Number(String(task.key).split('-')[1]) || 0;
+    if (item.kind === 'title') return task.title.trim() || null;
+    if (item.kind === 'checklist') return task.total ? task.done / task.total : null;
+    if (item.kind === 'comments') return task.comments || null;
+    const p = item.property;
+    if (!p) return null;
+    const v = task.values[p.id];
+    if (v === null || v === undefined || v === '' || (Array.isArray(v) && !v.length)) return null;
+    /* A select is worth where it sits in its own hand-ordered list. */
+    if (item.kind === 'select') {
+      const at = (Array.isArray(v) ? v : [v]).map(id => p.options.findIndex(o => o.id === id)).filter(i => i >= 0);
+      return at.length ? Math.min.apply(null, at) : null;
+    }
+    if (item.kind === 'person') { const m = this.member(v); return m ? m.name : null; }
+    if (item.kind === 'flag') return v === true ? true : null;
+    return p.type === 'number' ? Number(v) : String(v);
+  }
+
+  /** Empty sorts last both ways, and equal keys keep the board's own order. */
+  sortTasks(tasks, sort, items) {
+    if (!sort) return tasks;
+    const item = items.find(i => i.id === sort.columnId);
+    if (!item) return tasks;
+    const way = sort.direction === 'asc' ? 1 : -1;
+    const pos = {};
+    this.state.tasks.forEach((t, i) => { pos[t.id] = i; });
+    return tasks.slice().sort((a, b) => {
+      const x = this.sortKey(item, a);
+      const y = this.sortKey(item, b);
+      if (x === null && y !== null) return 1;
+      if (y === null && x !== null) return -1;
+      if (x !== null && y !== null && x !== y) {
+        const c = typeof x === 'string' ? this.collator.compare(x, y) : (x < y ? -1 : 1);
+        if (c) return c * way;
+      }
+      return pos[a.id] - pos[b.id];
+    });
+  }
+
+  /* ------------------------------------------------------------- search */
+
+  searchHits(query) {
+    const whole = query.trim().toLowerCase();
+    if (!whole) return [];
+    const words = whole.split(/\s+/);
+    const found = [];
+    this.state.tasks.forEach((task, index) => {
+      const hay = (task.key + '\n' + task.title + '\n' + task.desc).toLowerCase();
+      if (!words.every(w => hay.indexOf(w) >= 0)) return;
+      const key = task.key.toLowerCase();
+      const title = task.title.toLowerCase();
+      const number = key.split('-')[1];
+      let rank = 4;
+      if (key === whole || number === whole) rank = 0;
+      else if (key.indexOf(whole) === 0) rank = 1;
+      else if (title.indexOf(whole) === 0) rank = 2;
+      else if (words.every(w => title.indexOf(w) >= 0)) rank = 3;
+      let snippet = null;
+      if (rank === 4) {
+        const line = String(task.desc).split('\n').find(l => words.some(w => l.toLowerCase().indexOf(w) >= 0)) || '';
+        const said = this.plainText(line.trim());
+        snippet = said.length > 90 ? said.slice(0, 89).trimEnd() + '…' : said;
+      }
+      found.push({ rank, index, task, snippet });
+    });
+    return found.sort((a, b) => a.rank - b.rank || a.index - b.index).slice(0, 12);
+  }
+
+  /* ----------------------------------------------------------- markdown */
+
+  plainText(text) { return String(text).replace(/```/g, '').replace(/[`*]/g, '').replace(/^\s*[-*]\s+/mg, '').replace(/\s+/g, ' ').trim(); }
+
+  /** Inline marks: `code`, **strong** and *em*. Enough for what people write here. */
+  segs(text) {
+    const out = [];
+    const re = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g;
+    let last = 0;
+    let m;
+    const plain = t => ({ text: t, ff: 'inherit', fs: 'inherit', fw: 'inherit', fi: 'normal', fg: 'inherit', bg: 'transparent', pad: '0', border: '0' });
+    while ((m = re.exec(text))) {
+      if (m.index > last) out.push(plain(text.slice(last, m.index)));
+      const t = m[0];
+      if (t[0] === '`') out.push({ text: t.slice(1, -1), ff: "'IBM Plex Mono', monospace", fs: '11.5px', fw: '400', fi: 'normal', fg: '#9fd7e3', bg: '#14171b', pad: '1px 5px', border: '1px solid #23272e' });
+      else if (t[1] === '*') out.push(Object.assign(plain(t.slice(2, -2)), { fw: '600', fg: '#e8e9ec' }));
+      else out.push(Object.assign(plain(t.slice(1, -1)), { fi: 'italic', fg: '#cdd2d9' }));
+      last = m.index + t.length;
+    }
+    if (last < text.length) out.push(plain(text.slice(last)));
+    return out;
+  }
+
+  markdown(text) {
+    const blocks = [];
+    const lines = String(text || '').split('\n');
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (/^```/.test(line)) {
+        const body = [];
+        i++;
+        while (i < lines.length && !/^```/.test(lines[i])) { body.push(lines[i]); i++; }
+        i++;
+        blocks.push({ isPre: true, isP: false, isList: false, text: body.join('\n'), segs: [], items: [] });
+      } else if (/^\s*[-*]\s+/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) { items.push({ segs: this.segs(lines[i].replace(/^\s*[-*]\s+/, '')) }); i++; }
+        blocks.push({ isList: true, isP: false, isPre: false, items, segs: [], text: '' });
+      } else if (line.trim() === '') {
+        i++;
+      } else {
+        const para = [];
+        while (i < lines.length && lines[i].trim() !== '' && !/^```/.test(lines[i]) && !/^\s*[-*]\s+/.test(lines[i])) { para.push(lines[i]); i++; }
+        blocks.push({ isP: true, isList: false, isPre: false, segs: this.segs(para.join('\n')), items: [], text: '' });
+      }
+    }
+    return blocks.map((b, n) => Object.assign(b, { gap: n === blocks.length - 1 ? 0 : 8 }));
+  }
+
+  /* ------------------------------------------------------------ columns */
+
+  buildColumns(tasks) {
     const property = this.groupProperty();
     const columns = [];
     if (!property) return columns;
@@ -807,56 +1949,18 @@ class Component extends DCLogic {
     }
     const byId = {};
     columns.forEach(c => { byId[c.id] = c; });
-    this.state.tasks.forEach(t => {
+    tasks.forEach(t => {
       let v = t.values[property.id];
       if (Array.isArray(v)) v = v.length ? v[0] : '';
       const key = (v === '' || v === null || v === undefined) ? '__none__' : String(v);
       (byId[key] || byId['__none__']).tasks.push(t);
     });
+    /* A rule about the grouping property takes its columns with it: an empty
+       column you may still drop a card into is a trap. */
+    const rules = this.mergedRules().filter(r => r.propertyId === property.id);
+    const allowed = columns.filter(c => rules.every(r => this.matches({ values: { [property.id]: c.value } }, r)));
     // A column for "no value" only earns its place when something sits in it.
-    return columns.filter(c => !c.isNone || c.tasks.length > 0);
-  }
-
-  cardFields(task) {
-    const gid = this.view().groupById;
-    const lead = this.leadProperty();
-    const out = { lead: null, dots: [], people: [], badges: [], metas: [] };
-    this.state.properties.forEach(property => {
-      if (property.id === gid) return;
-      if (property.showOnCard === false) return;
-      const value = task.values[property.id];
-      if (value === null || value === undefined || value === '') return;
-      if (property.type === 'select') {
-        const option = property.options.find(o => o.id === value);
-        if (!option) return;
-        if (lead && property.id === lead.id) out.lead = { color: option.color, label: property.name + ': ' + option.name };
-        else out.badges.push({ color: option.color, text: option.name });
-      } else if (property.type === 'multi_select') {
-        (value || []).forEach(id => {
-          const option = property.options.find(o => o.id === id);
-          if (option) out.dots.push({ color: option.color, name: option.name });
-        });
-      } else if (property.type === 'person') {
-        const m = this.member(value);
-        if (m) out.people.push(m);
-      } else if (property.type === 'date') {
-        out.metas.push(String(value));
-      } else if (property.type === 'number') {
-        out.metas.push(property.name + ' ' + value);
-      } else if (property.type === 'checkbox') {
-        if (value === true) out.metas.push(property.name);
-      } else {
-        out.metas.push(String(value).slice(0, 24));
-      }
-    });
-    return out;
-  }
-
-  face(member, size) {
-    if (!member) return { mark: '', color: 'transparent', ink: '#fff', size: 8 };
-    return member.kind === 'agent'
-      ? { mark: '◆', color: member.color, ink: '#05242b', size: Math.max(7.5, size * 0.5) }
-      : { mark: this.initials(member.name), color: member.color, ink: '#fff', size: Math.max(7.5, size * 0.44) };
+    return allowed.filter(c => !c.isNone || c.tasks.length > 0);
   }
 
   addTask(column, atTop) {
@@ -864,15 +1968,40 @@ class Component extends DCLogic {
     this.setState({ composing: null, draft: '' });
     if (!title) return;
     const property = this.groupProperty();
+    const seed = this.seedValues(property ? property.id : null);
     this.setState(s => {
       const id = 'nt' + s.seq;
       const numbers = s.tasks.map(t => Number(String(t.key).split('-')[1]) || 0);
       const key = s.project.key + '-' + (Math.max.apply(null, numbers) + 1);
-      const values = { status: '', priority: '', assignee: '', phase: '', estimate: '', labels: [], due: '' };
-      if (property) values[property.id] = column.value;
+      const values = Object.assign({ status: '', priority: '', assignee: '', phase: '', estimate: '', labels: [], due: '' }, seed);
+      if (property && column) values[property.id] = column.value;
       const task = { id, key, title, done: 0, total: 0, comments: 0, desc: '', values };
       return { seq: s.seq + 1, tasks: atTop ? [task].concat(s.tasks) : s.tasks.concat([task]), selected: id, tab: 'comments' };
     });
+  }
+
+  newTaskHere() {
+    if (this.view().kind === 'list') { this.setState({ composing: 'list', draft: '' }); return; }
+    const columns = this.buildColumns(this.visibleTasks());
+    const folded = this.state.folded[this.view().id] || [];
+    const column = columns.find(c => c.tasks.some(t => t.id === this.state.selected) && folded.indexOf(c.id) < 0)
+      || columns.find(c => folded.indexOf(c.id) < 0);
+    if (column) this.setState({ composing: column.id + ':top', draft: '' });
+  }
+
+  fold(columnId, on) {
+    const id = this.view().id;
+    this.setState(s => {
+      const now = s.folded[id] || [];
+      const next = on ? (now.indexOf(columnId) >= 0 ? now : now.concat([columnId])) : now.filter(c => c !== columnId);
+      return { folded: Object.assign({}, s.folded, { [id]: next }) };
+    });
+  }
+
+  archiveColumn(column) {
+    const ids = column.tasks.map(t => t.id);
+    this.setState(s => ({ colAsking: null, tasks: s.tasks.map(t => ids.indexOf(t.id) >= 0 ? Object.assign({}, t, { archivedAgo: 'just now' }) : t) }));
+    this.notify('Archived ' + ids.length + (ids.length === 1 ? ' task.' : ' tasks.'));
   }
 
   /* ------------------------------------------------------------------ */
@@ -880,18 +2009,29 @@ class Component extends DCLogic {
   renderVals() {
     const s = this.state;
     const view = this.view();
+    const isList = view.kind === 'list';
     const groupProperty = this.groupProperty();
-    const columns = this.buildColumns();
+    const live = this.liveTasks();
+    const visible = this.visibleTasks();
+    const viewRules = this.viewRules();
+    const lensRules = this.lensRules();
+    const merged = viewRules.concat(lensRules);
+    const items = this.cardItems();
+    const columns = isList ? [] : this.buildColumns(visible);
+    const folded = s.folded[view.id] || [];
     const task = s.tasks.find(t => t.id === s.selected) || null;
     const openTaskProp = this.props ? this.props.openTask !== false : true;
     const run = (s.run && task && s.run.taskId === task.id) ? s.run : null;
-    const lead = this.leadProperty();
-    const leadOption = task && lead ? lead.options.find(o => o.id === task.values[lead.id]) : null;
-    const accent = leadOption ? leadOption.color : '#3f4650';
+    const accent = task ? (this.cardAccent(items, task) || '#3f4650') : '#3f4650';
     const checklist = task ? (s.checklists[task.id] || []) : [];
     const doneCount = checklist.filter(c => c.done).length;
     const comments = task ? (s.commentsById[task.id] || []) : [];
     const groupables = s.properties.filter(p => this.GROUPABLE.indexOf(p.type) >= 0);
+    const seed = this.seedValues(isList ? null : (groupProperty ? groupProperty.id : null));
+    const sort = isList ? (s.sorts[view.id] || null) : null;
+    const hits = this.searchHits(s.searchQuery);
+    const shownIds = {};
+    visible.forEach(t => { shownIds[t.id] = true; });
 
     const vals = {
       mark: s.project.key.slice(0, 1),
@@ -906,16 +2046,83 @@ class Component extends DCLogic {
       userBorder: s.userOpen ? '#2a323a' : '#1f2229',
       userToggle: () => this.setState({ userOpen: !s.userOpen }),
 
-      views: s.views.map((v, i) => ({
-        name: v.name,
-        dot: v.id === s.viewId ? this.VIEW_DOTS[i % this.VIEW_DOTS.length] : '#3f4650',
-        bg: v.id === s.viewId ? '#171b20' : 'transparent',
-        fg: v.id === s.viewId ? '#e8e9ec' : '#8b919b',
-        onClick: () => this.setState({ viewId: v.id, viewAdding: false })
+      /* ---- search ---- */
+      searchQuery: s.searchQuery,
+      searchRef: el => { this.searchEl = el; },
+      searchAnchorRef: el => { this.searchAnchor = el; },
+      searchBorder: s.searchFocus ? '#38505a' : 'transparent',
+      searchSlash: s.searchQuery === '',
+      searchOpen: s.searchFocus && s.searchQuery.trim() !== '',
+      searchNone: hits.length === 0,
+      searchFocus: () => this.setState({ searchFocus: true }),
+      searchChange: e => this.setState({ searchQuery: e.target.value, searchAt: 0, searchFocus: true }),
+      searchKey: e => {
+        if (e.key === 'Escape') { this.setState({ searchFocus: false }); e.target.blur(); return; }
+        if (!hits.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); this.setState({ searchAt: (s.searchAt + 1) % hits.length }); }
+        if (e.key === 'ArrowUp') { e.preventDefault(); this.setState({ searchAt: (s.searchAt - 1 + hits.length) % hits.length }); }
+        if (e.key === 'Enter') { e.preventDefault(); this.openHit(hits[Math.min(s.searchAt, hits.length - 1)].task); e.target.blur(); }
+      },
+      searchHits: hits.map((h, i) => {
+        const note = h.task.archivedAgo ? 'archived' : (shownIds[h.task.id] ? '' : 'not in this view');
+        const at = i === Math.min(s.searchAt, hits.length - 1);
+        return {
+          key: h.task.key,
+          title: h.task.title,
+          fg: at ? '#e8e9ec' : '#a4aab3',
+          bg: at ? '#1b1e24' : 'transparent',
+          hasNote: !!note,
+          note,
+          noteTip: h.task.archivedAgo ? 'It is archived. Open it to put it back.' : 'A filter on this view hides it',
+          hasSnippet: !!h.snippet,
+          snippet: h.snippet || '',
+          /* The box keeps the focus while a row is pressed. */
+          onDown: e => { if (e && e.preventDefault) e.preventDefault(); },
+          onOpen: () => { this.openHit(h.task); if (this.searchEl) this.searchEl.blur(); }
+        };
+      }),
+      listening: s.members.filter(m => m.kind === 'agent' && m.listening).map(m => ({
+        color: m.color, tip: m.name + ' is listening. It hears a new task at once.'
       })),
-      taskCountLabel: s.tasks.length + (s.tasks.length === 1 ? ' task' : ' tasks'),
+
+      /* ---- views ---- */
+      views: s.views.map((v, i) => {
+        const on = v.id === s.viewId;
+        /* The colour follows the view and not its place in the strip. */
+        let sum = 0;
+        for (let k = 0; k < v.id.length; k++) sum = (sum + v.id.charCodeAt(k)) % 4093;
+        const color = on ? this.VIEW_DOTS[sum % this.VIEW_DOTS.length] : '#3f4650';
+        return {
+          name: v.name,
+          isBoard: v.kind !== 'list',
+          isList: v.kind === 'list',
+          dot: color,
+          markOpacity: on ? 1 : 0.45,
+          bg: on || s.dragView === v.id ? '#171b20' : 'transparent',
+          fg: on ? '#e8e9ec' : '#8b919b',
+          opacity: s.dragView === v.id ? 0.9 : 1,
+          ring: s.dragView === v.id ? '0 6px 18px #00000055' : 'none',
+          onClick: () => this.setState({ viewId: v.id, viewAdding: false, composing: null, ask: null, filterOpen: false }),
+          onDragStart: e => { this.drag = { type: 'view', id: v.id }; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; this.setState({ dragView: v.id }); },
+          onDragOver: e => { if (this.drag && this.drag.type === 'view') e.preventDefault(); },
+          onDrop: e => {
+            if (!this.drag || this.drag.type !== 'view') return;
+            e.preventDefault();
+            this.moveView(this.drag.id, v.id);
+            this.drag = null;
+            this.setState({ dragView: null });
+          },
+          onDragEnd: () => { this.drag = null; this.setState({ dragView: null }); }
+        };
+      }),
+      taskCountLabel: (visible.length === live.length ? visible.length : visible.length + ' of ' + live.length) + (live.length === 1 ? ' task' : ' tasks'),
       viewAdding: s.viewAdding,
-      viewAddToggle: () => this.setState({ viewAdding: !s.viewAdding, viewDraft: '' }),
+      viewPopLeft: s.viewPopLeft,
+      viewAddToggle: e => {
+        const r = e && e.currentTarget ? e.currentTarget.getBoundingClientRect() : null;
+        const left = r ? Math.max(10, r.left + r.width / 2 - 131) : 14;
+        this.setState({ viewAdding: !s.viewAdding, viewDraft: '', viewKind: 'board', viewGroup: (groupables[0] || {}).id, viewPopLeft: left });
+      },
       viewCancel: () => this.setState({ viewAdding: false, viewDraft: '' }),
       viewDraft: s.viewDraft,
       viewDraftRef: el => { if (el && document.activeElement !== el) el.focus(); },
@@ -924,6 +2131,17 @@ class Component extends DCLogic {
         if (e.key === 'Enter') this.createView();
         if (e.key === 'Escape') this.setState({ viewAdding: false, viewDraft: '' });
       },
+      viewKinds: [{ id: 'board', name: 'Board' }, { id: 'list', name: 'List' }].map(k => ({
+        name: k.name,
+        isBoard: k.id === 'board',
+        isList: k.id === 'list',
+        markOpacity: s.viewKind === k.id ? 1 : 0.45,
+        bg: s.viewKind === k.id ? '#1b2126' : 'transparent',
+        fg: s.viewKind === k.id ? '#e8e9ec' : '#8b919b',
+        onClick: () => this.setState({ viewKind: k.id })
+      })),
+      newIsBoard: s.viewKind === 'board',
+      newIsList: s.viewKind === 'list',
       groupables: groupables.map(p => ({
         name: p.name,
         color: (p.options[0] || {}).color || '#4b8fbe',
@@ -934,25 +2152,102 @@ class Component extends DCLogic {
       })),
       createView: () => this.createView(),
 
-      columns: columns.map(col => ({
+      /* ---- filter ---- */
+      filterAnchorRef: el => { this.filterAnchor = el; },
+      filterOpen: s.filterOpen,
+      filterLabel: 'Filter' + (merged.length ? ' ' + merged.length : ''),
+      filterTitle: merged.length ? 'Change what this view shows' : 'Show only some of the tasks',
+      filterBg: merged.length || s.filterOpen ? '#171b20' : 'transparent',
+      filterFg: merged.length || s.filterOpen ? '#e8e9ec' : '#8b919b',
+      filterToggle: () => { if (s.filterOpen) this.closeFilter(); else this.setState({ filterOpen: true, ask: null, propQuery: '', propAt: 0, refused: null }); },
+      filterPicking: !(s.ask && s.ask.where === 'panel'),
+      filterAsking: !!(s.ask && s.ask.where === 'panel'),
+      focusRef: el => { if (el && document.activeElement !== el) el.focus(); },
+      propQuery: s.propQuery,
+      propQueryChange: e => this.setState({ propQuery: e.target.value, propAt: 0, refused: null }),
+      propQueryKey: e => {
+        const rows = this.propertyRows();
+        if (e.key === 'Escape') { this.closeFilter(); return; }
+        if (!rows.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); this.setState({ propAt: (s.propAt + 1) % rows.length }); }
+        if (e.key === 'ArrowUp') { e.preventDefault(); this.setState({ propAt: (s.propAt - 1 + rows.length) % rows.length }); }
+        if (e.key === 'Enter' && rows[s.propAt]) { e.preventDefault(); this.pickProperty(rows[s.propAt].id); }
+      },
+      /* The list stays where it is, so the next property is one press away.
+         A property something already asks about says what, on its own row. */
+      propRowsFilter: this.propertyRows().map((p, i) => {
+        const said = merged.filter(r => r.propertyId === p.id).map(r => this.describeRule(r)).join(', ');
+        return {
+          name: p.name,
+          color: (p.options[0] || {}).color || '#4b8fbe',
+          note: said,
+          bg: i === s.propAt ? '#1b1e24' : 'transparent',
+          fg: i === s.propAt ? '#e8e9ec' : '#a4aab3',
+          onDown: e => { if (e && e.preventDefault) e.preventDefault(); },
+          onPick: () => this.pickProperty(p.id)
+        };
+      }),
+      hasRefused: !!s.refused,
+      refused: s.refused || '',
+      ask: this.askVals(),
+
+      /* ---- the filter row ---- */
+      hasFilterRow: merged.length > 0 || !!sort || s.filterOpen,
+      hasSortChip: !!sort,
+      sortChipLabel: sort ? (sort.direction === 'asc' ? '↑ ' : '↓ ') + ((items.find(i => i.id === sort.columnId) || {}).name || '') : '',
+      clearSort: () => this.setSort(null),
+      hasLens: lensRules.length > 0,
+      clearLens: () => this.setLens([]),
+      clearLensLabel: lensRules.length === 1 ? 'Clear your filter' : 'Clear your filters',
+      promoteLens: () => this.promoteLens(),
+      ruleChips: [].concat(
+        viewRules.map((r, i) => this.ruleChip(r, 'view', i)),
+        viewRules.length && lensRules.length ? [{ isDivider: true, isChip: false }] : [],
+        lensRules.map((r, i) => this.ruleChip(r, 'lens', i))
+      ),
+      nothingPasses: live.length > 0 && visible.length === 0,
+      blankText: 'No task passes ' + (merged.length === 1 ? 'the filter.' : 'all the filters.'),
+
+      /* ---- canvas ---- */
+      isBoard: !isList,
+      isList,
+      composeNote: this.seedNote(seed) || 'Esc to cancel',
+
+      columns: columns.map(col => {
+        const isFolded = folded.indexOf(col.id) >= 0;
+        const draggable = !col.isNone && !isFolded && !!groupProperty && groupProperty.type === 'select' && !merged.some(r => r.propertyId === groupProperty.id);
+        const asking = s.colAsking === col.id;
+        const n = col.tasks.length;
+        return {
         name: col.name,
         color: col.color,
         halo: this.tint(col.color, 0.09),
-        count: col.tasks.length,
-        bg: col.isNone ? 'transparent' : '#0d0e11',
+        count: n,
+        folded: isFolded,
+        open: !isFolded,
+        onFold: e => { if (e && e.stopPropagation) e.stopPropagation(); this.fold(col.id, true); },
+        onUnfold: () => this.fold(col.id, false),
+        bg: col.isNone ? 'transparent' : (s.overCol === col.id ? '#0f1216' : '#0d0e11'),
         border: s.overCol === col.id ? 'rgba(63,176,200,.42)' : (col.isNone ? '#23272e' : '#17191e'),
         borderStyle: col.isNone ? 'dashed' : 'solid',
         opacity: s.dragCol === col.id ? 0.35 : 1,
-        draggable: !col.isNone && groupProperty && groupProperty.type === 'select',
-        grab: (!col.isNone && groupProperty && groupProperty.type === 'select') ? 'grab' : 'default',
-        gripOpacity: col.isNone ? 0 : 0.65,
+        draggable,
+        grab: draggable ? 'grab' : 'default',
+        gripOpacity: draggable ? 0.65 : 0,
+        asking,
+        idle: !asking,
+        askText: 'Archive ' + n + (n === 1 ? ' task' : ' tasks') + ' in ' + col.name + '? ' + (n === 1 ? 'It leaves the board and keeps its history.' : 'They leave the board and keep their history.'),
+        canArchive: merged.length === 0 && n > 0,
+        onArchiveAsk: () => this.setState({ colAsking: col.id }),
+        onArchiveYes: () => this.archiveColumn(col),
+        onArchiveNo: () => this.setState({ colAsking: null }),
         composingTop: s.composing === col.id + ':top',
         composingBottom: s.composing === col.id + ':bottom',
-        idle: s.composing !== col.id + ':top' && s.composing !== col.id + ':bottom',
-        emptyWord: col.tasks.length === 0 ? 'Add a task' : '',
+        idleBody: s.composing !== col.id + ':top' && s.composing !== col.id + ':bottom',
+        emptyWord: n === 0 ? 'Add a task' : '',
         onAddTop: e => { if (e && e.stopPropagation) e.stopPropagation(); this.setState({ composing: col.id + ':top', draft: '' }); },
         onAddBottom: () => this.setState({ composing: col.id + ':bottom', draft: '' }),
-        onDragOver: e => { if (this.drag) { e.preventDefault(); if (s.overCol !== col.id) this.setState({ overCol: col.id }); } },
+        onDragOver: e => { if (this.drag && this.drag.type !== 'view' && this.drag.type !== 'row') { e.preventDefault(); if (s.overCol !== col.id) this.setState({ overCol: col.id }); } },
         onDragLeave: () => { if (s.overCol === col.id) this.setState({ overCol: null }); },
         onDrop: e => {
           if (!this.drag) return;
@@ -960,62 +2255,17 @@ class Component extends DCLogic {
           if (this.drag.type === 'card' && groupProperty) this.setValue(this.drag.id, groupProperty.id, col.value);
           if (this.drag.type === 'column') this.moveColumn(this.drag.id, col.id);
           this.drag = null;
-          this.setState({ overCol: null, dragCol: null });
+          this.setState({ overCol: null, dragCol: null, dragCard: null });
         },
         onColDragStart: e => {
+          if (!draggable) return;
           this.drag = { type: 'column', id: col.id };
           if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
           this.setState({ dragCol: col.id });
         },
         onColDragEnd: () => { this.drag = null; this.setState({ dragCol: null, overCol: null }); },
-        cards: col.tasks.map(t => {
-          const f = this.cardFields(t);
-          const on = t.id === s.selected;
-          const cardRun = (s.run && s.run.taskId === t.id) ? s.run : null;
-          return {
-            key: t.key,
-            title: t.title,
-            hasLead: !!f.lead,
-            leadColor: f.lead ? f.lead.color : 'transparent',
-            leadLabel: f.lead ? f.lead.label : '',
-            dots: f.dots.slice(0, 4),
-            people: f.people.slice(0, 2).map(m => Object.assign({ name: m.name }, this.face(m, 17))),
-            badges: f.badges,
-            metas: f.metas.map(text => ({ text })),
-            hasFooter: f.badges.length > 0 || f.metas.length > 0 || t.total > 0 || t.comments > 0,
-            hasChecklist: t.total > 0,
-            checkPercent: t.total ? Math.round((t.done / t.total) * 100) : 0,
-            checkLabel: t.done + '/' + t.total,
-            hasComments: t.comments > 0,
-            commentCount: t.comments,
-            ring: on ? 'inset 0 0 0 1px rgba(63,176,200,.55)' : 'none',
-            opacity: s.dragCard === t.id ? 0.25 : 1,
-            hasRun: !!cardRun,
-            runAgent: cardRun ? (this.member(cardRun.agentId) || {}).name : '',
-            runText: cardRun ? (cardRun.status === 'paused' ? 'Paused' : this.RUN_SCRIPT[cardRun.n]) : '',
-            runTime: cardRun ? this.elapsed(cardRun) : '',
-            runTimeColor: '#55747c',
-            scanWidth: cardRun && cardRun.status === 'paused' ? '100%' : '32%',
-            scanOpacity: cardRun && cardRun.status === 'paused' ? 0.3 : 1,
-            scanAnim: cardRun && cardRun.status === 'paused' ? 'none' : 'scan 1.9s linear infinite',
-            onOpen: () => this.setState({ selected: t.id, tab: (s.run && s.run.taskId === t.id) ? 'agent' : 'comments', openMenu: null }),
-            onDragStart: e => {
-              this.drag = { type: 'card', id: t.id };
-              if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-              this.setState({ dragCard: t.id });
-            },
-            onDragOver: e => { if (this.drag && this.drag.type === 'card') e.preventDefault(); },
-            onDrop: e => {
-              if (!this.drag || this.drag.type !== 'card') return;
-              e.preventDefault();
-              e.stopPropagation();
-              if (groupProperty) this.setValue(this.drag.id, groupProperty.id, t.values[groupProperty.id]);
-              this.drag = null;
-              this.setState({ overCol: null, dragCard: null });
-            }
-          };
-        })
-      })),
+        cards: col.tasks.map(t => this.cardVals(t, items, groupProperty))
+      }; }),
 
       draft: s.draft,
       draftRef: el => { if (el && document.activeElement !== el) el.focus(); },
@@ -1023,6 +2273,7 @@ class Component extends DCLogic {
       draftKey: e => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
+          if (s.composing === 'list') { this.addTask(null, false); return; }
           const at = String(s.composing || '').split(':');
           const col = columns.find(c => c.id === at[0]);
           if (col) this.addTask(col, at[1] === 'top');
@@ -1030,7 +2281,7 @@ class Component extends DCLogic {
         if (e.key === 'Escape') this.setState({ composing: null, draft: '' });
       },
 
-      canAddColumn: !!groupProperty && groupProperty.type === 'select',
+      canAddColumn: !isList && !!groupProperty && groupProperty.type === 'select',
       addingColumn: s.addingColumn,
       notAddingColumn: !s.addingColumn,
       startColumn: () => this.setState({ addingColumn: true, columnDraft: '' }),
@@ -1044,18 +2295,103 @@ class Component extends DCLogic {
       },
       addColumn: () => this.addColumn(),
 
+      listComposing: s.composing === 'list',
+      listIdle: s.composing !== 'list',
+      listAdd: () => this.setState({ composing: 'list', draft: '' }),
+
       toasts: s.toasts.map(t => ({ text: t.text })),
-      hasSelection: !!task && openTaskProp
+      hasSelection: !!task && openTaskProp,
+      panelW: s.panelW,
+      gripBg: s.gripDragging ? '#3fb0c8' : 'transparent',
+      gripDown: e => this.gripDown(e)
     };
 
+    /* ---- the list ---- */
+    if (isList) {
+      const cols = this.listColumns(items);
+      const pinnedLast = cols.filter(c => c.pin !== null).length - 1;
+      const rows = this.sortTasks(visible, sort, items);
+      vals.listCols = this.listTemplate(cols);
+      vals.listHead = cols.map((c, i) => {
+        const on = sort && sort.columnId === c.id ? sort.direction : null;
+        return {
+          name: c.name,
+          hasArrow: !!on,
+          arrow: on === 'asc' ? '↑' : '↓',
+          fg: on ? '#9fd7e3' : '#565c66',
+          padLeft: i === 0 ? 12 : 0,
+          padRight: c.right ? 0 : 10,
+          justify: c.right ? 'flex-end' : 'flex-start',
+          position: c.pin !== null ? 'sticky' : 'static',
+          left: c.pin !== null ? c.pin : 0,
+          z: c.pin !== null ? 1 : 0,
+          bg: c.pin !== null ? '#0c0d10' : 'transparent',
+          seam: i === pinnedLast ? '1px 0 0 #16181c' : 'none',
+          tip: on === 'asc' ? c.name + ', smallest first. Again for largest first.' : on === 'desc' ? c.name + ", largest first. Again for the board's own order." : 'Order by ' + c.name,
+          /* Down, then up, then back to the order the board keeps. */
+          onClick: () => this.setSort(!sort || sort.columnId !== c.id ? { columnId: c.id, direction: 'asc' } : sort.direction === 'asc' ? { columnId: c.id, direction: 'desc' } : null)
+        };
+      });
+      vals.listRows = rows.map(t => {
+        const slots = this.buildRow(items, t);
+        const on = t.id === s.selected;
+        const rowRun = (s.run && s.run.taskId === t.id) ? s.run : null;
+        const paused = rowRun && rowRun.status === 'paused';
+        return {
+          bg: on ? '#14171b' : '#0a0b0d',
+          ring: on ? 'inset 0 0 0 1px rgba(63,176,200,.55)' : 'none',
+          opacity: s.dragRow === t.id ? 0.25 : 1,
+          draggable: !sort,
+          hasRun: !!rowRun,
+          scanWidth: paused ? '100%' : '22%',
+          scanOpacity: paused ? 0.3 : 1,
+          scanAnim: paused ? 'none' : 'scan 1.9s linear infinite',
+          onOpen: () => this.setState({ selected: t.id, tab: rowRun ? 'agent' : 'comments', openMenu: null, panelMenuOpen: false }),
+          onDragStart: e => { if (sort) return; this.drag = { type: 'row', id: t.id }; if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'; this.setState({ dragRow: t.id }); },
+          onDragOver: e => { if (this.drag && this.drag.type === 'row') e.preventDefault(); },
+          onDrop: e => {
+            if (!this.drag || this.drag.type !== 'row') return;
+            e.preventDefault();
+            this.moveTask(this.drag.id, t.id);
+            this.drag = null;
+            this.setState({ dragRow: null });
+          },
+          onDragEnd: () => { this.drag = null; this.setState({ dragRow: null }); },
+          cells: cols.map((c, i) => {
+            const cell = {
+              isKey: c.id === '_key', isTitle: c.id === '_title', isCell: c.id !== '_key' && c.id !== '_title',
+              left: c.pin !== null ? c.pin : 0,
+              seam: i === pinnedLast ? '1px 0 0 #16181c' : 'none',
+              hasEdge: i === 0 && !!slots.edge, edge: slots.edge || 'transparent',
+              key: t.key, title: t.title, hasDesc: !!slots.desc, desc: slots.desc || '',
+              hasRun: c.id === '_title' && !!rowRun,
+              runAgent: rowRun ? (this.member(rowRun.agentId) || {}).name : '',
+              runTip: rowRun ? (this.member(rowRun.agentId) || {}).name + ' · ' + (paused ? 'Paused' : this.RUN_SCRIPT[rowRun.n]) + ' · ' + this.elapsed(rowRun) : '',
+              padRight: c.right ? 0 : 10,
+              justify: c.right ? 'flex-end' : 'flex-start',
+              /* A chip cannot end in an ellipsis, so the cell fades out. */
+              mask: c.right ? 'none' : 'linear-gradient(90deg, #000 calc(100% - 10px), transparent 100%)',
+              chips: (slots.cells[c.id] || []).map(ch => this.chipVals(ch))
+            };
+            return cell;
+          })
+        };
+      });
+    } else {
+      vals.listCols = '';
+      vals.listHead = [];
+      vals.listRows = [];
+    }
+
     if (!task) {
-      vals.sel = { accent: 'transparent', accentTint: 'transparent', title: '', hasLead: false, leadName: '', leadColor: 'transparent', leadPillBg: 'transparent' };
+      vals.sel = { accent: 'transparent', accentTint: 'transparent', title: '', archived: false, archivedAgo: '' };
       vals.propRows = [];
       vals.tabs = [];
       vals.comments = [];
       vals.activity = [];
       vals.checklist = [];
       vals.checkCells = [];
+      vals.descMd = [];
       vals.run = {};
       return vals;
     }
@@ -1064,11 +2400,10 @@ class Component extends DCLogic {
       accent,
       accentTint: this.tint(accent, 0.06),
       title: task.title,
-      hasLead: !!leadOption,
-      leadName: leadOption ? leadOption.name : '',
-      leadColor: leadOption ? leadOption.color : 'transparent',
-      leadPillBg: leadOption ? this.tint(leadOption.color, 0.16) : 'transparent'
+      archived: !!task.archivedAgo,
+      archivedAgo: task.archivedAgo || ''
     };
+    vals.canArchive = !task.archivedAgo;
     vals.keyLabel = task.key;
     vals.keyColor = '#8b919b';
     vals.keyBg = 'transparent';
@@ -1076,6 +2411,15 @@ class Component extends DCLogic {
     vals.panelMenuOpen = s.panelMenuOpen;
     vals.panelMenuBg = s.panelMenuOpen ? '#1b1e24' : 'transparent';
     vals.panelMenuToggle = () => this.setState({ panelMenuOpen: !s.panelMenuOpen });
+    vals.archiveTask = () => this.setState(x => ({
+      panelMenuOpen: false,
+      tasks: x.tasks.map(t => t.id === task.id ? Object.assign({}, t, { archivedAgo: 'just now' }) : t),
+      history: Object.assign({}, x.history, { [task.id]: [{ time: 'now', text: x.me.name + ' archived the task' }].concat(x.history[task.id] || []) })
+    }));
+    vals.restoreTask = () => this.setState(x => ({
+      tasks: x.tasks.map(t => t.id === task.id ? Object.assign({}, t, { archivedAgo: null }) : t),
+      history: Object.assign({}, x.history, { [task.id]: [{ time: 'now', text: x.me.name + ' put the task back' }].concat(x.history[task.id] || []) })
+    }));
     vals.deleteTask = () => this.setState(x => ({
       panelMenuOpen: false, selected: null, tasks: x.tasks.filter(t => t.id !== task.id)
     }));
@@ -1178,7 +2522,7 @@ class Component extends DCLogic {
         });
       } else if (p.type === 'date') {
         row.isDate = true;
-        row.currentName = value ? value : 'Empty';
+        row.currentName = value ? this.formatDate(value) : 'Empty';
         row.currentFg = value ? '#dfe1e5' : '#565c66';
         row.onToggle = () => {};
       } else if (p.type === 'checkbox') {
@@ -1201,7 +2545,8 @@ class Component extends DCLogic {
     vals.descEditing = s.descEditing;
     vals.descReading = !s.descEditing;
     vals.descHint = s.descEditing ? 'Cmd + Enter saves' : 'click to edit';
-    vals.descText = task.desc.trim() ? task.desc : 'Add a description…';
+    vals.descEmpty = !task.desc.trim();
+    vals.descMd = task.desc.trim() ? this.markdown(task.desc) : [];
     vals.descColor = task.desc.trim() ? '#9aa0aa' : '#565c66';
     vals.descDraft = s.descDraft;
     vals.descRef = el => { if (el && document.activeElement !== el) el.focus(); };
@@ -1257,13 +2602,29 @@ class Component extends DCLogic {
     vals.onActivity = tab === 'activity';
     vals.onAgent = tab === 'agent';
 
+    const words = task.desc.trim() ? task.desc.trim().split(/\s+/).length : 0;
     vals.comments = comments.map(c => {
       const who = this.member(c.who);
       const f = this.face(who, 20);
-      return { name: who ? who.name : 'Removed user', time: c.time, body: c.body, mark: f.mark, color: f.color, ink: f.ink, size: f.size };
+      const asking = s.commentAsking === c.id;
+      const use = () => this.setState(x => ({ commentAsking: null, tasks: x.tasks.map(t => t.id === task.id ? Object.assign({}, t, { desc: c.body }) : t) }));
+      return {
+        name: who ? who.name : 'Removed user', time: c.time, md: this.markdown(c.body), mark: f.mark, color: f.color, ink: f.ink, size: f.size,
+        canUse: c.body.trim() !== task.desc.trim() && !asking,
+        onUse: () => { if (words) this.setState({ commentAsking: c.id }); else use(); },
+        asking,
+        askText: 'Replace the description with this comment? Its ' + words + (words === 1 ? ' word goes.' : ' words go.'),
+        onUseYes: use,
+        onUseNo: () => this.setState({ commentAsking: null }),
+        mine: c.who === s.me.id,
+        onDelete: () => this.setState(x => {
+          const list = (x.commentsById[task.id] || []).filter(k => k.id !== c.id);
+          return { commentsById: Object.assign({}, x.commentsById, { [task.id]: list }), tasks: x.tasks.map(t => t.id === task.id ? Object.assign({}, t, { comments: list.length }) : t) };
+        })
+      };
     });
     vals.commentDraft = s.commentDraft;
-    vals.commentPlaceholder = run ? 'Leave a note for the agent…' : 'Leave a note…';
+    vals.commentPlaceholder = run ? (run.status === 'waiting' ? 'Answer ' + (this.member(run.agentId) || {}).name + '…' : 'Leave a note for the agent…') : 'Leave a note…';
     vals.commentChange = e => this.setState({ commentDraft: e.target.value });
     vals.commentKey = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); this.sendComment(task.id); } };
     vals.sendComment = () => this.sendComment(task.id);
@@ -1271,12 +2632,12 @@ class Component extends DCLogic {
     vals.sendBg = s.commentDraft.trim() ? '#3fb0c8' : '#191c21';
     vals.sendFg = s.commentDraft.trim() ? '#05242b' : '#565c66';
 
-    vals.activity = [
+    vals.activity = (s.history[task.id] || []).concat([
       run ? { time: '2m', text: (this.member(run.agentId) || {}).name + ' started a run' } : null,
       { time: '4h', text: 'Alan Turing set Status to In Progress' },
       { time: '6h', text: 'Ada Lovelace set Priority to Urgent' },
       { time: '1d', text: 'Grace Hopper created the task' }
-    ].filter(Boolean);
+    ]).filter(Boolean);
 
     if (run) {
       const agent = this.member(run.agentId) || { name: 'agent', color: '#3fb0c8' };
@@ -1318,6 +2679,139 @@ class Component extends DCLogic {
     return vals;
   }
 
+  cardVals(t, items, groupProperty) {
+    const s = this.state;
+    const slots = this.buildCard(items, t);
+    const on = t.id === s.selected;
+    const cardRun = (s.run && s.run.taskId === t.id) ? s.run : null;
+    return {
+      title: t.title,
+      padLeft: slots.edge ? 14 : 11,
+      hasEdge: !!slots.edge,
+      edge: slots.edge || 'transparent',
+      hasHeader: slots.headerL.length > 0 || slots.headerR.length > 0,
+      header: this.strip(slots.headerL, slots.headerR),
+      hasBody: !!slots.body || slots.bodyChips.length > 0,
+      hasDesc: !!slots.body,
+      desc: slots.body ? slots.body.text : '',
+      descLines: slots.body ? slots.body.lines : 2,
+      hasBodyChips: slots.bodyChips.length > 0,
+      body: slots.bodyChips.map(c => this.chipVals(c)),
+      hasFooter: slots.footerL.length > 0 || slots.footerR.length > 0,
+      footer: this.strip(slots.footerL, slots.footerR),
+      ring: on ? 'inset 0 0 0 1px rgba(63,176,200,.55)' : 'none',
+      opacity: s.dragCard === t.id ? 0.25 : 1,
+      hasRun: !!cardRun,
+      runAgent: cardRun ? (this.member(cardRun.agentId) || {}).name : '',
+      runText: cardRun ? (cardRun.status === 'paused' ? 'Paused' : this.RUN_SCRIPT[cardRun.n]) : '',
+      runTime: cardRun ? this.elapsed(cardRun) : '',
+      runTimeColor: '#55747c',
+      scanWidth: cardRun && cardRun.status === 'paused' ? '100%' : '32%',
+      scanOpacity: cardRun && cardRun.status === 'paused' ? 0.3 : 1,
+      scanAnim: cardRun && cardRun.status === 'paused' ? 'none' : 'scan 1.9s linear infinite',
+      onOpen: () => this.setState({ selected: t.id, tab: cardRun ? 'agent' : 'comments', openMenu: null, panelMenuOpen: false }),
+      onDragStart: e => {
+        this.drag = { type: 'card', id: t.id };
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        this.setState({ dragCard: t.id });
+      },
+      onDragOver: e => { if (this.drag && this.drag.type === 'card') e.preventDefault(); },
+      onDrop: e => {
+        if (!this.drag || this.drag.type !== 'card') return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (groupProperty) this.setValue(this.drag.id, groupProperty.id, t.values[groupProperty.id]);
+        this.moveTask(this.drag.id, t.id);
+        this.drag = null;
+        this.setState({ overCol: null, dragCard: null });
+      }
+    };
+  }
+
+  /** One rule as a chip. A rule of the view asks before it goes for everybody. */
+  ruleChip(rule, set, index) {
+    const s = this.state;
+    const editing = !!(s.ask && s.ask.where === 'chip' && s.ask.set === set && s.ask.index === index);
+    const asking = !!(s.chipAsking && s.chipAsking.set === set && s.chipAsking.index === index);
+    const rules = set === 'view' ? this.viewRules() : this.lensRules();
+    const remove = () => {
+      const next = rules.filter((_, i) => i !== index);
+      if (set === 'view') this.setViewRules(next); else this.setLens(next);
+      this.setState({ chipAsking: null, ask: null });
+    };
+    return {
+      isChip: true,
+      isDivider: false,
+      said: this.describeRule(rule),
+      asking,
+      idle: !asking,
+      editing,
+      border: editing ? '#262b32' : '#1c1f24',
+      removeTip: set === 'view' ? 'Remove for everyone' : 'Remove',
+      popRef: el => { if (editing) this.chipPop = el; },
+      onEdit: () => this.setState({ ask: editing ? null : { where: 'chip', set, index, rule, query: this.isSetOp(rule.op) || this.isBareOp(rule.op) ? '' : (rule.text || ''), at: 0 }, filterOpen: false }),
+      onRemove: () => {
+        if (set === 'view') this.setState({ chipAsking: { set, index }, ask: null }); else remove();
+      },
+      onConfirm: remove
+    };
+  }
+
+  openHit(task) {
+    this.setState({ selected: task.id, tab: (this.state.run && this.state.run.taskId === task.id) ? 'agent' : 'comments', searchFocus: false, panelMenuOpen: false });
+  }
+
+  setSort(sort) {
+    const id = this.view().id;
+    this.setState(s => ({ sorts: Object.assign({}, s.sorts, { [id]: sort }) }));
+  }
+
+  /* A view is dragged by naming what it landed on, never a rank. */
+  moveView(id, overId) {
+    if (id === overId) return;
+    this.setState(s => {
+      const list = s.views.slice();
+      const from = list.findIndex(v => v.id === id);
+      const to = list.findIndex(v => v.id === overId);
+      if (from < 0 || to < 0) return {};
+      list.splice(to, 0, list.splice(from, 1)[0]);
+      return { views: list };
+    });
+  }
+
+  /* The rank a task carries is the one order every view shares. */
+  moveTask(id, overId) {
+    if (id === overId) return;
+    this.setState(s => {
+      const list = s.tasks.slice();
+      const from = list.findIndex(t => t.id === id);
+      const to = list.findIndex(t => t.id === overId);
+      if (from < 0 || to < 0) return {};
+      list.splice(to, 0, list.splice(from, 1)[0]);
+      return { tasks: list };
+    });
+  }
+
+  /* The panel grows to the left, so the pointer moving left widens it. */
+  gripDown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = this.state.panelW;
+    const most = Math.max(this.PANEL_MIN, window.innerWidth - 320);
+    const move = ev => this.setState({ panelW: Math.min(Math.max(Math.round(startW + (startX - ev.clientX)), this.PANEL_MIN), most) });
+    const done = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', done);
+      document.body.style.userSelect = '';
+      this.setState({ gripDragging: false });
+    };
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', done);
+    this.setState({ gripDragging: true });
+  }
+
   elapsed(run) {
     const seconds = 120 + this.state.tick;
     if (seconds < 60) return seconds + 's';
@@ -1341,34 +2835,47 @@ class Component extends DCLogic {
   }
 
   createView() {
-    const property = this.property(this.state.viewGroup);
-    if (!property) return;
-    const name = this.state.viewDraft.trim() || 'By ' + property.name.toLowerCase();
-    this.setState(s => ({
-      seq: s.seq + 1,
-      views: s.views.concat([{ id: 'nv' + s.seq, name, groupById: property.id }]),
-      viewId: 'nv' + s.seq,
+    const s = this.state;
+    const kind = s.viewKind;
+    const property = this.property(s.viewGroup);
+    /* A board is its columns and cannot be made without one. A list groups nothing. */
+    if (kind === 'board' && !property) return;
+    const taken = s.views.map(v => v.name.toLowerCase());
+    let listName = 'List';
+    for (let n = 2; taken.indexOf(listName.toLowerCase()) >= 0; n++) listName = 'List ' + n;
+    const name = s.viewDraft.trim() || (kind === 'list' ? listName : 'By ' + property.name.toLowerCase());
+    this.setState(x => ({
+      seq: x.seq + 1,
+      views: x.views.concat([{ id: 'nv' + x.seq, name, kind, groupById: kind === 'board' ? property.id : null, rules: [] }]),
+      viewId: 'nv' + x.seq,
       viewAdding: false,
       viewDraft: ''
     }));
   }
 
-  /* A new column is a new option on the grouping property. */
+  /* A new column is a new option on the grouping property. Under a rule about
+     that property it joins the rule, because nobody makes a column in order
+     not to see it. */
   addColumn() {
     const name = this.state.columnDraft.trim();
     if (!name) { this.setState({ addingColumn: false, columnDraft: '' }); return; }
     const gid = this.view().groupById;
+    const viewId = this.view().id;
     this.setState(s => {
       const used = [];
       s.properties.forEach(p => p.options.forEach(o => used.push(o.color)));
       const color = this.PALETTE.find(c => used.indexOf(c) < 0) || this.PALETTE[used.length % this.PALETTE.length];
+      const optionId = 'no' + s.seq;
+      const join = rules => (rules || []).map(r => r.propertyId === gid && r.op === 'is' ? Object.assign({}, r, { values: (r.values || []).concat([optionId]) }) : r);
       return {
         seq: s.seq + 1,
         addingColumn: false,
         columnDraft: '',
         properties: s.properties.map(p => p.id !== gid ? p : Object.assign({}, p, {
-          options: p.options.concat([{ id: 'no' + s.seq, name, color }])
-        }))
+          options: p.options.concat([{ id: optionId, name, color }])
+        })),
+        views: s.views.map(v => v.id === viewId ? Object.assign({}, v, { rules: join(v.rules) }) : v),
+        lens: Object.assign({}, s.lens, { [viewId]: join(s.lens[viewId]) })
       };
     });
   }
