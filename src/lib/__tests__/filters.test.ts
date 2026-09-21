@@ -666,14 +666,32 @@ describe("a view's rules and one person's", () => {
    * names exactly as a view's rule does. Both sets go through the same reading.
    */
   it("is read afresh on both sets", () => {
-    const saved = { rules: [{ propertyId: status.id, op: "is", values: ["o-gone"] }] };
-    const alive = { rules: [{ propertyId: labels.id, op: "is", values: ["o-bug"] }] };
+    // Each set holds one rule that can still be read and one that cannot: an
+    // option that was deleted, and a property that was.
+    const savedView = {
+      rules: [
+        { propertyId: labels.id, op: "is", values: ["o-bug"] },
+        { propertyId: status.id, op: "is", values: ["o-gone"] },
+      ],
+    };
+    const savedLens = {
+      rules: [
+        { propertyId: "p-gone", op: "is", values: ["o-x"] },
+        { propertyId: status.id, op: "is", values: ["o-todo"] },
+      ],
+    };
 
-    const merged = mergeFilters(readFilters(alive, properties), readFilters(saved, properties));
-    expect(merged.rules).toEqual([{ propertyId: labels.id, op: "is", values: ["o-bug"] }]);
+    const merged = mergeFilters(
+      readFilters(savedView, properties),
+      readFilters(savedLens, properties),
+    );
 
-    const other = mergeFilters(readFilters(saved, properties), readFilters(alive, properties));
-    expect(other.rules).toEqual([{ propertyId: labels.id, op: "is", values: ["o-bug"] }]);
+    // What is left is one rule from each set, the view's first — and no rule
+    // that nobody can see is still hiding cards.
+    expect(merged.rules).toEqual([
+      { propertyId: labels.id, op: "is", values: ["o-bug"] },
+      { propertyId: status.id, op: "is", values: ["o-todo"] },
+    ]);
   });
 });
 
@@ -714,9 +732,47 @@ describe("a rule of mine about a property the view already filters", () => {
     expect(clashOf({ rules: [before] }, { rules: [after] }, properties)).toBe(due);
   });
 
+  /*
+   * What both doors do, and in this order: read each set afresh, then ask.
+   * The lens route asks it on the way in and the promote route on the way out,
+   * so neither can hold a different idea of what a clash is.
+   */
+  it("is what a door asks, after reading both sets afresh", () => {
+    const savedView = { rules: [{ propertyId: status.id, op: "is", values: ["o-todo"] }] };
+    const savedLens = { rules: [{ propertyId: status.id, op: "is_not", values: ["o-done"] }] };
+
+    const clash = clashOf(
+      readFilters(savedView, properties),
+      readFilters(savedLens, properties),
+      properties,
+    );
+    expect(clash).toBe(status);
+    expect(clash ? clashSaid(clash) : "").toBe(
+      "The view already filters Status. Remove it for everyone first.",
+    );
+  });
+
+  /*
+   * It answers null for a property it cannot name, and both doors read their
+   * sets afresh first, so a rule about a deleted property never reaches it:
+   * `readFilters` has already thrown that rule away.
+   */
   it("finds nothing when the property is gone", () => {
     const gone: FilterRule = { propertyId: "p-gone", op: "is", values: ["o-x"] };
     expect(clashOf({ rules: [gone] }, { rules: [gone] }, properties)).toBeNull();
+  });
+
+  it("is never asked about a deleted property, because a door reads first", () => {
+    const savedView = { rules: [{ propertyId: "p-gone", op: "is", values: ["o-x"] }] };
+    const savedLens = { rules: [{ propertyId: "p-gone", op: "is", values: ["o-y"] }] };
+
+    const ofView = readFilters(savedView, properties);
+    const mine = readFilters(savedLens, properties);
+    // Both sets are empty by the time the guard sees them, so there is no
+    // property to fail open about.
+    expect(ofView.rules).toEqual([]);
+    expect(mine.rules).toEqual([]);
+    expect(clashOf(ofView, mine, properties)).toBeNull();
   });
 
   /* One sentence, said the same way by the panel and by the promote route. */

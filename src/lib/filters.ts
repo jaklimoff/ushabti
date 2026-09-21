@@ -273,6 +273,15 @@ export function asksAbout(filters: ViewFilters, propertyId: string): boolean {
  * and the route that refuses the promote always agree, exactly as `hasAnswer`
  * serves the panel and the reader. `mergeFilters` stays a plain joining: the
  * guard belongs at the two doors a rule comes in by.
+ *
+ * It answers null for a rule whose property is not in `properties`, and that
+ * is safe rather than lax: every caller reads both sets with `readFilters`
+ * first, which throws a rule about a deleted property away before this sees
+ * it. So the pair can never be "a clash nobody can name", and the alternative
+ * — refusing on a property there is no name for — would give `clashSaid`
+ * nothing to say and stop a person writing rules that hide nothing. The
+ * browser asks with the properties it holds, which may be a moment behind; the
+ * two routes ask with the ones they just read, and they are the answer.
  */
 export function clashOf(
   viewFilters: ViewFilters,
