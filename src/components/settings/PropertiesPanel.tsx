@@ -343,10 +343,13 @@ function OptionChip({
 
   return (
     <span className={styles.option} ref={ref}>
+      {/* The colour is the longhand, because on a phone the button holds a
+          24 px square and clips the colour to the middle of it. The
+          `background` shorthand would put that clip back to the whole button. */}
       <button
         type="button"
         className={styles.swatchBtn}
-        style={{ background: option.color }}
+        style={{ backgroundColor: option.color }}
         aria-label={`Colour of ${option.name}`}
         title="Colour"
         onClick={() => setOpen((v) => !v)}
