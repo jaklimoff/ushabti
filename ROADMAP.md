@@ -113,13 +113,20 @@ runs this.
 - **Attachments.** Files on a task.
 - **Undo.** At least for a delete. Archive is the answer for a task that is
   simply over; delete still has no way back.
-- **A page that lists archived tasks.** Today a search and the task's own link
-  are the two ways back to one, which is enough to find a task you can name.
 - **A narrow-screen board.** The panel already overlays below 900 px, but the board itself needs a real phone layout.
 
 ---
 
 ## Done since v1.1, not yet released
+
+- **A page lists the archived tasks.** A search and the task's own link were
+  the two ways back to one: enough to find a task you can name, and nothing at
+  all for one you cannot. **Archive** in the top bar, beside **Settings**,
+  opens `/p/{project}/archived`: every archived task, newest first, with the
+  key, the title, when it went and one **Put back**. The key and the title open
+  the task as its link does, and a box narrows the list by key and title. It is
+  not a view, so it is not in the view strip, and it asks the server nothing:
+  the browser already carries the archived rows.
 
 - **A webhook rings when something changes.** An agent listens on the stream;
   a serverless function, a CI job or a chat bot has nowhere to listen from.
@@ -148,8 +155,8 @@ These are consequences of the design, not defects. Read them before you build on
   because the search reads every task in the project and a link to an archived
   one still opens its panel. They are carried light — the key, the title, the
   description, the rank and the date — with no values and no counts, so a long
-  archive costs a row of words each and nothing more. No view draws them. It
-  follows the line below: the day a board pages, the archive has to become a
+  archive costs a row of words each and nothing more. No view draws them; the
+  archive page draws the same rows. It follows the line below: the day a board pages, the archive has to become a
   query first.
 - **Search reads the board the browser already has**, which is why it answers on
   the keystroke and asks the server nothing. It follows the line above: the day

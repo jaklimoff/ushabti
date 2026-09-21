@@ -9,67 +9,6 @@
   background: var(--bg);
 }
 
-.top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 46px;
-  padding: 0 14px;
-  background: var(--bg-top);
-  border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.mark {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  border-radius: var(--r-sm);
-  background: var(--accent);
-  color: var(--accent-ink);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 10px;
-}
-
-.crumb {
-  font-size: var(--t-ui);
-  font-weight: 600;
-  color: var(--text);
-  max-width: 34vw;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sep {
-  font-size: var(--t-ui);
-  color: var(--faint-2);
-}
-
-.here {
-  font-size: var(--t-ui);
-  color: var(--text-4);
-}
-
-.back {
-  font-size: var(--t-small);
-  color: var(--muted);
-  padding: 5px 10px;
-  border-radius: var(--r-sm);
-  border: 1px solid #1f2229;
-  white-space: nowrap;
-}
-
-.back:hover {
-  background: var(--bg-hover);
-  color: var(--text-2);
-}
-
 /* ---- the rail and the body ----------------------------------------- */
 
 .shell {

@@ -1,10 +1,12 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import {
   addTask,
   column,
   createProject,
   dragOnto,
+  forAFinger,
   gotoSettings,
+  overflow,
   propertyBox,
   register,
   saved,
@@ -253,12 +255,6 @@ test.describe("Settings", () => {
   });
 });
 
-/*
- * Three pull requests in a row moved these two pages at phone width, and each
- * one was checked by a screenshot somebody looked at once. These measure it
- * instead: the page holds still sideways, a name is whole, and a finger has
- * something to press.
- */
 test.describe("Settings on a phone", () => {
   test.use({ viewport: { width: 390, height: 780 } });
 
@@ -292,14 +288,6 @@ test.describe("Settings on a phone", () => {
   });
 });
 
-/** How far the page can be pushed sideways. A phone has nowhere to push it. */
-async function overflow(page: Page): Promise<number> {
-  return page.evaluate(() => {
-    const doc = document.documentElement;
-    return Math.max(doc.scrollWidth - doc.clientWidth, 0);
-  });
-}
-
 /**
  * Every box draws the whole of its own text.
  *
@@ -315,17 +303,5 @@ async function whole(boxes: Locator, count: number) {
       return { text: input.value, cut: input.scrollWidth - input.clientWidth };
     });
     expect(read.cut, `"${read.text}" is cut off by ${read.cut} px`).toBeLessThanOrEqual(0);
-  }
-}
-
-/** A finger needs 24 px each way, whatever a mouse would settle for. */
-async function forAFinger(targets: Locator, count: number) {
-  await expect(targets).toHaveCount(count);
-  for (const target of await targets.all()) {
-    const label = await target.getAttribute("aria-label");
-    const box = await target.boundingBox();
-    expect(box, `${label} is not on the screen`).not.toBeNull();
-    expect(box!.width, `${label} is ${box!.width} px wide`).toBeGreaterThanOrEqual(24);
-    expect(box!.height, `${label} is ${box!.height} px tall`).toBeGreaterThanOrEqual(24);
   }
 }

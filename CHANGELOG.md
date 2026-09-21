@@ -10,6 +10,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A page lists the archived tasks.** **Archive**, in the top bar beside
+  **Settings**, opens every archived task of the project, newest first, with
+  the key, the title and when it went. **Put back** on a row returns one to the
+  rank it never lost. The key and the title open the task, and a box narrows
+  the list by key and title. A search and the task's own link were the two ways
+  back to one before this, which is enough to find a task you can name and
+  nothing for one you cannot. To make room for the link, a screen 560 px wide
+  or narrower now leaves out the project name in the board's top bar — the
+  mark beside it says the same thing — and your own name beside your avatar,
+  on every page that draws the user menu.
+
 - **A run can end by handing over.** A worker whose pull request is open has
   finished its session, but not the task, and the card used to go quiet while
   a reviewer worked. `board.mjs finish USH-14 --to "review"` ends the session

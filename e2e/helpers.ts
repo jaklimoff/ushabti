@@ -380,3 +380,33 @@ export async function propertyRowOrder(page: Page): Promise<string[]> {
     .locator('input[aria-label$=" property"]')
     .evaluateAll((boxes) => boxes.map((b) => (b as HTMLInputElement).value));
 }
+
+/* ------------------------------------------------------------------ */
+/* A phone                                                             */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Three pull requests in a row moved a page at phone width, and each one was
+ * checked by a screenshot somebody looked at once. These measure it instead:
+ * the page holds still sideways, and a finger has something to press.
+ */
+
+/** How far the page can be pushed sideways. A phone has nowhere to push it. */
+export async function overflow(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const doc = document.documentElement;
+    return Math.max(doc.scrollWidth - doc.clientWidth, 0);
+  });
+}
+
+/** A finger needs 24 px each way, whatever a mouse would settle for. */
+export async function forAFinger(targets: Locator, count: number) {
+  await expect(targets).toHaveCount(count);
+  for (const target of await targets.all()) {
+    const label = await target.getAttribute("aria-label");
+    const box = await target.boundingBox();
+    expect(box, `${label} is not on the screen`).not.toBeNull();
+    expect(box!.width, `${label} is ${box!.width} px wide`).toBeGreaterThanOrEqual(24);
+    expect(box!.height, `${label} is ${box!.height} px tall`).toBeGreaterThanOrEqual(24);
+  }
+}

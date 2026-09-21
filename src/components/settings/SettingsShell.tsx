@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
+import { ProjectBar } from "@/components/ui/ProjectBar";
+import type { SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardProvider, useBoard } from "@/components/board/store";
 import type { BoardData } from "@/lib/types";
@@ -46,19 +47,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
 
   return (
     <div className={styles.page}>
-      <div className={styles.top}>
-        <div className={styles.mark}>{data.project.key.slice(0, 1)}</div>
-        <Link href={`/p/${data.project.id}`} className={styles.crumb}>
-          {data.project.name}
-        </Link>
-        <span className={styles.sep}>/</span>
-        <span className={styles.here}>Settings</span>
-        <span style={{ flex: 1 }} />
-        <Link href={`/p/${data.project.id}`} className={styles.back}>
-          Back to board
-        </Link>
-        <UserMenu user={user} />
-      </div>
+      <ProjectBar project={data.project} here="Settings" user={user} />
 
       <div className={styles.shell}>
         <nav className={styles.rail} aria-label="Settings sections">

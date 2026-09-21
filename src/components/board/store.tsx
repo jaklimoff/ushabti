@@ -97,8 +97,12 @@ type Store = {
   deleteTask: (taskId: string) => Promise<void>;
   /** Takes a task off every board and list. Everything on it stays. */
   archiveTask: (taskId: string) => Promise<void>;
-  /** Puts an archived task back where its rank says it belongs. */
-  restoreTask: (taskId: string) => Promise<void>;
+  /**
+   * Puts an archived task back where its rank says it belongs. It answers
+   * whether it went through, because the archive page says so in words and a
+   * row that failed must not read as one that went.
+   */
+  restoreTask: (taskId: string) => Promise<boolean>;
   /** Archives every live task in one column. A person's act, so it asks first. */
   archiveColumn: (propertyId: string | null, value: TaskValue) => Promise<number>;
   moveTask: (input: {
@@ -530,12 +534,11 @@ export function BoardProvider({
    * which closes its panel.
    */
   const restoreTask = useCallback<Store["restoreTask"]>(
-    async (taskId) => {
-      await guarded(async () => {
+    async (taskId) =>
+      guarded(async () => {
         await api.del(`/api/tasks/${taskId}/archive`);
         await refresh();
-      });
-    },
+      }),
     [guarded, refresh],
   );
 
