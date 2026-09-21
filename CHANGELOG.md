@@ -123,6 +123,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   change was saved, and the screen then went back to the old value, which read
   as a click that did nothing. The panel now keeps that answer up to date, as
   the board does for a card.
+- **A value the server refuses goes off the screen again.** The panel draws a
+  value the moment you pick it, and the board puts itself right when the write
+  is refused. The panel did not, so on an archived task — where the panel is
+  the only place a value is drawn — the message said the change had not saved
+  while the new value sat there. The panel now reads the task again when a
+  write is refused, so the value you see is the value that is kept.
 - **An open task panel follows what somebody else does to it.** A task another
   person archived, or put back, while your panel was open left the panel as it
   was: no archived row, and _Archive task_ still in its menu until you loaded
