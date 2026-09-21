@@ -174,30 +174,46 @@ test.describe("Picking several cards", () => {
   });
 });
 
+/**
+ * The right edge of the last thing on the top bar that takes any room.
+ *
+ * The shell hides its own overflow, so a bar that is too long is clipped in
+ * silence rather than scrolled. Measuring the end is the only way to see it.
+ */
+async function topBarEnds(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const top = document.querySelector('[data-testid="board-mark"]')!.parentElement!;
+    const drawn = [...top.children].filter((el) => el.getBoundingClientRect().width > 0);
+    return Math.round(drawn[drawn.length - 1].getBoundingClientRect().right);
+  });
+}
+
 /*
- * The bar reaches a phone, and the top bar there was already exactly full.
- * So this measures it rather than trusting a look: the crumbs give the bar
- * their room while something is picked, and take it back afterwards.
+ * The bar reaches a phone, and the top bar there was already exactly full. So
+ * this measures it rather than trusting a look: while something is picked the
+ * search box and the two links off the board give it their room, and take it
+ * back the moment nothing is.
  */
 test.describe("Picking on a phone", () => {
   test.use({ viewport: { width: 390, height: 780 } });
 
   test("the bar fits the top bar, and nothing is pushed off it", async ({ page }) => {
-    await register(page);
+    await register(page, "Wilhelmina Featherstonehaugh");
     await createProject(page, unique("Pocket"));
     await fourCards(page);
+
+    expect(await topBarEnds(page)).toBeLessThanOrEqual(390);
 
     await pick(page, "Aardvark", "Beetle");
     await expect(page.getByTestId("pick-bar")).toBeVisible();
     expect(await overflow(page)).toBe(0);
+    expect(await topBarEnds(page)).toBeLessThanOrEqual(390);
 
-    for (const testid of ["board-mark", "pick-bar", "pick-set", "search-box"]) {
-      const box = await page.getByTestId(testid).boundingBox();
-      expect(box, `${testid} is not on the screen`).not.toBeNull();
-      expect(box!.x).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-    }
-    await expect(page.getByTitle("Project settings")).toBeVisible();
+    /* What gave the room, and what kept its place. */
+    await expect(page.getByTestId("search-box")).toBeHidden();
+    await expect(page.getByTitle("Project settings")).toBeHidden();
+    await expect(page.getByTestId("board-mark")).toBeVisible();
+    await expect(page.getByTestId("pick-set")).toBeVisible();
 
     /* A finger has something to press. */
     for (const target of [page.getByTestId("pick-set"), page.getByTestId("pick-clear")]) {
@@ -205,5 +221,12 @@ test.describe("Picking on a phone", () => {
       expect(box!.width).toBeGreaterThanOrEqual(20);
       expect(box!.height).toBeGreaterThanOrEqual(20);
     }
+
+    /* And it is a loan, not a taking. */
+    await page.getByTestId("pick-clear").click();
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+    await expect(page.getByTestId("search-box")).toBeVisible();
+    await expect(page.getByTitle("Project settings")).toBeVisible();
+    expect(await topBarEnds(page)).toBeLessThanOrEqual(390);
   });
 });
