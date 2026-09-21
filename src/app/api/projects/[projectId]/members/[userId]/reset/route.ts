@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { guard, json, ownerOnly, route } from "@/lib/api";
+import { guard, json, ownerOnly, readId, route } from "@/lib/api";
 import { logActivity } from "@/lib/queries";
 import { makeResetToken } from "@/lib/resets";
 
@@ -20,6 +20,7 @@ type Ctx = { params: Promise<{ projectId: string; userId: string }> };
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId, userId } = await ctx.params;
   const { user: actor, membership } = await guard(projectId);
+  readId(userId, "member");
   ownerOnly(actor, membership, "make a reset link");
 
   if (userId === actor.id) {

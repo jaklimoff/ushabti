@@ -2,13 +2,14 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
+import { broadcast, clientIdOf, guard, humanOnly, json, readId, route } from "@/lib/api";
 
 type Ctx = { params: Promise<{ projectId: string; userId: string }> };
 
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { projectId, userId } = await ctx.params;
   const { user, membership } = await guard(projectId);
+  readId(userId, "member");
 
   const removingSelf = user.id === userId;
   // A person may leave. An agent may not: the owner removes it in Settings,

@@ -13,7 +13,7 @@ import {
   refuseAddress,
 } from "./webhook-address";
 import { HttpError } from "./auth";
-import { str } from "./api";
+import { readId, str } from "./api";
 import {
   deliveryHeaders,
   KEEP_DELIVERIES,
@@ -475,6 +475,7 @@ export async function loadWebhooks(projectId: string): Promise<WebhookDTO[]> {
 
 /** The project a webhook belongs to, or null. The routes guard on it. */
 export async function webhookProjectId(webhookId: string): Promise<string | null> {
+  readId(webhookId, "webhook");
   const [row] = await db
     .select({ projectId: webhooks.projectId })
     .from(webhooks)

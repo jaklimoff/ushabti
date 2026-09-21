@@ -75,6 +75,17 @@ Every failure is the same envelope, at the status the route chose:
 | `429` | Ten failures from this address in ten minutes. The answer carries `Retry-After` in seconds. |
 | `500` | `Something went wrong on the server.` Anything unexpected, logged server-side. |
 
+## Ids
+
+Every id is a UUID, in the path and in a body alike. Anything else is read before the database sees
+it and answered `400 That is not a task id.` — with `run`, `view`, `project`, `property`, `option`,
+`comment`, `checklist item`, `webhook`, `agent`, `member` or `token` in place of `task`, whichever
+the route was asked for. Upper case passes, because Postgres reads a UUID either way; a space around
+it does not.
+
+`404` still means a real id that names nothing, or nothing you may see. `400` means it was never an
+id at all.
+
 ## Bodies
 
 JSON in, JSON out. A body that will not parse is `400 The request body must be JSON.`

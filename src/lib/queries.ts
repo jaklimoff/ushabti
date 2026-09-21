@@ -18,6 +18,7 @@ import {
   viewLenses,
   views,
 } from "@/db/schema";
+import { readId } from "./api";
 import { HttpError } from "./auth";
 import { readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
@@ -776,6 +777,7 @@ export async function loadActivityFeed(
  * Put back is the one exception, and it asks below.
  */
 export async function taskProjectId(taskId: string): Promise<string | null> {
+  readId(taskId, "task");
   const [row] = await db
     .select({ projectId: tasks.projectId })
     .from(tasks)
@@ -793,6 +795,7 @@ export async function taskProjectId(taskId: string): Promise<string | null> {
  * nothing, exactly as a second archive does.
  */
 export async function taskProjectIdEvenDeleted(taskId: string): Promise<string | null> {
+  readId(taskId, "task");
   const [row] = await db
     .select({ projectId: tasks.projectId })
     .from(tasks)
@@ -802,6 +805,7 @@ export async function taskProjectIdEvenDeleted(taskId: string): Promise<string |
 }
 
 export async function propertyProjectId(propertyId: string): Promise<string | null> {
+  readId(propertyId, "property");
   const [row] = await db
     .select({ projectId: properties.projectId })
     .from(properties)
@@ -811,6 +815,7 @@ export async function propertyProjectId(propertyId: string): Promise<string | nu
 }
 
 export async function optionPropertyId(optionId: string) {
+  readId(optionId, "option");
   const [row] = await db
     .select({ propertyId: propertyOptions.propertyId, projectId: properties.projectId })
     .from(propertyOptions)
@@ -826,6 +831,7 @@ export async function optionPropertyId(optionId: string) {
  * at all, so the answer is a refusal rather than an empty board.
  */
 export async function groupPropertyId(projectId: string, propertyId: string): Promise<string> {
+  readId(propertyId, "property");
   const [prop] = await db
     .select({ id: properties.id, type: properties.type, projectId: properties.projectId })
     .from(properties)
@@ -840,6 +846,7 @@ export async function groupPropertyId(projectId: string, propertyId: string): Pr
 }
 
 export async function viewProjectId(viewId: string): Promise<string | null> {
+  readId(viewId, "view");
   const [row] = await db
     .select({ projectId: views.projectId })
     .from(views)
@@ -849,6 +856,7 @@ export async function viewProjectId(viewId: string): Promise<string | null> {
 }
 
 export async function checklistTaskId(itemId: string): Promise<string | null> {
+  readId(itemId, "checklist item");
   const [row] = await db
     .select({ taskId: checklistItems.taskId })
     .from(checklistItems)
@@ -858,6 +866,7 @@ export async function checklistTaskId(itemId: string): Promise<string | null> {
 }
 
 export async function commentRow(commentId: string) {
+  readId(commentId, "comment");
   const [row] = await db
     .select({ id: comments.id, taskId: comments.taskId, authorId: comments.authorId })
     .from(comments)

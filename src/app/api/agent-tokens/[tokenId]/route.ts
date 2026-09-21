@@ -2,13 +2,14 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agentTokens } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { guard, humanOnly, json, route } from "@/lib/api";
+import { guard, humanOnly, json, readId, route } from "@/lib/api";
 
 type Ctx = { params: Promise<{ tokenId: string }> };
 
 /** Revokes a token. The row stays, so the list can still show what it was. */
 export const DELETE = route<Ctx>(async (_req, ctx) => {
   const { tokenId } = await ctx.params;
+  readId(tokenId, "token");
 
   const [token] = await db
     .select({ id: agentTokens.id, projectId: agentTokens.projectId })
