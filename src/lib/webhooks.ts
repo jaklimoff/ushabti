@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { db } from "@/db";
@@ -145,27 +145,28 @@ async function queueForProject(projectId: string, rung: Rung[]): Promise<void> {
  * links of that account: one row arrives per ring, and nothing ever took one
  * away. A delivery that still has a try left is never swept, however old it
  * is — the sweep is for the record, not for the queue.
+ *
+ * One statement for every webhook that rang, because this is on the write. A
+ * SELECT and a DELETE each cost the writer two round-trips per webhook, so a
+ * project with five webhooks paid ten of them for housekeeping. The window
+ * numbers each webhook's deliveries newest first, and everything past the
+ * twentieth goes.
  */
 async function sweepDeliveries(hookIds: string[]): Promise<void> {
-  for (const hookId of hookIds) {
-    const keep = await db
-      .select({ id: webhookDeliveries.id })
-      .from(webhookDeliveries)
-      .where(eq(webhookDeliveries.webhookId, hookId))
-      .orderBy(desc(webhookDeliveries.createdAt))
-      .limit(KEEP_DELIVERIES);
+  if (hookIds.length === 0) return;
 
-    await db.delete(webhookDeliveries).where(
-      and(
-        eq(webhookDeliveries.webhookId, hookId),
-        isNull(webhookDeliveries.nextTryAt),
-        notInArray(
-          webhookDeliveries.id,
-          keep.map((r) => r.id),
-        ),
-      ),
-    );
-  }
+  await db.execute(sql`
+    delete from ${webhookDeliveries}
+    using (
+      select id,
+             row_number() over (partition by webhook_id order by created_at desc) as place
+      from ${webhookDeliveries}
+      where ${inArray(webhookDeliveries.webhookId, hookIds)}
+    ) as ranked
+    where ${webhookDeliveries.id} = ranked.id
+      and ranked.place > ${KEEP_DELIVERIES}
+      and ${webhookDeliveries.nextTryAt} is null
+  `);
 }
 
 /** Queues one delivery by hand, for **Send a test**. */
