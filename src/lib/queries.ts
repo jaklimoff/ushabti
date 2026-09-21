@@ -277,9 +277,7 @@ function liveTaskRows(projectId: string) {
         commentCount: sql<number>`(select count(*)::int from ${comments} c where c.task_id = ${tasks}.id)`,
       })
       .from(tasks)
-      .where(
-        and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt), isNull(tasks.deletedAt)),
-      )
+      .where(and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt), isNull(tasks.deletedAt)))
       // the number keeps the order stable if two ranks ever match
       .orderBy(byPos(tasks.position), asc(tasks.number))
   );

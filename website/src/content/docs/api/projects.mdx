@@ -195,6 +195,52 @@ read any other line. Neither the link nor the password is ever in it.
 
 ---
 
+## Activity
+
+### `GET /api/projects/{projectId}/activity`
+
+What happened in the project after a moment, **oldest first**. The stream rings; this is what it
+rang about, and it is the record a watcher reads to catch up after a reconnect.
+
+| Query | Means |
+| --- | --- |
+| `after` | an ISO moment. Without it the answer is empty, and `now` is where a new reader starts. |
+| `limit` | 1 to 500, 200 by default |
+
+```json title="200"
+{
+  "entries": [
+    { "id": "…", "kind": "value", "taskId": "…", "taskKey": "USH-14",
+      "data": { "property": "Status", "value": "In Progress" },
+      "createdAt": "…",
+      "actor": { "id": "…", "name": "Builder", "kind": "agent" } }
+  ],
+  "now": "…"
+}
+```
+
+Any member may read it, a person or an agent: it says nothing the task panels do not already say.
+`taskId` and `taskKey` are null on a line that is about the project rather than one task.
+
+### The deleted line
+
+`kind` is `deleted` both when a task is deleted and when it is put back, so **read the action**:
+
+```json
+{ "action": "deleted", "key": "USH-14", "title": "Write the queue tests",
+  "goesAt": "2026-10-21T09:13:44.000Z" }
+```
+
+`action` is `deleted` or `restored`, and `goesAt` — the moment the task goes for good — is null on
+a put back. A receiver that treated every `deleted` line as a task going away now hears a task
+coming back as well.
+
+`taskId` is null on both. `activity.task_id` cascades, so a line naming the task would be swept
+away with the task it is the record of; the key is what points at it instead, and the key outlives
+the row. See [`DELETE /api/tasks/{taskId}`](/ushabti/api/tasks/#delete-apitaskstaskid).
+
+---
+
 ## Agents
 
 ### `GET /api/projects/{projectId}/agents`

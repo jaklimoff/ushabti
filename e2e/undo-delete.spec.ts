@@ -136,7 +136,9 @@ test.describe("Undoing a delete", () => {
       await page.request.get(`/api/tasks/${taskId}`),
       await page.request.patch(`/api/tasks/${taskId}`, { data: { title: "No" } }),
       await page.request.delete(`/api/tasks/${taskId}`),
-      await page.request.put(`/api/tasks/${taskId}/values/${propertyId}`, { data: { value: null } }),
+      await page.request.put(`/api/tasks/${taskId}/values/${propertyId}`, {
+        data: { value: null },
+      }),
       await page.request.post(`/api/tasks/${taskId}/checklist`, { data: { text: "No" } }),
       await page.request.post(`/api/tasks/${taskId}/comments`, { data: { body: "No" } }),
       await page.request.post(`/api/tasks/${taskId}/run`, { data: { goal: "No" } }),
@@ -243,7 +245,10 @@ test.describe("Undoing a delete", () => {
 
     // Swept means gone, not hidden: the row is not in the table any more.
     const left = await inDatabase(async (client) =>
-      client.query(`select 1 from tasks where number = $1`, [Number(old.split("-")[1])]),
+      client.query(`select 1 from tasks where project_id = $1 and number = $2`, [
+        projectId,
+        Number(old.split("-")[1]),
+      ]),
     );
     expect(left.rowCount).toBe(0);
   });
