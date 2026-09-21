@@ -35,18 +35,10 @@ export default tseslint.config(
       "no-console": ["warn", { allow: ["warn", "error"] }],
       eqeqeq: ["error", "smart"],
 
-      // Two rules that arrived with eslint-config-next 16, kept as advice
-      // rather than as a gate:
-      //
-      // `refs` reads dnd-kit's useSortable() result as if it were a ref
-      // object, so every board component reports a false positive.
-      //
-      // `set-state-in-effect` catches a real pattern of ours: a panel field
-      // that resets when the task changes. The React way out is to key the
-      // component instead. That is a refactor with its own risk, so it is on
-      // the roadmap, not in this release.
+      // `refs`, from eslint-config-next 16, reads dnd-kit's useSortable()
+      // result as if it were a ref object, so every board component reports a
+      // false positive.
       "react-hooks/refs": "off",
-      "react-hooks/set-state-in-effect": "warn",
     },
   },
 
