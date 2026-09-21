@@ -58,7 +58,7 @@ PATCH /api/runs/{runId}
 | `log`       | string  | One line appended to the run log. 400 characters. **If you omit it but send `step`, the step is logged instead.** |
 | `goal`      | string  | Change the goal. 200 characters.                                   |
 | `steps`     | string[]| Replace the whole plan. 50 steps.                                  |
-| `status`    | string  | `running`, `paused`, `done`, `failed`, `stopped` or `lost`.        |
+| `status`    | string  | `running`, `paused`, `waiting`, `handed_over`, `done`, `failed`, `stopped` or `lost`. |
 | `reportFor` | number  | Minutes until your next report. Stretches the lease once, to at most **60 minutes**. |
 
 **The answer carries the control word:**
@@ -162,7 +162,7 @@ PATCH /api/runs/{runId}
 | `done`        | Finished.                                                |
 | `failed`      | Tried and could not.                                     |
 | `stopped`     | A person asked it to stop, and it did.                   |
-| `lost`        | The agent knows it is being killed. Its own last words.  |
+| `lost`        | The agent knows it is being killed mid-step. Its own last words. Refused on a run that waits. |
 | `taken_over`  | **A person's word only.** An agent sending it gets `400 Only a person takes a task over.` |
 
 Closing stamps `ended_at`, writes the activity entry, and clears any outstanding control word if the
@@ -184,7 +184,9 @@ rest — a record in red shouts about yesterday.
 a run missed its lease; an agent writes the same word as its own last message when it is being shut
 down. A row whose run ended **inside** its lease reads *shut down*; one the lease closed reads
 *lost*. The row works it out from the two moments it already carries, so the answer never changes
-with when somebody reads it.
+with when somebody reads it. The activity line says the same, because the line names its author as
+it is written: *"shut down, and the run ended with it"* for the agent, *"stopped answering, so the
+board closed the run"* for the lease.
 
 A row carries only what it says. The plan, the log and the three fields read off them —
 `stepsTotal`, `stepsDone` and `lastLog` — are not on it. One of those rows in full is
@@ -238,6 +240,18 @@ If your process is being killed, spend the last moment on:
 
 The card is freed at once instead of thirty minutes later. The bundled `board.mjs` catches `SIGINT`
 and `SIGTERM` and does exactly this.
+
+**Only while the run is still running.** A session that ended with a question or a hand-over said
+its last word already, and its card is somebody else's to move. So `board.mjs` reads the run once
+before it writes, and says nothing when it is no longer `running`; and the route refuses the report
+whatever sent it:
+
+```
+409 That run waits on purpose, so a lost report cannot end it.
+```
+
+Both doors, because a heartbeat killed half a second after `finish --to review` used to write
+*"the agent was stopped"* over a hand-over, and the card went quiet with a reviewer holding it.
 
 <LinkCard
   title="Pause, stop, take over"

@@ -858,6 +858,7 @@ function describeActivity(entry: {
     title?: string;
     text?: string;
     action?: string;
+    by?: string;
     forName?: string;
     to?: string;
     blockerKey?: string;
@@ -881,10 +882,15 @@ function describeActivity(entry: {
       return d.action === "unlinked"
         ? `${who} stopped it waiting on ${d.blockerKey || "another task"}`
         : `${who} made it wait on ${d.blockerKey || "another task"}`;
-    case "run":
+    case "run": {
       // A hand-over is the one run line that names somebody else.
       if (d.action === "handed_over") return `${who} handed the task to ${d.to || "somebody else"}`;
-      return `${who} ${RUN_WORDS[d.action ?? ""] ?? "changed the run"}`;
+      // `lost` is the one word two things write, so the line asks for the
+      // author first and falls back to the word alone for a line written
+      // before the author was on it.
+      const word = RUN_WORDS[`${d.action}:${d.by}`] ?? RUN_WORDS[d.action ?? ""];
+      return `${who} ${word ?? "changed the run"}`;
+    }
     // A line on the project, not on a task. No screen draws one yet.
     case "reset":
       return `${who} made a reset link for ${d.forName ?? "somebody"}`;
@@ -899,7 +905,12 @@ const RUN_WORDS: Record<string, string> = {
   failed: "stopped with a failure",
   stopped: "stopped the run",
   taken_over: "took the task over",
+  /* `lost` says two things: the board closed a run nobody answered for, or an
+     agent said goodbye as its session ended. `lostBy` decides which when the
+     line is written, and the two read nothing alike. */
   lost: "stopped answering, so the board closed the run",
+  "lost:lease": "stopped answering, so the board closed the run",
+  "lost:agent": "shut down, and the run ended with it",
 };
 
 /**

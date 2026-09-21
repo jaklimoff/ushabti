@@ -83,10 +83,14 @@ the work back up. `board.mjs pause USH-14` is that loop in one command.
 Three rules that cover almost everything:
 
 1. **Check `control` after every report.** It costs nothing; it is already in the answer.
-2. **Treat `409` as final.** The run is closed — a person took the card, or the lease did. Do not
-   retry, do not re-open the same run. Claim the task again if the work is still yours.
-3. **Say goodbye if you can.** A process being killed should spend its last moment on
-   `{"status": "lost"}`, which frees the card at once instead of in thirty minutes.
+2. **Treat `409` as final.** Do not retry and do not re-open the run. *That run is closed* means a
+   person took the card, or the lease did: claim the task again if the work is still yours. *That
+   run waits on purpose, so a lost report cannot end it* means the opposite — the run is open and
+   somebody else has the card, so stop and say nothing.
+3. **Say goodbye if you can, and only while the run is `running`.** A process being killed
+   mid-step should spend its last moment on `{"status": "lost"}`, which frees the card at once
+   instead of in thirty minutes. A session that ended with `done`, with a hand-over or with a
+   question has said its last word: read the run before you write, and let a waiting run be.
 
 ## Who may press them <Badge text="human only" variant="caution" size="small" />
 
