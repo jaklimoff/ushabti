@@ -170,30 +170,33 @@ export function windowDays(word: DateWindow, today: string): DayRange | null {
 /** What a project's day is worked out in until somebody says otherwise. */
 export const DEFAULT_TIME_ZONE = "UTC";
 
-let known: readonly string[] | null = null;
-
-/** The zones this machine knows, asked for once. */
-function zoneNames(): readonly string[] {
-  if (!known) known = Intl.supportedValuesOf("timeZone");
-  return known;
-}
-
 /**
- * True when this machine knows a zone by that name.
+ * True when this machine can work a day out in a zone of that name.
  *
- * `Intl.supportedValuesOf` is the list the runtime will agree with when it
- * works the day out, so it is the list the settings row is refused against.
- * It holds the canonical names — `Europe/Berlin` — and not the old aliases.
+ * The question is asked of the formatter, because the formatter is what
+ * answers it later: whatever it accepts, `todayIn` can use. A list would be a
+ * second opinion, and `Intl.supportedValuesOf("timeZone")` is the wrong one —
+ * it is CLDR's canonical set, which keeps the **old** names and leaves out the
+ * current ones. On this runtime it holds `Asia/Calcutta` and `Europe/Kiev` and
+ * refuses `Asia/Kolkata` and `Europe/Kyiv`, along with `Etc/UTC`, `GMT`, `UTC`
+ * itself and every lowercase spelling. An owner in India would have typed the
+ * name their own computer shows them and been told it does not exist.
  *
- * It names places and not offsets, so UTC is not in it. UTC is named here
- * beside it, because it is what every project starts on and nobody could
- * type it back in otherwise.
+ * The name is stored the way it was typed. The formatter reads a zone name
+ * without case, so `europe/berlin` works and stays `europe/berlin` on the row:
+ * rewriting somebody's spelling is a change nobody asked for, and nothing here
+ * compares two zone names to each other.
  *
- * Only the server asks. Two machines' lists can differ, and a browser that
- * refused a name the server would take is a second answer to one question.
+ * Only the server asks. A browser that refused a name the server would take is
+ * a second answer to one question.
  */
 export function isTimeZone(name: string): boolean {
-  return name === DEFAULT_TIME_ZONE || zoneNames().includes(name);
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: name });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -78,9 +78,12 @@ and a window of days needs a day to be counted from. That day is the project's a
 Two people in two zones looking at one view would otherwise see different cards, the board is drawn
 on the server before any browser sees it, and an agent has no browser at all.
 
-A name this server does not know is refused in one line — *No time zone is called Europe/Atlantis.
-Use a name like Europe/Berlin or UTC.* — and nothing is saved. Everybody else sees *"Only the owner
-can change the time zone of this project."*
+The box takes any name the server can work a day out in, which is every name your own computer will
+show you: the current spellings and the old ones alike (`Asia/Kolkata` and `Asia/Calcutta`,
+`Europe/Kyiv` and `Europe/Kiev`), the fixed offsets (`Etc/UTC`, `Etc/GMT+12`, `GMT`), and any case
+you type it in. The row keeps the spelling you used. A name it cannot use is refused in one line —
+*No time zone is called Europe/Atlantis. Use a name like Europe/Berlin or UTC.* — and nothing is
+saved. Everybody else sees *"Only the owner can change the time zone of this project."*
 
 ### Deleting the project <Badge text="owner only" variant="caution" size="small" />
 

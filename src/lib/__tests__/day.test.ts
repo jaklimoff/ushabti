@@ -38,6 +38,29 @@ describe("the day it is in a zone", () => {
   it("writes the parts in one order, whatever the locale would say", () => {
     expect(todayIn("Europe/Berlin", new Date("2026-01-05T12:00:00.000Z"))).toBe("2026-01-05");
   });
+
+  /*
+   * The hour a zone skips when summer time starts. Berlin goes from 01:59 to
+   * 03:00 on 2027-03-28, so 02:30 local never happens — and the day either
+   * side of the hole is still the 28th. A day counted by adding an offset to
+   * a clock would trip here; this one asks the formatter for the day itself.
+   */
+  it("keeps the day across an hour that does not exist", () => {
+    expect(todayIn("Europe/Berlin", new Date("2027-03-27T22:59:00.000Z"))).toBe("2027-03-27");
+    // 00:30 CET, before the jump.
+    expect(todayIn("Europe/Berlin", new Date("2027-03-27T23:30:00.000Z"))).toBe("2027-03-28");
+    // 01:30 CET, the last hour the old offset has.
+    expect(todayIn("Europe/Berlin", new Date("2027-03-28T00:30:00.000Z"))).toBe("2027-03-28");
+    // 03:30 CEST. The clock jumped over 02:30; the day did not move.
+    expect(todayIn("Europe/Berlin", new Date("2027-03-28T01:30:00.000Z"))).toBe("2027-03-28");
+  });
+
+  /* Not every zone is a whole number of hours from UTC. Kathmandu is +5:45,
+     so its day turns fifteen minutes off any hour. */
+  it("counts a zone that is three quarters of an hour off the hour", () => {
+    expect(todayIn("Asia/Kathmandu", new Date("2027-03-27T18:10:00.000Z"))).toBe("2027-03-27");
+    expect(todayIn("Asia/Kathmandu", new Date("2027-03-27T18:20:00.000Z"))).toBe("2027-03-28");
+  });
 });
 
 describe("the zone of a project", () => {
@@ -46,8 +69,39 @@ describe("the zone of a project", () => {
     expect(isTimeZone(DEFAULT_TIME_ZONE)).toBe(true);
   });
 
+  /*
+   * The names people actually type. `Intl.supportedValuesOf("timeZone")` is
+   * CLDR's canonical set: it keeps `Asia/Calcutta` and `Europe/Kiev` and
+   * leaves out the names those places are called now, along with `Etc/UTC`,
+   * `GMT` and `UTC`. Asking the formatter — the thing that works the day out
+   * — takes all of them, old and new alike.
+   */
+  it("takes the name a computer shows its owner, old spelling or new", () => {
+    for (const name of [
+      "Asia/Kolkata",
+      "Asia/Calcutta",
+      "Europe/Kyiv",
+      "Europe/Kiev",
+      "America/Argentina/Buenos_Aires",
+      "Etc/UTC",
+      "GMT",
+    ]) {
+      expect(isTimeZone(name)).toBe(true);
+    }
+  });
+
+  /* A zone name is read without case, and the row keeps what was typed:
+     rewriting somebody's spelling is a change nobody asked for. */
+  it("reads a name without case and stores it as it was typed", () => {
+    expect(isTimeZone("europe/berlin")).toBe(true);
+    expect(readTimeZone("europe/berlin")).toBe("europe/berlin");
+    expect(todayIn("europe/berlin", new Date("2026-01-05T12:00:00.000Z"))).toBe("2026-01-05");
+  });
+
   it("does not know a name nobody has", () => {
     expect(isTimeZone("Europe/Atlantis")).toBe(false);
+    expect(isTimeZone("Mars/Olympus")).toBe(false);
+    expect(isTimeZone("")).toBe(false);
     expect(zoneRefused("Europe/Atlantis")).toContain("Europe/Atlantis");
   });
 

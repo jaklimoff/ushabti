@@ -21,25 +21,25 @@ function chip(page: Page, text: string) {
 }
 
 /**
- * A day in UTC, counted from today, as YYYY-MM-DD.
+ * A day counted from another day, as YYYY-MM-DD.
  *
- * The project below is set to UTC, so this is the day the board will call
- * today. It is worked out here in plain arithmetic for the same reason the
- * product does: the machine running the test is in some zone of its own.
+ * Plain arithmetic on the string the board says today is. Nothing here reads
+ * a clock or a zone: the test machine is in some zone of its own, and the
+ * whole point of the test below is that only one day matters.
  */
-function utcDay(offset: number): string {
-  const now = new Date();
+function dayFrom(today: string, offset: number): string {
   const at = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) + offset * 86_400_000,
+    Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10))) +
+      offset * 86_400_000,
   );
   const month = String(at.getUTCMonth() + 1).padStart(2, "0");
   const day = String(at.getUTCDate()).padStart(2, "0");
   return `${at.getUTCFullYear()}-${month}-${day}`;
 }
 
-/** How many days back the Monday of this UTC week is. The week starts Monday. */
-function toMonday(): number {
-  const weekday = new Date().getUTCDay();
+/** How many days back the Monday of that day's week is. The week starts Monday. */
+function toMonday(today: string): number {
+  const weekday = new Date(`${today}T00:00:00.000Z`).getUTCDay();
   return -((weekday + 6) % 7);
 }
 
@@ -757,15 +757,21 @@ test.describe("Filters on a phone", () => {
 });
 
 /*
- * The browser is a day ahead of the project on purpose.
+ * The browser is never on the project's day, at any hour.
  *
- * At most hours of the UTC day it is already tomorrow in Auckland, so a board
- * that worked a window out from this browser's clock would draw one set of
- * cards on the server and another after it hydrated. Everything below has to
- * hold anyway, and the console has to stay clean.
+ * Kiritimati is UTC+14 and the project below sits on UTC−12: twenty-six hours
+ * apart, so the two are never on the same date — not for part of the day, as
+ * a nearer pair would be, but at every instant of every day. Neither zone has
+ * summer time, so that holds next March as well.
+ *
+ * A board that worked a window out from this browser's clock would therefore
+ * draw one set of cards on the server and another the moment it hydrated.
+ * Everything below has to hold anyway, and the console has to stay quiet.
  */
+const PROJECT_ZONE = "Etc/GMT+12";
+
 test.describe("A date rule that names a window of days", () => {
-  test.use({ timezoneId: "Pacific/Auckland" });
+  test.use({ timezoneId: "Pacific/Kiritimati" });
 
   test("holds a week still, and reads the same after a reload", async ({ page }) => {
     const noise: string[] = [];
@@ -777,8 +783,7 @@ test.describe("A date rule that names a window of days", () => {
     await register(page);
     const projectId = await createProject(page, unique("Windows"));
 
-    /* The zone is the project's, and the owner says which. UTC is where a
-       project starts, so this write proves the row rather than moving it. */
+    /* The zone is the project's, and the owner says which. */
     await gotoSettings(page, projectId, "project");
     const zone = page.getByLabel("The time zone this project's day is worked out in");
     await expect(zone).toHaveValue("UTC");
@@ -790,12 +795,29 @@ test.describe("A date rule that names a window of days", () => {
     await expect(page.getByTestId("toast")).toContainText("No time zone is called Europe/Atlantis");
     await page.reload();
     await expect(zone).toHaveValue("UTC");
+
+    /* And a name that is not a place is still a zone. `Etc/GMT+12` is UTC−12,
+       and it is one of the names the CLDR list leaves out — so this row also
+       says that the board asks the formatter and not a list. */
+    await zone.fill(PROJECT_ZONE);
+    await zone.blur();
+    await expect(page.getByTestId("toast")).toHaveCount(0);
+    await page.reload();
+    await expect(zone).toHaveValue(PROJECT_ZONE);
+
     /* That 400 is the refusal we asked for. Everything the board says from
        here on has to be quiet. */
     noise.length = 0;
 
-    const sunday = utcDay(toMonday() + 6);
-    const nextTuesday = utcDay(toMonday() + 8);
+    /*
+     * The day the server says it is, which is the only day on this screen.
+     * The test does its own Monday arithmetic from there, so it never has to
+     * know what zone the machine running it is in.
+     */
+    const board = await page.request.get(`/api/projects/${projectId}/board`);
+    const { today } = (await board.json()) as { today: string };
+    const sunday = dayFrom(today, toMonday(today) + 6);
+    const nextTuesday = dayFrom(today, toMonday(today) + 8);
 
     await page.goto(`/p/${projectId}`);
     await addTask(page, "Todo", "Lands this week");
