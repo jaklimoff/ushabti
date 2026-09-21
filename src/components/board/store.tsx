@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
@@ -195,6 +196,51 @@ export function useBoard(): Store {
 
 const VIEW_KEY = "ushabti:view:";
 
+/*
+ * Which view each project was last left on. That is one person’s answer about
+ * their own screen, so it is kept in their browser and not on the board
+ * everybody shares — which makes it a store outside React, and React reads it
+ * as one. The page is drawn on the server first, where no browser answers, so
+ * the server’s answer is "nothing yet" and the browser’s arrives the moment it
+ * takes over. Reading it in an effect instead meant writing state from one.
+ *
+ * The copy in memory is what answers in private mode, where the browser keeps
+ * nothing: picking a view still holds for as long as the tab is open.
+ */
+const lastView = new Map<string, string | null>();
+const lastViewWatchers = new Set<() => void>();
+
+function readLastView(projectId: string): string | null {
+  if (!lastView.has(projectId)) {
+    try {
+      lastView.set(projectId, window.localStorage.getItem(VIEW_KEY + projectId));
+    } catch {
+      lastView.set(projectId, null); /* private mode */
+    }
+  }
+  return lastView.get(projectId) ?? null;
+}
+
+function writeLastView(projectId: string, id: string) {
+  lastView.set(projectId, id);
+  try {
+    window.localStorage.setItem(VIEW_KEY + projectId, id);
+  } catch {
+    /* private mode */
+  }
+  for (const tell of lastViewWatchers) tell();
+}
+
+function watchLastView(tell: () => void) {
+  lastViewWatchers.add(tell);
+  return () => {
+    lastViewWatchers.delete(tell);
+  };
+}
+
+/** On the server nobody has picked one, so the board opens on the main view. */
+const noLastView = () => null;
+
 export function BoardProvider({
   initial,
   user,
@@ -205,36 +251,22 @@ export function BoardProvider({
   children: React.ReactNode;
 }) {
   const [data, setData] = useState<BoardData>(initial);
-  const [viewId, setViewIdState] = useState<string>(
-    initial.views.find((v) => v.isDefault)?.id ?? initial.views[0]?.id ?? "",
-  );
   const [live, setLive] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastSeq = useRef(0);
   const router = useRouter();
   const projectId = data.project.id;
 
-  /* --- restore the last view of this project -------------------------- */
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(VIEW_KEY + projectId);
-      if (saved) setViewIdState((current) => (saved === current ? current : saved));
-    } catch {
-      /* private mode */
-    }
-  }, [projectId]);
-
-  const setViewId = useCallback(
-    (id: string) => {
-      setViewIdState(id);
-      try {
-        window.localStorage.setItem(VIEW_KEY + projectId, id);
-      } catch {
-        /* private mode */
-      }
-    },
-    [projectId],
+  /* --- the last view of this project, and the main one behind it ------- */
+  const lastViewId = useSyncExternalStore(
+    watchLastView,
+    useCallback(() => readLastView(projectId), [projectId]),
+    noLastView,
   );
+  const viewId =
+    lastViewId || (initial.views.find((v) => v.isDefault)?.id ?? initial.views[0]?.id ?? "");
+
+  const setViewId = useCallback((id: string) => writeLastView(projectId, id), [projectId]);
 
   const notify = useCallback((text: string, kind: Toast["kind"] = "error") => {
     const id = (toastSeq.current += 1);

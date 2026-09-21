@@ -2,10 +2,17 @@
 
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import styles from "./panel.module.css";
 
 marked.setOptions({ gfm: true, breaks: true });
+
+/* "Am I in a browser?" is a question about the world outside React, and it has
+   two answers that never change afterwards: the server’s, and the browser’s.
+   So nothing ever has to be told, and the subscription is empty. */
+const tellNobody = () => () => {};
+const inBrowser = () => true;
+const onServer = () => false;
 
 /**
  * DOMPurify needs a real DOM, and Next renders client components on the server
@@ -14,9 +21,7 @@ marked.setOptions({ gfm: true, breaks: true });
  * through the sanitiser first.
  */
 export function Markdown({ text, testId = "markdown" }: { text: string; testId?: string }) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(tellNobody, inBrowser, onServer);
 
   const html = useMemo(() => {
     if (!mounted) return null;
