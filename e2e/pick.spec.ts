@@ -13,6 +13,7 @@ import {
   overflow,
   register,
   settles,
+  showColumn,
   unique,
 } from "./helpers";
 
@@ -430,6 +431,9 @@ test.describe("Picking on a phone", () => {
 
     expect(await topBarEnds(page)).toBeLessThanOrEqual(390);
 
+    /* A phone draws one column, so the cards to pick have to be the ones on
+       screen. The bar itself is the same bar at any width. */
+    await showColumn(page, "Todo");
     await pick(page, "Aardvark", "Beetle");
     await expect(page.getByTestId("pick-bar")).toBeVisible();
     expect(await overflow(page)).toBe(0);

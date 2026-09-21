@@ -6,13 +6,17 @@ import {
   centreOf,
   column,
   columnOrder,
+  columnPill,
   createProject,
   dragCard,
   dragOnto,
+  forAFinger,
   overflow,
   pastTheBar,
   register,
+  saved,
   settles,
+  showColumn,
   sortBoard,
   unique,
   viewOrder,
@@ -566,12 +570,22 @@ test.describe("Ushabti board", () => {
     await open.click();
     await expect(shipped.getByText("Fold me across")).toBeVisible();
 
-    // A phone is a narrow board, and a strip has to stay narrow on one.
-    await page.setViewportSize({ width: 390, height: 780 });
+    /* A fold gives width back, and a phone has none to give: it draws one
+       column, whole, and the strip above names the rest. So there is no way
+       to fold one down there — and the fold this browser wrote is ignored
+       rather than cleared, so the wider window gets it back. */
     await page.getByRole("button", { name: "Fold the column Shipped" }).click();
-    const onPhone = await shipped.boundingBox();
-    expect(onPhone!.width).toBeLessThan(80);
+    await expect(open).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 780 });
+    await expect(page.getByTestId("column")).toHaveCount(1);
+    await expect(column(page, "Todo")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Fold the column / })).toHaveCount(0);
+    await expect(page.getByTestId("column-pill")).toHaveCount(5);
+
     await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(open).toBeVisible();
+    await expect(page.getByTestId("column-pill")).toHaveCount(0);
 
     // The fold is this browser's and nothing about it reached the project.
     await page.evaluate(() => window.localStorage.clear());
@@ -714,6 +728,8 @@ test.describe("Ordering a board on a phone", () => {
     }
 
     await sortBoard(page, "Priority");
+    /* A phone draws one column, and the cards that were ordered are in Todo. */
+    await showColumn(page, "Todo");
     expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
     await expect(page.getByTestId("sort-chip")).toBeVisible();
   });
@@ -739,6 +755,200 @@ test.describe("Ordering a board on a phone", () => {
     expect(mark!.height).toBe(18);
   });
 });
+
+/*
+ * A phone cannot draw two 272 px columns side by side, so from 560 px down it
+ * draws one and names the rest in a strip above it. Three ways reach another
+ * column — a pill, a swipe and the arrows — and they all write one word, which
+ * is why the strip, the canvas and the cursor can never disagree.
+ */
+test.describe("A board on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 } });
+
+  test("draws one column, and the strip is the way to the others", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pocket"));
+    await aColumnEach(page);
+
+    // A phone opens on the first column, every time.
+    await page.goto(`/p/${projectId}`);
+    await expect(page.getByTestId("column")).toHaveCount(1);
+    await expect(column(page, "Backlog")).toBeVisible();
+    await expect(card(page, "Aardvark")).toBeVisible();
+    await expect(card(page, "Beetle")).toHaveCount(0);
+
+    // Full width, and nowhere to push the board sideways.
+    const drawn = await page.getByTestId("column").boundingBox();
+    expect(drawn!.width).toBeGreaterThan(340);
+    expect(await overflow(page)).toBe(0);
+    expect(await sideways(page)).toBe(0);
+
+    // The strip names every column of the view and says what is in each.
+    const pills = page.getByTestId("column-pill");
+    await expect(pills).toHaveCount(5);
+    expect(await names(pills)).toEqual(["BACKLOG", "TODO", "IN PROGRESS", "READY", "SHIPPED"]);
+    await expect(pills.getByTestId("column-pill-count")).toHaveText(["1", "1", "1", "0", "0"]);
+    await forAFinger(pills, 5);
+
+    // A pill is one way to another column.
+    await columnPill(page, "Todo").click();
+    await expect(column(page, "Todo")).toBeVisible();
+    await expect(page.getByTestId("column")).toHaveCount(1);
+    await expect(card(page, "Beetle")).toBeVisible();
+    await expect(card(page, "Aardvark")).toHaveCount(0);
+    expect(await sideways(page)).toBe(0);
+
+    // The arrows are another, through the cursor the board already has: the
+    // card the cursor lands on is in the next column, so the board pages and
+    // the focus follows it there.
+    await card(page, "Beetle").first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(column(page, "In Progress")).toBeVisible();
+    await expect(card(page, "Cricket").first()).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await expect(column(page, "Todo")).toBeVisible();
+    await expect(card(page, "Beetle").first()).toBeFocused();
+
+    // And `n` makes a task at the top of the column on screen.
+    await page.keyboard.press("n");
+    const composer = page.getByPlaceholder("What needs doing?");
+    await composer.fill("Dingo");
+    await composer.press("Enter");
+    await expect(card(page, "Dingo")).toBeVisible();
+    await page.getByRole("button", { name: "Close task" }).click();
+    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(2);
+    expect(await counts(pills)).toEqual(["1", "2", "1", "0", "0"]);
+  });
+
+  test("a card moves by the panel, and the strip says where it went", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Pocket"));
+    await aColumnEach(page);
+
+    /* No drag down here, so the panel's own control is how a card changes
+       column: it writes the one value a drop across a board writes. */
+    await columnPill(page, "Todo").click();
+    await card(page, "Beetle").click();
+    const panel = page.getByTestId("task-panel");
+    await panel.getByRole("button", { name: /^Todo/ }).click();
+    await saved(page, () => panel.getByRole("button", { name: /^Ready/ }).click());
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    const pills = page.getByTestId("column-pill");
+    expect(await counts(pills)).toEqual(["1", "0", "1", "1", "0"]);
+    await expect(card(page, "Beetle")).toHaveCount(0);
+
+    await columnPill(page, "Ready").click();
+    await expect(card(page, "Beetle")).toBeVisible();
+    expect(await sideways(page)).toBe(0);
+  });
+
+  test("picks a card and archives it, with no hover to find the check", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Pocket"));
+    await aColumnEach(page);
+
+    await columnPill(page, "Todo").click();
+    await card(page, "Beetle").getByTestId("card-pick").click();
+    await expect(page.getByTestId("pick-bar")).toBeVisible();
+    await expect(page.getByTestId("pick-count")).toHaveText("1 selected");
+    expect(await overflow(page)).toBe(0);
+
+    await page.getByTestId("pick-archive").click();
+    await expect(page.getByTestId("pick-confirm")).toHaveText("Archive 1 task?");
+    await settles(page, /\/api\/projects\/[0-9a-f-]+\/archive$/, () =>
+      page.getByTestId("pick-archive-yes").click(),
+    );
+    await expect(card(page, "Beetle")).toHaveCount(0);
+    expect(await counts(page.getByTestId("column-pill"))).toEqual(["1", "0", "1", "0", "0"]);
+  });
+});
+
+/*
+ * The same board under a finger. A phone has no hover, so the check that picks
+ * a card cannot wait for one, and a sideways swipe is how a page turns.
+ */
+test.describe("A board under a finger", () => {
+  test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
+
+  test("shows the check without a hover, and pages on a swipe", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Pocket"));
+    await aColumnEach(page);
+
+    await columnPill(page, "Todo").click();
+    const check = card(page, "Beetle").getByTestId("card-pick");
+    expect(await check.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+
+    // A finger going left brings the next column in; going right, the one
+    // before. A short one says nothing at all.
+    await swipe(page, -160, 0);
+    await expect(column(page, "In Progress")).toBeVisible();
+    await swipe(page, 160, 0);
+    await expect(column(page, "Todo")).toBeVisible();
+    await swipe(page, -40, 0);
+    await expect(column(page, "Todo")).toBeVisible();
+
+    // And a finger going down is the column scrolling, whatever it does
+    // sideways on the way.
+    await swipe(page, -90, 300);
+    await expect(column(page, "Todo")).toBeVisible();
+  });
+});
+
+/** One card in each of the first three columns, and two columns left empty. */
+async function aColumnEach(page: Page) {
+  for (const [columnName, title] of [
+    ["Backlog", "Aardvark"],
+    ["Todo", "Beetle"],
+    ["In Progress", "Cricket"],
+  ] as const) {
+    await addTask(page, columnName, title);
+    await page.getByRole("button", { name: "Close task" }).click();
+  }
+}
+
+/** How far the board can be pushed sideways. A phone has nowhere to push it. */
+async function sideways(page: Page): Promise<number> {
+  return page.getByTestId("board-canvas").evaluate((el) => el.scrollWidth - el.clientWidth);
+}
+
+/** The names in the column strip, left to right. The pills are uppercase. */
+async function names(pills: Locator): Promise<string[]> {
+  return (await pills.getByTestId("column-pill-name").allInnerTexts()).map((t) =>
+    t.trim().toUpperCase(),
+  );
+}
+
+/** What each pill says is in its column, left to right. */
+async function counts(pills: Locator): Promise<string[]> {
+  return pills.getByTestId("column-pill-count").allInnerTexts();
+}
+
+/**
+ * One finger, across the middle of the board.
+ *
+ * Playwright's touchscreen only taps, so the three events go through the
+ * browser itself. They are real touches, which is the point: the board reads a
+ * swipe the way it reads a finger, and nothing here simulates its answer.
+ */
+async function swipe(page: Page, dx: number, dy: number) {
+  const box = await page.getByTestId("board-canvas").boundingBox();
+  const from = { x: box!.x + box!.width / 2, y: box!.y + 60 };
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: from.x, y: from.y }],
+  });
+  for (let i = 1; i <= 4; i += 1) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: from.x + (dx * i) / 4, y: from.y + (dy * i) / 4 }],
+    });
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await cdp.detach();
+}
 
 /*
  * A small tablet, and a window as narrow as one. Both names used to go at
