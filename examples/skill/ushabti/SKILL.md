@@ -119,8 +119,10 @@ Keep it short. A refined task is one a person reads in a minute.
 - **Start the heartbeat once you claim, and let it run.** It says you are
   still there between reports, so a long build does not read as a dead agent.
   It writes nothing else: only a report moves the card. If it is killed with
-  you, it closes the run and the task goes back on the board, which is what a
-  person watching would want.
+  you while the run is still running, it closes the run and the task goes back
+  on the board, which is what a person watching would want. If you have
+  already ended with `finish`, `finish --to` or `ask`, it says nothing: that
+  run said its last word, and the board refuses to call it lost.
 - **A run that reports nothing for half an hour is closed for you.** The board
   cannot see your machine, so silence is the only evidence it has. Report
   before a long wait, not after it. If your run was closed this way, do not

@@ -316,8 +316,8 @@ PATCH /api/runs/{runId}
   is logged instead.
 - `steps` — a new plan, if the work turned out different.
 - `status` — `running`, `paused`, `waiting`, `handed_over`, `done`, `failed`,
-  or `lost` if you are being shut down and want the card back on the board at
-  once.
+  or `lost` if you are being shut down mid-step and want the card back on the
+  board at once. `lost` is refused on a run that waits.
 - `reportFor` — minutes until your next report. Send it before a step you know
   is long, such as a build or a test suite, and the board waits that long
   before it calls the run lost. It only ever stretches the thirty minutes, and
@@ -355,6 +355,14 @@ report reads as `quiet`, not `silent`.
 stops when the run ends, it gives up after an hour, and when it is killed with
 your session it closes the run itself, which is the fastest honest answer the
 board can get.
+
+**It closes only a run that is still running.** A session that ended with
+`finish`, with `finish --to` or with `ask` said its last word already, so the
+beat that dies a moment later reads the run once and says nothing. The board
+holds the same line: `lost` on a run that waits — a question or a hand-over —
+is refused with `409 That run waits on purpose, so a lost report cannot end
+it.` Read that 409 as "stop and say nothing": the run is open and somebody
+else has the card, so do not claim the task again.
 
 ### Say how long the next word takes
 
@@ -498,6 +506,7 @@ in place.
 board writes `lost` when a run missed its lease, and an agent writes the same
 word as its own last message when it is being shut down. A row whose run ended
 **inside** its lease reads **shut down**; one the lease closed reads **lost**.
+The activity line says the same, because it names the author as it is written.
 The row works it out from the two moments it already carries — `endedAt`
 against `updatedAt` plus the thirty minutes, or against `reportDueAt` — so the
 answer is the same whenever anybody reads it.
@@ -657,7 +666,9 @@ launchd, systemd or a container that restarts it.
 
 It needs a POSIX shell for `--run`. It reconnects by itself, backing off up to
 30 seconds, and catches up from the feed when it does. `Ctrl-C` stops the
-harnesses it started and closes their runs as `lost`.
+harnesses it started and closes their runs as `lost` — every run that was
+still running. One the harness finished, handed on or left waiting for an
+answer is left as its agent left it.
 
 ## Errors
 
@@ -667,7 +678,7 @@ harnesses it started and closes their runs as `lost`.
 | 401  | The token is unknown or revoked.                              |
 | 403  | The token belongs to another project, or a route only a person may call. |
 | 404  | The task, run or project is not there.                        |
-| 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. A run that handed the task on is the one open run a claim closes rather than refuses. |
+| 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. A run that handed the task on is the one open run a claim closes rather than refuses. It is also the answer to `lost` on a run that waits. |
 | 429  | Ten bad tokens came from your address inside ten minutes. Wait, do not retry in a loop. |
 
 Every id is a UUID, in a path and in a body alike, and the shape is read before

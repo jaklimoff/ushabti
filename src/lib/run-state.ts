@@ -27,6 +27,27 @@ export function isWaiting(status: RunStatus | undefined): boolean {
 }
 
 /**
+ * Whether a run in this status may be reported `lost`.
+ *
+ * `lost` is the word of an agent that is being killed in the middle of a
+ * step: it hands the card back at once instead of making everybody wait out
+ * the lease. A run that waits has none of that to say. It asked a person a
+ * question, or handed the task on, and then the session ended — so the
+ * heartbeat dying a moment later is the ordinary end of a session and not
+ * news about the work.
+ *
+ * Without this, `finish --to review` and a beat killed with the shell wrote
+ * "handed over to review" and "the agent was stopped" half a second apart,
+ * and the card went quiet with nobody holding it.
+ */
+export function mayReportLost(current: RunStatus): boolean {
+  return !isWaiting(current);
+}
+
+/** Why the door refuses it, in the words the agent reads. */
+export const LOST_ON_WAITING = "That run waits on purpose, so a lost report cannot end it.";
+
+/**
  * True when the status an agent reports answers what a person asked for.
  * The request stays on the run until then, and the panel says it is waiting
  * for an answer; a report that says something else is not an answer.

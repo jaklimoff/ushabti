@@ -8,6 +8,20 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A dying heartbeat no longer closes a hand-over.** `board.mjs beat` reports
+  the run `lost` when it is killed with the session, so a card comes back the
+  moment an agent dies. A worker that ended with `finish --to "review"`, or
+  with `ask`, left its run waiting on purpose — and the beat, killed half a
+  second later, wrote _"the agent was stopped"_ over it. Both doors are shut
+  now: the beat and the watcher read the run once and say nothing when it is
+  no longer running, and `PATCH /api/runs/{id}` refuses `lost` on a run that
+  waits with `409 That run waits on purpose, so a lost report cannot end it.`
+  The feed line also names the author of `lost` at last —
+  _"shut down, and the run ended with it"_ where an agent said goodbye, and
+  _"stopped answering, so the board closed the run"_ where the lease acted.
+
 ### Added
 
 - **A task can say what it waits on.** It used to live in a comment, where
