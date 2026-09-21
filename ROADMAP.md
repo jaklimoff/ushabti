@@ -103,9 +103,6 @@ runs this.
 ## Later
 
 - **A per-view card order.** See the limit below.
-- **Relative dates in a filter.** A date rule names a day today, so "due this
-  week" has to be rewritten every week. A relative window has to read the same
-  on the server and in the browser, which a clock in two time zones does not.
 - **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
 - **Import.** Read a Trello or Jira export and map lists to options.
 - **Attachments.** Files on a task.
@@ -113,6 +110,28 @@ runs this.
 ---
 
 ## Done since v1.1, not yet released
+
+- **A date rule can name a window of days.** A rule named one day, so "due this
+  week" had to be rewritten every week — and the view a small team opens every
+  morning is exactly that one. `is within` now names a window: today, tomorrow,
+  this week, next week, the last or next 7 or 30 days, or overdue. The week
+  runs Monday to Sunday, written out rather than asked of a locale.
+  **The hard part was which "today".** A relative window has to read the same
+  on the server and in the browser, and a clock in two zones does not — so
+  neither side reads a clock. The day is the project's: one migration adds
+  `projects.time_zone`, the owner sets it in **Settings → Project**, the server
+  works the day out when it reads the board and sends it on `BoardData.today`,
+  and `matches` takes that day as an argument. A browser hydrates with the
+  string the server drew. A shared filter then means one week for the whole
+  team, which a browser's own day could never do, and an agent — which has no
+  browser — reads the same day off the board answer.
+  **Overdue is before today and nothing else.** No field on a task is
+  hardcoded, so the board cannot know what done means and does not guess;
+  "late and still open" is a second rule beside it. `seedValues` skips a
+  relative rule for the same reason — which day inside a window a new task
+  means is a guess. **This carries a migration:** run `npm run db:migrate`.
+  Out of this version: a free N, a per-view or per-person zone, months and
+  quarters, and a board that redraws itself at midnight.
 
 - **A task can say what it waits on.** It lived in comments, where nothing
   could read it: an agent picking a task up could not tell that the work in

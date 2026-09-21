@@ -10,11 +10,13 @@ import {
   hasAnswer,
   isBareOp,
   isSetOp,
+  isWindowOp,
   keyColor,
   keyName,
   OPS_FOR_TYPE,
   OP_LABEL,
 } from "@/lib/filters";
+import { DATE_WINDOWS, DATE_WINDOW_NAME } from "@/lib/day";
 import { canSort, nextSort, sortLabel } from "@/lib/sort";
 import { listColumns } from "@/lib/list-view";
 import type { CardItem } from "@/lib/card-view";
@@ -63,6 +65,9 @@ function emptyRule(property: PropertyDTO): FilterRule {
     : { propertyId: property.id, op, text: "" };
 }
 
+/** The dot beside a window of days. A window is not a value of anything. */
+const WINDOW_DOT = "#6b7280";
+
 /** What the box asks for once a property has been picked. */
 const ASK: Record<PropertyType, string> = {
   select: "Which value?",
@@ -102,14 +107,25 @@ function Ask({
   const ops = OPS_FOR_TYPE[property.type];
   const set = isSetOp(rule.op);
   const bare = isBareOp(rule.op);
-  const [query, setQuery] = useState(bare || set ? "" : (rule.text ?? ""));
+  /* A window is one word from a closed list, so the box searches the list
+     instead of holding the answer, exactly as it does for a set. */
+  const win = isWindowOp(rule.op);
+  const [query, setQuery] = useState(bare || set || win ? "" : (rule.text ?? ""));
   const [at, setAt] = useState(0);
 
   // A fresh [] on every render would rebuild the rows on every keystroke.
   const chosen = useMemo(() => rule.values ?? [], [rule.values]);
   const rows: Row[] = useMemo(() => {
-    if (!set) return [];
     const wanted = query.trim().toLowerCase();
+    if (win) {
+      return DATE_WINDOWS.map((word) => ({
+        id: word,
+        name: DATE_WINDOW_NAME[word],
+        color: WINDOW_DOT,
+        on: rule.text === word,
+      })).filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
+    }
+    if (!set) return [];
     return keysFor(property, members)
       .map((key) => ({
         id: key,
@@ -118,16 +134,32 @@ function Ask({
         on: chosen.includes(key),
       }))
       .filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
-  }, [chosen, members, property, query, set]);
+  }, [chosen, members, property, query, rule.text, set, win]);
 
   /* Changing the operator keeps the answer it can carry and drops what it
      cannot. It never invents one. */
   function setOp(op: FilterOp) {
+    /* The box means one thing for a window and another for a day, so what was
+       typed for one is not an answer — or even a search — for the other. */
+    if (isWindowOp(op) !== win) setQuery("");
     if (isBareOp(op)) return onChange({ propertyId: property.id, op });
     if (isSetOp(op)) {
       return onChange({ propertyId: property.id, op, values: set ? chosen : [] });
     }
-    onChange({ propertyId: property.id, op, text: set ? "" : (rule.text ?? "") });
+    /* A window is a word and a date is a day. Text moves only between
+       operators that read it the same way. */
+    const keeps = !set && isWindowOp(op) === win;
+    onChange({ propertyId: property.id, op, text: keeps ? (rule.text ?? "") : "" });
+  }
+
+  /*
+   * One window is the whole answer, so a pick replaces rather than adds. The
+   * panel stays open, as the value list does, because changing your mind is
+   * the next press and not a second trip.
+   */
+  function pickWindow(word: string) {
+    onChange({ propertyId: property.id, op: rule.op, text: word });
+    setQuery("");
   }
 
   function toggle(key: string) {
@@ -141,7 +173,7 @@ function Ask({
 
   /** The box is the answer for a text, number or date rule. */
   function commitText() {
-    if (set || bare) return;
+    if (set || bare || win) return;
     const text = query.trim();
     if ((rule.text ?? "") === text) return;
     onChange({ ...rule, text });
@@ -154,14 +186,14 @@ function Ask({
    * it, typing a word and clicking the board throws the word away — the one
    * thing the rest of this product never does.
    */
-  const latest = useRef({ query, rule, set, bare, onChange });
+  const latest = useRef({ query, rule, set, bare, win, onChange });
   useEffect(() => {
-    latest.current = { query, rule, set, bare, onChange };
+    latest.current = { query, rule, set, bare, win, onChange };
   });
   useEffect(
     () => () => {
       const now = latest.current;
-      if (now.set || now.bare) return;
+      if (now.set || now.bare || now.win) return;
       const text = now.query.trim();
       if ((now.rule.text ?? "") !== text) now.onChange({ ...now.rule, text });
     },
@@ -191,17 +223,23 @@ function Ask({
           className={styles.askBox}
           autoFocus
           role="combobox"
-          aria-expanded={set}
-          aria-controls={set ? listId : undefined}
-          aria-activedescendant={set && rows.length ? `${listId}-${at}` : undefined}
+          aria-expanded={set || win}
+          aria-controls={set || win ? listId : undefined}
+          aria-activedescendant={(set || win) && rows.length ? `${listId}-${at}` : undefined}
           aria-label={
-            set ? `Find a value of ${property.name}` : `What ${property.name} ${OP_LABEL[rule.op]}`
+            win
+              ? `Find a window of days for ${property.name}`
+              : set
+                ? `Find a value of ${property.name}`
+                : `What ${property.name} ${OP_LABEL[rule.op]}`
           }
-          type={property.type === "date" && !set && !bare ? "date" : "text"}
+          /* A date box cannot hold a search word, and a window is searched
+             for by name. */
+          type={property.type === "date" && !set && !bare && !win ? "date" : "text"}
           inputMode={property.type === "number" && !set ? "decimal" : undefined}
           data-testid="filter-box"
           value={query}
-          placeholder={bare ? "" : ASK[property.type]}
+          placeholder={bare ? "" : win ? "Which days?" : ASK[property.type]}
           readOnly={bare}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -216,7 +254,7 @@ function Ask({
               e.preventDefault();
               return onBack();
             }
-            if (!set) {
+            if (!set && !win) {
               if (e.key === "Enter") {
                 e.preventDefault();
                 commitText();
@@ -234,6 +272,7 @@ function Ask({
             }
             if (e.key === "Enter" && rows[at]) {
               e.preventDefault();
+              if (win) return pickWindow(rows[at].id);
               toggle(rows[at].id);
             }
           }}
@@ -253,6 +292,19 @@ function Ask({
             </button>
           ))}
         </div>
+      )}
+
+      {/* The third row of the picker: the words a window is made of. It is
+          the same listbox the set operators use, so the panel is one thing to
+          learn however the question is shaped. */}
+      {win && (
+        <Rows
+          rows={rows}
+          at={at}
+          listId={listId}
+          empty="No window by that name."
+          onPick={(row) => pickWindow(row.id)}
+        />
       )}
 
       {set && (

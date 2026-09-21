@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DATE_WINDOWS } from "../day";
 import {
   allowedColumns,
   applyFilters,
@@ -95,6 +96,15 @@ const blocked: PropertyDTO = {
 
 const properties = [status, labels, assignee, due, estimate, notes, blocked];
 
+/*
+ * The day the board was read on. It is handed to every rule rather than
+ * looked up, so these tests answer the same thing in every zone and on every
+ * day — which is the whole point of `today` being an argument.
+ *
+ * 2026-09-21 is a Monday.
+ */
+const TODAY = "2026-09-21";
+
 const members: MemberDTO[] = [
   {
     id: "u-ada",
@@ -136,7 +146,7 @@ function task(id: string, values: TaskDTO["values"] = {}, blockedBy: string[] = 
 }
 
 function keep(rule: FilterRule, values: TaskDTO["values"], property: PropertyDTO) {
-  return matches(task("t", values), rule, property);
+  return matches(task("t", values), rule, property, TODAY);
 }
 
 describe("a select rule", () => {
@@ -286,6 +296,58 @@ describe("a date rule", () => {
   });
 });
 
+/*
+ * A relative rule names a window of days instead of one day, and the window
+ * is worked out from the day the board was read on. TODAY is a Monday, so
+ * "this week" runs to the Sunday after it.
+ */
+describe("a date rule that names a window", () => {
+  const within = (word: string): FilterRule => ({ propertyId: due.id, op: "within", text: word });
+
+  it("keeps the days each word covers", () => {
+    expect(keep(within("today"), { "p-due": "2026-09-21" }, due)).toBe(true);
+    expect(keep(within("today"), { "p-due": "2026-09-22" }, due)).toBe(false);
+
+    expect(keep(within("tomorrow"), { "p-due": "2026-09-22" }, due)).toBe(true);
+    expect(keep(within("tomorrow"), { "p-due": "2026-09-21" }, due)).toBe(false);
+
+    expect(keep(within("this_week"), { "p-due": "2026-09-27" }, due)).toBe(true);
+    expect(keep(within("this_week"), { "p-due": "2026-09-28" }, due)).toBe(false);
+    expect(keep(within("this_week"), { "p-due": "2026-09-20" }, due)).toBe(false);
+
+    expect(keep(within("next_week"), { "p-due": "2026-09-28" }, due)).toBe(true);
+    expect(keep(within("next_week"), { "p-due": "2026-10-04" }, due)).toBe(true);
+    expect(keep(within("next_week"), { "p-due": "2026-10-05" }, due)).toBe(false);
+
+    expect(keep(within("last_7"), { "p-due": "2026-09-15" }, due)).toBe(true);
+    expect(keep(within("last_7"), { "p-due": "2026-09-14" }, due)).toBe(false);
+    expect(keep(within("last_30"), { "p-due": "2026-08-23" }, due)).toBe(true);
+    expect(keep(within("last_30"), { "p-due": "2026-08-22" }, due)).toBe(false);
+
+    expect(keep(within("next_7"), { "p-due": "2026-09-27" }, due)).toBe(true);
+    expect(keep(within("next_7"), { "p-due": "2026-09-28" }, due)).toBe(false);
+    expect(keep(within("next_30"), { "p-due": "2026-10-20" }, due)).toBe(true);
+    expect(keep(within("next_30"), { "p-due": "2026-10-21" }, due)).toBe(false);
+  });
+
+  /* Overdue is before today and nothing else: the board cannot know what
+     done means, so it does not guess at it. */
+  it("calls a task overdue when its day has passed, whatever it holds", () => {
+    expect(keep(within("overdue"), { "p-due": "2026-09-20" }, due)).toBe(true);
+    expect(keep(within("overdue"), { "p-due": "2026-09-21" }, due)).toBe(false);
+    expect(keep(within("overdue"), { "p-due": "2026-09-22" }, due)).toBe(false);
+  });
+
+  it("drops a task with no date, as every other date rule does", () => {
+    for (const word of DATE_WINDOWS) expect(keep(within(word), {}, due)).toBe(false);
+  });
+
+  /* An unreadable rule passes everything, exactly as an empty box does. */
+  it("hides nothing when the word means nothing here", () => {
+    expect(keep(within("this_quarter"), { "p-due": "2026-01-01" }, due)).toBe(true);
+  });
+});
+
 describe("empty and not empty", () => {
   it("work on every type that can be empty", () => {
     const empty: FilterRule = { propertyId: due.id, op: "empty" };
@@ -314,6 +376,7 @@ describe("every rule has to pass", () => {
       tasks,
       { rules: [{ propertyId: status.id, op: "is", values: ["o-todo"] }] },
       properties,
+      TODAY,
     );
     expect(one.map((t) => t.id)).toEqual(["a", "b"]);
 
@@ -326,12 +389,13 @@ describe("every rule has to pass", () => {
         ],
       },
       properties,
+      TODAY,
     );
     expect(two.map((t) => t.id)).toEqual(["a"]);
   });
 
   it("hands back the same list when there is no rule", () => {
-    expect(applyFilters(tasks, { rules: [] }, properties)).toBe(tasks);
+    expect(applyFilters(tasks, { rules: [] }, properties, TODAY)).toBe(tasks);
   });
 
   it("ignores a rule whose property has gone", () => {
@@ -339,6 +403,7 @@ describe("every rule has to pass", () => {
       tasks,
       { rules: [{ propertyId: "p-vanished", op: "is", values: ["x"] }] },
       properties,
+      TODAY,
     );
     expect(gone).toHaveLength(3);
   });
@@ -423,6 +488,34 @@ describe("reading what was saved", () => {
     );
   });
 
+  /*
+   * The words a window is made of are a closed list, so a word from a version
+   * that knew more is thrown away here, on every read, exactly as a deleted
+   * option is. Nothing rewrites a view when the list changes.
+   */
+  it("keeps a window it knows and throws away a word it does not", () => {
+    expect(
+      readFilters({ rules: [{ propertyId: due.id, op: "within", text: "this_week" }] }, properties)
+        .rules,
+    ).toEqual([{ propertyId: due.id, op: "within", text: "this_week" }]);
+
+    for (const word of ["this_quarter", "", "  ", 7, null]) {
+      expect(
+        readFilters({ rules: [{ propertyId: due.id, op: "within", text: word }] }, properties)
+          .rules,
+      ).toEqual([]);
+    }
+  });
+
+  it("refuses a window on a property that is not a date", () => {
+    expect(
+      readFilters(
+        { rules: [{ propertyId: notes.id, op: "within", text: "this_week" }] },
+        properties,
+      ).rules,
+    ).toEqual([]);
+  });
+
   it("refuses text that is not text, and cuts text that is too long", () => {
     expect(
       readFilters({ rules: [{ propertyId: notes.id, op: "contains", text: 7 }] }, properties).rules,
@@ -448,6 +541,23 @@ describe("saying what a rule asks", () => {
     expect(
       describeRule({ propertyId: due.id, op: "before", text: "2026-09-01" }, due, members),
     ).toBe("Due is before 2026-09-01");
+  });
+
+  /* The chip says the window in the words a person uses, and leaves
+     "Overdue" to speak for itself: "Due is overdue" says it twice. */
+  it("says the property and the window, and lets Overdue speak for itself", () => {
+    expect(describeRule({ propertyId: due.id, op: "within", text: "today" }, due, members)).toBe(
+      "Due today",
+    );
+    expect(
+      describeRule({ propertyId: due.id, op: "within", text: "this_week" }, due, members),
+    ).toBe("Due this week");
+    expect(describeRule({ propertyId: due.id, op: "within", text: "next_7" }, due, members)).toBe(
+      "Due in the next 7 days",
+    );
+    expect(describeRule({ propertyId: due.id, op: "within", text: "overdue" }, due, members)).toBe(
+      "Overdue",
+    );
   });
 
   it("counts the rest once a rule names more than two", () => {
@@ -541,6 +651,17 @@ describe("a task added to a filtered board", () => {
     expect(seedValues({ rules }, properties, null)).toEqual({ "p-status": "o-todo" });
   });
 
+  /*
+   * Which day inside "this week" a new task means is a guess, and this
+   * function never guesses. So the row is written with no date and the filter
+   * hides it — the cost "Priority is High or Urgent" already carries.
+   */
+  it("leaves a relative date rule alone, because it cannot answer it", () => {
+    const rules = [{ propertyId: due.id, op: "within" as const, text: "this_week" }];
+    expect(seedValues({ rules }, properties, null)).toEqual({});
+    expect(seedValues({ rules }, properties, status.id)).toEqual({});
+  });
+
   it("says out loud what it is about to write", () => {
     const seed = { "p-assignee": "u-ada", "p-labels": ["o-bug"] };
     expect(seedNote(seed, properties, members)).toBe("sets Assignee Ada, Labels bug");
@@ -557,31 +678,37 @@ describe("the columns a filtered board keeps", () => {
 
   it("keeps them all when no rule names the grouping property", () => {
     const filters = { rules: [{ propertyId: labels.id, op: "is" as const, values: ["o-bug"] }] };
-    expect(allowedColumns(columns, filters, status)).toHaveLength(3);
+    expect(allowedColumns(columns, filters, status, TODAY)).toHaveLength(3);
   });
 
   it("drops the columns a card could not live in", () => {
     const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
-    expect(allowedColumns(columns, filters, status).map((c) => c.id)).toEqual(["o-todo"]);
+    expect(allowedColumns(columns, filters, status, TODAY).map((c) => c.id)).toEqual(["o-todo"]);
   });
 
   it("keeps the no-value column when the rule names Empty", () => {
     const filters = {
       rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo", NO_VALUE_KEY] }],
     };
-    expect(allowedColumns(columns, filters, status).map((c) => c.id)).toEqual(["o-todo", "none"]);
+    expect(allowedColumns(columns, filters, status, TODAY).map((c) => c.id)).toEqual([
+      "o-todo",
+      "none",
+    ]);
   });
 
   it("drops only the named column for is not", () => {
     const filters = {
       rules: [{ propertyId: status.id, op: "is_not" as const, values: ["o-done"] }],
     };
-    expect(allowedColumns(columns, filters, status).map((c) => c.id)).toEqual(["o-todo", "none"]);
+    expect(allowedColumns(columns, filters, status, TODAY).map((c) => c.id)).toEqual([
+      "o-todo",
+      "none",
+    ]);
   });
 
   it("keeps them all when the board groups by nothing", () => {
     const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
-    expect(allowedColumns(columns, filters, null)).toHaveLength(3);
+    expect(allowedColumns(columns, filters, null, TODAY)).toHaveLength(3);
   });
 });
 
@@ -595,6 +722,15 @@ describe("a question with an answer", () => {
     expect(hasAnswer({ propertyId: due.id, op: "empty" })).toBe(true);
   });
 
+  /* A wordless "is within" is a question, so nothing is written and no chip
+     is drawn until somebody picks a window. `hasAnswer` needs no case for it:
+     a window is read off `text` like a date. */
+  it("needs a window before a relative rule means anything", () => {
+    expect(hasAnswer({ propertyId: due.id, op: "within", text: "" })).toBe(false);
+    expect(hasAnswer({ propertyId: due.id, op: "within" })).toBe(false);
+    expect(hasAnswer({ propertyId: due.id, op: "within", text: "this_week" })).toBe(true);
+  });
+
   it("counts zero, which is a number somebody meant", () => {
     expect(hasAnswer({ propertyId: estimate.id, op: "eq", text: "0" })).toBe(true);
     expect(
@@ -602,6 +738,7 @@ describe("a question with an answer", () => {
         task("a", { "p-estimate": 0 }),
         { propertyId: estimate.id, op: "eq", text: "0" },
         estimate,
+        TODAY,
       ),
     ).toBe(true);
   });
@@ -633,13 +770,14 @@ describe("a view's rules and one person's", () => {
       task("c", { "p-status": "o-todo", "p-labels": ["o-ux"] }),
     ];
 
-    const shared = applyFilters(tasks, { rules: [ofView] }, properties);
+    const shared = applyFilters(tasks, { rules: [ofView] }, properties, TODAY);
     expect(shared.map((t) => t.id)).toEqual(["a", "b"]);
 
     const both = applyFilters(
       tasks,
       mergeFilters({ rules: [ofView] }, { rules: [mine] }),
       properties,
+      TODAY,
     );
     expect(both.map((t) => t.id)).toEqual(["a"]);
 
@@ -653,8 +791,18 @@ describe("a view's rules and one person's", () => {
       { id: "c1", value: "o-todo" },
       { id: "c2", value: "o-done" },
     ];
-    const byView = allowedColumns(columns, mergeFilters({ rules: [mine] }, { rules: [] }), status);
-    const byMine = allowedColumns(columns, mergeFilters({ rules: [] }, { rules: [mine] }), status);
+    const byView = allowedColumns(
+      columns,
+      mergeFilters({ rules: [mine] }, { rules: [] }),
+      status,
+      TODAY,
+    );
+    const byMine = allowedColumns(
+      columns,
+      mergeFilters({ rules: [] }, { rules: [mine] }),
+      status,
+      TODAY,
+    );
     expect(byView.map((c) => c.id)).toEqual(["c1"]);
     expect(byMine.map((c) => c.id)).toEqual(["c1"]);
   });
@@ -736,6 +884,16 @@ describe("a rule of mine about a property the view already filters", () => {
     expect(clashOf({ rules: [before] }, { rules: [after] }, properties)).toBe(due);
   });
 
+  /* A window is a rule about the same property, so it is counted with the
+     rest and `clashOf` needs no case of its own for it. */
+  it("counts a window like any other rule about that property", () => {
+    const mine: FilterRule = { propertyId: due.id, op: "within", text: "this_week" };
+    const dated: FilterRule = { propertyId: due.id, op: "before", text: "2026-06-01" };
+    expect(clashOf({ rules: [dated] }, { rules: [mine] }, properties)).toBe(due);
+    expect(clashOf({ rules: [mine] }, { rules: [dated] }, properties)).toBe(due);
+    expect(clashOf({ rules: [ofView] }, { rules: [mine] }, properties)).toBeNull();
+  });
+
   /*
    * What both doors do, and in this order: read each set afresh, then ask.
    * The lens route asks it on the way in and the promote route on the way out,
@@ -802,18 +960,20 @@ describe("the blocked rule", () => {
   });
 
   it("keeps a task that waits on another", () => {
-    expect(matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY)).toBe(true);
-    expect(matches(task("t", {}, []), blocked, BLOCKED_PROPERTY)).toBe(false);
+    expect(matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY, TODAY)).toBe(true);
+    expect(matches(task("t", {}, []), blocked, BLOCKED_PROPERTY, TODAY)).toBe(false);
   });
 
   it("keeps a task that waits on nothing", () => {
-    expect(matches(task("t", {}, []), free, BLOCKED_PROPERTY)).toBe(true);
-    expect(matches(task("t", {}, ["USH-2"]), free, BLOCKED_PROPERTY)).toBe(false);
+    expect(matches(task("t", {}, []), free, BLOCKED_PROPERTY, TODAY)).toBe(true);
+    expect(matches(task("t", {}, ["USH-2"]), free, BLOCKED_PROPERTY, TODAY)).toBe(false);
   });
 
   it("hides the cards it names, with only the project's properties passed in", () => {
     const tasks = [task("a", {}, ["USH-2"]), task("b")];
-    expect(applyFilters(tasks, { rules: [blocked] }, [status]).map((t) => t.id)).toEqual(["a"]);
+    expect(applyFilters(tasks, { rules: [blocked] }, [status], TODAY).map((t) => t.id)).toEqual([
+      "a",
+    ]);
   });
 
   /* The word cannot be deleted, so the rule always survives the read that

@@ -18,6 +18,7 @@ export function ProjectPanel() {
 
   const [name, setName] = useState(data.project.name);
   const [key, setKey] = useState(data.project.key);
+  const [zone, setZone] = useState(data.project.timeZone);
   const [confirmText, setConfirmText] = useState("");
   const [confirming, setConfirming] = useState(false);
 
@@ -42,15 +43,23 @@ export function ProjectPanel() {
   const [pickedId, setPickedId] = useState<string | null>(null);
   const doneProperty = selects.find((p) => p.id === (pickedId ?? doneWhen?.propertyId)) ?? null;
 
-  async function save(patch: { name?: string; key?: string; doneWhen?: DoneWhen | null }) {
+  async function save(patch: {
+    name?: string;
+    key?: string;
+    doneWhen?: DoneWhen | null;
+    timeZone?: string;
+  }) {
     try {
       await api.patch(`/api/projects/${data.project.id}`, patch);
       await refresh();
       router.refresh();
     } catch (err) {
+      /* The server is the one place that knows which zone names this
+         runtime has, so its sentence is the one the row says. */
       notify(err instanceof Error ? err.message : "Could not save.");
       setName(data.project.name);
       setKey(data.project.key);
+      setZone(data.project.timeZone);
     }
   }
 
@@ -118,6 +127,44 @@ export function ProjectPanel() {
         {!isOwner && (
           <Row>
             <Note>Only the owner can change the name and the key.</Note>
+          </Row>
+        )}
+      </Card>
+
+      {/*
+       * Which day a relative date rule means.
+       *
+       * A shared filter that says "due this week" has to mean one week for
+       * the whole team, so the day is the project's and not the reader's: two
+       * browsers in two zones would otherwise see different cards through one
+       * view, and an agent has no browser at all. The box takes a name and
+       * the server refuses one it does not know, because the list of zones
+       * belongs to the machine that works the day out.
+       */}
+      <Card>
+        <Row>
+          <Field label="Time zone" inline>
+            <Input
+              style={{ width: 220 }}
+              aria-label="The time zone this project's day is worked out in"
+              value={zone}
+              disabled={!isOwner}
+              onChange={(e) => setZone(e.target.value)}
+              onBlur={() => {
+                const trimmed = zone.trim();
+                if (!trimmed) return setZone(data.project.timeZone);
+                if (trimmed !== data.project.timeZone) void save({ timeZone: trimmed });
+              }}
+            />
+            <Note>
+              Today is {data.today} here. A filter that says <b>Due this week</b> or <b>Overdue</b>{" "}
+              is worked out in this zone, for everybody on the board.
+            </Note>
+          </Field>
+        </Row>
+        {!isOwner && (
+          <Row>
+            <Note>Only the owner can change the time zone of this project.</Note>
           </Row>
         )}
       </Card>

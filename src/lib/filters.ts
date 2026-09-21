@@ -1,4 +1,11 @@
 import {
+  DATE_WINDOW_NAME,
+  DATE_WINDOW_SAID,
+  isDateWindow,
+  windowDays,
+  type DateWindow,
+} from "./day";
+import {
   FILTER_OPS,
   NO_VALUE_KEY,
   type FilterOp,
@@ -85,7 +92,7 @@ export const OPS_FOR_TYPE: Record<PropertyType, FilterOp[]> = {
   checkbox: ["is"],
   text: ["contains", "not_contains", "empty", "not_empty"],
   number: ["eq", "gt", "lt", "empty", "not_empty"],
-  date: ["on", "before", "after", "empty", "not_empty"],
+  date: ["on", "before", "after", "within", "empty", "not_empty"],
 };
 
 /** True when the operator takes a set of values rather than one piece of text. */
@@ -96,6 +103,17 @@ export function isSetOp(op: FilterOp): boolean {
 /** True when the operator takes nothing at all. */
 export function isBareOp(op: FilterOp): boolean {
   return op === "empty" || op === "not_empty";
+}
+
+/**
+ * True when the operator takes the name of a window of days rather than a day.
+ *
+ * It reads `text` like the other date operators, which is why `hasAnswer`
+ * needs no case for it: a wordless "is within" is a question with no answer,
+ * and nothing is written until somebody picks a window.
+ */
+export function isWindowOp(op: FilterOp): boolean {
+  return op === "within";
 }
 
 /**
@@ -125,6 +143,7 @@ export const OP_LABEL: Record<FilterOp, string> = {
   on: "is on",
   before: "is before",
   after: "is after",
+  within: "is within",
   empty: "is empty",
   not_empty: "is not empty",
 };
@@ -159,8 +178,21 @@ function isEmpty(value: TaskValue, type: PropertyType): boolean {
 /* Matching                                                            */
 /* ------------------------------------------------------------------ */
 
-/** True when one task passes one rule. An unreadable rule passes everything. */
-export function matches(task: TaskDTO, rule: FilterRule, property: PropertyDTO): boolean {
+/**
+ * True when one task passes one rule. An unreadable rule passes everything.
+ *
+ * `today` is the day the board was read on, in the project's zone. It is
+ * handed in and never looked up, the way `lifeOf` is handed the clock — but
+ * with no default, because a default would be a clock and this function runs
+ * once on the server and again in the browser. Two clocks are two answers,
+ * and the second one throws the first render away.
+ */
+export function matches(
+  task: TaskDTO,
+  rule: FilterRule,
+  property: PropertyDTO,
+  today: string,
+): boolean {
   /* The built-in word reads off the links rather than off the values, and
      nothing else about it differs: it is a checkbox from here down. */
   const value =
@@ -216,6 +248,21 @@ export function matches(task: TaskDTO, rule: FilterRule, property: PropertyDTO):
       return rule.op === "before" ? value < against : value > against;
     }
 
+    case "within": {
+      const word = rule.text ?? "";
+      // A word from a newer version, or from a hand-written rule. It asks
+      // nothing this board can answer, so it hides nothing.
+      if (!isDateWindow(word)) return true;
+      const days = windowDays(word, today);
+      if (!days) return true;
+      if (typeof value !== "string" || !value) return false;
+      // Both ends are YYYY-MM-DD, so text order is date order: no Date, no
+      // zone, and the same answer on the server and in the browser.
+      if (days.from !== null && value < days.from) return false;
+      if (days.to !== null && value > days.to) return false;
+      return true;
+    }
+
     default:
       return true;
   }
@@ -253,6 +300,14 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
     let built: FilterRule;
     if (isBareOp(raw.op)) {
       built = { propertyId: property.id, op: raw.op };
+    } else if (isWindowOp(raw.op)) {
+      /* A window is one word from a closed list. A word that is not on it is
+         a rule nobody can read, and it goes the way a dead option does —
+         here, on every read, rather than in a cleanup pass that would have to
+         run wherever a version changes. */
+      const word = typeof raw.text === "string" ? raw.text : "";
+      if (!isDateWindow(word)) continue;
+      built = { propertyId: property.id, op: raw.op, text: word };
     } else if (isSetOp(raw.op)) {
       const live = liveKeys(property);
       const values = (Array.isArray(raw.values) ? raw.values : [])
@@ -363,13 +418,14 @@ export function applyFilters(
   tasks: TaskDTO[],
   filters: ViewFilters,
   properties: PropertyDTO[],
+  today: string,
 ): TaskDTO[] {
   if (filters.rules.length === 0) return tasks;
   const byId = byIdWithBlocked(properties);
   return tasks.filter((task) =>
     filters.rules.every((rule) => {
       const property = byId.get(rule.propertyId);
-      return property ? matches(task, rule, property) : true;
+      return property ? matches(task, rule, property, today) : true;
     }),
   );
 }
@@ -390,6 +446,7 @@ export function allowedColumns<T extends { value: TaskValue }>(
   columns: T[],
   filters: ViewFilters,
   groupProperty: PropertyDTO | null,
+  today: string,
 ): T[] {
   if (!groupProperty) return columns;
   const rules = filters.rules.filter((r) => r.propertyId === groupProperty.id);
@@ -397,7 +454,7 @@ export function allowedColumns<T extends { value: TaskValue }>(
 
   return columns.filter((column) => {
     const stand = { values: { [groupProperty.id]: column.value } } as TaskDTO;
-    return rules.every((rule) => matches(stand, rule, groupProperty));
+    return rules.every((rule) => matches(stand, rule, groupProperty, today));
   });
 }
 
@@ -426,6 +483,11 @@ export function seedValues(
   const seed: Record<string, TaskValue> = {};
 
   for (const rule of filters.rules) {
+    /* "is" and nothing else, so a relative date rule is skipped here as well:
+       which day inside "this week" the task means is a guess, and this
+       function never guesses. A task added under one is written with no date
+       and hidden, which is the cost "Priority is High or Urgent" already
+       carries. */
     if (rule.op !== "is" || rule.propertyId === groupPropertyId) continue;
     /* Nothing writes a link from the composer, and a value for a word that is
        not a property would be written to a property that is not there. */
@@ -498,6 +560,19 @@ export function keyName(key: string, property: PropertyDTO, members: MemberDTO[]
   return property.options.find((o) => o.id === key)?.name ?? "?";
 }
 
+/**
+ * What a chip says about a window: "Due this week".
+ *
+ * "Overdue" is left to speak for itself, exactly as "Unassigned" is: a chip
+ * that put the property first would read "Due is overdue", which says the
+ * same thing twice and says it badly.
+ */
+function windowSaid(property: PropertyDTO, word: string): string {
+  if (!isDateWindow(word)) return property.name;
+  if (word === "overdue") return DATE_WINDOW_NAME.overdue;
+  return `${property.name} ${DATE_WINDOW_SAID[word as Exclude<DateWindow, "overdue">]}`;
+}
+
 /** The colour of one key, for the dot on the chip. */
 export function keyColor(key: string, property: PropertyDTO, members: MemberDTO[]): string {
   if (key === NO_VALUE_KEY) return "#3f4650";
@@ -522,6 +597,7 @@ export function describeRule(
   members: MemberDTO[],
 ): string {
   if (isBareOp(rule.op)) return `${property.name} ${OP_LABEL[rule.op]}`;
+  if (isWindowOp(rule.op)) return windowSaid(property, rule.text ?? "");
   if (isSetOp(rule.op)) {
     const keys = rule.values ?? [];
     if (rule.op === "is" && keys.length === 1 && keySpeaksForItself(keys[0], property)) {
