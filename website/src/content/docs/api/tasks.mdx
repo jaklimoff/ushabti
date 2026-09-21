@@ -282,6 +282,7 @@ see [value shapes](/ushabti/api/properties/#value-shapes-by-type).
 
 | Status | Message |
 | --- | --- |
+| `400` | `That is not a task id.` · `That is not a property id.` — see [ids](/ushabti/api/#ids) |
 | `400` | `That property is not in this project.` |
 | `400` | `Priority needs one option.` · `One of the options does not exist any more.` · `Due needs a date like 2026-08-21.` |
 
@@ -321,7 +322,8 @@ the writes that compute a rank and this touches none.
 
 | Status | Message |
 | --- | --- |
-| `400` | `Name the tasks as a list of ids.` · `Name at least one task.` · `That is more than 200 tasks. Set fewer at once.` |
+| `400` | `Name the tasks as a list of ids.` — not a list, or something in it that is not a UUID |
+| `400` | `Name at least one task.` · `That is more than 200 tasks. Set fewer at once.` |
 | `400` | `Name the property to set.` · `That property is not in this project.` |
 | `400` | `One of those tasks is not on this board.` |
 | `400` | `One of those tasks is archived. Put it back first.` |

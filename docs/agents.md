@@ -593,11 +593,17 @@ harnesses it started and closes their runs as `lost`.
 
 | Code | What it means                                                 |
 | ---- | ------------------------------------------------------------- |
+| 400  | The body is wrong, or an id is not a UUID — `{"error": "That is not a task id."}`, with `run`, `view`, `property` and the rest in place of `task`. |
 | 401  | The token is unknown or revoked.                              |
 | 403  | The token belongs to another project, or a route only a person may call. |
 | 404  | The task, run or project is not there.                        |
 | 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. A run that handed the task on is the one open run a claim closes rather than refuses. |
 | 429  | Ten bad tokens came from your address inside ten minutes. Wait, do not retry in a loop. |
+
+Every id is a UUID, in a path and in a body alike, and the shape is read before
+the database sees it. So `400` says the id was never an id; `404` says it was a
+real id that names nothing, or nothing your token may see. An agent that builds
+a path from a key it did not look up meets the first one.
 
 A token that works is never counted and never slowed, so a working agent never
 meets the 429. If you do meet it, the token is wrong: fix it rather than retry.

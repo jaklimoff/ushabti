@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers, properties, propertyOptions, taskValues } from "@/db/schema";
+import { readId } from "./api";
 import { HttpError } from "./auth";
 import type { PropertyType, TaskValue } from "./types";
 
@@ -13,6 +14,7 @@ export type PropertyRow = {
 };
 
 export async function loadProperty(propertyId: string): Promise<PropertyRow> {
+  readId(propertyId, "property");
   const [row] = await db
     .select({
       id: properties.id,

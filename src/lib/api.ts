@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { HttpError, requireActor, requireMembership, requireUser } from "./auth";
 import { publish, type BoardEvent } from "./events";
+import { isId, notAnId } from "./ids";
 
 export { HttpError };
 
@@ -56,12 +57,28 @@ export function optionalStr(value: unknown, field: string, max = 20_000): string
 }
 
 /**
+ * An id, read before the database sees it.
+ *
+ * Every id is a UUID, and Postgres answers anything else with an error we
+ * cannot tell from a fault of ours, so the caller was handed a `500` for a
+ * request that was merely wrong. This is the one place that says so. The
+ * lookups every route already goes through — `guard`, `taskProjectId`,
+ * `runContext` and their neighbours — call it, so no route has to remember.
+ */
+export function readId(value: unknown, what: string): string {
+  if (!isId(value)) throw new HttpError(400, notAnId(what));
+  return value;
+}
+
+/**
  * Authenticates the caller and confirms membership of the project. The caller
  * is a person with a session cookie or an agent with a token; every route
  * below this line treats the two the same.
  */
 export async function guard(projectId: string) {
   const user = await requireActor();
+  // After the caller is known, so a stranger still hears "sign in first".
+  readId(projectId, "project");
   if (user.tokenProjectId && user.tokenProjectId !== projectId) {
     throw new HttpError(403, "That token belongs to another project.");
   }

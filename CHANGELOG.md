@@ -231,6 +231,16 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **An id that is not a UUID answers `400`, not `500`.** Every id column is a
+  UUID, so Postgres refused to cast a word like `not-a-uuid` and the refusal
+  reached the caller as `500 Something went wrong on the server.` — our fault,
+  for a request that was merely wrong. One helper now reads the shape before
+  the database sees it, and every route that takes an id goes through it, in
+  the path and in a body alike: `400 That is not a task id.`, with `run`,
+  `view`, `project`, `property` and the rest in place of `task`. Upper case
+  passes, because Postgres reads a UUID either way. `404` still means a real id
+  that names nothing.
+
 - **Escape in the task title throws the edit away.** Escape was meant to drop
   what you had typed, but it blurred the box, and a blur is what saves a field.
   The old title came back on screen while the new one went to the server, so
