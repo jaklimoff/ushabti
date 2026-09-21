@@ -104,6 +104,14 @@ test.describe("Picking several cards", () => {
     await pick(page, "Aardvark");
     await page.getByTestId("pick-clear").click();
     await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+
+    /* What is picked belongs to the board on screen, so another view ends it
+       rather than carrying a handful of cards across. */
+    await pick(page, "Aardvark", "Beetle");
+    await page.getByRole("button", { name: /^Phases/ }).click();
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+    await page.getByRole("button", { name: /^Board/ }).click();
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
   });
 
   /* `x` is the whole keyboard route in. The checks are not tab stops, because
