@@ -825,9 +825,18 @@ test.describe("A board on a phone", () => {
     await createProject(page, unique("Pocket"));
     await aColumnEach(page);
 
-    /* No drag down here, so the panel's own control is how a card changes
-       column: it writes the one value a drop across a board writes. */
     await columnPill(page, "Todo").click();
+
+    /* Nothing down here drags. A column has no grip and no fold, and a card
+       cannot be lifted — which is what leaves a sideways finger to the board. */
+    await expect(page.getByRole("button", { name: /^Reorder the column / })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Fold the column / })).toHaveCount(0);
+    await card(page, "Beetle").first().focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
+
+    /* So the panel's own control is how a card changes column: it writes the
+       one value a drop across a board writes. */
     await card(page, "Beetle").click();
     const panel = page.getByTestId("task-panel");
     await panel.getByRole("button", { name: /^Todo/ }).click();
