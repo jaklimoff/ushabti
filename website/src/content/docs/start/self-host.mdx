@@ -49,6 +49,11 @@ token by address, and for a dead [reset link](/ushabti/guides/people/#a-forgotte
 address. A sign-in that works counts nothing and clears the count for that email, so nobody is
 locked out by their own team.
 
+One address is often **many people**. Behind one NAT — an office, a VPN, a school — everybody
+shares the address, so ten failures from one desk answer `429` to all of them for ten minutes, on
+sign-in, sign-up, agent tokens and reset links alike. A sign-in that works clears the count for that
+email and not for the address.
+
 The count lives **in the memory of one process**. Restarting the container forgets it, and two
 Ushabti processes behind one address would each count to ten. This is enough for the single server
 the image is built for; it is not a defence against a botnet. A proxy that limits requests is worth

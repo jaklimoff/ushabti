@@ -1,6 +1,5 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
-import { Client } from "pg";
-import { createProject, gotoSettings, register, signIn, unique } from "./helpers";
+import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
+import { createProject, gotoSettings, inDatabase, register, signIn, unique } from "./helpers";
 
 const DEAD = "This link does not work any more. Ask the owner of your project for a new one.";
 
@@ -41,18 +40,32 @@ async function guesser(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
-/** The one place this spec reaches past the screen. */
-async function inDatabase<T>(run: (client: Client) => Promise<T>): Promise<T> {
-  const client = new Client({
-    connectionString:
-      process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti",
-  });
-  await client.connect();
-  try {
-    return await run(client);
-  } finally {
-    await client.end();
-  }
+type FeedEntry = {
+  kind: string;
+  taskId: string | null;
+  taskKey: string | null;
+  data: { forUserId?: string; forName?: string };
+  actor: { name: string; kind: string } | null;
+};
+
+/** The server's clock, which is where a new reader of the feed starts. */
+async function feedCursor(api: APIRequestContext, projectId: string): Promise<string> {
+  const answer = await api.get(`/api/projects/${projectId}/activity`);
+  expect(answer.ok()).toBeTruthy();
+  return ((await answer.json()) as { now: string }).now;
+}
+
+/** What happened in the project after that moment, as an agent reads it. */
+async function feedAfter(
+  api: APIRequestContext,
+  projectId: string,
+  after: string,
+): Promise<FeedEntry[]> {
+  const answer = await api.get(
+    `/api/projects/${projectId}/activity?after=${encodeURIComponent(after)}`,
+  );
+  expect(answer.ok()).toBeTruthy();
+  return ((await answer.json()) as { entries: FeedEntry[] }).entries;
 }
 
 /** How many link rows this account still has. */
@@ -191,6 +204,50 @@ test.describe("A forgotten password", () => {
 
     await makeLink(page, second);
     expect(await linkRows(member.email)).toBe(1);
+
+    await theirs.close();
+  });
+
+  test("the feed keeps the record of a link after the sweep takes the row", async ({
+    page,
+    browser,
+  }) => {
+    /* The row is the link, not the record: it goes the moment the link is
+       spent or replaced. The line on the project is what is left, so this
+       sweeps the table and then reads the feed the way an agent does. */
+    const theirs = await browser.newContext();
+    const them = await theirs.newPage();
+    const member = await register(them, "Ada Lovelace");
+
+    await register(page, "Owner Person");
+    const projectId = await createProject(page, unique("Record"));
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Email of the new member").fill(member.email);
+    await page.getByRole("button", { name: "Add member" }).click();
+    await expect(page.getByText("Ada Lovelace")).toBeVisible();
+
+    const cursor = await feedCursor(page.request, projectId);
+
+    const first = await makeLink(page);
+    // Older than its day, so the next link sweeps the first row away.
+    await ageLinks(member.email, 25);
+    await makeLink(page, first);
+    expect(await linkRows(member.email)).toBe(1);
+
+    /* Read as the member and not as the owner: this is visible to everybody
+       in the project, exactly as adding a member is. */
+    const lines = (await feedAfter(them.request, projectId, cursor)).filter(
+      (e) => e.kind === "reset",
+    );
+    expect(lines).toHaveLength(2);
+    for (const line of lines) {
+      // On the project and on no task: a link is about an account.
+      expect(line.taskId).toBeNull();
+      expect(line.taskKey).toBeNull();
+      expect(line.actor).toMatchObject({ name: "Owner Person", kind: "human" });
+      expect(line.data.forName).toBe("Ada Lovelace");
+      expect(line.data.forUserId).toEqual(expect.any(String));
+    }
 
     await theirs.close();
   });

@@ -30,6 +30,11 @@ report:
   and, for sign-in, per email. The count is held in memory, so a restart forgets it and
   a second process counts separately. It slows a guess; it does not stop a
   botnet. Put Ushabti behind a proxy that limits requests as well.
+- **One address is often many people.** Behind one NAT — an office, a VPN, a
+  school — everybody shares the address, so ten failures from one desk block
+  sign-in, sign-up, agent tokens and reset links for all of them for ten
+  minutes. A sign-in that works clears the count for that email and not for
+  the address.
 - **The address comes from `x-forwarded-for`.** Ushabti believes it, because
   in production a proxy writes it. Make that proxy replace the header rather
   than add to it, or a caller names its own address and the limit means

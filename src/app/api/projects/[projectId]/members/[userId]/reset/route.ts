@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { guard, json, ownerOnly, route } from "@/lib/api";
+import { logActivity } from "@/lib/queries";
 import { makeResetToken } from "@/lib/resets";
 
 type Ctx = { params: Promise<{ projectId: string; userId: string }> };
@@ -27,7 +28,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   }
 
   const [member] = await db
-    .select({ id: users.id, kind: users.kind })
+    .select({ id: users.id, name: users.name, kind: users.kind })
     .from(projectMembers)
     .innerJoin(users, eq(users.id, projectMembers.userId))
     .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)))
@@ -39,6 +40,22 @@ export const POST = route<Ctx>(async (req, ctx) => {
   }
 
   const token = await makeResetToken(member.id, actor.id);
+
+  /* The link row is swept as soon as it is spent or replaced, so the table
+     forgets that the owner ever handed out access to this account. The feed
+     is the record, and it keeps the name as well as the id: the `users` row
+     may go, and the line still says who the link was for.
+
+     No ring goes with it. Nothing on any screen changes, and a watcher reads
+     the feed after its cursor, so the line reaches it on the next ring. */
+  await logActivity({
+    projectId,
+    taskId: null,
+    actorId: actor.id,
+    kind: "reset",
+    data: { forUserId: member.id, forName: member.name },
+  });
+
   return json({ link: `${originOf(req)}/reset/${token}` }, 201);
 });
 
