@@ -113,6 +113,9 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
         <button
           className={styles.cardPick}
           data-testid="card-pick"
+          /* The button is where it is pressed; the box inside it is what is
+             drawn. Where there is no hover the button is a 24 px square and
+             the box is the same check it always was. */
           data-on={picking ? "true" : undefined}
           aria-pressed={mine}
           aria-label={mine ? `Leave ${task.key} out` : `Pick ${task.key}`}
@@ -129,7 +132,9 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
             onPick(event);
           }}
         >
-          <span aria-hidden>{mine ? "✓" : ""}</span>
+          <span className={styles.cardPickBox} data-testid="card-pick-box" aria-hidden>
+            {mine ? "✓" : ""}
+          </span>
         </button>
       )}
 

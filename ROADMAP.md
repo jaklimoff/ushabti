@@ -110,11 +110,24 @@ runs this.
 - **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
 - **Import.** Read a Trello or Jira export and map lists to options.
 - **Attachments.** Files on a task.
-- **A narrow-screen board.** The panel already overlays below 900 px, but the board itself needs a real phone layout.
 
 ---
 
 ## Done since v1.1, not yet released
+
+- **A board reads on a phone.** It was the last screen that did not fit: the
+  panel already overlaid below 900 px and the settings pages already fitted at
+  390 px, but the board drew every column side by side and scrolled sideways.
+  Below 560 px — two 272 px columns need 576 — it draws one column the width of
+  the screen, with a strip of column pills above it: a dot, the name and the
+  count, the one on screen filled. It is not a second view strip; it names
+  columns, and nothing in it drags. A pill, a 60 px swipe and the arrow keys
+  all reach another column through one piece of state, and the arrows use the
+  cursor the board already has rather than a second walker. A phone opens on
+  the first column every time. Dragging a card, dragging a column and folding
+  are out: a card moves by the grouping property in its panel, or by **Set…**
+  on several at once, which is the one value a drop across a board writes.
+  Where there is no hover, the check that picks a card is simply drawn.
 
 - **A deleted task can come back for thirty days.** Delete was the one press
   with nothing behind it: the row went, and its comments, its checklist and its

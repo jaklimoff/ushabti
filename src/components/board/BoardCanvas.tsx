@@ -33,16 +33,19 @@ import {
   cursorTarget,
   firstTask,
   isReachable,
+  shownColumn,
   sortByPosition,
   type BoardColumn,
   type CursorStep,
 } from "@/lib/board";
 import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
+import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
 import { sortTasks } from "@/lib/sort";
 import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column, type ComposerPlace } from "./Column";
+import { ColumnStrip } from "./ColumnStrip";
 import { useShortcut } from "./keys";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
@@ -248,13 +251,27 @@ export function BoardCanvas({
   const [composing, setComposing] = useState<{ columnId: string; place: ComposerPlace } | null>(
     null,
   );
+  /* The one column a phone draws. Three ways reach it — a pill, a swipe and
+     the arrows — and they all write this one word, so the strip, the canvas
+     and the cursor can never disagree about where the board is. */
+  const [shown, setShown] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  /* Where the finger started, and the card to focus once the column it walked
+     into has been drawn. Neither is state: nothing on screen reads them. */
+  const touchFrom = useRef<{ x: number; y: number } | null>(null);
+  const focusWanted = useRef<string | null>(null);
   const viewId = view?.id ?? "";
 
   /* The columns this browser has folded, for the view on screen. A fold is one
      person's answer to their own screen, so it lives in their browser and
      never in the project — nobody else's board moves. */
   const folded = useSyncExternalStore(subscribeFolded, () => foldedOf(viewId), noFolds);
+
+  /* A window too narrow to hold two columns beside each other. The server
+     draws the board it always drew, because it cannot know the width any more
+     than it can know a fold, and this arrives the moment the browser takes
+     over. */
+  const phone = useSyncExternalStore(subscribePhone, isPhone, notPhone);
 
   function fold(columnId: string, on: boolean) {
     writeFolded(viewId, setFolded(folded, columnId, on));
@@ -291,11 +308,29 @@ export function BoardCanvas({
    */
   const sorted = sort !== null;
 
+  /* A fold means nothing on a phone, which draws one column whole or not at
+     all. What this browser folded is ignored rather than cleared, so a window
+     that widens again gets its folds back. */
   const columns = useMemo(() => {
     const list = preview ?? base;
-    if (!folded.length) return list;
+    if (phone || !folded.length) return list;
     return list.map((c) => (folded.includes(c.id) ? { ...c, folded: true } : c));
-  }, [preview, base, folded]);
+  }, [preview, base, folded, phone]);
+
+  /* What the canvas draws. A phone draws one column, full width; every other
+     width draws them all, exactly as it always did. */
+  const shownId = shownColumn(columns, shown);
+  const drawn = useMemo(
+    () => (phone ? columns.filter((c) => c.id === shownId) : columns),
+    [phone, columns, shownId],
+  );
+
+  /* One column sideways, which is what a swipe asks for. */
+  function page(way: -1 | 1) {
+    const at = columns.findIndex((c) => c.id === shownId);
+    const next = columns[at + way];
+    if (at >= 0 && next) setShown(next.id);
+  }
 
   /*
    * A column may not be dragged while a rule hides some of its neighbours. The
@@ -305,7 +340,9 @@ export function BoardCanvas({
    * You cannot reorder a list you are only being shown part of.
    */
   const partial = !!groupProperty && filters.rules.some((r) => r.propertyId === groupProperty.id);
-  const columnsDraggable = groupProperty?.type === "select" && !partial;
+  /* And a phone drags no column either: one column is on screen, so there is
+     nothing to drag it past. */
+  const columnsDraggable = groupProperty?.type === "select" && !partial && !phone;
 
   /* How many cards went is the server's number, so the board says it rather
      than the one the question named a moment ago. */
@@ -326,9 +363,11 @@ export function BoardCanvas({
      tab stop: Tab reaches the board once instead of once for every card, and
      the arrows do the walking. A cursor whose card left the board falls back to
      the first card, so the board is never a dead end. */
+  /* Over what is drawn, so the cursor is always a card somebody can see: on a
+     phone the columns that are not on screen hold no card a key can reach. */
   const cursorTaskId = useMemo(
-    () => (cursor && isReachable(columns, cursor) ? cursor : firstTask(columns)),
-    [columns, cursor],
+    () => (cursor && isReachable(drawn, cursor) ? cursor : firstTask(drawn)),
+    [drawn, cursor],
   );
 
   /* Space still lifts a card on a sorted board, because the card can still be
@@ -344,6 +383,14 @@ export function BoardCanvas({
       keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
     }),
   );
+
+  /*
+   * A phone drags nothing. There is one column on screen, so a card has
+   * nowhere to be carried to; the panel's own control is how it moves. With
+   * the sensors off, a finger going sideways is the board's and pages it,
+   * instead of picking a card up five pixels in.
+   */
+  const active = useMemo(() => (phone ? [] : sensors), [phone, sensors]);
 
   useEffect(() => {
     const dragging = activeTaskId !== null || activeColumnId !== null;
@@ -551,9 +598,19 @@ export function BoardCanvas({
   useShortcut("n", () => {
     if (activeTaskId || activeColumnId) return;
     const column =
-      columns.find((c) => c.tasks.some((t) => t.id === cursorTaskId)) ??
-      columns.find((c) => !c.folded);
+      drawn.find((c) => c.tasks.some((t) => t.id === cursorTaskId)) ?? drawn.find((c) => !c.folded);
     if (column) setComposing({ columnId: column.id, place: "top" });
+  });
+
+  /*
+   * The card the arrows walked into is in a column a phone was not drawing,
+   * so it is not in the page until this render. Focus has to wait for it.
+   */
+  useEffect(() => {
+    const taskId = focusWanted.current;
+    if (!taskId) return;
+    focusWanted.current = null;
+    focusCard(scrollRef.current, taskId);
   });
 
   /* Focus and the cursor are the same thing, so a click or a Tab onto a card
@@ -574,10 +631,40 @@ export function BoardCanvas({
 
     // Without this the column scrolls under the cursor.
     event.preventDefault();
+    /* Over every column, drawn or not: `cursorTarget` already walks sideways
+       over the whole board, so a phone pages by following where it lands
+       rather than by counting columns itself. No second walker. */
     const next = cursorTarget(columns, from, step);
     if (!next || next === from) return;
     setCursor(next);
+
+    const into = findColumn(columns, next);
+    if (phone && into && into.id !== shownId) {
+      setShown(into.id);
+      focusWanted.current = next;
+      return;
+    }
     focusCard(scrollRef.current, next);
+  }
+
+  /*
+   * A sideways swipe pages the board; an up or down one is the column
+   * scrolling and nothing else. Nothing is prevented here, so a finger on a
+   * card that means to scroll still scrolls. The task panel lies over this
+   * canvas rather than inside it, so a swipe in the panel never reaches here.
+   */
+  function onTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    const finger = event.touches.length === 1 ? event.touches[0] : null;
+    touchFrom.current = finger ? { x: finger.clientX, y: finger.clientY } : null;
+  }
+
+  function onTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    const from = touchFrom.current;
+    touchFrom.current = null;
+    const finger = event.changedTouches[0];
+    if (!phone || !from || !finger) return;
+    const way = swipeStep(finger.clientX - from.x, finger.clientY - from.y);
+    if (way) page(way);
   }
 
   if (!groupProperty) {
@@ -594,7 +681,7 @@ export function BoardCanvas({
   return (
     <DndContext
       id="ushabti-board"
-      sensors={sensors}
+      sensors={active}
       collisionDetection={collision}
       measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       onDragStart={onDragStart}
@@ -607,13 +694,30 @@ export function BoardCanvas({
       }}
       autoScroll={{ threshold: { x: 0.18, y: 0.2 }, acceleration: 14 }}
     >
+      {/* Below the filter chips and above the canvas, because it says which
+          part of this view is on screen. The way to a new column comes with
+          it: the canvas has no room for one beside a full-width column. */}
+      {phone && (
+        <ColumnStrip columns={columns} shownId={shownId} onShow={setShown}>
+          <AddColumn />
+        </ColumnStrip>
+      )}
+
       <div className={styles.canvasWrap}>
-        <div className={styles.canvas} ref={scrollRef} onFocus={onCardFocus} onKeyDown={onCardKeys}>
+        <div
+          className={styles.canvas}
+          data-testid="board-canvas"
+          ref={scrollRef}
+          onFocus={onCardFocus}
+          onKeyDown={onCardKeys}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
           <SortableContext
-            items={columns.map((c) => COLUMN_PREFIX + c.id)}
+            items={drawn.map((c) => COLUMN_PREFIX + c.id)}
             strategy={horizontalListSortingStrategy}
           >
-            {columns.map((column) => (
+            {drawn.map((column) => (
               <Column
                 key={column.id}
                 column={column}
@@ -640,7 +744,7 @@ export function BoardCanvas({
               />
             ))}
           </SortableContext>
-          <AddColumn />
+          {!phone && <AddColumn />}
         </div>
       </div>
 

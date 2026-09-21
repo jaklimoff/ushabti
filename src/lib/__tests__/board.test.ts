@@ -9,9 +9,11 @@ import {
   longAgo,
   NO_VALUE,
   PANEL_MIN_WIDTH,
+  shownColumn,
   taskByAddress,
   type BoardColumn,
 } from "../board";
+import { allowedColumns } from "../filters";
 import type { MemberDTO, PropertyDTO, TaskDTO } from "../types";
 
 function property(over: Partial<PropertyDTO> = {}): PropertyDTO {
@@ -208,6 +210,48 @@ describe("board cursor", () => {
     expect(cursorTarget(columns, "gone", "left")).toBe("a");
     expect(firstTask(columns)).toBe("a");
     expect(firstTask(board([], []))).toBeNull();
+  });
+});
+
+/*
+ * A phone draws one column, so one word says which. The board it is asked
+ * about is the board after the filter, because a rule that names the grouping
+ * property takes its columns with it — and the column a phone is on can be one
+ * of them.
+ */
+describe("the column a phone shows", () => {
+  it("opens on the first column when nothing has been picked", () => {
+    expect(shownColumn(board(["a"], ["b"]), null)).toBe("c0");
+    expect(shownColumn([], null)).toBeNull();
+  });
+
+  it("keeps the column that was picked", () => {
+    expect(shownColumn(board(["a"], ["b"], ["c"]), "c2")).toBe("c2");
+  });
+
+  it("falls back to the first column when a filter takes that one away", () => {
+    const columns = board(["a"], ["b"], ["c"]);
+    columns[0].value = "o-todo";
+    columns[1].value = "o-doing";
+    columns[2].value = "o-done";
+    const status = property({
+      options: [
+        { id: "o-todo", name: "Todo", color: "#9aa0aa", position: "V" },
+        { id: "o-doing", name: "Doing", color: "#9aa0aa", position: "c" },
+        { id: "o-done", name: "Done", color: "#4f8a5b", position: "k" },
+      ],
+    });
+    const kept = allowedColumns(
+      columns,
+      { rules: [{ propertyId: "p-status", op: "is", values: ["o-todo", "o-done"] }] },
+      status,
+    );
+
+    expect(kept.map((c) => c.id)).toEqual(["c0", "c2"]);
+    /* Doing is gone, so the phone is on Todo rather than on nothing. */
+    expect(shownColumn(kept, "c1")).toBe("c0");
+    /* A column the rule kept is still the column it was on. */
+    expect(shownColumn(kept, "c2")).toBe("c2");
   });
 });
 

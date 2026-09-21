@@ -60,7 +60,9 @@ export async function createProject(page: Page, name: string): Promise<string> {
   await input.fill(name);
   await page.getByRole("button", { name: "Create project" }).click();
   await page.waitForURL(/\/p\/[0-9a-f-]{36}/);
-  await expect(page.getByText("BACKLOG")).toBeVisible();
+  /* By the column and not by the words: a phone draws the name twice, once
+     on the column and once on its pill in the strip above. */
+  await expect(column(page, "Backlog")).toBeVisible();
   return page.url().split("/p/")[1].split("?")[0];
 }
 
@@ -89,7 +91,26 @@ export function card(page: Page, title: string) {
   return page.getByTestId("card").filter({ hasText: title });
 }
 
+/** The pill of one column in the strip a phone board draws above its column. */
+export function columnPill(page: Page, name: string) {
+  return page.getByRole("button", { name: `Show the column ${name}` });
+}
+
+/**
+ * Puts a column on screen.
+ *
+ * A board wider than 560 px draws every column, so there is no pill and there
+ * is nothing to do. A phone draws one, and the column has to be the one on
+ * screen before anything in it can be pressed.
+ */
+export async function showColumn(page: Page, name: string) {
+  const pill = columnPill(page, name);
+  if (await pill.isVisible()) await pill.click();
+  await expect(column(page, name)).toBeVisible();
+}
+
 export async function addTask(page: Page, columnName: string, title: string) {
+  await showColumn(page, columnName);
   await page
     .getByRole("button", { name: `Add a task to ${columnName}` })
     .first()

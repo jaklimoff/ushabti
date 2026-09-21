@@ -137,6 +137,20 @@ export function buildColumns(
   return columns.filter((c) => !c.isNone || c.tasks.length > 0 || columns.length === 1);
 }
 
+/**
+ * The one column a phone draws.
+ *
+ * One piece of state names it, and a rule can take that column away while it
+ * is named — so a name nothing answers falls back to the first column, exactly
+ * as a cursor whose card left the board falls back to the first card. A board
+ * opens on the first column every time: a remembered one is a second hidden
+ * state, and the strip above says where you are in one glance anyway.
+ */
+export function shownColumn(columns: BoardColumn[], columnId: string | null): string | null {
+  if (columnId && columns.some((c) => c.id === columnId)) return columnId;
+  return columns[0]?.id ?? null;
+}
+
 /** Where one press of an arrow, Home or End takes the board cursor. */
 export type CursorStep = "up" | "down" | "left" | "right" | "first" | "last";
 

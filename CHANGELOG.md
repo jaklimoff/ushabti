@@ -10,6 +10,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A board reads on a phone.** Below 560 px the board draws one column the
+  width of the screen and stops scrolling sideways, with a strip of column
+  pills above it: a dot, the name and the count, the one on screen filled. A
+  pill, a 60 px sideways swipe and the left and right arrow keys all reach
+  another column, and all three move the same one thing. A board opens on the
+  first column every time. There is no drag down here — a card moves by the
+  grouping property in its panel, or by **Set…** on several at once — no column
+  drag and no folding, and a fold made on a wider window is ignored rather than
+  cleared. The check that picks a card is drawn without waiting for a hover
+  wherever there is no hover to wait for. Above 560 px nothing changes.
+
 - **A deleted task can come back for thirty days.** A delete now marks the task
   instead of taking it away: it leaves every board, list, search and count at
   once, and every route about it answers `404`. The delete says so in one line
