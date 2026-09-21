@@ -3,6 +3,7 @@ import {
   duration,
   elapsed,
   isOpen,
+  isWaiting,
   leaseEndsAt,
   leaseLeft,
   lifeOf,
@@ -24,6 +25,7 @@ describe("run state", () => {
     expect(isOpen("running")).toBe(true);
     expect(isOpen("paused")).toBe(true);
     expect(isOpen("waiting")).toBe(true);
+    expect(isOpen("handed_over")).toBe(true);
     expect(isOpen("done")).toBe(false);
     expect(isOpen("failed")).toBe(false);
     expect(isOpen("stopped")).toBe(false);
@@ -217,6 +219,41 @@ describe("a run that waits for a person", () => {
   it("shows its question, and how long it has waited", () => {
     expect(runLine(run)).toBe("Which service owns the queue?");
     expect(runLine({ ...run, step: " " })).toBe("Waiting for an answer");
+    expect(runClock(run, now)).toEqual({ text: "waiting 2h 00m", stale: true });
+  });
+
+  it("holds its bar still, because nothing is working", () => {
+    expect(runIsStill(run, now)).toBe(true);
+  });
+});
+
+describe("a run that handed the task on", () => {
+  const now = new Date("2026-08-22T12:00:00Z").getTime();
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+  const run = {
+    status: "handed_over" as const,
+    // The step is who has the task now, and nothing else.
+    step: "review",
+    goal: "Write the queue tests",
+    startedAt: ago(3 * 3_600_000),
+    updatedAt: ago(2 * 3_600_000),
+    beatAt: ago(2 * 3_600_000),
+  };
+
+  it("waits on purpose, exactly as a question does", () => {
+    expect(isWaiting("handed_over")).toBe(true);
+    expect(isWaiting("waiting")).toBe(true);
+    expect(isWaiting("running")).toBe(false);
+    expect(isWaiting(undefined)).toBe(false);
+  });
+
+  it("is never called silent, however long the next agent takes", () => {
+    expect(lifeOf(run, now)).toBe("reporting");
+  });
+
+  it("names whoever has the task, and says how long it has waited", () => {
+    expect(runLine(run)).toBe("Waiting for review");
+    expect(runLine({ ...run, step: " " })).toBe("Waiting for the next agent");
     expect(runClock(run, now)).toEqual({ text: "waiting 2h 00m", stale: true });
   });
 

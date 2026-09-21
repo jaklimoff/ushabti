@@ -239,9 +239,14 @@ and what is easy to get wrong.
   token is touched while an agent holds the stream and cleared when it closes;
   `isListening()` reads it against a minute. It is not "last used": a token
   that made a call is not a token that will hear the next task.
-- **A waiting run is the one open run the lease leaves alone.** It asked a
-  person something and stopped on purpose. `sweepLost` skips it, `lifeOf`
-  calls it reporting, and only an answer or Take over moves it.
+- **A run that waits is the open run the lease leaves alone.** It stopped on
+  purpose: `waiting` asked a person something, `handed_over` gave the task to
+  somebody else. `WAITING_STATUSES` is the one place that says which, so
+  `sweepLost` skips both and `lifeOf` calls both reporting. The two are told
+  apart only where the rule differs — an answer wakes the agent that asked,
+  while the next agent's `claim` closes a hand-over as done and opens its own,
+  which is how one open run per task survives a hand-over. Take over moves
+  either.
 - **The watcher claims before the harness starts.** The run is the lock: a
   second watcher gets a 409 and leaves the task alone. Do not add a queue or a
   lock beside it. A task an agent created never wakes `--on created`, or two

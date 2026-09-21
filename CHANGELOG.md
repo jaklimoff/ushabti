@@ -10,6 +10,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A run can end by handing over.** A worker whose pull request is open has
+  finished its session, but not the task, and the card used to go quiet while
+  a reviewer worked. `board.mjs finish USH-14 --to "review"` ends the session
+  and leaves the run waiting instead: the card reads **Waiting for review** and
+  says how long it has waited, the board leaves it alone exactly as it leaves a
+  run that asked a person a question, and the Agent tab says who has it. The
+  next agent that claims the task closes the hand-over as done and opens its
+  own run, so one task still holds one open run. Take over ends it as it ends
+  any other. Nobody is told and nothing is reserved: `<who>` is a word on the
+  card, not a member of the project. No migration.
+
 - **A long step no longer reads as a dead agent.** An agent can say how long
   its next word will take — `step USH-14 --say "Running the suite" --for 45` —
   and the board waits that long, up to an hour, before it closes the run as

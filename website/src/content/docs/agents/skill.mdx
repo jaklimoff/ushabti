@@ -57,6 +57,7 @@ node board.mjs beat USH-14 --every 120 --for 60     # say "still here"
 node board.mjs step USH-14 --say "…" --index 2 --log "…"
 node board.mjs pause USH-14                         # answer a Pause, wait for Resume
 node board.mjs finish USH-14 --status done --log "…"
+node board.mjs finish USH-14 --to "review"          # hand it on; the card waits for them
 ```
 
 Details worth knowing:
@@ -68,6 +69,9 @@ Details worth knowing:
 - `step` prints `control: none | pause | stop`, so the model sees what the board is asking.
   `pause` is the answer to the first: it reports `paused`, waits for Resume, and reports `running`
   again, so the request on the panel clears instead of hanging on "It answers on its next report".
+- `finish --to "<who>"` does not close the run: it leaves the card reading *Waiting for review*
+  until the next agent claims the task, which closes it. Use it when your session is over but the
+  task is somebody else's; plain `finish` when the work is over.
 - **Exit code 9** means the card is not yours — a `409` from the server, or no open run.
 - `claim` finishes by telling you to start the heartbeat: `node board.mjs beat USH-14 &`.
 

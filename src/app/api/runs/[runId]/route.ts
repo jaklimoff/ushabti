@@ -96,6 +96,12 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     }
     status = input.status as RunStatus;
     if (status === "taken_over") throw new HttpError(400, "Only a person takes a task over.");
+    /* A hand-over says who has the task now, and the card draws that name. A
+       hand-over to nobody would read as an idle card, which is what handing
+       over exists to stop, so the door refuses it rather than inventing one. */
+    if (status === "handed_over" && !step?.trim()) {
+      throw new HttpError(400, "A hand-over says who has the task now. Send it as step.");
+    }
     patch.status = status;
   }
 
@@ -133,6 +139,21 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       actorId: user.id,
       kind: "run",
       data: { action: status },
+    });
+  }
+
+  /*
+   * A hand-over is not a close, but it is the end of this agent's session and
+   * the feed is the record. The name goes in the line, so a reader learns who
+   * has the task without asking for the run.
+   */
+  if (status === "handed_over") {
+    await logActivity({
+      projectId: context.projectId,
+      taskId: context.taskId,
+      actorId: user.id,
+      kind: "run",
+      data: { action: "handed_over", to: (step ?? "").trim() },
     });
   }
 
