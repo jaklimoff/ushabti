@@ -130,15 +130,26 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     return write();
   }, []);
 
+  /*
+   * The task the last read was started for. The panel stays where it is when
+   * somebody opens another task, so a slow read of the one before it is still
+   * on its way when the new one lands. Its answer is about a task nobody is
+   * looking at any more: put away, it leaves the panel with nothing to draw
+   * and no reason to read again. The counter above cannot see this, because
+   * opening another task is not a write.
+   */
+  const asked = useRef(taskId);
+
   /* The read is something outside React, so what comes back from it is put on
      screen in the promise’s own callback rather than in the line that started
      the read. The effect below only asks; this is where the answer lands. */
   const load = useCallback(() => {
     const at = writes.current;
+    asked.current = taskId;
     return api
       .get<{ task: TaskDetailDTO | null }>(`/api/tasks/${taskId}`)
       .then((res) => {
-        if (writes.current !== at) return;
+        if (writes.current !== at || asked.current !== taskId) return;
         setLoaded({ taskId, task: res.task });
         if (!res.task) {
           onClose();
@@ -150,7 +161,12 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           commentCount: res.task.comments.length,
         });
       })
-      .catch(() => onClose());
+      .catch(() => {
+        /* A read that was overtaken must not close the panel either: the task
+           it failed on is not the one on screen. */
+        if (asked.current !== taskId) return;
+        onClose();
+      });
   }, [onClose, syncTaskCounts, taskId]);
 
   /* A write of this panel’s own ends by reading the task again, so the read a
