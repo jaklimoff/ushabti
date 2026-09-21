@@ -406,6 +406,13 @@ export const agentRuns = pgTable(
      * timer must never be able to paint progress that nobody made.
      */
     beatAt: timestamp("beat_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * When the next report is due, when the last one said how long it would
+     * be. Null is the ordinary lease, which is what almost every run holds.
+     * Only a report writes this column, and the next report clears it again,
+     * so a long step is stretched once and never for ever.
+     */
+    reportDueAt: timestamp("report_due_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
   },
   (t) => [

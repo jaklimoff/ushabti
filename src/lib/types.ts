@@ -447,6 +447,8 @@ export type AgentRunRowDTO = {
   updatedAt: string;
   /** The last sign of life. A beat writes this and nothing else. */
   beatAt: string;
+  /** When the next report is due, if the last one said. Null is the ordinary lease. */
+  reportDueAt: string | null;
   endedAt: string | null;
   agent: { id: string; name: string; color: string };
 };
