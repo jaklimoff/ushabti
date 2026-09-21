@@ -20,7 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useBoard } from "@/components/board/store";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
-import { Card, Foot, Note, Row, Spacer, Tag } from "@/components/ui/Layout";
+import { Card, Foot, Note, Row, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import {
   GROUPABLE_TYPES,
@@ -199,7 +199,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
   return (
     <Row
       ref={setNodeRef}
-      className={isDragging ? styles.rowLifted : undefined}
+      className={[styles.viewHead, isDragging ? styles.rowLifted : ""].filter(Boolean).join(" ")}
       style={{
         transform: CSS.Translate.toString(transform),
         transition: transition ?? undefined,
@@ -222,6 +222,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         <span />
       </button>
       <NameInput
+        className={styles.viewName}
         aria-label={`Name of the view ${view.name}`}
         defaultValue={view.name}
         onBlur={(e) => {
@@ -231,59 +232,71 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         }}
       />
       {/* The main view is named, never unnamed: a project always has one, so
-          the way off the word is to give it to another view. */}
+          the way off the word is to give it to another view. The word and the
+          two boxes are wrapped because a phone puts them on two lines, and a
+          line is given a whole part of the row rather than one box of it. */}
       {view.isDefault ? (
-        <Tag accent title="The view a board opens on. It is the one view that cannot be deleted.">
-          main
-        </Tag>
+        <span className={styles.viewMain}>
+          <Tag accent title="The view a board opens on. It is the one view that cannot be deleted.">
+            main
+          </Tag>
+        </span>
       ) : (
         isOwner && (
-          <button
-            type="button"
-            className={styles.makeMain}
-            aria-label={`Make ${view.name} the main view`}
-            title="The board opens on the main view, and it cannot be deleted."
-            onClick={() => void setMainView(view.id)}
-          >
-            Make main
-          </button>
+          <span className={styles.viewMain}>
+            <button
+              type="button"
+              className={styles.makeMain}
+              aria-label={`Make ${view.name} the main view`}
+              title="The board opens on the main view, and it cannot be deleted."
+              onClick={() => void setMainView(view.id)}
+            >
+              Make main
+            </button>
+          </span>
         )
       )}
-      <Spacer />
-      <span className="label">Shows as</span>
-      <Select
-        aria-label={`How the view ${view.name} shows`}
-        value={view.kind}
-        onChange={(e) => setKind(e.target.value as ViewKind)}
-      >
-        {VIEW_KINDS.map((option) => (
-          <option
-            key={option}
-            value={option}
-            disabled={option === "board" && !view.groupById && !groupable.length}
-          >
-            {VIEW_KIND_LABEL[option]}
-          </option>
-        ))}
-      </Select>
-      {view.kind === "board" && (
-        <>
-          <span className="label">Columns by</span>
+      {/* A label and its box are one pair, so that a phone wraps between the
+          two questions and never between a question and its answer. */}
+      <div className={styles.viewShape}>
+        <span className={styles.viewPair}>
+          <span className="label">Shows as</span>
           <Select
-            aria-label={`Grouping property of the view ${view.name}`}
-            value={view.groupById ?? ""}
-            onChange={(e) => void updateView(view.id, { groupById: e.target.value })}
+            aria-label={`How the view ${view.name} shows`}
+            value={view.kind}
+            onChange={(e) => setKind(e.target.value as ViewKind)}
           >
-            {groupable.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
+            {VIEW_KINDS.map((option) => (
+              <option
+                key={option}
+                value={option}
+                disabled={option === "board" && !view.groupById && !groupable.length}
+              >
+                {VIEW_KIND_LABEL[option]}
               </option>
             ))}
           </Select>
-        </>
-      )}
+        </span>
+        {view.kind === "board" && (
+          <span className={styles.viewPair}>
+            <span className="label">Columns by</span>
+            <Select
+              aria-label={`Grouping property of the view ${view.name}`}
+              value={view.groupById ?? ""}
+              onChange={(e) => void updateView(view.id, { groupById: e.target.value })}
+            >
+              {groupable.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          </span>
+        )}
+      </div>
       {!view.isDefault && isOwner && (
         <IconButton
+          className={styles.viewTools}
           danger
           label={`Delete the view ${view.name}`}
           title="Delete view"
