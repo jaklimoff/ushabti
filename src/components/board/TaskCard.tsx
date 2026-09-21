@@ -17,6 +17,13 @@ type Props = {
   ghost?: boolean;
   overlay?: boolean;
   onOpen?: () => void;
+  /**
+   * Picks this card, or puts it back: the check in the corner, and a
+   * Shift-click anywhere on the card. The event says which, because a range
+   * is only a range when Shift is down. Absent on the drag overlay, which is
+   * a picture of a card rather than one.
+   */
+  onPick?: (event: React.MouseEvent) => void;
   style?: React.CSSProperties;
   dragProps?: Record<string, unknown>;
 };
@@ -27,11 +34,18 @@ type Props = {
  * which the settings page arranges; this file only knows how to draw a chip.
  */
 export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
-  { task, selected, cursor, ghost, overlay, onOpen, style, dragProps },
+  { task, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps },
   ref,
 ) {
-  const { cardItems, data, runOf } = useBoard();
+  const { cardItems, data, isPicked, picked, runOf } = useBoard();
   const run = runOf(task.id);
+
+  /* The card wears a border and nothing more. The check stays on the whole
+     board while anything is picked, so the way out of a pick is where the way
+     in was, on every card at once. The store answers from a set, because every
+     card asks this every time the board draws. */
+  const mine = isPicked(task.id);
+  const picking = picked.length > 0;
 
   const slots = useMemo(
     () => buildCard(cardItems, task, data.members),
@@ -45,6 +59,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   const className = [
     styles.card,
     slots.edge ? styles.cardEdged : "",
+    mine ? styles.cardPicked : "",
     selected ? styles.cardSelected : "",
     ghost ? styles.cardGhost : "",
     overlay ? styles.cardOverlay : "",
@@ -64,7 +79,13 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
       data-testid={overlay ? "card-overlay" : "card"}
       style={style}
       data-task-id={task.id}
-      onClick={onOpen}
+      data-picked={mine ? "true" : undefined}
+      /* A plain click still opens the task. Shift is what says "and this one
+         too", so it never opens anything. */
+      onClick={(event: React.MouseEvent) => {
+        if (event.shiftKey && onPick) return onPick(event);
+        onOpen?.();
+      }}
       role="button"
       {...dragProps}
       /* dnd-kit hands every card a tab stop. The board keeps one, so Tab
@@ -78,6 +99,33 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
         }
       }}
     >
+      {onPick && !overlay && (
+        /* It sits over the corner rather than in the strip: a place of its own
+           would move every chip on the card the moment a pointer arrived, and
+           the card is supposed to hold still. */
+        <button
+          className={styles.cardPick}
+          data-testid="card-pick"
+          data-on={picking ? "true" : undefined}
+          aria-pressed={mine}
+          aria-label={mine ? `Leave ${task.key} out` : `Pick ${task.key}`}
+          /* The board has one tab stop, which is the card carrying the cursor.
+             Forty checks would give it forty-one. `x` is the keyboard way in,
+             exactly as the grip in settings is the keyboard way to drag. */
+          tabIndex={-1}
+          /* The card is the drag handle and this button sits on top of it. */
+          onPointerDown={(event) => event.stopPropagation()}
+          /* The press must not move the focus off the cursor card. */
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onPick(event);
+          }}
+        >
+          <span aria-hidden>{mine ? "✓" : ""}</span>
+        </button>
+      )}
+
       {slots.edge && (
         <span
           className={styles.cardEdge}

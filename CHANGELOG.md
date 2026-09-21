@@ -10,6 +10,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Pick several cards and set one property on all of them.** Hover a card and
+  a check appears in its corner; `x` picks the one the cursor is on, and
+  Shift-click picks a run inside one column. A bar in the top bar says how many
+  are picked and offers **Set…**, which asks which property and then what about
+  it, and writes every picked card in one call —
+  `POST /api/projects/{projectId}/tasks/values`, which an agent may make too.
+  Escape, the ✕ or a change of view ends it.
+
 - **A page lists the archived tasks.** **Archive**, in the top bar beside
   **Settings**, opens every archived task of the project, newest first, with
   the key, the title and when it went. **Put back** on a row returns one to the

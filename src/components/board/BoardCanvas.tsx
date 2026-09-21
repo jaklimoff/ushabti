@@ -231,6 +231,8 @@ export function BoardCanvas({
     moveTask,
     setValue,
     createTask,
+    togglePick,
+    pickTo,
     archiveColumn,
     patchOption,
     runOf,
@@ -523,6 +525,27 @@ export function BoardCanvas({
     if (task) onOpenTask(task);
   }
 
+  /*
+   * Picking one card, and picking a run of them.
+   *
+   * Shift is the only thing that means "and the ones in between", so a plain
+   * press is always one card. The run is measured inside one column, because
+   * a run across two columns is two runs: the cards between them on screen are
+   * not the cards between them in any order the board keeps.
+   */
+  function pickCard(taskId: string, event: React.MouseEvent, columnTaskIds: string[]) {
+    if (event.shiftKey) pickTo(taskId, columnTaskIds);
+    else togglePick(taskId);
+  }
+
+  /* `x` picks the card the cursor is on, and puts it back. It is the whole
+     keyboard route into a pick: the checks are not tab stops, because the
+     board has one. */
+  useShortcut("x", () => {
+    if (activeTaskId || activeColumnId) return;
+    if (cursorTaskId) togglePick(cursorTaskId);
+  });
+
   /* `n` makes a task where the cursor is: the top of its column, which is
      where the header's own button puts one. With no cursor, the first column. */
   useShortcut("n", () => {
@@ -602,6 +625,13 @@ export function BoardCanvas({
                 composing={composing?.columnId === column.id ? composing.place : null}
                 onCompose={(place) => setComposing(place ? { columnId: column.id, place } : null)}
                 onOpenTask={onOpenTask}
+                onPickTask={(taskId, event) =>
+                  pickCard(
+                    taskId,
+                    event,
+                    column.tasks.map((t) => t.id),
+                  )
+                }
                 onAddTask={addTask}
                 onArchiveAll={
                   sweepable ? () => void sweepColumn(groupProperty?.id ?? null, column.value) : null
