@@ -3,15 +3,17 @@ import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
+import { readDoneWhen } from "@/lib/links";
+import { loadProperties } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
 export const PATCH = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "rename the project");
+  ownerOnly(user, membership, "change the project");
 
-  const input = await body<{ name?: string; key?: string }>(req);
+  const input = await body<{ name?: string; key?: string; doneWhen?: unknown }>(req);
   const patch: Record<string, unknown> = {};
   if (input.name !== undefined) patch.name = str(input.name, "Project name", { max: 80 });
   if (input.key !== undefined) {
@@ -20,6 +22,18 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .replace(/[^A-Z0-9]/g, "");
     if (!key) throw new HttpError(400, "The project key needs at least one letter or digit.");
     patch.key = key;
+  }
+  /*
+   * What this project calls done, which is what makes a blocker stop
+   * blocking. It goes through `readDoneWhen` on the way in, so a row that
+   * names a property or an option that is gone never lands — and it is read
+   * afresh on the way out as well, because one may go afterwards. Null is
+   * "archived", which is the answer until somebody says otherwise.
+   */
+  if (input.doneWhen !== undefined) {
+    patch.doneWhen = input.doneWhen
+      ? readDoneWhen(input.doneWhen, await loadProperties(projectId))
+      : null;
   }
   if (Object.keys(patch).length === 0) return json({ ok: true });
 

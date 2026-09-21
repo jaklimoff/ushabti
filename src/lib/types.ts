@@ -95,6 +95,14 @@ export type TaskDTO = {
   checklistTotal: number;
   checklistDone: number;
   commentCount: number;
+  /**
+   * The keys of the tasks this one waits on that are not over yet.
+   *
+   * It is not a value and not a row of the card view: a link is a row of its
+   * own, as a run is. The card wears one chain glyph while this is not empty
+   * and lists nothing; the two lists belong to the panel.
+   */
+  blockedBy: string[];
 };
 
 /**
@@ -393,7 +401,22 @@ export type ActivityDTO = {
   actor: { id: string; name: string; color: string } | null;
 };
 
+/** One end of a blocked-by link, as the panel draws the row. */
+export type TaskLinkDTO = {
+  id: string;
+  key: string;
+  title: string;
+  /** True when it is archived, or holds the option the project calls done. */
+  over: boolean;
+};
+
 export type TaskDetailDTO = TaskDTO & {
+  /**
+   * Both ends of the chain: what this task waits on, and what waits on it.
+   * They carry the tasks that are over as well, struck through in the panel,
+   * because a link nobody can see is a link nobody can remove.
+   */
+  links: { blockedBy: TaskLinkDTO[]; blocks: TaskLinkDTO[] };
   checklist: ChecklistItemDTO[];
   comments: CommentDTO[];
   activity: ActivityDTO[];
@@ -533,6 +556,12 @@ export type ProjectDTO = {
   key: string;
   ownerId: string;
   role: string;
+  /**
+   * The property and the option this project calls done, or null for
+   * archived. It is what makes a blocker stop blocking, and it is read afresh:
+   * a row naming a property that is gone arrives here as null.
+   */
+  doneWhen: { propertyId: string; optionId: string } | null;
 };
 
 /** An email the owner added before it had an account. */
@@ -585,6 +614,7 @@ export const WEBHOOK_KINDS = [
   "comment",
   "run",
   "archive",
+  "link",
   "deleted",
   "reset",
 ] as const;
@@ -601,6 +631,7 @@ export const WEBHOOK_KIND_LABEL: Record<WebhookKind, string> = {
   comment: "Comment",
   run: "Agent run",
   archive: "Archived",
+  link: "Blocked by",
   deleted: "Deleted",
   reset: "Reset link",
 };

@@ -63,6 +63,12 @@ The task in full — everything the panel shows.
     "archivedAt": null,                 // the moment it was archived, or null
     "values": { "<propertyId>": "<value>" },
     "checklistTotal": 4, "checklistDone": 2, "commentCount": 3,
+    "blockedBy": ["USH-12"],            // the keys of the blockers that are NOT over
+
+    "links": {                          // both ends of the chain, over ones included
+      "blockedBy": [{ "id": "…", "key": "USH-12", "title": "…", "over": false }],
+      "blocks":    [{ "id": "…", "key": "USH-30", "title": "…", "over": true }]
+    },
 
     "checklist": [
       { "id": "…", "text": "Cover the retry path", "done": true, "position": "V" }
@@ -97,7 +103,7 @@ history row. It says who ran this, when, and how it ended. Ask
 for a closed run exactly as it does for an open one, counts and plan and log and all.
 
 `activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
-`archive`, `deleted`. An `archive` entry carries `data.action`, which is `archived` or `restored`,
+`archive`, `link`, `deleted`. An `archive` entry carries `data.action`, which is `archived` or `restored`,
 and so does a `deleted` one — see [the activity feed](/ushabti/api/projects/#the-deleted-line).
 `author` and `actor` are `null` when the user row has been deleted.
 
@@ -203,6 +209,48 @@ as it may close its own run. Both write an `archive` entry to the activity log a
 **Both are idempotent.** Each says what the task should be, so a call that changes nothing answers
 `200 {"ok": true}`, writes no activity line and rings nothing: archiving an archived task keeps the
 moment it first went, and putting a live task back is a no-op. Retry either as often as you like.
+
+---
+
+## `POST /api/tasks/{taskId}/blockers`
+
+Says what this task waits on. The body names the blocker by id.
+
+```json title="request"
+{ "blockerId": "<taskId>" }
+```
+
+`200 {"ok": true}`. Both tasks have to be on the same board: a link across two projects is refused
+with `404 That task is not on this board.`, and so is a deleted one.
+
+## `DELETE /api/tasks/{taskId}/blockers/{blockerId}`
+
+Takes the link away again. `200 {"ok": true}`.
+
+Both are member calls, an agent's as much as a person's: a link is content, like a value or a
+comment, and not the shape of the board. Both write a `link` entry — `data.action` is `linked` or
+`unlinked`, beside `data.blockerKey` — on the task that gained the blocker, and both ring the
+stream.
+
+**Both are idempotent.** A link that is already there, and one that is already gone, answer
+`200 {"ok": true}`, write no activity line and ring nothing.
+
+A link that would close a circle is refused with one sentence:
+
+```json title="409"
+{ "error": "USH-12 already waits on USH-71, so this would be a circle." }
+```
+
+A task told to wait on itself is refused with `409 A task cannot wait on itself.` The check reads
+every link of the project inside the transaction that writes the new one, under the project lock,
+so two links that each close the circle the other left open cannot both pass.
+
+<Aside type="note" title="A blocker stops blocking when it is over">
+Over means archived, and it also means the one option the owner named in **Settings → Project**, if
+they named one — read it as `project.doneWhen` on the board answer. So `blockedBy` on a task is the
+blockers that still hold it up, and an empty list means the task is free whatever links it holds.
+Nothing is hardcoded: there is no Done status in Ushabti, only the option somebody chose.
+</Aside>
 
 ---
 

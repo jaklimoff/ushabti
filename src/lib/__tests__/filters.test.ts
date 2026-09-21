@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   allowedColumns,
   applyFilters,
+  BLOCKED_KEY,
+  BLOCKED_PROPERTY,
+  filterProperties,
   asksAbout,
   clashOf,
   clashSaid,
@@ -113,7 +116,7 @@ const members: MemberDTO[] = [
   },
 ];
 
-function task(id: string, values: TaskDTO["values"] = {}): TaskDTO {
+function task(id: string, values: TaskDTO["values"] = {}, blockedBy: string[] = []): TaskDTO {
   return {
     id,
     number: 1,
@@ -128,6 +131,7 @@ function task(id: string, values: TaskDTO["values"] = {}): TaskDTO {
     checklistTotal: 0,
     checklistDone: 0,
     commentCount: 0,
+    blockedBy,
   };
 }
 
@@ -780,5 +784,61 @@ describe("a rule of mine about a property the view already filters", () => {
     expect(clashSaid(status)).toBe(
       "The view already filters Status. Remove it for everyone first.",
     );
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* The one rule that is not about a property                           */
+/* ------------------------------------------------------------------ */
+
+describe("the blocked rule", () => {
+  const blocked: FilterRule = { propertyId: BLOCKED_KEY, op: "is", values: ["true"] };
+  const free: FilterRule = { propertyId: BLOCKED_KEY, op: "is", values: ["false"] };
+
+  it("is offered beside the properties and is not one of them", () => {
+    const askable = filterProperties([status]);
+    expect(askable.map((p) => p.id)).toEqual(["p-status", BLOCKED_KEY]);
+    expect(BLOCKED_PROPERTY.type).toBe("checkbox");
+  });
+
+  it("keeps a task that waits on another", () => {
+    expect(matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY)).toBe(true);
+    expect(matches(task("t", {}, []), blocked, BLOCKED_PROPERTY)).toBe(false);
+  });
+
+  it("keeps a task that waits on nothing", () => {
+    expect(matches(task("t", {}, []), free, BLOCKED_PROPERTY)).toBe(true);
+    expect(matches(task("t", {}, ["USH-2"]), free, BLOCKED_PROPERTY)).toBe(false);
+  });
+
+  it("hides the cards it names, with only the project's properties passed in", () => {
+    const tasks = [task("a", {}, ["USH-2"]), task("b")];
+    expect(applyFilters(tasks, { rules: [blocked] }, [status]).map((t) => t.id)).toEqual(["a"]);
+  });
+
+  /* The word cannot be deleted, so the rule always survives the read that
+     throws away a rule about a property that is gone. */
+  it("survives readFilters when no property is named", () => {
+    const read = readFilters({ rules: [blocked] }, []);
+    expect(read.rules).toEqual([blocked]);
+  });
+
+  it("is still thrown away when it holds no answer", () => {
+    const read = readFilters({ rules: [{ propertyId: BLOCKED_KEY, op: "is", values: [] }] }, []);
+    expect(read.rules).toEqual([]);
+  });
+
+  it("is never seeded onto a new task", () => {
+    expect(seedValues({ rules: [blocked] }, [status], null)).toEqual({});
+  });
+
+  it("reads as a checkbox on the chip", () => {
+    expect(describeRule(blocked, BLOCKED_PROPERTY, members)).toBe("Blocked");
+    expect(describeRule(free, BLOCKED_PROPERTY, members)).toBe("Not blocked");
+  });
+
+  it("clashes with itself across the two sets", () => {
+    const clash = clashOf({ rules: [blocked] }, { rules: [free] }, [status]);
+    expect(clash?.name).toBe("Blocked");
   });
 });

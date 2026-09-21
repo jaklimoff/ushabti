@@ -21,7 +21,8 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
   "project": {
     "id": "…", "name": "Ushabti roadmap", "key": "USH",
     "ownerId": "…",
-    "role": "owner"          // YOUR role — the same board answers differently to a member
+    "role": "owner",         // YOUR role — the same board answers differently to a member
+    "doneWhen": null         // the option this project calls done, or null for archived
   },
 
   "invites": [ { "email": "…", "createdAt": "…" } ],   // added before they had an account
@@ -67,7 +68,8 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
       "position": "Vk", "createdAt": "…", "updatedAt": "…",
       "archivedAt": null,
       "values": { "<propertyId>": "<value>" },
-      "checklistTotal": 4, "checklistDone": 2, "commentCount": 3
+      "checklistTotal": 4, "checklistDone": 2, "commentCount": 3,
+      "blockedBy": ["USH-12"]  // the keys of the blockers that are NOT over yet
     }
   ],
 

@@ -10,6 +10,25 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A task can say what it waits on.** It used to live in a comment, where
+  nothing could read it. A task now names the tasks that block it, and the card
+  wears one small grey chain beside its key — nothing more, because a board
+  where half the cards are waiting still has to be readable. The panel holds
+  the two short lists, **Blocked by** and **Blocks**, adding by the same box
+  the filter uses and removing with a ✕ that asks nothing; on a task with no
+  links yet the way in is **⋯ → Blocked by…**, so a task without them looks
+  exactly as it did. **Blocked** joins the filter as a fixed word rather than a
+  property. A circle is refused with one sentence — _USH-12 already waits on
+  USH-71, so this would be a circle._ — worked out under the project lock.
+  `POST /api/tasks/{id}/blockers` and `DELETE /api/tasks/{id}/blockers/{id}`
+  both take an agent token, and `board.mjs link USH-71 --blocked-by USH-12`,
+  `unlink` and `task` are the short way. A blocker stops blocking when it is
+  over: archived, and also the one option the owner names under **Done when**
+  in **Settings → Project**, which falls back to archived by itself when that
+  property or that option is deleted. **This carries a migration** (the
+  `task_links` table and `done_when` on `projects`): run `npm run db:migrate`,
+  which the image does on every start.
+
 - **A board reads on a phone.** Below 560 px the board draws one column the
   width of the screen and stops scrolling sideways, with a strip of column
   pills above it: a dot, the name and the count, the one on screen filled. A

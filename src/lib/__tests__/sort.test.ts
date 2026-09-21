@@ -102,6 +102,7 @@ function task(id: string, values: TaskDTO["values"] = {}, over: Partial<TaskDTO>
     checklistTotal: 0,
     checklistDone: 0,
     commentCount: 0,
+    blockedBy: [],
     ...over,
   };
 }

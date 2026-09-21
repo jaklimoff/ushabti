@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
+import type { DoneWhen } from "@/lib/links";
 import { useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
-import { Field, Input } from "@/components/ui/Form";
+import { Field, Input, Select } from "@/components/ui/Form";
 import { Card, Note, Row, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -25,7 +26,23 @@ export function ProjectPanel() {
   const taskCount = data.tasks.length + data.archived.length;
   const keyChanged = key !== data.project.key && key.length > 0;
 
-  async function save(patch: { name?: string; key?: string }) {
+  /*
+   * What this project calls done. A blocker that is over stops blocking, and
+   * no status is hardcoded, so the owner says which option means it. Only a
+   * select can answer: a date or a number has no option to point at.
+   */
+  const doneWhen = data.project.doneWhen;
+  const selects = data.properties.filter((p) => p.type === "select" && p.options.length > 0);
+  /*
+   * Picking a property asks the question; the option answers it, exactly as a
+   * filter does. So the property lives here until the option is chosen —
+   * nothing is saved in between, because a half-made answer is not one. Null
+   * means "whatever is saved", so another tab's change still shows.
+   */
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const doneProperty = selects.find((p) => p.id === (pickedId ?? doneWhen?.propertyId)) ?? null;
+
+  async function save(patch: { name?: string; key?: string; doneWhen?: DoneWhen | null }) {
     try {
       await api.patch(`/api/projects/${data.project.id}`, patch);
       await refresh();
@@ -101,6 +118,76 @@ export function ProjectPanel() {
         {!isOwner && (
           <Row>
             <Note>Only the owner can change the name and the key.</Note>
+          </Row>
+        )}
+      </Card>
+
+      {/*
+       * The two boxes are one answer, so they sit on one row. Picking a
+       * property with no option yet writes nothing: the answer is the option.
+       * Both boxes save the moment they change — a dropdown has no draft to
+       * lose, so the change is its blur.
+       */}
+      <Card>
+        <Row>
+          <Field label="Done when" inline>
+            <Select
+              aria-label="The property that says a task is done"
+              value={doneProperty?.id ?? ""}
+              disabled={!isOwner || selects.length === 0}
+              onChange={(e) => {
+                /* The same property again is the same question, so it is not
+                   asked twice: re-picking it would otherwise throw away the
+                   option that is already the answer. */
+                if (e.target.value === (doneProperty?.id ?? "")) return;
+                setPickedId(e.target.value);
+                /* Another property is another question, so the old answer
+                   goes now rather than when the new one arrives. */
+                void save({ doneWhen: null });
+              }}
+            >
+              <option value="">Archived only</option>
+              {selects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+            {doneProperty && (
+              <Select
+                aria-label="The option that says a task is done"
+                value={doneWhen?.optionId ?? ""}
+                disabled={!isOwner}
+                onChange={(e) =>
+                  void save({
+                    doneWhen: e.target.value
+                      ? { propertyId: doneProperty.id, optionId: e.target.value }
+                      : null,
+                  })
+                }
+              >
+                <option value="">Pick one</option>
+                {doneProperty.options.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+            <Note>
+              A task that blocks another stops blocking when it is archived, or when it reaches
+              this.
+            </Note>
+          </Field>
+        </Row>
+        {selects.length === 0 && (
+          <Row>
+            <Note>This board has no select property with options, so archived is the answer.</Note>
+          </Row>
+        )}
+        {!isOwner && (
+          <Row>
+            <Note>Only the owner can change what this project calls done.</Note>
           </Row>
         )}
       </Card>
