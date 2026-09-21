@@ -254,7 +254,8 @@ record: see [Runs that are over](#runs-that-are-over).
 ### Runs that are over
 
 A run that closed keeps everything it wrote. `GET /api/tasks/{taskId}` carries
-them in `pastRuns` — the closed runs of that task, newest first, at most twenty:
+them in `pastRuns` — the closed runs of that task, newest first by when each
+one **started**, at most twenty:
 
 ```json
 {
@@ -268,9 +269,6 @@ them in `pastRuns` — the closed runs of that task, newest first, at most twent
         "status": "done",
         "startedAt": "2026-09-19T09:12:04.118Z",
         "endedAt": "2026-09-19T09:26:41.902Z",
-        "stepsTotal": 3,
-        "stepsDone": 3,
-        "lastLog": "opened PR #124",
         "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" }
       }
     ]
@@ -278,9 +276,12 @@ them in `pastRuns` — the closed runs of that task, newest first, at most twent
 }
 ```
 
-A row is a run without its plan and its log. Ask `GET /api/runs/{runId}` for
-one of those in full: it answers for a closed run exactly as it does for an
-open one, and a person's session and a token both read it.
+A row is a run without its plan and its log, and without the three fields those
+two would have to be read for: `stepsTotal`, `stepsDone` and `lastLog` are on an
+open run and not on a history row. A row answers "who ran this, when, and how
+did it end". Ask `GET /api/runs/{runId}` for one of those in full: it answers
+for a closed run exactly as it does for an open one, counts and plan and log
+and all, and a person's session and a token both read it.
 
 The panel reads the same list. The Agent tab is there when a task has an open
 run **or** one that is over; with none open the dot does not pulse and the tab

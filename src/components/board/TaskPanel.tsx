@@ -19,9 +19,9 @@ import {
   STATUS_WORD,
 } from "@/lib/run-state";
 import type {
-  AgentRunDTO,
   AgentRunDetailDTO,
   AgentRunLogDTO,
+  AgentRunRowDTO,
   AgentRunStepDTO,
   ChecklistItemDTO,
   RunControl,
@@ -847,7 +847,7 @@ function RunLog({ log }: { log: AgentRunLogDTO[] }) {
  * were left, one row at a time, because two open rows are a list nobody can
  * read.
  */
-function PastRuns({ runs }: { runs: AgentRunDTO[] }) {
+function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   /* What the opened rows answered. A run that is over never changes, so it is
      read once and kept for as long as the panel is on this task. */
