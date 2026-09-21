@@ -41,6 +41,17 @@ or let Playwright start one for you. On CI, and whenever `CI` is set, Playwright
 serves the production build instead, so the tests exercise what the image
 ships.
 
+To run the production build yourself, on a machine where port 3000 is taken,
+do not set `CI`: it makes Playwright start its own server on 3000 and refuse
+one that is already up. Build, start on a free port, and point the tests at
+it:
+
+```sh
+npm run build
+DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti npx next start -p 3101
+BASE_URL=http://localhost:3101 npm run test:e2e
+```
+
 ## Rules for a change
 
 - **Keep properties dynamic.** No field on a task is hardcoded — not Status, not
