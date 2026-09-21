@@ -231,6 +231,13 @@
   .top:has(.pickBar) .iconLink {
     display: none;
   }
+
+  /* A question is longer than a count, and at this width the bar has already
+     been given everything else. So the mark lends it the last of the room,
+     for as long as the question stands. */
+  .top:has(.pickAsking) .mark {
+    display: none;
+  }
 }
 
 /* ---------------------------------------------------------- view strip */

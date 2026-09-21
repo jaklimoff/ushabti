@@ -105,7 +105,7 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
   if (sweep.asking) {
     return (
       <div
-        className={styles.pickBar}
+        className={`${styles.pickBar} ${styles.pickAsking}`}
         data-testid="pick-bar"
         role="alertdialog"
         aria-label={`Archive ${tasks}?`}
