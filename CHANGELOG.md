@@ -105,6 +105,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A reset link now leaves a record.** The row that holds a link is swept away
+  as soon as the link is spent or replaced, so afterwards nothing said that the
+  owner had ever handed out a way into somebody's account. Making a link now
+  writes a line on the project's activity — who made it, and who it was for. No
+  screen draws it yet; an agent, or anything that reads the API, gets it from
+  `GET /api/projects/{id}/activity`. The link itself is never in it.
 - **An open task panel follows what somebody else does to it.** A task another
   person archived, or put back, while your panel was open left the panel as it
   was: no archived row, and _Archive task_ still in its menu until you loaded

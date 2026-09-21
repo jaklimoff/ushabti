@@ -1,6 +1,27 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { Client } from "pg";
 
+/**
+ * Opens one client, runs the query, and closes it again.
+ *
+ * A few tests have to reach past the screen to set up a state no button can
+ * reach: an old run, a saved lens, an aged link. They all want the same
+ * database, so the address is read in one place. Written out twice it drifts,
+ * and a spec then talks to a database nobody else is using.
+ */
+export async function inDatabase<T>(run: (client: Client) => Promise<T>): Promise<T> {
+  const client = new Client({
+    connectionString:
+      process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti",
+  });
+  await client.connect();
+  try {
+    return await run(client);
+  } finally {
+    await client.end();
+  }
+}
+
 export function unique(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -236,12 +257,7 @@ export async function saved(page: Page, action: () => Promise<void>) {
  * from the outside: a row nobody wrote again.
  */
 export async function backdateRun(runId: string, minutes: number): Promise<void> {
-  const client = new Client({
-    connectionString:
-      process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti",
-  });
-  await client.connect();
-  try {
+  await inDatabase(async (client) => {
     await client.query(
       `update agent_runs
           set updated_at = now() - ($2 || ' minutes')::interval,
@@ -249,9 +265,7 @@ export async function backdateRun(runId: string, minutes: number): Promise<void>
         where id = $1`,
       [runId, String(minutes)],
     );
-  } finally {
-    await client.end();
-  }
+  });
 }
 
 /**
@@ -264,20 +278,13 @@ export async function backdateRun(runId: string, minutes: number): Promise<void>
  * A project made by a test has one person in it, so the view says enough.
  */
 export async function savedLens(viewId: string): Promise<{ rules: unknown[] } | null> {
-  const client = new Client({
-    connectionString:
-      process.env.DATABASE_URL ?? "postgres://ushabti:ushabti@localhost:5435/ushabti",
-  });
-  await client.connect();
-  try {
+  return inDatabase(async (client) => {
     const { rows } = await client.query<{ filters: { rules: unknown[] } }>(
       "select filters from view_lenses where view_id = $1",
       [viewId],
     );
     return rows[0]?.filters ?? null;
-  } finally {
-    await client.end();
-  }
+  });
 }
 
 /**

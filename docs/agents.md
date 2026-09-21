@@ -292,6 +292,11 @@ GET /api/projects/{projectId}/activity?after=2026-09-18T15:28:52.024Z
 }
 ```
 
+`taskId` and `taskKey` are **null** on a line about the project rather than
+about a task. `reset` — the owner made somebody a reset link, with
+`data: { "forUserId": "…", "forName": "Ada" }` — is one of those, so do not
+read a key off every entry.
+
 Read it on every `ready` and every `change`, after the last line you saw, and
 a task created while your socket was down still reaches you. Without `after`
 it answers only `now`, which is where a new reader starts. Read a few seconds
