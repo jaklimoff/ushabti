@@ -40,6 +40,9 @@ node board.mjs check USH-14 "Retries stop after five tries" --done
 node board.mjs comment USH-14 "Tests pass. PR #124."
 node board.mjs set USH-14 Status Ready
 node board.mjs finish USH-14
+
+# ...or, if the task is now somebody else's, hand it on instead of closing it:
+node board.mjs finish USH-14 --to "review"
 ```
 
 Before a step you know is long — a build, a whole test suite, a wait for
@@ -81,9 +84,9 @@ which of those it was.
 - **Read it first**: `node board.mjs task $USHABTI_TASK`. On a `reply`, the
   newest comments hold the answer.
 - **Report with `step`** as usual, and obey `control` as usual.
-- **End with `finish`, or with `ask`.** Either ends your session. If you just
-  stop, the watcher closes the run for you, but the card then says less than
-  you could have.
+- **End with `finish`, with `finish --to`, or with `ask`.** Each ends your
+  session. If you just stop, the watcher closes the run for you, but the card
+  then says less than you could have.
 
 ## Refining a task
 
@@ -143,6 +146,13 @@ Keep it short. A refined task is one a person reads in a minute.
 - **A question is a comment and a wait.** `ask` posts the question, marks the
   run as waiting and tells you to end the session. The board does not close a
   waiting run for silence, and the watcher wakes you when a person answers.
+- **If the task is now somebody else's, hand it over.** `finish USH-14 --to
+"review"` ends your session and leaves the card reading _Waiting for
+  review_, instead of going quiet while a person or another agent works. Use
+  the plain word for whoever has it — `review`, `the coordinator`, `Ada`. The
+  board leaves the run alone, and the next agent that claims the task closes
+  it and starts its own. Hand over only when somebody really has the task;
+  when the work is over, plain `finish`.
 
 ## When the work has no task yet
 

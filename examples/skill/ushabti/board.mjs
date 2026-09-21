@@ -289,6 +289,7 @@ const commands = {
   ask <key> "<question>"              ask a person, wait, and end your session
   pause <key> [--for 5]               answer a Pause: stop, wait for Resume, go on
   finish <key> [--status done|failed] [--log "<line>"]
+  finish <key> --to "<who>"           hand the task on: the card waits for them
 
   watch --run "<command>" [--on assigned,mention,created] [--goal "<job>"]
         [--jobs 1] [--timeout 30] [--state <file>] [--once]
@@ -653,11 +654,38 @@ http://localhost:3000.`);
     console.log(`${task.key}: still paused. Run pause ${task.key} again to keep waiting.`);
   },
 
+  /**
+   * The end of a session. Either the work is over, or it is somebody else's.
+   *
+   * `--to "<who>"` hands the task on. The run does not close: it waits, with
+   * the name on the card, so a task between two agents does not read as an
+   * idle one. The board leaves a waiting run alone, and the next agent's
+   * claim closes this run and starts its own.
+   */
   async finish() {
     const data = await board();
     const task = findTask(data, positional[0]);
     const run = data.runs.find((r) => r.taskId === task.id);
     if (!run) fail(`No open run on ${task.key}. Somebody took it over.`, 9);
+
+    /*
+     * A hand-over with nobody in it is the very thing this exists to stop: an
+     * empty name would close the run and let the card go quiet, and `--to`
+     * with the next flag after it reads as the word "true", which would put
+     * "Waiting for true" on the board. Neither is worth guessing at.
+     */
+    if (flags.to !== undefined) {
+      const to = String(flags.to).replace(/\s+/g, " ").trim();
+      if (!to || to === "true") fail('Give who has the task: finish USH-14 --to "review"');
+      await call("PATCH", `/api/runs/${run.id}`, {
+        status: "handed_over",
+        step: to.slice(0, 200),
+        log: flags.log ?? `handed over to ${to}`,
+      });
+      console.log(`${task.key}: waiting for ${to}. End your session now.`);
+      return;
+    }
+
     const status = flags.status ?? "done";
     await call("PATCH", `/api/runs/${run.id}`, { status, log: flags.log ?? status });
     console.log(`${task.key}: run ${status}`);
@@ -697,6 +725,14 @@ function textArgument(inline) {
  */
 
 const TRIGGERS = ["created", "assigned", "mention"];
+
+/** The two open runs that stopped on purpose. The watcher closes neither. */
+const WAITING = new Set(["waiting", "handed_over"]);
+
+const waitingWord = (run) =>
+  run.status === "handed_over"
+    ? `waiting for ${run.step || "the next agent"}`
+    : "waiting for an answer";
 
 const PROMPTS = {
   created: (key) => `A person just created task ${key} on the Ushabti board.`,
@@ -927,13 +963,14 @@ commands.watch = async function watch() {
     clearInterval(watcher);
     if (error) say(`${job.key}: could not start the command: ${error.message}`);
 
-    /* Whatever the harness left open, the watcher closes. A waiting run is
-       not left open by accident: it asked a person, and stays. */
+    /* Whatever the harness left open, the watcher closes. A run that waits is
+       not left open by accident: it asked a person, or it handed the task on,
+       and either way it stays until somebody moves it. */
     try {
       if (why?.closed) return;
       const { run } = await request("GET", `/api/runs/${runId}`);
-      if (run.endedAt || run.status === "waiting") {
-        say(`${job.key}: ${run.endedAt ? run.status : "waiting for an answer"}`);
+      if (run.endedAt || WAITING.has(run.status)) {
+        say(`${job.key}: ${run.endedAt ? run.status : waitingWord(run)}`);
         return;
       }
       const close =

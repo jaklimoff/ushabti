@@ -390,7 +390,11 @@ export const agentRuns = pgTable(
     goal: text("goal").notNull().default(""),
     /** What the agent is doing right now, in one line. */
     step: text("step").notNull().default(""),
-    /** running | paused | done | failed | stopped | taken_over | lost */
+    /**
+     * running | paused | waiting | handed_over | done | failed | stopped |
+     * taken_over | lost. `waiting` and `handed_over` are open runs that
+     * stopped on purpose, and the lease leaves both alone.
+     */
     status: text("status").notNull().default("running"),
     /**
      * What a person asked for: pause, resume or stop. The agent reads it in the

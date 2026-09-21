@@ -390,10 +390,18 @@ export type TaskDetailDTO = TaskDTO & {
 /* Agent runs                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Where a run is. Two of these words are open runs that stopped on purpose:
+ * `waiting` asked a person a question, `handed_over` gave the task to somebody
+ * else. They are told apart because the rules differ — an answer wakes the
+ * agent that asked, while the next agent's claim closes a hand-over and takes
+ * the task.
+ */
 export const RUN_STATUSES = [
   "running",
   "paused",
   "waiting",
+  "handed_over",
   "done",
   "failed",
   "stopped",
