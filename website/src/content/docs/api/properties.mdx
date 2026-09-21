@@ -66,6 +66,18 @@ Removes the property, its options and every value written for it.
 Only views whose `kind` is `board` are counted. A **list** remembers a grouping property but never
 reads one, so a remembered word does not keep a property alive; the column is cleared if it goes.
 
+### `GET /api/properties/{propertyId}/count`
+
+```json title="200"
+{ "values": 42 }
+```
+
+How many tasks hold a real value for this property — **archived tasks included**, because the delete
+takes their values too. Empty is what the board calls empty: no row, `null`, `""` or `[]`.
+
+It is what the delete row asks before it names the cost, and it is the only way to get the number:
+the board answer used to carry a `valueCounts` map and no longer does.
+
 ---
 
 ## Options

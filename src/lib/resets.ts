@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, isNull, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, lte, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { passwordResets, sessions, users } from "@/db/schema";
@@ -14,18 +14,40 @@ const newer = alias(passwordResets, "newer");
  * Makes a link for one account and answers the only copy of its token. The
  * table keeps the digest, so nobody — the owner included — reads it again.
  *
- * Nothing older is touched: `lifeOfLink` calls an older link superseded when
- * it is read, which is one decision in one place instead of a write that can
- * be lost.
+ * No older link is rewritten: `lifeOfLink` calls one superseded when it is
+ * read, which is one decision in one place instead of a write that can be
+ * lost. The dead rows are dropped instead, which says the same thing.
+ *
+ * The sweep is here, on the write, as the limiter forgets an old address and
+ * as the lease closes a lost run on the read path. There is no timer in
+ * Ushabti and this table must not be the reason for the first one: one row
+ * arrives per link, and nothing ever took one away.
+ *
+ * A row goes when it is spent or when its day is over. Both are already dead
+ * by a rule of their own, so no link that survives the sweep reads any
+ * differently for it.
  */
 export async function makeResetToken(userId: string, madeBy: string): Promise<string> {
   const minted = mintToken(RESET_PREFIX);
-  await db.insert(passwordResets).values({
-    userId,
-    hash: minted.hash,
-    madeBy,
-    expiresAt: new Date(Date.now() + RESET_MS),
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx.insert(passwordResets).values({
+      userId,
+      hash: minted.hash,
+      madeBy,
+      expiresAt: new Date(now.getTime() + RESET_MS),
+    });
+    await tx
+      .delete(passwordResets)
+      .where(
+        and(
+          eq(passwordResets.userId, userId),
+          or(isNotNull(passwordResets.usedAt), lte(passwordResets.expiresAt, now)),
+        ),
+      );
   });
+
   return minted.token;
 }
 

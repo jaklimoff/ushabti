@@ -301,36 +301,34 @@ function archivedTaskRows(projectId: string) {
 }
 
 /**
- * How many tasks hold a real value for each property, archived ones included.
+ * How many tasks hold a real value for one property, archived ones included.
  *
  * The question the owner answers before deleting a property has to name what
  * the cascade really takes, and the cascade does not care whether a task is on
- * a board. Counting in the browser cannot answer it any more: the board no
- * longer carries the values of an archived task, and one day it will not carry
- * every live task either.
+ * a board. Counting in the browser cannot answer it: the board does not carry
+ * the values of an archived task, and one day it will not carry every live
+ * task either.
+ *
+ * It is asked when the delete row is pressed, and never on a board read. Every
+ * board load used to pay for a number the owner reads once a month.
  *
  * Empty is what the card and the filter call empty — no row, null, "" or an
  * empty list — so the number reads the same as the board does.
  */
-async function loadValueCounts(projectId: string): Promise<Record<string, number>> {
-  const rows = await db
-    .select({ propertyId: taskValues.propertyId, count: sql<number>`count(*)::int` })
+export async function countPropertyValues(propertyId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
     .from(taskValues)
-    .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
     .where(
       and(
-        eq(tasks.projectId, projectId),
+        eq(taskValues.propertyId, propertyId),
         sql`${taskValues.value} is not null
             and ${taskValues.value} <> 'null'::jsonb
             and ${taskValues.value} <> '""'::jsonb
             and ${taskValues.value} <> '[]'::jsonb`,
       ),
-    )
-    .groupBy(taskValues.propertyId);
-
-  const counts: Record<string, number> = {};
-  for (const row of rows) counts[row.propertyId] = row.count;
-  return counts;
+    );
+  return row?.count ?? 0;
 }
 
 /**
@@ -364,7 +362,7 @@ export async function loadBoard(
 ): Promise<BoardData> {
   const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
-  const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows, archivedRows, valueCounts] =
+  const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows, archivedRows, lenses] =
     await Promise.all([
       db
         .select({
@@ -409,10 +407,8 @@ export async function loadBoard(
       db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
       liveTaskRows(projectId),
       archivedTaskRows(projectId),
-      loadValueCounts(projectId),
+      loadLenses(projectId, viewerId),
     ]);
-
-  const lenses = await loadLenses(projectId, viewerId);
 
   /* Only the live ones. Nothing draws an archived task, so its values are
      fetched when its panel asks for them and not before. */
@@ -498,7 +494,6 @@ export async function loadBoard(
     cardView,
     tasks: taskList,
     archived: archivedList,
-    valueCounts,
     runs,
   };
 }
