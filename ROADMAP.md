@@ -97,9 +97,8 @@ Everything off the board, brought up to the board's standard.
 
 ## Next — the things that make daily use better
 
-1. **Webhooks.** There is no call out when something changes. An agent listens
-   on the stream instead, which `board.mjs watch` does for it; a service that
-   cannot hold a socket open still has to poll.
+Nothing. The list is empty, which is where it should be before anybody else
+runs this.
 
 ## Later
 
@@ -117,6 +116,18 @@ Everything off the board, brought up to the board's standard.
 - **A page that lists archived tasks.** Today a search and the task's own link
   are the two ways back to one, which is enough to find a task you can name.
 - **A narrow-screen board.** The panel already overlays below 900 px, but the board itself needs a real phone layout.
+
+---
+
+## Done — v1.2 (2026-09-21)
+
+- **A webhook rings when something changes.** An agent listens on the stream;
+  a serverless function, a CI job or a chat bot has nowhere to listen from.
+  The owner gives a URL in **Settings → Webhooks** and the board posts to it:
+  the kind, the task and the moment, never the change, signed with HMAC-SHA256
+  over the timestamp and the body. Four tries, at 1m, 5m and 30m. Nothing is
+  on the path of a write, so a receiver that is down costs one INSERT and
+  slows nobody's board. See [docs/webhooks.md](docs/webhooks.md).
 
 ---
 
@@ -146,6 +157,16 @@ These are consequences of the design, not defects. Read them before you build on
   and the description, and at nothing else — a comment or a checklist item is
   not searched.
 - **The activity log has no limit.** The panel reads the last 60 entries, but the table only grows.
+- **The webhook sender is one process deep**, like the rate limit. One drain
+  runs at a time inside a process; a second process would drain the same queue
+  and could send one delivery twice. Every body carries a `delivery` id for
+  exactly that, and a receiver is told to skip an id it has seen.
+- **A webhook keeps its last 20 deliveries.** Older ones go as new ones
+  arrive, on the write and with no timer — the same sweep a new reset link
+  does on the spent ones. The record is for reading, not for auditing; the
+  feed is the record.
+- **A delivery that fails four times is dropped.** By then it is old news, and
+  the way to catch up is `/activity?after=…`, which is what the feed is for.
 - **Only select, person and checkbox properties can group a board.** A multi-select would put one task in several columns, which the drag logic does not handle. A list groups by nothing, so this does not reach it.
 - **A property cannot be deleted while a view groups by it.** Point the view at another property first. This is on purpose: a view without its property is meaningless.
 - **One open run per task.** A second agent that claims the same task gets a 409. Two agents on one card would need a lock nobody can hold.

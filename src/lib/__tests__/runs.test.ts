@@ -92,14 +92,19 @@ describe("the lease closing a run nobody answered for", () => {
     expect(logActivity).toHaveBeenCalledTimes(1);
 
     // The feed reads the line from the kind and the action, so both are the
-    // words the sweep wrote before.
-    expect(rows[0].values).toEqual({
+    // words the sweep wrote before. The funnel writes a list, because one
+    // write can touch many tasks, and stamps the moment itself so that the
+    // webhook it rings names exactly the row a receiver will read back.
+    const written = rows[0].values as unknown as Record<string, unknown>[];
+    expect(written).toHaveLength(1);
+    expect(written[0]).toMatchObject({
       projectId: "project-1",
       taskId: "task-1",
       actorId: "agent-1",
       kind: "run",
       data: { action: "lost" },
     });
+    expect(written[0].createdAt).toBeInstanceOf(Date);
 
     // The run's own log still says it in plain words.
     const log = fake.writes.filter((w) => w.table === agentRunLog);

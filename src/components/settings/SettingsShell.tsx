@@ -36,6 +36,11 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
     { slug: "card", label: "Card view", count: null },
     { slug: "views", label: "Views", count: data.views.length },
     { slug: "people", label: "People", count: data.members.length },
+    /* A URL and a secret are access, so the read is the owner's too. A member
+       who cannot see the page is not offered it. */
+    ...(data.project.role === "owner"
+      ? [{ slug: "webhooks", label: "Webhooks", count: null }]
+      : []),
     { slug: "project", label: "Project", count: null },
   ];
 

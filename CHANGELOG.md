@@ -10,6 +10,27 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A webhook rings when something changes.** An agent waits on the stream,
+  but a serverless function, a CI job or a chat bot has nowhere to wait from,
+  so it had to poll. **Settings → Webhooks** is a new page, the owner's alone:
+  give a URL, copy the secret it shows you once, and press **Send a test** to
+  watch the row say _delivered 2s ago_. Pick which kinds ring it — the words
+  the activity feed already uses — or leave it at **Everything**. What arrives
+  is the doorbell the stream rings, written down: the kind, the task key and
+  the moment, and never the change itself, so the receiver reads the board for
+  the rest. Each body carries `X-Ushabti-Signature: sha256=…`, an HMAC-SHA256
+  over the timestamp and the body, and `docs/webhooks.md` has a receiver's
+  check in ten lines of Node with a known answer to test it against. A failed
+  try is made again after a minute, five minutes and half an hour, and then
+  dropped — the feed is the way to catch up. Nothing waits for the network: a
+  change writes one row per webhook and returns, so a receiver that is down
+  costs one INSERT and slows nobody's board. **Roll the secret** makes another
+  one, once. The last twenty deliveries of each webhook are kept.
+- **Archiving a whole column now writes its lines through the one funnel.**
+  It wrote them straight to the table, which was invisible until there was
+  something hanging on the funnel: a swept column rang no webhook. The rows
+  are the same; the road is the one every other change takes.
+
 - **A run that is over can still be read.** The Agent tab of a task used to
   exist only while an agent was working, and a run took its plan and its log
   away with it when it closed. The tab now stays for as long as the task has

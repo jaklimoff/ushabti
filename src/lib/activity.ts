@@ -35,6 +35,10 @@ export async function logActivity(entry: ActivityEntry) {
 export async function logActivityAll(entries: ActivityEntry[]) {
   if (entries.length === 0) return;
 
+  /* One moment for the whole call, written on the row rather than left to
+     the database. The webhook that rings names it, and a receiver that reads
+     the feed `after` that moment must land exactly on this line: a stamp a
+     millisecond later would step over the very line it rang about. */
   const at = new Date();
   await db.insert(activity).values(
     entries.map((entry) => ({
