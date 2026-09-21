@@ -143,7 +143,19 @@ describe("the lease closing a run nobody answered for", () => {
   });
 
   it("writes one activity row, and writes it through logActivity", async () => {
-    fake.sweeps([{ id: "run-1", projectId: "project-1", taskId: "task-1", agentId: "agent-1" }]);
+    // The moments the row comes back with: the last report, and the moment
+    // the sweep stamped on it. `lostBy` reads them and names the lease.
+    fake.sweeps([
+      {
+        id: "run-1",
+        projectId: "project-1",
+        taskId: "task-1",
+        agentId: "agent-1",
+        updatedAt: at("10:00"),
+        reportDueAt: null,
+        endedAt: at("11:00"),
+      },
+    ]);
 
     await loadOpenRuns("project-1");
 
@@ -162,7 +174,8 @@ describe("the lease closing a run nobody answered for", () => {
       taskId: "task-1",
       actorId: "agent-1",
       kind: "run",
-      data: { action: "lost" },
+      // `lost` is one word for two endings, so the line says which.
+      data: { action: "lost", by: "lease" },
     });
     expect(written[0].createdAt).toBeInstanceOf(Date);
 

@@ -6,7 +6,14 @@ import { agentOnly, body, broadcast, clientIdOf, guard, json, optionalStr, route
 import { logActivity } from "@/lib/queries";
 import { addLog, beat, loadRun, replaceSteps, runContext, setCurrentStep } from "@/lib/runs";
 import { CLOSED_STATUSES, RUN_STATUSES, type RunStatus } from "@/lib/types";
-import { isOpen, obeys, reportForMs } from "@/lib/run-state";
+import {
+  isOpen,
+  LOST_ON_WAITING,
+  lostBy,
+  mayReportLost,
+  obeys,
+  reportForMs,
+} from "@/lib/run-state";
 
 type Ctx = { params: Promise<{ runId: string }> };
 
@@ -96,6 +103,13 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     }
     status = input.status as RunStatus;
     if (status === "taken_over") throw new HttpError(400, "Only a person takes a task over.");
+    /* A run that waits stopped on purpose, so nothing about it is lost. The
+       heartbeat that dies with the session reports `lost` a moment after the
+       hand-over, and this is the door that keeps that beat from closing a
+       card somebody else now holds. */
+    if (status === "lost" && !mayReportLost(context.status as RunStatus)) {
+      throw new HttpError(409, LOST_ON_WAITING);
+    }
     /* A hand-over says who has the task now, and the card draws that name. A
        hand-over to nobody would read as an idle card, which is what handing
        over exists to stop, so the door refuses it rather than inventing one. */
@@ -132,13 +146,19 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   if (line) await addLog(runId, line);
   else if (step?.trim()) await addLog(runId, step.trim());
 
+  // The run as it now stands. The feed line reads it, and it is the answer.
+  const run = await loadRun(runId);
+
   if (status && CLOSED_STATUSES.includes(status)) {
     await logActivity({
       projectId: context.projectId,
       taskId: context.taskId,
       actorId: user.id,
       kind: "run",
-      data: { action: status },
+      /* `lost` is one word for two endings, and the feed says which. The
+         sweep asks the same function of the row it closed, so the board's
+         lease and an agent's goodbye never read the same. */
+      data: status === "lost" ? { action: status, by: lostBy(run) } : { action: status },
     });
   }
 
@@ -164,7 +184,6 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     clientId: clientIdOf(req),
   });
 
-  const run = await loadRun(runId);
   // The control word is the answer to the report, not a field of the run.
   return json({ run, control: run.control });
 });

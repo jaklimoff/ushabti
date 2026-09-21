@@ -326,6 +326,126 @@ test.describe("Agents on the board", () => {
     const row = page.getByTestId("past-run").first();
     await expect(row).toContainText("shut down");
     await expect(row).not.toContainText("lost");
+
+    // And the feed says the same, because it names the author of the word.
+    await page.getByRole("button", { name: /^Activity/ }).click();
+    await expect(page.getByText("shut down, and the run ended with it")).toBeVisible();
+    await expect(page.getByText("stopped answering")).toBeHidden();
+  });
+
+  /*
+   * The heartbeat dies with the session, and most sessions end on purpose.
+   * A worker that hands the task to a reviewer, or asks a person a question,
+   * has said its last word: the beat killed a moment later must leave that
+   * run exactly as it stands. Both doors are shut — the client reads the run
+   * before it writes, and the route refuses `lost` on a run that waits — and
+   * this test kills a real beat to see it.
+   */
+  for (const ending of [
+    { what: "a hand-over", args: ["--to", "review"], verb: "finish", status: "handed_over" },
+    { what: "a question", args: [], verb: "ask", status: "waiting" },
+  ]) {
+    test(`a beat killed after ${ending.what} leaves the run alone`, async ({ page, request }) => {
+      await register(page, "Beat Owner");
+      const projectId = await createProject(page, unique("Beat"));
+      const title = `Ends with ${ending.what}`;
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "Close task" }).click();
+
+      await gotoSettings(page, projectId, "people");
+      await page.getByLabel("Name of the new agent").fill("Beater");
+      await page.getByRole("button", { name: "Add agent" }).click();
+      await page
+        .getByTestId("agent-box")
+        .filter({ hasText: "Beater" })
+        .getByRole("button", { name: "Connect" })
+        .click();
+      const token = (
+        (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+      ).trim();
+
+      const api = agentApi(request, token);
+      const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+      const task = board.tasks.find((t: { title: string }) => t.title === title);
+
+      const claimed = runClient(token, ["claim", task.key, "--goal", "Open the pull request"]);
+      expect(await claimed.exited, claimed.output()).toBe(0);
+
+      const beating = runClient(token, ["beat", task.key, "--every", "15", "--for", "1"]);
+      try {
+        await expect
+          .poll(() => beating.output(), { timeout: 20_000 })
+          .toContain(`beating for ${task.key}`);
+
+        // The session ends the way a worker ends it.
+        const ended = runClient(token, [
+          ending.verb,
+          task.key,
+          ...(ending.verb === "ask" ? ["Which service owns the queue?"] : []),
+          ...ending.args,
+        ]);
+        expect(await ended.exited, ended.output()).toBe(0);
+
+        // And then the shell takes the heartbeat with it.
+        beating.child.kill("SIGTERM");
+        expect(await beating.exited, beating.output()).toBe(0);
+      } finally {
+        beating.child.kill("SIGTERM");
+      }
+
+      const open = await (await api.get(`/api/projects/${projectId}/board`)).json();
+      const run = open.runs.find((r: { taskId: string }) => r.taskId === task.id);
+      expect(run, "the run is still open").toBeTruthy();
+
+      const full = await (await api.get(`/api/runs/${run.id}`)).json();
+      expect(full.run.status).toBe(ending.status);
+      const log = full.run.log.map((line: { text: string }) => line.text);
+      expect(log).not.toContain("the agent was stopped");
+
+      // The card still says who holds the task, so nobody has to wonder.
+      await page.goto(`/p/${projectId}`);
+      await expect(card(page, title).first().getByTestId("card-run")).toBeVisible();
+    });
+  }
+
+  /* The route is the second door, and it answers an agent that reports `lost`
+     on a run it handed over however that report was made. */
+  test("the board refuses a lost report on a run that waits", async ({ page, request }) => {
+    await register(page, "Door Owner");
+    const projectId = await createProject(page, unique("Door"));
+    await addTask(page, "Todo", "Handed to a reviewer");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Handler");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    await page
+      .getByTestId("agent-box")
+      .filter({ hasText: "Handler" })
+      .getByRole("button", { name: "Connect" })
+      .click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find((t: { title: string }) => t.title === "Handed to a reviewer");
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, { goal: "Open the PR", step: "Working" })
+    ).json();
+
+    await api.patch(`/api/runs/${run.id}`, { status: "handed_over", step: "review" });
+
+    const refused = await api.patch(`/api/runs/${run.id}`, { status: "lost" });
+    expect(refused.status()).toBe(409);
+    expect((await refused.json()).error).toBe(
+      "That run waits on purpose, so only an answer, a claim or Take over ends it.",
+    );
+
+    // Nothing moved: the card still waits for the reviewer.
+    const after = await (await api.get(`/api/runs/${run.id}`)).json();
+    expect(after.run.status).toBe("handed_over");
   });
 
   test("a long step says how long it takes, and the board waits for it", async ({

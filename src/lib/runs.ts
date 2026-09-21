@@ -20,7 +20,7 @@ import { readId } from "./api";
 import { HttpError } from "./auth";
 import { publish } from "./events";
 import type { Tx } from "./queries";
-import { REPORT_LEASE_MS, WAITING_STATUSES } from "./run-state";
+import { lostBy, REPORT_LEASE_MS, WAITING_STATUSES } from "./run-state";
 import type {
   AgentRunDTO,
   AgentRunDetailDTO,
@@ -129,6 +129,15 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
  * schedule would fire, and one UPDATE behind an index costs less than a job
  * this project would then have to run, watch and ship.
  */
+/** The moments of a row, as `lostBy` reads them: ISO text, and `endedAt` set. */
+function asMoments(row: { updatedAt: Date; reportDueAt: Date | null; endedAt: Date | null }) {
+  return {
+    updatedAt: row.updatedAt.toISOString(),
+    reportDueAt: row.reportDueAt?.toISOString() ?? null,
+    endedAt: row.endedAt?.toISOString() ?? null,
+  };
+}
+
 async function sweepLost(scope: SQL | undefined): Promise<void> {
   const now = new Date();
   const cutoff = new Date(now.getTime() - REPORT_LEASE_MS);
@@ -152,6 +161,11 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
       projectId: agentRuns.projectId,
       taskId: agentRuns.taskId,
       agentId: agentRuns.agentId,
+      // The three moments `lostBy` reads, so the feed line can name who
+      // ended the run rather than the sweep saying so twice.
+      updatedAt: agentRuns.updatedAt,
+      reportDueAt: agentRuns.reportDueAt,
+      endedAt: agentRuns.endedAt,
     });
 
   for (const run of closed) {
@@ -163,7 +177,7 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
       taskId: run.taskId,
       actorId: run.agentId,
       kind: "run",
-      data: { action: "lost" },
+      data: { action: "lost", by: lostBy(asMoments(run)) },
     });
     await publish({ projectId: run.projectId, scope: "board", taskId: run.taskId });
   }

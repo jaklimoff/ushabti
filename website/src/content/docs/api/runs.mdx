@@ -114,6 +114,10 @@ With `handed_over`, `step` is who has the task now, in plain words, and the card
 entry goes in the task's activity. If the status **answers** an outstanding control word, the word is
 cleared.
 
+`lost` is the one of them a run that **waits** refuses: `409 That run waits on purpose, so only an
+answer, a claim or Take over ends it.` A question and a hand-over stopped on purpose, so a dying
+heartbeat must not close one.
+
 ---
 
 ## `GET /api/runs/{runId}`
@@ -169,7 +173,7 @@ Any member may call it, not only the owner. Stopping a runaway agent is ordinary
 | --- | --- | --- |
 | `goal` | the agent | what the whole run is for. One line. |
 | `step` | the agent | what it is doing **now**. This is the line on the card. |
-| `status` | the agent — except `taken_over` (a person) and `lost` (either) | where the run is |
+| `status` | the agent — except `taken_over` (a person) and `lost` (either, and never on a run that waits) | where the run is |
 | `control` | **a person only** | the outstanding request, or `null` |
 | `startedAt` | the server | when the run opened |
 | `updatedAt` | a **report** — never a beat | the last thing the agent *said*. **The lease counts this.** |

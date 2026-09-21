@@ -75,6 +75,19 @@ async function trySend(method, path, payload) {
   }
 }
 
+/**
+ * A read that answers null rather than throwing, for the two places that run
+ * while the process is being killed. A board that cannot be reached is not a
+ * reason to turn a clean exit into a crash.
+ */
+async function tryRead(path) {
+  try {
+    return await request("GET", path);
+  } catch {
+    return null;
+  }
+}
+
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 function fail(message, code = 1) {
@@ -517,8 +530,10 @@ http://localhost:3000.`);
    * a long build runs.
    *
    * It closes the run when it is stopped, which is the whole point: the usual
-   * way an agent dies is a Ctrl-C that reaches this process too. If the run
-   * already ended, the board answers 409 and that is the right answer.
+   * way an agent dies is a Ctrl-C that reaches this process too. It closes
+   * only a run that is still running: one that handed the task on, asked a
+   * question or finished has already said its last word, and this process
+   * dying afterwards is the ordinary end of a session.
    *
    * It is not a permit to work for ever. After `--for` minutes it exits and
    * leaves the run to the lease on the server, so a heartbeat that outlives
@@ -534,10 +549,22 @@ http://localhost:3000.`);
     const until = Date.now() + Math.max(1, Number(flags.for ?? 60)) * 60_000;
 
     let leaving = false;
+    /*
+     * The beat dies with the session, and most of the time that means the
+     * agent was killed mid-step: the run is closed here so the card comes
+     * back at once. But a session that ended with `finish --to` or with `ask`
+     * left the run waiting on purpose, and one that ended with `finish` left
+     * nothing open at all. So the run is read once before anything is
+     * written, and a run that is no longer running is left exactly as its
+     * agent left it.
+     */
     const leave = async (why) => {
       if (leaving) return;
       leaving = true;
-      await trySend("PATCH", `/api/runs/${run.id}`, { status: "lost", log: why });
+      const now = await tryRead(`/api/runs/${run.id}`);
+      if (now?.run?.status === "running") {
+        await trySend("PATCH", `/api/runs/${run.id}`, { status: "lost", log: why });
+      }
       process.exit(0);
     };
     process.on("SIGINT", () => void leave("the agent was stopped"));
@@ -1220,12 +1247,15 @@ commands.watch = async function watch() {
     aborter.abort();
     for (const job of active.values()) {
       if (job.child) stop(job.child);
-      if (job.runId) {
-        await trySend("PATCH", `/api/runs/${job.runId}`, {
-          status: "lost",
-          log: "the watcher was stopped",
-        });
-      }
+      if (!job.runId) continue;
+      // The same rule as the heartbeat's: a run the harness finished, handed
+      // over or left waiting for an answer is not this watcher's to close.
+      const now = await tryRead(`/api/runs/${job.runId}`);
+      if (now?.run?.status !== "running") continue;
+      await trySend("PATCH", `/api/runs/${job.runId}`, {
+        status: "lost",
+        log: "the watcher was stopped",
+      });
     }
     saveState();
     process.exit(code);
