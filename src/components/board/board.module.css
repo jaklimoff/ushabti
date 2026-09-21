@@ -31,7 +31,7 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* It never shrinks: a full bar would squash it, and below 560 px it is the
+/* It never shrinks: a full bar would squash it, and below 520 px it is the
    only thing on the bar that names the project. */
 .mark {
   width: 18px;
@@ -113,6 +113,17 @@
 .iconLink:hover {
   background: var(--bg-hover);
   color: var(--accent-soft);
+}
+
+/*
+ * A small tablet. The bar is exactly full once both names are on it, and a
+ * name one pixel short of its box loses three letters to the ellipsis. So
+ * every gap gives two pixels: twelve nobody sees, and the names stay whole.
+ */
+@media (max-width: 560px) {
+  .top {
+    gap: 10px;
+  }
 }
 
 /* --------------------------------------------------------- picked cards */
@@ -1095,10 +1106,19 @@
   }
 }
 
-/* A phone. The name was down to a letter or two by here, and the mark beside
-   it already says which project this is. The box that finds a task and the two
-   links off the board are worth the room it was taking. */
+/* A small tablet. The bar has two names to fit from here, so the project
+   name takes a quarter of it at most and shortens rather than pushing. */
 @media (max-width: 560px) {
+  .crumbName {
+    max-width: 24vw;
+  }
+}
+
+/* A phone, and a window as narrow as one. The last of the room has gone by
+   here: the name would be a letter and an ellipsis, and the mark beside it
+   already says which project this is. The box that finds a task and the two
+   links off the board are worth the room it was taking. */
+@media (max-width: 520px) {
   .crumbName {
     display: none;
   }
@@ -2060,6 +2080,27 @@ button.listHeadCell:focus-visible {
 
   .searchPop {
     width: 280px;
+  }
+}
+
+/*
+ * A small tablet. The two names beside the mark are what the bar is short of
+ * here, so the box gives its width first and keeps a floor. A shorter box
+ * still says what it is; a name cut to one letter says nothing.
+ */
+@media (max-width: 560px) {
+  .searchAnchor {
+    flex-shrink: 12;
+    min-width: 88px;
+  }
+}
+
+/* The names are gone by here, so the box takes the room back and shrinks
+   with the bar as it always did. */
+@media (max-width: 520px) {
+  .searchAnchor {
+    flex-shrink: 1;
+    min-width: 0;
   }
 }
 

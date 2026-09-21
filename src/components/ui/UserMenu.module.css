@@ -31,8 +31,17 @@
   white-space: nowrap;
 }
 
-/* A phone. The picture says who you are, and the bar has a board to fit. */
+/* A small tablet keeps the name and shortens it instead. It takes a smaller
+   share of the bar here, because the bar has two names to fit and the other
+   one names the project. */
 @media (max-width: 560px) {
+  .name {
+    max-width: 15vw;
+  }
+}
+
+/* A phone. The picture says who you are, and the bar has a board to fit. */
+@media (max-width: 520px) {
   .name {
     display: none;
   }

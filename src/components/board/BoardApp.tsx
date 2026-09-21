@@ -95,7 +95,9 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           <div className={styles.mark} data-testid="board-mark">
             {data.project.key.slice(0, 1)}
           </div>
-          <span className={styles.crumbName}>{data.project.name}</span>
+          <span className={styles.crumbName} data-testid="board-crumb">
+            {data.project.name}
+          </span>
           <span className={styles.crumbSep}>/</span>
           <span className={styles.crumbView}>{view?.name ?? "Board"}</span>
           <div className={styles.spacer} />

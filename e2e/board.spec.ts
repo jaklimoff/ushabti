@@ -18,6 +18,7 @@ import {
 } from "./helpers";
 
 type Page = import("@playwright/test").Page;
+type Locator = import("@playwright/test").Locator;
 
 /**
  * Three cards in Todo and one in Backlog, added in an order that is not the
@@ -737,3 +738,47 @@ test.describe("Ordering a board on a phone", () => {
     expect(mark!.height).toBe(18);
   });
 });
+
+/*
+ * A small tablet, and a window as narrow as one. Both names used to go at
+ * 560 px, where the bar still had 118 px of room. They go at 520 px now, and
+ * the box that finds a task is what gives its width up first.
+ */
+test.describe("The top bar on a small tablet", () => {
+  test.use({ viewport: { width: 560, height: 820 } });
+
+  test("keeps the project name and the person's name", async ({ page }) => {
+    const account = await register(page);
+    /* A short name on purpose: this measures the room the bar has, not how
+       long a name may be. */
+    await createProject(page, "Pocket");
+
+    const crumb = page.getByTestId("board-crumb");
+    const person = page.getByTestId("user-name");
+    await expect(crumb).toBeVisible();
+    await expect(person).toBeVisible();
+    await expect(crumb).toHaveText("Pocket");
+    await expect(person).toHaveText(account.name);
+    await whole(crumb);
+    await whole(person);
+    expect(await overflow(page)).toBe(0);
+
+    /* And gives them up on a phone, where there is no room for them. */
+    await page.setViewportSize({ width: 390, height: 820 });
+    await expect(page.getByTestId("board-crumb")).toBeHidden();
+    await expect(page.getByTestId("user-name")).toBeHidden();
+    expect(await overflow(page)).toBe(0);
+  });
+});
+
+/**
+ * The whole of the name is drawn.
+ *
+ * A box narrower than its text draws an ellipsis and keeps the text, so
+ * anything that reads the words passes on a name cut to one letter. The two
+ * widths are the only things that say so.
+ */
+async function whole(name: Locator) {
+  const box = await name.evaluate((el) => ({ text: el.scrollWidth, drawn: el.clientWidth }));
+  expect(box.text, `"${await name.textContent()}" is cut off`).toBeLessThanOrEqual(box.drawn);
+}
