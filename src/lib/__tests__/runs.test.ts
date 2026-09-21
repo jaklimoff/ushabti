@@ -1,13 +1,17 @@
+import { sql } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { activity, agentRunLog } from "@/db/schema";
 
 /**
- * The sweep is a server module, so the test hands it a database that writes
- * nothing and remembers everything. What is being checked is not the SQL but
- * the road the row takes: one activity row, and it goes through `logActivity`.
+ * The runs module is a server module, so the test hands it a database that
+ * writes nothing and remembers everything: what was written, and what each
+ * SELECT asked for. The sweep tests read the road a row takes; the history
+ * tests read how many statements the answer took and in which order it comes.
  */
 const fake = vi.hoisted(() => {
   type Values = Record<string, unknown>;
+  type Asked = { order: unknown[]; limit: number | null };
   type Builder = {
     set: () => Builder;
     where: () => Builder;
@@ -15,15 +19,21 @@ const fake = vi.hoisted(() => {
     values: (values: Values) => Builder;
     from: () => Builder;
     innerJoin: () => Builder;
-    orderBy: () => Builder;
-    limit: () => Builder;
+    orderBy: (...order: unknown[]) => Builder;
+    limit: (n: number) => Builder;
     then: (ok: (rows: Values[]) => unknown, fail?: (error: unknown) => unknown) => Promise<unknown>;
   };
 
   const writes: { table: unknown; values: Values }[] = [];
+  const asked: Asked[] = [];
   let lost: Values[] = [];
+  let held: Values[] = [];
 
-  const builder = (rows: () => Values[], note?: (values: Values) => void): Builder => {
+  const builder = (
+    rows: () => Values[],
+    note?: (values: Values) => void,
+    reads?: Asked,
+  ): Builder => {
     const node: Builder = {
       set: () => node,
       where: () => node,
@@ -34,8 +44,14 @@ const fake = vi.hoisted(() => {
       },
       from: () => node,
       innerJoin: () => node,
-      orderBy: () => node,
-      limit: () => node,
+      orderBy: (...order) => {
+        if (reads) reads.order = order;
+        return node;
+      },
+      limit: (n) => {
+        if (reads) reads.limit = n;
+        return node;
+      },
       then: (ok, fail) => Promise.resolve(rows()).then(ok, fail),
     };
     return node;
@@ -43,6 +59,7 @@ const fake = vi.hoisted(() => {
 
   return {
     writes,
+    asked,
     db: {
       // The sweep's UPDATE ... RETURNING hands back the runs it closed.
       update: () => builder(() => lost),
@@ -51,15 +68,27 @@ const fake = vi.hoisted(() => {
           () => [],
           (values) => writes.push({ table, values }),
         ),
-      // Nothing is open afterwards, which is the whole point of the sweep.
-      select: () => builder(() => []),
+      /* The first read of a call is the one for the runs; anything after it
+         is a second table, which the history must never need. Nothing is
+         open after a sweep, which is the whole point of the sweep. */
+      select: () => {
+        const reads: Asked = { order: [], limit: null };
+        asked.push(reads);
+        const first = asked.length === 1;
+        return builder(() => (first ? held : []), undefined, reads);
+      },
     },
     sweeps: (rows: Values[]) => {
       lost = rows;
     },
+    holds: (rows: Values[]) => {
+      held = rows;
+    },
     forget: () => {
       writes.length = 0;
+      asked.length = 0;
       lost = [];
+      held = [];
     },
   };
 });
@@ -74,7 +103,13 @@ vi.mock("../activity", async (importOriginal) => {
 });
 
 const { logActivity } = await import("../activity");
-const { loadOpenRuns } = await import("../runs");
+const { loadOpenRuns, loadTaskRuns } = await import("../runs");
+
+/** The ORDER BY of one read, in the words Postgres is handed. */
+function orderOf(reads: { order: unknown[] }): string {
+  const parts = reads.order as Parameters<typeof sql.join>[0];
+  return new PgDialect().sqlToQuery(sql.join(parts, sql.raw(", "))).sql;
+}
 
 describe("the lease closing a run nobody answered for", () => {
   beforeEach(() => {
@@ -119,5 +154,21 @@ describe("the lease closing a run nobody answered for", () => {
 
     expect(fake.writes).toHaveLength(0);
     expect(logActivity).not.toHaveBeenCalled();
+  });
+});
+
+describe("the runs of one task", () => {
+  beforeEach(() => {
+    fake.forget();
+    fake.sweeps([]);
+  });
+
+  it("puts the history in the order its rows read", async () => {
+    await loadTaskRuns("task-1");
+
+    // A row prints how long ago the run started, so the list is newest start
+    // first. The id keeps two runs that started together in one order.
+    const history = fake.asked[1];
+    expect(orderOf(history)).toBe('"agent_runs"."started_at" desc, "agent_runs"."id" desc');
   });
 });

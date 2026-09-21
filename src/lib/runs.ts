@@ -209,9 +209,12 @@ export async function loadTaskRuns(
       .from(agentRuns)
       .innerJoin(users, eq(users.id, agentRuns.agentId))
       .where(and(eq(agentRuns.taskId, taskId), isNotNull(agentRuns.endedAt)))
-      // Newest first. Two runs that ended in the same moment fall back to the
-      // order they started in, so the list never shuffles between reads.
-      .orderBy(desc(agentRuns.endedAt), desc(agentRuns.startedAt))
+      // Newest first by when the run started, because that is the moment the
+      // row prints. Ordered by the end, a long run that finished a minute ago
+      // sits above a short one that started after it and the words read out
+      // of order. Two runs that started in the same moment fall back to the
+      // id, so the list never shuffles between reads.
+      .orderBy(desc(agentRuns.startedAt), desc(agentRuns.id))
       .limit(PAST_RUNS),
   ]);
 
