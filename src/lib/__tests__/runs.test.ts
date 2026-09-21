@@ -57,6 +57,13 @@ const fake = vi.hoisted(() => {
     return node;
   };
 
+  const read = (): Builder => {
+    const reads: Asked = { order: [], limit: null };
+    asked.push(reads);
+    const first = asked.length === 1;
+    return builder(() => (first ? held : []), undefined, reads);
+  };
+
   return {
     writes,
     asked,
@@ -71,12 +78,8 @@ const fake = vi.hoisted(() => {
       /* The first read of a call is the one for the runs; anything after it
          is a second table, which the history must never need. Nothing is
          open after a sweep, which is the whole point of the sweep. */
-      select: () => {
-        const reads: Asked = { order: [], limit: null };
-        asked.push(reads);
-        const first = asked.length === 1;
-        return builder(() => (first ? held : []), undefined, reads);
-      },
+      select: read,
+      selectDistinctOn: read,
     },
     sweeps: (rows: Values[]) => {
       lost = rows;
@@ -109,6 +112,28 @@ const { loadOpenRuns, loadTaskRuns } = await import("../runs");
 function orderOf(reads: { order: unknown[] }): string {
   const parts = reads.order as Parameters<typeof sql.join>[0];
   return new PgDialect().sqlToQuery(sql.join(parts, sql.raw(", "))).sql;
+}
+
+/** One moment of the same day, so a test can say 11:00 and mean it. */
+function at(time: string): Date {
+  return new Date(`2026-09-19T${time}:00.000Z`);
+}
+
+/** A row as the one statement hands it over: the run, joined to its agent. */
+function run(over: { id: string; startedAt: Date; endedAt: Date | null }) {
+  return {
+    taskId: "task-1",
+    goal: "Write the queue tests",
+    step: "Writing the tests",
+    status: over.endedAt ? "done" : "running",
+    control: null,
+    updatedAt: over.endedAt ?? over.startedAt,
+    beatAt: over.endedAt ?? over.startedAt,
+    agentId: "agent-1",
+    agentName: "Builder",
+    agentColor: "#3fb0c8",
+    ...over,
+  };
 }
 
 describe("the lease closing a run nobody answered for", () => {
@@ -168,7 +193,34 @@ describe("the runs of one task", () => {
 
     // A row prints how long ago the run started, so the list is newest start
     // first. The id keeps two runs that started together in one order.
-    const history = fake.asked[1];
+    const [history] = fake.asked;
     expect(orderOf(history)).toBe('"agent_runs"."started_at" desc, "agent_runs"."id" desc');
+    // Twenty closed rows and the one run that may still be open.
+    expect(history.limit).toBe(21);
+  });
+
+  it("reads the open run and the closed ones in one statement", async () => {
+    fake.holds([
+      run({ id: "run-3", startedAt: at("12:00"), endedAt: null }),
+      run({ id: "run-2", startedAt: at("11:00"), endedAt: at("11:30") }),
+      run({ id: "run-1", startedAt: at("10:00"), endedAt: at("10:40") }),
+    ]);
+
+    const { run: open, pastRuns } = await loadTaskRuns("task-1");
+
+    // One read of the runs. A close committed between two of them could put a
+    // run in both halves or in neither; the split is made off these rows.
+    expect(fake.asked.filter((a) => a.limit === 21)).toHaveLength(1);
+    expect(open?.id).toBe("run-3");
+    expect(pastRuns.map((p) => p.id)).toEqual(["run-2", "run-1"]);
+  });
+
+  it("hands back no open run when every run of the task is over", async () => {
+    fake.holds([run({ id: "run-1", startedAt: at("10:00"), endedAt: at("10:40") })]);
+
+    const { run: open, pastRuns } = await loadTaskRuns("task-1");
+
+    expect(open).toBeNull();
+    expect(pastRuns.map((p) => p.id)).toEqual(["run-1"]);
   });
 });
