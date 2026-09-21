@@ -154,6 +154,51 @@ Under the box is a line saying what will happen: `Enter to add · Esc to cancel`
 `Enter to add · sets Priority Urgent` when a filter is going to fill something in. The composer says
 what it will write before it writes it — see [Filters](/ushabti/guides/filters/).
 
+## Picking several cards
+
+Moving ten cards to a new owner one at a time is the tenth-time friction a team notices most. So a
+card can be **picked**, and one answer goes on all of them.
+
+There is no mode to turn on. Hover a card and a check appears in its top-left corner; press it and
+the card is picked. Once anything is picked, every card shows its check, so the way out is where the
+way in was.
+
+<div class="keys">
+
+| How | What it picks |
+| --- | ------------- |
+| The check in the corner | That card, or puts it back. |
+| <kbd>Shift</kbd> + click a card | Every card from the last one you picked to this one, **inside one column**. In another column it picks that one card and starts again from it. |
+| <kbd>x</kbd> | The card the cursor is on, or puts it back. It is the whole keyboard route in, because the board keeps [one tab stop](/ushabti/guides/keyboard/). |
+
+</div>
+
+A plain click still opens the task, and <kbd>Space</kbd> still lifts a card for a drag. A picked card
+**wears a border and nothing more**: a board with ten picked cards on it has to stay readable.
+
+While anything is picked, a small bar stands in the top bar beside the search box:
+
+> **3 selected** · Set… · ✕
+
+**Set…** asks the same two questions the filter asks, in the same panel: which property, then what
+about it. The answer goes on every picked card in one write, so the board never ends up half set. The
+picks stand afterwards, because setting a second property on the same cards is the next thing anybody
+does.
+
+**✕** or <kbd>Escape</kbd> ends it, and so does moving to another view.
+
+<Aside type="note" title="A filter hides a card; it does not unpick it">
+The bar counts what this view is drawing. Pick three cards, add a rule that hides one of them, and
+the bar reads *2 selected* — and **Set…** writes two. The third is not lost; it is hidden, exactly as
+it is on the board behind. Nothing you cannot see is quietly written to.
+</Aside>
+
+On a phone the bar takes the room it needs: the project name goes, and below 560 px so do the search
+box and the two links off the board. They come back the moment nothing is picked.
+
+Picking is on the board for now. A list picks in the same way in a later release, and so does
+**Archive** on the bar.
+
 ## The top bar
 
 <CardGrid>
@@ -211,6 +256,21 @@ see [Configuration](/ushabti/start/configuration/).
 />
 
 <style>{`
+  .keys kbd {
+    display: inline-block;
+    min-width: 1.6em;
+    text-align: center;
+    padding: 0.1em 0.45em;
+    border: 1px solid var(--sl-color-hairline-light);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: var(--sl-color-gray-7);
+    font-family: var(--sl-font-mono);
+    font-size: 0.8em;
+    color: var(--sl-color-gray-1);
+  }
+  .keys td:first-child { white-space: nowrap; }
+
   .shot {
     border: 1px solid var(--sl-color-hairline-light);
     border-radius: 12px;
