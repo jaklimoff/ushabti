@@ -26,6 +26,38 @@ function detailRead(url: string): boolean {
 }
 
 /*
+ * A read the panel throws away changes nothing on screen, so there is no event
+ * to wait for. This counts the answers the page has parsed instead. The count
+ * goes up in the same chain of microtasks that hands the answer to the panel,
+ * so a poll that sees the count has seen the panel decide. A count beats an
+ * event here, because an event needs a listener that is already in place when
+ * the answer lands, and the answer may land first. The wrap belongs to the
+ * test; the panel carries no hook for one.
+ */
+async function countDetailReads(page: Page) {
+  await page.addInitScript(() => {
+    const counter = window as unknown as { __detailReads: number };
+    counter.__detailReads = 0;
+    const json = Response.prototype.json;
+    Response.prototype.json = async function (this: Response) {
+      const parsed: unknown = await json.call(this);
+      if (/\/api\/tasks\/[0-9a-f-]+$/.test(this.url)) counter.__detailReads += 1;
+      return parsed;
+    };
+  });
+}
+
+const detailReads = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __detailReads: number }).__detailReads);
+
+/** Waits until the page has parsed a detail read it had not parsed at `seen`. */
+const detailReadPast = (page: Page, seen: number) =>
+  page.waitForFunction(
+    (before) => (window as unknown as { __detailReads: number }).__detailReads > before,
+    seen,
+  );
+
+/*
  * The Priority row of the open panel. Four short options are drawn as a row of
  * buttons, and the one that holds the answer offers to clear it instead of
  * naming itself.
@@ -263,6 +295,7 @@ test.describe("Archiving a task", () => {
    * out before the write would put the old value back.
    */
   test("a read the panel's own write overtook is thrown away", async ({ page }) => {
+    await countDetailReads(page);
     await register(page);
     await createProject(page, unique("Overtaken"));
 
@@ -306,10 +339,14 @@ test.describe("Archiving a task", () => {
     );
     await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
 
+    /* The headers are one barrier, and they are not enough: the panel has
+       still to parse the body and decide what to do with it. The count says
+       it has. */
+    const parsed = await detailReads(page);
     const landed = page.waitForResponse((r) => detailRead(r.url()));
     release();
     await landed;
-    await page.waitForTimeout(300);
+    await detailReadPast(page, parsed);
 
     // The old answer landed and was thrown away.
     await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
