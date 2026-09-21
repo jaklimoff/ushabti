@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import type { BoardColumn } from "@/lib/board";
+import { useEdgeFade } from "./edges";
 import styles from "./board.module.css";
 
 /**
@@ -27,9 +29,33 @@ export function ColumnStrip({
   /** The way to a new column, which is a pill at the end of the strip. */
   children?: React.ReactNode;
 }) {
+  const { ref, fade, measure } = useEdgeFade(columns.length);
+
+  /*
+   * The filled pill is the whole point of the strip, so it has to be on
+   * screen. Five columns are wider than a phone, and paging to the last one
+   * used to leave the pill that says so two hundred pixels past the edge.
+   * The pill is found in the page rather than held in a ref map, exactly as
+   * the cursor card is.
+   */
+  useEffect(() => {
+    ref.current?.querySelector<HTMLElement>('[aria-pressed="true"]')?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+    measure();
+  }, [shownId, ref, measure]);
+
   return (
-    <div className={styles.columnStrip} data-testid="column-strip-row">
-      <div className={styles.columnPills} role="group" aria-label="The columns of this board">
+    <div className={styles.columnStrip}>
+      <div
+        className={`${styles.columnPills} ${fade}`}
+        data-testid="column-pills"
+        role="group"
+        aria-label="The columns of this board"
+        ref={ref}
+        onScroll={measure}
+      >
         {columns.map((column) => {
           const on = column.id === shownId;
           return (

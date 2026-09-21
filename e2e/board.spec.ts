@@ -871,6 +871,37 @@ test.describe("A board on a phone", () => {
     await expect(card(page, "Beetle")).toHaveCount(0);
     expect(await counts(page.getByTestId("column-pill"))).toEqual(["1", "0", "1", "0", "0"]);
   });
+
+  test("the strip scrolls to the column you are on, and fades where there is more", async ({
+    page,
+  }) => {
+    await register(page);
+    await createProject(page, unique("Pocket"));
+    await aColumnEach(page);
+
+    /* Five pills are wider than a phone, so the row pans — and the scrollbar
+       is hidden, so the fade at the end is the only thing that says so. */
+    const pills = page.getByTestId("column-pills");
+    expect(await hidden(pills)).toBeGreaterThan(0);
+    expect(await maskOf(pills)).toContain("linear-gradient");
+
+    /* The filled pill is the whole point of the strip, so paging to the last
+       column has to bring its pill with it. It used to sit two hundred pixels
+       past the end of a strip that had not moved. */
+    await columnPill(page, "Shipped").click();
+    await expect(column(page, "Shipped")).toBeVisible();
+    await inside(columnPill(page, "Shipped"), pills);
+
+    /* The fade is now at the other end, because that is where the rest is. */
+    expect(await pills.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+    expect(await maskOf(pills)).toContain("linear-gradient");
+
+    /* And back the other way: the strip goes to the start with it. */
+    await columnPill(page, "Backlog").click();
+    await expect(column(page, "Backlog")).toBeVisible();
+    await inside(columnPill(page, "Backlog"), pills);
+    expect(await pills.evaluate((el) => el.scrollLeft)).toBe(0);
+  });
 });
 
 /*
@@ -888,6 +919,13 @@ test.describe("A board under a finger", () => {
     await columnPill(page, "Todo").click();
     const check = card(page, "Beetle").getByTestId("card-pick");
     expect(await check.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+
+    /* And it is the only way in down here, so a finger has to be able to hit
+       it: a miss lands on the card and opens the task. The check itself is
+       still 15 px, because the button grew around it and not with it. */
+    await forAFinger(check, 1);
+    const box = await check.getByTestId("card-pick-box").boundingBox();
+    expect(Math.round(box!.width)).toBe(15);
 
     // A finger going left brings the next column in; going right, the one
     // before. A short one says nothing at all.
@@ -915,6 +953,26 @@ async function aColumnEach(page: Page) {
     await addTask(page, columnName, title);
     await page.getByRole("button", { name: "Close task" }).click();
   }
+}
+
+/** How much of a scrolling row is past its own edges. */
+async function hidden(row: Locator): Promise<number> {
+  return row.evaluate((el) => el.scrollWidth - el.clientWidth);
+}
+
+/** What the row is faded with. A row with nothing past its edges has none. */
+async function maskOf(row: Locator): Promise<string> {
+  return row.evaluate((el) => getComputedStyle(el).maskImage);
+}
+
+/** One pill is drawn inside the strip that holds it, from end to end. */
+async function inside(pill: Locator, row: Locator) {
+  const one = await pill.boundingBox();
+  const box = await row.boundingBox();
+  expect(one!.x, "the pill starts before the strip").toBeGreaterThanOrEqual(box!.x - 1);
+  expect(one!.x + one!.width, "the pill ends past the strip").toBeLessThanOrEqual(
+    box!.x + box!.width + 1,
+  );
 }
 
 /** How far the board can be pushed sideways. A phone has nowhere to push it. */

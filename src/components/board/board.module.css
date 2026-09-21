@@ -509,7 +509,12 @@
   border-bottom: 1px solid var(--line-faint);
 }
 
-/* More columns than the screen holds: the row pans, as the view strip does. */
+/*
+ * More columns than the screen holds: the row pans, as the view strip does,
+ * and fades at each end that has more — the scrollbar is hidden, so the fade
+ * is the only thing that says so. The pill of the column on screen is scrolled
+ * back into view, because a strip that has panned past it says nothing.
+ */
 .columnPills {
   display: flex;
   align-items: center;
@@ -909,6 +914,9 @@
  * It has the card's own background behind it because it covers whatever the
  * card view put in that corner. A place of its own would move every chip on
  * every card the moment a pointer arrived, and a card holds still.
+ *
+ * The button is the place it is pressed and the box inside it is what is
+ * drawn, so a finger can be given more room without the check growing.
  */
 .cardPick {
   position: absolute;
@@ -919,14 +927,21 @@
   height: 15px;
   display: grid;
   place-items: center;
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+
+.cardPickBox {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--bg-card);
   color: var(--accent);
   font-size: 10px;
   line-height: 1;
-  opacity: 0;
-  transition: opacity 120ms var(--ease);
 }
 
 /* On hover it is an offer; once anything is picked it is the way out, on
@@ -938,11 +953,11 @@
 
 /* A check that is standing on every card has to be seen from across the
    board, and an empty one on a dark card was a rumour of a box. */
-.cardPick[data-on="true"] {
+.cardPick[data-on="true"] .cardPickBox {
   border-color: var(--line-menu);
 }
 
-.cardPicked .cardPick {
+.cardPicked .cardPickBox {
   border-color: var(--accent);
 }
 
@@ -962,7 +977,7 @@
   text-indent: 17px;
 }
 
-.cardPick:hover {
+.cardPick:hover .cardPickBox {
   border-color: var(--accent);
   background: var(--bg-card-hover);
 }
@@ -974,7 +989,14 @@
  * a check over the first chip is a check that hides what it sits on.
  */
 @media (hover: none) {
+  /* It is also the only way in down here, so it is given the 24 px a finger
+     needs: the button grows around the box and the box stays the size it was,
+     so the check reads the same and a miss no longer opens the task. */
   .cardPick {
+    top: 1px;
+    left: 1px;
+    width: 24px;
+    height: 24px;
     opacity: 1;
   }
 
