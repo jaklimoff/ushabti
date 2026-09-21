@@ -123,6 +123,9 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
           <button
             className={styles.listPick}
             data-testid="list-pick"
+            /* The button is where it is pressed; the box inside it is what is
+               drawn. Where there is no hover the button is a 24 px square and
+               the box is the same check it always was. */
             data-on={picking ? "true" : undefined}
             aria-pressed={mine}
             aria-label={mine ? `Leave ${task.key} out` : `Pick ${task.key}`}
@@ -139,7 +142,9 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
               onPick(event);
             }}
           >
-            <span aria-hidden>{mine ? "✓" : ""}</span>
+            <span className={styles.listPickBox} data-testid="list-pick-box" aria-hidden>
+              {mine ? "✓" : ""}
+            </span>
           </button>
         );
 

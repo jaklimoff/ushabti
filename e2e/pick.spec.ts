@@ -7,6 +7,7 @@ import {
   column,
   columnOrder,
   createProject,
+  forAFinger,
   gotoSettings,
   listOrder,
   listRow,
@@ -466,5 +467,60 @@ test.describe("Picking on a phone", () => {
     await expect(page.getByTestId("search-box")).toBeVisible();
     await expect(page.getByTitle("Project settings")).toBeVisible();
     expect(await topBarEnds(page)).toBeLessThanOrEqual(390);
+  });
+});
+
+/*
+ * The box that finds a task is off the top bar below 900 px while something is
+ * picked, and `/` went on asking for it. So the key did nothing, in silence,
+ * and Escape then `/` was the only way in.
+ */
+test.describe("/ while cards are picked", () => {
+  test.use({ viewport: { width: 600, height: 820 } });
+
+  test("leaves the picks out and puts the cursor in the box", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Slashed"));
+    await fourCards(page);
+
+    await pick(page, "Aardvark", "Beetle", "Cricket");
+    await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
+    /* The box is not on the bar. This is the press that used to do nothing. */
+    await expect(page.getByTestId("search-box")).toBeHidden();
+
+    await page.keyboard.press("/");
+
+    /* A search hides nothing and ends by opening one task, so it wins. */
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+    await expect(page.locator('[data-testid="card"][data-picked="true"]')).toHaveCount(0);
+    await expect(page.getByTestId("search-box")).toBeFocused();
+    /* The key opened the box; it did not land in it. */
+    await expect(page.getByTestId("search-box")).toHaveValue("");
+  });
+});
+
+/*
+ * The check in a list gutter under a finger. It was a 14 px square in a 28 px
+ * gutter on a 32 px row, and a miss opened the task.
+ */
+test.describe("Picking on a list under a finger", () => {
+  test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
+
+  test("gives the check a finger's room, and draws the same check", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Pocket list"));
+    await addTask(page, "Todo", "Aardvark");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addListView(page, "Everything");
+
+    const check = listRow(page, "Aardvark").getByTestId("list-pick");
+    /* It stands there without a hover, because a finger has none. */
+    expect(await check.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+    await forAFinger(check, 1);
+
+    /* The button grew around the box, so the check reads as it always did. */
+    const box = await check.getByTestId("list-pick-box").boundingBox();
+    expect(Math.round(box!.width)).toBe(14);
+    expect(Math.round(box!.height)).toBe(14);
   });
 });
