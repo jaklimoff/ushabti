@@ -71,9 +71,12 @@
   flex: 1;
 }
 
+/* It never shrinks. A full bar squashed it to nothing without a word, and a
+   dot that is not drawn says the board is not live. */
 .liveDot {
   width: 5px;
   height: 5px;
+  flex: 0 0 5px;
   border-radius: 50%;
   background: var(--accent);
   animation: ushabti-pulse 2.2s ease-in-out infinite;
@@ -88,6 +91,7 @@
 .liveDotOff {
   width: 5px;
   height: 5px;
+  flex: 0 0 5px;
   border-radius: 50%;
   background: #3f4650;
 }
@@ -216,19 +220,31 @@
  * picked.
  */
 @media (max-width: 900px) {
-  /* The mark still names the project, and the strip below still names the
-     view, so the name in the middle is what there is to give. */
-  .top:has(.pickBar) .crumbName {
+  /*
+   * Below this width the bar carries what is picked and little else. The mark
+   * still names the project and the strip below still names the view, so the
+   * name in the middle can go; the box that finds a task and the two links to
+   * other pages go with it, because they are the ways off this board and you
+   * are in the middle of something on it.
+   *
+   * All three used to go at 560 px, where the bar still had room. Between 560
+   * and 900 px only the name gave way, and a name is the one thing here that
+   * shortens by itself — so the bar ran off its own side in silence, by 80 px
+   * at 600 px with three cards picked.
+   */
+  .top:has(.pickBar) .crumbName,
+  .top:has(.pickBar) .searchAnchor,
+  .top:has(.pickBar) .iconLink {
     display: none;
   }
 }
 
 @media (max-width: 560px) {
-  /* A phone has room for what you are doing and for nothing else. The search
-     box and the two links to other pages are neither: they are the ways off
-     this board, and you are in the middle of something on it. */
-  .top:has(.pickBar) .searchAnchor,
-  .top:has(.pickBar) .iconLink {
+  /* And the dot that says the board is live goes with them. It is five pixels
+     wide, so it used to be squashed to nothing here without a word, which
+     reads as a board that is not live. It lends its room instead. */
+  .top:has(.pickBar) .liveDot,
+  .top:has(.pickBar) .liveDotOff {
     display: none;
   }
 
@@ -2025,14 +2041,22 @@ button.listHeadCell:focus-visible {
 
 /* ---------------------------------------------------------------- search */
 
-/* The box sits in the top bar and not in the view strip: what it finds
-   belongs to the project, and the strip belongs to one view. */
+/*
+ * The box sits in the top bar and not in the view strip: what it finds
+ * belongs to the project, and the strip belongs to one view.
+ *
+ * It is the first thing on the bar to give its width — it shrinks twelve
+ * times as fast as a name — and it stops at a width that still says what it
+ * is. The floor holds at every width the box is drawn at. It used to start at
+ * 560 px, so the box was 88 px wide at 560 and 65 px at 561: a cliff on one
+ * pixel, at the very width where the squeeze is worst.
+ */
 .searchAnchor {
   position: relative;
   display: flex;
   align-items: center;
-  flex: 0 1 208px;
-  min-width: 0;
+  flex: 0 12 208px;
+  min-width: 88px;
 }
 
 .searchBox {
@@ -2153,7 +2177,7 @@ button.listHeadCell:focus-visible {
 
 @media (max-width: 900px) {
   .searchAnchor {
-    flex: 0 1 132px;
+    flex: 0 12 132px;
   }
 
   .searchPop {
@@ -2161,20 +2185,8 @@ button.listHeadCell:focus-visible {
   }
 }
 
-/*
- * A small tablet. The two names beside the mark are what the bar is short of
- * here, so the box gives its width first and keeps a floor. A shorter box
- * still says what it is; a name cut to one letter says nothing.
- */
-@media (max-width: 560px) {
-  .searchAnchor {
-    flex-shrink: 12;
-    min-width: 88px;
-  }
-}
-
 /* The names are gone by here, so the box takes the room back and shrinks
-   with the bar as it always did. */
+   with the bar as it always did. Nothing is left to keep a floor for. */
 @media (max-width: 520px) {
   .searchAnchor {
     flex-shrink: 1;

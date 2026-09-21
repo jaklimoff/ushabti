@@ -10,6 +10,7 @@ import {
   dragCard,
   dragOnto,
   overflow,
+  pastTheBar,
   register,
   settles,
   sortBoard,
@@ -770,6 +771,72 @@ test.describe("The top bar on a small tablet", () => {
     expect(await overflow(page)).toBe(0);
   });
 });
+
+/*
+ * A small tablet with a long name at each end of the bar and three cards
+ * picked. The bar ran 80 px off its own side here, and the box that finds a
+ * task was squeezed to 31 px of border and padding on the way — neither with
+ * a sound, because the shell clips what hangs out of it rather than scrolling.
+ */
+test.describe("The top bar with cards picked", () => {
+  test.use({ viewport: { width: 600, height: 820 } });
+
+  test("keeps every part inside the bar, and the box keeps its floor", async ({ page }) => {
+    await register(page, "Wilhelmina Featherstonehaugh");
+    await createProject(page, unique("Pocket"));
+    for (const title of ["Aardvark", "Beetle", "Cricket"]) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    /* Nothing is picked yet. The names shorten, and the box is never a sliver:
+       a box this narrow is a border and its padding and nothing else. */
+    await expect(page.getByTestId("search-box")).toBeVisible();
+    expect(await searchWidth(page)).toBeGreaterThanOrEqual(88);
+    expect(await pastTheBar(page)).toBe(0);
+
+    for (const title of ["Aardvark", "Beetle", "Cricket"]) {
+      await card(page, title).getByTestId("card-pick").click();
+    }
+    await expect(page.getByTestId("pick-bar")).toBeVisible();
+
+    /* What gave the room: the ways off this board. What kept its place: the
+       picture and the name of the person, and the mark that names the
+       project. */
+    await expect(page.getByTestId("search-box")).toBeHidden();
+    await expect(page.getByTitle("Project settings")).toBeHidden();
+    await expect(page.getByTestId("board-mark")).toBeVisible();
+    await expect(page.getByTestId("user-name")).toBeVisible();
+    expect(await pastTheBar(page)).toBe(0);
+
+    /* The question is longer than the count, so it is measured as well. */
+    await page.getByTestId("pick-archive").click();
+    await expect(page.getByTestId("pick-confirm")).toHaveText("Archive 3 tasks?");
+    expect(await pastTheBar(page)).toBe(0);
+    await page.getByTestId("pick-archive-no").click();
+
+    /* And it is a loan, not a taking. */
+    await page.getByTestId("pick-clear").click();
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+    await expect(page.getByTestId("search-box")).toBeVisible();
+    expect(await searchWidth(page)).toBeGreaterThanOrEqual(88);
+
+    /* The floor holds on both sides of the width the names shorten at. It
+       used to end there, so the box lost 23 px on one pixel of window. */
+    for (const width of [560, 561]) {
+      await page.setViewportSize({ width, height: 820 });
+      await expect(page.getByTestId("search-box")).toBeVisible();
+      expect(await searchWidth(page), `the box at ${width} px`).toBeGreaterThanOrEqual(88);
+      expect(await pastTheBar(page)).toBe(0);
+    }
+  });
+});
+
+/** How wide the box that finds a task is drawn. */
+async function searchWidth(page: Page): Promise<number> {
+  const box = await page.getByTestId("search-box").boundingBox();
+  return Math.round(box!.width);
+}
 
 /**
  * The whole of the name is drawn.
