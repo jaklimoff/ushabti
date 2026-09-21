@@ -561,6 +561,18 @@ test.describe("Ordering a board", () => {
     await expect(page.getByTestId("sort-chip")).toContainText("Priority");
     expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
 
+    /* The order the board reads back is not proof on its own: a write that
+       went out and was then overtaken would read the same. So count what the
+       held drags send. A drag moves a card with POST .../move, so every
+       method but GET counts. */
+    const writes: string[] = [];
+    await page.route("**/api/tasks/**", (route) => {
+      const asked = route.request();
+      if (asked.method() !== "GET")
+        writes.push(`${asked.method()} ${new URL(asked.url()).pathname}`);
+      return route.continue();
+    });
+
     // A drag inside a column writes a rank, and there is no rank on screen to
     // write. So the card goes back where the order has it.
     const beetle = await card(page, "Beetle").boundingBox();
@@ -577,6 +589,10 @@ test.describe("Ordering a board", () => {
     await page.keyboard.press("Space");
     await expect(page.getByTestId("card-overlay")).toHaveCount(0);
     expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+
+    // Neither held drag wrote anything at all.
+    expect(writes).toEqual([]);
+    await page.unroute("**/api/tasks/**");
 
     // Another column still takes the card, because that writes the column's
     // value and no rank at all — and the order says where it lands, under a
