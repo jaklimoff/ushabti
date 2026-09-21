@@ -7,6 +7,7 @@ import {
   createProject,
   gotoSettings,
   register,
+  settles,
   unique,
 } from "./helpers";
 
@@ -17,6 +18,23 @@ async function archiveOpenTask(page: Page) {
   await page.getByRole("button", { name: "Task menu" }).click();
   await page.getByTestId("archive-task").click();
   await expect(page.getByTestId("archived-row")).toBeVisible();
+}
+
+/** The panel's own read of one task, which is the only GET of that shape. */
+function detailRead(url: string): boolean {
+  return /\/api\/tasks\/[0-9a-f-]+$/.test(new URL(url).pathname);
+}
+
+/*
+ * The Priority row of the open panel. Four short options are drawn as a row of
+ * buttons, and the one that holds the answer offers to clear it instead of
+ * naming itself.
+ */
+function priority(page: Page, name: string) {
+  return page
+    .getByTestId("task-panel")
+    .locator('[data-property="Priority"]')
+    .getByRole("button", { name, exact: true });
 }
 
 test.describe("Archiving a task", () => {
@@ -151,10 +169,14 @@ test.describe("Archiving a task", () => {
     const key = await page.getByTestId("task-key").innerText();
     await archiveOpenTask(page);
 
-    /* Hold back the one read the panel makes for itself. What is left on the
-       screen is what the board already knew. */
+    /* Hold back the one read the panel makes for itself, and let it go when
+       the assertions have run. A fixed delay is a race the assertions have to
+       win, and a slow runner loses it for the wrong reason. What is left on
+       the screen meanwhile is what the board already knew. */
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
     await page.route("**/api/tasks/*", async (route) => {
-      await new Promise((wait) => setTimeout(wait, 3000));
+      await held;
       await route.continue();
     });
 
@@ -167,9 +189,92 @@ test.describe("Archiving a task", () => {
     await expect(page.getByTestId("archived-row")).toBeVisible();
 
     // Then the rest of the task arrives, and no card is drawn behind it.
-    await expect(page.getByTestId("panel-loading")).toHaveCount(0, { timeout: 15_000 });
+    release();
+    await expect(page.getByTestId("panel-loading")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Comments/ })).toBeVisible();
     await expect(page.getByTestId("card")).toHaveCount(0);
+  });
+
+  /*
+   * An archived task has no card, so the panel draws its values from its own
+   * read of the task. A change was saved and then drawn from the answer that
+   * went out before it, so it snapped back and read as a click that failed.
+   */
+  test("a property changed on an archived task stays on screen", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Keeps"));
+
+    await addTask(page, "Todo", "Rotate the backup key");
+    const key = await page.getByTestId("task-key").innerText();
+    await archiveOpenTask(page);
+
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/values\/[0-9a-f-]+$/, () =>
+      priority(page, "High").click(),
+    );
+    await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
+
+    // And it was saved, which is the half that always worked.
+    await page.goto(`/p/${projectId}?task=${key}`);
+    await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
+  });
+
+  /*
+   * The panel counts its own writes and throws away a read of the task that
+   * one of them overtook. A write it hands to the store counts the same: on an
+   * archived task the values are drawn from that read, so an answer that went
+   * out before the write would put the old value back.
+   */
+  test("a read the panel's own write overtook is thrown away", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Overtaken"));
+
+    await addTask(page, "Todo", "Rotate the signing key");
+    await archiveOpenTask(page);
+
+    /* The first read is copied, the second is held. Holding it is not enough
+       on its own: released, the server would answer with the write already in
+       it. So the held one answers with the copy, which is the task as it was. */
+    let stale = "";
+    let arrived = () => {};
+    let release = () => {};
+    const second = new Promise<void>((resolve) => (arrived = resolve));
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let reads = 0;
+
+    await page.route("**/api/tasks/*", async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      reads += 1;
+      if (reads === 1) {
+        const answer = await route.fetch();
+        stale = await answer.text();
+        return route.fulfill({ response: answer, body: stale });
+      }
+      arrived();
+      await held;
+      return route.fulfill({ contentType: "application/json", body: stale });
+    });
+
+    /* A broadcast is what starts a read the panel did not ask for. */
+    const ring = () =>
+      page.evaluate(() => window.dispatchEvent(new CustomEvent("ushabti:remote-change")));
+    const copied = page.waitForResponse((r) => detailRead(r.url()));
+    await ring();
+    await copied;
+    await ring();
+    await second;
+
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/values\/[0-9a-f-]+$/, () =>
+      priority(page, "High").click(),
+    );
+    await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
+
+    const landed = page.waitForResponse((r) => detailRead(r.url()));
+    release();
+    await landed;
+    await page.waitForTimeout(300);
+
+    // The old answer landed and was thrown away.
+    await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
   });
 
   /*

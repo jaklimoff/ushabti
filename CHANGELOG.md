@@ -111,6 +111,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   writes a line on the project's activity — who made it, and who it was for. No
   screen draws it yet; an agent, or anything that reads the API, gets it from
   `GET /api/projects/{id}/activity`. The link itself is never in it.
+- **A property you change on an archived task stays changed.** An archived task
+  has no card, so its panel draws its values from its own read of the task. The
+  change was saved, and the screen then went back to the old value, which read
+  as a click that did nothing. The panel now keeps that answer up to date, as
+  the board does for a card.
 - **An open task panel follows what somebody else does to it.** A task another
   person archived, or put back, while your panel was open left the panel as it
   was: no archived row, and _Archive task_ still in its menu until you loaded
