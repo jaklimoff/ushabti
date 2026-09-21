@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { db } from "@/db";
@@ -47,6 +47,19 @@ const BATCH = 20;
 
 /** How many passes one drain makes before it leaves the rest to the next. */
 const MAX_PASSES = 20;
+
+/**
+ * How many deliveries of a batch are in flight at once.
+ *
+ * One at a time, twenty shut ports at five seconds each held every project's
+ * queue for a hundred seconds, and a **Send a test** on another board waited
+ * behind them. Four is enough to stop that, and it is four rather than more
+ * because every lane holds a database connection for the answer it writes:
+ * the pool is twelve, and a person clicking on the board needs what is left.
+ * The drain waits on endpoints, not on the database, so wider lanes buy
+ * little and cost the board a connection each.
+ */
+const SEND_AT_ONCE = 4;
 
 export type MintedSecret = { secret: string; prefix: string };
 
@@ -145,27 +158,34 @@ async function queueForProject(projectId: string, rung: Rung[]): Promise<void> {
  * links of that account: one row arrives per ring, and nothing ever took one
  * away. A delivery that still has a try left is never swept, however old it
  * is — the sweep is for the record, not for the queue.
+ *
+ * One statement for every webhook that rang, because this is on the write. A
+ * SELECT and a DELETE each cost the writer two round-trips per webhook, so a
+ * project with five webhooks paid ten of them for housekeeping. The window
+ * numbers each webhook's deliveries newest first, and everything past the
+ * twentieth goes.
+ *
+ * The webhooks are named twice on purpose. The subquery alone leaves the
+ * outer half of the statement asking about every row in the table, and the
+ * planner reads that as a sequential scan of all of them: the same rule said
+ * twice takes it back to the index this webhook's deliveries are on.
  */
 async function sweepDeliveries(hookIds: string[]): Promise<void> {
-  for (const hookId of hookIds) {
-    const keep = await db
-      .select({ id: webhookDeliveries.id })
-      .from(webhookDeliveries)
-      .where(eq(webhookDeliveries.webhookId, hookId))
-      .orderBy(desc(webhookDeliveries.createdAt))
-      .limit(KEEP_DELIVERIES);
+  if (hookIds.length === 0) return;
 
-    await db.delete(webhookDeliveries).where(
-      and(
-        eq(webhookDeliveries.webhookId, hookId),
-        isNull(webhookDeliveries.nextTryAt),
-        notInArray(
-          webhookDeliveries.id,
-          keep.map((r) => r.id),
-        ),
-      ),
-    );
-  }
+  await db.execute(sql`
+    delete from ${webhookDeliveries}
+    using (
+      select id,
+             row_number() over (partition by webhook_id order by created_at desc) as place
+      from ${webhookDeliveries}
+      where ${inArray(webhookDeliveries.webhookId, hookIds)}
+    ) as ranked
+    where ${webhookDeliveries.id} = ranked.id
+      and ${inArray(webhookDeliveries.webhookId, hookIds)}
+      and ranked.place > ${KEEP_DELIVERIES}
+      and ${webhookDeliveries.nextTryAt} is null
+  `);
 }
 
 /** Queues one delivery by hand, for **Send a test**. */
@@ -257,11 +277,36 @@ export async function drainWebhooks(now: () => Date = () => new Date()): Promise
         .limit(BATCH);
 
       if (due.length === 0) return;
-      for (const row of due) await sendOne(row, now());
+      await sendBatch(due, now);
     }
   } finally {
     globalForSender.__ushabtiDraining = false;
   }
+}
+
+/**
+ * Sends one batch, `SEND_AT_ONCE` of them at a time.
+ *
+ * A row is taken by one lane and by no other, so the claim is the one the
+ * drain already made: the flag above says one drain in this process, the
+ * query says a row is due, and `sendOne` always writes an answer, which takes
+ * the row out of the next pass. Nothing here sends a delivery twice.
+ *
+ * The pass waits for the whole batch before it asks for the next one, so a
+ * row that is still in flight is never selected again.
+ */
+async function sendBatch(due: DueRow[], now: () => Date): Promise<void> {
+  let next = 0;
+  const take = (): DueRow | null => (next < due.length ? due[next++] : null);
+
+  const lane = async () => {
+    for (let row = take(); row !== null; row = take()) await sendOne(row, now());
+  };
+
+  /* `sendOne` writes its own failures and does not throw. `allSettled` is for
+     the one that somehow does: a lane that fell over must not take the rows
+     of the other lanes with it. */
+  await Promise.allSettled(Array.from({ length: Math.min(SEND_AT_ONCE, due.length) }, lane));
 }
 
 type DueRow = {
