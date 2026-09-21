@@ -105,6 +105,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **`board.mjs check` reads the flag in either place, and refuses an empty
+  item.** `check USH-14 --done "the item"` gave the item to the flag and then
+  said there was no item at all, so an agent had to know that flags come last.
+  A switch — `--done`, `--undone`, `--held`, `--free`, `--once` — no longer
+  takes the next word. And a term of only spaces matched every item, so on a
+  one-item checklist it ticked that item without being asked; it is now refused
+  like a missing one.
 - **A reset link now leaves a record.** The row that holds a link is swept away
   as soon as the link is spent or replaced, so afterwards nothing said that the
   owner had ever handed out a way into somebody's account. Making a link now

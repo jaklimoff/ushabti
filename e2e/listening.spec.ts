@@ -272,7 +272,7 @@ test.describe("Agents that wait for work", () => {
 });
 
 test.describe("An agent's checklist", () => {
-  test("board.mjs adds an item, ticks the one its words name, and refuses to guess", async ({
+  test("board.mjs adds an item, ticks the one its words name, and refuses to guess or to take an empty term", async ({
     page,
   }) => {
     await register(page, "Checklist Owner");
@@ -316,6 +316,24 @@ test.describe("An agent's checklist", () => {
     expect(await state()).toEqual({
       "A failed send retries five times": false,
       "A failed send gives up": false,
+    });
+
+    // A switch takes no value, so the flag may stand before the item as well.
+    const flagFirst = await runBoard(token, ["check", task.key, "--done", "gives up"]);
+    expect(flagFirst.code, flagFirst.output).toBe(0);
+    expect(await state()).toEqual({
+      "A failed send retries five times": false,
+      "A failed send gives up": true,
+    });
+
+    // Nothing is inside every item, so a term of only spaces would tick
+    // whatever it found. It is refused like a missing one.
+    const empty = await runBoard(token, ["check", task.key, " ", "--done"]);
+    expect(empty.code).toBe(1);
+    expect(empty.output).toContain("Give the item");
+    expect(await state()).toEqual({
+      "A failed send retries five times": false,
+      "A failed send gives up": true,
     });
   });
 });

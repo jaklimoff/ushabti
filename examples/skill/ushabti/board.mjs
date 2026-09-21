@@ -91,11 +91,20 @@ const command = argv[0] ?? "help";
 const positional = [];
 const flags = {};
 
+/**
+ * A switch is on or off, so it never reads the next word. Without this list
+ * `check USH-14 --done "the item"` gives the item to the flag, and the command
+ * then asks for the item it was handed. A person should not have to remember
+ * an order.
+ */
+const SWITCHES = ["done", "undone", "held", "free", "once"];
+
 for (let i = 1; i < argv.length; i += 1) {
   const arg = argv[i];
   if (arg.startsWith("--")) {
     const name = arg.slice(2);
-    const value = argv[i + 1]?.startsWith("--") === false ? argv[(i += 1)] : "true";
+    const reads = !SWITCHES.includes(name) && argv[i + 1]?.startsWith("--") === false;
+    const value = reads ? argv[(i += 1)] : "true";
     if (flags[name] === undefined) flags[name] = value;
     else flags[name] = [].concat(flags[name], value);
   } else {
@@ -506,8 +515,10 @@ http://localhost:3000.`);
   async check() {
     const data = await board();
     const task = findTask(data, positional[0]);
+    // A term of only spaces trims to nothing, and nothing is inside every
+    // item, so it would tick a one-item checklist without being asked.
     const text = positional[1];
-    if (!text) fail('Give the item: check USH-14 "Retries stop after five tries"');
+    if (!text?.trim()) fail('Give the item: check USH-14 "Retries stop after five tries"');
 
     if (flags.done === undefined && flags.undone === undefined) {
       await call("POST", `/api/tasks/${task.id}/checklist`, { text });
