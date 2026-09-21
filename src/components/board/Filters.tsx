@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   asksAbout,
   clashSaid,
@@ -142,6 +142,75 @@ function Rows({
 function step(at: number, count: number, way: number): number {
   if (count === 0) return 0;
   return (at + way + count) % count;
+}
+
+/**
+ * The box above the rows, and the keys that walk them.
+ *
+ * Step one of the filter panel and the whole of the sort panel ask the same
+ * question in the same place, so they ask it with one box. Two copies meant a
+ * fix to the keys or to the aria wiring could reach one picker and miss the
+ * other. `Ask` keeps a box of its own, because it answers a question instead
+ * of asking one: it carries an operator, a type, a blur that saves and a
+ * Backspace that goes back.
+ */
+function AskBox({
+  query,
+  onQuery,
+  rows,
+  at,
+  setAt,
+  onPick,
+  listId,
+  label,
+  placeholder,
+  testId,
+}: {
+  query: string;
+  onQuery: (value: string) => void;
+  rows: Row[];
+  at: number;
+  setAt: Dispatch<SetStateAction<number>>;
+  onPick: (row: Row) => void;
+  listId: string;
+  label: string;
+  placeholder: string;
+  testId: string;
+}) {
+  return (
+    <div className={styles.askHead}>
+      <input
+        className={styles.askBox}
+        autoFocus
+        role="combobox"
+        aria-expanded
+        aria-controls={listId}
+        aria-activedescendant={rows.length ? `${listId}-${at}` : undefined}
+        aria-label={label}
+        data-testid={testId}
+        placeholder={placeholder}
+        value={query}
+        onChange={(e) => {
+          onQuery(e.target.value);
+          setAt(0);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            return setAt((n) => step(n, rows.length, 1));
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            return setAt((n) => step(n, rows.length, -1));
+          }
+          if (e.key === "Enter" && rows[at]) {
+            e.preventDefault();
+            onPick(rows[at]);
+          }
+        }}
+      />
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -484,40 +553,22 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
               <span className="label">Show only tasks where</span>
               {/* The same box in the same place as step two, so picking a
                   property reads as the box moving on rather than swapping. */}
-              <div className={styles.askHead}>
-                <input
-                  className={styles.askBox}
-                  autoFocus
-                  role="combobox"
-                  aria-expanded
-                  aria-controls="filter-properties"
-                  aria-activedescendant={rows.length ? `filter-properties-${at}` : undefined}
-                  aria-label="Find a property to filter by"
-                  data-testid="filter-search"
-                  placeholder="Which property?"
-                  value={query}
-                  onChange={(e) => {
-                    setQuery(e.target.value);
-                    setAt(0);
-                    // Looking for another property is the answer to the line.
-                    setRefused(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      return setAt((n) => step(n, rows.length, 1));
-                    }
-                    if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      return setAt((n) => step(n, rows.length, -1));
-                    }
-                    if (e.key === "Enter" && rows[at]) {
-                      e.preventDefault();
-                      pick(rows[at].id);
-                    }
-                  }}
-                />
-              </div>
+              <AskBox
+                query={query}
+                onQuery={(value) => {
+                  setQuery(value);
+                  // Looking for another property is the answer to the line.
+                  setRefused(null);
+                }}
+                rows={rows}
+                at={at}
+                setAt={setAt}
+                onPick={(row) => pick(row.id)}
+                listId="filter-properties"
+                label="Find a property to filter by"
+                placeholder="Which property?"
+                testId="filter-search"
+              />
               {/* The list stays where it is, so the next property is one
                   press away and nothing on the board has moved. */}
               {refused && (
@@ -618,38 +669,18 @@ export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: bool
           <span className="label">Order the cards by</span>
           {/* The same box in the same place as the filter's, so the two
               controls beside each other are one thing to learn. */}
-          <div className={styles.askHead}>
-            <input
-              className={styles.askBox}
-              autoFocus
-              role="combobox"
-              aria-expanded
-              aria-controls="sort-columns"
-              aria-activedescendant={rows.length ? `sort-columns-${at}` : undefined}
-              aria-label="Find what to order the cards by"
-              data-testid="sort-search"
-              placeholder="Which one?"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setAt(0);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "ArrowDown") {
-                  e.preventDefault();
-                  return setAt((n) => step(n, rows.length, 1));
-                }
-                if (e.key === "ArrowUp") {
-                  e.preventDefault();
-                  return setAt((n) => step(n, rows.length, -1));
-                }
-                if (e.key === "Enter" && rows[at]) {
-                  e.preventDefault();
-                  pick(rows[at].id);
-                }
-              }}
-            />
-          </div>
+          <AskBox
+            query={query}
+            onQuery={setQuery}
+            rows={rows}
+            at={at}
+            setAt={setAt}
+            onPick={(row) => pick(row.id)}
+            listId="sort-columns"
+            label="Find what to order the cards by"
+            placeholder="Which one?"
+            testId="sort-search"
+          />
           <Rows
             rows={rows}
             at={at}
