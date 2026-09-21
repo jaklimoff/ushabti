@@ -255,6 +255,13 @@ test.describe("Ushabti board", () => {
     // that has one, and n follows it there.
     await page.goto(`/p/${projectId}`);
     await expect(card(page, "Made with n").first()).toBeVisible();
+    /* The cards are drawn by the server, so they are on screen before the
+       board is hydrated — and `n` listens on the window, which nothing has
+       yet. A key pressed in that gap lands nowhere, and the test could reach
+       it in about ten milliseconds, which no person can. The live dot is the
+       board saying it is connected, and its keys work from the render before
+       that one. So wait as a person waits: for the board to be there. */
+    await expect(page.getByTestId("live-dot")).toBeVisible();
     await page.keyboard.press("n");
     await expect(column(page, "In Progress").getByPlaceholder("What needs doing?")).toBeVisible();
   });

@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 import {
+  addTask,
   column,
   createProject,
   dragOnto,
   gotoSettings,
+  propertyBox,
   register,
   saved,
   unique,
@@ -191,6 +193,46 @@ test.describe("Settings", () => {
     await expect(go).toBeEnabled();
     await go.click();
     await page.waitForURL("**/projects");
+  });
+
+  test("the delete row counts the values, and the board read does not", async ({ page }) => {
+    await register(page, "Owner Person");
+    const projectId = await createProject(page, unique("Counting"));
+    await addTask(page, "Todo", "One task with a status");
+
+    /* The count used to ride on every board read. Nothing carries it now, so
+       the daily read no longer pays for a number the owner reads once. */
+    const board = await page.request.get(`/api/projects/${projectId}/board`);
+    expect(board.ok()).toBeTruthy();
+    expect(await board.json()).not.toHaveProperty("valueCounts");
+
+    /* Pressing the row asks for it, and the question names what it found.
+       Dropping the task in Todo wrote one Status value.
+
+       The count is held on the wire here, because the moment worth testing is
+       the one a fast machine never shows: the question is on screen and does
+       not yet name its cost. It must not be answerable in that moment. */
+    await gotoSettings(page, projectId, "properties");
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(/\/api\/properties\/[^/]+\/count$/, async (route) => {
+      await held;
+      await route.continue();
+    });
+
+    const box = propertyBox(page, "Status");
+    await box.getByRole("button", { name: "Delete the property Status" }).click();
+
+    const yes = page.getByRole("button", { name: "Yes, delete" });
+    await expect(page.getByText("Delete Status? Counting what goes with it…")).toBeVisible();
+    await expect(yes).toBeDisabled();
+
+    release();
+    await expect(yes).toBeEnabled();
+    await expect(page.getByText("Delete Status? 5 options and 1 value go with it.")).toBeVisible();
+    await page.unroute(/\/api\/properties\/[^/]+\/count$/);
   });
 
   test("a new board says where its columns come from", async ({ page }) => {

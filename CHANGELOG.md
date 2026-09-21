@@ -105,6 +105,21 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   the stream keeps fresh, so it arrives with every other change. A link to an
   archived task also drew nothing until its own read landed; the key, the title
   and the archived row are now there at once, with _Loading_ under them.
+- **Archiving a task twice keeps the moment it first went.** A second _Archive_
+  on an archived task used to write the moment again and add a second line to
+  its history, so a retry lost the day it really left the board. Putting a live
+  task back wrote a line for nothing in the same way. Both now say what the
+  task should be rather than what to do to it: a call that changes nothing
+  answers the same and writes nothing at all.
+- **The board no longer counts every value on every read.** The number the
+  question before a property delete names — "5 options and 42 values go with
+  it." — rode on every board load, for every property, for a number that is
+  read once a month. The question now asks for it when you press the row, and
+  says _Counting what goes with it…_ for the moment it takes.
+- **A handful of smaller ones.** A board read makes one round trip fewer; a
+  used or expired password reset link is swept away when the next one is made,
+  instead of sitting in the table for ever; and two end-to-end tests that could
+  fail a correct build no longer can.
 - **A rule of yours can no longer contradict the view's.** Picking a property
   the view already filters used to start a second, blank rule beside it:
   answering it emptied the board with two chips that fought each other and

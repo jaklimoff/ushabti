@@ -79,10 +79,6 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     }
   ],
 
-  "valueCounts": {           // how many tasks hold a value for each property,
-    "<propertyId>": 42       // archived ones included
-  },
-
   "runs": [                  // OPEN runs only, at most one per task
     {
       "id": "…", "taskId": "…", "status": "running",
@@ -98,6 +94,13 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
 ```
 
 Note it is **not** wrapped in a `board` key.
+
+<Aside type="note" title="`valueCounts` is gone">
+The answer used to carry a count of the values held for each property. Only the question before a
+property is deleted read it, so it now has a call of its own:
+[`GET /api/properties/{propertyId}/count`](/ushabti/api/properties/#get-apipropertiespropertyidcount).
+No board read pays for it any more.
+</Aside>
 
 ## Six things a caller has to know
 

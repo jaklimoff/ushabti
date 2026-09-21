@@ -509,13 +509,6 @@ export type BoardData = {
    * forgetting to ask.
    */
   archived: ArchivedTaskDTO[];
-  /**
-   * How many tasks hold a value for each property, archived ones included.
-   * The question before a property is deleted names this, because the cascade
-   * does not care whether a task is on a board and the browser can no longer
-   * count what it is not carrying.
-   */
-  valueCounts: Record<string, number>;
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];
 };
