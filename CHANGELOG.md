@@ -24,6 +24,25 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A date rule in a filter can name a window of days, and stays true
+  tomorrow.** `is within` sits among the date operators and swaps the date box
+  for a list of words: **Today**, **Tomorrow**, **This week**, **Next week**,
+  **The last 7 days**, **The last 30 days**, **The next 7 days**, **The next 30
+  days** and **Overdue**. A week runs Monday to Sunday. The chip reads the way
+  a person would — _Due this week_, _Due in the next 7 days_, and _Overdue_ on
+  its own. **Overdue is before today and nothing else**: nothing on a task is a
+  fixed field, so the board cannot know what done means; say "late and still
+  open" with a second rule. A task added under a relative rule is written with
+  no date, because which day inside the window you meant is a guess.
+  Which "today" is the **project's**, not the reader's: a new **Time zone** row
+  in **Settings → Project** (owner only, saving on blur, refusing a name the
+  server does not know) says where the day comes from, and it is `UTC` until
+  somebody changes it. The server works the day out when it reads the board and
+  sends it with the answer, so no browser and no agent ever reads its own clock
+  and everybody on one view sees one week. **This carries a migration**
+  (`time_zone` on `projects`): run `npm run db:migrate`, which the image does on
+  every start.
+
 - **A task can say what it waits on.** It used to live in a comment, where
   nothing could read it. A task now names the tasks that block it, and the card
   wears one small grey chain beside its key — nothing more, because a board

@@ -51,12 +51,55 @@ everything else. A checkbox never gets one — off is a value, not emptiness.
 | checkbox                          | `is`                                                  |
 | text                              | `contains` · `does not contain` · `is empty` · `is not empty` |
 | number                            | `is` · `is over` · `is under` · `is empty` · `is not empty` |
-| date                              | `is on` · `is before` · `is after` · `is empty` · `is not empty` |
+| date                              | `is on` · `is before` · `is after` · `is within` · `is empty` · `is not empty` |
 
 </div>
 
 Text compares case-insensitively. A number rule needs the value to really be a number. Dates compare
 as `YYYY-MM-DD` strings — no `Date` object, no timezone, so the server and your browser always agree.
+
+## A date rule that stays true tomorrow
+
+`is within` names a **window of days** rather than one day, so *due this week* does not have to be
+rewritten every week. Pick it among the operator chips and the date box becomes a third row of
+words:
+
+| The word            | What it covers                                        |
+| ------------------- | ----------------------------------------------------- |
+| Today · Tomorrow    | that one day                                          |
+| This week · Next week | **Monday to Sunday**, always, wherever you are       |
+| The last 7 days · The last 30 days | the days ending today, today included  |
+| The next 7 days · The next 30 days | the days starting today, today included |
+| Overdue             | every day before today, and nothing else              |
+
+The chip says it the way you would: `Due this week`, `Due in the next 7 days`, and `Overdue` on its
+own, because saying *Due is overdue* says it twice.
+
+### Which "today"?
+
+**The project's.** A filter is shared, so "this week" has to be one week for the whole team: a day
+taken from each reader's browser would show two people in two zones different cards through one
+view, and an agent has no browser at all. The owner sets the zone in [Settings →
+Project](/ushabti/guides/settings/#the-project-page); it is `UTC` until they do.
+
+The server works the day out when it reads the board and sends it with the answer, so your browser
+never reads its own clock. A board left open over midnight keeps yesterday's day until something
+makes it read the board again.
+
+<Aside type="caution" title="Overdue is before today, and nothing else">
+It does not mean "late and not finished", because nothing on a task is a fixed field: there is no
+Done status for the board to check. Archived tasks are off every board already. If you want late and
+still open, say so with a second rule — `Overdue` **and** `Status is not Shipped`.
+</Aside>
+
+<Aside type="note" title="Adding a task under one writes no date">
+The composer fills in what a filter asks for, but it never guesses: which day inside *this week* you
+meant is a guess. So a task added to a board filtered to `Due this week` is written with no date and
+the filter hides it, exactly as it does under `Priority is High or Urgent`.
+</Aside>
+
+A rule is stored as the word — `this_week` — and read afresh like every other rule, so a word this
+version does not know is thrown away rather than left hiding cards.
 
 ## "Blocked" is a rule and not a property
 
@@ -88,7 +131,7 @@ The panel asks two questions in one place that does not move:
 
 Picking a property that already has a rule of yours reopens that rule rather than making a second
 one. Date rules are the exception within one set: `after March` and `before June` are two rules on
-purpose. Across the two sets there is no exception — if the view already dates a property, you
+purpose, and so are `Overdue` and `Due is before 2026-12-01`. Across the two sets there is no exception — if the view already dates a property, you
 cannot add a date rule of your own about it. See [Yours and the view's](#yours-and-the-views).
 
 <Aside type="tip" title="Escape keeps what you typed">
@@ -114,6 +157,7 @@ A row under the view strip, one button per rule:
 - `Priority is High, Urgent`
 - `Labels is bug, feature +2` — more than two collapses
 - `Estimate is over 3` · `Due is before 2026-09-01` · `Title contains login`
+- `Due this week` · `Overdue` — a window of days, counted from the project's today
 
 Click a chip to reopen that rule; its ✕ removes it. **Clear** at the end of the row removes the ones
 you added.

@@ -280,6 +280,8 @@ export const FILTER_OPS = [
   "on",
   "before",
   "after",
+  /* date, against a window of days rather than one day */
+  "within",
   /* anything that can hold nothing */
   "empty",
   "not_empty",
@@ -299,7 +301,13 @@ export type FilterRule = {
   propertyId: string;
   op: FilterOp;
   values?: string[];
-  /** The text, the number as text, or a date as 2026-08-25. */
+  /**
+   * The text, the number as text, a date as 2026-08-25, or — under `within` —
+   * the name of a window of days, such as `this_week`. The words are a closed
+   * list in `src/lib/day.ts`, and a rule is stored and handed out with the
+   * word in it: what the window covers is worked out from the day the board
+   * was read on, so the rule stays true tomorrow.
+   */
   text?: string;
 };
 
@@ -562,6 +570,12 @@ export type ProjectDTO = {
    * a row naming a property that is gone arrives here as null.
    */
   doneWhen: { propertyId: string; optionId: string } | null;
+  /**
+   * The zone this project's day is worked out in, as an IANA name. UTC until
+   * the owner says otherwise, and read afresh: a name this runtime does not
+   * know arrives here as UTC.
+   */
+  timeZone: string;
 };
 
 /** An email the owner added before it had an account. */
@@ -572,6 +586,16 @@ export type InviteDTO = {
 
 export type BoardData = {
   project: ProjectDTO;
+  /**
+   * The day it is in the project's zone, as YYYY-MM-DD.
+   *
+   * A relative date rule — "due this week" — is read against this and against
+   * nothing else. The server makes it and sends it, as `/activity` sends
+   * `now`, so the browser hydrates with the day the server drew and no clock
+   * of its own ever reaches a filter. A board left open over midnight keeps
+   * yesterday until something makes it read again.
+   */
+  today: string;
   members: MemberDTO[];
   /** Emails invited and not yet signed up. They join the moment they do. */
   invites: InviteDTO[];

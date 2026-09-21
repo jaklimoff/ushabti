@@ -86,6 +86,28 @@ A view's `filters` is the whole team's, and it is the only filter you read: the
 rules a person adds to their own screen are theirs, never yours, and never
 reach `filters` until that person puts them on the view.
 
+**A date rule may name a window of days rather than one day.** Its `op` is
+`within` and its `text` is one word from a closed list:
+
+| `text`                                | What it covers                                  |
+| ------------------------------------- | ----------------------------------------------- |
+| `today` · `tomorrow`                  | that one day                                    |
+| `this_week` · `next_week`             | Monday to Sunday, always                        |
+| `last_7` · `last_30`                  | the days ending today, today included           |
+| `next_7` · `next_30`                  | the days starting today, today included         |
+| `overdue`                             | every day before today, and nothing else        |
+
+The rule is stored and handed to you with the word in it, so it stays true
+tomorrow. Work the days out from `today` on the board answer — `"2026-09-21"`,
+the day it is in the project's time zone — and never from your own clock. Your
+machine may be a day away, and every person looking at that view is reading it
+in the project's day. The zone is `project.timeZone`, an IANA name, `UTC` until
+the owner changes it in **Settings → Project**.
+
+`overdue` is **before today and nothing else**. No field on a task is
+hardcoded, so the board cannot know what done means. A view that wants "late
+and not finished" says so with a second rule beside it.
+
 **A rule may name no property at all.** One `propertyId` is a fixed word rather
 than an id: `_blocked`, which asks whether the task is waiting on another one.
 It is in no row of `properties`, so look it up there and you find nothing —

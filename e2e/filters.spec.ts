@@ -5,6 +5,7 @@ import {
   card,
   column,
   createProject,
+  gotoSettings,
   putFilterOnView,
   register,
   saved,
@@ -17,6 +18,39 @@ type Page = import("@playwright/test").Page;
 
 function chip(page: Page, text: string) {
   return page.getByTestId("filter-chip").filter({ hasText: text });
+}
+
+/**
+ * A day counted from another day, as YYYY-MM-DD.
+ *
+ * Plain arithmetic on the string the board says today is. Nothing here reads
+ * a clock or a zone: the test machine is in some zone of its own, and the
+ * whole point of the test below is that only one day matters.
+ */
+function dayFrom(today: string, offset: number): string {
+  const at = new Date(
+    Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10))) +
+      offset * 86_400_000,
+  );
+  const month = String(at.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(at.getUTCDate()).padStart(2, "0");
+  return `${at.getUTCFullYear()}-${month}-${day}`;
+}
+
+/** How many days back the Monday of that day's week is. The week starts Monday. */
+function toMonday(today: string): number {
+  const weekday = new Date(`${today}T00:00:00.000Z`).getUTCDay();
+  return -((weekday + 6) % 7);
+}
+
+/** Sets the date of the Due property on the task whose panel is open. */
+async function setDue(page: Page, when: string) {
+  const due = page.locator('[data-property="Due"]');
+  await due.getByRole("button").click();
+  await saved(page, async () => {
+    await due.locator("input").fill(when);
+    await due.locator("input").blur();
+  });
 }
 
 test.describe("Filters inside a view", () => {
@@ -719,5 +753,122 @@ test.describe("Filters on a phone", () => {
     await addFilter(page, "Labels", "bug");
     expect(await row.evaluate((el) => el.clientHeight)).toBe(height);
     expect(await row.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  });
+});
+
+/*
+ * The browser is never on the project's day, at any hour.
+ *
+ * Kiritimati is UTC+14 and the project below sits on UTC−12: twenty-six hours
+ * apart, so the two are never on the same date — not for part of the day, as
+ * a nearer pair would be, but at every instant of every day. Neither zone has
+ * summer time, so that holds next March as well.
+ *
+ * A board that worked a window out from this browser's clock would therefore
+ * draw one set of cards on the server and another the moment it hydrated.
+ * Everything below has to hold anyway, and the console has to stay quiet.
+ */
+const PROJECT_ZONE = "Etc/GMT+12";
+
+test.describe("A date rule that names a window of days", () => {
+  test.use({ timezoneId: "Pacific/Kiritimati" });
+
+  test("holds a week still, and reads the same after a reload", async ({ page }) => {
+    const noise: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error" || message.type() === "warning") noise.push(message.text());
+    });
+    page.on("pageerror", (error) => noise.push(error.message));
+
+    await register(page);
+    const projectId = await createProject(page, unique("Windows"));
+
+    /* The zone is the project's, and the owner says which. */
+    await gotoSettings(page, projectId, "project");
+    const zone = page.getByLabel("The time zone this project's day is worked out in");
+    await expect(zone).toHaveValue("UTC");
+
+    // A name this server does not know is refused in one line, and nothing
+    // is saved: a zone that quietly became UTC would move every card.
+    await zone.fill("Europe/Atlantis");
+    await zone.blur();
+    await expect(page.getByTestId("toast")).toContainText("No time zone is called Europe/Atlantis");
+    await page.reload();
+    await expect(zone).toHaveValue("UTC");
+
+    /* And a name that is not a place is still a zone. `Etc/GMT+12` is UTC−12,
+       and it is one of the names the CLDR list leaves out — so this row also
+       says that the board asks the formatter and not a list. */
+    await zone.fill(PROJECT_ZONE);
+    await zone.blur();
+    await expect(page.getByTestId("toast")).toHaveCount(0);
+    await page.reload();
+    await expect(zone).toHaveValue(PROJECT_ZONE);
+
+    /* That 400 is the refusal we asked for. Everything the board says from
+       here on has to be quiet. */
+    noise.length = 0;
+
+    /*
+     * The day the server says it is, which is the only day on this screen.
+     * The test does its own Monday arithmetic from there, so it never has to
+     * know what zone the machine running it is in.
+     */
+    const board = await page.request.get(`/api/projects/${projectId}/board`);
+    const { today } = (await board.json()) as { today: string };
+    const sunday = dayFrom(today, toMonday(today) + 6);
+    const nextTuesday = dayFrom(today, toMonday(today) + 8);
+
+    await page.goto(`/p/${projectId}`);
+    await addTask(page, "Todo", "Lands this week");
+    await setDue(page, sunday);
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await addTask(page, "Todo", "Lands next week");
+    await setDue(page, nextTuesday);
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    // Pick the property, then the operator, then the window. Each step on
+    // its own writes nothing: a rule with no window is still a question.
+    await page.getByTestId("filter-button").click();
+    const search = page.getByTestId("filter-search");
+    await search.fill("Due");
+    await search.press("Enter");
+    await page.getByRole("button", { name: "is within" }).click();
+    await expect(page.getByTestId("filter-chip")).toHaveCount(0);
+    await expect(page.getByTestId("task-count")).toHaveText("2 tasks");
+
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+      page.getByRole("option", { name: "This week" }).click(),
+    );
+    await page.keyboard.press("Escape");
+
+    // The chip says it the way a person would, and the window holds.
+    await expect(chip(page, "Due this week")).toBeVisible();
+    await expect(card(page, "Lands this week")).toBeVisible();
+    await expect(card(page, "Lands next week")).toHaveCount(0);
+    await expect(page.getByTestId("task-count")).toHaveText("1 of 2 tasks");
+
+    /* The rule is stored as the word, so a fresh read works the same week
+       out again. This is the whole point: nothing was written down as a day. */
+    await page.goto(`/p/${projectId}`);
+    await expect(chip(page, "Due this week")).toBeVisible();
+    await expect(card(page, "Lands this week")).toBeVisible();
+    await expect(card(page, "Lands next week")).toHaveCount(0);
+
+    // Overdue says its own name, because "Due is overdue" says it twice.
+    await chip(page, "Due this week").click();
+    const editor = page.getByTestId("filter-editor");
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+      editor.getByRole("option", { name: "Overdue" }).click(),
+    );
+    await page.keyboard.press("Escape");
+    await expect(chip(page, "Overdue")).toBeVisible();
+    await expect(card(page, "Lands this week")).toHaveCount(0);
+
+    /* The server drew this board and the browser drew it again from the same
+       day. A mismatch would be a React error here and a board that flickers
+       into different cards for everybody who is a zone away. */
+    expect(noise).toEqual([]);
   });
 });

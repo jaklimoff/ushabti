@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
+import { isTimeZone, zoneRefused } from "@/lib/day";
 import { readDoneWhen } from "@/lib/links";
 import { loadProperties } from "@/lib/queries";
 
@@ -13,7 +14,12 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
   ownerOnly(user, membership, "change the project");
 
-  const input = await body<{ name?: string; key?: string; doneWhen?: unknown }>(req);
+  const input = await body<{
+    name?: string;
+    key?: string;
+    doneWhen?: unknown;
+    timeZone?: string;
+  }>(req);
   const patch: Record<string, unknown> = {};
   if (input.name !== undefined) patch.name = str(input.name, "Project name", { max: 80 });
   if (input.key !== undefined) {
@@ -34,6 +40,18 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     patch.doneWhen = input.doneWhen
       ? readDoneWhen(input.doneWhen, await loadProperties(projectId))
       : null;
+  }
+  /*
+   * The zone this project's day is worked out in, which is what a relative
+   * date rule means by "today". A name the runtime does not know is refused
+   * here with one sentence rather than written and swallowed by the fallback
+   * on the way out: a zone that silently became UTC would move every card on
+   * a "due this week" board and say nothing.
+   */
+  if (input.timeZone !== undefined) {
+    const zone = str(input.timeZone, "Time zone", { max: 60 });
+    if (!isTimeZone(zone)) throw new HttpError(400, zoneRefused(zone));
+    patch.timeZone = zone;
   }
   if (Object.keys(patch).length === 0) return json({ ok: true });
 

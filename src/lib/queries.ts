@@ -25,6 +25,7 @@ import { readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
+import { readTimeZone, todayIn } from "./day";
 import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readSort } from "./sort";
 import { rankSequence } from "./rank";
@@ -576,6 +577,9 @@ export async function loadBoard(
    * every board, list and count, and a chain glyph is a count.
    */
   const doneWhen = readDoneWhen(projectRow.doneWhen, propertyList);
+  /* The zone is read afresh, exactly as the filters above are: a name this
+     runtime no longer knows answers UTC rather than throwing the board away. */
+  const timeZone = readTimeZone(projectRow.timeZone);
   const blockers = new Map<string, { number: number; over: boolean }>();
   for (const t of taskRows) {
     blockers.set(t.id, {
@@ -644,7 +648,12 @@ export async function loadBoard(
       ownerId: projectRow.ownerId,
       role,
       doneWhen,
+      timeZone,
     },
+    /* The one clock this board reads. Every relative date rule on every view
+       is measured against it, on the server now and in the browser after it
+       hydrates, so both renders draw the same cards. */
+    today: todayIn(timeZone),
     members,
     invites: inviteRows.map((i) => ({ email: i.email, createdAt: i.createdAt.toISOString() })),
     properties: propertyList,

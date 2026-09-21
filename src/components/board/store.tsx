@@ -453,9 +453,13 @@ export function BoardProvider({
 
   const items = useMemo(() => cardItems(cardView, data.properties), [cardView, data.properties]);
 
+  /* The day comes off the board answer and never off this browser's clock,
+     so a relative date rule draws the same cards here as it did on the
+     server. A board left open over midnight keeps yesterday until the next
+     read, which is the price of the two renders agreeing. */
   const visibleTasks = useMemo(
-    () => applyFilters(data.tasks, filters, data.properties),
-    [data.properties, data.tasks, filters],
+    () => applyFilters(data.tasks, filters, data.properties, data.today),
+    [data.properties, data.tasks, data.today, filters],
   );
 
   /*

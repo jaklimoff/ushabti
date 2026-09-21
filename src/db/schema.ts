@@ -73,6 +73,17 @@ export const projects = pgTable("projects", {
    * afresh through `readDoneWhen`, never cleaned up, exactly as a filter is.
    */
   doneWhen: jsonb("done_when"),
+  /**
+   * The zone this project's day is worked out in, as an IANA name.
+   *
+   * A filter can say "due this week", and a shared filter has to mean one
+   * week for the whole team: a day taken from each reader's browser shows two
+   * people different cards through one view, and an agent has no browser at
+   * all. So the day is the project's, the server makes it, and it travels on
+   * the board answer. Read it through `readTimeZone`, which falls back to UTC
+   * for a name this runtime does not know.
+   */
+  timeZone: text("time_zone").notNull().default("UTC"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

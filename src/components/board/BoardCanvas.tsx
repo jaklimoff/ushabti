@@ -295,8 +295,9 @@ export function BoardCanvas({
         ),
         filters,
         groupProperty,
+        data.today,
       ),
-    [visibleTasks, sort, cardItems, data.members, filters, groupProperty],
+    [visibleTasks, sort, cardItems, data.members, data.today, filters, groupProperty],
   );
 
   /*
