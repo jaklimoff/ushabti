@@ -12,17 +12,19 @@ import {
 } from "./types";
 
 /**
- * How a list is ordered when somebody has asked for an order.
+ * How a view is ordered when somebody has asked for an order.
  *
- * Nothing here names a property either. A sort holds the id of a column — a
- * property, or one of the parts a task has of its own — and the kind behind it
- * says how two of those compare. Adding a property type means one line in
- * `KIND_OF_TYPE`, exactly as it does for a card.
+ * One file for both shapes: a list draws its rows in this order, and a board
+ * draws the cards inside every one of its columns in it. Nothing here names a
+ * property either. A sort holds the id of a column — a property, or one of the
+ * parts a task has of its own — and the kind behind it says how two of those
+ * compare. Adding a property type means one line in `KIND_OF_TYPE`, exactly as
+ * it does for a card.
  *
  * A sort writes nothing. The rank a task carries is the one order every view
- * shares, and it stays where it is; this decides only what a list draws. Which
- * is why a sorted list cannot be dragged: a drag would write an order into a
- * list that is not showing one.
+ * shares, and it stays where it is; this decides only what a screen draws.
+ * Which is why a sorted view cannot be dragged into another order: the drag
+ * would write an order that screen is not showing.
  */
 
 /**
@@ -148,7 +150,11 @@ function compareKeys(a: SortKey, b: SortKey): number {
 }
 
 /**
- * The tasks a list draws, in the order it was asked for.
+ * The tasks a view draws, in the order it was asked for.
+ *
+ * A board asks this once, over the whole board, before the tasks go into their
+ * columns: `buildColumns` keeps the order it is given, so one pass is the
+ * order inside every column.
  *
  * A task that holds nothing for the column goes last, whichever way the sort
  * runs. Turning the order around is a question about the tasks that have an

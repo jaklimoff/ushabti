@@ -13,7 +13,8 @@ import {
   OPS_FOR_TYPE,
   OP_LABEL,
 } from "@/lib/filters";
-import { sortLabel } from "@/lib/sort";
+import { canSort, nextSort, sortLabel } from "@/lib/sort";
+import { listColumns } from "@/lib/list-view";
 import type { CardItem } from "@/lib/card-view";
 import {
   NO_VALUE_KEY,
@@ -22,6 +23,7 @@ import {
   type MemberDTO,
   type PropertyDTO,
   type PropertyType,
+  type SortDirection,
   type ViewSort,
 } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
@@ -73,6 +75,9 @@ const ASK: Record<PropertyType, string> = {
 function propertyColor(property: PropertyDTO): string {
   return property.options[0]?.color ?? "#4b8fbe";
 }
+
+/** The dot beside a row of the card that is not a property at all. */
+const BUILTIN_DOT = "#6b7280";
 
 /* ------------------------------------------------------------------ */
 /* A list with a highlight the box drives                              */
@@ -536,6 +541,129 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
 }
 
 /* ------------------------------------------------------------------ */
+/* Asking a board for an order                                         */
+/* ------------------------------------------------------------------ */
+
+/** What the row of the order that is on says about which way it runs. */
+const WAY: Record<SortDirection, string> = {
+  asc: "Smallest first",
+  desc: "Largest first",
+};
+
+/**
+ * A list is ordered by pressing a heading. A board has no heading, so it asks
+ * here instead — the same panel the filter opens, in the same place, because
+ * there is nothing else in this product that a board has to learn twice.
+ *
+ * The rows are the columns a list would draw, named the way a list names them:
+ * one question, one set of words, whichever shape the view is in. Pressing a
+ * row is the press on a heading — down, then up, then back to the order the
+ * board itself keeps — so `nextSort` stays the only place that rule lives.
+ */
+export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
+  const { cardItems, sort, setSort } = useBoard();
+  const [query, setQuery] = useState("");
+  const [at, setAt] = useState(0);
+
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setAt(0);
+  }
+
+  const ref = useDismiss<HTMLDivElement>(close, open);
+
+  /* What a list would put a heading on. A board that offered more would order
+     itself by something no card on it is drawing. */
+  const rows: Row[] = useMemo(() => {
+    const wanted = query.trim().toLowerCase();
+    return listColumns(cardItems)
+      .filter((column) => canSort(column.item))
+      .filter((column) => !wanted || column.name.toLowerCase().includes(wanted))
+      .map((column) => {
+        const on = sort?.columnId === column.id;
+        return {
+          id: column.id,
+          name: column.name,
+          color: column.item.property ? propertyColor(column.item.property) : BUILTIN_DOT,
+          on,
+          note: on && sort ? WAY[sort.direction] : undefined,
+        };
+      });
+  }, [cardItems, query, sort]);
+
+  /* The panel stays open, because the second press is the one that turns the
+     order around and it belongs on the row that says which order is on. */
+  function pick(columnId: string) {
+    void setSort(nextSort(sort, columnId));
+    setQuery("");
+    setAt(0);
+  }
+
+  return (
+    <div className={styles.filterAnchor} ref={ref}>
+      <button
+        className={`${styles.pill} ${sort ? styles.filterOn : ""}`}
+        data-testid="sort-button"
+        aria-expanded={open}
+        title={sort ? "Change the order the cards are in" : "Order the cards in every column"}
+        onClick={() => (open ? close() : setOpen(true))}
+      >
+        <span className={styles.sortMark} aria-hidden />
+        Sort
+      </button>
+
+      {open && (
+        <div className={`${styles.popover} ${styles.filterPop}`} data-testid="sort-menu">
+          <span className="label">Order the cards by</span>
+          {/* The same box in the same place as the filter's, so the two
+              controls beside each other are one thing to learn. */}
+          <div className={styles.askHead}>
+            <input
+              className={styles.askBox}
+              autoFocus
+              role="combobox"
+              aria-expanded
+              aria-controls="sort-columns"
+              aria-activedescendant={rows.length ? `sort-columns-${at}` : undefined}
+              aria-label="Find what to order the cards by"
+              data-testid="sort-search"
+              placeholder="Which one?"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setAt(0);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  return setAt((n) => step(n, rows.length, 1));
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  return setAt((n) => step(n, rows.length, -1));
+                }
+                if (e.key === "Enter" && rows[at]) {
+                  e.preventDefault();
+                  pick(rows[at].id);
+                }
+              }}
+            />
+          </div>
+          <Rows
+            rows={rows}
+            at={at}
+            listId="sort-columns"
+            empty="Nothing on the card can be ordered."
+            onPick={(row) => pick(row.id)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* The chips under the strip                                           */
 /* ------------------------------------------------------------------ */
 
@@ -555,7 +683,6 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
 export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
   const {
     data,
-    view,
     filters,
     viewFilters,
     lens,
@@ -566,10 +693,9 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
     setLens,
     promoteLens,
   } = useBoard();
-  /* A sort belongs to a list. A board keeps one it was given and never reads
-     it, so it must not draw a chip for an order it is not in. */
-  const shownSort = view?.kind === "list" ? sort : null;
-  if (filters.rules.length === 0 && !shownSort && !panelOpen) return null;
+  /* One order, drawn two ways, so one chip says it either way: a board is in
+     the order as much as a list is, and the ✕ is the way out of both. */
+  if (filters.rules.length === 0 && !sort && !panelOpen) return null;
 
   /** One rule of a set, changed or taken out. Both sets go the same way. */
   function edited(rules: FilterRule[], at: number, next: FilterRule | null): FilterRule[] {
@@ -579,9 +705,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
 
   return (
     <div className={styles.filterRow} data-testid="filter-row">
-      {shownSort && (
-        <SortChip sort={shownSort} items={cardItems} onClear={() => void setSort(null)} />
-      )}
+      {sort && <SortChip sort={sort} items={cardItems} onClear={() => void setSort(null)} />}
 
       {viewFilters.rules.map((rule, i) => {
         const property = data.properties.find((p) => p.id === rule.propertyId);
@@ -653,11 +777,12 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
 }
 
 /**
- * The order a list is in, and the way out of it.
+ * The order a view is in, and the way out of it.
  *
- * The heading says which column and which way; this says the thing a heading
- * cannot, which is that the list is no longer in the order it can be dragged
- * in. That is why it names the drag rather than just the column.
+ * A list heading says which column and which way, and a board has no heading
+ * at all. Both leave the same thing unsaid: that the cards are no longer in
+ * the order they can be dragged in. That is why this names the drag rather
+ * than just the column, and why it is the one chip both shapes draw.
  */
 function SortChip({
   sort,

@@ -92,6 +92,35 @@ press Enter. It adds an option to the grouping property, so the column appears o
 If the current view has an `is` rule on the grouping property, **the new option joins that rule** —
 because nobody makes a column in order not to see it.
 
+## Ordering the cards
+
+The cards in a column are in `position` order, top to bottom — the one order every view in the
+project shares — until you ask for another one.
+
+**Press Sort in the view strip.** A board has no headings to press, so the order is asked for beside
+**Filter**. The panel lists everything a card carries: press a row for smallest first, press it
+again for largest first, and a third time for the order the board itself keeps. **Every column** is
+drawn in that order, and a chip above the board names it so you can see at a glance that the board
+is not in its own order. The `✕` on the chip is the other way back.
+
+It is the same order a list gets from its headings, decided by the same rules — which column kinds
+order which way, and why a task that holds nothing goes last, are in
+[The list](/ushabti/guides/list/#ordering-by-a-column). The order is remembered on the view, so
+everybody looking at that view sees it, the way they see its filters.
+
+A sort **writes nothing**. The rank each task carries is untouched.
+
+<Aside type="caution" title="A sorted column cannot be rearranged">
+A drag writes a rank, and a sorted board is not showing ranks — dropping a card between two others
+would write an order nobody on the screen can see and then leave the card where the sort puts it.
+So while an order is on, the cards inside a column hold still and <kbd>↑</kbd> <kbd>↓</kbd> do not
+move a lifted one.
+
+**Dragging a card to another column still works**, because that writes the column's value and no
+rank at all; the card lands where the order puts it. So does dragging a column header, which writes
+the option order. Only the place a card has inside its column is the sort's to give.
+</Aside>
+
 ## Adding a task
 
 Two places, and they mean different things:
@@ -116,9 +145,10 @@ what it will write before it writes it — see [Filters](/ushabti/guides/filters
     state of one server-sent-events connection per tab.
   </Card>
   <Card title="The view strip" icon="list-format">
-    Every view, the `+` to add one, the **Filter** pill, and a count. Drag a pill to change where a
-    view sits, for everybody. The count reads `40 tasks`, or `12 of 40 tasks` when filtered, so a
-    board can never quietly be a part of itself.
+    Every view, the `+` to add one, the **Sort** and **Filter** pills, and a count. Drag a pill to
+    change where a view sits, for everybody. The count reads `40 tasks`, or `12 of 40 tasks` when
+    filtered, so a board can never quietly be a part of itself. **Sort** is on a board only: a list
+    has headings to press instead.
   </Card>
 </CardGrid>
 

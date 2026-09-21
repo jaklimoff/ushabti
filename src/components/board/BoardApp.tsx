@@ -44,9 +44,12 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
   const [selected, setSelected] = useState<string | null>(
     () => taskByAddress([...data.tasks, ...data.archived], initialTask)?.id ?? null,
   );
-  /* The chip line and the Filter button are on two rows but are one control,
-     so the row can hold its space open while somebody is choosing. */
+  /* The chip line and the two buttons above it are on two rows but are one
+     control, so the row can hold its space open while somebody is choosing.
+     Without it the first answer pushes the whole board down a line under the
+     panel that is still open. */
   const [filterOpen, setFilterOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
 
   /* The task itself arrives, not its id, because the query carries the key a
      person reads on the card and only the task knows it. An archived task is
@@ -105,8 +108,13 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           <UserMenu user={user} />
         </div>
 
-        <ViewStrip filterOpen={filterOpen} setFilterOpen={setFilterOpen} />
-        <FilterChips panelOpen={filterOpen} />
+        <ViewStrip
+          filterOpen={filterOpen}
+          setFilterOpen={setFilterOpen}
+          sortOpen={sortOpen}
+          setSortOpen={setSortOpen}
+        />
+        <FilterChips panelOpen={filterOpen || sortOpen} />
         {/* The same tasks, drawn two ways. Everything above and below this line
             is the view's, whichever shape it takes. */}
         {view?.kind === "list" ? (

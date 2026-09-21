@@ -66,7 +66,7 @@ type Store = {
    * so the board never holds the same question twice.
    */
   promoteLens: () => Promise<void>;
-  /** The order the view draws its rows in, or null for the shared rank. */
+  /** The order the view draws in — rows, or cards in a column — or null. */
   sort: ViewSort | null;
   /** Writes that order. It saves at once, exactly as a rule does. */
   setSort: (sort: ViewSort | null) => Promise<void>;

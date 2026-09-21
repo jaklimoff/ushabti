@@ -184,7 +184,18 @@ export async function addListTask(page: Page, title: string) {
  * dnd-kit listens to pointer events and needs real movement, so the drag runs
  * as a sequence of small steps rather than one jump.
  */
-export async function dragCard(page: Page, title: string, target: { x: number; y: number }) {
+export async function dragCard(
+  page: Page,
+  title: string,
+  target: { x: number; y: number },
+  /**
+   * What the drop is expected to write. A card carried across a column writes
+   * its value instead of a rank, and a card put back inside a sorted column
+   * writes nothing at all — so a test can say what it is waiting for, and
+   * `null` says there is nothing to wait for.
+   */
+  wrote: RegExp | null = /\/api\/tasks\/[0-9a-f-]+\/move$/,
+) {
   const source = card(page, title).first();
   const box = await source.boundingBox();
   if (!box) throw new Error(`No card called ${title}`);
@@ -206,8 +217,31 @@ export async function dragCard(page: Page, title: string, target: { x: number; y
 
   // The board updates the moment the card is dropped, so a test that reloads
   // straight afterwards can outrun the write. Wait for the server to answer.
-  await settles(page, /\/api\/tasks\/[0-9a-f-]+\/move$/, () => page.mouse.up());
+  if (wrote) await settles(page, wrote, () => page.mouse.up());
+  else await page.mouse.up();
   await page.waitForTimeout(220);
+}
+
+/**
+ * Asks a board for an order, from the Sort button beside Filter.
+ *
+ * The same press twice turns the order around and a third gives the board its
+ * own order back, exactly as a list heading does.
+ */
+export async function sortBoard(page: Page, columnName: string) {
+  await page.getByTestId("sort-button").click();
+  // Not by its whole name: the row of the order that is on says which way it
+  // runs, and every row carries the tick that says whether it is the one.
+  await settles(page, /\/api\/views\/[0-9a-f-]+$/, () =>
+    page.getByTestId("sort-menu").getByRole("option", { name: columnName }).click(),
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("sort-menu")).toHaveCount(0);
+}
+
+/** The titles of one column's cards, top to bottom. */
+export async function columnOrder(page: Page, columnName: string): Promise<string[]> {
+  return column(page, columnName).getByTestId("card-title").allInnerTexts();
 }
 
 /** Runs `action` and waits for the matching request to come back. */

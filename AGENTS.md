@@ -82,16 +82,26 @@ and what is easy to get wrong.
   a pill that changed colour as it passed its neighbour would read as another
   view. The keyboard route is the grip in settings; the strip keeps Space and
   Enter for picking a view, which is what a top bar is for.
-- **A sort writes nothing, which is why a sorted list holds still.** The rank a
+- **A sort writes nothing, which is why a sorted view holds still.** The rank a
   task carries is the one order every view shares; `src/lib/sort.ts` decides
-  only what a list draws, and never writes. So a drag inside a sorted list would
-  write an order nobody on that screen can see, and then leave the row where the
-  sort puts it — which reads as the drag having failed. `useSortable` is
-  disabled while a sort is on, `Space` is swallowed, and the chip above the list
-  is the way back. A sort is read afresh like a filter: `readSort()` throws away
-  one that names a column that is gone, on the server in `toViewDTO` and again
-  on the write. It is not `humanOnly` — a filter is guarded because it hides
-  work from the people, and a sort hides nothing.
+  only what a screen draws, and never writes. So a drag that wrote an order
+  nobody on that screen can see would leave the card where the sort puts it,
+  which reads as the drag having failed. A list answers by holding every row:
+  `useSortable` is disabled and `Space` is swallowed. A board cannot answer that
+  way, because a card still has to be able to reach another column — so it holds
+  only the inside of a column. `HELD` in `Column.tsx` is a strategy that moves
+  nothing, `liftedCardCoordinates` swallows up and down while a card is lifted,
+  and a drop into another column writes that column's value through `setValue`
+  and no rank at all. One chip is the way back out of both. A board is asked for
+  the order from a **Sort** button beside **Filter**, because it has no heading
+  to press; its rows are `listColumns()`, the columns a list would draw, named
+  as a list names them, so one question has one set of words. The order itself
+  is applied once over the whole board before `buildColumns`, which keeps the
+  order it is given — there is no second comparator and no pass per column. A
+  sort is read afresh like a filter: `readSort()` throws away one that names a
+  column that is gone, on the server in `toViewDTO` and again on the write. It
+  is not `humanOnly` — a filter is guarded because it hides work from the
+  people, and a sort hides nothing.
 - **A sort keys off the card kind, and off the type only where it must.** A
   select orders by its option index, because that order was arranged by hand
   and is the meaning; a multi-select by its lowest index, because its values

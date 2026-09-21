@@ -20,7 +20,7 @@ import {
   type ViewKind,
 } from "@/lib/types";
 import { useDismiss } from "@/components/ui/useDismiss";
-import { FilterButton } from "./Filters";
+import { FilterButton, SortButton } from "./Filters";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 
@@ -38,9 +38,13 @@ function dotOf(view: ViewDTO): string {
 export function ViewStrip({
   filterOpen,
   setFilterOpen,
+  sortOpen,
+  setSortOpen,
 }: {
   filterOpen: boolean;
   setFilterOpen: (v: boolean) => void;
+  sortOpen: boolean;
+  setSortOpen: (v: boolean) => void;
 }) {
   const { data, view, visibleTasks, setViewId, createView, moveView } = useBoard();
   const [adding, setAdding] = useState(false);
@@ -169,6 +173,9 @@ export function ViewStrip({
       </button>
 
       <div style={{ flex: 1 }} />
+      {/* A list is ordered by its headings, which it has and a board has not.
+          So the button is here only where there is nothing else to press. */}
+      {view?.kind !== "list" && <SortButton open={sortOpen} setOpen={setSortOpen} />}
       <FilterButton open={filterOpen} setOpen={setFilterOpen} />
       {/* A filtered board says how much of itself it is showing. "12 tasks"
           alone cannot tell you whether the other 28 exist. */}
