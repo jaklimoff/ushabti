@@ -74,7 +74,10 @@ const WIDTH_OF_MODE: Partial<Record<CardMode, number>> = {
 };
 
 const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
-  _key: 72,
+  /* The gutter comes out of the first column, and the key is nearly always
+     it. So the key carries the room the gutter takes, and its heading still
+     has the same space to name itself in. */
+  _key: 88,
   _title: 0,
   _desc: 0,
   _checklist: 72,

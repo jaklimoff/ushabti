@@ -19,6 +19,8 @@ type Props = {
   ghost?: boolean;
   overlay?: boolean;
   onOpen?: () => void;
+  /** Picks this row, or puts it back. Absent on the drag overlay. */
+  onPick?: (event: React.MouseEvent) => void;
   style?: React.CSSProperties;
   dragProps?: Record<string, unknown>;
 };
@@ -29,11 +31,17 @@ type Props = {
  * project's card view; this file only knows how to fill a cell.
  */
 export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
-  { task, columns, selected, cursor, ghost, overlay, onOpen, style, dragProps },
+  { task, columns, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps },
   ref,
 ) {
-  const { cardItems, data, runOf } = useBoard();
+  const { cardItems, data, isPicked, picked, runOf } = useBoard();
   const run = runOf(task.id);
+
+  /* The row wears the same border a card wears, and the check stays on the
+     whole list while anything is picked, so the way out of a pick is where
+     the way in was. */
+  const mine = isPicked(task.id);
+  const picking = picked.length > 0;
 
   const slots = useMemo(
     () => buildRow(cardItems, task, data.members),
@@ -42,6 +50,7 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
 
   const className = [
     styles.listRow,
+    mine ? styles.listRowPicked : "",
     selected ? styles.listRowSelected : "",
     ghost ? styles.cardGhost : "",
     overlay ? styles.listRowOverlay : "",
@@ -61,7 +70,20 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
       data-testid={overlay ? "list-row-overlay" : "list-row"}
       style={style}
       data-task-id={task.id}
-      onClick={onOpen}
+      data-picked={mine ? "true" : undefined}
+      /* A plain click still opens the task. Shift is what says "and this one
+         too", so it never opens anything. */
+      onClick={(event: React.MouseEvent) => {
+        if (event.shiftKey && onPick) return onPick(event);
+        onOpen?.();
+      }}
+      /* A Shift-mousedown means "and the ones in between", never "select the
+         words in between", so the browser's own text selection is stopped
+         before it starts. Without it a range leaves the table striped blue
+         from the heading down. */
+      onMouseDown={(event: React.MouseEvent) => {
+        if (event.shiftKey) event.preventDefault();
+      }}
       role="button"
       {...dragProps}
       /* dnd-kit hands every row a tab stop. The list keeps one, so Tab reaches
@@ -89,10 +111,43 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
           />
         );
 
+        /*
+         * The check sits in the gutter the first cell already carries, before
+         * the key. Not a column of its own: the columns of a list are the
+         * rows of the card view and nothing else, and one that was never on a
+         * card has no business being one. It lives inside the first cell
+         * because that cell is the one held in place, so a list scrolled
+         * sideways keeps its checks beside its keys.
+         */
+        const check = at === 0 && onPick && !overlay && (
+          <button
+            className={styles.listPick}
+            data-testid="list-pick"
+            data-on={picking ? "true" : undefined}
+            aria-pressed={mine}
+            aria-label={mine ? `Leave ${task.key} out` : `Pick ${task.key}`}
+            /* The list has one tab stop, which is the row the cursor is on.
+               Forty checks would give it forty-one. `x` is the keyboard way
+               in, exactly as it is on the board. */
+            tabIndex={-1}
+            /* The row is the drag handle and this button sits on top of it. */
+            onPointerDown={(event) => event.stopPropagation()}
+            /* The press must not move the focus off the cursor row. */
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onPick(event);
+            }}
+          >
+            <span aria-hidden>{mine ? "✓" : ""}</span>
+          </button>
+        );
+
         if (column.id === "_key") {
           return (
             <span key={column.id} {...held} className={`${styles.listKey} ${held.className}`}>
               {edge}
+              {check}
               {task.key}
             </span>
           );
@@ -102,6 +157,7 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
           return (
             <span key={column.id} {...held} className={`${styles.listTitle} ${held.className}`}>
               {edge}
+              {check}
               <span className={styles.listTitleText} data-testid="list-row-title">
                 {task.title}
               </span>

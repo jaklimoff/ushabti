@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { TaskValue } from "@/lib/types";
+import { useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { AskBox, propertyColor, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
@@ -19,11 +20,22 @@ import styles from "./board.module.css";
  *
  * **Set…** is the filter's own two-step question — which property, then what
  * about it — and the second step is the control the task panel already sets a
- * value with. Nothing here is a dialog, and the board behind it never moves
- * out of the way.
+ * value with. **Archive** takes the cards off the board, so the bar itself
+ * becomes the question first, the way a column header does. Nothing here is a
+ * dialog, and the board behind it never moves out of the way.
  */
 export function Selection({ taskOpen }: { taskOpen: boolean }) {
-  const { data, picked, clearPicks, setPickedValue, addOption } = useBoard();
+  const { picked } = useBoard();
+  /* The bar is unmounted while nothing is picked rather than hidden, so a
+     question half asked or a menu left open cannot be waiting underneath the
+     next pick. A filter that empties the bar takes both away with it. */
+  if (picked.length === 0) return null;
+  return <PickBar taskOpen={taskOpen} />;
+}
+
+function PickBar({ taskOpen }: { taskOpen: boolean }) {
+  const { data, picked, clearPicks, setPickedValue, archivePicked, notify, addOption } = useBoard();
+  const sweep = useConfirm();
   const [open, setOpen] = useState(false);
   const [propertyId, setPropertyId] = useState<string | null>(null);
   /* What was set, so the control says what the cards now carry. It starts
@@ -45,16 +57,18 @@ export function Selection({ taskOpen }: { taskOpen: boolean }) {
   /*
    * Escape puts away one thing, and this is where the order is decided.
    *
-   * Three things can be open at once: this panel, an open task, and the picks.
-   * The panel goes first without being asked — the box in it has the focus, so
-   * `useShortcut` leaves the key alone and `useDismiss` takes it. The open task
-   * goes next, and its own handler does that; this one stands down while a task
-   * is open rather than racing it, because two things put away by one press is
-   * a press nobody can undo. The picks are last, which is right: they are the
-   * furthest from the hand.
+   * Four things can be open at once: this panel, an open task, the question
+   * Archive asks, and the picks. The panel goes first without being asked —
+   * the box in it has the focus, so `useShortcut` leaves the key alone and
+   * `useDismiss` takes it. The open task goes next, and its own handler does
+   * that; this one stands down while a task is open rather than racing it,
+   * because two things put away by one press is a press nobody can undo. The
+   * question is nearer the hand than the picks it is about, so it goes before
+   * them. The picks are last, which is right: they are the furthest away.
    */
   useShortcut("Escape", () => {
     if (taskOpen) return;
+    if (sweep.asking) return sweep.cancel();
     if (picked.length) clearPicks();
   });
 
@@ -65,8 +79,6 @@ export function Selection({ taskOpen }: { taskOpen: boolean }) {
       .map((p) => ({ id: p.id, name: p.name, color: propertyColor(p) }));
   }, [data.properties, query]);
 
-  if (picked.length === 0) return null;
-
   // Somebody else may have deleted it while the panel is open.
   const property = propertyId ? (data.properties.find((p) => p.id === propertyId) ?? null) : null;
 
@@ -75,6 +87,46 @@ export function Selection({ taskOpen }: { taskOpen: boolean }) {
     setDraft(null);
     setQuery("");
     setAt(0);
+  }
+
+  const tasks = `${picked.length} ${picked.length === 1 ? "task" : "tasks"}`;
+
+  async function archive() {
+    const gone = await archivePicked();
+    if (gone > 0) notify(`Archived ${gone} ${gone === 1 ? "task" : "tasks"}.`, "info");
+  }
+
+  /*
+   * The bar becomes the question, exactly as a column header does. It names
+   * the number and stops there: the cards were picked by hand a moment ago,
+   * so nobody needs telling what the number counts — and the top bar of a
+   * phone has room for a question or for a sentence, not for both.
+   */
+  if (sweep.asking) {
+    return (
+      <div
+        className={`${styles.pickBar} ${styles.pickAsking}`}
+        data-testid="pick-bar"
+        role="alertdialog"
+        aria-label={`Archive ${tasks}?`}
+      >
+        <span className={styles.pickCount} data-ask="" data-testid="pick-confirm">
+          Archive {tasks}?
+        </span>
+        <button
+          className={styles.pickSet}
+          data-danger=""
+          data-testid="pick-archive-yes"
+          autoFocus
+          onClick={() => sweep.confirm(() => void archive())}
+        >
+          Yes, archive
+        </button>
+        <button className={styles.pickSet} data-testid="pick-archive-no" onClick={sweep.cancel}>
+          Cancel
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -161,6 +213,22 @@ export function Selection({ taskOpen }: { taskOpen: boolean }) {
           </div>
         )}
       </div>
+
+      {/* Archiving takes the cards off the board, so it asks first and the
+          bar itself is where it asks. The Set… menu goes away: one question
+          at a time. */}
+      <button
+        className={styles.pickSet}
+        data-danger=""
+        data-testid="pick-archive"
+        title={`Archive all ${picked.length}`}
+        onClick={() => {
+          close();
+          sweep.ask();
+        }}
+      >
+        Archive
+      </button>
 
       <button
         className={styles.pickClear}

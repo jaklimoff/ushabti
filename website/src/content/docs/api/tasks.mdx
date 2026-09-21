@@ -7,9 +7,9 @@ sidebar:
 
 import { Aside, Badge } from '@astrojs/starlight/components'
 
-Every route on this page accepts an agent token, except one: the column sweep,
-`POST /api/projects/{projectId}/archive`, is a person's. Content is shared; clearing a whole column
-is a decision about the board.
+Every route on this page accepts an agent token, except one: the bulk archive,
+`POST /api/projects/{projectId}/archive`, is a person's. Content is shared; taking a handful of
+cards — or a whole column — off the board is a decision about the board.
 
 ---
 
@@ -208,22 +208,53 @@ moment it first went, and putting a live task back is a no-op. Retry either as o
 
 ## `POST /api/projects/{projectId}/archive` <Badge text="person only" variant="caution" />
 
-Archives every live task in one column: the sweep behind **Archive everything in this column**.
+Archives several tasks at once. One route, two bodies, because it is one act.
+
+**The tasks somebody picked** — what **Archive** in the pick bar sends:
+
+```json title="request"
+{ "taskIds": ["…", "…", "…"] }
+```
+
+**One whole column** — what **Archive everything in this column** sends:
 
 ```json title="request"
 { "propertyId": "<statusPropertyId>", "value": "<optionId>" }
 ```
 
-The body names a property and a value rather than a column, because a column is one value of the
-property the view groups by and the server has no idea what a column is. `"value": null` is the
-column of the tasks that hold nothing there.
+The column body names a property and a value rather than a column, because a column is one value of
+the property the view groups by and the server has no idea what a column is. `"value": null` is the
+column of the tasks that hold nothing there. A body that carries `taskIds` names tasks, whatever
+else is on it.
 
 ```json title="200"
 { "archived": 42 }
 ```
 
-The answer is how many tasks went. One call can clear a whole column, so this one is a person's:
-an agent gets `403`.
+| Field | Rules |
+| --- | --- |
+| `taskIds` | a list of ids, **200 at most**. The same id twice counts once. |
+| `propertyId` | read only when there is no `taskIds`; a property of this project |
+| `value` | as for one task. Absent means the column with no value at all. |
+
+| Status | Message |
+| --- | --- |
+| `400` | `Name the tasks, or the property the columns come from.` |
+| `400` | `Name the tasks as a list of ids.` — not a list, or something in it that is not a UUID |
+| `400` | `Name at least one task.` · `That is more than 200 tasks at once. Name fewer.` |
+| `400` | `That is not a property id.` — see [ids](/ushabti/api/#ids) |
+| `400` | `That property is not in this project.` |
+| `400` | `One of those tasks is not on this board.` |
+
+The answer is how many tasks **really went**. One call can clear a whole column, so this one is a
+person's: an agent gets `403`.
+
+<Aside type="note" title="A retry is free">
+An id that names an archived task is not an error here, unlike a bulk set. Archiving says what the
+tasks should be, and one of them already is: it keeps the moment it first went, writes no second
+line, and is counted out of the answer. An id this board does not have still refuses the whole
+call — what a token may not see, it may not name.
+</Aside>
 
 ---
 
@@ -323,7 +354,7 @@ the writes that compute a rank and this touches none.
 | Status | Message |
 | --- | --- |
 | `400` | `Name the tasks as a list of ids.` — not a list, or something in it that is not a UUID |
-| `400` | `Name at least one task.` · `That is more than 200 tasks. Set fewer at once.` |
+| `400` | `Name at least one task.` · `That is more than 200 tasks at once. Name fewer.` |
 | `400` | `Name the property to set.` · `That property is not in this project.` |
 | `400` | `One of those tasks is not on this board.` |
 | `400` | `One of those tasks is archived. Put it back first.` |

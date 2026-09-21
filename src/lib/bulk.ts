@@ -7,7 +7,8 @@ import { isId } from "./ids";
  * the value N times, ring N doorbells, and can leave the board half set with
  * nothing on screen saying which half. So the route takes a list of ids, and
  * every rule that can refuse it lives here, where a test can ask it without a
- * server.
+ * server. Archiving the tasks somebody picked names its ids the same way, and
+ * reads them with the same rules.
  */
 
 /**
@@ -41,13 +42,30 @@ export function readTaskIds(raw: unknown): IdsRead {
   const ids = Array.from(new Set(raw as string[]));
   if (ids.length === 0) return { ok: false, said: "Name at least one task." };
   if (ids.length > BULK_LIMIT) {
-    return { ok: false, said: `That is more than ${BULK_LIMIT} tasks. Set fewer at once.` };
+    /* Neither "set" nor "archive": two routes print this one sentence, and a
+       refusal that named the wrong verb would be about a call nobody made. */
+    return { ok: false, said: `That is more than ${BULK_LIMIT} tasks at once. Name fewer.` };
   }
   return { ok: true, ids };
 }
 
 /** One task as the database answers for it: on this board, and live or not. */
 export type BulkRow = { id: string; archivedAt: Date | string | null };
+
+/**
+ * Every named id has to be a task this board has.
+ *
+ * A task of another project is simply not among the rows the project's own
+ * query found, and a deleted one is not either, because every read hides it.
+ * One sentence answers all of them: what a token may not see, it may not name.
+ */
+export function onBoardSaid(ids: string[], rows: { id: string }[]): string | null {
+  const found = new Set(rows.map((row) => row.id));
+  for (const id of ids) {
+    if (!found.has(id)) return "One of those tasks is not on this board.";
+  }
+  return null;
+}
 
 /**
  * What the rows found say about the ids asked for, or null when nothing is
@@ -65,11 +83,46 @@ export type BulkRow = { id: string; archivedAt: Date | string | null };
  * one press on the archive page.
  */
 export function rowsSaid(ids: string[], rows: BulkRow[]): string | null {
-  const found = new Map(rows.map((row) => [row.id, row]));
+  const said = onBoardSaid(ids, rows);
+  if (said) return said;
+  const archived = new Set(rows.filter((row) => row.archivedAt).map((row) => row.id));
   for (const id of ids) {
-    const row = found.get(id);
-    if (!row) return "One of those tasks is not on this board.";
-    if (row.archivedAt) return "One of those tasks is archived. Put it back first.";
+    if (archived.has(id)) return "One of those tasks is archived. Put it back first.";
   }
   return null;
+}
+
+/** The two things one archive call can name. */
+export type ArchiveAsk =
+  { kind: "tasks"; ids: string[] } | { kind: "column"; propertyId: string; value: unknown };
+
+export type ArchiveRead = { ok: true; ask: ArchiveAsk } | { ok: false; said: string };
+
+/**
+ * Which of the two an archive call is asking for, or the sentence to refuse
+ * it with.
+ *
+ * They are one route because they are one act: cards leave the board and keep
+ * their history, and one route is one place that says who may do it. `taskIds`
+ * decides — a body that carries it names tasks, whatever else is on it —
+ * because a caller that named the tasks knows which tasks it meant, and a
+ * property beside them could only disagree.
+ */
+export function readArchiveAsk(input: {
+  taskIds?: unknown;
+  propertyId?: unknown;
+  value?: unknown;
+}): ArchiveRead {
+  if (input.taskIds !== undefined) {
+    const read = readTaskIds(input.taskIds);
+    if (!read.ok) return read;
+    return { ok: true, ask: { kind: "tasks", ids: read.ids } };
+  }
+  if (typeof input.propertyId !== "string") {
+    return { ok: false, said: "Name the tasks, or the property the columns come from." };
+  }
+  return {
+    ok: true,
+    ask: { kind: "column", propertyId: input.propertyId, value: input.value ?? null },
+  };
 }

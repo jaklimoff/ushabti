@@ -48,6 +48,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   `POST /api/projects/{projectId}/tasks/values`, which an agent may make too.
   Escape, the ✕ or a change of view ends it.
 
+- **Archive the tasks you picked, and pick on a list.** The bar gained
+  **Archive**, which asks in the bar itself — _Archive 3 tasks?_ — and then
+  takes them off the board in one call and ends the pick. A list picks the same
+  way: the check sits in the gutter before the key rather than as a column of
+  its own, `x` picks the row the cursor is on, and Shift-click picks a real
+  range down the whole list, because a list is one column of rows.
+  `POST /api/projects/{projectId}/archive` now takes `taskIds` beside the
+  property and value it already swept a column by. It stays a person's route,
+  and the count it answers is how many tasks really went, so archiving a task
+  that is already archived costs nothing.
+
 - **A page lists the archived tasks.** **Archive**, in the top bar beside
   **Settings**, opens every archived task of the project, newest first, with
   the key, the title and when it went. **Put back** on a row returns one to the
