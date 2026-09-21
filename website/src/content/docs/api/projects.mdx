@@ -53,11 +53,19 @@ of that becomes `TSK`. **Keys are not unique across projects.**
 ## `PATCH /api/projects/{projectId}` <Badge text="owner only" variant="caution" size="small" />
 
 ```json title="request"
-{ "name": "Ushabti", "key": "USH" }
+{ "name": "Ushabti", "key": "USH",
+  "doneWhen": { "propertyId": "<propertyId>", "optionId": "<optionId>" } }
 ```
 
-Both optional. `key` is length-checked **before** the non-alphanumerics are stripped, so `a-b-c-d` is
-rejected as too long even though four characters would survive it.
+All three optional. `key` is length-checked **before** the non-alphanumerics are stripped, so
+`a-b-c-d` is rejected as too long even though four characters would survive it.
+
+`doneWhen` is what this project calls done, and it is what makes a blocker stop blocking. It names
+one option of one **select** property; `null` means archived, which is the answer until somebody
+says otherwise. It is read afresh on the way in and on the way out, so a row naming a property or
+an option that has since been deleted reads as `null` rather than lingering. There is no Done
+status in Ushabti — Status is a property the owner may rename tomorrow — which is why the project
+has to say which option it means.
 
 ```json title="200"
 { "ok": true }

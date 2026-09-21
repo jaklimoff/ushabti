@@ -102,7 +102,6 @@ runs this.
 
 ## Later
 
-- **Blocked-by links.** Task dependencies and the chain strip from the design.
 - **A per-view card order.** See the limit below.
 - **Relative dates in a filter.** A date rule names a day today, so "due this
   week" has to be rewritten every week. A relative window has to read the same
@@ -114,6 +113,26 @@ runs this.
 ---
 
 ## Done since v1.1, not yet released
+
+- **A task can say what it waits on.** It lived in comments, where nothing
+  could read it: an agent picking a task up could not tell that the work in
+  front of it was not ready, and a person reading the board could not see why
+  a card was not moving. Now a task names the tasks that block it. The card
+  wears one small grey chain beside its key and nothing else — no list, no
+  count, because a board where half the cards are waiting still has to be
+  readable. The panel holds the two short lists, **Blocked by** and **Blocks**,
+  each adding by the same box the filter uses and removing with a ✕ that asks
+  nothing. **Blocked** joins the filter as a fixed word rather than a property,
+  the way a card's key is a fixed row. A circle is refused with one sentence,
+  under the project lock. `POST /api/tasks/{id}/blockers` and its `DELETE` both
+  take a token, and `board.mjs link USH-71 --blocked-by USH-12` is the short
+  way. A blocker stops blocking when it is over, and the owner says what over
+  means in **Settings → Project**: archived, and one option of one property if
+  they name one. Nothing is hardcoded, so there is still no Done status.
+  **The chain strip is not in.** The roadmap promised "the chain strip from the
+  design" and `design-reference/Roadmap Board.dc.html` holds none — its one
+  card strip is the run. If another design file exists, the strip comes back as
+  its own change.
 
 - **A board reads on a phone.** It was the last screen that did not fit: the
   panel already overlaid below 900 px and the settings pages already fitted at
