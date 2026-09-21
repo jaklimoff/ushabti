@@ -4,7 +4,8 @@ import { defineConfig, devices } from "@playwright/test";
 // read it too: a machine where 3000 is taken can still run the CI way.
 const port = process.env.PORT ?? "3000";
 const baseURL = process.env.CI ? `http://localhost:${port}` : "http://localhost:3050";
-const url = process.env.BASE_URL ?? baseURL;
+// `||`, not `??`: an empty BASE_URL= means "the default", not an invalid URL.
+const url = process.env.BASE_URL || baseURL;
 
 // A production build sets the session cookie `Secure`. The browser sends it to
 // a bare IP over http anyway, but Playwright's request context does not, so
