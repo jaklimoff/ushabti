@@ -1,7 +1,8 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNull, lt, ne, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { activity, agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
+import { agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
+import { logActivity } from "./activity";
 import { HttpError } from "./auth";
 import { publish } from "./events";
 import { REPORT_LEASE_MS } from "./run-state";
@@ -110,7 +111,9 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
 
   for (const run of closed) {
     await addLog(run.id, "no word from the agent, so the board closed the run");
-    await db.insert(activity).values({
+    // Through the funnel, like every other write. The sweep opens no
+    // transaction of its own, so there is no handle to hand on.
+    await logActivity({
       projectId: run.projectId,
       taskId: run.taskId,
       actorId: run.agentId,
