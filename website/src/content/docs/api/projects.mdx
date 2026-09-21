@@ -187,7 +187,11 @@ proxy it is the address the team uses.
 | `403` | `Only the owner can make a reset link.` |
 | `404` | `That person is not in this project.` |
 
-Nothing is written to the project's activity: this is about an account, not about the board.
+A line is written to the project's activity: kind `reset`, no task, and
+`data: { "forUserId": "…", "forName": "Ada" }`. The link row itself is swept away as soon as the
+link is spent or replaced, so the feed is the only lasting record that the owner handed out access.
+Every member of the project reads it at `GET /api/projects/{projectId}/activity`, exactly as they
+read any other line. Neither the link nor the password is ever in it.
 
 ---
 

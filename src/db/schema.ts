@@ -250,7 +250,7 @@ export const activity = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
-    /** created | title | description | value | checklist | comment | run | deleted */
+    /** created | title | description | value | checklist | comment | run | archive | reset | deleted */
     kind: text("kind").notNull(),
     data: jsonb("data").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -534,6 +534,7 @@ function describeActivity(entry: {
     title?: string;
     text?: string;
     action?: string;
+    forName?: string;
   };
   switch (entry.kind) {
     case "created":
@@ -552,6 +553,9 @@ function describeActivity(entry: {
       return d.action === "restored" ? `${who} put the task back` : `${who} archived the task`;
     case "run":
       return `${who} ${RUN_WORDS[d.action ?? ""] ?? "changed the run"}`;
+    // A line on the project, not on a task. No screen draws one yet.
+    case "reset":
+      return `${who} made a reset link for ${d.forName ?? "somebody"}`;
     default:
       return `${who} made a change`;
   }
