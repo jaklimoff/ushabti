@@ -107,7 +107,6 @@ runs this.
 - **Relative dates in a filter.** A date rule names a day today, so "due this
   week" has to be rewritten every week. A relative window has to read the same
   on the server and in the browser, which a clock in two time zones does not.
-- **Bulk edit.** Select several cards, set one property on all of them.
 - **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
 - **Import.** Read a Trello or Jira export and map lists to options.
 - **Attachments.** Files on a task.
@@ -118,6 +117,17 @@ runs this.
 ---
 
 ## Done since v1.1, not yet released
+
+- **Pick several cards and set one property on all of them.** Moving ten cards
+  to a new owner one at a time was the tenth-time friction a team notices most.
+  Hover a card and a check appears in its corner; `x` picks the one the cursor
+  is on, and Shift-click picks a run inside one column. A picked card wears a
+  border and nothing more. A bar in the top bar says **3 selected** and offers
+  **Set…**, which asks the two questions the filter asks — which property, then
+  what about it — and writes them all in one call,
+  `POST /api/projects/{id}/tasks/values`, which an agent may make too. Escape,
+  the ✕ or a change of view ends it, and a card a filter hides leaves the count
+  quietly. Archive from the bar, and picking on a list, come next.
 
 - **A page lists the archived tasks.** A search and the task's own link were
   the two ways back to one: enough to find a task you can name, and nothing at

@@ -64,6 +64,7 @@ so an agent sees exactly what a person sees and nothing more.
 | Create a task       | `POST /api/projects/{projectId}/tasks`              |
 | Rename or rewrite   | `PATCH /api/tasks/{taskId}`                         |
 | Set one property    | `PUT /api/tasks/{taskId}/values/{propertyId}`       |
+| Set many at once    | `POST /api/projects/{projectId}/tasks/values`       |
 | Move a card         | `POST /api/tasks/{taskId}/move`                     |
 | Archive a task      | `POST /api/tasks/{taskId}/archive`                  |
 | Put it back         | `DELETE /api/tasks/{taskId}/archive`                |
@@ -125,6 +126,34 @@ curl -s -X PUT $USHABTI/api/tasks/$TASK/values/$STATUS_PROPERTY \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"value":"'$OPTION'"}'
 ```
+
+### One property, many tasks
+
+Ten tasks that all want the same value are one call, not ten:
+
+```bash
+curl -s -X POST $USHABTI/api/projects/$PROJECT/tasks/values \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"taskIds":["'$A'","'$B'","'$C'"],"propertyId":"'$STATUS_PROPERTY'","value":"'$OPTION'"}'
+```
+
+```json
+{ "set": 3, "value": "…" }
+```
+
+`value` is the shape the single route takes, checked **once** for all of them, so the value that
+reaches one task is the value that reaches every task. It writes one line of activity for each
+task, exactly as three separate calls would, and rings the doorbell once instead of three times.
+Two hundred ids is the most one call may name.
+
+The whole call goes or none of it does. An id that names a task of another project, or an
+archived one, answers `400` and writes nothing: a board half set is worse than a board not set,
+because nothing on it says which half. Put an archived task back before you set anything on it.
+
+`board.mjs` has no verb for this on purpose. Its commands take a key and a name — `set USH-14
+Status Ready` — so that a model never handles an id, and a bulk set is a list of ids by
+definition. Ten `set` calls say the same thing in the words the skill is for; reach for this route
+when you are writing your own client and the ten calls are the cost.
 
 ## Runs: showing what you are doing
 

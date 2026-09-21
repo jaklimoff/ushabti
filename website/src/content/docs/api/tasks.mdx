@@ -228,6 +228,55 @@ see [value shapes](/ushabti/api/properties/#value-shapes-by-type).
 
 ---
 
+## `POST /api/projects/{projectId}/tasks/values`
+
+Writes **one property on many tasks**, in one call. It is what the board's **Set…** does with the
+cards you picked.
+
+```json title="request"
+{
+  "taskIds": ["…", "…", "…"],
+  "propertyId": "<priorityPropertyId>",
+  "value": "<optionId>"
+}
+```
+
+```json title="200"
+{ "set": 3, "value": "<optionId>" }
+```
+
+`value` takes exactly the shapes the single-value route takes, and is checked **once** for all of
+them — so the value that reaches one task is the value that reaches every task. One line of
+activity is written for each task, the same `value` line the single route writes, and the board
+rings once.
+
+It takes an agent token. A value is content, and an agent may already write ten of them with ten
+calls; this is the same work in one call. There is **no project lock**, because the lock serialises
+the writes that compute a rank and this touches none.
+
+| Field | Rules |
+| --- | --- |
+| `taskIds` | required, a list of ids, **200 at most**. The same id twice counts once. |
+| `propertyId` | required, a property of this project |
+| `value` | as for one task — `null` or `""` clears it |
+
+| Status | Message |
+| --- | --- |
+| `400` | `Name the tasks as a list of ids.` · `Name at least one task.` · `That is more than 200 tasks. Set fewer at once.` |
+| `400` | `Name the property to set.` · `That property is not in this project.` |
+| `400` | `One of those tasks is not on this board.` |
+| `400` | `One of those tasks is archived. Put it back first.` |
+
+<Aside type="note" title="All of it, or none of it">
+One bad id refuses the whole call. Writing what it could reach would leave the board half set, and
+the answer would then have to say which half — which is the thing one call exists to avoid. An
+archived task is refused with the rest: no view draws one, so it cannot be picked on a board, and
+setting a property on a card nobody can see is a change with nothing to show for it. Put it back
+first, which is one press on the archive page.
+</Aside>
+
+---
+
 ## Checklist
 
 ### `POST /api/tasks/{taskId}/checklist`
