@@ -138,6 +138,41 @@ test.describe("Archiving a task", () => {
   });
 
   /*
+   * A link to an archived task opens a panel with no card behind it. The key,
+   * the title and the archived row come from the board's own archived list, so
+   * they are on screen before the panel's own read of the task lands. It used
+   * to draw nothing at all until then.
+   */
+  test("a link to an archived task draws its head before the detail lands", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pasted"));
+
+    await addTask(page, "Todo", "Rotate the signing key");
+    const key = await page.getByTestId("task-key").innerText();
+    await archiveOpenTask(page);
+
+    /* Hold back the one read the panel makes for itself. What is left on the
+       screen is what the board already knew. */
+    await page.route("**/api/tasks/*", async (route) => {
+      await new Promise((wait) => setTimeout(wait, 3000));
+      await route.continue();
+    });
+
+    await page.goto(`/p/${projectId}?task=${key}`);
+
+    // The read is still out: the panel says so, and the head is already there.
+    await expect(page.getByTestId("panel-loading")).toBeVisible();
+    await expect(page.getByTestId("task-key")).toHaveText(key);
+    await expect(page.getByTestId("task-title")).toHaveValue("Rotate the signing key");
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+
+    // Then the rest of the task arrives, and no card is drawn behind it.
+    await expect(page.getByTestId("panel-loading")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: /^Comments/ })).toBeVisible();
+    await expect(page.getByTestId("card")).toHaveCount(0);
+  });
+
+  /*
    * The cascade behind a delete does not care whether a task is on a board, so
    * a question that counted only the cards would name half the cost.
    */

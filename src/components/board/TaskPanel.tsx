@@ -57,22 +57,60 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const [tab, setTab] = useState<"comments" | "activity" | "agent">("comments");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useDismiss<HTMLDivElement>(() => setMenuOpen(false), menuOpen);
+  /*
+   * An archived task has no card, and its panel still opens: a link and a
+   * search hit both end here. The board carries every task either way — a card
+   * in `tasks`, or the lighter row in `archived` that holds the key, the title
+   * and the description.
+   *
+   * So the panel asks the board first and the answer it fetched second. The
+   * board is the part the stream keeps fresh, which settles both halves of
+   * this at once: the head is drawn before the first fetch lands, and a task
+   * somebody else archives — or puts back — says so within a beat, without
+   * waiting for a second read. The detail keeps what only it carries: the
+   * values, the checklist, the comments, the activity and the run.
+   *
+   * The other reading was to reload the detail on every broadcast and go on
+   * drawing the archived row from it. That leaves two answers to one question,
+   * and the row then waits for a read that the rule below may drop.
+   */
+  const liveTask = data.tasks.find((t) => t.id === taskId) ?? null;
+  const archivedRow = data.archived.find((t) => t.id === taskId) ?? null;
+
+  /* A whole card-shaped task, for the things that need one. */
+  const boardTask: TaskDTO | null = liveTask ?? detail;
+
+  const shown = useMemo(() => {
+    const row = liveTask ?? archivedRow ?? detail;
+    if (!row) return null;
+    return {
+      key: row.key,
+      title: row.title,
+      description: row.description,
+      /* An archived row carries no values. The detail does. */
+      values: boardTask?.values ?? {},
+      archivedAt: row.archivedAt ?? null,
+    };
+  }, [archivedRow, boardTask, detail, liveTask]);
+
   /* The clock the archived row reads. It ticks only while that row is drawn,
      so "just now" becomes "1 minute ago" without a reload and nothing else
      re-renders for it. */
-  const now = useNow(!!detail?.archivedAt);
+  const now = useNow(!!shown?.archivedAt);
 
   /*
-   * An archived task has no card, and its panel still opens: a link and a
-   * search hit both end here. The board carries an archived task light — no
-   * values, no counts — so this panel draws the answer it fetched itself,
-   * which is the whole task either way.
+   * Every write this panel makes, counted, exactly as the board counts its own.
+   * A read of the task that was already out when one went answers with the task
+   * as it was before the write, and drawing that quietly undoes the comment
+   * somebody just sent. Every change anybody makes starts such a read here.
    */
-  const boardTask: TaskDTO | null = data.tasks.find((t) => t.id === taskId) ?? detail;
+  const writes = useRef(0);
 
   const load = useCallback(async () => {
+    const at = writes.current;
     try {
       const res = await api.get<{ task: TaskDetailDTO | null }>(`/api/tasks/${taskId}`);
+      if (writes.current !== at) return;
       setDetail(res.task);
       if (!res.task) {
         onClose();
@@ -87,6 +125,14 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       onClose();
     }
   }, [onClose, syncTaskCounts, taskId]);
+
+  /* A write of this panel’s own ends by reading the task again. It is counted
+     here, so the read a broadcast started before it is dropped rather than
+     landing on top of it. */
+  const reload = useCallback(async () => {
+    writes.current += 1;
+    await load();
+  }, [load]);
 
   // Only a different task clears what is on screen. A new `load` identity must
   // not, because that unmounts the comment list and destroys the note the
@@ -118,10 +164,10 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
      into a chat. This copies that same shape from wherever the board is
      served, so a link made behind a proxy still points at the proxy. */
   const copyLink = useCallback(async () => {
-    const link = `${window.location.origin}/p/${data.project.id}?task=${boardTask?.key ?? taskId}`;
+    const link = `${window.location.origin}/p/${data.project.id}?task=${shown?.key ?? taskId}`;
     if (await copyText(link)) notify("Link copied", "info");
     else notify("The link did not copy. The address bar holds it.");
-  }, [boardTask, data.project.id, notify, taskId]);
+  }, [data.project.id, notify, shown, taskId]);
 
   /* The band takes the colour the card wears: its edge stripe, or the first
      colour the card view puts on it. The panel and the card it came from are
@@ -224,7 +270,9 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const run = detail?.run ?? null;
   const shownTab = tab === "agent" && !run ? "comments" : tab;
 
-  if (!boardTask) return null;
+  /* The board knows every task this panel can be opened on, so there is
+     nothing left to wait for before the head is drawn. */
+  if (!shown) return null;
 
   return (
     <aside className={styles.panel} data-testid="task-panel" ref={panelRef}>
@@ -248,12 +296,12 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       {/* One row, at the top, on an archived task. It says how long ago and
           offers the way back; nothing else about the panel changes, because an
           archived task is a whole task that no view is drawing. */}
-      {boardTask.archivedAt && (
+      {shown.archivedAt && (
         <div className={styles.archivedRow} data-testid="archived-row">
           {/* The words come from a clock, and the server reads its clock a
               moment before the browser reads its own. React is told so, rather
               than being left to find the two texts disagree on a boundary. */}
-          <span suppressHydrationWarning>Archived {longAgo(boardTask.archivedAt, now)}</span>
+          <span suppressHydrationWarning>Archived {longAgo(shown.archivedAt, now)}</span>
           <span className={styles.archivedSep}>·</span>
           <button
             className={styles.archivedBack}
@@ -261,7 +309,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               await restoreTask(taskId);
               /* The task's own history gained a line, and this panel is the
                  thing showing it. */
-              await load();
+              await reload();
             }}
           >
             Put it back
@@ -276,10 +324,10 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
             className={styles.key}
             data-testid="task-key"
             title="Copy link to this task"
-            aria-label={`Copy link to ${boardTask.key}`}
+            aria-label={`Copy link to ${shown.key}`}
             onClick={() => void copyLink()}
           >
-            {boardTask.key}
+            {shown.key}
           </button>
           <span style={{ flex: 1 }} />
           <button
@@ -313,14 +361,14 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               {/* Archive is the everyday way to make a task go away: the
                   panel stays open on the row that puts it back. Delete is for
                   a mistake, and it is still the one that ends things. */}
-              {!boardTask.archivedAt && (
+              {!shown.archivedAt && (
                 <button
                   className={styles.menuItem}
                   data-testid="archive-task"
                   onClick={async () => {
                     setMenuOpen(false);
                     await archiveTask(taskId);
-                    await load();
+                    await reload();
                   }}
                 >
                   <span className={styles.menuDot} />
@@ -342,123 +390,132 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           )}
         </div>
 
-        <TitleField
-          value={boardTask.title}
-          onCommit={(title) => void patchTask(taskId, { title })}
-        />
+        <TitleField value={shown.title} onCommit={(title) => void patchTask(taskId, { title })} />
       </div>
 
       <div className={styles.body}>
-        <div className={styles.props}>
-          {data.properties.map((property, index) => (
-            <div key={property.id} style={{ display: "contents" }}>
-              <div className={`${styles.propLabel} ${index > 0 ? styles.rowLine : ""}`}>
-                {property.name}
-              </div>
-              {/* The row is a grid of two cells, so the value carries the
+        {/* Everything below the head is the answer this panel fetched. An
+            archived task has no card to draw it from, so while that answer is
+            out the panel says so — an empty Priority on a task that has one
+            would be an answer nobody asked for. */}
+        {!boardTask ? (
+          <div className={styles.loading} data-testid="panel-loading">
+            Loading…
+          </div>
+        ) : (
+          <>
+            <div className={styles.props}>
+              {data.properties.map((property, index) => (
+                <div key={property.id} style={{ display: "contents" }}>
+                  <div className={`${styles.propLabel} ${index > 0 ? styles.rowLine : ""}`}>
+                    {property.name}
+                  </div>
+                  {/* The row is a grid of two cells, so the value carries the
                   name a test needs to reach it by. */}
-              <div
-                className={`${styles.propValue} ${index > 0 ? styles.rowLine : ""}`}
-                data-property={property.name}
-              >
-                <PropertyControl
-                  property={property}
-                  value={boardTask.values[property.id] ?? null}
-                  members={data.members}
-                  onChange={(value: TaskValue) => void setValue(taskId, property.id, value)}
-                  onAddOption={
-                    property.type === "select" || property.type === "multi_select"
-                      ? (name) => addOption(property.id, name)
-                      : undefined
-                  }
-                />
-              </div>
+                  <div
+                    className={`${styles.propValue} ${index > 0 ? styles.rowLine : ""}`}
+                    data-property={property.name}
+                  >
+                    <PropertyControl
+                      property={property}
+                      value={shown.values[property.id] ?? null}
+                      members={data.members}
+                      onChange={(value: TaskValue) => void setValue(taskId, property.id, value)}
+                      onAddOption={
+                        property.type === "select" || property.type === "multi_select"
+                          ? (name) => addOption(property.id, name)
+                          : undefined
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className={styles.section}>
-          <Description
-            value={boardTask.description}
-            onCommit={(description) => void patchTask(taskId, { description })}
-          />
-
-          <Checklist
-            taskId={taskId}
-            items={detail?.checklist ?? []}
-            loading={!detail}
-            reload={load}
-            onError={notify}
-          />
-        </div>
-
-        <div className={styles.tabs}>
-          <button
-            className={`${styles.tab} ${shownTab === "comments" ? styles.tabOn : ""}`}
-            onClick={() => setTab("comments")}
-          >
-            Comments {detail ? detail.comments.length : ""}
-          </button>
-          <button
-            className={`${styles.tab} ${shownTab === "activity" ? styles.tabOn : ""}`}
-            onClick={() => setTab("activity")}
-          >
-            Activity
-          </button>
-          {run && (
-            <button
-              className={`${styles.tab} ${shownTab === "agent" ? styles.tabOn : ""}`}
-              onClick={() => setTab("agent")}
-              data-testid="agent-tab"
-            >
-              <span
-                className={`${styles.tabDot} ${run.status === "running" ? styles.tabDotLive : ""}`}
-                style={{ background: run.agent.color }}
+            <div className={styles.section}>
+              <Description
+                value={shown.description}
+                onCommit={(description) => void patchTask(taskId, { description })}
               />
-              Agent
-            </button>
-          )}
-        </div>
 
-        {!detail && <div className={styles.loading}>Loading…</div>}
+              <Checklist
+                taskId={taskId}
+                items={detail?.checklist ?? []}
+                loading={!detail}
+                reload={reload}
+                onError={notify}
+              />
+            </div>
 
-        {detail && shownTab === "comments" && (
-          <Comments
-            taskId={taskId}
-            detail={detail}
-            me={user}
-            description={boardTask.description}
-            onUseAsDescription={(description) => patchTask(taskId, { description })}
-            reload={load}
-            onError={notify}
-          />
-        )}
+            <div className={styles.tabs}>
+              <button
+                className={`${styles.tab} ${shownTab === "comments" ? styles.tabOn : ""}`}
+                onClick={() => setTab("comments")}
+              >
+                Comments {detail ? detail.comments.length : ""}
+              </button>
+              <button
+                className={`${styles.tab} ${shownTab === "activity" ? styles.tabOn : ""}`}
+                onClick={() => setTab("activity")}
+              >
+                Activity
+              </button>
+              {run && (
+                <button
+                  className={`${styles.tab} ${shownTab === "agent" ? styles.tabOn : ""}`}
+                  onClick={() => setTab("agent")}
+                  data-testid="agent-tab"
+                >
+                  <span
+                    className={`${styles.tabDot} ${run.status === "running" ? styles.tabDotLive : ""}`}
+                    style={{ background: run.agent.color }}
+                  />
+                  Agent
+                </button>
+              )}
+            </div>
 
-        {detail && shownTab === "activity" && (
-          <div className={styles.feed}>
-            {detail.activity.length === 0 && (
-              <div className={styles.activityRow}>
-                <span className={styles.activityTime}>—</span>
-                <span className={styles.activityText}>Nothing has happened yet.</span>
+            {!detail && <div className={styles.loading}>Loading…</div>}
+
+            {detail && shownTab === "comments" && (
+              <Comments
+                taskId={taskId}
+                detail={detail}
+                me={user}
+                description={shown.description}
+                onUseAsDescription={(description) => patchTask(taskId, { description })}
+                reload={reload}
+                onError={notify}
+              />
+            )}
+
+            {detail && shownTab === "activity" && (
+              <div className={styles.feed}>
+                {detail.activity.length === 0 && (
+                  <div className={styles.activityRow}>
+                    <span className={styles.activityTime}>—</span>
+                    <span className={styles.activityText}>Nothing has happened yet.</span>
+                  </div>
+                )}
+                {detail.activity.map((entry) => (
+                  <div key={entry.id} className={styles.activityRow}>
+                    <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
+                    <span className={styles.activityText}>{describeActivity(entry)}</span>
+                  </div>
+                ))}
               </div>
             )}
-            {detail.activity.map((entry) => (
-              <div key={entry.id} className={styles.activityRow}>
-                <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
-                <span className={styles.activityText}>{describeActivity(entry)}</span>
-              </div>
-            ))}
-          </div>
-        )}
 
-        {run && shownTab === "agent" && (
-          <AgentRunBlock
-            run={run}
-            onControl={async (control) => {
-              await controlRun(run.id, control);
-              await load();
-            }}
-          />
+            {run && shownTab === "agent" && (
+              <AgentRunBlock
+                run={run}
+                onControl={async (control) => {
+                  await controlRun(run.id, control);
+                  await reload();
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     </aside>

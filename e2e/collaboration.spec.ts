@@ -120,6 +120,59 @@ test.describe("Two people on one board", () => {
     await friend.context.close();
   });
 
+  /*
+   * The board is shared, so an open panel has to follow what the other person
+   * does to its task. It used to keep "Archive task" in its menu and draw no
+   * archived row until the page was loaded again.
+   */
+  test("a task the other person archives reaches an open panel", async ({ browser }) => {
+    const owner = await freshPage(browser);
+    const friend = await freshPage(browser);
+
+    await register(owner.page, "Owner Person");
+    const projectId = await createProject(owner.page, unique("Follows"));
+    const friendAccount = await register(friend.page, "Friend Person");
+
+    await gotoSettings(owner.page, projectId, "people");
+    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
+    await owner.page.getByRole("button", { name: "Add member" }).click();
+    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+
+    await owner.page.goto(`/p/${projectId}`);
+    await addTask(owner.page, "Todo", "Watched from both sides");
+    // The owner leaves the panel open on it and touches nothing else.
+    await expect(owner.page.getByTestId("task-panel")).toBeVisible();
+    await expect(owner.page.getByTestId("archived-row")).toHaveCount(0);
+
+    await friend.page.goto(`/p/${projectId}`);
+    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
+    await card(friend.page, "Watched from both sides").click();
+    await friend.page.getByRole("button", { name: "Task menu" }).click();
+    await friend.page.getByTestId("archive-task").click();
+    await expect(friend.page.getByTestId("archived-row")).toBeVisible();
+
+    // The owner's panel says so by itself, and stops offering the archive.
+    await expect(owner.page.getByTestId("archived-row")).toBeVisible({ timeout: 15_000 });
+    await expect(card(owner.page, "Watched from both sides")).toHaveCount(0);
+    await owner.page.getByRole("button", { name: "Task menu" }).click();
+    await expect(owner.page.getByTestId("archive-task")).toHaveCount(0);
+    // Escape closes the menu. The panel keeps its place.
+    await owner.page.keyboard.press("Escape");
+    await expect(owner.page.getByTestId("task-panel")).toBeVisible();
+
+    // And the way back travels the same distance.
+    await friend.page.getByRole("button", { name: "Put it back" }).click();
+    await expect(friend.page.getByTestId("archived-row")).toHaveCount(0);
+
+    await expect(owner.page.getByTestId("archived-row")).toHaveCount(0, { timeout: 15_000 });
+    await expect(card(owner.page, "Watched from both sides").first()).toBeVisible();
+    await owner.page.getByRole("button", { name: "Task menu" }).click();
+    await expect(owner.page.getByTestId("archive-task")).toBeVisible();
+
+    await owner.context.close();
+    await friend.context.close();
+  });
+
   test("a person property lists the members and sticks", async ({ browser }) => {
     const owner = await freshPage(browser);
     const friend = await freshPage(browser);

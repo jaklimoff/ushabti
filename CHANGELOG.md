@@ -98,6 +98,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **An open task panel follows what somebody else does to it.** A task another
+  person archived, or put back, while your panel was open left the panel as it
+  was: no archived row, and _Archive task_ still in its menu until you loaded
+  the page again. The panel now reads the archived word from the board, which
+  the stream keeps fresh, so it arrives with every other change. A link to an
+  archived task also drew nothing until its own read landed; the key, the title
+  and the archived row are now there at once, with _Loading_ under them.
 - **A rule of yours can no longer contradict the view's.** Picking a property
   the view already filters used to start a second, blank rule beside it:
   answering it emptied the board with two chips that fought each other and
