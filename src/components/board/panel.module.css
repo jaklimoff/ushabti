@@ -1104,3 +1104,14 @@
   font-size: 11.5px;
   color: var(--faint-2);
 }
+
+@media (hover: none) {
+  /* There is no hover to wait for, and the ✕ is the only way a link goes. It
+     is drawn, and given the 24 px a finger needs, exactly as the check that
+     picks a card is. */
+  .linkRemove {
+    width: 24px;
+    height: 24px;
+    opacity: 1;
+  }
+}
