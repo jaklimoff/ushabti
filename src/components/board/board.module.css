@@ -188,20 +188,25 @@
 }
 
 /*
- * A phone. The top bar is already exactly full at 390 px, so the bar has to be
- * given room rather than added to it. The crumbs go, because the mark still
- * names the project and the view strip underneath still names the view, and
- * the search box narrows. Both come back the moment nothing is picked.
+ * The top bar is already exactly full at 390 px, so the bar is given room
+ * rather than added. Everything it takes comes back the moment nothing is
+ * picked.
  */
-@media (max-width: 560px) {
-  .top:has(.pickBar) .crumbName,
-  .top:has(.pickBar) .crumbSep,
-  .top:has(.pickBar) .crumbView {
+@media (max-width: 900px) {
+  /* The mark still names the project, and the strip below still names the
+     view, so the name in the middle is what there is to give. */
+  .top:has(.pickBar) .crumbName {
     display: none;
   }
+}
 
-  .top:has(.pickBar) .searchAnchor {
-    flex: 0 1 92px;
+@media (max-width: 560px) {
+  /* A phone has room for what you are doing and for nothing else. The search
+     box and the two links to other pages are neither: they are the ways off
+     this board, and you are in the middle of something on it. */
+  .top:has(.pickBar) .searchAnchor,
+  .top:has(.pickBar) .iconLink {
+    display: none;
   }
 }
 
@@ -793,8 +798,30 @@
   opacity: 1;
 }
 
+/* A check that is standing on every card has to be seen from across the
+   board, and an empty one on a dark card was a rumour of a box. */
+.cardPick[data-on="true"] {
+  border-color: var(--line-menu);
+}
+
 .cardPicked .cardPick {
   border-color: var(--accent);
+}
+
+/*
+ * While anything is picked, the first row of every card steps aside, so the
+ * check covers nothing that names the card. It moves once, when the first card
+ * is picked, and the board then holds still — which is why this is not done on
+ * hover, where every card would twitch as a pointer went past.
+ */
+.card:has(.cardPick[data-on="true"]) .cardTop {
+  padding-left: 17px;
+}
+
+/* A card whose view draws no header strip opens with its title. Only its
+   first line moves, because only its first line is under the check. */
+.card:has(.cardPick[data-on="true"]):not(:has(.cardTop)) .cardTitle {
+  text-indent: 17px;
 }
 
 .cardPick:hover {
