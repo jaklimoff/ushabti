@@ -290,6 +290,84 @@ test.describe("Agents on the board", () => {
     await expect(page.getByText("stopped answering")).toBeVisible();
   });
 
+  test("a long step says how long it takes, and the board waits for it", async ({
+    page,
+    request,
+  }) => {
+    await register(page, "Long Build Owner");
+    const projectId = await createProject(page, unique("Long"));
+    await addTask(page, "Todo", "A suite that runs for an hour");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Builder");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Builder" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find(
+      (t: { title: string }) => t.title === "A suite that runs for an hour",
+    );
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, { goal: "Ship it", step: "Reading the code" })
+    ).json();
+    expect(run.reportDueAt).toBeNull();
+
+    /* ---- the agent says the next word is forty-five minutes away ----- */
+
+    const saying = runClient(token, [
+      "step",
+      task.key,
+      "--say",
+      "Running the whole suite",
+      "--for",
+      "45",
+    ]);
+    expect(await saying.exited, saying.output()).toBe(0);
+    expect(saying.output()).toContain("control: none");
+
+    const stretched = (await (await api.get(`/api/runs/${run.id}`)).json()).run;
+    const ahead = new Date(stretched.reportDueAt).getTime() - Date.now();
+    expect(ahead).toBeGreaterThan(44 * 60_000);
+    expect(ahead).toBeLessThanOrEqual(45 * 60_000);
+
+    /* ---- a beat moves neither clock, and this one least of all ------- */
+
+    await api.patch(`/api/runs/${run.id}`, { beat: true });
+    const beaten = (await (await api.get(`/api/runs/${run.id}`)).json()).run;
+    expect(beaten.reportDueAt).toBe(stretched.reportDueAt);
+
+    /* ---- forty minutes of silence, and the card is still held -------- */
+
+    await page.goto(`/p/${projectId}`);
+    const held = card(page, "A suite that runs for an hour").first();
+    await backdateRun(run.id, 40);
+    await page.reload();
+    // Past the thirty minutes that would have closed any other run.
+    await expect(held.getByTestId("card-run")).toBeVisible();
+    await expect(held.getByTestId("card-run-step")).toHaveText("Running the whole suite");
+
+    /* ---- the next report puts the ordinary lease back ---------------- */
+
+    const done = runClient(token, ["step", task.key, "--say", "The suite passed"]);
+    expect(await done.exited, done.output()).toBe(0);
+    const back = (await (await api.get(`/api/runs/${run.id}`)).json()).run;
+    expect(back.reportDueAt).toBeNull();
+
+    /* ---- so the run is lost again on silence, beat or no beat -------- */
+
+    await backdateRun(run.id, 40);
+    await api.patch(`/api/runs/${run.id}`, { beat: true });
+    await page.reload();
+    await expect(held.getByTestId("card-run")).toBeHidden();
+    expect((await api.patch(`/api/runs/${run.id}`, { step: "Back!" })).status()).toBe(409);
+  });
+
   test("a token only opens its own project, and a revoked one opens nothing", async ({
     page,
     request,

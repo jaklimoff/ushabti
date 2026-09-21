@@ -61,7 +61,7 @@ needs a second code path and a nullable column beside the first.
 | `checklist_items` | text, done, rank |
 | `comments` | body and author. Never edited |
 | `activity` | one row per thing that happened, with a free-form `data` object |
-| `agent_runs` | goal, step, status, control, and the two clocks |
+| `agent_runs` | goal, step, status, control, and the clocks |
 | `agent_run_steps` | the plan, each step `todo`, `active` or `done` |
 | `agent_run_log` | append-only lines. The panel shows the last 40 |
 
@@ -75,6 +75,11 @@ needs a second code path and a nullable column beside the first.
 The lease that closes a silent run counts `updated_at`. Let a beat write it and a heartbeat left
 behind by a killed session holds a card open all day, which is the exact fault the lease exists to
 fix.
+
+A third column, `report_due_at`, is null on almost every run. A report may name how long the next
+word takes — `reportFor`, at most an hour — and then the lease reads that moment instead. Only a
+report writes it, and the next report sets it back to null, so a long build is covered once and a
+timer still cannot hold a card open.
 
 ## Cascades
 

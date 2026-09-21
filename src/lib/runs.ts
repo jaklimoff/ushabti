@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNull, lt, ne, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
 import { logActivity } from "./activity";
@@ -39,6 +39,7 @@ type RunRow = {
   startedAt: Date;
   updatedAt: Date;
   beatAt: Date;
+  reportDueAt: Date | null;
   endedAt: Date | null;
   agentId: string;
   agentName: string;
@@ -55,6 +56,7 @@ const runColumns = {
   startedAt: agentRuns.startedAt,
   updatedAt: agentRuns.updatedAt,
   beatAt: agentRuns.beatAt,
+  reportDueAt: agentRuns.reportDueAt,
   endedAt: agentRuns.endedAt,
   agentId: users.id,
   agentName: users.name,
@@ -73,6 +75,7 @@ function shapeRow(row: RunRow): AgentRunRowDTO {
     startedAt: row.startedAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     beatAt: row.beatAt.toISOString(),
+    reportDueAt: row.reportDueAt?.toISOString() ?? null,
     endedAt: row.endedAt?.toISOString() ?? null,
     agent: { id: row.agentId, name: row.agentName, color: row.agentColor },
   };
@@ -98,6 +101,10 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
  * It counts reports, not beats. A beat left running by a dead session must
  * never be able to hold a card open.
  *
+ * A report may name how long the next one takes, and then the run is judged
+ * by that moment instead. It is still a report: an agent wrote it once, about
+ * the step it was starting, and its next report takes it away again.
+ *
  * A run that is waiting is left alone. It asked a person something and
  * stopped on purpose, so its silence is the expected answer, not evidence.
  * Take over still ends it at any moment.
@@ -107,7 +114,8 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
  * this project would then have to run, watch and ship.
  */
 async function sweepLost(scope: SQL | undefined): Promise<void> {
-  const cutoff = new Date(Date.now() - REPORT_LEASE_MS);
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - REPORT_LEASE_MS);
   const closed = await db
     .update(agentRuns)
     .set({ status: "lost", control: null, endedAt: new Date() })
@@ -115,7 +123,11 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
       and(
         isNull(agentRuns.endedAt),
         ne(agentRuns.status, "waiting"),
-        lt(agentRuns.updatedAt, cutoff),
+        // The two halves of `leaseEndsAt`, asked of the rows.
+        or(
+          and(isNull(agentRuns.reportDueAt), lt(agentRuns.updatedAt, cutoff)),
+          and(isNotNull(agentRuns.reportDueAt), lt(agentRuns.reportDueAt, now)),
+        ),
         scope,
       ),
     )

@@ -95,7 +95,7 @@ Worth stating plainly, so you do not go looking:
 - **Session length** is 30 days. The cookie is `ushabti_session`, `httpOnly`, `SameSite=Lax`.
 - **The colour palette** is twelve fixed colours for options and eight for avatars. A board where
   anybody can pick any colour stops meaning anything.
-- **The run lease** is 30 minutes without a report; a run reads *quiet* after 6 minutes.
+- **The run lease** is 30 minutes without a report, or longer when a report said so with `reportFor`, up to 60 minutes; a run reads *quiet* after 6 minutes.
 - **There is no SMTP setting**, because there is no email anywhere in the product — no invites, no
   notifications, and no reset mail. A forgotten password is answered by the owner of a project, who
   makes a link and sends it by hand: [A forgotten

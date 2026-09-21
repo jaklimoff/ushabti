@@ -3,12 +3,15 @@ import {
   duration,
   elapsed,
   isOpen,
+  leaseEndsAt,
   leaseLeft,
   lifeOf,
+  MAX_REPORT_FOR_MS,
   obeys,
   pastRunWords,
   progressOf,
   REPORT_LEASE_MS,
+  reportForMs,
   runClock,
   runIsStill,
   runLine,
@@ -86,6 +89,53 @@ describe("is anybody still there", () => {
   it("counts the lease from the last report, and never below zero", () => {
     expect(leaseLeft({ updatedAt: fresh }, now)).toBe(REPORT_LEASE_MS);
     expect(leaseLeft({ updatedAt: ago(REPORT_LEASE_MS + 60_000) }, now)).toBe(0);
+  });
+});
+
+describe("a report that says how long the next one takes", () => {
+  const now = new Date("2026-09-21T12:00:00Z").getTime();
+  const ago = (ms: number) => new Date(now - ms).toISOString();
+  const ahead = (ms: number) => new Date(now + ms).toISOString();
+
+  it("holds the run open past the ordinary lease", () => {
+    const long = { updatedAt: ago(40 * 60_000), reportDueAt: ahead(5 * 60_000) };
+    // Forty minutes without a word, and the run is still alive, because the
+    // last word said the next one was forty-five minutes away.
+    expect(leaseLeft(long, now)).toBe(5 * 60_000);
+    expect(leaseEndsAt(long)).toBe(now + 5 * 60_000);
+  });
+
+  it("closes the run once the moment it named is past", () => {
+    expect(leaseLeft({ updatedAt: ago(70 * 60_000), reportDueAt: ago(60_000) }, now)).toBe(0);
+  });
+
+  it("falls back to the last report when no report named a moment", () => {
+    expect(leaseLeft({ updatedAt: ago(10 * 60_000), reportDueAt: null }, now)).toBe(
+      REPORT_LEASE_MS - 10 * 60_000,
+    );
+  });
+
+  // A beat writes `beat_at` and nothing else, so it can reach neither half of
+  // the lease. This is the rule the whole feature had to keep.
+  it("never lets a beat hold a run open", () => {
+    const beating = { updatedAt: ago(REPORT_LEASE_MS + 60_000), beatAt: ago(0), reportDueAt: null };
+    expect(leaseLeft(beating, now)).toBe(0);
+    expect(lifeOf(beating, now)).toBe("quiet");
+  });
+
+  it("grants at most an hour, whatever is asked for", () => {
+    expect(reportForMs(45)).toBe(45 * 60_000);
+    expect(reportForMs(60)).toBe(MAX_REPORT_FOR_MS);
+    expect(reportForMs(90)).toBe(MAX_REPORT_FOR_MS);
+    expect(reportForMs(60 * 24)).toBe(MAX_REPORT_FOR_MS);
+  });
+
+  // Naming a short step is telling the board when to expect the next word. It
+  // is not asking to be closed sooner than every other run.
+  it("keeps the ordinary lease for anything under it", () => {
+    expect(reportForMs(3)).toBe(REPORT_LEASE_MS);
+    expect(reportForMs(30)).toBe(REPORT_LEASE_MS);
+    expect(reportForMs(31)).toBe(31 * 60_000);
   });
 });
 

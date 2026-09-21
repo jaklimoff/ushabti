@@ -49,6 +49,31 @@ export const SILENT_AFTER_MS = 3 * BEAT_EVERY_MS;
 export const REPORT_LEASE_MS = 30 * 60_000;
 
 /**
+ * The longest a single report may push the next one out.
+ *
+ * An agent that says "my next word is an hour away" has told a person
+ * something they can act on. One that says "a day away" has only turned the
+ * lease off, and the lease is the only thing that ever gets a card back.
+ */
+export const MAX_REPORT_FOR_MS = 60 * 60_000;
+
+/**
+ * How long a report buys, when the report says so itself.
+ *
+ * It only ever stretches. A step that says three minutes is naming when to
+ * expect the next word, not asking to be closed sooner than any other run,
+ * so anything under the ordinary lease keeps the ordinary lease. Above it,
+ * an hour is the most a report can ask for.
+ *
+ * This is a report and not a beat: an agent says it once, by hand, about the
+ * step it is starting. No timer can write it.
+ */
+export function reportForMs(minutes: number): number {
+  const asked = Math.round(minutes * 60_000);
+  return Math.min(MAX_REPORT_FOR_MS, Math.max(REPORT_LEASE_MS, asked));
+}
+
+/**
  * What the board can honestly say about an open run.
  *
  * - `reporting` — the agent said something recently. The work moves.
@@ -68,10 +93,24 @@ export function lifeOf(
   return now - new Date(run.beatAt).getTime() < SILENT_AFTER_MS ? "quiet" : "silent";
 }
 
+/** What the lease reads: the last report, and the deadline that report named. */
+type RunLease = Pick<AgentRunDTO, "updatedAt"> & Partial<Pick<AgentRunDTO, "reportDueAt">>;
+
+/**
+ * The moment the board closes this run, unless the agent speaks again.
+ *
+ * A run whose last report named how long the next word takes is judged by
+ * that moment; every other run by its last report and the ordinary lease.
+ * `sweepLost` asks the database the same question, in the same two halves.
+ */
+export function leaseEndsAt(run: RunLease): number {
+  if (run.reportDueAt) return new Date(run.reportDueAt).getTime();
+  return new Date(run.updatedAt).getTime() + REPORT_LEASE_MS;
+}
+
 /** How long the run has left before the board closes it, in ms. Never below zero. */
-export function leaseLeft(run: Pick<AgentRunDTO, "updatedAt">, now: number = Date.now()): number {
-  const left = new Date(run.updatedAt).getTime() + REPORT_LEASE_MS - now;
-  return Math.max(0, left);
+export function leaseLeft(run: RunLease, now: number = Date.now()): number {
+  return Math.max(0, leaseEndsAt(run) - now);
 }
 
 /**

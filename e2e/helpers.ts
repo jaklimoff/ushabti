@@ -289,13 +289,18 @@ export async function saved(page: Page, action: () => Promise<void>) {
  * to shorten the rule, because the rule is the thing under test. So it moves
  * the clock the run carries instead, which is what a killed agent looks like
  * from the outside: a row nobody wrote again.
+ *
+ * A run whose last report said when the next one is due carries that moment
+ * too, so it moves by the same amount. A step that asked for forty-five
+ * minutes and was reported forty minutes ago has five minutes left.
  */
 export async function backdateRun(runId: string, minutes: number): Promise<void> {
   await inDatabase(async (client) => {
     await client.query(
       `update agent_runs
-          set updated_at = now() - ($2 || ' minutes')::interval,
-              beat_at    = now() - ($2 || ' minutes')::interval
+          set updated_at    = now() - ($2 || ' minutes')::interval,
+              beat_at       = now() - ($2 || ' minutes')::interval,
+              report_due_at = report_due_at - ($2 || ' minutes')::interval
         where id = $1`,
       [runId, String(minutes)],
     );

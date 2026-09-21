@@ -58,6 +58,7 @@ PATCH /api/runs/{runId}
 | `goal`      | string  | Change the goal. 200 characters.                                   |
 | `steps`     | string[]| Replace the whole plan. 50 steps.                                  |
 | `status`    | string  | `running`, `paused`, `done`, `failed`, `stopped` or `lost`.        |
+| `reportFor` | number  | Minutes until your next report. Stretches the lease once, to at most **60 minutes**. |
 
 **The answer carries the control word:**
 
@@ -105,6 +106,23 @@ The lease counts **reports**. If a beat could touch `updated_at`, a heartbeat le
 session would hold a card open all day — which is the exact fault the lease exists to fix. And a card
 reading "Writing the tests" has to mean the agent said so, not that a timer ticked.
 
+## Say how long the next word takes
+
+A beat cannot hold the run open, so a step longer than the lease says so in a report:
+
+```json
+{ "step": "Running the whole suite", "reportFor": 45 }
+```
+
+Use it **before** the step, not after: a build, a full test suite, a wait for a person. The board
+then expects the next word in forty-five minutes instead of thirty, and calls the run lost only
+after that. Sixty minutes is the most one report can ask for; a smaller number keeps the ordinary
+thirty, because naming a short step is not a reason to be closed sooner than anybody else. The next
+report clears it.
+
+It is a report and not a timer — written once, by hand, about the step it starts — which is why it
+may do what a beat may not. `board.mjs step USH-14 --say "Running the suite" --for 45` sends it.
+
 ## Close it
 
 ```http
@@ -151,6 +169,7 @@ exactly as it does for an open one.
 | over 6 minutes, still beating  | `quiet 8m`                             | *"Builder is alive but has reported nothing for 8m."* |
 | over 6 minutes, no beat either | `silent 21m`                           | *"Nothing from Builder for 21m."* |
 | **30 minutes**                 | the run is closed as `lost`            | *"stopped answering, so the board closed the run"* |
+| **`reportFor` minutes**        | the same, later, when the last report named the length | the panel counts down to that moment |
 
 Below six minutes the card shows how long the agent has *worked*; above it, how long ago it last
 *spoke*. The strip has room for one number, and that is the one a person needs.
@@ -161,7 +180,7 @@ goes back to whoever wants it."*
 ## The lease
 
 A run that has not **reported** for thirty minutes is closed as `lost`, its control word cleared, and
-a log line added:
+a log line added — or for as long as its last report asked for with `reportFor`, up to an hour:
 
 ```
 no word from the agent, so the board closed the run
