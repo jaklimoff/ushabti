@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
+import { buildColumns } from "../board";
 import { canSort, nextSort, readSort, sortTasks } from "../sort";
-import type { MemberDTO, PropertyDTO, TaskDTO } from "../types";
+import type { MemberDTO, PropertyDTO, TaskDTO, ViewSort } from "../types";
 
 const PRIORITY: PropertyDTO = {
   id: "p-prio",
@@ -239,5 +240,60 @@ describe("reading a saved sort", () => {
 describe("which headings can be pressed", () => {
   it("is every column a list draws", () => {
     expect(ITEMS.filter((i) => i.place !== "off").every(canSort)).toBe(true);
+  });
+});
+
+describe("what a sort does to a board", () => {
+  /* A board has no comparator of its own. `buildColumns` pushes the tasks into
+     the columns in the order it is given them, so one pass over the whole board
+     is the order inside every column — which is the whole reason a board and a
+     list can share this file. */
+  const STATUS: PropertyDTO = {
+    id: "p-status",
+    name: "Status",
+    type: "select",
+    position: "A",
+    config: {},
+    options: [
+      { id: "o-todo", name: "Todo", color: "#d1913a", position: "V" },
+      { id: "o-doing", name: "Doing", color: "#3fb0c8", position: "k" },
+    ],
+  };
+
+  const BOARD = [
+    task("a", { "p-status": "o-todo", "p-prio": "o-low" }),
+    task("b", { "p-status": "o-doing", "p-prio": "o-low" }),
+    task("c", { "p-status": "o-todo", "p-prio": "o-urgent" }),
+    task("d", { "p-status": "o-doing", "p-prio": "o-high" }),
+    task("e", { "p-status": "o-todo" }),
+  ];
+
+  function columns(sort: ViewSort | null): [string, string[]][] {
+    return buildColumns(STATUS, sortTasks(BOARD, sort, ITEMS, MEMBERS), MEMBERS).map((column) => [
+      column.name,
+      column.tasks.map((t) => t.id),
+    ]);
+  }
+
+  it("orders every column in one pass over the whole board", () => {
+    expect(columns({ columnId: "p-prio", direction: "asc" })).toEqual([
+      ["Todo", ["c", "a", "e"]],
+      ["Doing", ["d", "b"]],
+    ]);
+  });
+
+  it("keeps a card that holds nothing at the end of its own column", () => {
+    expect(columns({ columnId: "p-prio", direction: "desc" })).toEqual([
+      ["Todo", ["a", "c", "e"]],
+      ["Doing", ["b", "d"]],
+    ]);
+  });
+
+  it("writes nothing, so the columns come back as they were", () => {
+    expect(columns(null)).toEqual([
+      ["Todo", ["a", "c", "e"]],
+      ["Doing", ["b", "d"]],
+    ]);
+    expect(BOARD.map((t) => t.position)).toEqual(["a", "b", "c", "d", "e"]);
   });
 });

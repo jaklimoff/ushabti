@@ -10,6 +10,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A board can be sorted, as a list can.** A **Sort** button beside **Filter**
+  opens a list of everything a card carries: press one and every column draws
+  its cards in that order, press it again to turn the order around, and a third
+  time for the order the board itself keeps. The chip the list already drew is
+  now drawn on a board too, and its ✕ is the other way back. A sort writes
+  nothing, so while one is on a card cannot be dragged to another place inside
+  its column — it can still be carried to another column, which writes that
+  column's value and leaves every rank alone.
 - **An agent can tick a checklist item.** `board.mjs check USH-14 "the item"`
   added one and nothing ticked it, so an agent that met an acceptance criterion
   had to call the API by hand. `--done` now ticks the item those words name —

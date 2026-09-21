@@ -1,17 +1,41 @@
 import { expect, test } from "@playwright/test";
 import {
+  addListView,
   addTask,
   card,
   centreOf,
   column,
+  columnOrder,
   createProject,
   dragCard,
   dragOnto,
   register,
   settles,
+  sortBoard,
   unique,
   viewOrder,
 } from "./helpers";
+
+type Page = import("@playwright/test").Page;
+
+/**
+ * Three cards in Todo and one in Backlog, added in an order that is not the
+ * order any priority puts them in.
+ */
+async function aPricedBoard(page: Page) {
+  for (const [title, priority] of [
+    ["Aardvark", "Low"],
+    ["Beetle", "Urgent"],
+    ["Cricket", ""],
+  ] as const) {
+    await addTask(page, "Todo", title);
+    if (priority) await page.getByRole("button", { name: priority, exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+  }
+  await addTask(page, "Backlog", "Dingo");
+  await page.getByRole("button", { name: "High", exact: true }).click();
+  await page.getByRole("button", { name: "Close task" }).click();
+}
 
 test.describe("Ushabti board", () => {
   test("sign up, create a project and get the default properties", async ({ page }) => {
@@ -519,5 +543,115 @@ test.describe("Ushabti board", () => {
     await expect(column(page, "Blocked")).toBeVisible();
     await page.goto(`/p/${projectId}`);
     await expect(column(page, "Blocked")).toBeVisible();
+  });
+});
+
+/* A board is ordered from a button, because it has no heading to press. What
+   the order then means is the list's answer, read by the same file. */
+test.describe("Ordering a board", () => {
+  test("orders every column, and the cards hold still while it is on", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Ordered"));
+    await aPricedBoard(page);
+
+    expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
+
+    // Every column is in the order, and a card with no priority goes last.
+    await sortBoard(page, "Priority");
+    await expect(page.getByTestId("sort-chip")).toContainText("Priority");
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+
+    // A drag inside a column writes a rank, and there is no rank on screen to
+    // write. So the card goes back where the order has it.
+    const beetle = await card(page, "Beetle").boundingBox();
+    await dragCard(page, "Aardvark", { x: beetle!.x + beetle!.width / 2, y: beetle!.y + 10 }, null);
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+
+    // Nor do the arrows of a lifted card: they belong to the drag, and inside
+    // a sorted column there is nowhere for them to take it.
+    await card(page, "Aardvark").first().focus();
+    await page.keyboard.press("Space");
+    await expect(page.getByTestId("card-overlay")).toBeVisible();
+    await page.waitForTimeout(150);
+    await page.keyboard.press("ArrowUp");
+    await page.keyboard.press("Space");
+    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+
+    // Another column still takes the card, because that writes the column's
+    // value and no rank at all — and the order says where it lands, under a
+    // card that was there first.
+    await dragCard(
+      page,
+      "Aardvark",
+      await centreOf(page, "Backlog"),
+      /\/api\/tasks\/[0-9a-f-]+\/values\//,
+    );
+    expect(await columnOrder(page, "Backlog")).toEqual(["Dingo", "Aardvark"]);
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Cricket"]);
+
+    // The ✕ gives the board its own order back, and it is the order it always
+    // had: Aardvark is above Dingo again, so nothing the drags did wrote a
+    // rank.
+    await settles(page, /\/api\/views\/[0-9a-f-]+$/, () => page.getByTestId("sort-clear").click());
+    await expect(page.getByTestId("sort-chip")).toHaveCount(0);
+    expect(await columnOrder(page, "Backlog")).toEqual(["Aardvark", "Dingo"]);
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Cricket"]);
+  });
+
+  test("the same press turns it around, and it holds across a reload", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Around"));
+    await aPricedBoard(page);
+
+    await sortBoard(page, "Priority");
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+
+    // Again for the other way. Nothing holds a card with no priority at the
+    // top, whichever way the order runs.
+    await sortBoard(page, "Priority");
+    expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
+
+    await page.goto(`/p/${projectId}`);
+    await expect(page.getByTestId("sort-chip")).toContainText("Priority");
+    expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
+
+    // A third press is the way back, exactly as a heading's third press is.
+    await sortBoard(page, "Priority");
+    await expect(page.getByTestId("sort-chip")).toHaveCount(0);
+    expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
+  });
+
+  test("a list is ordered by its headings, so it has no button", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Headings"));
+    await addTask(page, "Todo", "Only one");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await expect(page.getByTestId("sort-button")).toBeVisible();
+    await addListView(page, "Rows");
+    await expect(page.getByTestId("sort-button")).toHaveCount(0);
+  });
+});
+
+/* The button reaches a phone, so its panel has to fit on one. */
+test.describe("Ordering a board on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 } });
+
+  test("the button is in the strip and its panel fits the screen", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Pocket"));
+    await aPricedBoard(page);
+
+    await expect(page.getByTestId("sort-button")).toBeVisible();
+    // Nothing in the view strip is pushed off the side of the screen.
+    for (const testid of ["sort-button", "filter-button", "task-count"]) {
+      const box = await page.getByTestId(testid).boundingBox();
+      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    }
+
+    await sortBoard(page, "Priority");
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+    await expect(page.getByTestId("sort-chip")).toBeVisible();
   });
 });

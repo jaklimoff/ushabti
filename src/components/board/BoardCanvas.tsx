@@ -39,7 +39,8 @@ import {
 } from "@/lib/board";
 import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
-import type { FilterRule, TaskDTO, TaskValue } from "@/lib/types";
+import { sortTasks } from "@/lib/sort";
+import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column, type ComposerPlace } from "./Column";
 import { useShortcut } from "./keys";
@@ -92,59 +93,83 @@ const collision: CollisionDetection = (args) => {
  * card jumped straight over the gap it was aimed at — the same reckoning the
  * collision above had to stop trusting, for the same reason.
  *
- * Up and down stay with dnd-kit: inside one column its answer is right.
+ * Up and down stay with dnd-kit: inside one column its answer is right. Under
+ * a sort they do nothing at all, because a place inside a column is a rank and
+ * a sorted board has none to write. The key is swallowed all the same, or the
+ * column scrolls instead and the board reads as having jumped by itself.
  */
-const liftedCardCoordinates: KeyboardCoordinateGetter = (event, args) => {
-  const way = event.code === "ArrowLeft" ? -1 : event.code === "ArrowRight" ? 1 : 0;
-  if (!way) return sortableKeyboardCoordinates(event, args);
-
-  const { collisionRect, droppableContainers, droppableRects } = args.context;
-  if (!collisionRect) return undefined;
-  event.preventDefault();
-
-  // The column next door is the nearest one that clears the card altogether.
-  // Its own column never does, which is what keeps the card moving.
-  let column: { id: string; rect: ClientRect } | null = null;
-  const cards: { columnId: string; rect: ClientRect }[] = [];
-
-  for (const entry of droppableContainers.getEnabled()) {
-    const data = entry.data.current;
-    const rect = droppableRects.get(entry.id);
-    if (!data || !rect) continue;
-
-    if (data.type === "card") {
-      cards.push({ columnId: String(data.columnId), rect });
-      continue;
+const liftedCardCoordinates =
+  (sorted: boolean): KeyboardCoordinateGetter =>
+  (event, args) => {
+    const way = event.code === "ArrowLeft" ? -1 : event.code === "ArrowRight" ? 1 : 0;
+    if (!way) {
+      if (!sorted) return sortableKeyboardCoordinates(event, args);
+      event.preventDefault();
+      return undefined;
     }
-    if (data.type !== "container") continue;
 
-    const beside = way > 0 ? rect.left >= collisionRect.right : rect.right <= collisionRect.left;
-    const nearer =
-      !column || (way > 0 ? rect.left < column.rect.left : rect.right > column.rect.right);
-    if (beside && nearer) column = { id: String(data.columnId), rect };
-  }
+    const { collisionRect, droppableContainers, droppableRects } = args.context;
+    if (!collisionRect) return undefined;
+    event.preventDefault();
 
-  if (!column) return undefined;
+    // The column next door is the nearest one that clears the card altogether.
+    // Its own column never does, which is what keeps the card moving.
+    let column: { id: string; rect: ClientRect } | null = null;
+    const cards: { columnId: string; rect: ClientRect }[] = [];
 
-  // Inside that column the card keeps the height it was at. An empty column has
-  // no card to keep it beside, so the column itself is the target.
-  const middle = collisionRect.top + collisionRect.height / 2;
-  let target = column.rect;
-  let nearest = Number.POSITIVE_INFINITY;
-  for (const card of cards) {
-    if (card.columnId !== column.id) continue;
-    const gap = Math.abs(card.rect.top + card.rect.height / 2 - middle);
-    if (gap < nearest) {
-      nearest = gap;
-      target = card.rect;
+    for (const entry of droppableContainers.getEnabled()) {
+      const data = entry.data.current;
+      const rect = droppableRects.get(entry.id);
+      if (!data || !rect) continue;
+
+      if (data.type === "card") {
+        cards.push({ columnId: String(data.columnId), rect });
+        continue;
+      }
+      if (data.type !== "container") continue;
+
+      const beside = way > 0 ? rect.left >= collisionRect.right : rect.right <= collisionRect.left;
+      const nearer =
+        !column || (way > 0 ? rect.left < column.rect.left : rect.right > column.rect.right);
+      if (beside && nearer) column = { id: String(data.columnId), rect };
     }
-  }
 
-  return { x: target.left, y: target.top };
-};
+    if (!column) return undefined;
+
+    // Inside that column the card keeps the height it was at. An empty column has
+    // no card to keep it beside, so the column itself is the target.
+    const middle = collisionRect.top + collisionRect.height / 2;
+    let target = column.rect;
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const card of cards) {
+      if (card.columnId !== column.id) continue;
+      const gap = Math.abs(card.rect.top + card.rect.height / 2 - middle);
+      if (gap < nearest) {
+        nearest = gap;
+        target = card.rect;
+      }
+    }
+
+    return { x: target.left, y: target.top };
+  };
 
 function findColumn(columns: BoardColumn[], taskId: string) {
   return columns.find((c) => c.tasks.some((t) => t.id === taskId)) ?? null;
+}
+
+/**
+ * Whether a card already holds the value the column it is in stands for.
+ *
+ * A drop across columns writes exactly this one value, and a drop back into
+ * the column the card came from writes nothing. Asked in one place, so the
+ * sorted board and the board in its own order cannot answer it differently.
+ */
+function landed(task: TaskDTO, property: PropertyDTO, column: BoardColumn): boolean {
+  const current = task.values[property.id] ?? null;
+  const wanted = column.value;
+  return property.type === "checkbox"
+    ? (current === true) === (wanted === true)
+    : (current ?? null) === (wanted ?? null);
 }
 
 function columnOf(columns: BoardColumn[], overId: string) {
@@ -201,7 +226,10 @@ export function BoardCanvas({
     groupProperty,
     filters,
     visibleTasks,
+    sort,
+    cardItems,
     moveTask,
+    setValue,
     createTask,
     archiveColumn,
     patchOption,
@@ -233,15 +261,33 @@ export function BoardCanvas({
   // The filters of the view are already off `visibleTasks`, so every part of
   // the board below this line — the columns, the drag preview, the cursor —
   // sees the same board a person sees.
+  //
+  // The sort is applied once, over the whole board, before the tasks are put
+  // into columns: `buildColumns` pushes them in the order it is given them, so
+  // one pass is the order inside every column. A list already asks `sortTasks`
+  // the same question, and there is no second comparator here.
   const base = useMemo(
     () =>
       allowedColumns(
-        buildColumns(groupProperty, sortByPosition(visibleTasks), data.members),
+        buildColumns(
+          groupProperty,
+          sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members),
+          data.members,
+        ),
         filters,
         groupProperty,
       ),
-    [visibleTasks, data.members, filters, groupProperty],
+    [visibleTasks, sort, cardItems, data.members, filters, groupProperty],
   );
+
+  /*
+   * A drag writes a rank, and a sorted board is not showing ranks. So a card
+   * has nowhere to be put inside its own column: the cards hold still and the
+   * drop writes nothing at all. Dropping it on another column still works,
+   * because that writes the column's value and no rank, and the sort then says
+   * where the card lands. The chip above the board is the way back.
+   */
+  const sorted = sort !== null;
 
   const columns = useMemo(() => {
     const list = preview ?? base;
@@ -283,12 +329,16 @@ export function BoardCanvas({
     [columns, cursor],
   );
 
+  /* Space still lifts a card on a sorted board, because the card can still be
+     carried to another column. Only the way inside a column is shut. */
+  const coordinateGetter = useMemo(() => liftedCardCoordinates(sorted), [sorted]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     // Space picks a card up and puts it down. Enter is left alone so it can
     // still open the task.
     useSensor(KeyboardSensor, {
-      coordinateGetter: liftedCardCoordinates,
+      coordinateGetter,
       keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
     }),
   );
@@ -399,6 +449,21 @@ export function BoardCanvas({
       return;
     }
 
+    const held = data.tasks.find((t) => t.id === activeId);
+
+    /*
+     * A sorted board writes the column the card landed on and nothing else.
+     * Back in the column it came from there is nothing to write, because the
+     * place a card has in a sorted column was never the drag's to give.
+     */
+    if (sorted) {
+      setPreview(null);
+      if (!groupProperty || !held || landed(held, groupProperty, target)) return;
+      takeOver(activeId);
+      void setValue(activeId, groupProperty.id, target.value);
+      return;
+    }
+
     let ordered = target.tasks;
     if (overId.startsWith(CONTAINER_PREFIX)) {
       // Dropped on the free space under the cards. If the card comes from
@@ -418,16 +483,9 @@ export function BoardCanvas({
     const beforeId = ordered[index + 1]?.id ?? null;
     const afterId = ordered[index - 1]?.id ?? null;
 
-    const task = data.tasks.find((t) => t.id === activeId);
     const values: Record<string, TaskValue> = {};
-    if (groupProperty && task) {
-      const current = task.values[groupProperty.id] ?? null;
-      const wanted = target.value;
-      const same =
-        groupProperty.type === "checkbox"
-          ? (current === true) === (wanted === true)
-          : (current ?? null) === (wanted ?? null);
-      if (!same) values[groupProperty.id] = wanted;
+    if (groupProperty && held && !landed(held, groupProperty, target)) {
+      values[groupProperty.id] = target.value;
     }
 
     const unchanged =
@@ -437,15 +495,18 @@ export function BoardCanvas({
     setPreview(null);
     if (unchanged) return;
 
-    // Moving a card an agent holds takes it over. The run ends, the agent
-    // reads that on its next report, and the person owns the card again.
-    const run = runOf(activeId);
-    if (run) {
-      notify(`You took ${task?.key ?? "the task"} over from ${run.agent.name}.`, "info");
-      void controlRun(run.id, "take_over");
-    }
-
+    takeOver(activeId);
     void moveTask({ taskId: activeId, beforeId, afterId, values });
+  }
+
+  /* Moving a card an agent holds takes it over. The run ends, the agent reads
+     that on its next report, and the person owns the card again. */
+  function takeOver(taskId: string) {
+    const run = runOf(taskId);
+    if (!run) return;
+    const task = data.tasks.find((t) => t.id === taskId);
+    notify(`You took ${task?.key ?? "the task"} over from ${run.agent.name}.`, "info");
+    void controlRun(run.id, "take_over");
   }
 
   async function addTask(column: BoardColumn, title: string, atTop: boolean) {
@@ -537,6 +598,7 @@ export function BoardCanvas({
                 selectedTaskId={selectedTaskId}
                 cursorTaskId={cursorTaskId}
                 draggable={columnsDraggable && !column.isNone && !column.folded}
+                frozen={sorted}
                 composing={composing?.columnId === column.id ? composing.place : null}
                 onCompose={(place) => setComposing(place ? { columnId: column.id, place } : null)}
                 onOpenTask={onOpenTask}

@@ -7,8 +7,8 @@ sidebar:
 
 import { Aside, Badge, LinkCard } from '@astrojs/starlight/components'
 
-A view is a name, a **kind**, one grouping property, a set of filter rules and — for a list — an
-order. That is all it holds. It owns no tasks, so making one, changing one or deleting one never touches your work.
+A view is a name, a **kind**, one grouping property, a set of filter rules and an order. That is all
+it holds. It owns no tasks, so making one, changing one or deleting one never touches your work.
 
 ## The two kinds
 
@@ -16,13 +16,14 @@ order. That is all it holds. It owns no tasks, so making one, changing one or de
 
 | Kind      | What you get                                                                   |
 | --------- | ------------------------------------------------------------------------------ |
-| **Board** | Cards in columns, one column for each value of the grouping property.           |
+| **Board** | Cards in columns, one column for each value of the grouping property — in the order every view shares, or in the order the **Sort** button asks for. |
 | **List**  | One row for each task, in the one order every view shares — or in the order you press a heading for. No columns, no grouping. |
 
 </div>
 
-The same tasks either way. A filter, the card view and the card order are shared by both, so
-switching a view between them changes the drawing and nothing else. See
+The same tasks either way. A filter, the card view, the card order and the sort are shared by both,
+so switching a view between them changes the drawing and nothing else — a board sorted by Due is
+still sorted by Due when it becomes a list. See
 [The list](/ushabti/guides/list/).
 
 ## The columns of a board
