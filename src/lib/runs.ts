@@ -105,6 +105,15 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
   };
 }
 
+/** The moments of a row, as `lostBy` reads them: ISO text, and `endedAt` set. */
+function asMoments(row: { updatedAt: Date; reportDueAt: Date | null; endedAt: Date | null }) {
+  return {
+    updatedAt: row.updatedAt.toISOString(),
+    reportDueAt: row.reportDueAt?.toISOString() ?? null,
+    endedAt: row.endedAt?.toISOString() ?? null,
+  };
+}
+
 /**
  * Closes every open run that missed its lease.
  *
@@ -129,15 +138,6 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
  * schedule would fire, and one UPDATE behind an index costs less than a job
  * this project would then have to run, watch and ship.
  */
-/** The moments of a row, as `lostBy` reads them: ISO text, and `endedAt` set. */
-function asMoments(row: { updatedAt: Date; reportDueAt: Date | null; endedAt: Date | null }) {
-  return {
-    updatedAt: row.updatedAt.toISOString(),
-    reportDueAt: row.reportDueAt?.toISOString() ?? null,
-    endedAt: row.endedAt?.toISOString() ?? null,
-  };
-}
-
 async function sweepLost(scope: SQL | undefined): Promise<void> {
   const now = new Date();
   const cutoff = new Date(now.getTime() - REPORT_LEASE_MS);

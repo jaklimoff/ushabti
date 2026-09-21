@@ -440,7 +440,7 @@ test.describe("Agents on the board", () => {
     const refused = await api.patch(`/api/runs/${run.id}`, { status: "lost" });
     expect(refused.status()).toBe(409);
     expect((await refused.json()).error).toBe(
-      "That run waits on purpose, so only an answer, a claim or Take over ends it.",
+      "That run waits on purpose, so a lost report cannot end it.",
     );
 
     // Nothing moved: the card still waits for the reviewer.

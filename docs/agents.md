@@ -360,9 +360,9 @@ board can get.
 `finish`, with `finish --to` or with `ask` said its last word already, so the
 beat that dies a moment later reads the run once and says nothing. The board
 holds the same line: `lost` on a run that waits — a question or a hand-over —
-is refused with `409 That run waits on purpose, so only an answer, a claim or
-Take over ends it.` A waiting run stopped on purpose, and a dying timer is not
-a reason to close it.
+is refused with `409 That run waits on purpose, so a lost report cannot end
+it.` Read that 409 as "stop and say nothing": the run is open and somebody
+else has the card, so do not claim the task again.
 
 ### Say how long the next word takes
 

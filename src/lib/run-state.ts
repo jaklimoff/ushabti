@@ -45,8 +45,7 @@ export function mayReportLost(current: RunStatus): boolean {
 }
 
 /** Why the door refuses it, in the words the agent reads. */
-export const LOST_ON_WAITING =
-  "That run waits on purpose, so only an answer, a claim or Take over ends it.";
+export const LOST_ON_WAITING = "That run waits on purpose, so a lost report cannot end it.";
 
 /**
  * True when the status an agent reports answers what a person asked for.

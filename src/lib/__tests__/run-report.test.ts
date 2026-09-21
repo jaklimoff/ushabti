@@ -82,9 +82,7 @@ describe("a lost report", () => {
     fake.runs("handed_over");
     const res = await report({ status: "lost", log: "the agent was stopped" });
     expect(res.status).toBe(409);
-    expect(res.body.error).toBe(
-      "That run waits on purpose, so only an answer, a claim or Take over ends it.",
-    );
+    expect(res.body.error).toBe("That run waits on purpose, so a lost report cannot end it.");
   });
 
   it("is refused on a run that asked a person a question", async () => {

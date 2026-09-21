@@ -93,6 +93,7 @@ asked for something. A bare heartbeat gets it too.
 | `400` | `Only a person takes a task over.` — an agent sending `taken_over` |
 | `403` | `That run belongs to another agent.` |
 | `409` | `That run is closed.` |
+| `409` | `That run waits on purpose, so a lost report cannot end it.` — `lost` on `waiting` or `handed_over` |
 
 A report writes **both** `updated_at` and `beat_at`. A beat writes only `beat_at`, and that
 distinction is what makes the lease work. `report_due_at` is the third column and only a report
@@ -114,9 +115,10 @@ With `handed_over`, `step` is who has the task now, in plain words, and the card
 entry goes in the task's activity. If the status **answers** an outstanding control word, the word is
 cleared.
 
-`lost` is the one of them a run that **waits** refuses: `409 That run waits on purpose, so only an
-answer, a claim or Take over ends it.` A question and a hand-over stopped on purpose, so a dying
-heartbeat must not close one.
+`lost` is the one of them a run that **waits** refuses: `409 That run waits on purpose, so a lost
+report cannot end it.` A question and a hand-over stopped on purpose, so a dying heartbeat must not
+close one. The owning agent may still end its own waiting run with `done`, `failed` or `stopped`;
+only `lost` is refused.
 
 ---
 

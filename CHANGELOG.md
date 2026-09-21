@@ -17,8 +17,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   second later, wrote _"the agent was stopped"_ over it. Both doors are shut
   now: the beat and the watcher read the run once and say nothing when it is
   no longer running, and `PATCH /api/runs/{id}` refuses `lost` on a run that
-  waits with `409 That run waits on purpose, so only an answer, a claim or
-Take over ends it.` The feed line also names the author of `lost` at last —
+  waits with `409 That run waits on purpose, so a lost report cannot end it.`
+  The feed line also names the author of `lost` at last —
   _"shut down, and the run ended with it"_ where an agent said goodbye, and
   _"stopped answering, so the board closed the run"_ where the lease acted.
 
