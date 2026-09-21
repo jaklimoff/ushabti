@@ -382,4 +382,64 @@ test.describe("Archiving a task", () => {
     await page.getByLabel("Project key", { exact: true }).fill("ZZZ");
     await expect(page.getByText(/2 tasks are called .*today/)).toBeVisible();
   });
+
+  /*
+   * The page a team opens to see what is in the drawer. It draws the archived
+   * tasks the browser already carries, so it asks the server nothing until
+   * somebody puts one back.
+   */
+  test("the archive page lists what went, newest first, and puts one back", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Drawer"));
+
+    for (const title of ["First to go", "Second to go"]) {
+      await addTask(page, "Todo", title);
+      await archiveOpenTask(page);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+    await addTask(page, "Todo", "Still on the board");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    // The way in is the top bar, beside Settings. The archive is not a view.
+    await page.getByRole("link", { name: "Archive", exact: true }).click();
+    await page.waitForURL(`**/p/${projectId}/archived`);
+
+    const rows = page.getByTestId("archive-row");
+    await expect(rows).toHaveCount(2);
+    await expect(page.getByText("2 archived tasks")).toBeVisible();
+
+    // Newest archived first, and only the archived ones.
+    await expect(rows.nth(0)).toContainText("Second to go");
+    await expect(rows.nth(0)).toContainText("Archived just now");
+    await expect(rows.nth(1)).toContainText("First to go");
+    await expect(page.getByText("Still on the board")).toHaveCount(0);
+
+    // The box narrows the list by key and title, and nothing else moves.
+    const find = page.getByTestId("archive-find");
+    await find.fill("first");
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText("First to go");
+    await find.fill("nothing by that name");
+    await expect(page.getByText("No archived task by those words.")).toBeVisible();
+    await find.fill("");
+    await expect(rows).toHaveCount(2);
+
+    // A row opens the task, exactly as its link does.
+    await rows.nth(1).getByRole("link").click();
+    await expect(page.getByTestId("task-title")).toHaveValue("First to go");
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+    await page.goBack();
+
+    // One press, and it is back where it was.
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/archive$/, () =>
+      rows.filter({ hasText: "First to go" }).getByTestId("archive-put-back").click(),
+    );
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText("Second to go");
+    await expect(page.getByTestId("toast")).toContainText("is back on the board");
+
+    await page.getByRole("link", { name: "Back to board" }).click();
+    await expect(card(page, "First to go").first()).toBeVisible();
+    await expect(card(page, "Second to go")).toHaveCount(0);
+  });
 });
