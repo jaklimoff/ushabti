@@ -93,8 +93,9 @@ const flags = {};
 
 /**
  * A switch is on or off, so it never reads the next word. Without this list
- * `check USH-14 --done "the item"` gives the item to the flag and the command
- * then says there is no task. A person should not have to remember an order.
+ * `check USH-14 --done "the item"` gives the item to the flag, and the command
+ * then asks for the item it was handed. A person should not have to remember
+ * an order.
  */
 const SWITCHES = ["done", "undone", "held", "free", "once"];
 
