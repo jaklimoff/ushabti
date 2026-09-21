@@ -612,21 +612,9 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 /* Activity                                                            */
 /* ------------------------------------------------------------------ */
 
-export async function logActivity(entry: {
-  projectId: string;
-  taskId?: string | null;
-  actorId: string;
-  kind: string;
-  data?: Record<string, unknown>;
-}) {
-  await db.insert(activity).values({
-    projectId: entry.projectId,
-    taskId: entry.taskId ?? null,
-    actorId: entry.actorId,
-    kind: entry.kind,
-    data: entry.data ?? {},
-  });
-}
+// The funnel itself moved to ./activity so that runs.ts can write through it.
+// Every route keeps reading it from here.
+export { logActivity } from "./activity";
 
 /**
  * A project's activity after a moment, oldest first, for an agent that reads
