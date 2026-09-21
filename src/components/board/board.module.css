@@ -1052,6 +1052,16 @@
   gap: 7px;
 }
 
+/* One grey chain beside the key when the task waits on another. It is not a
+   chip, because it is not a row of the card view: nothing arranged it and
+   nothing can take it off. Grey, because it says "not yet", not "wrong". */
+.cardChain {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
 /* The stripe down the left. One property wide, and only a property that has
    colours of its own may take it. */
 .cardEdge {

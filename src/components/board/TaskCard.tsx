@@ -52,7 +52,13 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
     [cardItems, data.members, task],
   );
 
-  const hasHeader = slots.headerL.length > 0 || slots.headerR.length > 0;
+  /* One glyph, and never a list. A card with ten runs on it has to stay
+     readable, and so does a board where half the cards are waiting. What it
+     waits on is in the tooltip and in the panel. It is not a row of the card
+     view and never will be: a link is not a field, as a run is not. */
+  const blocked = task.blockedBy.length > 0;
+
+  const hasHeader = blocked || slots.headerL.length > 0 || slots.headerR.length > 0;
   const hasBody = slots.body !== null || slots.bodyChips.length > 0;
   const hasFooter = slots.footerL.length > 0 || slots.footerR.length > 0;
 
@@ -147,7 +153,23 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
         />
       )}
 
-      {hasHeader && <Strip left={slots.headerL} right={slots.headerR} className={styles.cardTop} />}
+      {hasHeader && (
+        <Strip left={slots.headerL} right={slots.headerR} className={styles.cardTop}>
+          {/* Before the key, because the key is what it sits beside and a
+              header is read from the left. */}
+          {blocked && (
+            <span
+              className={styles.cardChain}
+              data-testid="card-chain"
+              title={`Blocked by ${task.blockedBy.join(", ")}`}
+              aria-label={`Blocked by ${task.blockedBy.join(", ")}`}
+              role="img"
+            >
+              ⛓
+            </span>
+          )}
+        </Strip>
+      )}
 
       <div className={styles.cardTitle} data-testid="card-title">
         {task.title}
@@ -188,13 +210,17 @@ function Strip({
   left,
   right,
   className,
+  children,
 }: {
   left: CardChip[];
   right: CardChip[];
   className: string;
+  /** What the card draws of its own, at the left end. The chain glyph. */
+  children?: React.ReactNode;
 }) {
   return (
     <div className={className}>
+      {children}
       {left.map((chip) => (
         <Chip key={chip.key} chip={chip} />
       ))}

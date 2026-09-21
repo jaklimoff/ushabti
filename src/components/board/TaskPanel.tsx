@@ -19,6 +19,7 @@ import {
   runLine,
   STATUS_WORD,
 } from "@/lib/run-state";
+import { searchTasks } from "@/lib/search";
 import type {
   AgentRunDetailDTO,
   AgentRunLogDTO,
@@ -28,12 +29,14 @@ import type {
   RunControl,
   TaskDTO,
   TaskDetailDTO,
+  TaskLinkDTO,
   TaskValue,
 } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
+import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
 import { Markdown } from "./Markdown";
@@ -70,6 +73,14 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const detail = loaded?.taskId === taskId ? loaded.task : null;
   const [tab, setTab] = useState<"comments" | "activity" | "agent">("comments");
   const [menuOpen, setMenuOpen] = useState(false);
+  /* Which list is taking a key, and on which task. A task with no links draws
+     nothing here at all, so the way in is the menu — the panel stays as quiet
+     at rest as it was before links existed.
+     The task is held beside the answer rather than cleared in an effect: the
+     panel does not unmount when somebody opens another task, and a box left
+     open on the task before this one would be asking about nothing. */
+  const [linking, setLinking] = useState<{ taskId: string; way: LinkWay } | null>(null);
+  const addingLink = linking?.taskId === taskId ? linking.way : null;
   const menuRef = useDismiss<HTMLDivElement>(() => setMenuOpen(false), menuOpen);
   /*
    * An archived task has no card, and its panel still opens: a link and a
@@ -438,6 +449,17 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 <span className={styles.menuDot} />
                 Copy link
               </button>
+              <button
+                className={styles.menuItem}
+                data-testid="add-blocker"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setLinking({ taskId, way: "blockedBy" });
+                }}
+              >
+                <span className={styles.menuDot} />
+                Blocked by…
+              </button>
               {/* Archive is the everyday way to make a task go away: the
                   panel stays open on the row that puts it back. Delete is for
                   a mistake, and it is still the one that ends things. */}
@@ -513,6 +535,19 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
             </div>
 
             <div className={styles.section}>
+              {/* Its own state — what is typed, and the line a refusal
+                  left — belongs to one task, so the key throws it away when
+                  another one opens. */}
+              <Links
+                key={taskId}
+                taskId={taskId}
+                links={detail?.links ?? null}
+                adding={addingLink}
+                setAdding={(way) => setLinking(way ? { taskId, way } : null)}
+                reload={reload}
+                onError={notify}
+              />
+
               <Description
                 value={shown.description}
                 onCommit={(description) => void patch({ description })}
@@ -609,6 +644,205 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* What a task waits on                                                 */
+/* ------------------------------------------------------------------ */
+
+/** The two ends of the chain. `blockedBy` is what this task waits on. */
+type LinkWay = "blockedBy" | "blocks";
+
+const LINK_WORDS: Record<LinkWay, { head: string; add: string; ask: string; empty: string }> = {
+  blockedBy: {
+    head: "Blocked by",
+    add: "Add a task this one waits on",
+    ask: "Which task blocks this one?",
+    empty: "No task by that name.",
+  },
+  blocks: {
+    head: "Blocks",
+    add: "Add a task that waits on this one",
+    ask: "Which task waits on this one?",
+    empty: "No task by that name.",
+  },
+};
+
+/**
+ * The two short lists: what this task waits on, and what waits on it.
+ *
+ * A link is not a property and not a row of the card view, so it is not in the
+ * grid above. It sits between the properties and the description because that
+ * is where "why is this not moving" belongs.
+ *
+ * A task with no links draws nothing at all. The way in is the task menu, so
+ * the panel at rest reads exactly as it did before links existed — a heading
+ * over an empty list on every task in the project would be a worse trade than
+ * one more line in a menu nobody opens by accident.
+ *
+ * The ✕ asks nothing. Unlinking costs one key to undo, and `ConfirmRow` is
+ * for what cannot be undone.
+ */
+function Links({
+  taskId,
+  links,
+  adding,
+  setAdding,
+  reload,
+  onError,
+}: {
+  taskId: string;
+  links: { blockedBy: TaskLinkDTO[]; blocks: TaskLinkDTO[] } | null;
+  adding: LinkWay | null;
+  setAdding: (way: LinkWay | null) => void;
+  reload: () => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const { data, refresh } = useBoard();
+  const [query, setQuery] = useState("");
+  const [at, setAt] = useState(0);
+  /** The sentence a refused link came back with — a circle, or itself. */
+  const [refused, setRefused] = useState<string | null>(null);
+
+  /* Every task in the project, archived ones too, exactly as the search box
+     reads them: a task off the board can still be what this one waits on. */
+  const taken = useMemo(() => {
+    const ids = new Set<string>([taskId]);
+    for (const row of links?.blockedBy ?? []) ids.add(row.id);
+    for (const row of links?.blocks ?? []) ids.add(row.id);
+    return ids;
+  }, [links, taskId]);
+
+  const rows: Row[] = useMemo(() => {
+    if (!adding) return [];
+    return searchTasks([...data.tasks, ...data.archived], query)
+      .filter((hit) => !taken.has(hit.task.id))
+      .map((hit) => ({
+        id: hit.task.id,
+        name: `${hit.task.key}  ${hit.task.title}`,
+        color: "#6b7280",
+        note: hit.task.archivedAt ? "archived" : undefined,
+      }));
+  }, [adding, data.archived, data.tasks, query, taken]);
+
+  /* One route writes both lists: which end of it this task is on is the only
+     difference between them. */
+  const ends = (way: LinkWay, other: string) =>
+    way === "blockedBy" ? { to: taskId, from: other } : { to: other, from: taskId };
+
+  async function add(way: LinkWay, other: string) {
+    const { to, from } = ends(way, other);
+    try {
+      await api.post(`/api/tasks/${to}/blockers`, { blockerId: from });
+      setQuery("");
+      setRefused(null);
+      setAdding(null);
+      await reload();
+      /* The card's chain glyph comes off the board, not off this read. */
+      await refresh();
+    } catch (err) {
+      setRefused(err instanceof Error ? err.message : "That link did not save.");
+    }
+  }
+
+  async function remove(way: LinkWay, other: string) {
+    const { to, from } = ends(way, other);
+    try {
+      await api.del(`/api/tasks/${to}/blockers/${from}`);
+      await reload();
+      await refresh();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "That link did not go.");
+    }
+  }
+
+  const lists: LinkWay[] = ["blockedBy", "blocks"];
+  const anything = lists.some((way) => (links?.[way] ?? []).length > 0);
+  if (!anything && !adding) return null;
+
+  return (
+    <div className={styles.block} data-testid="task-links">
+      {lists.map((way) => {
+        const list = links?.[way] ?? [];
+        if (list.length === 0 && adding !== way) return null;
+        const words = LINK_WORDS[way];
+        const listId = `task-links-${way}`;
+
+        return (
+          <div key={way} className={styles.block} data-testid={`links-${way}`}>
+            <div className={styles.blockHead}>
+              <span className="label">{words.head}</span>
+              <span style={{ flex: 1 }} />
+              <button
+                className={styles.linkAdd}
+                aria-label={words.add}
+                title={words.add}
+                onClick={() => {
+                  setQuery("");
+                  setRefused(null);
+                  setAdding(adding === way ? null : way);
+                }}
+              >
+                +
+              </button>
+            </div>
+
+            {list.map((row) => (
+              <div key={row.id} className={styles.linkRow} data-testid="link-row">
+                <span className={`${styles.linkKey} mono`}>{row.key}</span>
+                {/* A blocker that is over blocks nothing any more, and it is
+                    still here: struck through says both at once. */}
+                <span className={`${styles.linkTitle} ${row.over ? styles.linkOver : ""}`}>
+                  {row.title}
+                </span>
+                <button
+                  className={styles.linkRemove}
+                  aria-label={`Unlink ${row.key}`}
+                  title="Unlink"
+                  onClick={() => void remove(way, row.id)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {adding === way && (
+              <>
+                <AskBox
+                  query={query}
+                  onQuery={(value) => {
+                    setQuery(value);
+                    /* Looking for another task is the answer to the line. */
+                    setRefused(null);
+                  }}
+                  rows={rows}
+                  at={at}
+                  setAt={setAt}
+                  onPick={(row) => void add(way, row.id)}
+                  listId={listId}
+                  label={words.ask}
+                  placeholder={words.ask}
+                  testId={`link-search-${way}`}
+                />
+                {refused && (
+                  <span className={styles.linkRefused} role="status" data-testid="link-refused">
+                    {refused}
+                  </span>
+                )}
+                <Rows
+                  rows={rows}
+                  at={at}
+                  listId={listId}
+                  empty={words.empty}
+                  onPick={(row) => void add(way, row.id)}
+                />
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function describeActivity(entry: {
   kind: string;
   data: Record<string, unknown>;
@@ -623,6 +857,7 @@ function describeActivity(entry: {
     action?: string;
     forName?: string;
     to?: string;
+    blockerKey?: string;
   };
   switch (entry.kind) {
     case "created":
@@ -639,6 +874,10 @@ function describeActivity(entry: {
       return `${who} left a comment`;
     case "archive":
       return d.action === "restored" ? `${who} put the task back` : `${who} archived the task`;
+    case "link":
+      return d.action === "unlinked"
+        ? `${who} stopped it waiting on ${d.blockerKey || "another task"}`
+        : `${who} made it wait on ${d.blockerKey || "another task"}`;
     case "run":
       // A hand-over is the one run line that names somebody else.
       if (d.action === "handed_over") return `${who} handed the task to ${d.to || "somebody else"}`;
