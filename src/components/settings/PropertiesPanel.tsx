@@ -1,6 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useBoard } from "@/components/board/store";
 import { api } from "@/lib/client";
 import { fallbackRow, KIND_OF_TYPE, setCardPlace, viewOf } from "@/lib/card-view";
@@ -22,11 +38,33 @@ import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
 export function PropertiesPanel() {
-  const { data, addProperty } = useBoard();
+  const { data, addProperty, moveProperty } = useBoard();
   const [name, setName] = useState("");
   const [type, setType] = useState<PropertyType>("select");
   const [options, setOptions] = useState("");
   const isOwner = data.project.role === "owner";
+
+  /* The grip is the only thing that lifts a row, so the name box and the
+     buttons on it still take a caret and a click. Space lifts, the arrows
+     move, Space puts it down: that is the route the up and down buttons gave.
+     The same 4 px as the views rows, because it is one settings page. */
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  /* The drag names the row it landed after, never a rank. The rank is made on
+     the server, under the project lock, exactly as a view's is. */
+  function onDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const list = data.properties;
+    const to = list.findIndex((p) => p.id === over.id);
+    if (to < 0) return;
+    const rest = list.filter((p) => p.id !== active.id);
+    // The property it now sits behind. Null is the top of the list.
+    void moveProperty(String(active.id), rest[to - 1]?.id ?? null);
+  }
 
   async function create() {
     const trimmed = name.trim();
@@ -47,19 +85,27 @@ export function PropertiesPanel() {
     <>
       <PageHead
         title="Properties"
-        note="Every field on a task lives here. Nothing is built in — rename, recolour or delete whatever you like."
+        note="Every field on a task lives here. Nothing is built in — rename, recolour or delete whatever you like. Drag a property by its grip to change the order of the fields in the task panel."
       />
 
       <Card>
-        {data.properties.map((property, index) => (
-          <PropertyRow
-            key={property.id}
-            property={property}
-            isOwner={isOwner}
-            upTarget={index >= 2 ? data.properties[index - 2].id : index === 1 ? null : undefined}
-            downTarget={data.properties[index + 1]?.id}
-          />
-        ))}
+        {/* One column of rows, so dnd-kit's own answer is the right one.
+            Nothing here is as tall as a board column. */}
+        <DndContext
+          id="ushabti-property-rows"
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext
+            items={data.properties.map((p) => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {data.properties.map((property) => (
+              <PropertyRow key={property.id} property={property} isOwner={isOwner} />
+            ))}
+          </SortableContext>
+        </DndContext>
 
         <Foot>
           <Input
@@ -98,23 +144,20 @@ export function PropertiesPanel() {
   );
 }
 
-/**
- * `upTarget` is the property this one lands behind when it moves up: two rows
- * higher, or null for the very top. `undefined` means the row cannot move.
- */
-function PropertyRow({
-  property,
-  isOwner,
-  upTarget,
-  downTarget,
-}: {
-  property: PropertyDTO;
-  isOwner: boolean;
-  upTarget: string | null | undefined;
-  downTarget: string | undefined;
-}) {
-  const { cardItems, setCardView, patchProperty, moveProperty, deleteProperty, addOption, notify } =
-    useBoard();
+function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: boolean }) {
+  const { cardItems, setCardView, patchProperty, deleteProperty, addOption, notify } = useBoard();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: property.id,
+    transition: { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+  });
   const [name, setName] = useState(property.name);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
@@ -125,8 +168,6 @@ function PropertyRow({
      from there and writes there. This page keeps the short answer; the card
      view page has the long one. */
   const showOnCard = cardItems.find((i) => i.id === property.id)?.place !== "off";
-  const canMoveUp = upTarget !== undefined;
-  const canMoveDown = downTarget !== undefined;
 
   /* How much a delete costs, in the numbers the person can check. The count
      comes from the server because the cascade does not care whether a task is
@@ -175,8 +216,32 @@ function PropertyRow({
   }
 
   return (
-    <div className={styles.propBox} data-testid="property-box">
+    <div
+      ref={setNodeRef}
+      className={`${styles.propBox} ${isDragging ? styles.rowLifted : ""}`}
+      data-testid="property-box"
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition: transition ?? undefined,
+      }}
+    >
       <div className={styles.propHead}>
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          className={styles.grip}
+          aria-label={`Move ${property.name}`}
+          title="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </button>
         <div className={styles.propName}>
           <NameInput
             aria-label={`Name of the ${property.name} property`}
@@ -219,22 +284,6 @@ function PropertyRow({
           >
             On card {showOnCard ? "◉" : "○"}
           </button>
-          <IconButton
-            label={`Move ${property.name} up`}
-            title="Move up"
-            disabled={!canMoveUp}
-            onClick={() => canMoveUp && void moveProperty(property.id, upTarget ?? null)}
-          >
-            ↑
-          </IconButton>
-          <IconButton
-            label={`Move ${property.name} down`}
-            title="Move down"
-            disabled={!canMoveDown}
-            onClick={() => downTarget && void moveProperty(property.id, downTarget)}
-          >
-            ↓
-          </IconButton>
           {isOwner && (
             <IconButton
               danger

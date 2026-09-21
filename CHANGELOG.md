@@ -103,6 +103,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **`board.mjs` can `check`, `describe` and `ask`.** `describe` refuses to write
   over a description a person wrote.
 
+### Changed
+
+- **A property is dragged into place in Settings → Properties.** Each row has a
+  grip on its left, as a view's row does. Space lifts the row, the arrows move
+  it, Space puts it down. The ↑ and ↓ buttons are gone: the grip is the same
+  route by keyboard, and two ways to do one thing is one too many.
+
 ### Fixed
 
 - **`board.mjs check` reads the flag in either place, and refuses an empty

@@ -329,3 +329,15 @@ export async function viewRowOrder(page: Page): Promise<string[]> {
     .locator('input[aria-label^="Name of the view"]')
     .evaluateAll((boxes) => boxes.map((b) => (b as HTMLInputElement).value.toUpperCase()));
 }
+
+/**
+ * The names of the properties on the settings page, top to bottom.
+ *
+ * The label ends in "property", which the option boxes in the same card do
+ * not, so this reads the rows and never their options.
+ */
+export async function propertyRowOrder(page: Page): Promise<string[]> {
+  return page
+    .locator('input[aria-label$=" property"]')
+    .evaluateAll((boxes) => boxes.map((b) => (b as HTMLInputElement).value));
+}

@@ -102,8 +102,7 @@ Everything off the board, brought up to the board's standard.
    heading to press. What a board would need is a control of its own beside the
    filter, and an answer to what a drag means inside a sorted column — the list
    answers it by holding still, and a board would have to do the same.
-2. **Drag to reorder properties** in the settings page. Today you use the up and down arrows, but they no longer refetch the whole board on every press.
-3. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
+2. **Remove the remaining `setState` calls inside effects.** Eight are left, all on the board and the task panel. Keying the component is the React answer. ESLint reports each one as a warning.
 
 ## Later
 
