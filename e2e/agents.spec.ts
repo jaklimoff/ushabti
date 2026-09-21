@@ -159,8 +159,11 @@ test.describe("Agents on the board", () => {
 
     await page.getByTestId("panel-run").getByRole("button", { name: "Take over" }).click();
     await expect(page.getByTestId("panel-run")).toBeHidden();
-    await expect(page.getByTestId("agent-tab")).toBeHidden();
     await expect(held.getByTestId("card-run")).toBeHidden();
+    // The buttons and the bar go with the run. The tab stays, because the run
+    // is now a record, and the row says how it ended.
+    await expect(page.getByTestId("agent-tab")).toBeVisible();
+    await expect(page.getByTestId("past-run").first()).toContainText("taken over");
 
     const afterTakeOver = await api.patch(`/api/runs/${run.id}`, { step: "Still going" });
     expect(afterTakeOver.status()).toBe(409);

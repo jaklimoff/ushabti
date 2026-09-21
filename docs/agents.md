@@ -60,6 +60,7 @@ so an agent sees exactly what a person sees and nothing more.
 | ------------------- | -------------------------------------------------- |
 | The whole board     | `GET /api/projects/{projectId}/board`               |
 | One task in full    | `GET /api/tasks/{taskId}`                           |
+| One run in full     | `GET /api/runs/{runId}`                             |
 | Create a task       | `POST /api/projects/{projectId}/tasks`              |
 | Rename or rewrite   | `PATCH /api/tasks/{taskId}`                         |
 | Set one property    | `PUT /api/tasks/{taskId}/values/{propertyId}`       |
@@ -246,8 +247,49 @@ PATCH /api/runs/{runId}
 { "status": "done", "log": "opened PR #124" }
 ```
 
-The run closes, the card goes quiet, the Agent tab goes away, and the activity
-log keeps the line.
+The run closes, the card goes quiet, the buttons and the bar go away, and the
+activity log keeps the line. The Agent tab stays, because the run is now a
+record: see [Runs that are over](#runs-that-are-over).
+
+### Runs that are over
+
+A run that closed keeps everything it wrote. `GET /api/tasks/{taskId}` carries
+them in `pastRuns` — the closed runs of that task, newest first, at most twenty:
+
+```json
+{
+  "task": {
+    "run": null,
+    "pastRuns": [
+      {
+        "id": "…",
+        "goal": "Write the queue tests",
+        "step": "Writing the tests",
+        "status": "done",
+        "startedAt": "2026-09-19T09:12:04.118Z",
+        "endedAt": "2026-09-19T09:26:41.902Z",
+        "stepsTotal": 3,
+        "stepsDone": 3,
+        "lastLog": "opened PR #124",
+        "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" }
+      }
+    ]
+  }
+}
+```
+
+A row is a run without its plan and its log. Ask `GET /api/runs/{runId}` for
+one of those in full: it answers for a closed run exactly as it does for an
+open one, and a person's session and a token both read it.
+
+The panel reads the same list. The Agent tab is there when a task has an open
+run **or** one that is over; with none open the dot does not pulse and the tab
+holds the list alone. A row says who, when it started, how long it ran, how it
+ended and what it set out to do, and pressing it opens that run's plan and log
+in place.
+
+Older runs are still in the table. Nothing sweeps them yet, and nothing deletes
+one.
 
 ## Wait for work
 
