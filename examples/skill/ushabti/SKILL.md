@@ -36,6 +36,7 @@ node board.mjs step USH-14 --index 1 --say "Writing the tests" \
   --log "write tests/queue.spec.ts"
 # -> control: none
 
+node board.mjs check USH-14 "Retries stop after five tries" --done
 node board.mjs comment USH-14 "Tests pass. PR #124."
 node board.mjs set USH-14 Status Ready
 node board.mjs finish USH-14
@@ -45,6 +46,10 @@ node board.mjs finish USH-14
 your shoulder: "Writing the tests", not "invoking tool". `--index` counts from
 zero and marks everything before it done. `--log` is the transcript line in the
 panel; leave it out and the `--say` line is logged instead.
+
+`check` adds a checklist item, and `--done` ticks the one that text names —
+the whole text, or one part of it that fits only that item; `--undone` puts it
+back. It refuses to guess, and lists the items instead.
 
 `node board.mjs archive USH-14` takes a task off every board and list and keeps
 its history, its comments and its link; `restore` puts it back. Archive is how

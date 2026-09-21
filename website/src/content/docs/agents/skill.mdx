@@ -49,6 +49,7 @@ node board.mjs task USH-14                          # one task in full
 node board.mjs new "Fix the queue" --set "Priority=High"
 node board.mjs set USH-14 "Status" "In Progress"    # names, never ids
 node board.mjs comment USH-14 "tests are green"
+node board.mjs check USH-14 "It retries five times" [--done]  # add a criterion, or tick one
 node board.mjs archive USH-14                       # off the board, history kept
 node board.mjs restore USH-14                       # put it back
 node board.mjs claim USH-14 --goal "…" --plan "a|b|c" --step "…"

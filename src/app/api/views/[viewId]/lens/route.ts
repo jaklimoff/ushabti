@@ -4,7 +4,7 @@ import { viewLenses, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, guard, humanOnly, json, route } from "@/lib/api";
 import { clashOf, clashSaid, readFilters } from "@/lib/filters";
-import { loadProperties, viewProjectId } from "@/lib/queries";
+import { loadProperties } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ viewId: string }> };
 
@@ -25,14 +25,21 @@ type Ctx = { params: Promise<{ viewId: string }> };
  */
 export const PUT = route<Ctx>(async (req, ctx) => {
   const { viewId } = await ctx.params;
-  const projectId = await viewProjectId(viewId);
-  if (!projectId) throw new HttpError(404, "View not found.");
-  const { user } = await guard(projectId);
+  /* One read answers both questions this route asks of the view: which project
+     guards it, and what it already filters. It asked for the same row twice,
+     and the panel writes on every rule a person changes. */
+  const [view] = await db
+    .select({ projectId: views.projectId, config: views.config })
+    .from(views)
+    .where(eq(views.id, viewId))
+    .limit(1);
+  if (!view) throw new HttpError(404, "View not found.");
+  const { user } = await guard(view.projectId);
   // Only a person has a screen of their own to narrow.
   humanOnly(user);
 
   const input = await body<{ filters?: unknown }>(req);
-  const properties = await loadProperties(projectId);
+  const properties = await loadProperties(view.projectId);
   // The same reading the board does, so a rule this cannot make sense of is
   // dropped here rather than saved and ignored for ever afterwards.
   const filters = readFilters(input.filters, properties);
@@ -41,12 +48,6 @@ export const PUT = route<Ctx>(async (req, ctx) => {
      here too, so what this compares against is what the screen shows.
      No lock: a rule that becomes a clash a moment later is what the promote
      route exists to catch, and a lens hides nothing from anybody else. */
-  const [view] = await db
-    .select({ config: views.config })
-    .from(views)
-    .where(eq(views.id, viewId))
-    .limit(1);
-  if (!view) throw new HttpError(404, "View not found.");
   const ofView = readFilters((view.config as { filters?: unknown } | null)?.filters, properties);
   const clash = clashOf(ofView, filters, properties);
   if (clash) throw new HttpError(409, clashSaid(clash));
