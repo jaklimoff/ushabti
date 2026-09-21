@@ -399,6 +399,32 @@ export async function overflow(page: Page): Promise<number> {
   });
 }
 
+/**
+ * How far anything on the board's top bar reaches past the bar's own padding.
+ *
+ * `overflow()` cannot see this one. The shell hides its overflow, so a bar
+ * that is too long is clipped in silence rather than scrolled, and the page
+ * answers 0 while a name sits off the side. Every box inside the bar is
+ * measured, not only the bar's own children: a button wider than the item
+ * holding it is off the bar just the same.
+ */
+export async function pastTheBar(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const bar = document.querySelector('[data-testid="board-mark"]')!.parentElement!;
+    const style = getComputedStyle(bar);
+    const box = bar.getBoundingClientRect();
+    const left = box.left + parseFloat(style.paddingLeft);
+    const right = box.right - parseFloat(style.paddingRight);
+    let past = 0;
+    for (const el of bar.querySelectorAll("*")) {
+      const at = el.getBoundingClientRect();
+      if (at.width <= 0) continue;
+      past = Math.max(past, at.right - right, left - at.left);
+    }
+    return Math.max(Math.round(past), 0);
+  });
+}
+
 /** A finger needs 24 px each way, whatever a mouse would settle for. */
 export async function forAFinger(targets: Locator, count: number) {
   await expect(targets).toHaveCount(count);

@@ -34,6 +34,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   not send a `Secure` cookie to an IP address, so the specs that read the API
   that way used to fail one by one with nothing that named the cause.
   `playwright.config.ts` now stops at once and says to use `localhost`.
+- **The top bar stays inside itself while cards are picked.** With a long
+  project name and a long person's name the bar ran up to 174 px off its own
+  side between 560 px and 900 px, and the box that finds a task was squeezed
+  to a border and its padding. Below 900 px the box and the two links to other
+  pages now give their room to what is picked, as the project name already
+  did; above it the person's name shortens like every other name on the bar.
+  The box keeps a floor of 88 px at every width it is drawn at, instead of
+  losing 23 px of it on one pixel of window at 561 px.
 
 - **A small tablet keeps the names in the top bar.** The project name and your
   own name used to go at 560 px, where the bar still had 118 px of room. They

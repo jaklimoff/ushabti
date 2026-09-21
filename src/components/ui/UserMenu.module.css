@@ -1,11 +1,26 @@
+/*
+ * On the board this is a flex item of the top bar, and a flex item is as wide
+ * as its own content until it is told it may be narrower. That is what kept a
+ * long name pushing the bar off its own side: the name ellipsised inside a
+ * menu that never gave way, so the menu was as wide as the name always was.
+ *
+ * Nothing here stops a bar squeezing the menu past the name and into the
+ * picture. The bar is what must not ask: a board too full for the name is too
+ * full for the box that finds a task and for the links off it, and it takes
+ * those off first.
+ */
 .wrap {
   position: relative;
+  min-width: 0;
 }
 
 .button {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* A button is as wide as its content, so it has to be told to follow the
+     width above it. Without this the name inside has nothing to ellipse to. */
+  width: 100%;
   padding: 3px 10px 3px 4px;
   border: 1px solid #1f2229;
   background: var(--bg-card);
@@ -21,7 +36,8 @@
 }
 
 /* A long name used to push the whole top bar. The board crumb already
-   ellipsises; this had been the one place that did not. */
+   ellipsises; this had been the one place that did not. It is the one part of
+   the menu that gives way: the picture and the caret keep their width. */
 .name {
   font-size: 12px;
   color: var(--text-3);
@@ -40,10 +56,16 @@
   }
 }
 
-/* A phone. The picture says who you are, and the bar has a board to fit. */
+/* A phone. The picture says who you are, and the bar has a board to fit.
+   With the name gone there is nothing left to ellipse, so the menu is as wide
+   as the picture again and says so. */
 @media (max-width: 520px) {
   .name {
     display: none;
+  }
+
+  .wrap {
+    min-width: auto;
   }
 }
 
