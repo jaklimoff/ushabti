@@ -5,7 +5,9 @@ import {
   column,
   confirmDelete,
   createProject,
+  forAFinger,
   gotoSettings,
+  overflow,
   register,
   settles,
   unique,
@@ -441,5 +443,31 @@ test.describe("Archiving a task", () => {
     await page.getByRole("link", { name: "Back to board" }).click();
     await expect(card(page, "First to go").first()).toBeVisible();
     await expect(card(page, "Second to go")).toHaveCount(0);
+  });
+});
+
+test.describe("The archive on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 } });
+
+  test("the archive page fits the screen, and every way back is pressable", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pocket"));
+
+    for (const title of [
+      "A short one",
+      "A title long enough to need the whole of a small screen",
+    ]) {
+      await addTask(page, "Todo", title);
+      await archiveOpenTask(page);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    // The way in is on the screen at this width too.
+    await page.getByRole("link", { name: "Archive", exact: true }).click();
+    await page.waitForURL(`**/p/${projectId}/archived`);
+    await expect(page.getByTestId("archive-row")).toHaveCount(2);
+
+    expect(await overflow(page)).toBe(0);
+    await forAFinger(page.getByRole("button", { name: /^Put .* back$/ }), 2);
   });
 });
