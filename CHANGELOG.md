@@ -29,6 +29,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The end to end suite refuses a `BASE_URL` on a bare IP.** A production
+  build sets the session cookie `Secure`, and Playwright's request context will
+  not send a `Secure` cookie to an IP address, so the specs that read the API
+  that way used to fail one by one with nothing that named the cause.
+  `playwright.config.ts` now stops at once and says to use `localhost`.
+
 - **A small tablet keeps the names in the top bar.** The project name and your
   own name used to go at 560 px, where the bar still had 118 px of room. They
   go at 520 px now, which is where the room runs out, and between 520 px and

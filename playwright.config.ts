@@ -4,6 +4,19 @@ import { defineConfig, devices } from "@playwright/test";
 // read it too: a machine where 3000 is taken can still run the CI way.
 const port = process.env.PORT ?? "3000";
 const baseURL = process.env.CI ? `http://localhost:${port}` : "http://localhost:3050";
+const url = process.env.BASE_URL ?? baseURL;
+
+// A production build sets the session cookie `Secure`. The browser sends it to
+// a bare IP over http anyway, but Playwright's request context does not, so
+// every spec that reads the API through `page.request` answers 401 and blames
+// the count it was checking. Refuse the host here, where the cause fits in a
+// sentence, rather than let eighteen specs fail for a reason none of them name.
+const host = new URL(url).hostname;
+if (/^\d+(\.\d+){3}$/.test(host) || host.startsWith("[")) {
+  throw new Error(
+    `Use localhost in BASE_URL, not ${host}: the session cookie is Secure, and page.request will not send a Secure cookie to a bare IP.`,
+  );
+}
 
 export default defineConfig({
   testDir: "./e2e",
@@ -27,14 +40,14 @@ export default defineConfig({
     // machine, which is a loopback address and refused by default. A test
     // server is allowed to call one; nothing else in the suite reads this.
     env: { USHABTI_WEBHOOK_PRIVATE: "1" },
-    url: process.env.BASE_URL ?? baseURL,
+    url,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     stdout: "pipe",
     stderr: "pipe",
   },
   use: {
-    baseURL: process.env.BASE_URL ?? baseURL,
+    baseURL: url,
     trace: "retain-on-failure",
     viewport: { width: 1440, height: 900 },
   },
