@@ -89,6 +89,7 @@ asked for something. A bare heartbeat gets it too.
 | --- | --- |
 | `400` | `stepIndex must be a whole number, zero or more.` |
 | `400` | `reportFor is a number of minutes above zero.` |
+| `400` | `A hand-over says who has the task now. Send it as step.` — `handed_over` without one |
 | `400` | `Only a person takes a task over.` — an agent sending `taken_over` |
 | `403` | `That run belongs to another agent.` |
 | `409` | `That run is closed.` |

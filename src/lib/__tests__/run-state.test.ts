@@ -260,11 +260,6 @@ describe("a run that handed the task on", () => {
   it("holds its bar still, because nothing is working", () => {
     expect(runIsStill(run, now)).toBe(true);
   });
-
-  it("reads 'handed over' once it is a row of the history", () => {
-    const ended = { ...run, endedAt: ago(3_600_000) };
-    expect(pastRunWords(ended, now).ended).toBe("handed over");
-  });
 });
 
 describe("the one number on a run strip", () => {

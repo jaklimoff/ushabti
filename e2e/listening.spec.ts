@@ -194,6 +194,25 @@ test.describe("Agents that wait for work", () => {
       const claimed = await runBoard(builder, ["claim", key, "--goal", "Open the pull request"]);
       expect(claimed.code, claimed.output).toBe(0);
     }
+    /* ---- a hand-over to nobody is refused at both doors -------------- */
+
+    const api = agentApi(request, builder);
+    const empty = await runBoard(builder, ["finish", task.key, "--to", ""]);
+    expect(empty.code, empty.output).not.toBe(0);
+    expect(empty.output).toContain("Give who has the task");
+
+    // `--to` with the next flag behind it reads as the word "true", which
+    // would otherwise put "Waiting for true" on somebody's board.
+    const flagged = await runBoard(builder, ["finish", task.key, "--to", "--log", "x"]);
+    expect(flagged.code, flagged.output).not.toBe(0);
+    expect(flagged.output).toContain("Give who has the task");
+
+    const { task: working } = await (await api.get(`/api/tasks/${task.id}`)).json();
+    const bare = await api.patch(`/api/runs/${working.run.id}`, { status: "handed_over" });
+    expect(bare.status()).toBe(400);
+    expect((await bare.json()).error).toContain("who has the task");
+    expect(working.run.status).toBe("running");
+
     const handed = await runBoard(builder, ["finish", task.key, "--to", "review"]);
     expect(handed.code, handed.output).toBe(0);
     expect(handed.output).toContain("waiting for review");

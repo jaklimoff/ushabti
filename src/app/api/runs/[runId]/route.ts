@@ -96,6 +96,12 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     }
     status = input.status as RunStatus;
     if (status === "taken_over") throw new HttpError(400, "Only a person takes a task over.");
+    /* A hand-over says who has the task now, and the card draws that name. A
+       hand-over to nobody would read as an idle card, which is what handing
+       over exists to stop, so the door refuses it rather than inventing one. */
+    if (status === "handed_over" && !step?.trim()) {
+      throw new HttpError(400, "A hand-over says who has the task now. Send it as step.");
+    }
     patch.status = status;
   }
 

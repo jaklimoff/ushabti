@@ -134,7 +134,8 @@ task is in somebody's hands, so end the session by handing it on instead:
 { "status": "handed_over", "step": "review" }
 ```
 
-`step` is **who has the task now**, in plain words — a name or a role. The card reads
+`step` is **who has the task now**, in plain words — a name or a role, and it is required: a
+hand-over to nobody leaves the card as quiet as closing the run, so it is a `400`. The card reads
 *Waiting for review* and says how long it has waited, and the Agent tab offers Take over alone,
 because nothing is running. Like a question, a hand-over is an open run the lease leaves alone: it
 stopped on purpose, so its silence is the expected answer.

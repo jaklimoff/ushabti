@@ -29,37 +29,54 @@ export const POST = route<Ctx>(async (req, ctx) => {
     : [];
   if (steps.length > 50) throw new HttpError(400, "A plan has at most 50 steps.");
 
-  const [held] = await db
-    .select({ id: agentRuns.id, status: agentRuns.status })
-    .from(agentRuns)
-    .where(and(eq(agentRuns.taskId, taskId), isNull(agentRuns.endedAt)))
-    .limit(1);
-
   /*
    * A run that handed the task on is the one open run a claim may close. It
    * stopped on purpose and said who was next, so whoever arrives finishes it
    * and starts their own. Every other open run is the lock, and stays one.
+   *
+   * Closing that run and opening this one is one act, so it is one
+   * transaction. Apart, a third claim landing in the gap would find the task
+   * free, insert, and meet `agent_runs_open_task_key` — a 500, with the
+   * hand-over already closed. Inside, the update holds the row until the
+   * insert is committed beside it, and everybody else gets the ordinary 409.
    */
-  if (held) {
-    const handed = held.status === "handed_over" ? await closeHandOver(taskId, user.name) : null;
-    if (!handed) throw new HttpError(409, "Another run is already open on this task.");
+  const { runId, handedFrom } = await db.transaction(async (tx) => {
+    const [held] = await tx
+      .select({ id: agentRuns.id, status: agentRuns.status })
+      .from(agentRuns)
+      .where(and(eq(agentRuns.taskId, taskId), isNull(agentRuns.endedAt)))
+      .limit(1);
+
+    let handedFrom: string | null = null;
+    if (held) {
+      const handed =
+        held.status === "handed_over" ? await closeHandOver(tx, taskId, user.name) : null;
+      if (!handed) throw new HttpError(409, "Another run is already open on this task.");
+      handedFrom = handed.agentId;
+    }
+
+    const [row] = await tx
+      .insert(agentRuns)
+      .values({ projectId, taskId, agentId: user.id, goal, step: step || steps[0] || "" })
+      .returning({ id: agentRuns.id });
+
+    if (steps.length) await replaceSteps(row.id, steps, tx);
+    await addLog(row.id, goal ? `started: ${goal}` : "started", tx);
+    return { runId: row.id, handedFrom };
+  });
+
+  /* Activity goes through the funnel, outside the transaction, like every
+     other line: it rings webhooks, and nothing may ring for a write that
+     rolled back. */
+  if (handedFrom) {
     await logActivity({
       projectId,
       taskId,
-      actorId: handed.agentId,
+      actorId: handedFrom,
       kind: "run",
       data: { action: "done" },
     });
   }
-
-  const [row] = await db
-    .insert(agentRuns)
-    .values({ projectId, taskId, agentId: user.id, goal, step: step || steps[0] || "" })
-    .returning({ id: agentRuns.id });
-
-  if (steps.length) await replaceSteps(row.id, steps);
-  await addLog(row.id, goal ? `started: ${goal}` : "started");
-
   await logActivity({
     projectId,
     taskId,
@@ -69,5 +86,5 @@ export const POST = route<Ctx>(async (req, ctx) => {
   });
   await broadcast({ projectId, scope: "board", taskId, clientId: clientIdOf(req) });
 
-  return json({ run: await loadRun(row.id) }, 201);
+  return json({ run: await loadRun(runId) }, 201);
 });

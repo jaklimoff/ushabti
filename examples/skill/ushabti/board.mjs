@@ -668,11 +668,18 @@ http://localhost:3000.`);
     const run = data.runs.find((r) => r.taskId === task.id);
     if (!run) fail(`No open run on ${task.key}. Somebody took it over.`, 9);
 
-    const to = flags.to ? String(flags.to).replace(/\s+/g, " ").trim() : "";
-    if (to) {
+    /*
+     * A hand-over with nobody in it is the very thing this exists to stop: an
+     * empty name would close the run and let the card go quiet, and `--to`
+     * with the next flag after it reads as the word "true", which would put
+     * "Waiting for true" on the board. Neither is worth guessing at.
+     */
+    if (flags.to !== undefined) {
+      const to = String(flags.to).replace(/\s+/g, " ").trim();
+      if (!to || to === "true") fail('Give who has the task: finish USH-14 --to "review"');
       await call("PATCH", `/api/runs/${run.id}`, {
         status: "handed_over",
-        step: to.length > 200 ? to.slice(0, 200) : to,
+        step: to.slice(0, 200),
         log: flags.log ?? `handed over to ${to}`,
       });
       console.log(`${task.key}: waiting for ${to}. End your session now.`);

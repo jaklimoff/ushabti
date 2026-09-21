@@ -277,7 +277,10 @@ PATCH /api/runs/{runId}
 { "status": "handed_over", "step": "review" }
 ```
 
-`step` is who has the task now, in plain words — a name or a role. The card
+`step` is who has the task now, in plain words — a name or a role. It is
+required: a hand-over to nobody would leave the card as quiet as closing the
+run, so the route answers `400 A hand-over says who has the task now. Send it
+as step.` and `board.mjs` refuses an empty `--to` before it calls. The card
 reads **Waiting for review** and says how long it has waited, exactly as a
 question does, and the run is the second of the two the lease leaves alone.
 The Agent tab says who is next and offers Take over alone, because nothing is
