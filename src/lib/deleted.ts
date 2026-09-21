@@ -53,6 +53,28 @@ export function saysLeft(goes: string | number | Date, now: number): string {
   return `${days} days left`;
 }
 
+/**
+ * What a delete says on the way out.
+ *
+ * The way back is on another page, so the one line the board draws after a
+ * delete has to name it. Without it the undo is invisible: the card goes, and
+ * nothing on the screen says the task can come back at all.
+ *
+ * The days are counted from the moment the route answered with, never from
+ * the number written above. The window is the server's to keep, and a toast
+ * that said thirty while the server meant something else would be the one
+ * sentence nobody could check.
+ *
+ * There is no button on it. `notify()` has none, and adding one would put the
+ * undo in a place that is gone in five seconds.
+ */
+export function deletedSaid(key: string, goes: string | null, now = Date.now()): string {
+  const days = goes ? daysLeft(goes, now) : 0;
+  if (days === 0) return `${key} deleted.`;
+  const many = days === 1 ? "1 day" : `${days} days`;
+  return `${key} deleted. Put it back from the Archive within ${many}.`;
+}
+
 export type DeletedAction = "deleted" | "restored";
 
 /**

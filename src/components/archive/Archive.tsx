@@ -94,18 +94,22 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
       <div className={styles.shell}>
         <div className={styles.head}>
           <h1 className={styles.h1}>Archive</h1>
+        </div>
+
+        {/* Each list says its own count, on its own words. One number over two
+            lists would have to name which list it counted, and a reader would
+            have to work out which. */}
+        <div className={styles.section}>
+          {/* The heading is drawn only when there are two lists. One list
+              under one title does not need to be told what it is. */}
+          {deleted.length > 0 && <h2 className={styles.h2}>Archived</h2>}
+
           <span className={styles.lead}>
             {all.length > 0 && <b>{count(all.length)}. </b>}
             An archived task is on no board and in no list, and keeps everything else: its values,
             its checklist, its comments and its history. Put one back and it returns to the place it
             had.
           </span>
-        </div>
-
-        <div className={styles.section}>
-          {/* The heading is drawn only when there are two lists. One list
-              under one title does not need to be told what it is. */}
-          {deleted.length > 0 && <h2 className={styles.h2}>Archived</h2>}
 
           {all.length > 0 && (
             <Input
@@ -147,9 +151,10 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
           <div className={styles.section} data-testid="deleted-section">
             <h2 className={styles.h2}>Deleted, gone in {DELETE_WINDOW_DAYS} days</h2>
             <span className={styles.lead}>
-              A deleted task is off every board and every list, out of every search and every count.
-              It comes back whole, with the key it had. After {DELETE_WINDOW_DAYS} days it goes for
-              good, and its comments, its checklist and its history go with it.
+              <b>{deletedCount(deleted.length)}. </b>A deleted task is off every board and every
+              list, out of every search and every count. It comes back whole, with the key it had.
+              After {DELETE_WINDOW_DAYS} days it goes for good, and its comments, its checklist and
+              its history go with it.
             </span>
             <Card>
               {deleted.map((task) => (
@@ -167,6 +172,10 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
 
 function count(n: number): string {
   return `${n} archived ${n === 1 ? "task" : "tasks"}`;
+}
+
+function deletedCount(n: number): string {
+  return `${n} deleted ${n === 1 ? "task" : "tasks"}`;
 }
 
 /**

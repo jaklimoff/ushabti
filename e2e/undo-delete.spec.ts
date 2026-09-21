@@ -69,6 +69,13 @@ test.describe("Undoing a delete", () => {
     await page.goto(`/p/${projectId}?task=${key}`);
     await deleteOpenTask(page);
 
+    /* The way back is on another page, so the one line the board draws has to
+       say so, and has to say how long there is. Without it the undo is
+       invisible to anybody who never opens the Archive. */
+    await expect(page.getByTestId("toast")).toContainText(
+      `${key} deleted. Put it back from the Archive within 30 days.`,
+    );
+
     // Off the board, and off it after a reload as well.
     await expect(card(page, "Rotate the signing key")).toHaveCount(0);
     await page.reload();
@@ -92,6 +99,10 @@ test.describe("Undoing a delete", () => {
     await expect(row).toContainText("Deleted just now");
     await expect(row).toContainText("30 days left");
     await expect(page.getByText("Deleted, gone in 30 days")).toBeVisible();
+    /* Each list says its own count. One number over two lists would have to
+       name which list it counted. */
+    await expect(page.getByText("1 deleted task.")).toBeVisible();
+    await expect(page.getByText("1 archived task.")).toHaveCount(0);
 
     // One press, no question asked: a put back takes nothing away.
     await settles(page, /\/api\/tasks\/[0-9a-f-]+\/restore$/, () =>

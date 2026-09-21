@@ -12,7 +12,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **A deleted task can come back for thirty days.** A delete now marks the task
   instead of taking it away: it leaves every board, list, search and count at
-  once, and every route about it answers `404`. The archive page gained a
+  once, and every route about it answers `404`. The delete says so in one line
+  — _USH-14 deleted. Put it back from the Archive within 30 days._ — with no
+  button on it, because the way back must not live in something that goes in
+  five seconds. The archive page gained a
   second list, **Deleted, gone in 30 days**, newest first, with the days left
   and one **Put back** that returns the task whole, with the key it had. A task
   deleted while it was archived comes back archived. After thirty days a sweep

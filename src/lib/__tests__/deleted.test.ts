@@ -4,6 +4,7 @@ import {
   DELETE_WINDOW_MS,
   daysLeft,
   deletedLine,
+  deletedSaid,
   goesAt,
   saysLeft,
   sweepCutoff,
@@ -80,6 +81,34 @@ describe("saysLeft", () => {
 
   it("says today when the window is over", () => {
     expect(saysLeft(goes, at + 30 * DAY)).toBe("Gone today");
+  });
+});
+
+/*
+ * The undo is on another page, so the one line the board draws after a delete
+ * is the only thing that says it exists at all.
+ */
+describe("what a delete says on the way out", () => {
+  const goes = goesAt(AT);
+
+  it("names the task and where the way back is", () => {
+    expect(deletedSaid("USH-14", goes, at)).toBe(
+      "USH-14 deleted. Put it back from the Archive within 30 days.",
+    );
+  });
+
+  /* The days come from the server's moment, never from a number written out
+     in the browser: a toast that said thirty while the server meant something
+     else would be the one sentence nobody could check. */
+  it("counts the days the answer gave it", () => {
+    expect(deletedSaid("USH-14", goesAt(at - 29 * DAY), at)).toBe(
+      "USH-14 deleted. Put it back from the Archive within 1 day.",
+    );
+  });
+
+  it("says only that it went when there is no window to name", () => {
+    expect(deletedSaid("USH-14", null, at)).toBe("USH-14 deleted.");
+    expect(deletedSaid("USH-14", goesAt(at - 40 * DAY), at)).toBe("USH-14 deleted.");
   });
 });
 
