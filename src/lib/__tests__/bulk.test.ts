@@ -21,9 +21,18 @@ describe("readTaskIds", () => {
     });
   });
 
+  /* An empty string is refused, not dropped. Dropping it would set two of the
+     three tasks the call named and answer as though it had set them all. */
+  it("refuses an empty id rather than leaving it out", () => {
+    expect(readTaskIds(["a", ""])).toEqual({
+      ok: false,
+      said: "Name the tasks as a list of ids.",
+    });
+    expect(readTaskIds([""])).toEqual({ ok: false, said: "Name the tasks as a list of ids." });
+  });
+
   it("refuses an empty list", () => {
     expect(readTaskIds([])).toEqual({ ok: false, said: "Name at least one task." });
-    expect(readTaskIds([""])).toEqual({ ok: false, said: "Name at least one task." });
   });
 
   /* The same id twice is one task. Two rows about one task in one statement

@@ -105,6 +105,19 @@ test.describe("Picking several cards", () => {
     await page.getByTestId("pick-clear").click();
     await expect(page.getByTestId("pick-bar")).toHaveCount(0);
 
+    /* Escape puts away one thing. With a task open it is the task, and the
+       picks are still there for the next press. */
+    await pick(page, "Aardvark", "Beetle", "Cricket");
+    await card(page, "Dingo").click();
+    await expect(page.getByTestId("task-panel")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
+    await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+
     /* What is picked belongs to the board on screen, so another view ends it
        rather than carrying a handful of cards across. */
     await pick(page, "Aardvark", "Beetle");

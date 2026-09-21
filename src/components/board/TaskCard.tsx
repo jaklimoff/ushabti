@@ -37,13 +37,14 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   { task, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps },
   ref,
 ) {
-  const { cardItems, data, picked, runOf } = useBoard();
+  const { cardItems, data, isPicked, picked, runOf } = useBoard();
   const run = runOf(task.id);
 
   /* The card wears a border and nothing more. The check stays on the whole
      board while anything is picked, so the way out of a pick is where the way
-     in was, on every card at once. */
-  const isPicked = picked.includes(task.id);
+     in was, on every card at once. The store answers from a set, because every
+     card asks this every time the board draws. */
+  const mine = isPicked(task.id);
   const picking = picked.length > 0;
 
   const slots = useMemo(
@@ -58,7 +59,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   const className = [
     styles.card,
     slots.edge ? styles.cardEdged : "",
-    isPicked ? styles.cardPicked : "",
+    mine ? styles.cardPicked : "",
     selected ? styles.cardSelected : "",
     ghost ? styles.cardGhost : "",
     overlay ? styles.cardOverlay : "",
@@ -78,7 +79,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
       data-testid={overlay ? "card-overlay" : "card"}
       style={style}
       data-task-id={task.id}
-      data-picked={isPicked ? "true" : undefined}
+      data-picked={mine ? "true" : undefined}
       /* A plain click still opens the task. Shift is what says "and this one
          too", so it never opens anything. */
       onClick={(event: React.MouseEvent) => {
@@ -106,8 +107,8 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
           className={styles.cardPick}
           data-testid="card-pick"
           data-on={picking ? "true" : undefined}
-          aria-pressed={isPicked}
-          aria-label={isPicked ? `Leave ${task.key} out` : `Pick ${task.key}`}
+          aria-pressed={mine}
+          aria-label={mine ? `Leave ${task.key} out` : `Pick ${task.key}`}
           /* The board has one tab stop, which is the card carrying the cursor.
              Forty checks would give it forty-one. `x` is the keyboard way in,
              exactly as the grip in settings is the keyboard way to drag. */
@@ -121,7 +122,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
             onPick(event);
           }}
         >
-          <span aria-hidden>{isPicked ? "✓" : ""}</span>
+          <span aria-hidden>{mine ? "✓" : ""}</span>
         </button>
       )}
 

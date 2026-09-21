@@ -101,8 +101,9 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           <div className={styles.spacer} />
           {/* What is picked belongs to no view either, so it stands beside the
               search box and not in the strip. It is here only while something
-              is picked. */}
-          <Selection />
+              is picked. It is told whether a task is open, because Escape puts
+              away one thing and the open task is the nearer one. */}
+          <Selection taskOpen={openTask !== null} />
           {/* The box searches the project, so it sits above the view strip
               rather than in it, beside the things that belong to no view. */}
           <Search onOpenTask={open} />

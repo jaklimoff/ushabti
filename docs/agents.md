@@ -64,7 +64,7 @@ so an agent sees exactly what a person sees and nothing more.
 | Create a task       | `POST /api/projects/{projectId}/tasks`              |
 | Rename or rewrite   | `PATCH /api/tasks/{taskId}`                         |
 | Set one property    | `PUT /api/tasks/{taskId}/values/{propertyId}`       |
-| Set it on many tasks| `POST /api/projects/{projectId}/tasks/values`       |
+| Set many at once    | `POST /api/projects/{projectId}/tasks/values`       |
 | Move a card         | `POST /api/tasks/{taskId}/move`                     |
 | Archive a task      | `POST /api/tasks/{taskId}/archive`                  |
 | Put it back         | `DELETE /api/tasks/{taskId}/archive`                |

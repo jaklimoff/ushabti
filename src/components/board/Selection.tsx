@@ -22,7 +22,7 @@ import styles from "./board.module.css";
  * value with. Nothing here is a dialog, and the board behind it never moves
  * out of the way.
  */
-export function Selection() {
+export function Selection({ taskOpen }: { taskOpen: boolean }) {
   const { data, picked, clearPicks, setPickedValue, addOption } = useBoard();
   const [open, setOpen] = useState(false);
   const [propertyId, setPropertyId] = useState<string | null>(null);
@@ -43,11 +43,18 @@ export function Selection() {
   const ref = useDismiss<HTMLDivElement>(close, open);
 
   /*
-   * Escape ends the picking. While the panel is open the box inside it has the
-   * focus, so this does not fire — `useShortcut` leaves a field alone — and
-   * `useDismiss` closes the panel instead. Escape always puts away one thing.
+   * Escape puts away one thing, and this is where the order is decided.
+   *
+   * Three things can be open at once: this panel, an open task, and the picks.
+   * The panel goes first without being asked — the box in it has the focus, so
+   * `useShortcut` leaves the key alone and `useDismiss` takes it. The open task
+   * goes next, and its own handler does that; this one stands down while a task
+   * is open rather than racing it, because two things put away by one press is
+   * a press nobody can undo. The picks are last, which is right: they are the
+   * furthest from the hand.
    */
   useShortcut("Escape", () => {
+    if (taskOpen) return;
     if (picked.length) clearPicks();
   });
 

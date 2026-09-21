@@ -28,10 +28,13 @@ export type IdsRead = { ok: true; ids: string[] } | { ok: false; said: string };
  */
 export function readTaskIds(raw: unknown): IdsRead {
   if (!Array.isArray(raw)) return { ok: false, said: "Name the tasks as a list of ids." };
-  if (raw.some((id) => typeof id !== "string")) {
+  /* An empty string is a bad entry like any other, and is refused rather than
+     dropped: a caller that sent one meant a task, and a call that quietly set
+     two of the three it named would be the half-set board in miniature. */
+  if (raw.some((id) => typeof id !== "string" || id === "")) {
     return { ok: false, said: "Name the tasks as a list of ids." };
   }
-  const ids = Array.from(new Set(raw as string[])).filter((id) => id !== "");
+  const ids = Array.from(new Set(raw as string[]));
   if (ids.length === 0) return { ok: false, said: "Name at least one task." };
   if (ids.length > BULK_LIMIT) {
     return { ok: false, said: `That is more than ${BULK_LIMIT} tasks. Set fewer at once.` };

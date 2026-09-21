@@ -124,6 +124,12 @@ type Store = {
    * hides a card; it does not unpick it.
    */
   picked: string[];
+  /**
+   * Whether one card is picked. Every card on the board asks this on every
+   * render, so it is a set and not a walk of the list: two hundred picks would
+   * otherwise cost forty thousand comparisons a draw.
+   */
+  isPicked: (taskId: string) => boolean;
   /** Picks one card, or puts it back. The next range is measured from it. */
   togglePick: (taskId: string) => void;
   /**
@@ -438,6 +444,9 @@ export function BoardProvider({
     const drawn = new Set(visibleTasks.map((t) => t.id));
     return pickedRaw.filter((id) => drawn.has(id));
   }, [pickedRaw, visibleTasks]);
+
+  const pickedSet = useMemo(() => new Set(pickedHere), [pickedHere]);
+  const isPicked = useCallback<Store["isPicked"]>((taskId) => pickedSet.has(taskId), [pickedSet]);
 
   const togglePick = useCallback<Store["togglePick"]>((taskId) => {
     anchor.current = taskId;
@@ -1073,6 +1082,7 @@ export function BoardProvider({
     moveTask,
     setValue,
     picked: pickedHere,
+    isPicked,
     togglePick,
     pickTo,
     clearPicks,
