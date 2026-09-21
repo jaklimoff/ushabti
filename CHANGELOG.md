@@ -156,6 +156,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **`npm run start` now serves the build the image serves.** It was
+  `next start`, which printed "next start does not work with output:
+  standalone" and then served a slightly different server. It now runs
+  `node .next/standalone/server.js`, the one the image runs, after copying the
+  static files where that server looks for them. `PORT` picks the port and
+  `HOST` the address, which is every interface unless you say otherwise. One thing to know: that server carries the
+  copy of `.env` the build made, not the file on disk, so edit `.env` and you
+  must build again or pass the setting on the command line.
 - **A row of a task's run history is lighter, and the list is ordered by when
   each run started.** `pastRuns` on `GET /api/tasks/{taskId}` no longer carries
   `stepsTotal`, `stepsDone` or `lastLog`: nothing drew them, and filling them
