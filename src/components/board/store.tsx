@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
 import { cardItems, defaultCardView, readCardView } from "@/lib/card-view";
 import type { CardItem } from "@/lib/card-view";
+import { deletedSaid } from "@/lib/deleted";
 import { applyFilters, clashOf, clashSaid, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
@@ -103,6 +104,13 @@ type Store = {
    * row that failed must not read as one that went.
    */
   restoreTask: (taskId: string) => Promise<boolean>;
+  /**
+   * Puts a deleted task back, with its key, its rank and everything on it. It
+   * answers whether it went through, for the same reason a put back from the
+   * archive does: the drawer says so in words, and a row that failed must not
+   * read as one that went.
+   */
+  undeleteTask: (taskId: string) => Promise<boolean>;
   /** Archives every live task in one column. A person's act, so it asks first. */
   archiveColumn: (propertyId: string | null, value: TaskValue) => Promise<number>;
   moveTask: (input: {
@@ -566,18 +574,37 @@ export function BoardProvider({
     [guarded, patchLocalTask],
   );
 
+  /*
+   * A delete is the one press on this board with a way back, and the way back
+   * is on another page. So the toast says so, with the days the server
+   * counted. It is written out here rather than through `guarded`, which
+   * throws the answer away, and the answer is the only place the window is.
+   */
   const deleteTask = useCallback<Store["deleteTask"]>(
     async (taskId) => {
+      /* The key, read before the row goes. By the time the answer lands there
+         is nothing left in either list to read it off. */
+      const key =
+        data.tasks.find((t) => t.id === taskId)?.key ??
+        data.archived.find((t) => t.id === taskId)?.key ??
+        null;
+
       setData((current) => ({
         ...current,
         tasks: current.tasks.filter((t) => t.id !== taskId),
         archived: current.archived.filter((t) => t.id !== taskId),
       }));
-      await guarded(async () => {
-        await api.del(`/api/tasks/${taskId}`);
-      });
+
+      wrote();
+      try {
+        const said = await api.del<{ goesAt?: string }>(`/api/tasks/${taskId}`);
+        if (key) notify(deletedSaid(key, said?.goesAt ?? null), "info");
+      } catch (err) {
+        notify(err instanceof Error ? err.message : "The change did not save.");
+        await refresh();
+      }
     },
-    [guarded],
+    [data.archived, data.tasks, notify, refresh, wrote],
   );
 
   /* The card leaves the board at once and joins the archived list, so a search
@@ -624,6 +651,21 @@ export function BoardProvider({
     async (taskId) =>
       guarded(async () => {
         await api.del(`/api/tasks/${taskId}/archive`);
+        await refresh();
+      }),
+    [guarded, refresh],
+  );
+
+  /*
+   * This one waits for the board as well, and for a stronger reason: a deleted
+   * task is on no list the browser holds, so there is nothing here to draw it
+   * from. It comes back live or archived — whichever it was — and only the
+   * server knows which.
+   */
+  const undeleteTask = useCallback<Store["undeleteTask"]>(
+    async (taskId) =>
+      guarded(async () => {
+        await api.post(`/api/tasks/${taskId}/restore`, {});
         await refresh();
       }),
     [guarded, refresh],
@@ -1078,6 +1120,7 @@ export function BoardProvider({
     deleteTask,
     archiveTask,
     restoreTask,
+    undeleteTask,
     archiveColumn,
     moveTask,
     setValue,

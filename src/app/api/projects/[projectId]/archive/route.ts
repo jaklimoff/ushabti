@@ -48,7 +48,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
       taskValues,
       and(eq(taskValues.taskId, tasks.id), eq(taskValues.propertyId, property.id)),
     )
-    .where(and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt)));
+    .where(and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt), isNull(tasks.deletedAt)));
 
   const ids = rows
     .filter((r) => columnIdForValue(r.value as TaskValue, property) === wanted)

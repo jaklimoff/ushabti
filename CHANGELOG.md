@@ -10,6 +10,31 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A deleted task can come back for thirty days.** A delete now marks the task
+  instead of taking it away: it leaves every board, list, search and count at
+  once, and every route about it answers `404`. The delete says so in one line
+  — _USH-14 deleted. Put it back from the Archive within 30 days._ — with no
+  button on it, because the way back must not live in something that goes in
+  five seconds. The archive page gained a
+  second list, **Deleted, gone in 30 days**, newest first, with the days left
+  and one **Put back** that returns the task whole, with the key it had. A task
+  deleted while it was archived comes back archived. After thirty days a sweep
+  takes the row for good, and it runs on a delete and on a read of that list,
+  because there is no timer. `DELETE /api/tasks/{id}` answers
+  `{"ok": true, "goesAt": "…"}`, and there are two new routes,
+  `POST /api/tasks/{id}/restore` and `GET /api/projects/{id}/deleted`, both of
+  which take an agent token. **This carries a migration** (`deleted_at` on
+  `tasks` and its index): run `npm run db:migrate`, which the image does on
+  every start.
+
+### Changed
+
+- **The `deleted` activity line says which way round it went.** `kind` stays
+  `deleted` for a delete and for a put back, and `data` now carries `action` —
+  `deleted` or `restored` — beside `key`, `title` and `goesAt`, which is null
+  on a put back. A webhook receiver watching `deleted` now hears a task coming
+  back as well and has to read the action.
+
 - **Pick several cards and set one property on all of them.** Hover a card and
   a check appears in its corner; `x` picks the one the cursor is on, and
   Shift-click picks a run inside one column. A bar in the top bar says how many

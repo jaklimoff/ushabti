@@ -10,10 +10,11 @@ import {
   lt,
   notInArray,
   or,
+  sql,
   type SQL,
 } from "drizzle-orm";
 import { db } from "@/db";
-import { agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
+import { agentRunLog, agentRunSteps, agentRuns, tasks, users } from "@/db/schema";
 import { logActivity } from "./activity";
 import { HttpError } from "./auth";
 import { publish } from "./events";
@@ -205,6 +206,22 @@ async function shapeMany(rows: RunRow[]): Promise<AgentRunDTO[]> {
   return rows.map((row) => shape(row, stepsByRun.get(row.id) ?? [], newestLog.get(row.id) ?? null));
 }
 
+/**
+ * A run on a task somebody can still see.
+ *
+ * A deleted task keeps its open run — the row is only marked, and a put back
+ * has to give the work back with everything else. But nothing draws that run:
+ * there is no card, and the lease leaves it open for up to half an hour. Read
+ * without this, the board would carry a run nobody can reach and `me` would
+ * count it, both saying an agent is busy with a task that is not there.
+ *
+ * It is an `EXISTS` rather than a join, because the answer wants no column of
+ * `tasks` and a join would have to be kept out of `runColumns` by hand.
+ *
+ * It is exported so a test can read the rule without a database.
+ */
+export const ON_A_TASK_YOU_CAN_SEE = sql`exists (select 1 from ${tasks} where ${tasks.id} = ${agentRuns.taskId} and ${tasks.deletedAt} is null)`;
+
 /** Every open run of a project, for the board. */
 export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
   await sweepLost(eq(agentRuns.projectId, projectId));
@@ -213,7 +230,9 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
     .select(runColumns)
     .from(agentRuns)
     .innerJoin(users, eq(users.id, agentRuns.agentId))
-    .where(and(eq(agentRuns.projectId, projectId), isNull(agentRuns.endedAt)))
+    .where(
+      and(eq(agentRuns.projectId, projectId), isNull(agentRuns.endedAt), ON_A_TASK_YOU_CAN_SEE),
+    )
     .orderBy(asc(agentRuns.startedAt));
 
   return shapeMany(rows);

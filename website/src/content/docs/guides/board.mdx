@@ -100,6 +100,36 @@ The page draws the archived tasks your browser already carries, so it answers as
 the server nothing until you put one back. Who archived a task is not on the row: open it and the
 [activity log](/ushabti/guides/task-panel/#activity) says who and when.
 
+## Deleted, gone in 30 days
+
+Below the archived list, the same page holds the other kind of gone: **Deleted, gone in 30 days**,
+drawn only when there is something in it.
+
+A deleted task is off every board and every list, out of every search and every count. It is not
+half gone: its link opens nothing, and anything that asks the API about it is told there is no such
+task. For thirty days it is still here, and **Put back** on its row returns it whole — with the key
+it had, the rank it had, and its values, its checklist, its comments and its history. A task you
+deleted while it was archived comes back archived.
+
+**The delete itself says so**, in one line at the bottom of the board: _USH-14 deleted. Put it back
+from the Archive within 30 days._ There is no button on it — a way back that lives in something
+that goes in five seconds is not a way back — so it names the page instead, which is in the top bar
+beside **Settings**.
+
+- **Newest first**, with when it went and how many days are left.
+- **The key and the title open nothing**, unlike an archived row. There is nothing to open until it
+  is back.
+- **Put back asks nothing first.** It takes nothing away, so there is no cost to name.
+
+After the thirty days the task is taken away for good, and everything on it goes too. The window is
+the same for every project and it is not a setting.
+
+<Aside type="note" title="What a delete undoes, and what it does not">
+This is undo for a deleted task, and for nothing else. A property you delete, an option, a view or
+a value you overwrite has no way back — the row that asks names what goes with it, in real numbers,
+before anything happens.
+</Aside>
+
 ## Adding a column
 
 **+ New column** at the right end, shown only when the grouping property is a select. Type a name,

@@ -110,13 +110,25 @@ runs this.
 - **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
 - **Import.** Read a Trello or Jira export and map lists to options.
 - **Attachments.** Files on a task.
-- **Undo.** At least for a delete. Archive is the answer for a task that is
-  simply over; delete still has no way back.
 - **A narrow-screen board.** The panel already overlays below 900 px, but the board itself needs a real phone layout.
 
 ---
 
 ## Done since v1.1, not yet released
+
+- **A deleted task can come back for thirty days.** Delete was the one press
+  with nothing behind it: the row went, and its comments, its checklist and its
+  history went with it. Now a delete is a mark on the task. It leaves every
+  board, list, search and count at once, and every route about it answers
+  `404` — which is what delete has to mean — but the row is still there. The
+  archive page gained a second list, **Deleted, gone in 30 days**, newest
+  first, with the days left and one **Put back** that returns the task whole,
+  with the key it had. `DELETE /api/tasks/{id}` now answers `goesAt`, the
+  `deleted` feed line carries `action`, `key` and `goesAt`, and there are two
+  new routes: `POST /api/tasks/{id}/restore` and
+  `GET /api/projects/{id}/deleted`. The sweep runs on a delete and on a read
+  of that list, because there is no timer in Ushabti. Thirty days is one
+  number in the docs, not a project setting.
 
 - **Pick several cards and set one property on all of them.** Moving ten cards
   to a new owner one at a time was the tenth-time friction a team notices most.
@@ -161,6 +173,18 @@ These are consequences of the design, not defects. Read them before you build on
 - **A list draws every row it shows.** Like the board, and for the same reason: above a few thousand tasks it needs paging. A row is cheaper than a card, so the ceiling is higher, not different.
 - **A list shows what a card shows.** Its columns are the project's card view, so the property a board groups by is missing from a list until somebody puts it back on the card in Settings → Card view — the default leaves it off because a board's columns already say it. The alternative was worse: a rule that restored it would make the column vanish the day somebody edited an unrelated row.
 - **A board loads all its tasks at once.** Fine for a few thousand. It needs paging above that.
+- **A deleted row waits for somebody to look.** The sweep that takes a task
+  past its thirty days runs on a delete in that project and on a read of the
+  deleted list. There is no timer in Ushabti and this is not the reason to
+  build the first one. So a project that deletes one task and then never
+  deletes another keeps that row past its window until somebody opens the
+  archive page — hidden from every read the whole time, and gone the moment
+  anybody looks.
+- **The browser never loads a deleted task**, unlike an archived one. It is
+  not on the board answer at all, because a deleted task must reach no board,
+  no list, no search and no count. The archive page asks for that list itself,
+  which is why it is the one page that already pages the way the rest will
+  have to.
 - **The browser loads the archived tasks too**, in `archived` beside `tasks`,
   because the search reads every task in the project and a link to an archived
   one still opens its panel. They are carried light — the key, the title, the
