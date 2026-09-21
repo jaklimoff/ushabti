@@ -2,8 +2,10 @@
 //
 // `output: "standalone"` writes a server that serves `.next/static` and
 // `public` from its own folder, but `next build` never copies them there: they
-// are meant for a CDN. The image does the copy between two Docker stages. On a
-// machine there is no second stage, so `npm run start` runs this first.
+// are meant for a CDN. The runner stage of `Dockerfile` does the copy for the
+// image. On a machine there is no second stage, so `npm run start` runs this
+// first. The two must name the same two folders. Add one here and the image
+// serves less than a developer and CI do.
 //
 // It loads nothing. It runs before the server, from a tree that may hold only
 // what the build left, and a dependency here would be one more thing between a
