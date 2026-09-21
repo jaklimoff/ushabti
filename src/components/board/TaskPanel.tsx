@@ -1017,6 +1017,9 @@ function Description({ value, onCommit }: { value: string; onCommit: (v: string)
               (e.target as HTMLTextAreaElement).blur();
             }
             if (e.key === "Escape") {
+              // No blur() here: closing the editor unmounts the textarea, and
+              // a removed element raises no blur, so nothing is saved. A
+              // blur() would save the draft first, which is the title's bug.
               setDraft(value);
               setEditing(false);
             }
