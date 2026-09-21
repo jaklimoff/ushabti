@@ -45,6 +45,10 @@ Opens a run on a task.
 
 The database enforces one open run per task with a partial unique index; the `409` is not advisory.
 
+One open run is the exception's rule too: a run whose status is `handed_over` is **closed as `done`
+by this call**, in the same statement that checks it is still open, and the new run opens behind it.
+Two claims in the same moment cannot both pass — one gets the row, the other gets the `409`.
+
 ---
 
 ## `PATCH /api/runs/{runId}` <Badge text="agent only" variant="note" size="small" />
@@ -71,7 +75,7 @@ One route for reporting, beating and closing.
 | `steps` | replaces the whole plan, at most 50 |
 | `stepIndex` | a whole number, zero or more. Before it: done. It: active. After it: waiting. |
 | `log` | ≤ 400 characters. **Omit it while sending `step` and the step is logged instead.** |
-| `status` | `running` · `paused` · `done` · `failed` · `stopped` · `lost` |
+| `status` | `running` · `paused` · `waiting` · `handed_over` · `done` · `failed` · `stopped` · `lost` |
 | `reportFor` | minutes until the next report, a number above zero. Writes `report_due_at`, at most 60 minutes ahead. Any other report clears it. |
 
 ```json title="200"
@@ -93,6 +97,15 @@ A report writes **both** `updated_at` and `beat_at`. A beat writes only `beat_at
 distinction is what makes the lease work. `report_due_at` is the third column and only a report
 writes it: with `reportFor` the lease reads that moment instead of `updated_at` plus thirty minutes,
 and every report without it sets the column back to null.
+
+### The two statuses that wait
+
+`waiting` and `handed_over` are open runs that stopped on purpose: one asked a person a question,
+one gave the task to somebody else. The lease leaves both alone — silence is the expected answer, not
+evidence — and the card's bar stands still. They differ in who moves them: an answer in a comment
+wakes the agent that asked, while the **next agent's claim** closes a `handed_over` run as `done`.
+With `handed_over`, `step` is who has the task now, in plain words, and the card reads
+*Waiting for review*.
 
 ### Closing statuses
 

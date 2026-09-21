@@ -10,6 +10,7 @@ import {
   duration,
   elapsed,
   isOpen,
+  isWaiting,
   leaseLeft,
   lifeOf,
   LIFE_WORD,
@@ -621,6 +622,7 @@ function describeActivity(entry: {
     text?: string;
     action?: string;
     forName?: string;
+    to?: string;
   };
   switch (entry.kind) {
     case "created":
@@ -638,6 +640,8 @@ function describeActivity(entry: {
     case "archive":
       return d.action === "restored" ? `${who} put the task back` : `${who} archived the task`;
     case "run":
+      // A hand-over is the one run line that names somebody else.
+      if (d.action === "handed_over") return `${who} handed the task to ${d.to || "somebody else"}`;
       return `${who} ${RUN_WORDS[d.action ?? ""] ?? "changed the run"}`;
     // A line on the project, not on a task. No screen draws one yet.
     case "reset":
@@ -672,7 +676,10 @@ function AgentRunBlock({
   const since = elapsed(run.startedAt, now);
   const life = lifeOf(run, now);
   const paused = run.status === "paused";
-  const waiting = run.status === "waiting";
+  // Both waiting runs stopped on purpose, so neither has anything to pause or
+  // stop. Only the note below tells the two apart, because only the words do.
+  const waiting = isWaiting(run.status);
+  const handedOver = run.status === "handed_over";
 
   async function press(control: RunControl | "take_over") {
     if (busy) return;
@@ -729,7 +736,13 @@ function AgentRunBlock({
 
       <RunLog log={run.log} />
 
-      {waiting ? (
+      {handedOver ? (
+        <div className={styles.runNote} data-testid="panel-run-handed-over">
+          {run.agent.name} handed the task to {run.step.trim() || "the next agent"} and stopped. The
+          next agent that claims the task finishes this run and starts its own. Nothing runs until
+          then, so there is nothing to pause or stop.
+        </div>
+      ) : waiting ? (
         <div className={styles.runNote} data-testid="panel-run-waiting">
           {run.agent.name} asked a question and stopped. Answer it in a comment, and it picks the
           task up again. Nothing runs until then, so there is nothing to pause or stop.

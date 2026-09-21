@@ -4,7 +4,7 @@ import { agentRuns } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { agentOnly, body, broadcast, clientIdOf, guard, json, optionalStr, route } from "@/lib/api";
 import { logActivity, taskProjectId } from "@/lib/queries";
-import { addLog, loadRun, replaceSteps } from "@/lib/runs";
+import { addLog, closeHandOver, loadRun, replaceSteps } from "@/lib/runs";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -29,12 +29,28 @@ export const POST = route<Ctx>(async (req, ctx) => {
     : [];
   if (steps.length > 50) throw new HttpError(400, "A plan has at most 50 steps.");
 
-  const held = await db
-    .select({ id: agentRuns.id })
+  const [held] = await db
+    .select({ id: agentRuns.id, status: agentRuns.status })
     .from(agentRuns)
     .where(and(eq(agentRuns.taskId, taskId), isNull(agentRuns.endedAt)))
     .limit(1);
-  if (held.length) throw new HttpError(409, "Another run is already open on this task.");
+
+  /*
+   * A run that handed the task on is the one open run a claim may close. It
+   * stopped on purpose and said who was next, so whoever arrives finishes it
+   * and starts their own. Every other open run is the lock, and stays one.
+   */
+  if (held) {
+    const handed = held.status === "handed_over" ? await closeHandOver(taskId, user.name) : null;
+    if (!handed) throw new HttpError(409, "Another run is already open on this task.");
+    await logActivity({
+      projectId,
+      taskId,
+      actorId: handed.agentId,
+      kind: "run",
+      data: { action: "done" },
+    });
+  }
 
   const [row] = await db
     .insert(agentRuns)

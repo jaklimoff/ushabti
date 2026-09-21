@@ -134,7 +134,9 @@ over a bar that scans while the run lives. The task panel grows
 an **Agent** tab beside Comments and Activity, whose dot pulses while you work.
 The tab holds the rest — the plan, the log and the buttons.
 
-**One task holds one open run.** A second start gets `409`.
+**One task holds one open run.** A second start gets `409` — unless the open
+run handed the task on, which a claim closes instead of refusing. See
+[Hand over](#hand-over).
 
 ### Start
 
@@ -166,8 +168,9 @@ PATCH /api/runs/{runId}
 - `log` — one line for the run log in the Agent tab. If you leave it out, `step`
   is logged instead.
 - `steps` — a new plan, if the work turned out different.
-- `status` — `running`, `paused`, `waiting`, `done`, `failed`, or `lost` if
-  you are being shut down and want the card back on the board at once.
+- `status` — `running`, `paused`, `waiting`, `handed_over`, `done`, `failed`,
+  or `lost` if you are being shut down and want the card back on the board at
+  once.
 - `reportFor` — minutes until your next report. Send it before a step you know
   is long, such as a build or a test suite, and the board waits that long
   before it calls the run lost. It only ever stretches the thirty minutes, and
@@ -261,6 +264,36 @@ pick the work up again.
 
 `board.mjs ask USH-14 "…"` does both calls, and the watcher below wakes you
 when a person answers.
+
+### Hand over
+
+Sometimes your work is done but the task is not: a pull request is open and
+somebody has to review it, or the next step belongs to another agent. Closing
+the run there leaves the card silent while the task is in somebody's hands, so
+end the session by handing it on instead:
+
+```http
+PATCH /api/runs/{runId}
+{ "status": "handed_over", "step": "review" }
+```
+
+`step` is who has the task now, in plain words — a name or a role. The card
+reads **Waiting for review** and says how long it has waited, exactly as a
+question does, and the run is the second of the two the lease leaves alone.
+The Agent tab says who is next and offers Take over alone, because nothing is
+running.
+
+The run stays open until somebody moves it, and there are two ways:
+
+- **The next agent claims the task.** `POST /api/tasks/{taskId}/run` closes the
+  hand-over as `done` and opens the new run in the same call, so one task still
+  holds one open run. Nothing queues and nothing is reserved: whoever claims
+  first gets it, and a second claim in the same moment gets `409`.
+- **A person presses Take over**, which ends it as every other open run ends.
+
+`board.mjs finish USH-14 --to "review"` is the short way. A hand-over is not a
+notification: nobody is told, and `<who>` is a word on the card, not a member
+of the project.
 
 ### Finish
 
@@ -443,8 +476,8 @@ What it does for each one:
    every ten seconds. Take over, or Stop, ends the harness within seconds, not
    at its next report.
 4. **Closes what the harness left open.** A clean exit becomes `done`, anything
-   else `failed`, with the reason in the log. A waiting run stays open, because
-   it asked a person something.
+   else `failed`, with the reason in the log. A run that waits stays open,
+   because it asked a person something or handed the task on.
 
 | Flag        | Default              | What it does                                   |
 | ----------- | -------------------- | ---------------------------------------------- |
@@ -470,7 +503,7 @@ harnesses it started and closes their runs as `lost`.
 | 401  | The token is unknown or revoked.                              |
 | 403  | The token belongs to another project, or a route only a person may call. |
 | 404  | The task, run or project is not there.                        |
-| 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. |
+| 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. A run that handed the task on is the one open run a claim closes rather than refuses. |
 | 429  | Ten bad tokens came from your address inside ten minutes. Wait, do not retry in a loop. |
 
 A token that works is never counted and never slowed, so a working agent never
@@ -522,6 +555,7 @@ node board.mjs describe USH-14 --file draft.md   # only if empty, or yours
 node board.mjs ask USH-14 "Which service owns the queue?"
 node board.mjs pause USH-14                # answer a Pause, wait for Resume
 node board.mjs finish USH-14
+node board.mjs finish USH-14 --to "review" # hand it on; the card waits for them
 node board.mjs watch --on assigned --run 'claude -p {prompt}'
 ```
 

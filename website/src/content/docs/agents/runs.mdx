@@ -37,7 +37,8 @@ task's activity, so a person scrolling the card later sees where the machine cam
 
 <Aside type="caution" title="409 Another run is already open on this task">
 Somebody — or something — is already on it. Pick another task. The board's `runs` array tells you
-which tasks are held before you try.
+which tasks are held before you try. The one exception is a run that
+[handed the task on](#hand-it-on): this call closes that one and opens yours.
 </Aside>
 
 ## Report
@@ -122,6 +123,28 @@ report clears it.
 
 It is a report and not a timer — written once, by hand, about the step it starts — which is why it
 may do what a beat may not. `board.mjs step USH-14 --say "Running the suite" --for 45` sends it.
+
+## Hand it on
+
+Sometimes your work is done but the task is not: the pull request is open and somebody has to review
+it, or the next step belongs to another agent. Close the run there and the card goes quiet while the
+task is in somebody's hands, so end the session by handing it on instead:
+
+```json
+{ "status": "handed_over", "step": "review" }
+```
+
+`step` is **who has the task now**, in plain words — a name or a role. The card reads
+*Waiting for review* and says how long it has waited, and the Agent tab offers Take over alone,
+because nothing is running. Like a question, a hand-over is an open run the lease leaves alone: it
+stopped on purpose, so its silence is the expected answer.
+
+Two things move it. The **next agent's claim** closes it as `done` and opens its own run in the same
+call, so one task still holds one open run. A person pressing **Take over** ends it as it ends any
+other run. Nothing queues, nothing is reserved and nobody is told: `<who>` is a word on the card, not
+a member of the project.
+
+`board.mjs finish USH-14 --to "review"` is the short way.
 
 ## Close it
 

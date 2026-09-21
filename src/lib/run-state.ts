@@ -13,6 +13,20 @@ export function isOpen(status: RunStatus): boolean {
 }
 
 /**
+ * The open runs that stopped on purpose.
+ *
+ * One asked a person a question; one handed the task to somebody else. In
+ * both the agent said the last thing it has to say, so silence is the
+ * expected answer and never evidence that the process died. The lease leaves
+ * these alone, the bar stands still, and Take over is the only button left.
+ */
+export const WAITING_STATUSES: RunStatus[] = ["waiting", "handed_over"];
+
+export function isWaiting(status: RunStatus | undefined): boolean {
+  return status !== undefined && WAITING_STATUSES.includes(status);
+}
+
+/**
  * True when the status an agent reports answers what a person asked for.
  * The request stays on the run until then, and the panel says it is waiting
  * for an answer; a report that says something else is not an answer.
@@ -86,9 +100,9 @@ export function lifeOf(
   run: Pick<AgentRunDTO, "updatedAt" | "beatAt"> & Partial<Pick<AgentRunDTO, "status">>,
   now: number = Date.now(),
 ): RunLife {
-  // A waiting agent said the last thing it has to say: its question. Nobody
-  // expects it to speak again until a person answers.
-  if (run.status === "waiting") return "reporting";
+  // A waiting agent said the last thing it has to say: its question, or the
+  // name of whoever has the task now. Nobody expects it to speak again.
+  if (isWaiting(run.status)) return "reporting";
   if (now - new Date(run.updatedAt).getTime() < SILENT_AFTER_MS) return "reporting";
   return now - new Date(run.beatAt).getTime() < SILENT_AFTER_MS ? "quiet" : "silent";
 }
@@ -137,6 +151,10 @@ export function progressOf(run: Pick<AgentRunDTO, "stepsTotal" | "stepsDone">): 
 /** The one line the card shows. Falls back to the goal, then to a default. */
 export function runLine(run: Pick<AgentRunDTO, "step" | "goal" | "status">): string {
   if (run.status === "paused") return run.step.trim() || "Paused";
+  // A hand-over keeps who has the task now in the step, because that name is
+  // the only thing left to say. The sentence is built here so that the card,
+  // the panel and anything else read the same words.
+  if (run.status === "handed_over") return `Waiting for ${run.step.trim() || "the next agent"}`;
   if (run.status === "waiting") return run.step.trim() || "Waiting for an answer";
   return run.step.trim() || run.goal.trim() || "Working";
 }
@@ -153,8 +171,7 @@ export function runClock(
   run: Pick<AgentRunDTO, "status" | "startedAt" | "updatedAt" | "beatAt">,
   now: number = Date.now(),
 ): { text: string; stale: boolean } {
-  if (run.status === "waiting")
-    return { text: `waiting ${elapsed(run.updatedAt, now)}`, stale: true };
+  if (isWaiting(run.status)) return { text: `waiting ${elapsed(run.updatedAt, now)}`, stale: true };
   const life = lifeOf(run, now);
   if (life === "reporting") return { text: elapsed(run.startedAt, now), stale: false };
   return { text: `${LIFE_WORD[life]} ${elapsed(run.updatedAt, now)}`, stale: true };
@@ -165,7 +182,7 @@ export function runIsStill(
   run: Pick<AgentRunDTO, "status" | "updatedAt" | "beatAt">,
   now: number = Date.now(),
 ): boolean {
-  if (run.status === "paused" || run.status === "waiting") return true;
+  if (run.status === "paused" || isWaiting(run.status)) return true;
   return lifeOf(run, now) === "silent";
 }
 
@@ -188,6 +205,7 @@ export const STATUS_WORD: Record<RunStatus, string> = {
   running: "active",
   paused: "paused",
   waiting: "waiting for an answer",
+  handed_over: "handed over",
   done: "finished",
   failed: "failed",
   stopped: "stopped",

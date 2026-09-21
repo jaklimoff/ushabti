@@ -136,6 +136,21 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     });
   }
 
+  /*
+   * A hand-over is not a close, but it is the end of this agent's session and
+   * the feed is the record. The name goes in the line, so a reader learns who
+   * has the task without asking for the run.
+   */
+  if (status === "handed_over") {
+    await logActivity({
+      projectId: context.projectId,
+      taskId: context.taskId,
+      actorId: user.id,
+      kind: "run",
+      data: { action: "handed_over", to: (step ?? "").trim() },
+    });
+  }
+
   await broadcast({
     projectId: context.projectId,
     scope: "board",

@@ -175,6 +175,83 @@ test.describe("Agents that wait for work", () => {
     expect(resumed.ok()).toBeTruthy();
   });
 
+  test("a run hands the task on, and the next claim closes it", async ({ page, request }) => {
+    await register(page, "Hand-over Owner");
+    const projectId = await createProject(page, unique("Hand-over"));
+    await addTask(page, "Todo", "Make the queue retry");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addTask(page, "Todo", "Ship the docs");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    const builder = await connectAgent(page, projectId, "Builder");
+    const reviewer = await connectAgent(page, projectId, "Reviewer");
+    const { task } = await taskByTitle(page.request, projectId, "Make the queue retry");
+    const { task: second } = await taskByTitle(page.request, projectId, "Ship the docs");
+
+    /* ---- an agent ends its session by handing the task on ------------ */
+
+    for (const key of [task.key, second.key]) {
+      const claimed = await runBoard(builder, ["claim", key, "--goal", "Open the pull request"]);
+      expect(claimed.code, claimed.output).toBe(0);
+    }
+    const handed = await runBoard(builder, ["finish", task.key, "--to", "review"]);
+    expect(handed.code, handed.output).toBe(0);
+    expect(handed.output).toContain("waiting for review");
+    await runBoard(builder, ["finish", second.key, "--to", "review"]);
+
+    /* ---- the card says who has it, instead of going quiet ------------ */
+
+    await page.goto(`/p/${projectId}`);
+    const held = card(page, "Make the queue retry").first();
+    await expect(held.getByTestId("card-run-step")).toHaveText("Waiting for review");
+    await expect(held.getByTestId("card-run-time")).toContainText("waiting");
+
+    await held.click();
+    await page.getByTestId("agent-tab").click();
+    const panel = page.getByTestId("panel-run");
+    await expect(page.getByTestId("panel-run-handed-over")).toContainText(
+      "Builder handed the task to review",
+    );
+    await expect(panel.getByRole("button", { name: "Pause" })).toBeHidden();
+    await expect(panel.getByRole("button", { name: "Stop" })).toBeHidden();
+    await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    /* ---- it stopped on purpose, so the lease leaves it alone --------- */
+
+    const { runs } = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const handOver = runs.find((r: { taskId: string }) => r.taskId === task.id);
+    expect(handOver.status).toBe("handed_over");
+    await backdateRun(handOver.id, 45);
+    await page.reload();
+    await expect(held.getByTestId("card-run-step")).toHaveText("Waiting for review");
+
+    /* ---- the next agent claims: one run closes, the next opens ------- */
+
+    const picked = await runBoard(reviewer, ["claim", task.key, "--goal", "Review the branch"]);
+    expect(picked.code, picked.output).toBe(0);
+
+    const detail = await (
+      await request.get(`/api/tasks/${task.id}`, {
+        headers: { Authorization: `Bearer ${reviewer}` },
+      })
+    ).json();
+    expect(detail.task.run.agent.name).toBe("Reviewer");
+    expect(detail.task.pastRuns[0].agent.name).toBe("Builder");
+    expect(detail.task.pastRuns[0].status).toBe("done");
+
+    await page.reload();
+    await expect(held.getByTestId("card-run")).toContainText("Reviewer");
+
+    /* ---- and Take over still ends one, as it ends any open run ------- */
+
+    await card(page, "Ship the docs").first().click();
+    await page.getByTestId("agent-tab").click();
+    await page.getByRole("button", { name: "Take over" }).click();
+    await expect(page.getByTestId("panel-run")).toBeHidden();
+    await expect(card(page, "Ship the docs").first().getByTestId("card-run")).toBeHidden();
+  });
+
   test("a comment becomes the description, and asks before it replaces one", async ({
     page,
     request,

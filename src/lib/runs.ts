@@ -1,11 +1,23 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, ne, or, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/db";
 import { agentRunLog, agentRunSteps, agentRuns, users } from "@/db/schema";
 import { logActivity } from "./activity";
 import { HttpError } from "./auth";
 import { publish } from "./events";
-import { REPORT_LEASE_MS } from "./run-state";
+import { REPORT_LEASE_MS, WAITING_STATUSES } from "./run-state";
 import type {
   AgentRunDTO,
   AgentRunDetailDTO,
@@ -105,9 +117,10 @@ function shape(row: RunRow, steps: AgentRunStepDTO[], lastLog: string | null): A
  * by that moment instead. It is still a report: an agent wrote it once, about
  * the step it was starting, and its next report takes it away again.
  *
- * A run that is waiting is left alone. It asked a person something and
- * stopped on purpose, so its silence is the expected answer, not evidence.
- * Take over still ends it at any moment.
+ * A run that waits is left alone. It asked a person something, or handed the
+ * task to somebody else, and stopped on purpose, so its silence is the
+ * expected answer and not evidence. Take over still ends it at any moment,
+ * and the next agent's claim closes a hand-over.
  *
  * It sits on the read path because the board is read far more often than any
  * schedule would fire, and one UPDATE behind an index costs less than a job
@@ -122,7 +135,7 @@ async function sweepLost(scope: SQL | undefined): Promise<void> {
     .where(
       and(
         isNull(agentRuns.endedAt),
-        ne(agentRuns.status, "waiting"),
+        notInArray(agentRuns.status, WAITING_STATUSES),
         // The two halves of `leaseEndsAt`, asked of the rows.
         or(
           and(isNull(agentRuns.reportDueAt), lt(agentRuns.updatedAt, cutoff)),
@@ -338,6 +351,36 @@ export async function setCurrentStep(runId: string, index: number): Promise<void
 
 export async function addLog(runId: string, text: string): Promise<void> {
   await db.insert(agentRunLog).values({ runId, text: text.slice(0, 400) });
+}
+
+/**
+ * Closes the run that handed this task on, so the next agent may claim it.
+ *
+ * It ends `done`, because handing over is how that agent's work finished. The
+ * update names `ended_at is null` itself and returns the row, so two claims
+ * that arrive together cannot both pass: one gets the row and the other gets
+ * nothing and is told the task is held. That is the same lock the board
+ * already has — the run — and not a second one.
+ */
+export async function closeHandOver(
+  taskId: string,
+  by: string,
+): Promise<{ id: string; agentId: string } | null> {
+  const [row] = await db
+    .update(agentRuns)
+    .set({ status: "done", control: null, endedAt: new Date(), updatedAt: new Date() })
+    .where(
+      and(
+        eq(agentRuns.taskId, taskId),
+        isNull(agentRuns.endedAt),
+        eq(agentRuns.status, "handed_over"),
+      ),
+    )
+    .returning({ id: agentRuns.id, agentId: agentRuns.agentId });
+
+  if (!row) return null;
+  await addLog(row.id, `${by} picked the task up, so the hand-over is done`);
+  return row;
 }
 
 /** Closes a run and leaves the task free for the next one. */
