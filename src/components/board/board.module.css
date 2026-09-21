@@ -926,6 +926,15 @@
   }
 }
 
+/* A phone. The name was down to a letter or two by here, and the mark beside
+   it already says which project this is. The box that finds a task and the two
+   links off the board are worth the room it was taking. */
+@media (max-width: 560px) {
+  .crumbName {
+    display: none;
+  }
+}
+
 /* ---- an agent is working on this card ------------------------------ */
 
 /*

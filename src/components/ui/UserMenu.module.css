@@ -31,6 +31,13 @@
   white-space: nowrap;
 }
 
+/* A phone. The picture says who you are, and the bar has a board to fit. */
+@media (max-width: 560px) {
+  .name {
+    display: none;
+  }
+}
+
 .caret {
   font-size: 9px;
   line-height: 1;
