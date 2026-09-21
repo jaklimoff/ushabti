@@ -1,5 +1,7 @@
-// Plain JavaScript, not TypeScript: `next start` reads this file at run time,
-// and the production image installs no TypeScript compiler.
+// Plain JavaScript, not TypeScript: a `.ts` config has to be compiled before
+// the build or `next dev` can read it, and the JSDoc line below already gives
+// the checking. Production reads no config file at all — `next build` writes
+// these values into `.next/standalone/server.js`, which is what runs.
 /** @type {import("next").NextConfig} */
 const nextConfig = {
   reactStrictMode: true,

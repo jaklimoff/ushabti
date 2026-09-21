@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.CI ? "http://localhost:3000" : "http://localhost:3050";
+// `npm run start` is the standalone server, and it reads `PORT`. So the tests
+// read it too: a machine where 3000 is taken can still run the CI way.
+const port = process.env.PORT ?? "3000";
+const baseURL = process.env.CI ? `http://localhost:${port}` : "http://localhost:3050";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -11,13 +14,13 @@ export default defineConfig({
   expect: { timeout: 12_000 },
   reporter: [["list"]],
   // Locally the dev server is already up in Docker on 3050, so this reuses it.
-  // On CI there is nothing running yet, so Playwright starts one itself, and
-  // it starts the production build. `next dev` used to serve CI, which meant
-  // the tests never touched what the image ships, and every route paid for its
-  // first compile inside a test. CI already runs `npm run build`, so `start`
-  // costs nothing more and each page is ready when it is asked for. That one
-  // listens on 3000, which is why the port follows the server and not the
-  // machine.
+  // On CI there is nothing running yet, so Playwright starts one itself with
+  // `npm run start`, which is `.next/standalone/server.js` — the very server
+  // the image runs. `next dev` used to serve CI, which meant the tests never
+  // touched what the image ships, and every route paid for its first compile
+  // inside a test. CI already runs `npm run build`, so `start` costs nothing
+  // more and each page is ready when it is asked for. The port follows the
+  // server and not the machine, which is why it is read from `PORT`.
   webServer: {
     command: process.env.CI ? "npm run start" : "npm run dev",
     // The webhook specs start a receiver of their own on a free port of this

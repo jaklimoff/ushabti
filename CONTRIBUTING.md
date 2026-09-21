@@ -38,19 +38,36 @@ npm run test:e2e   # Playwright
 
 The end-to-end tests need a server. Start the dev one with `docker compose up`,
 or let Playwright start one for you. On CI, and whenever `CI` is set, Playwright
-serves the production build instead, so the tests exercise what the image
-ships.
+runs `npm run start` instead, so the tests exercise what the image ships.
 
-To run the production build yourself, on a machine where port 3000 is taken,
-do not set `CI`: it makes Playwright start its own server on 3000 and refuse
-one that is already up. Build, start on a free port, and point the tests at
-it:
+`npm run start` is the production build: `node .next/standalone/server.js`, the
+same server the image runs. `PORT` picks the port, and it binds `0.0.0.0`
+unless `HOST` names another address. It carries the copy of `.env` the build
+made, not the file on disk, so anything you changed since then — or never had —
+has to come from the command line. Build first, then start it on a free port
+and point the tests at it:
 
 ```sh
 npm run build
-DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti npx next start -p 3101
+DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti PORT=3101 npm run start
 BASE_URL=http://localhost:3101 npm run test:e2e
 ```
+
+Set `CI` as well and Playwright starts that same server for you, on `PORT`.
+`DATABASE_URL` belongs on this one too, because the server it starts is the
+standalone one and reads the `.env` the build copied rather than the file on
+disk. Without it every route answers 500 and Playwright only says it timed
+out:
+
+```sh
+CI=1 PORT=3101 DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti npm run test:e2e
+```
+
+`npm run start` binds `0.0.0.0` because the image does, and because a shell
+that exports `HOSTNAME` — `docker exec` does, and so do some Linux profiles —
+would otherwise hand the server the machine's own name to bind, and
+`localhost` would refuse. Use `HOST` when you mean a different address:
+`HOST=127.0.0.1 PORT=3101 npm run start`.
 
 ## Rules for a change
 
