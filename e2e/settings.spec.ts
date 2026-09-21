@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   addTask,
   column,
@@ -252,3 +252,80 @@ test.describe("Settings", () => {
     await expect(column(page, "Todo")).toBeVisible();
   });
 });
+
+/*
+ * Three pull requests in a row moved these two pages at phone width, and each
+ * one was checked by a screenshot somebody looked at once. These measure it
+ * instead: the page holds still sideways, a name is whole, and a finger has
+ * something to press.
+ */
+test.describe("Settings on a phone", () => {
+  test.use({ viewport: { width: 390, height: 780 } });
+
+  test("the views page fits the screen and keeps its names whole", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pocket"));
+
+    await gotoSettings(page, projectId, "views");
+    await expect(page.getByRole("heading", { name: "Views" })).toBeVisible();
+    expect(await viewRowOrder(page)).toEqual(["BOARD", "PHASES"]);
+
+    expect(await overflow(page)).toBe(0);
+    await whole(page.locator('input[aria-label^="Name of the view"]'), 2);
+    await forAFinger(page.getByRole("button", { name: /^Reorder the view / }), 2);
+  });
+
+  test("the properties page fits the screen, down to the option marks", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pocket"));
+
+    await gotoSettings(page, projectId, "properties");
+    await expect(page.getByRole("heading", { name: "Properties" })).toBeVisible();
+    // Seven properties of the new project, five of them with options.
+    await expect(page.getByTestId("property-box")).toHaveCount(7);
+
+    expect(await overflow(page)).toBe(0);
+    await whole(page.locator('input[aria-label$=" property"]'), 7);
+    await forAFinger(page.getByRole("button", { name: /^Move / }), 7);
+    await forAFinger(page.getByRole("button", { name: /^Colour of / }), 24);
+    await forAFinger(page.getByRole("button", { name: /^Delete the option / }), 24);
+  });
+});
+
+/** How far the page can be pushed sideways. A phone has nowhere to push it. */
+async function overflow(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const doc = document.documentElement;
+    return Math.max(doc.scrollWidth - doc.clientWidth, 0);
+  });
+}
+
+/**
+ * Every box draws the whole of its own text.
+ *
+ * A box narrower than its text scrolls inside itself, so the name ends in
+ * nothing — which a screenshot of a short name never shows. The count is
+ * named because an empty list would otherwise measure nothing and pass.
+ */
+async function whole(boxes: Locator, count: number) {
+  await expect(boxes).toHaveCount(count);
+  for (const box of await boxes.all()) {
+    const read = await box.evaluate((el) => {
+      const input = el as HTMLInputElement;
+      return { text: input.value, cut: input.scrollWidth - input.clientWidth };
+    });
+    expect(read.cut, `"${read.text}" is cut off by ${read.cut} px`).toBeLessThanOrEqual(0);
+  }
+}
+
+/** A finger needs 24 px each way, whatever a mouse would settle for. */
+async function forAFinger(targets: Locator, count: number) {
+  await expect(targets).toHaveCount(count);
+  for (const target of await targets.all()) {
+    const label = await target.getAttribute("aria-label");
+    const box = await target.boundingBox();
+    expect(box, `${label} is not on the screen`).not.toBeNull();
+    expect(box!.width, `${label} is ${box!.width} px wide`).toBeGreaterThanOrEqual(24);
+    expect(box!.height, `${label} is ${box!.height} px tall`).toBeGreaterThanOrEqual(24);
+  }
+}
