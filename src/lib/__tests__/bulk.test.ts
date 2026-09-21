@@ -68,7 +68,7 @@ describe("readTaskIds", () => {
 
     expect(readTaskIds(many(BULK_LIMIT + 1))).toEqual({
       ok: false,
-      said: "That is more than 200 tasks. Set fewer at once.",
+      said: "That is more than 200 tasks at once. Name fewer.",
     });
   });
 
@@ -184,7 +184,7 @@ describe("readArchiveAsk", () => {
     });
     expect(readArchiveAsk({ taskIds: many(BULK_LIMIT + 1) })).toEqual({
       ok: false,
-      said: `That is more than ${BULK_LIMIT} tasks. Set fewer at once.`,
+      said: `That is more than ${BULK_LIMIT} tasks at once. Name fewer.`,
     });
     expect(readArchiveAsk({ taskIds: many(BULK_LIMIT) }).ok).toBe(true);
   });

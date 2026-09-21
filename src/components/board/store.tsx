@@ -152,9 +152,9 @@ type Store = {
   /** Sets one property on every picked task, in one call. */
   setPickedValue: (propertyId: string, value: TaskValue) => Promise<void>;
   /**
-   * Archives every picked task, in one call, and ends the pick. It answers
-   * how many went, because the bar says so in words and a call that archived
-   * nothing must not read as one that did.
+   * Archives every picked task, in one call, and ends the pick once it has
+   * gone through. It answers how many went, because the bar says so in words
+   * and a call that archived nothing must not read as one that did.
    */
   archivePicked: () => Promise<number>;
   /** Feeds the checklist and comment counts of an open task back to its card. */
@@ -791,19 +791,23 @@ export function BoardProvider({
   /*
    * One call, not one for each card, for the same reason a bulk set is one.
    *
-   * The pick ends here, and a set leaves it standing: the cards are gone from
-   * the board, so a bar still counting them would count what nobody can see.
-   * The count is the server's, because it archives only what was still live.
+   * The pick ends on the answer and not before it. A refusal — a task somebody
+   * else deleted a moment ago, a socket that dropped — leaves the picks where
+   * they were, so the toast is the whole of what went wrong and nobody has to
+   * pick twenty cards again to try it. Once it goes through the pick ends,
+   * unlike a set: the cards are off the board, so a bar still counting them
+   * would count what nobody can see. The count is the server's, because it
+   * archives only what was still live.
    */
   const archivePicked = useCallback<Store["archivePicked"]>(async () => {
     const ids = pickedHere;
     if (ids.length === 0) return 0;
-    clearPicks();
     wrote();
     try {
       const res = await api.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
         taskIds: ids,
       });
+      clearPicks();
       await refresh();
       return res.archived;
     } catch (err) {

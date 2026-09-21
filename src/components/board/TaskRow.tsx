@@ -77,6 +77,13 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
         if (event.shiftKey && onPick) return onPick(event);
         onOpen?.();
       }}
+      /* A Shift-mousedown means "and the ones in between", never "select the
+         words in between", so the browser's own text selection is stopped
+         before it starts. Without it a range leaves the table striped blue
+         from the heading down. */
+      onMouseDown={(event: React.MouseEvent) => {
+        if (event.shiftKey) event.preventDefault();
+      }}
       role="button"
       {...dragProps}
       /* dnd-kit hands every row a tab stop. The list keeps one, so Tab reaches

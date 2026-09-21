@@ -42,7 +42,9 @@ export function readTaskIds(raw: unknown): IdsRead {
   const ids = Array.from(new Set(raw as string[]));
   if (ids.length === 0) return { ok: false, said: "Name at least one task." };
   if (ids.length > BULK_LIMIT) {
-    return { ok: false, said: `That is more than ${BULK_LIMIT} tasks. Set fewer at once.` };
+    /* Neither "set" nor "archive": two routes print this one sentence, and a
+       refusal that named the wrong verb would be about a call nobody made. */
+    return { ok: false, said: `That is more than ${BULK_LIMIT} tasks at once. Name fewer.` };
   }
   return { ok: true, ids };
 }

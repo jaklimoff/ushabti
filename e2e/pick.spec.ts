@@ -7,6 +7,7 @@ import {
   column,
   columnOrder,
   createProject,
+  gotoSettings,
   listOrder,
   listRow,
   overflow,
@@ -36,6 +37,11 @@ async function fourCards(page: Page) {
 /** The check in the corner of one card. A press picks it, or puts it back. */
 function check(page: Page, title: string) {
   return card(page, title).getByTestId("card-pick");
+}
+
+/** What the browser thinks is selected, which after a Shift-click is nothing. */
+function selectedText(page: Page): Promise<string> {
+  return page.evaluate(() => window.getSelection()?.toString() ?? "");
 }
 
 async function pick(page: Page, ...titles: string[]) {
@@ -192,6 +198,9 @@ test.describe("Picking several cards", () => {
     await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
     /* Shift opens nothing. */
     await expect(page.getByTestId("task-panel")).toHaveCount(0);
+    /* And it selects no words: a Shift-press on a card means "and the ones in
+       between", so the browser's own selection never starts. */
+    expect(await selectedText(page)).toBe("");
 
     /* Across columns there is no run: the cards between two columns on screen
        are not the cards between them in any order the board keeps. */
@@ -256,6 +265,77 @@ test.describe("Archiving what is picked", () => {
       await expect(rows.filter({ hasText: title })).toHaveCount(1);
     }
   });
+
+  /*
+   * A refusal leaves the picks where they were. The call can be refused for a
+   * reason nobody could see coming — a task somebody else deleted a moment
+   * ago, a socket that dropped — and having to pick twenty cards again is a
+   * worse answer than the toast.
+   */
+  test("a refused archive keeps the picks", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Refused"));
+    await fourCards(page);
+
+    await pick(page, "Aardvark", "Beetle", "Cricket");
+
+    await page.route("**/api/projects/*/archive", (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({
+            status: 400,
+            contentType: "application/json",
+            body: JSON.stringify({ error: "One of those tasks is not on this board." }),
+          })
+        : route.fallback(),
+    );
+
+    await page.getByTestId("pick-archive").click();
+    await page.getByTestId("pick-archive-yes").click();
+
+    await expect(page.getByTestId("toast")).toContainText("not on this board");
+    await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
+    await expect(card(page, "Aardvark")).toBeVisible();
+    expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
+  });
+
+  /*
+   * Taking a handful of cards off the board is a decision about the board, so
+   * the widened route is a person's exactly as the column sweep was.
+   */
+  test("an agent may not archive the tasks a person picked", async ({ page, request }) => {
+    await register(page, "Token Owner");
+    const projectId = await createProject(page, unique("Guarded"));
+    await addTask(page, "Todo", "Not for a machine");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Sweeper");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const box = page.getByTestId("agent-box").filter({ hasText: "Sweeper" });
+    await box.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
+    const board = await (await request.get(`/api/projects/${projectId}/board`, { headers })).json();
+    const taskId = board.tasks.find((t: { title: string }) => t.title === "Not for a machine").id;
+
+    /* Both bodies, one guard. */
+    const named = await request.post(`/api/projects/${projectId}/archive`, {
+      headers,
+      data: { taskIds: [taskId] },
+    });
+    expect(named.status()).toBe(403);
+
+    /* And it archived nothing: the one task is still live. */
+    const after = await (await request.get(`/api/projects/${projectId}/board`, { headers })).json();
+    expect(after.tasks.map((t: { id: string }) => t.id)).toContain(taskId);
+
+    /* The task route is the agent's own way, and it still works. */
+    const one = await request.post(`/api/tasks/${taskId}/archive`, { headers, data: {} });
+    expect(one.status()).toBe(200);
+  });
 });
 
 /*
@@ -296,6 +376,9 @@ test.describe("Picking on a list", () => {
     await expect(page.getByTestId("pick-count")).toHaveText("4 selected");
     /* Shift opens nothing. */
     await expect(page.getByTestId("task-panel")).toHaveCount(0);
+    /* And it selects no words. A table is the place this shows worst: without
+       it the rows go blue from the heading down. */
+    expect(await selectedText(page)).toBe("");
 
     /* And the same bar writes the same one call. Priority is on the card, so
        a row wears it too: one card view, two drawings. A property of four
