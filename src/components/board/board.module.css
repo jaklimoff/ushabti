@@ -31,9 +31,12 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* It never shrinks: a full bar would squash it, and below 560 px it is the
+   only thing on the bar that names the project. */
 .mark {
   width: 18px;
   height: 18px;
+  flex: 0 0 18px;
   border-radius: 5px;
   background: var(--accent);
   color: var(--accent-ink);
