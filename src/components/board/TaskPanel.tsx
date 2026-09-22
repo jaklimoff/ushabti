@@ -44,6 +44,7 @@ import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
 import { Markdown } from "./Markdown";
+import { MentionList, useMentions } from "./Mentions";
 import { useBoard } from "./store";
 import styles from "./panel.module.css";
 
@@ -1219,6 +1220,13 @@ function TitleField({
   const [typed, setTyped] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
+  /* A name picked from the list is typing, so the words are kept and the blur
+     — or the closed tab — saves them like any other edit. */
+  const picker = useMentions(ref, (text) => {
+    setDraft(text);
+    setTyped(true);
+  });
+
   /* Escape blurs the field, and the blur is what saves. The draft is state, so
      it still holds the thrown-away words while that blur runs; a ref changes
      at once, so the blur reads this instead. Focusing the field again clears
@@ -1248,36 +1256,45 @@ function TitleField({
   }, [text]);
 
   return (
-    <textarea
-      ref={ref}
-      className={styles.title}
-      data-testid="task-title"
-      value={text}
-      rows={1}
-      onFocus={() => {
-        thrown.current = false;
-      }}
-      onChange={(e) => {
-        setDraft(e.target.value);
-        setTyped(true);
-      }}
-      onBlur={() => {
-        setTyped(false);
-        if (!typed || thrown.current) return;
-        const edit = editedText(draft, value);
-        if (edit) onCommit(edit);
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          (e.target as HTMLTextAreaElement).blur();
-        }
-        if (e.key === "Escape") {
-          thrown.current = true;
-          (e.target as HTMLTextAreaElement).blur();
-        }
-      }}
-    />
+    <>
+      <textarea
+        ref={ref}
+        className={styles.title}
+        data-testid="task-title"
+        value={text}
+        rows={1}
+        onFocus={() => {
+          thrown.current = false;
+        }}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setTyped(true);
+          picker.sync();
+        }}
+        onSelect={picker.sync}
+        onBlur={() => {
+          picker.close();
+          setTyped(false);
+          if (!typed || thrown.current) return;
+          const edit = editedText(draft, value);
+          if (edit) onCommit(edit);
+        }}
+        onKeyDown={(e) => {
+          /* The list has the keys while it is open: Enter picks a name and
+             Escape closes the list, rather than saving or throwing away. */
+          if (picker.onKeyDown(e)) return;
+          if (e.key === "Enter") {
+            e.preventDefault();
+            (e.target as HTMLTextAreaElement).blur();
+          }
+          if (e.key === "Escape") {
+            thrown.current = true;
+            (e.target as HTMLTextAreaElement).blur();
+          }
+        }}
+      />
+      <MentionList picker={picker} />
+    </>
   );
 }
 
@@ -1296,6 +1313,13 @@ function Description({
      edit, and the draft it leaves behind goes stale the moment somebody else
      writes the description. */
   const [typed, setTyped] = useState(false);
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  /* A name picked from the list is typing, as it is in the title. */
+  const picker = useMentions(ref, (text) => {
+    setDraft(text);
+    setTyped(true);
+  });
 
   /* The editor shows what the task says until somebody types, so a
      description another person wrote is on screen at once. */
@@ -1329,35 +1353,45 @@ function Description({
         </span>
       </div>
       {editing ? (
-        <textarea
-          className={styles.descEditor}
-          autoFocus
-          value={text}
-          placeholder="Write in markdown…"
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setTyped(true);
-          }}
-          onBlur={() => {
-            setEditing(false);
-            setTyped(false);
-            if (typed && draft !== value) onCommit(draft);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              (e.target as HTMLTextAreaElement).blur();
-            }
-            if (e.key === "Escape") {
-              // No blur() here: closing the editor unmounts the textarea, and
-              // a removed element raises no blur, so nothing is saved. A
-              // blur() would save the draft first, which is the title's bug.
-              setDraft(value);
-              setTyped(false);
+        <>
+          <textarea
+            ref={ref}
+            className={styles.descEditor}
+            autoFocus
+            value={text}
+            placeholder="Write in markdown…"
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setTyped(true);
+              picker.sync();
+            }}
+            onSelect={picker.sync}
+            onBlur={() => {
+              picker.close();
               setEditing(false);
-            }
-          }}
-        />
+              setTyped(false);
+              if (typed && draft !== value) onCommit(draft);
+            }}
+            onKeyDown={(e) => {
+              /* The list has the keys while it is open, so Escape closes it
+                 and leaves the editor and the words alone. */
+              if (picker.onKeyDown(e)) return;
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                (e.target as HTMLTextAreaElement).blur();
+              }
+              if (e.key === "Escape") {
+                // No blur() here: closing the editor unmounts the textarea, and
+                // a removed element raises no blur, so nothing is saved. A
+                // blur() would save the draft first, which is the title's bug.
+                setDraft(value);
+                setTyped(false);
+                setEditing(false);
+              }
+            }}
+          />
+          <MentionList picker={picker} />
+        </>
       ) : (
         <div
           className={styles.desc}
@@ -1590,6 +1624,10 @@ function Comments({
      browser until you send them rather than being sent when the tab goes. */
   const [draft, setDraft] = useDraft(commentDraftKey(data.project.id, taskId));
   const [busy, setBusy] = useState(false);
+  const box = useRef<HTMLTextAreaElement>(null);
+  /* A name picked from the list is typing, so it goes into the draft and
+     survives a closed tab like the rest of the note. */
+  const picker = useMentions(box, setDraft);
   const agentAtWork = detail.run !== null;
   const waitingFor = detail.run?.status === "waiting" ? detail.run.agent.name : null;
 
@@ -1626,7 +1664,9 @@ function Comments({
         <Avatar name={me.name} color={me.color} size={24} />
         <div className={styles.composerBox}>
           <textarea
+            ref={box}
             className={styles.composerInput}
+            data-testid="comment-box"
             value={draft}
             placeholder={
               waitingFor
@@ -1636,14 +1676,23 @@ function Comments({
                   : "Leave a note…"
             }
             rows={3}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              picker.sync();
+            }}
+            onSelect={picker.sync}
+            onBlur={picker.close}
             onKeyDown={(e) => {
+              /* The list has the keys while it is open, so Enter picks a
+                 name. Cmd + Enter still sends, which is how a note ends. */
+              if (picker.onKeyDown(e)) return;
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 void send();
               }
             }}
           />
+          <MentionList picker={picker} />
           <div className={styles.composerFoot}>
             <span style={{ fontSize: 10.5, color: "var(--faint-3)" }}>
               Markdown · Cmd + Enter to send

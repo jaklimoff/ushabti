@@ -8,6 +8,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **Typing `@` shows who you can mention.** A short list opens beside the box,
+  under it or above it when the box is near the foot of the screen —
+  in a comment, in the title and the description of the panel, and in the box
+  that adds a task to a column or a list. The agents come first, with a word
+  beside any that is listening at that moment, then the people. The letters
+  after the `@` narrow the list, the arrow keys move, Enter or Tab picks and
+  Esc closes it. Picking writes the whole name, spaces and all, which is what
+  an agent watching for its name reads.
+
 ### Fixed
 
 - **The dev server can be reached by another name.** It used to block its own

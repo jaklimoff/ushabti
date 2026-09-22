@@ -1196,6 +1196,8 @@
   flex-direction: column;
   flex: 0 0 auto;
   gap: 8px;
+  /* The `@` list is measured from here, and sits under the whole composer. */
+  position: relative;
   padding: 9px 10px;
   border-radius: 6px;
   background: var(--bg-card);
@@ -2427,4 +2429,88 @@ button.listHeadCell:focus-visible {
   .narrow {
     display: inline;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The names an @ opens                                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * The list sits beside the box that opened it, wherever that box is: the
+ * composer of a column, the composer of a list, the title, the description or
+ * the comment of the panel. Those five carry `position: relative` in their
+ * own file; this is the same list in all of them.
+ *
+ * Under the box by default, and above it when there is no room under — the
+ * comment box of a busy task sits on the bottom edge of the screen, and a
+ * list drawn under that one is a list nobody can see. The side and the height
+ * are measured when the list opens; `mention.ts` holds the rule and the
+ * numbers below are the ones it counts with.
+ */
+.mentionList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  margin-top: 4px;
+  width: max-content;
+  min-width: 168px;
+  max-width: 100%;
+  padding: 4px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: 8px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* The height it was given is the room there was, so the rows scroll rather
+     than pass behind the edge of a panel or under the screen. */
+  overflow-y: auto;
+  animation: ushabti-fade-in 130ms var(--ease);
+}
+
+.mentionListUp {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+/* 26px tall, which is what `MENTION_ROW` counts with. */
+.mentionItem {
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.mentionItem:hover {
+  background: var(--bg-hover);
+}
+
+/* The row the arrow keys are on. It is not focus: the box keeps that. */
+.mentionItemAt {
+  background: var(--bg-hover);
+}
+
+.mentionName {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mentionLive {
+  margin-left: auto;
+  padding-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  color: var(--faint-3);
 }
