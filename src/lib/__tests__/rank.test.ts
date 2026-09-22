@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rankAfter, rankBefore, rankBetween, rankSequence } from "../rank";
+import { rankAfter, rankBefore, rankBetween, rankSequence, rankSpread } from "../rank";
 
 describe("fractional ranks", () => {
   it("appends after the last item", () => {
@@ -88,5 +88,64 @@ describe("fractional ranks under stress", () => {
     for (const rank of list) expect(rank.endsWith("0")).toBe(false);
     // and the strings stay short enough to store comfortably
     expect(Math.max(...list.map((r) => r.length))).toBeLessThan(60);
+  });
+});
+
+/**
+ * Many ranks at once.
+ *
+ * `rankAfter` called N times is not this, and an import of two thousand cards
+ * is where the difference shows: each call halves what is left above it, the
+ * strings grow a digit every few hundred items, and at about the 1,537th the
+ * 256-step guard in `rankBetween` stops the answer increasing at all. So the
+ * tests below ask for far more than an import may carry, and ask for strictly
+ * increasing and short rather than merely sorted.
+ */
+describe("a spread of ranks", () => {
+  const sizes = [1, 2, 61, 62, 63, 500, 2000, 5000];
+
+  it.each(sizes)("gives %i ranks that strictly increase", (count) => {
+    const list = rankSpread(null, count);
+    expect(list).toHaveLength(count);
+    expect(new Set(list).size).toBe(count);
+    for (let i = 1; i < list.length; i += 1) expect(list[i - 1] < list[i]).toBe(true);
+  });
+
+  it.each(sizes)("keeps %i ranks short", (count) => {
+    expect(Math.max(...rankSpread(null, count).map((r) => r.length))).toBeLessThan(20);
+  });
+
+  it("puts every rank after the neighbour it was given", () => {
+    const first = rankSpread(null, 2000);
+    const second = rankSpread(first.at(-1), 2000);
+    expect(second[0] > first.at(-1)!).toBe(true);
+    const all = [...first, ...second];
+    for (let i = 1; i < all.length; i += 1) expect(all[i - 1] < all[i]).toBe(true);
+  });
+
+  it("never ends a rank with the lowest digit", () => {
+    for (const rank of rankSpread(null, 5000)) expect(rank.endsWith("0")).toBe(false);
+  });
+
+  it("leaves room between any two of them afterwards", () => {
+    const list = rankSpread(null, 2000);
+    for (const at of [0, 1, 999, 1998]) {
+      const mid = rankBetween(list[at], list[at + 1]);
+      expect(list[at] < mid).toBe(true);
+      expect(mid < list[at + 1]).toBe(true);
+    }
+  });
+
+  it("follows a long rank left by an older board", () => {
+    let last = rankAfter(null);
+    for (let i = 0; i < 400; i += 1) last = rankBetween(last, rankAfter(last));
+    const list = rankSpread(last, 300);
+    expect(list[0] > last).toBe(true);
+    for (let i = 1; i < list.length; i += 1) expect(list[i - 1] < list[i]).toBe(true);
+  });
+
+  it("asks for nothing and gets nothing", () => {
+    expect(rankSpread(null, 0)).toEqual([]);
+    expect(rankSpread("abc", -1)).toEqual([]);
   });
 });

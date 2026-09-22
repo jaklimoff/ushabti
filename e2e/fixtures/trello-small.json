@@ -1,0 +1,292 @@
+{
+  "id": "5f2a1c9e4b3d2a0011aa0001",
+  "name": "Launch board",
+  "desc": "The board a small team ran the launch from.",
+  "closed": false,
+  "url": "https://trello.com/b/aBcDeFgH/launch-board",
+  "prefs": { "permissionLevel": "private", "background": "blue" },
+  "labelNames": { "red": "bug", "green": "feature", "yellow": "" },
+  "customFields": [
+    {
+      "id": "5f2a1c9e4b3d2a0011cf0001",
+      "idModel": "5f2a1c9e4b3d2a0011aa0001",
+      "name": "Points",
+      "type": "number"
+    }
+  ],
+  "labels": [
+    {
+      "id": "5f2a1c9e4b3d2a0011bb0001",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "name": "bug",
+      "color": "red"
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011bb0002",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "name": "Release",
+      "color": "green"
+    }
+  ],
+  "members": [
+    {
+      "id": "5f2a1c9e4b3d2a0011dd0001",
+      "fullName": "Ada Lovelace",
+      "username": "adalovelace",
+      "initials": "AL"
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011dd0002",
+      "fullName": "Grace Hopper",
+      "username": "gracehopper",
+      "initials": "GH"
+    }
+  ],
+  "lists": [
+    {
+      "id": "5f2a1c9e4b3d2a0011ee0003",
+      "name": "Done",
+      "closed": false,
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "pos": 196607,
+      "subscribed": false
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ee0001",
+      "name": "To do",
+      "closed": false,
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "pos": 65535,
+      "subscribed": false
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ee0004",
+      "name": "Icebox",
+      "closed": true,
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "pos": 262143,
+      "subscribed": false
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ee0002",
+      "name": "in progress",
+      "closed": false,
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "pos": 131071,
+      "subscribed": false
+    }
+  ],
+  "cards": [
+    {
+      "id": "5f2a1c9e4b3d2a0011ff0002",
+      "name": "Talk to the team",
+      "desc": "Twenty minutes, no slides.",
+      "idList": "5f2a1c9e4b3d2a0011ee0001",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "idLabels": [],
+      "idMembers": [],
+      "idChecklists": [],
+      "attachments": [],
+      "due": null,
+      "dueComplete": false,
+      "start": null,
+      "closed": false,
+      "pos": 131071,
+      "shortUrl": "https://trello.com/c/bbbb0002"
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ff0001",
+      "name": "Write the launch note",
+      "desc": "A short note for the release.",
+      "idList": "5f2a1c9e4b3d2a0011ee0001",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "idLabels": ["5f2a1c9e4b3d2a0011bb0001"],
+      "idMembers": ["5f2a1c9e4b3d2a0011dd0001"],
+      "idChecklists": ["5f2a1c9e4b3d2a0011cc0001"],
+      "attachments": [
+        {
+          "id": "5f2a1c9e4b3d2a0011ab0001",
+          "name": "draft.pdf",
+          "url": "https://trello.com/1/cards/5f2a1c9e4b3d2a0011ff0001/attachments/draft.pdf"
+        }
+      ],
+      "due": null,
+      "dueComplete": false,
+      "start": "2026-02-01T00:00:00.000Z",
+      "closed": false,
+      "pos": 65535,
+      "shortUrl": "https://trello.com/c/bbbb0001"
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ff0003",
+      "name": "Fix the sign-in loop",
+      "desc": "Two people are stuck on the second screen.",
+      "idList": "5f2a1c9e4b3d2a0011ee0002",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "idLabels": ["5f2a1c9e4b3d2a0011bb0001", "5f2a1c9e4b3d2a0011bb0002"],
+      "idMembers": ["5f2a1c9e4b3d2a0011dd0002", "5f2a1c9e4b3d2a0011dd0001"],
+      "idChecklists": [],
+      "attachments": [],
+      "due": null,
+      "dueComplete": false,
+      "start": null,
+      "closed": false,
+      "pos": 65535,
+      "shortUrl": "https://trello.com/c/bbbb0003"
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ff0004",
+      "name": "Ship the changelog",
+      "desc": "",
+      "idList": "5f2a1c9e4b3d2a0011ee0003",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "idLabels": ["5f2a1c9e4b3d2a0011bb0002"],
+      "idMembers": [],
+      "idChecklists": ["5f2a1c9e4b3d2a0011cc0002", "5f2a1c9e4b3d2a0011cc0003"],
+      "attachments": [],
+      "due": "2026-03-04T12:00:00.000Z",
+      "dueComplete": true,
+      "start": null,
+      "closed": false,
+      "pos": 65535,
+      "shortUrl": "https://trello.com/c/bbbb0004"
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ff0005",
+      "name": "Old idea nobody took",
+      "desc": "",
+      "idList": "5f2a1c9e4b3d2a0011ee0001",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "idLabels": [],
+      "idMembers": [],
+      "idChecklists": [],
+      "attachments": [],
+      "due": null,
+      "dueComplete": false,
+      "start": null,
+      "closed": true,
+      "pos": 196607,
+      "shortUrl": "https://trello.com/c/bbbb0005"
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ff0006",
+      "name": "Someday maybe",
+      "desc": "",
+      "idList": "5f2a1c9e4b3d2a0011ee0004",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "idLabels": [],
+      "idMembers": [],
+      "idChecklists": [],
+      "attachments": [],
+      "due": null,
+      "dueComplete": false,
+      "start": null,
+      "closed": false,
+      "pos": 65535,
+      "shortUrl": "https://trello.com/c/bbbb0006"
+    }
+  ],
+  "checklists": [
+    {
+      "id": "5f2a1c9e4b3d2a0011cc0001",
+      "idCard": "5f2a1c9e4b3d2a0011ff0001",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "name": "Steps",
+      "pos": 16384,
+      "checkItems": [
+        {
+          "id": "5f2a1c9e4b3d2a0011ca0001",
+          "idChecklist": "5f2a1c9e4b3d2a0011cc0001",
+          "name": "Ask Ada for the numbers",
+          "state": "incomplete",
+          "pos": 16384
+        }
+      ]
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011cc0002",
+      "idCard": "5f2a1c9e4b3d2a0011ff0004",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "name": "Before",
+      "pos": 16384,
+      "checkItems": [
+        {
+          "id": "5f2a1c9e4b3d2a0011ca0002",
+          "idChecklist": "5f2a1c9e4b3d2a0011cc0002",
+          "name": "Draft it",
+          "state": "complete",
+          "pos": 16384
+        },
+        {
+          "id": "5f2a1c9e4b3d2a0011ca0003",
+          "idChecklist": "5f2a1c9e4b3d2a0011cc0002",
+          "name": "Read it back",
+          "state": "incomplete",
+          "pos": 32768
+        }
+      ]
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011cc0003",
+      "idCard": "5f2a1c9e4b3d2a0011ff0004",
+      "idBoard": "5f2a1c9e4b3d2a0011aa0001",
+      "name": "After",
+      "pos": 32768,
+      "checkItems": [
+        {
+          "id": "5f2a1c9e4b3d2a0011ca0004",
+          "idChecklist": "5f2a1c9e4b3d2a0011cc0003",
+          "name": "Post it",
+          "state": "incomplete",
+          "pos": 16384
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "id": "5f2a1c9e4b3d2a0011ac0003",
+      "type": "commentCard",
+      "date": "2026-02-01T09:00:00.000Z",
+      "memberCreator": {
+        "id": "5f2a1c9e4b3d2a0011dd0002",
+        "fullName": "Grace Hopper",
+        "username": "gracehopper"
+      },
+      "data": {
+        "text": "Let us do this after the release.",
+        "card": { "id": "5f2a1c9e4b3d2a0011ff0002", "name": "Talk to the team" },
+        "board": { "id": "5f2a1c9e4b3d2a0011aa0001", "name": "Launch board" }
+      }
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ac0001",
+      "type": "commentCard",
+      "date": "2026-01-30T08:00:00.000Z",
+      "memberCreator": {
+        "id": "5f2a1c9e4b3d2a0011dd0001",
+        "fullName": "Ada Lovelace",
+        "username": "adalovelace"
+      },
+      "data": {
+        "text": "I will book the room.",
+        "card": { "id": "5f2a1c9e4b3d2a0011ff0002", "name": "Talk to the team" },
+        "board": { "id": "5f2a1c9e4b3d2a0011aa0001", "name": "Launch board" }
+      }
+    },
+    {
+      "id": "5f2a1c9e4b3d2a0011ac0002",
+      "type": "updateCard",
+      "date": "2026-01-31T10:00:00.000Z",
+      "memberCreator": {
+        "id": "5f2a1c9e4b3d2a0011dd0001",
+        "fullName": "Ada Lovelace",
+        "username": "adalovelace"
+      },
+      "data": {
+        "card": { "id": "5f2a1c9e4b3d2a0011ff0003", "name": "Fix the sign-in loop" },
+        "old": { "idList": "5f2a1c9e4b3d2a0011ee0001" }
+      }
+    }
+  ]
+}

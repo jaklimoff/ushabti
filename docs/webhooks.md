@@ -28,9 +28,14 @@ you leave the box. Delete asks in its own row first.
 
 **Which kinds.** The words are the ones the activity feed writes: `created`,
 `title`, `description`, `value`, `checklist`, `comment`, `run`, `archive`,
-`link`, `deleted`, `reset`. Pick none and it rings for every one of them. A
-change that writes no feed line — a view, a property, the card view — rings
-nothing.
+`link`, `deleted`, `reset`, `import`. Pick none and it rings for every one of
+them. A change that writes no feed line — a view, a property, the card view —
+rings nothing.
+
+**`import` rings once for a whole import**, and not once per card. The owner
+brought a board in from Trello; the ring carries the line about the project,
+so `taskId` and `taskKey` are null, and the feed holds one `import` line per
+task behind it for the receiver to read.
 
 **`link` rings both ways**, as `deleted` does: a task was made to wait on
 another, or stopped waiting. The ring names the task that gained or lost the

@@ -113,6 +113,11 @@ Board  ·  Phases  ·  By assignee            ← views you create
   task and the moment, signed with HMAC-SHA256, and never the change itself —
   the receiver reads the board for that. See
   [docs/webhooks.md](docs/webhooks.md).
+- **Import.** A team that cannot bring its board over does not start.
+  **Settings → Import** takes a Trello JSON export: lists become the columns
+  and cards become tasks, with their labels, due dates, checklists and
+  comments. The page shows what will be made before it makes it, and the same
+  file twice makes nothing twice.
 
 ![The task panel](docs/task.png)
 

@@ -107,6 +107,7 @@ export default defineConfig({
             { label: "The task panel", link: "/guides/task-panel/" },
             { label: "Settings", link: "/guides/settings/" },
             { label: "People and projects", link: "/guides/people/" },
+            { label: "Bring a board from Trello", link: "/guides/import/" },
           ],
         },
         {

@@ -3,16 +3,10 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { useMemo, useSyncExternalStore } from "react";
+import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import styles from "./panel.module.css";
 
 marked.setOptions({ gfm: true, breaks: true });
-
-/* "Am I in a browser?" is a question about the world outside React, and it has
-   two answers that never change afterwards: the server’s, and the browser’s.
-   So nothing ever has to be told, and the subscription is empty. */
-const tellNobody = () => () => {};
-const inBrowser = () => true;
-const onServer = () => false;
 
 /**
  * DOMPurify needs a real DOM, and Next renders client components on the server

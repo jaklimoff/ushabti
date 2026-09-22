@@ -97,7 +97,7 @@ const fake = vi.hoisted(() => {
 vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: fake.db }));
 
-const { logActivity } = await import("../activity");
+const { logActivity, logActivityAll } = await import("../activity");
 const { drainWebhooks } = await import("../webhooks");
 
 /** The sender's own flag, which every test starts with down. */
@@ -325,5 +325,95 @@ describe("the drain", () => {
     expect(fake.updates).toHaveLength(1);
     expect(fake.updates[0]).toMatchObject({ code: 200 });
     expect(fake.updates[0].deliveredAt).toBeInstanceOf(Date);
+  });
+});
+
+/**
+ * One import, one doorbell.
+ *
+ * An import writes one feed line on the project and one on every task it
+ * made, because the feed is the record and an agent reads it task by task.
+ * The doorbell is not the record: two thousand and one deliveries to every
+ * receiver for one press of a button is a denial of service dressed as an
+ * event. The lines that share an `importId` ring once, and the ring is the
+ * line about the project, which is the one carrying the counts.
+ */
+describe("an import rings once", () => {
+  beforeEach(() => {
+    fake.answers(webhooks, [{ id: "hook-1", kinds: [], projectKey: "USH" }]);
+    fake.answers(tasks, [
+      { id: "task-1", number: 31 },
+      { id: "task-2", number: 32 },
+      { id: "task-3", number: 33 },
+    ]);
+  });
+
+  it("queues one delivery for a whole import, and it names the project", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const importId = "import-1";
+
+    await logActivityAll([
+      {
+        projectId: "project-1",
+        taskId: null,
+        actorId: "person-1",
+        kind: "import",
+        data: { importId, source: "trello", tasks: 3 },
+      },
+      ...["task-1", "task-2", "task-3"].map((taskId) => ({
+        projectId: "project-1",
+        taskId,
+        actorId: "person-1",
+        kind: "import",
+        data: { importId, source: "trello", sourceId: `card-${taskId}` },
+      })),
+    ]);
+
+    // Every line is in the feed: the record keeps all four.
+    expect(fake.writes.find((w) => w.table === activity)!.values).toHaveLength(4);
+
+    const queued = fake.writes.filter((w) => w.table === webhookDeliveries);
+    expect(queued).toHaveLength(1);
+    expect(queued[0].values).toHaveLength(1);
+    const body = queued[0].values[0].body as { kind: string; taskId: string | null };
+    expect(body.kind).toBe("import");
+    expect(body.taskId).toBeNull();
+  });
+
+  it("keeps two imports apart", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+
+    await logActivityAll(
+      ["import-1", "import-2"].flatMap((importId) => [
+        {
+          projectId: "project-1",
+          taskId: null,
+          actorId: "person-1",
+          kind: "import",
+          data: { importId },
+        },
+        {
+          projectId: "project-1",
+          taskId: "task-1",
+          actorId: "person-1",
+          kind: "import",
+          data: { importId },
+        },
+      ]),
+    );
+
+    expect(fake.writes.find((w) => w.table === webhookDeliveries)!.values).toHaveLength(2);
+  });
+
+  it("leaves every other line alone", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+
+    await logActivityAll([
+      { projectId: "project-1", taskId: "task-1", actorId: "person-1", kind: "archive" },
+      { projectId: "project-1", taskId: "task-2", actorId: "person-1", kind: "archive" },
+    ]);
+
+    // Archiving a column is still one ring per card: nothing folds it.
+    expect(fake.writes.find((w) => w.table === webhookDeliveries)!.values).toHaveLength(2);
   });
 });

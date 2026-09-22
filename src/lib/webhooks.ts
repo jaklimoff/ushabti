@@ -78,7 +78,49 @@ export type Rung = {
   taskId: string | null;
   kind: string;
   at: Date;
+  /**
+   * The import these lines belong to, or null.
+   *
+   * An import writes one line on the project and one on every task it made.
+   * That is one change, so it is one doorbell: the lines that share this are
+   * folded below and ring once. Without it a board of two thousand cards
+   * would post two thousand and one deliveries to every receiver, which is
+   * a denial of service dressed as an event.
+   */
+  importId?: string | null;
 };
+
+/**
+ * One line per import, and every other line as it came.
+ *
+ * The line kept is the one about the project, because that is the one that
+ * carries the counts in the feed; a receiver reads `/activity` after it, as
+ * it does for every other ring. The doorbell says what changed and where,
+ * never what, so one ring for one import loses nothing.
+ */
+export function foldImports(rung: Rung[]): Rung[] {
+  const kept = new Map<string, Rung>();
+  for (const line of rung) {
+    if (!line.importId) continue;
+    const held = kept.get(line.importId);
+    /* The line about the project wins; the first line of the batch stands in
+       until it arrives, so a fold never answers nothing. */
+    if (!held || (held.taskId !== null && line.taskId === null)) kept.set(line.importId, line);
+  }
+
+  const done = new Set<string>();
+  const out: Rung[] = [];
+  for (const line of rung) {
+    if (!line.importId) {
+      out.push(line);
+      continue;
+    }
+    if (done.has(line.importId)) continue;
+    done.add(line.importId);
+    out.push(kept.get(line.importId) ?? line);
+  }
+  return out;
+}
 
 /**
  * Writes one queued delivery for every webhook these feed lines ring.
@@ -90,7 +132,7 @@ export type Rung = {
  */
 export async function queueWebhooks(rung: Rung[]): Promise<void> {
   const byProject = new Map<string, Rung[]>();
-  for (const line of rung) {
+  for (const line of foldImports(rung)) {
     const list = byProject.get(line.projectId) ?? [];
     list.push(line);
     byProject.set(line.projectId, list);

@@ -641,6 +641,7 @@ export const WEBHOOK_KINDS = [
   "link",
   "deleted",
   "reset",
+  "import",
 ] as const;
 
 export type WebhookKind = (typeof WEBHOOK_KINDS)[number];
@@ -658,6 +659,7 @@ export const WEBHOOK_KIND_LABEL: Record<WebhookKind, string> = {
   link: "Blocked by",
   deleted: "Deleted",
   reset: "Reset link",
+  import: "A board brought in",
 };
 
 /**
@@ -707,4 +709,54 @@ export type WebhookDTO = {
   createdAt: string;
   /** The newest delivery, which is the line the page shows. */
   lastDelivery: WebhookDeliveryDTO | null;
+};
+
+/* ------------------------------------------------------------------ */
+/* Bringing a board in                                                 */
+/* ------------------------------------------------------------------ */
+
+/** One list, or one label, and the option it will land on. */
+export type ImportRowDTO = {
+  /** The id it has in the file, which is how the owner's answer names it. */
+  sourceId: string;
+  name: string;
+  /** How many cards of this import wear it. */
+  cards: number;
+  /** The option it goes to, or null when the import adds one. */
+  optionId: string | null;
+  optionName: string;
+  making: boolean;
+};
+
+/**
+ * What an import would do, as the preview draws it.
+ *
+ * It carries counts and never the cards themselves: the browser already holds
+ * the file, and a preview that shipped two thousand tasks back would be the
+ * whole import twice.
+ */
+export type ImportPreviewDTO = {
+  /** Which kind of export this came from. There is one: `trello`. */
+  source: string;
+  /** What the board was called on the other side. */
+  board: string;
+  /** The property the lists become options of. */
+  group: { propertyId: string | null; name: string; making: boolean };
+  /** The other properties this import writes into, and whether it makes them. */
+  properties: { name: string; making: boolean }[];
+  lists: ImportRowDTO[];
+  labels: ImportRowDTO[];
+  tasks: { coming: number; already: number };
+  archived: { inFile: number; coming: boolean };
+  people: { matched: string[]; named: string[] };
+  /** What will not come, in sentences. */
+  dropped: string[];
+};
+
+/** What one import made. The page says this and then sends you to the board. */
+export type ImportMadeDTO = {
+  importId: string;
+  tasks: number;
+  options: number;
+  already: number;
 };

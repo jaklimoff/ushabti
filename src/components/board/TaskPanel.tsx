@@ -862,6 +862,7 @@ function describeActivity(entry: {
     forName?: string;
     to?: string;
     blockerKey?: string;
+    source?: string;
   };
   switch (entry.kind) {
     case "created":
@@ -878,6 +879,10 @@ function describeActivity(entry: {
       return `${who} left a comment`;
     case "archive":
       return d.action === "restored" ? `${who} put the task back` : `${who} archived the task`;
+    case "import":
+      /* One import writes a line on the project with the counts and one on
+         every task it made. Only a task's lines reach this panel. */
+      return `${who} brought this in from ${d.source === "trello" ? "Trello" : "another board"}`;
     case "link":
       return d.action === "unlinked"
         ? `${who} stopped it waiting on ${d.blockerKey || "another task"}`

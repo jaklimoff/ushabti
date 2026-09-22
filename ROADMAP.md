@@ -104,12 +104,41 @@ runs this.
 
 - **A per-view card order.** See the limit below.
 - **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
-- **Import.** Read a Trello or Jira export and map lists to options.
+- **Import from Jira.** Trello is in. Jira has no one export — its CSV repeats a column per label and per comment, its dates carry the site's locale, and it stops at 1000 rows — so it waits until somebody asks for it.
 - **Attachments.** Files on a task.
 
 ---
 
 ## Done since v1.1, not yet released
+
+- **A board comes in from Trello.** A team that cannot bring its board over
+  does not start, and this is the first thing a second team asks for.
+  **Settings → Import**, the owner's alone, takes one Trello JSON export:
+  each list becomes an option of the property the main view groups by, each
+  card becomes a task in the order it had, with its labels, its due date, its
+  first member as the assignee, its checklist and its comments. The page is
+  the flow, because the board has no dialogs — pick a file and the page
+  becomes the preview, press **Import** and it says what was made. Nothing is
+  kept on the server in between: the browser holds the file and posts it
+  twice.
+  **A list becomes an option, never a property.** A name that matches an
+  option the board already has is proposed against it, whatever its case, and
+  the owner can point any list or label anywhere else before anything is
+  written. A property the file needs and the project has not got — Labels, Due,
+  Assignee — is made as an ordinary property, because nothing on a task is
+  hardcoded and an import cannot write a field.
+  **Nothing twice.** Every task gets one `import` feed line naming the card it
+  came from, and the next import reads those first, so the same file twice
+  makes nothing twice. There is no import table: the feed is the record.
+  **One lock, one doorbell.** The counter is raised once, the rows go in
+  batches of 500, 5 MB and 2000 cards are refused with a sentence that names
+  the number, and the lines of one import share an `importId` so a webhook
+  rings once for the whole board rather than once per card.
+  **Trello only.** Attachments, custom fields, start dates, an archived list,
+  everything in the history that is not a comment, and the comments Trello's
+  own 1000-action export never held: all left behind, each counted on the
+  preview in a sentence. An import adds and never updates, so it is a move and
+  not a bridge. An agent gets nothing new.
 
 - **A date rule can name a window of days.** A rule named one day, so "due this
   week" had to be rewritten every week — and the view a small team opens every
