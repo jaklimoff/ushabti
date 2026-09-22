@@ -5,7 +5,7 @@ import { useState } from "react";
 import { api } from "@/lib/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
-import { AuthCard } from "./AuthForm";
+import { AuthCard, RevealButton } from "./AuthForm";
 import styles from "./AuthForm.module.css";
 
 /**
@@ -64,15 +64,7 @@ export function ResetForm({ token }: { token: string }) {
             />
             {/* The same reveal as sign-up, and for the same reason: nobody is
                 typing this one twice. */}
-            <button
-              type="button"
-              className={styles.reveal}
-              aria-pressed={show}
-              aria-label={show ? "Hide the password" : "Show the password"}
-              onClick={() => setShow((v) => !v)}
-            >
-              {show ? "Hide" : "Show"}
-            </button>
+            <RevealButton shown={show} onToggle={() => setShow((v) => !v)} />
           </div>
         </div>
 
