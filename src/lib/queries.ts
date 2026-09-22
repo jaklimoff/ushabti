@@ -95,12 +95,12 @@ export async function rankOnTheEnd(
   const plan: Rebalance | null = rebalanceTail(ordered.map((t) => t.position));
   if (!plan) return { position: rankAfter(ordered.at(-1)?.position ?? null), rewrote: false };
 
-  /* Two parameters and not two per row: a list long enough to mend a whole
-     board would pass what one statement may carry. */
-  const ids = ordered.slice(plan.from).map((row) => row.id);
+  /* The rows travel as one parameter and not two per row: a list long enough
+     to mend a whole board would pass what one statement may carry. */
+  const rows = ordered.slice(plan.from).map((row, i) => ({ id: row.id, position: plan.ranks[i] }));
   await tx.execute(sql`
     update ${tasks} set position = fresh.position
-    from unnest(${ids}::uuid[], ${plan.ranks}::text[]) as fresh(id, position)
+    from json_to_recordset(${JSON.stringify(rows)}::json) as fresh(id uuid, position text)
     where ${tasks.id} = fresh.id
   `);
   return { position: plan.next, rewrote: true };

@@ -89,11 +89,10 @@ export function rankSequence(count: number): string[] {
  * N ranks after one neighbour, worked out in one go.
  *
  * `rankAfter` called N times is not this. Each call halves what is left above
- * it, so the ranks grow one digit every few hundred items and the search in
- * `rankBetween` hits its 256-step guard at about the 1,537th: from there on
- * the answer stops increasing, and the rest of the list arrives in no order at
- * all. An import of two thousand cards is exactly that shape, so it asks for
- * its ranks once.
+ * it, so the ranks grow a digit every sixth item and two thousand of them end
+ * a third of a kilobyte long, which `rebalanceTail` then has to undo. An
+ * import of two thousand cards is exactly that shape, so it asks for its ranks
+ * once.
  *
  * The room above `after` is divided into `count + 1` equal steps and the ranks
  * sit on the marks, so they are evenly spread, strictly increasing and all the
@@ -187,7 +186,7 @@ export type Rebalance = {
  * room above one neighbour, and the end of the list is the only place where
  * that room belongs to nobody else.
  *
- * The first reach is 256 rows, and the number matters. About 190 tasks fit on
+ * The first reach is 256 rows, and the number matters. About 150 tasks fit on
  * the end of a board between one rewrite and the next, so a shorter reach
  * would anchor on one of the long ranks it is meant to be rid of, shorten
  * nothing, and have the next task ask for another rewrite. When 256 rows are
@@ -204,7 +203,8 @@ export function rebalanceTail(positions: string[]): Rebalance | null {
     const anchor = from > 0 ? positions[from - 1] : null;
     /* One more than the rows, because the task being added takes the top mark. */
     const fresh = rankSpread(anchor, positions.length - from + 1);
-    const longest = Math.max(...fresh.map((r) => r.length));
+    // Counted and not spread: this list can be a whole project.
+    const longest = fresh.reduce((most, r) => Math.max(most, r.length), 0);
     // Half the cap, so the rewrite buys at least another hundred tasks.
     if (longest * 2 <= RANK_CAP || from === 0) {
       return { from, ranks: fresh.slice(0, -1), next: fresh[fresh.length - 1] };
