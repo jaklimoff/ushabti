@@ -293,6 +293,10 @@ test.describe("Settings on a phone", () => {
  * A field saves on blur, and a tab closed on a focused field sends no blur.
  * The save goes out on the way off the page instead, so the words are there
  * when the person comes back.
+ *
+ * What the next page draws is the whole proof. The request itself cannot be
+ * counted: a page that is going does not report it, however it is watched;
+ * see `useSaveOnLeave`.
  */
 test.describe("An edit the tab was closed on", () => {
   test("the time zone is saved although nothing was blurred", async ({ page }) => {
