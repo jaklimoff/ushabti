@@ -5,6 +5,7 @@ import { api } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
 import { clampPanelWidth, longAgo, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
+import { commentDraftKey } from "@/lib/draft";
 import { editedText } from "@/lib/leave";
 import { tint } from "@/lib/colors";
 import {
@@ -38,6 +39,7 @@ import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
+import { useDraft } from "@/components/ui/useDraft";
 import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
@@ -1583,7 +1585,9 @@ function Comments({
   reload: () => Promise<void>;
   onError: (message: string) => void;
 }) {
-  const [draft, setDraft] = useState("");
+  /* A note can be long, and a create is not a save, so the words wait in the
+     browser until you send them rather than being sent when the tab goes. */
+  const [draft, setDraft] = useDraft(commentDraftKey(taskId));
   const [busy, setBusy] = useState(false);
   const agentAtWork = detail.run !== null;
   const waitingFor = detail.run?.status === "waiting" ? detail.run.agent.name : null;

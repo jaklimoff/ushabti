@@ -10,6 +10,16 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A note you have not sent survives a closed tab.** The comment box writes
+  nothing until you send it, so there was nothing for the hook that saves a
+  field on leave to send, and a long note typed into a tab that then closed was
+  gone. The words now wait in your browser, under one key per task, and the box
+  has them again when you open the task in the same browser. Sending the note
+  throws the draft away, and so does emptying the box. Nothing about it reaches
+  the server. The comment box is the only composer that keeps a draft: the ones
+  that add a task or an option write what they hold the moment you click away,
+  so words put back in one of them would make a task or an option by
+  themselves.
 - **A long board keeps its order.** Adding tasks to the end of one board over
   and over used to lengthen the rank each task carries — one character every
   sixth task — until at about the 1,537th the search behind it gave up and
