@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { rankAfter, rankBefore, rankBetween, rankSequence, rankSpread } from "../rank";
+import {
+  RANK_CAP,
+  rankAfter,
+  rankBefore,
+  rankBetween,
+  rankSequence,
+  rankSpread,
+  rebalanceTail,
+} from "../rank";
 
 describe("fractional ranks", () => {
   it("appends after the last item", () => {
@@ -147,5 +155,129 @@ describe("a spread of ranks", () => {
   it("asks for nothing and gets nothing", () => {
     expect(rankSpread(null, 0)).toEqual([]);
     expect(rankSpread("abc", -1)).toEqual([]);
+  });
+});
+
+/**
+ * The end of a list, played the way the create and the move route play it.
+ *
+ * Both hold the project lock, both hold every rank in order, and both ask for
+ * the rank on the end through this one rule. The tests below are the routes
+ * with the database taken out.
+ */
+function appendTo(list: string[]): string[] {
+  const plan = rebalanceTail(list);
+  if (!plan) return [...list, rankAfter(list.at(-1) ?? null)];
+  return [...list.slice(0, plan.from), ...plan.ranks, plan.next];
+}
+
+describe("a list that only ever grows at the end", () => {
+  it("keeps ten thousand appends increasing and short", () => {
+    let list: string[] = [];
+    for (let i = 0; i < 10_000; i += 1) {
+      list = appendTo(list);
+      expect(list).toHaveLength(i + 1);
+    }
+
+    for (let i = 1; i < list.length; i += 1) expect(list[i - 1] < list[i]).toBe(true);
+    expect(new Set(list).size).toBe(list.length);
+    expect(Math.max(...list.map((r) => r.length))).toBeLessThan(RANK_CAP);
+    for (const rank of list) expect(rank.endsWith("0")).toBe(false);
+  });
+
+  it("leaves a middle between any two neighbours afterwards", () => {
+    let list: string[] = [];
+    for (let i = 0; i < 2_000; i += 1) list = appendTo(list);
+
+    for (let i = 1; i < list.length; i += 1) {
+      const mid = rankBetween(list[i - 1], list[i]);
+      expect(list[i - 1] < mid).toBe(true);
+      expect(mid < list[i]).toBe(true);
+    }
+  });
+
+  it("rewrites only the end of the list, and shortens what it rewrites", () => {
+    /* Walk past the 256 rows a rewrite reaches for, so there is a front for it
+       to leave alone, then walk on to the next rewrite and see what it did. */
+    let list: string[] = [];
+    while (list.length <= 300) list = appendTo(list);
+    let plan = rebalanceTail(list);
+    while (!plan) {
+      list = appendTo(list);
+      plan = rebalanceTail(list);
+    }
+
+    expect(plan.from).toBeGreaterThan(0);
+    expect(plan.ranks).toHaveLength(list.length - plan.from);
+    const wasLongest = Math.max(...list.slice(plan.from).map((r) => r.length));
+    expect(wasLongest).toBeGreaterThan(RANK_CAP / 2);
+
+    const after = appendTo(list);
+    // Everything before the reach is untouched, so nothing moves on screen.
+    expect(after.slice(0, plan.from)).toEqual(list.slice(0, plan.from));
+    // And what was rewritten is short again.
+    expect(Math.max(...after.slice(plan.from).map((r) => r.length)) * 2).toBeLessThanOrEqual(
+      RANK_CAP,
+    );
+    for (let i = 1; i < after.length; i += 1) expect(after[i - 1] < after[i]).toBe(true);
+  });
+
+  it("asks for no rewrite while the ranks are short", () => {
+    expect(rebalanceTail([])).toBeNull();
+    expect(rebalanceTail(rankSequence(50))).toBeNull();
+    expect(rebalanceTail(rankSpread(null, 5_000))).toBeNull();
+  });
+});
+
+describe("a rank left long by an older board", () => {
+  /* What the reviewer of #77 seeded by hand: past the old 256-step guard,
+     where the search used to stop and answer below the rank it was given. */
+  const seeded = "z".repeat(256) + "V";
+
+  it("still goes up from a rank of 257 characters", () => {
+    expect(seeded).toHaveLength(257);
+    const next = rankAfter(seeded);
+    expect(next > seeded).toBe(true);
+    const third = rankAfter(next);
+    expect(third > next).toBe(true);
+  });
+
+  it("still finds a middle under a rank of 257 characters", () => {
+    const mid = rankBetween("V", seeded);
+    expect("V" < mid).toBe(true);
+    expect(mid < seeded).toBe(true);
+  });
+
+  it("shortens a whole list that ran away, and keeps its order", () => {
+    /* Every rank long, so 256 rows are not enough and the reach has to widen
+       until it reaches the front. */
+    const runaway: string[] = [];
+    let last: string | null = null;
+    for (let i = 0; i < 1_200; i += 1) {
+      last = rankAfter(last);
+      runaway.push(last);
+    }
+    expect(Math.max(...runaway.map((r) => r.length))).toBeGreaterThan(RANK_CAP);
+
+    const plan = rebalanceTail(runaway);
+    expect(plan).not.toBeNull();
+    const fixed = [...runaway.slice(0, plan!.from), ...plan!.ranks, plan!.next];
+
+    expect(fixed).toHaveLength(runaway.length + 1);
+    expect(new Set(fixed).size).toBe(fixed.length);
+    for (let i = 1; i < fixed.length; i += 1) expect(fixed[i - 1] < fixed[i]).toBe(true);
+    expect(Math.max(...fixed.map((r) => r.length))).toBeLessThan(RANK_CAP);
+    for (const rank of fixed) expect(rank.endsWith("0")).toBe(false);
+  });
+
+  it("goes on appending after the seeded rank without stalling", () => {
+    /* The seeded rank is the whole runaway tail here, so the first append
+       rewrites it as well, and the list is short from then on. */
+    let list = [seeded];
+    for (let i = 0; i < 500; i += 1) list = appendTo(list);
+    expect(list).toHaveLength(501);
+    expect(new Set(list).size).toBe(501);
+    for (let i = 1; i < list.length; i += 1) expect(list[i - 1] < list[i]).toBe(true);
+    expect(Math.max(...list.map((r) => r.length))).toBeLessThan(RANK_CAP);
   });
 });

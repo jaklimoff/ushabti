@@ -10,6 +10,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A long board keeps its order.** Adding tasks to the end of one board over
+  and over used to lengthen the rank each task carries — one character every
+  sixth task — until at about the 1,537th the search behind it gave up and
+  stopped answering above the task before. From there the board read back in no
+  order at all. The search now runs as far as the ranks it is given, and the
+  end of a list is rewritten when a rank would reach 32 characters: one
+  statement, about 256 rows, nothing that moves on screen. An old board with
+  ranks already past the cap mends itself on the next task added to the end.
+
 - **A dying heartbeat no longer closes a hand-over.** `board.mjs beat` reports
   the run `lost` when it is killed with the session, so a card comes back the
   moment an agent dies. A worker that ended with `finish --to "review"`, or

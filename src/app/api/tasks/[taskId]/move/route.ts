@@ -3,7 +3,7 @@ import { tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { byPos } from "@/lib/order";
-import { logActivity, taskProjectId, withProjectLock } from "@/lib/queries";
+import { logActivity, rankOnTheEnd, taskProjectId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { coerceValue, describeValue, loadProperty, putValue } from "@/lib/values";
 
@@ -26,7 +26,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     values?: Record<string, unknown>;
   }>(req);
 
-  const position = await withProjectLock(projectId, async (tx) => {
+  const { position, rewrote } = await withProjectLock(projectId, async (tx) => {
     const siblings = await tx
       .select({ id: tasks.id, position: tasks.position })
       .from(tasks)
@@ -35,6 +35,9 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
     let lower: string | null = null;
     let upper: string | null = null;
+    /* True when the card lands last. Only then can the tail be rewritten: the
+       room above any other neighbour belongs to the task above it. */
+    let onTheEnd = siblings.length > 0 && !input.beforeId;
 
     if (input.beforeId) {
       const i = siblings.findIndex((t) => t.id === input.beforeId);
@@ -48,16 +51,17 @@ export const POST = route<Ctx>(async (req, ctx) => {
         lower = siblings[i].position;
         upper = siblings[i + 1]?.position ?? null;
       }
-    } else {
-      lower = siblings.at(-1)?.position ?? null;
+      onTheEnd = i === siblings.length - 1;
     }
 
-    const next = rankBetween(lower, upper);
+    const end = onTheEnd
+      ? await rankOnTheEnd(tx, siblings)
+      : { position: rankBetween(lower, upper), rewrote: false };
     await tx
       .update(tasks)
-      .set({ position: next, updatedAt: new Date() })
+      .set({ position: end.position, updatedAt: new Date() })
       .where(eq(tasks.id, taskId));
-    return next;
+    return end;
   });
 
   if (input.values && typeof input.values === "object") {
@@ -76,6 +80,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     }
   }
 
-  await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
+  /* A rewrite moved rows this tab did not ask about, so it hears the bell too. */
+  await broadcast({ projectId, scope: "board", clientId: rewrote ? undefined : clientIdOf(req) });
   return json({ position });
 });
