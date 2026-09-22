@@ -301,6 +301,37 @@ test.describe("Filters inside a view", () => {
     await expect(chip(page, "Due is before 2026-10-01")).toBeVisible();
   });
 
+  /*
+   * The box saves on blur like every field on this board, and a tab closed on
+   * it sends no blur. The answer goes out on the way off the page instead.
+   */
+  test("a rule answered in a closed tab is there when the board comes back", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("LeavingFilter"));
+
+    await page.getByTestId("filter-button").click();
+    const search = page.getByTestId("filter-search");
+    await search.fill("Due");
+    await search.press("Enter");
+
+    // Typed and left there: no Enter, no click elsewhere, no blur.
+    await page.getByTestId("filter-box").fill("2026-10-01");
+
+    const context = page.context();
+    await page.close();
+
+    const next = await context.newPage();
+    await expect
+      .poll(
+        async () => {
+          await next.goto(`/p/${projectId}`);
+          return next.getByTestId("filter-chip").allInnerTexts();
+        },
+        { timeout: 20_000 },
+      )
+      .toContain("Due is on 2026-10-01");
+  });
+
   /* This is the whole point of the two steps. */
   test("picking a property asks a question and hides nothing", async ({ page }) => {
     await register(page);
