@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BoardColumn } from "@/lib/board";
 import type { TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
+import { MentionList, useMentions } from "./Mentions";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
 
@@ -356,6 +357,8 @@ const Composer = function Composer({
   commit: () => void;
   cancel: () => void;
 }) {
+  const picker = useMentions(ref, setDraft);
+
   return (
     <div className={styles.composer}>
       <textarea
@@ -363,8 +366,15 @@ const Composer = function Composer({
         className={styles.composerInput}
         value={draft}
         placeholder="What needs doing?"
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          picker.sync();
+        }}
+        onSelect={picker.sync}
         onKeyDown={(e) => {
+          /* The list has the keys while it is open, so Enter picks a name
+             instead of making the task. */
+          if (picker.onKeyDown(e)) return;
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             commit();
@@ -374,11 +384,16 @@ const Composer = function Composer({
             cancel();
           }
         }}
-        onBlur={() => (draft.trim() ? commit() : cancel())}
+        onBlur={() => {
+          picker.close();
+          if (draft.trim()) commit();
+          else cancel();
+        }}
       />
       {/* A filtered board says what it is about to write, so the card it
           makes is never a surprise and never disappears. */}
       <span className={styles.composerHint}>Enter to add · {note || "Esc to cancel"}</span>
+      <MentionList picker={picker} />
     </div>
   );
 };

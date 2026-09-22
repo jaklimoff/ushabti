@@ -28,6 +28,7 @@ import { seedNote, seedValues } from "@/lib/filters";
 import { canSort, nextSort, sortTasks } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
 import { useShortcut } from "./keys";
+import { MentionList, useMentions } from "./Mentions";
 import { useBoard } from "./store";
 import { TaskRow, pinProps } from "./TaskRow";
 import styles from "./board.module.css";
@@ -100,6 +101,7 @@ export function ListCanvas({
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const picker = useMentions(inputRef, setDraft);
 
   // A list has one composer, at the end, so `n` has one place to open it.
   useShortcut("n", () => {
@@ -429,8 +431,15 @@ export function ListCanvas({
                     className={styles.composerInput}
                     value={draft}
                     placeholder="What needs doing?"
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={(e) => {
+                      setDraft(e.target.value);
+                      picker.sync();
+                    }}
+                    onSelect={picker.sync}
                     onKeyDown={(e) => {
+                      /* The list has the keys while it is open, so Enter
+                         picks a name instead of making the task. */
+                      if (picker.onKeyDown(e)) return;
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         void commit();
@@ -442,6 +451,7 @@ export function ListCanvas({
                       }
                     }}
                     onBlur={() => {
+                      picker.close();
                       if (draft.trim()) void commit();
                       else setComposing(false);
                     }}
@@ -449,6 +459,7 @@ export function ListCanvas({
                   <span className={styles.composerHint}>
                     Enter to add · {addNote || "Esc to cancel"}
                   </span>
+                  <MentionList picker={picker} />
                 </div>
               </div>
             ) : (

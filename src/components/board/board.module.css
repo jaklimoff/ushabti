@@ -1196,6 +1196,8 @@
   flex-direction: column;
   flex: 0 0 auto;
   gap: 8px;
+  /* The `@` list is measured from here, and sits under the whole composer. */
+  position: relative;
   padding: 9px 10px;
   border-radius: 6px;
   background: var(--bg-card);
@@ -2427,4 +2429,70 @@ button.listHeadCell:focus-visible {
   .narrow {
     display: inline;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The names an @ opens                                                 */
+/* ------------------------------------------------------------------ */
+
+/*
+ * The list sits under the box that opened it, wherever that box is: the
+ * composer of a column, the composer of a list, the title, the description or
+ * the comment of the panel. Those five carry `position: relative` in their
+ * own file; this is the same list in all of them.
+ */
+.mentionList {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 40;
+  margin-top: 4px;
+  width: max-content;
+  min-width: 168px;
+  max-width: 100%;
+  padding: 4px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: 8px;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: ushabti-fade-in 130ms var(--ease);
+}
+
+.mentionItem {
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  min-width: 0;
+}
+
+.mentionItem:hover {
+  background: var(--bg-hover);
+}
+
+/* The row the arrow keys are on. It is not focus: the box keeps that. */
+.mentionItemAt {
+  background: var(--bg-hover);
+}
+
+.mentionName {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mentionLive {
+  margin-left: auto;
+  padding-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  color: var(--faint-3);
 }
