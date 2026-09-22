@@ -9,6 +9,14 @@ import { addTask, createProject, gotoSettings, register, unique } from "./helper
  * the watcher looks for.
  */
 
+/** Sends one note through the box, the way a person does. */
+async function comment(page: Page, body: string) {
+  const box = page.getByTestId("comment-box");
+  await box.fill(body);
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await expect(page.getByTestId("comment").filter({ hasText: body })).toBeVisible();
+}
+
 /** Makes a machine member. Its name has a space, which is the hard case. */
 async function addAgent(page: Page, projectId: string, name: string) {
   await gotoSettings(page, projectId, "people");
@@ -107,5 +115,47 @@ test.describe("Who an @ can name", () => {
     await expect(editor).toHaveValue(`Over to @${AGENT} `);
     await editor.blur();
     await expect(page.getByTestId("markdown")).toContainText(`Over to @${AGENT}`);
+  });
+});
+
+/*
+ * The comment box of a busy task sits on the bottom edge of the screen: the
+ * panel body scrolls, and the box is the last thing in it. A list drawn under
+ * that box is a list nobody can see, and Enter would then write a name that
+ * was never on the screen.
+ */
+test.describe("A list with no room under the box", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("opens upward, and every row is on the screen", async ({ page }) => {
+    await register(page, "Ada Lovelace");
+    const projectId = await createProject(page, unique("Mentions"));
+    await addAgent(page, projectId, AGENT);
+
+    await page.goto(`/p/${projectId}`);
+    await addTask(page, "Todo", "A task with a few notes");
+    for (let i = 1; i <= 6; i += 1) await comment(page, `Note number ${i}`);
+
+    const box = page.getByTestId("comment-box");
+    await box.click();
+    await box.pressSequentially("@");
+    const rows = page.getByTestId("mention-item");
+    await expect(rows).toHaveCount(2);
+
+    const screen = page.viewportSize();
+    if (!screen) throw new Error("The test needs a viewport.");
+    for (const row of await rows.all()) {
+      const at = await row.boundingBox();
+      if (!at) throw new Error("A row of the list is not drawn.");
+      expect(at.y).toBeGreaterThanOrEqual(0);
+      expect(at.y + at.height).toBeLessThanOrEqual(screen.height);
+      expect(at.x).toBeGreaterThanOrEqual(0);
+      expect(at.x + at.width).toBeLessThanOrEqual(screen.width);
+    }
+
+    // Drawn is not the same as reachable: an ancestor that scrolls would clip
+    // the rows without moving them.
+    await rows.first().click();
+    await expect(box).toHaveValue(`@${AGENT} `);
   });
 });

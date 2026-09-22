@@ -10,7 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
-- **Typing `@` shows who you can mention.** A short list opens under the box —
+- **Typing `@` shows who you can mention.** A short list opens beside the box,
+  under it or above it when the box is near the foot of the screen —
   in a comment, in the title and the description of the panel, and in the box
   that adds a task to a column or a list. The agents come first, with a word
   beside any that is listening at that moment, then the people. The letters
