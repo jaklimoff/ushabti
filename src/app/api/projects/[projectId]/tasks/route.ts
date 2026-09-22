@@ -1,9 +1,9 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { projects, tasks } from "@/db/schema";
 import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
-import { logActivity, withProjectLock } from "@/lib/queries";
+import { logActivity, rankOnTheEnd, withProjectLock } from "@/lib/queries";
 import { byPos } from "@/lib/order";
-import { rankAfter, rankBefore, rankBetween } from "@/lib/rank";
+import { rankBefore, rankBetween } from "@/lib/rank";
 import { coerceValue, loadProperty, putValue } from "@/lib/values";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -26,7 +26,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   // The counter bump and the rank both have to see the same snapshot, so the
   // whole thing runs under the project lock.
-  const task = await withProjectLock(projectId, async (tx) => {
+  const { task, rewrote } = await withProjectLock(projectId, async (tx) => {
     const [project] = await tx
       .update(projects)
       .set({ taskCounter: sql`${projects.taskCounter} + 1` })
@@ -39,17 +39,18 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .where(eq(tasks.projectId, projectId))
       .orderBy(byPos(tasks.position), asc(tasks.number));
 
+    /* A task landing on the end asks `rankOnTheEnd`, which rewrites the tail
+       first if the ranks there have grown too long. A task landing between two
+       others cannot: the room above its neighbour is the next task's. */
     let position: string;
-    if (input.afterId) {
-      const i = neighbours.findIndex((t) => t.id === input.afterId);
-      position =
-        i >= 0
-          ? rankBetween(neighbours[i].position, neighbours[i + 1]?.position ?? null)
-          : rankAfter(neighbours.at(-1)?.position ?? null);
-    } else if (input.atTop) {
+    let rewrote = false;
+    const i = input.afterId ? neighbours.findIndex((t) => t.id === input.afterId) : -1;
+    if (i >= 0 && i < neighbours.length - 1) {
+      position = rankBetween(neighbours[i].position, neighbours[i + 1].position);
+    } else if (input.atTop && !input.afterId) {
       position = rankBefore(neighbours[0]?.position ?? null);
     } else {
-      position = rankAfter(neighbours.at(-1)?.position ?? null);
+      ({ position, rewrote } = await rankOnTheEnd(tx, neighbours));
     }
 
     const [row] = await tx
@@ -63,7 +64,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         createdBy: user.id,
       })
       .returning();
-    return { ...row, key: `${project.key}-${row.number}` };
+    return { task: { ...row, key: `${project.key}-${row.number}` }, rewrote };
   });
 
   if (input.values && typeof input.values === "object") {
@@ -81,6 +82,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     kind: "created",
     data: { title },
   });
-  await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
+  /* A rewrite moved rows this tab did not ask about, so it hears the bell too. */
+  await broadcast({ projectId, scope: "board", clientId: rewrote ? undefined : clientIdOf(req) });
   return json({ task }, 201);
 });

@@ -8,6 +8,12 @@
  *
  * Every rank this module produces ends with a digit above the lowest one.
  * That rule is what keeps the search below finite.
+ *
+ * A rank appended to the end of a list is longer than the one before it every
+ * sixth time, because each call halves what room is left above the last rank.
+ * Nothing can stop that: the end of a list only ever climbs. So the length is
+ * capped instead, and `rebalanceTail` says how to spend one write putting the
+ * end of the list back down where there is room. See `RANK_CAP`.
  */
 const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const BASE = ALPHABET.length;
@@ -31,7 +37,16 @@ export function rankBetween(a: string | null | undefined, b: string | null | und
   // the rest of the string run all the way up to the top of the alphabet.
   let upperOpen = upper === "";
 
-  for (let guard = 0; guard < 256; guard += 1) {
+  /* The search needs one place per digit of the longer bound, and one more to
+     open a new place below them both. A fixed count was wrong: a rank longer
+     than it stopped the search early, and the truncated answer sorted *below*
+     the lower bound, so a list that reached that length stopped ordering. The
+     two spare places are for a stored rank that breaks the rule above and ends
+     in the lowest digit; the search cannot answer that one, and this is what
+     keeps it from running for ever. */
+  const limit = Math.max(lower.length, upper.length) + 2;
+
+  for (let guard = 0; guard < limit; guard += 1) {
     const lo = i < lower.length ? digit(lower[i]) : 0;
     const hi = upperOpen ? BASE : i < upper.length ? digit(upper[i]) : 0;
 
@@ -74,11 +89,10 @@ export function rankSequence(count: number): string[] {
  * N ranks after one neighbour, worked out in one go.
  *
  * `rankAfter` called N times is not this. Each call halves what is left above
- * it, so the ranks grow one digit every few hundred items and the search in
- * `rankBetween` hits its 256-step guard at about the 1,537th: from there on
- * the answer stops increasing, and the rest of the list arrives in no order at
- * all. An import of two thousand cards is exactly that shape, so it asks for
- * its ranks once.
+ * it, so the ranks grow a digit every sixth item and two thousand of them end
+ * a third of a kilobyte long, which `rebalanceTail` then has to undo. An
+ * import of two thousand cards is exactly that shape, so it asks for its ranks
+ * once.
  *
  * The room above `after` is divided into `count + 1` equal steps and the ranks
  * sit on the marks, so they are evenly spread, strictly increasing and all the
@@ -89,11 +103,16 @@ export function rankSpread(after: string | null | undefined, count: number): str
   if (count <= 0) return [];
   const lower = after && after.length > 0 ? after : "";
 
-  /* One digit more than the neighbour, so there is somewhere above it to put
-     anything at all, and then as many as `count` marks need. */
-  for (let width = Math.max(lower.length, 1) + 1; ; width += 1) {
+  /* As many digits as `count` marks need, and no more. Reading the neighbour
+     at a width shorter than itself rounds it down, so the marks start one unit
+     above that rounding: the first one then clears the neighbour whatever its
+     own length is. Starting at the neighbour's length instead would write
+     ranks a digit longer than the one they sit above, every time, and a tail
+     rewritten again and again would creep a digit longer each round. */
+  for (let width = 1; ; width += 1) {
     const top = BigInt(BASE) ** BigInt(width);
-    const floor = toNumber(lower, width);
+    const floor = lower === "" ? 0n : toNumber(lower, width) + 1n;
+    if (floor >= top) continue;
     const step = (top - floor) / BigInt(count + 1);
     if (step < 1n) continue;
 
@@ -132,4 +151,65 @@ function toRank(value: bigint, width: number): string {
   let end = digits.length;
   while (end > 1 && digits[end - 1] === ALPHABET[0]) end -= 1;
   return digits.slice(0, end).join("");
+}
+
+/**
+ * A rank made on the append path stays shorter than this; a task dropped
+ * between two others can still grow past it, and only the order is promised
+ * there.
+ *
+ * 32 keeps `tasks_project_position_idx` narrow, and it is loose enough that a
+ * rewrite is rare: a rank grows a digit every sixth append, so about 150 tasks
+ * go on the end of a board between one rewrite and the next.
+ */
+export const RANK_CAP = 32;
+
+/** How far back a rewrite reaches first. See `rebalanceTail`. */
+const TAIL = 256;
+
+export type Rebalance = {
+  /** The first index of `positions` the rewrite replaces. */
+  from: number;
+  /** The ranks that replace `positions` from `from` on, in that order. */
+  ranks: string[];
+  /** The rank for the task going on the end. */
+  next: string;
+};
+
+/**
+ * How to put the end of a list back where there is room, or null while there
+ * is room already.
+ *
+ * `positions` is every rank in the project, in order. The answer replaces the
+ * last few of them with one spread. It moves nothing visible, because the
+ * order is kept, and it costs one write, because it is one statement.
+ *
+ * Only the end of a list can be mended this way. `rankSpread` fills the open
+ * room above one neighbour, and the end of the list is the only place where
+ * that room belongs to nobody else.
+ *
+ * The first reach is 256 rows, and the number matters. About 150 tasks fit on
+ * the end of a board between one rewrite and the next, so a shorter reach
+ * would anchor on one of the long ranks it is meant to be rid of, shorten
+ * nothing, and have the next task ask for another rewrite. When 256 rows are
+ * not enough — an old board whose whole order ran away — the reach doubles
+ * until they are. The last stop is the whole project, which is always short,
+ * because a spread of a million ranks is four digits.
+ */
+export function rebalanceTail(positions: string[]): Rebalance | null {
+  const next = rankAfter(positions.at(-1) ?? null);
+  if (next.length < RANK_CAP) return null;
+
+  for (let take = Math.max(1, Math.min(TAIL, positions.length)); ; take *= 2) {
+    const from = Math.max(0, positions.length - take);
+    const anchor = from > 0 ? positions[from - 1] : null;
+    /* One more than the rows, because the task being added takes the top mark. */
+    const fresh = rankSpread(anchor, positions.length - from + 1);
+    // Counted and not spread: this list can be a whole project.
+    const longest = fresh.reduce((most, r) => Math.max(most, r.length), 0);
+    // Half the cap, so the rewrite buys at least another hundred tasks.
+    if (longest * 2 <= RANK_CAP || from === 0) {
+      return { from, ranks: fresh.slice(0, -1), next: fresh[fresh.length - 1] };
+    }
+  }
 }
