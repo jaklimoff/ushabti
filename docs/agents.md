@@ -660,9 +660,17 @@ What wakes it:
 
 - `assigned` — a person property of a task is set to this agent, when the task
   is made or later, by a field or by a drag on a board grouped by that person.
-- `mention` — a person writes `@Name` in a comment.
+- `mention` — a person writes `@Name` in a comment, in the title of a task
+  they create, or in the title or the description of a task they change. The
+  prompt says which of the three, and a mention in a title or a description
+  tells the agent it may take its own `@Name` out again when the work is done
+  — `board.mjs unmention <key>` does that and touches no other word. Only a
+  person's words wake it, so an agent writing the name, or taking its own out,
+  wakes nobody.
 - `created` — a person creates a task. Use it on a board where every new task
-  should be refined; on a shared board, `assigned` says who asked for it.
+  should be refined; on a shared board, `assigned` says who asked for it. A
+  new task whose title names this agent wakes it as a `mention` instead, which
+  is the more exact of the two.
 - An answer to a question the agent asked always wakes it. There is no flag.
 
 What it does for each one:
@@ -760,6 +768,7 @@ node board.mjs comment USH-14 "…"
 node board.mjs check USH-14 "A failed send retries five times"
 node board.mjs check USH-14 "retries five times" --done   # tick it; --undone puts it back
 node board.mjs describe USH-14 --file draft.md   # only if empty, or yours
+node board.mjs unmention USH-14            # take your own @Name out again
 node board.mjs ask USH-14 "Which service owns the queue?"
 node board.mjs pause USH-14                # answer a Pause, wait for Resume
 node board.mjs finish USH-14

@@ -319,6 +319,58 @@ function taskLine(data, task) {
 }
 
 /* ------------------------------------------------------------------ */
+/* A name written on a task                                            */
+/* ------------------------------------------------------------------ */
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Where a name counts as written: `@Ada`, and not inside a longer word.
+ *
+ * Both sides are guarded, so `bob@Ada.com` is an address and not a mention.
+ * The watcher and `unmention` ask this one function, because a name that
+ * wakes an agent and a name the agent can take out again have to be the same
+ * name. If they disagree, the agent is woken by something it cannot clear.
+ */
+const mentionPattern = (name) => `(?<![\\w-])@${escapeRegExp(name)}(?![\\w-])`;
+
+/**
+ * The text with one name taken out, and nothing else touched.
+ *
+ * Only the whitespace the name was sitting in closes up: one space before it,
+ * or — when the name opens the line — the punctuation and the one space after
+ * it. Every other character is written back exactly as it was, because a
+ * description is markdown: an indent is a code block or a nested list, and two
+ * spaces at the end of a line are a line break. A tidy-up that rewrites those
+ * loses the words a person wrote.
+ */
+function without(text, name) {
+  const source = String(text ?? "");
+  let out = "";
+  let last = 0;
+  for (const found of source.matchAll(new RegExp(mentionPattern(name), "gi"))) {
+    const at = found.index;
+    let end = at + found[0].length;
+    let from = at;
+    const lineStart = source.lastIndexOf("\n", at - 1) + 1;
+    if (/^[^\S\n]*$/.test(source.slice(lineStart, at))) {
+      /* The name opens the line, so the indent is not its space: what follows
+         it closes the hole instead. "@Ada, look" is left with "look". */
+      if (source[end] === "," || source[end] === ":") end += 1;
+      if (source[end] === " " || source[end] === "\t") end += 1;
+    } else if (source[at - 1] === " " || source[at - 1] === "\t") {
+      // One space, so that the words on either side do not run together.
+      from = at - 1;
+    }
+    out += source.slice(last, from);
+    last = end;
+  }
+  return out + source.slice(last);
+}
+
+/* ------------------------------------------------------------------ */
 /* Commands                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -343,6 +395,7 @@ const commands = {
   step <key> --say "<now>" [--index 2] [--log "<line>"] [--for 45]
   check <key> "<item>" [--done]       add an item, or tick one; --undone unticks
   describe <key> "<markdown>"         write the description, if it is empty or yours
+  unmention <key>                     take your own @Name out of the title and description
   ask <key> "<question>"              ask a person, wait, and end your session
   pause <key> [--for 5]               answer a Pause: stop, wait for Resume, go on
   finish <key> [--status done|failed] [--log "<line>"]
@@ -660,6 +713,36 @@ http://localhost:3000.`);
   },
 
   /**
+   * Takes this agent's own name out of the title and the description.
+   *
+   * A person who writes `@Ada` where the task is born is asking for the work,
+   * not labelling the task for ever. Once the work is done the name has
+   * nothing left to say, and the next edit of the title would wake the agent
+   * again. So the agent may take its own name out — its own, and no other
+   * word. It is not `describe`: nothing a person wrote is written over, which
+   * is why the rule against that still holds.
+   */
+  async unmention() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const name = data.me.agent.name;
+    const holds = (text) => new RegExp(mentionPattern(name), "i").test(String(text ?? ""));
+
+    const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
+    const patch = {};
+    // A task must keep a title, so a title that is only the name stays as it is.
+    if (holds(detail.title) && without(detail.title, name).trim())
+      patch.title = without(detail.title, name);
+    if (holds(detail.description)) patch.description = without(detail.description, name);
+    if (!Object.keys(patch).length) {
+      console.log(`${task.key}: nothing to take out`);
+      return;
+    }
+    await call("PATCH", `/api/tasks/${task.id}`, patch);
+    console.log(`${task.key}: @${name} taken out of the ${Object.keys(patch).join(" and the ")}`);
+  },
+
+  /**
    * A question the agent cannot answer alone. The question goes up as a
    * comment, where the person answers it, and the run waits: the card says
    * so, and the board does not close a waiting run for silence. The watcher
@@ -825,15 +908,23 @@ const waitingWord = (run) =>
 const PROMPTS = {
   created: (key) => `A person just created task ${key} on the Ushabti board.`,
   assigned: (key) => `Task ${key} on the Ushabti board was just assigned to you.`,
-  mention: (key) => `A person mentioned you in a comment on task ${key} on the Ushabti board.`,
+  /* A name in the title or the description stays there until somebody takes it
+     out, so the agent it names is told it may take its own out. A name in a
+     comment is a line in a conversation, and is left where it was written. */
+  mention: (key, place) =>
+    place === "title" || place === "description"
+      ? `A person mentioned you in the ${place} of task ${key} on the Ushabti board. ` +
+        `When you have done what was asked, you may take your own @Name out of the ` +
+        `title or the description.`
+      : `A person mentioned you in a comment on task ${key} on the Ushabti board.`,
   reply: (key) =>
     `A person answered the question you asked on task ${key} on the Ushabti board. ` +
     `Read the newest comments before anything else.`,
 };
 
-function promptFor(event, key, goal) {
+function promptFor(event, key, goal, place) {
   return (
-    `${PROMPTS[event](key)} Your job: ${goal}. ` +
+    `${PROMPTS[event](key, place)} Your job: ${goal}. ` +
     `Read ${SKILL_DIR}/SKILL.md first and follow it. ` +
     `The watcher already holds the run on ${key} and beats for it, ` +
     `so do not claim the task and do not start a heartbeat.`
@@ -849,10 +940,6 @@ function fillCommand(template, values) {
   return template.replace(/\{(key|id|event|prompt|skill)\}/g, (_, name) =>
     shellQuote(values[name]),
   );
-}
-
-function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 commands.watch = async function watch() {
@@ -877,7 +964,7 @@ commands.watch = async function watch() {
   const me = await call("GET", "/api/agent/me");
   const projectId = me.project.id;
   const agentId = me.agent.id;
-  const mention = new RegExp(`@${escapeRegExp(me.agent.name)}(?![\\w-])`, "i");
+  const mention = new RegExp(mentionPattern(me.agent.name), "i");
 
   /* --- where the feed was left ------------------------------------- */
 
@@ -931,10 +1018,10 @@ commands.watch = async function watch() {
     console.log(`[watch] ${line}`);
   }
 
-  function wake(taskId, key, event) {
+  function wake(taskId, key, event, place) {
     if (active.has(taskId) || queue.some((job) => job.taskId === taskId)) return;
-    say(`${key}: ${event}`);
-    queue.push({ taskId, key, event });
+    say(place ? `${key}: ${event} in the ${place}` : `${key}: ${event}`);
+    queue.push({ taskId, key, event, place });
     pump();
   }
 
@@ -978,7 +1065,7 @@ commands.watch = async function watch() {
       key: job.key,
       id: job.taskId,
       event: job.event,
-      prompt: promptFor(job.event, job.key, goal),
+      prompt: promptFor(job.event, job.key, goal, job.place),
       skill: SKILL_DIR,
     });
 
@@ -1102,10 +1189,29 @@ commands.watch = async function watch() {
     if (entry.kind === "created") {
       // A task an agent wrote is not a reason for another agent to wake:
       // two watchers would otherwise refine each other's work for ever.
-      if (triggers.has("created") && actor.kind === "human")
-        return wake(entry.taskId, key, "created");
+      const byPerson = actor.kind === "human";
+      /* A name in the title asks for this agent and not for any agent, so it
+         wins over the plain `created` wake: the prompt then says where the
+         name is and that the agent may take it out when it is done. */
+      if (byPerson && triggers.has("mention") && mention.test(String(entry.data.title ?? "")))
+        return wake(entry.taskId, key, "mention", "title");
+      if (byPerson && triggers.has("created")) return wake(entry.taskId, key, "created");
       if (triggers.has("assigned") && assignedToMe(await freshBoard(), entry.taskId))
         return wake(entry.taskId, key, "assigned");
+      return;
+    }
+
+    /* A person wrote the name where the task is born. The line says that the
+       title or the description changed and never the words, so the task is
+       read once and both places are tested: an edit of either can be the one
+       that put the name there. An agent's own edit wakes nobody, which is
+       what lets an agent take its own name out again. */
+    if ((entry.kind === "title" || entry.kind === "description") && triggers.has("mention")) {
+      if (actor.kind !== "human") return;
+      const { task } = await request("GET", `/api/tasks/${entry.taskId}`);
+      if (mention.test(task.title ?? "")) return wake(entry.taskId, key, "mention", "title");
+      if (mention.test(task.description ?? ""))
+        return wake(entry.taskId, key, "mention", "description");
       return;
     }
 
@@ -1136,7 +1242,7 @@ commands.watch = async function watch() {
         return pump();
       }
       if (triggers.has("mention") && mention.test(comment.body)) {
-        return wake(entry.taskId, key, "mention");
+        return wake(entry.taskId, key, "mention", "comment");
       }
     }
   }

@@ -57,6 +57,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Write an agent's name where a task is born and it wakes.** The watcher's
+  `mention` used to hear only a comment. It now also hears `@Name` in the
+  title of a task a person creates, and in a title or a description a person
+  changes, so a task can be handed to an agent as it is written. The
+  prompt says where the name is, and an agent may take its own name out again
+  with `board.mjs unmention <key>` once it has done what was asked. Only a
+  person's words wake it: an agent's own task, edit or tidy-up wakes nobody.
 - **A board comes in from Trello.** **Settings → Import**, owner only, takes a
   Trello JSON export: lists become the columns, cards become tasks in the order
   they had, with their labels, due dates, first member as assignee, checklists

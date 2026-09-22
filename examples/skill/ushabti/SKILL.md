@@ -83,6 +83,13 @@ which of those it was.
   not `claim`, and do not start `beat`.
 - **Read it first**: `node board.mjs task $USHABTI_TASK`. On a `reply`, the
   newest comments hold the answer.
+- **On a `mention`, the prompt says where your name is** — the title, the
+  description or a comment. A name in the title or the description is a person
+  asking for the work the task names. When you have done what was asked, you
+  may take your own name out: `node board.mjs unmention $USHABTI_TASK` takes
+  `@Name` out of the title and the description and leaves every other word
+  alone. Do it last, and only for your own name. A name in a comment stays
+  where it was written.
 - **Report with `step`** as usual, and obey `control` as usual.
 - **End with `finish`, with `finish --to`, or with `ask`.** Each ends your
   session. If you just stop, the watcher closes the run for you, but the card
@@ -179,6 +186,11 @@ node board.mjs watch --on assigned,mention \
 `{prompt}` says what happened and points back at this file, so any harness
 that takes a prompt and exits works. While it runs, the board shows the agent
 as listening. You never run `watch` from inside a session.
+
+`mention` wakes on `@Name` in three places: a comment, the title of a task a
+person created, and the title or the description a person changed. The prompt
+says which. Only a person's words wake it, so an agent that writes the name,
+or takes its own out again, wakes nobody.
 
 ## The rest of the API
 
