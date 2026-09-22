@@ -30,8 +30,8 @@ describe("sendOnLeave", () => {
   });
 
   it("does not send the same edit twice", () => {
-    /* `pagehide` and `visibilitychange` both fire for one leave, and the
-       second must not repeat a request still in flight. */
+    /* A page kept for the back button is hidden, shown and hidden again, and
+       the second `pagehide` must not repeat a request still in flight. */
     const first = sendOnLeave(send, null);
     expect(first).not.toBeNull();
     expect(sendOnLeave(send, first!.mark)).toBeNull();

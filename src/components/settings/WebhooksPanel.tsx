@@ -208,6 +208,9 @@ function HookBox({
   const confirm = useConfirm();
   const roll = useConfirm();
   const [url, setUrl] = useState(hook.url);
+  /* The box mirrors what is saved, and the mirror goes stale when somebody
+     else changes it. Only what this tab typed may be written back. */
+  const [typed, setTyped] = useState(false);
   /* Why the last save was refused, said in the row itself. */
   const [error, setError] = useState<string | null>(null);
   /* How many deliveries the delete takes. Null while the server is counting. */
@@ -215,7 +218,7 @@ function HookBox({
   const base = `/api/projects/${projectId}/webhooks/${hook.id}`;
 
   /* The address saves on blur, and a closed tab sends no blur. */
-  const urlEdit = editedText(url, hook.url);
+  const urlEdit = typed ? editedText(url, hook.url) : null;
   useSaveOnLeave(() => (urlEdit ? { method: "PATCH", url: base, body: { url: urlEdit } } : null));
 
   async function save(patch: Record<string, unknown>) {
@@ -310,8 +313,12 @@ function HookBox({
           style={{ flex: 1, minWidth: 160 }}
           aria-label={`URL of the webhook ${hook.prefix}`}
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={(e) => {
+            setUrl(e.target.value);
+            setTyped(true);
+          }}
           onBlur={() => {
+            setTyped(false);
             if (!url.trim()) return setUrl(hook.url);
             if (urlEdit) void save({ url: urlEdit });
           }}

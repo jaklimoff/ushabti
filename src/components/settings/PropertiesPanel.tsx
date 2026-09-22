@@ -157,6 +157,9 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
     transition: { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" },
   });
   const [name, setName] = useState(property.name);
+  /* The box mirrors what is saved, and the mirror goes stale when somebody
+     else changes it. Only what this tab typed may be written back. */
+  const [typed, setTyped] = useState(false);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const confirm = useConfirm();
@@ -168,7 +171,7 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
   const showOnCard = cardItems.find((i) => i.id === property.id)?.place !== "off";
 
   /* The name saves on blur, and a closed tab sends no blur. */
-  const nameEdit = editedText(name, property.name);
+  const nameEdit = typed ? editedText(name, property.name) : null;
   useSaveOnLeave(() =>
     nameEdit
       ? { method: "PATCH", url: `/api/properties/${property.id}`, body: { name: nameEdit } }
@@ -252,8 +255,12 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
           <NameInput
             aria-label={`Name of the ${property.name} property`}
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setTyped(true);
+            }}
             onBlur={() => {
+              setTyped(false);
               if (nameEdit) void patchProperty(property.id, { name: nameEdit });
               else setName(property.name);
             }}
@@ -402,11 +409,15 @@ function OptionChip({
 function OptionName({ option }: { option: PropertyDTO["options"][number] }) {
   const { patchOption } = useBoard();
   const box = useRef<HTMLInputElement>(null);
+  /* Only what this tab typed may be written back. The box below is put right
+     from the saved name while nobody is in it, but a box somebody is sitting
+     in keeps whatever it held, and that is the stale one. */
+  const [typed, setTyped] = useState(false);
 
   /* The box holds its words itself, so the leave asks the box rather than a
      render that may be one keystroke old. */
   useSaveOnLeave(() => {
-    const edit = editedText(box.current?.value ?? "", option.name);
+    const edit = typed ? editedText(box.current?.value ?? "", option.name) : null;
     return edit
       ? { method: "PATCH", url: `/api/options/${option.id}`, body: { name: edit } }
       : null;
@@ -422,9 +433,11 @@ function OptionName({ option }: { option: PropertyDTO["options"][number] }) {
       className={styles.optionInput}
       aria-label={`Name of the option ${option.name}`}
       defaultValue={option.name}
+      onChange={() => setTyped(true)}
       onBlur={(e) => {
-        const value = e.target.value.trim();
-        if (value && value !== option.name) void patchOption(option.id, { name: value });
+        setTyped(false);
+        const edit = editedText(e.target.value, option.name);
+        if (edit) void patchOption(option.id, { name: edit });
         else e.target.value = option.name;
       }}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}

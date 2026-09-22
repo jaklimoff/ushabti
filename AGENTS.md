@@ -271,9 +271,13 @@ and what is easy to get wrong.
   `ConfirmRow` is the answer to "the board has no dialogs": the row becomes the
   question, and the question names the cost in real numbers. **A closed tab
   sends no blur**, so every such field also says what it owes to
-  `useSaveOnLeave`, which sends that one request with `keepalive` on the way
-  off the page. A new blur-saved field that forgets it loses an edit in
-  silence, and only a closed tab shows it.
+  `useSaveOnLeave`, which sends that one request with `keepalive` on
+  `pagehide` — a closed or navigated-away tab; not a tab switched away on a
+  phone. It is not an autosave, so a field answers only for what somebody
+  typed in this tab: a box that mirrors a saved value holds the old words
+  after another tab changes it, and sending those would put the change back.
+  A new blur-saved field that forgets either half loses an edit in silence, or
+  undoes somebody else's, and only a closed tab shows it.
 - **Off the board, geometry comes from `components/ui/`.** A button, an input,
   a tag and a card are declared once. They used to be declared three times
   each, at three different heights. The board keeps its own CSS on purpose.

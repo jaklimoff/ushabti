@@ -21,6 +21,12 @@ export function ProjectPanel() {
   const [name, setName] = useState(data.project.name);
   const [key, setKey] = useState(data.project.key);
   const [zone, setZone] = useState(data.project.timeZone);
+  /* Each box mirrors what is saved, and the mirror goes stale when somebody
+     else changes it. So a box says whether this tab typed in it since its
+     last save: nothing else may be written back. */
+  const [typedName, setTypedName] = useState(false);
+  const [typedKey, setTypedKey] = useState(false);
+  const [typedZone, setTypedZone] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [confirming, setConfirming] = useState(false);
 
@@ -50,9 +56,9 @@ export function ProjectPanel() {
    * the same answer goes out on the way off the page.
    */
   const url = `/api/projects/${data.project.id}`;
-  const nameEdit = editedText(name, data.project.name);
-  const keyEdit = editedText(key, data.project.key);
-  const zoneEdit = editedText(zone, data.project.timeZone);
+  const nameEdit = typedName ? editedText(name, data.project.name) : null;
+  const keyEdit = typedKey ? editedText(key, data.project.key) : null;
+  const zoneEdit = typedZone ? editedText(zone, data.project.timeZone) : null;
   useSaveOnLeave(() => (nameEdit ? { method: "PATCH", url, body: { name: nameEdit } } : null));
   useSaveOnLeave(() => (keyEdit ? { method: "PATCH", url, body: { key: keyEdit } } : null));
   useSaveOnLeave(() => (zoneEdit ? { method: "PATCH", url, body: { timeZone: zoneEdit } } : null));
@@ -98,8 +104,12 @@ export function ProjectPanel() {
               aria-label="Project name"
               value={name}
               disabled={!isOwner}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setTypedName(true);
+              }}
               onBlur={() => {
+                setTypedName(false);
                 if (!name.trim()) return setName(data.project.name);
                 if (nameEdit) void save({ name: nameEdit });
               }}
@@ -114,8 +124,12 @@ export function ProjectPanel() {
               value={key}
               maxLength={6}
               disabled={!isOwner}
-              onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+              onChange={(e) => {
+                setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+                setTypedKey(true);
+              }}
               onBlur={() => {
+                setTypedKey(false);
                 if (!key) return setKey(data.project.key);
                 if (keyEdit) void save({ key: keyEdit });
               }}
@@ -162,8 +176,12 @@ export function ProjectPanel() {
               aria-label="The time zone this project's day is worked out in"
               value={zone}
               disabled={!isOwner}
-              onChange={(e) => setZone(e.target.value)}
+              onChange={(e) => {
+                setZone(e.target.value);
+                setTypedZone(true);
+              }}
               onBlur={() => {
+                setTypedZone(false);
                 if (!zone.trim()) return setZone(data.project.timeZone);
                 if (zoneEdit) void save({ timeZone: zoneEdit });
               }}

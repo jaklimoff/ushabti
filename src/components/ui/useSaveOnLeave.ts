@@ -16,11 +16,19 @@ import { sendOnLeave, type LeaveSend } from "@/lib/leave";
  * the moment of leaving. A box that holds its words in the DOM rather than in
  * state can then read itself, and the answer is never one render old.
  *
- * It listens on `pagehide` and on `visibilitychange` to hidden. `pagehide` is
- * the close and the navigation. Hidden is the one mobile Safari sends: it
- * raises no `pagehide` when a tab is switched away or the home screen is
- * reached, and it may then freeze or throw the page away with no further
- * event. `sendOnLeave` keeps one edit from going out twice when both fire.
+ * It listens on `pagehide` alone, which is the closed tab and the navigation
+ * away — the two moments the page is really going. `visibilitychange` to
+ * hidden is not one of them: an alt-tab on a desktop raises it while the page
+ * lives on with the cursor still in the box, so a half-typed project key would
+ * be written and broadcast to the whole team. That is the autosave this task
+ * rules out. The price is mobile Safari, which raises no `pagehide` when a tab
+ * is switched away; an edit left that way is still lost, as it is today.
+ *
+ * A field must answer for what somebody typed in this tab and nothing else.
+ * A box that mirrors a saved value holds the old words after another tab
+ * changes it, and sending those would put the change back. So each field
+ * carries a flag it sets on the first change since its last save, and answers
+ * null until it is set.
  *
  * A `keepalive` body has to stay under 64 KiB. A long description could pass
  * that, and the browser then refuses the send, exactly as it refuses today's
@@ -37,8 +45,9 @@ export function useSaveOnLeave(unsaved: () => LeaveSend | null): void {
     function leave() {
       const next = sendOnLeave(latest.current(), sent.current);
       if (!next) return;
-      /* Marked before the send, not after: the two events can fire in one
-         breath, and the second must not repeat a request still in flight. */
+      /* Marked before the send, not after: a page kept for the back button is
+         hidden, shown and hidden again, and the second must not repeat a
+         request still in flight. */
       sent.current = next.mark;
       const { method, url, body } = next.send;
       const request = method === "PUT" ? api.put : api.patch;
@@ -47,15 +56,7 @@ export function useSaveOnLeave(unsaved: () => LeaveSend | null): void {
       });
     }
 
-    function onHidden() {
-      if (document.visibilityState === "hidden") leave();
-    }
-
     window.addEventListener("pagehide", leave);
-    document.addEventListener("visibilitychange", onHidden);
-    return () => {
-      window.removeEventListener("pagehide", leave);
-      document.removeEventListener("visibilitychange", onHidden);
-    };
+    return () => window.removeEventListener("pagehide", leave);
   }, []);
 }

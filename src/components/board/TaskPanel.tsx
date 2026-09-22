@@ -1257,8 +1257,8 @@ function TitleField({
       onBlur={() => {
         setEditing(false);
         if (thrown.current) return;
-        const trimmed = draft.trim();
-        if (trimmed && trimmed !== value) onCommit(trimmed);
+        const edit = editedText(draft, value);
+        if (edit) onCommit(edit);
       }}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
@@ -1369,6 +1369,15 @@ function Checklist({
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const editBox = useRef<HTMLInputElement>(null);
+  /* Only what this tab typed may be written back, as everywhere else. */
+  const [typed, setTyped] = useState(false);
+
+  /* One item is edited at a time, so opening or closing a box starts the
+     question again. */
+  function editItem(id: string | null) {
+    setEditingId(id);
+    setTyped(false);
+  }
   /* A box ticks before the server answers. The change is kept beside the list
      it was made on, so the next read of the task replaces both at once: a list
      that came back is never drawn under a tick it already carries. */
@@ -1395,7 +1404,7 @@ function Checklist({
      the page must not, because a delete is not a save. */
   useSaveOnLeave(() => {
     const item = local.find((i) => i.id === editingId);
-    if (!item) return null;
+    if (!item || !typed) return null;
     const edit = editedText(editBox.current?.value ?? "", item.text);
     return edit
       ? { method: "PATCH", url: `/api/checklist/${item.id}`, body: { text: edit } }
@@ -1459,25 +1468,26 @@ function Checklist({
               className={styles.checkInput}
               autoFocus
               defaultValue={item.text}
+              onChange={() => setTyped(true)}
               onBlur={(e) => {
                 const text = e.target.value.trim();
-                setEditingId(null);
+                editItem(null);
                 if (!text) void run(() => api.del(`/api/checklist/${item.id}`));
                 else if (text !== item.text)
                   void run(() => api.patch(`/api/checklist/${item.id}`, { text }));
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") setEditingId(null);
+                if (e.key === "Escape") editItem(null);
               }}
             />
           ) : (
             <span
               className={`${styles.checkText} ${item.done ? styles.checkDone : ""}`}
-              onClick={() => setEditingId(item.id)}
+              onClick={() => editItem(item.id)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && setEditingId(item.id)}
+              onKeyDown={(e) => e.key === "Enter" && editItem(item.id)}
             >
               {item.text}
             </span>

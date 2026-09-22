@@ -21,8 +21,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **An edit is no longer lost when the tab is closed on it.** A field saves on
   blur, and a tab closed while the field still has the focus sends no blur, so
   the words went nowhere. One hook, `useSaveOnLeave`, sends what the blur would
-  have sent when the page goes, with `keepalive` so the browser finishes it
-  after the page is gone. The task title, the description, a checklist item,
+  have sent on `pagehide`, with `keepalive` so the browser finishes it after
+  the page is gone. It is not an autosave: it sends only what you typed in
+  that tab, so a tab left open on a page somebody else changed puts nothing
+  back. The task title, the description, a checklist item,
   the project name, key and time zone, a property name, an option name, a view
   name, a webhook address and your own name all use it.
 

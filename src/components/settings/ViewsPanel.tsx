@@ -158,6 +158,9 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
   const { data, updateView, deleteView, setMainView } = useBoard();
   const confirm = useConfirm();
   const box = useRef<HTMLInputElement>(null);
+  /* The box holds a name that another tab can change under it, so only what
+     this tab typed may be written back. */
+  const [typed, setTyped] = useState(false);
   const isOwner = data.project.role === "owner";
   const {
     attributes,
@@ -192,7 +195,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
   /* The name saves on blur, and a closed tab sends no blur. The box holds its
      own words, so the leave reads the box. */
   useSaveOnLeave(() => {
-    const edit = editedText(box.current?.value ?? "", view.name);
+    const edit = typed ? editedText(box.current?.value ?? "", view.name) : null;
     return edit ? { method: "PATCH", url: `/api/views/${view.id}`, body: { name: edit } } : null;
   });
 
@@ -236,9 +239,11 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         className={styles.viewName}
         aria-label={`Name of the view ${view.name}`}
         defaultValue={view.name}
+        onChange={() => setTyped(true)}
         onBlur={(e) => {
-          const value = e.target.value.trim();
-          if (value && value !== view.name) void updateView(view.id, { name: value });
+          setTyped(false);
+          const edit = editedText(e.target.value, view.name);
+          if (edit) void updateView(view.id, { name: edit });
           else e.target.value = view.name;
         }}
       />

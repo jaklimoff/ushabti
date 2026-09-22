@@ -10,6 +10,7 @@ import {
   propertyBox,
   register,
   saved,
+  settles,
   unique,
   viewRowOrder,
 } from "./helpers";
@@ -318,6 +319,39 @@ test.describe("An edit the tab was closed on", () => {
         { timeout: 20_000 },
       )
       .toBe("Europe/Berlin");
+  });
+
+  /*
+   * A box mirrors what is saved, and the mirror goes stale the moment another
+   * tab changes it. Leaving on that mirror would put the old words back, which
+   * is not a lost edit being saved but a saved edit being lost.
+   */
+  test("a tab that typed nothing writes nothing back", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Quiet"));
+
+    await gotoSettings(page, projectId, "project");
+    const label = "Project name";
+    await expect(page.getByLabel(label)).toBeVisible();
+
+    // The other tab renames the project, and this one hears about it.
+    const context = page.context();
+    const other = await context.newPage();
+    await other.goto(`/p/${projectId}/settings/project`);
+    const renamed = unique("Renamed");
+    const heard = page.waitForResponse(
+      (r) => new URL(r.url()).pathname.endsWith("/board") && r.request().method() === "GET",
+    );
+    const box = other.getByLabel(label);
+    await box.fill(renamed);
+    await settles(other, /^\/api\/projects\/[0-9a-f-]+$/, () => box.blur());
+    await heard;
+
+    // Nobody typed in this tab, so closing it writes nothing.
+    await page.close();
+    await other.waitForTimeout(2_000);
+    await other.reload();
+    await expect(other.getByLabel(label)).toHaveValue(renamed);
   });
 });
 

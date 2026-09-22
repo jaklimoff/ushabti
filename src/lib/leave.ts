@@ -28,11 +28,11 @@ export function markOf(send: LeaveSend): string {
 }
 
 /**
- * Two events say a page is going: `pagehide`, and `visibilitychange` to
- * hidden. Both can fire for one leave, and a hidden page can come back and go
- * again, so the same edit must not go out twice. The mark is the request
- * itself: a second leave with nothing new sends nothing, while a leave after
- * another keystroke sends the new words.
+ * `pagehide` can fire more than once for one page: a page kept for the back
+ * button is hidden, shown again and hidden again. The same edit must not go
+ * out twice. The mark is the request itself, so a second leave with nothing
+ * new sends nothing, while a leave after another keystroke sends the new
+ * words.
  */
 export function sendOnLeave(
   unsaved: LeaveSend | null,
