@@ -788,10 +788,15 @@ test.describe("A date rule that names a window of days", () => {
     const zone = page.getByLabel("The time zone this project's day is worked out in");
     await expect(zone).toHaveValue("UTC");
 
+    /* The row saves on blur, and the save is a request. A reload started
+       before it comes back reads the zone the server still has, which is the
+       old one, so every step below waits for the answer first. */
+    const zoneSaved = /\/api\/projects\/[0-9a-f-]+$/;
+
     // A name this server does not know is refused in one line, and nothing
     // is saved: a zone that quietly became UTC would move every card.
     await zone.fill("Europe/Atlantis");
-    await zone.blur();
+    await settles(page, zoneSaved, () => zone.blur());
     await expect(page.getByTestId("toast")).toContainText("No time zone is called Europe/Atlantis");
     await page.reload();
     await expect(zone).toHaveValue("UTC");
@@ -800,7 +805,7 @@ test.describe("A date rule that names a window of days", () => {
        and it is one of the names the CLDR list leaves out — so this row also
        says that the board asks the formatter and not a list. */
     await zone.fill(PROJECT_ZONE);
-    await zone.blur();
+    await settles(page, zoneSaved, () => zone.blur());
     await expect(page.getByTestId("toast")).toHaveCount(0);
     await page.reload();
     await expect(zone).toHaveValue(PROJECT_ZONE);
