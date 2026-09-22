@@ -15,6 +15,7 @@ import { api, ApiError, CLIENT_ID } from "@/lib/client";
 import { cardItems, defaultCardView, readCardView } from "@/lib/card-view";
 import type { CardItem } from "@/lib/card-view";
 import { deletedSaid } from "@/lib/deleted";
+import { sweepDrafts } from "@/lib/draft";
 import { applyFilters, clashOf, clashSaid, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
 import { rankBetween } from "@/lib/rank";
 import type {
@@ -365,6 +366,9 @@ export function BoardProvider({
       const fresh = await api.get<BoardData>(`/api/projects/${projectId}/board`);
       if (writes.current !== at) return;
       setData(fresh);
+      /* The answer names every task this project still has, so it is the one
+         place that can say which unsent notes have nothing left to sit on. */
+      sweepDrafts(projectId, [...fresh.tasks.map((t) => t.id), ...fresh.archived.map((t) => t.id)]);
     } catch (err) {
       // The project is gone, or this person was removed from it.
       if (err instanceof ApiError && err.status === 404) router.push("/projects");

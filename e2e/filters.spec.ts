@@ -332,6 +332,51 @@ test.describe("Filters inside a view", () => {
       .toContain("Due is on 2026-10-01");
   });
 
+  /*
+   * The other half of that rule. The box is filled in when it opens and goes
+   * stale the moment another tab answers the same question, so a box nobody
+   * typed in owes nothing: it must put no words back on the way out.
+   */
+  test("a box nobody typed in puts nothing back over another tab's answer", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("StaleBox"));
+
+    /* The rule is the view's and not mine, because a lens moves one screen
+       and rings nobody: the other tab has to hear this one. */
+    await addFilter(page, "Due", "2026-10-01");
+    await putFilterOnView(page);
+    await expect(chip(page, "Due is on 2026-10-01")).toBeVisible();
+
+    // This tab opens the question on that rule and types nothing.
+    await chip(page, "Due is on 2026-10-01").click();
+    await expect(page.getByTestId("filter-box")).toHaveValue("2026-10-01");
+
+    // The other tab answers it differently.
+    const other = await page.context().newPage();
+    await other.goto(`/p/${projectId}`);
+    await other.getByTestId("filter-chip").click();
+    const box = other.getByTestId("filter-box");
+    await settles(other, /\/api\/views\/[0-9a-f-]+$/, async () => {
+      await box.fill("2026-11-01");
+      await box.press("Enter");
+    });
+    await other.keyboard.press("Escape");
+
+    // This tab hears it, with the old day still in the open box.
+    await expect(chip(page, "Due is on 2026-11-01")).toBeVisible({ timeout: 20_000 });
+
+    /* Escape puts the question away, which unmounts the box. It owes nothing,
+       so the day it was born with goes nowhere. */
+    await page.getByTestId("filter-box").press("Escape");
+    await expect(page.getByTestId("filter-editor")).toHaveCount(0);
+
+    // The other tab's answer stands, in this tab and on the board.
+    await expect(chip(page, "Due is on 2026-11-01")).toBeVisible();
+    await other.waitForTimeout(2_000);
+    await other.reload();
+    await expect(other.getByTestId("filter-chip")).toHaveText("Due is on 2026-11-01");
+  });
+
   /* This is the whole point of the two steps. */
   test("picking a property asks a question and hides nothing", async ({ page }) => {
     await register(page);
