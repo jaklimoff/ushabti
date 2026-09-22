@@ -1126,3 +1126,36 @@ async function whole(name: Locator) {
   const box = await name.evaluate((el) => ({ text: el.scrollWidth, drawn: el.clientWidth }));
   expect(box.text, `"${await name.textContent()}" is cut off`).toBeLessThanOrEqual(box.drawn);
 }
+
+/*
+ * A field saves on blur, and a tab closed on a focused field sends no blur.
+ * The save goes out on the way off the page instead.
+ */
+test.describe("An edit the tab was closed on", () => {
+  test("the task title is saved although nothing was blurred", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Leaving"));
+
+    // The panel opens by itself, with the title ready to edit.
+    await addTask(page, "Todo", "The old title");
+    const title = page.getByTestId("task-title");
+    await title.click();
+    await title.fill("The words the tab took");
+
+    // No Enter, no Escape, no click elsewhere: the tab goes while the field
+    // still has the focus, which is the blur the browser never sends.
+    const context = page.context();
+    await page.close();
+
+    const next = await context.newPage();
+    await expect
+      .poll(
+        async () => {
+          await next.goto(`/p/${projectId}`);
+          return next.getByTestId("card-title").allInnerTexts();
+        },
+        { timeout: 20_000 },
+      )
+      .toContain("The words the tab took");
+  });
+});

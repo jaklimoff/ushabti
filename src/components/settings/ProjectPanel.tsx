@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
+import { editedText } from "@/lib/leave";
 import type { DoneWhen } from "@/lib/links";
 import { useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { Card, Note, Row, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
@@ -43,6 +45,18 @@ export function ProjectPanel() {
   const [pickedId, setPickedId] = useState<string | null>(null);
   const doneProperty = selects.find((p) => p.id === (pickedId ?? doneWhen?.propertyId)) ?? null;
 
+  /*
+   * What each box still owes. A blur saves it; a closed tab sends no blur, so
+   * the same answer goes out on the way off the page.
+   */
+  const url = `/api/projects/${data.project.id}`;
+  const nameEdit = editedText(name, data.project.name);
+  const keyEdit = editedText(key, data.project.key);
+  const zoneEdit = editedText(zone, data.project.timeZone);
+  useSaveOnLeave(() => (nameEdit ? { method: "PATCH", url, body: { name: nameEdit } } : null));
+  useSaveOnLeave(() => (keyEdit ? { method: "PATCH", url, body: { key: keyEdit } } : null));
+  useSaveOnLeave(() => (zoneEdit ? { method: "PATCH", url, body: { timeZone: zoneEdit } } : null));
+
   async function save(patch: {
     name?: string;
     key?: string;
@@ -50,7 +64,7 @@ export function ProjectPanel() {
     timeZone?: string;
   }) {
     try {
-      await api.patch(`/api/projects/${data.project.id}`, patch);
+      await api.patch(url, patch);
       await refresh();
       router.refresh();
     } catch (err) {
@@ -86,9 +100,8 @@ export function ProjectPanel() {
               disabled={!isOwner}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => {
-                const trimmed = name.trim();
-                if (!trimmed) return setName(data.project.name);
-                if (trimmed !== data.project.name) void save({ name: trimmed });
+                if (!name.trim()) return setName(data.project.name);
+                if (nameEdit) void save({ name: nameEdit });
               }}
             />
           </Field>
@@ -104,7 +117,7 @@ export function ProjectPanel() {
               onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
               onBlur={() => {
                 if (!key) return setKey(data.project.key);
-                if (key !== data.project.key) void save({ key });
+                if (keyEdit) void save({ key: keyEdit });
               }}
             />
             <Note>Task keys look like {key || "USH"}-14.</Note>
@@ -151,9 +164,8 @@ export function ProjectPanel() {
               disabled={!isOwner}
               onChange={(e) => setZone(e.target.value)}
               onBlur={() => {
-                const trimmed = zone.trim();
-                if (!trimmed) return setZone(data.project.timeZone);
-                if (trimmed !== data.project.timeZone) void save({ timeZone: trimmed });
+                if (!zone.trim()) return setZone(data.project.timeZone);
+                if (zoneEdit) void save({ timeZone: zoneEdit });
               }}
             />
             <Note>

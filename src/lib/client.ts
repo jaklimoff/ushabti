@@ -15,7 +15,19 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, url: string, payload?: unknown): Promise<T> {
+/**
+ * `keepalive` lets a request outlive the page that made it. Only the save a
+ * closing tab owes asks for it; see `useSaveOnLeave`. The body must stay under
+ * 64 KiB, which is the browser's rule for such a request.
+ */
+type Options = { keepalive?: boolean };
+
+async function request<T>(
+  method: string,
+  url: string,
+  payload?: unknown,
+  options?: Options,
+): Promise<T> {
   const res = await fetch(url, {
     method,
     headers: {
@@ -24,6 +36,7 @@ async function request<T>(method: string, url: string, payload?: unknown): Promi
     },
     body: payload === undefined ? undefined : JSON.stringify(payload),
     cache: "no-store",
+    keepalive: options?.keepalive,
   });
 
   if (!res.ok) {
@@ -44,7 +57,9 @@ async function request<T>(method: string, url: string, payload?: unknown): Promi
 export const api = {
   get: <T>(url: string) => request<T>("GET", url),
   post: <T>(url: string, payload?: unknown) => request<T>("POST", url, payload ?? {}),
-  put: <T>(url: string, payload?: unknown) => request<T>("PUT", url, payload ?? {}),
-  patch: <T>(url: string, payload?: unknown) => request<T>("PATCH", url, payload ?? {}),
+  put: <T>(url: string, payload?: unknown, options?: Options) =>
+    request<T>("PUT", url, payload ?? {}, options),
+  patch: <T>(url: string, payload?: unknown, options?: Options) =>
+    request<T>("PATCH", url, payload ?? {}, options),
   del: <T>(url: string) => request<T>("DELETE", url),
 };

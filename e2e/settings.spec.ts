@@ -288,6 +288,39 @@ test.describe("Settings on a phone", () => {
   });
 });
 
+/*
+ * A field saves on blur, and a tab closed on a focused field sends no blur.
+ * The save goes out on the way off the page instead, so the words are there
+ * when the person comes back.
+ */
+test.describe("An edit the tab was closed on", () => {
+  test("the time zone is saved although nothing was blurred", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Leaving"));
+
+    await gotoSettings(page, projectId, "project");
+    const label = "The time zone this project's day is worked out in";
+    const zone = page.getByLabel(label);
+    await expect(zone).toBeVisible();
+    await zone.fill("Europe/Berlin");
+
+    // The box still has the focus. Closing the tab here is the lost edit.
+    const context = page.context();
+    await page.close();
+
+    const next = await context.newPage();
+    await expect
+      .poll(
+        async () => {
+          await next.goto(`/p/${projectId}/settings/project`);
+          return next.getByLabel(label).inputValue();
+        },
+        { timeout: 20_000 },
+      )
+      .toBe("Europe/Berlin");
+  });
+});
+
 /* The bar over settings carries the same name as the board's, so it keeps it
    at the same width. */
 test.describe("Settings on a small tablet", () => {

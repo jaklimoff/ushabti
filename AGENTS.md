@@ -269,7 +269,11 @@ and what is easy to get wrong.
   else has a Save button.** Settings used to hold six different save models on
   one page, and the one field a new person edits first was the odd one out.
   `ConfirmRow` is the answer to "the board has no dialogs": the row becomes the
-  question, and the question names the cost in real numbers.
+  question, and the question names the cost in real numbers. **A closed tab
+  sends no blur**, so every such field also says what it owes to
+  `useSaveOnLeave`, which sends that one request with `keepalive` on the way
+  off the page. A new blur-saved field that forgets it loses an edit in
+  silence, and only a closed tab shows it.
 - **Off the board, geometry comes from `components/ui/`.** A button, an input,
   a tag and a card are declared once. They used to be declared three times
   each, at three different heights. The board keeps its own CSS on purpose.

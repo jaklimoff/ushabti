@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
@@ -9,6 +10,7 @@ import { CopyField } from "@/components/ui/CopyField";
 import { Input } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import { useElapsed } from "@/components/ui/useElapsed";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { WEBHOOK_KIND_LABEL, WEBHOOK_KINDS, type WebhookDTO, type WebhookKind } from "@/lib/types";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -212,6 +214,10 @@ function HookBox({
   const [deliveries, setDeliveries] = useState<number | null>(null);
   const base = `/api/projects/${projectId}/webhooks/${hook.id}`;
 
+  /* The address saves on blur, and a closed tab sends no blur. */
+  const urlEdit = editedText(url, hook.url);
+  useSaveOnLeave(() => (urlEdit ? { method: "PATCH", url: base, body: { url: urlEdit } } : null));
+
   async function save(patch: Record<string, unknown>) {
     setError(null);
     try {
@@ -306,9 +312,8 @@ function HookBox({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onBlur={() => {
-            const trimmed = url.trim();
-            if (!trimmed) return setUrl(hook.url);
-            if (trimmed !== hook.url) void save({ url: trimmed });
+            if (!url.trim()) return setUrl(hook.url);
+            if (urlEdit) void save({ url: urlEdit });
           }}
         />
         {!hook.active && <Tag>off</Tag>}

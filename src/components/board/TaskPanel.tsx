@@ -5,6 +5,7 @@ import { api } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
 import { clampPanelWidth, longAgo, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
+import { editedText } from "@/lib/leave";
 import { tint } from "@/lib/colors";
 import {
   duration,
@@ -36,6 +37,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
@@ -492,7 +494,11 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           )}
         </div>
 
-        <TitleField value={shown.title} onCommit={(title) => void patch({ title })} />
+        <TitleField
+          taskId={taskId}
+          value={shown.title}
+          onCommit={(title) => void patch({ title })}
+        />
       </div>
 
       <div className={styles.body}>
@@ -549,6 +555,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               />
 
               <Description
+                taskId={taskId}
                 value={shown.description}
                 onCommit={(description) => void patch({ description })}
               />
@@ -1194,7 +1201,15 @@ function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
   );
 }
 
-function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+function TitleField({
+  taskId,
+  value,
+  onCommit,
+}: {
+  taskId: string;
+  value: string;
+  onCommit: (v: string) => void;
+}) {
   const [draft, setDraft] = useState(value);
   const [editing, setEditing] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -1209,6 +1224,15 @@ function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) 
      writing in it. A title another person changed is therefore on screen at
      once, and never has to be copied into the draft afterwards. */
   const text = editing ? draft : value;
+
+  /* The blur that saves this field never comes when the tab is closed on it,
+     so the same words go out on the way off the page. Escape throws them
+     away, and a field nobody is writing in holds an old draft. */
+  useSaveOnLeave(() => {
+    if (!editing || thrown.current) return null;
+    const edit = editedText(draft, value);
+    return edit ? { method: "PATCH", url: `/api/tasks/${taskId}`, body: { title: edit } } : null;
+  });
 
   useEffect(() => {
     const el = ref.current;
@@ -1250,9 +1274,26 @@ function TitleField({ value, onCommit }: { value: string; onCommit: (v: string) 
   );
 }
 
-function Description({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+function Description({
+  taskId,
+  value,
+  onCommit,
+}: {
+  taskId: string;
+  value: string;
+  onCommit: (v: string) => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+
+  /* The same missing blur as the title. An empty description is an answer
+     here, so this asks whether the words changed rather than whether there
+     are any. */
+  useSaveOnLeave(() =>
+    editing && draft !== value
+      ? { method: "PATCH", url: `/api/tasks/${taskId}`, body: { description: draft } }
+      : null,
+  );
 
   /* Nothing reads the draft until the editor opens, so the click that opens it
      is what fills it in. */
@@ -1327,6 +1368,7 @@ function Checklist({
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const editBox = useRef<HTMLInputElement>(null);
   /* A box ticks before the server answers. The change is kept beside the list
      it was made on, so the next read of the task replaces both at once: a list
      that came back is never drawn under a tick it already carries. */
@@ -1347,6 +1389,18 @@ function Checklist({
   );
 
   const done = local.filter((i) => i.done).length;
+
+  /* One item is edited at a time, and its box holds its own words, so the
+     leave reads that box. An emptied box deletes the item on blur; leaving
+     the page must not, because a delete is not a save. */
+  useSaveOnLeave(() => {
+    const item = local.find((i) => i.id === editingId);
+    if (!item) return null;
+    const edit = editedText(editBox.current?.value ?? "", item.text);
+    return edit
+      ? { method: "PATCH", url: `/api/checklist/${item.id}`, body: { text: edit } }
+      : null;
+  });
 
   async function run(work: () => Promise<unknown>) {
     try {
@@ -1401,6 +1455,7 @@ function Checklist({
           />
           {editingId === item.id ? (
             <input
+              ref={editBox}
               className={styles.checkInput}
               autoFocus
               defaultValue={item.text}

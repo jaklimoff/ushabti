@@ -19,9 +19,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useBoard } from "@/components/board/store";
 import { api } from "@/lib/client";
+import { editedText } from "@/lib/leave";
 import { fallbackRow, KIND_OF_TYPE, setCardPlace, viewOf } from "@/lib/card-view";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
@@ -165,6 +167,14 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
      view page has the long one. */
   const showOnCard = cardItems.find((i) => i.id === property.id)?.place !== "off";
 
+  /* The name saves on blur, and a closed tab sends no blur. */
+  const nameEdit = editedText(name, property.name);
+  useSaveOnLeave(() =>
+    nameEdit
+      ? { method: "PATCH", url: `/api/properties/${property.id}`, body: { name: nameEdit } }
+      : null,
+  );
+
   /* How much a delete costs, in the numbers the person can check. The count
      comes from the server because the cascade does not care whether a task is
      on a board: the values of an archived task go the same way. It is asked
@@ -244,9 +254,7 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={() => {
-              const trimmed = name.trim();
-              if (trimmed && trimmed !== property.name)
-                void patchProperty(property.id, { name: trimmed });
+              if (nameEdit) void patchProperty(property.id, { name: nameEdit });
               else setName(property.name);
             }}
           />
@@ -394,6 +402,15 @@ function OptionChip({
 function OptionName({ option }: { option: PropertyDTO["options"][number] }) {
   const { patchOption } = useBoard();
   const box = useRef<HTMLInputElement>(null);
+
+  /* The box holds its words itself, so the leave asks the box rather than a
+     render that may be one keystroke old. */
+  useSaveOnLeave(() => {
+    const edit = editedText(box.current?.value ?? "", option.name);
+    return edit
+      ? { method: "PATCH", url: `/api/options/${option.id}`, body: { name: edit } }
+      : null;
+  });
 
   useEffect(() => {
     if (box.current && document.activeElement !== box.current) box.current.value = option.name;
