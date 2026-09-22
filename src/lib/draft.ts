@@ -27,9 +27,20 @@
 
 const KEY = "ushabti:draft:";
 
-/** One key per composer. A note belongs to the task it answers. */
-export function commentDraftKey(taskId: string): string {
-  return `${KEY}comment:${taskId}`;
+/** Where this project's comment drafts sit. The sweep below reads it. */
+function commentKeys(projectId: string): string {
+  return `${KEY}comment:${projectId}:`;
+}
+
+/**
+ * One key per composer. A note belongs to the task it answers.
+ *
+ * The project is named as well, because one browser holds every project a
+ * person works on and only that project's own board can say which of its
+ * notes still have a task to sit on.
+ */
+export function commentDraftKey(projectId: string, taskId: string): string {
+  return commentKeys(projectId) + taskId;
 }
 
 /* ------------------------------------------------------------------ */
@@ -87,4 +98,56 @@ export function writeDraft(key: string, text: string): void {
     /* private mode */
   }
   for (const listener of listeners) listener();
+}
+
+/* ------------------------------------------------------------------ */
+/* The sweep                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Throws away the notes of this project that no task can carry.
+ *
+ * A draft outlives the task it was typed on. The task is deleted on the
+ * server — by somebody else, or thirty days later by the sweep that ends the
+ * window — and the browser that holds the note may not even be open at the
+ * time, so nothing on the delete can reach the key. The board read is where
+ * they are counted instead: it names every task the project still has, live
+ * and archived, and a key naming any other task is a note nobody can open
+ * again.
+ *
+ * A note that is only whitespace goes the same way, whatever task it is on.
+ * `send()` refuses to send one, so it would sit there for ever and fill a box
+ * that reads as empty.
+ *
+ * It touches the browser and never what this page is holding: a box open on a
+ * draft goes on showing what is in it, and nothing moves under the person's
+ * hands. What it drops is only what a later tab would have read back.
+ *
+ * The cost is the drawer. A deleted task comes back whole for thirty days,
+ * but it is on no board and never could be, so a board read cannot tell it
+ * from one that is gone for good: a task put back comes back without the note
+ * nobody sent.
+ */
+export function sweepDrafts(projectId: string, held: Iterable<string>): void {
+  const mine = commentKeys(projectId);
+  const tasks = new Set(held);
+  const keys: string[] = [];
+  try {
+    const store = window.localStorage;
+    for (let i = 0; i < store.length; i += 1) {
+      const key = store.key(i);
+      if (key?.startsWith(mine)) keys.push(key);
+    }
+  } catch {
+    return; /* private mode */
+  }
+  for (const key of keys) {
+    try {
+      const text = window.localStorage.getItem(key) ?? "";
+      if (text.trim() && tasks.has(key.slice(mine.length))) continue;
+      window.localStorage.removeItem(key);
+    } catch {
+      /* private mode */
+    }
+  }
 }

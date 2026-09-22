@@ -1585,9 +1585,10 @@ function Comments({
   reload: () => Promise<void>;
   onError: (message: string) => void;
 }) {
+  const { data } = useBoard();
   /* A note can be long, and a create is not a save, so the words wait in the
      browser until you send them rather than being sent when the tab goes. */
-  const [draft, setDraft] = useDraft(commentDraftKey(taskId));
+  const [draft, setDraft] = useDraft(commentDraftKey(data.project.id, taskId));
   const [busy, setBusy] = useState(false);
   const agentAtWork = detail.run !== null;
   const waitingFor = detail.run?.status === "waiting" ? detail.run.agent.name : null;
