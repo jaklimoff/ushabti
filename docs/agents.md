@@ -599,6 +599,12 @@ about a task. `reset` — the owner made somebody a reset link, with
 `data: { "forUserId": "…", "forName": "Ada" }` — is one of those, so do not
 read a key off every entry.
 
+An `import` line says the owner brought a board in from Trello. **An agent gets
+nothing new for it**: the route is the owner's, and the tasks arrive in the
+feed and on the stream exactly as any other task does. There is one line on the
+project with the counts and one on each task naming the card it came from, all
+sharing an `importId`; a webhook rings once for the lot.
+
 Read it on every `ready` and every `change`, after the last line you saw, and
 a task created while your socket was down still reaches you. Without `after`
 it answers only `now`, which is where a new reader starts. Read a few seconds
