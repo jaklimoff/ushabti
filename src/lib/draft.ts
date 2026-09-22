@@ -27,9 +27,12 @@
 
 const KEY = "ushabti:draft:";
 
+/** Where every comment draft sits, whichever project it belongs to. */
+const COMMENT = `${KEY}comment:`;
+
 /** Where this project's comment drafts sit. The sweep below reads it. */
 function commentKeys(projectId: string): string {
-  return `${KEY}comment:${projectId}:`;
+  return COMMENT + projectId + ":";
 }
 
 /**
@@ -117,7 +120,9 @@ export function writeDraft(key: string, text: string): void {
  *
  * A note that is only whitespace goes the same way, whatever task it is on.
  * `send()` refuses to send one, so it would sit there for ever and fill a box
- * that reads as empty.
+ * that reads as empty. So does a key from before the project was in one: it
+ * names a task and nothing else, so no board can ever claim it, and left
+ * alone it would be the very note nobody can reach.
  *
  * It touches the browser and never what this page is holding: a box open on a
  * draft goes on showing what is in it, and nothing moves under the person's
@@ -136,13 +141,23 @@ export function sweepDrafts(projectId: string, held: Iterable<string>): void {
     const store = window.localStorage;
     for (let i = 0; i < store.length; i += 1) {
       const key = store.key(i);
-      if (key?.startsWith(mine)) keys.push(key);
+      if (key?.startsWith(COMMENT)) keys.push(key);
     }
   } catch {
     return; /* private mode */
   }
   for (const key of keys) {
     try {
+      const tail = key.slice(COMMENT.length);
+      /* A key written before the project was in one names a task and nothing
+         else, so no board can ever say whose it is or whether the task is
+         still there. It is exactly the note nobody can reach, so the first
+         board to sweep takes it. */
+      if (!tail.includes(":")) {
+        window.localStorage.removeItem(key);
+        continue;
+      }
+      if (!key.startsWith(mine)) continue; /* another project's to answer for */
       const text = window.localStorage.getItem(key) ?? "";
       if (text.trim() && tasks.has(key.slice(mine.length))) continue;
       window.localStorage.removeItem(key);

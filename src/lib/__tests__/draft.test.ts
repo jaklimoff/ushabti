@@ -159,6 +159,18 @@ describe("sweeping the notes nothing can reach", () => {
     expect([...browser.keys()]).toEqual([live, archived, elsewhere]);
   });
 
+  /* A draft written before the key named a project. Nothing can say whose it
+     is, so no board would ever answer for it and it would sit there for good. */
+  it("takes a key from before the project was in one", () => {
+    const browser = aBrowser();
+    const old = "ushabti:draft:comment:t-from-before";
+    browser.set(old, "A note from an older version.");
+
+    sweepDrafts("p-1", ["t-from-before"]);
+
+    expect(browser.has(old)).toBe(false);
+  });
+
   /* A box open on a draft goes on showing what is in it: the sweep takes back
      what a later tab would read, and nothing under the person's hands. */
   it("leaves what this page is holding", () => {
