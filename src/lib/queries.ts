@@ -90,18 +90,21 @@ export async function withProjectLock<T>(
  */
 export async function rankOnTheEnd(
   tx: Tx,
+  projectId: string,
   ordered: { id: string; position: string }[],
 ): Promise<{ position: string; rewrote: boolean }> {
   const plan: Rebalance | null = rebalanceTail(ordered.map((t) => t.position));
   if (!plan) return { position: rankAfter(ordered.at(-1)?.position ?? null), rewrote: false };
 
   /* The rows travel as one parameter and not two per row: a list long enough
-     to mend a whole board would pass what one statement may carry. */
+     to mend a whole board would pass what one statement may carry. The project
+     is named as well as the id, because the ids come from a JSON parameter and
+     a rank belongs to the one list it was worked out in. */
   const rows = ordered.slice(plan.from).map((row, i) => ({ id: row.id, position: plan.ranks[i] }));
   await tx.execute(sql`
     update ${tasks} set position = fresh.position
     from json_to_recordset(${JSON.stringify(rows)}::json) as fresh(id uuid, position text)
-    where ${tasks.id} = fresh.id
+    where ${tasks.id} = fresh.id and ${tasks.projectId} = ${projectId}
   `);
   return { position: plan.next, rewrote: true };
 }
