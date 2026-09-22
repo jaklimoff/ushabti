@@ -343,6 +343,7 @@ const commands = {
   step <key> --say "<now>" [--index 2] [--log "<line>"] [--for 45]
   check <key> "<item>" [--done]       add an item, or tick one; --undone unticks
   describe <key> "<markdown>"         write the description, if it is empty or yours
+  unmention <key>                     take your own @Name out of the title and description
   ask <key> "<question>"              ask a person, wait, and end your session
   pause <key> [--for 5]               answer a Pause: stop, wait for Resume, go on
   finish <key> [--status done|failed] [--log "<line>"]
@@ -657,6 +658,44 @@ http://localhost:3000.`);
     }
     await call("PATCH", `/api/tasks/${task.id}`, { description: text });
     console.log(`${task.key}: description written`);
+  },
+
+  /**
+   * Takes this agent's own name out of the title and the description.
+   *
+   * A person who writes `@Ada` where the task is born is asking for the work,
+   * not labelling the task for ever. Once the work is done the name has
+   * nothing left to say, and the next edit of the title would wake the agent
+   * again. So the agent may take its own name out — its own, and no other
+   * word. It is not `describe`: nothing a person wrote is written over, which
+   * is why the rule against that still holds.
+   */
+  async unmention() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const name = data.me.agent.name;
+    const pattern = `@${escapeRegExp(name)}(?![\\w-])`;
+    const holds = (text) => new RegExp(pattern, "i").test(String(text ?? ""));
+    /* The name goes, and the hole it leaves goes with it: the spaces on
+       either side become one, and a line does not end in a space. */
+    const without = (text) =>
+      String(text ?? "")
+        .replace(new RegExp(pattern, "gi"), "")
+        .replace(/[^\S\n]{2,}/g, " ")
+        .replace(/[^\S\n]+$/gm, "")
+        .trim();
+
+    const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
+    const patch = {};
+    // A task must keep a title, so a title that is only the name stays as it is.
+    if (holds(detail.title) && without(detail.title)) patch.title = without(detail.title);
+    if (holds(detail.description)) patch.description = without(detail.description);
+    if (!Object.keys(patch).length) {
+      console.log(`${task.key}: nothing to take out`);
+      return;
+    }
+    await call("PATCH", `/api/tasks/${task.id}`, patch);
+    console.log(`${task.key}: @${name} taken out of the ${Object.keys(patch).join(" and the ")}`);
   },
 
   /**
