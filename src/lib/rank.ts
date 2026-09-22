@@ -41,9 +41,12 @@ export function rankBetween(a: string | null | undefined, b: string | null | und
      open a new place below them both. A fixed count was wrong: a rank longer
      than it stopped the search early, and the truncated answer sorted *below*
      the lower bound, so a list that reached that length stopped ordering. The
-     two spare places are for a stored rank that breaks the rule above and ends
-     in the lowest digit; the search cannot answer that one, and this is what
-     keeps it from running for ever. */
+     two spare places are for an upper bound that breaks the rule above and
+     ends in the lowest digit. There is no room under such a bound to find, so
+     the search runs to this limit and answers *above* it: `rankBetween("V",
+     "V0")` gives "V000V". Nothing here writes a rank like that — `toRank`
+     cuts the trailing zeros off — and the limit is what keeps the search from
+     running for ever on one. */
   const limit = Math.max(lower.length, upper.length) + 2;
 
   for (let guard = 0; guard < limit; guard += 1) {
@@ -96,39 +99,83 @@ export function rankSequence(count: number): string[] {
  *
  * The room above `after` is divided into `count + 1` equal steps and the ranks
  * sit on the marks, so they are evenly spread, strictly increasing and all the
- * same short length. `width` grows until one step is at least one unit wide,
- * which is what makes the length bounded rather than hoped for.
+ * same short length. `spreadOf` says where the marks lie, and its width grows
+ * until one step is at least one unit wide, which is what makes the length
+ * bounded rather than hoped for.
  */
 export function rankSpread(after: string | null | undefined, count: number): string[] {
   if (count <= 0) return [];
-  const lower = after && after.length > 0 ? after : "";
+  const { width, floor, step } = spreadOf(after && after.length > 0 ? after : "", count);
+  const out: string[] = [];
+  for (let i = 1; i <= count; i += 1) out.push(toRank(floor + step * BigInt(i), width));
+  return out;
+}
 
-  /* As many digits as `count` marks need, and no more. Reading the neighbour
-     at a width shorter than itself rounds it down, so the marks start one unit
-     above that rounding: the first one then clears the neighbour whatever its
-     own length is. Starting at the neighbour's length instead would write
-     ranks a digit longer than the one they sit above, every time, and a tail
-     rewritten again and again would creep a digit longer each round. */
+/** Where the marks of a spread lie, before any of them is written out. */
+type Spread = { width: number; floor: bigint; step: bigint };
+
+/**
+ * The shape of a spread: as many digits as `count` marks need and no more,
+ * the first mark, and the step between them.
+ *
+ * This is the whole of a spread's arithmetic, and it needs no strings. The
+ * width is a function of the count and the anchor, which is what lets
+ * `rebalanceTail` ask how long a reach would be without writing it out.
+ *
+ * Reading the neighbour at a width shorter than itself rounds it down, so the
+ * marks start one unit above that rounding: the first one then clears the
+ * neighbour whatever its own length is. Starting at the neighbour's length
+ * instead would write ranks a digit longer than the one they sit above, every
+ * time, and a tail rewritten again and again would creep a digit each round.
+ */
+function spreadOf(lower: string, count: number): Spread {
+  const base = BigInt(BASE);
+  const marks = BigInt(count + 1);
+  let top = 1n;
+  // The neighbour read at this width, which is itself rounded down.
+  let below = 0n;
+
   for (let width = 1; ; width += 1) {
-    const top = BigInt(BASE) ** BigInt(width);
-    const floor = lower === "" ? 0n : toNumber(lower, width) + 1n;
-    if (floor >= top) continue;
-    const step = (top - floor) / BigInt(count + 1);
-    if (step < 1n) continue;
-
-    const out: string[] = [];
-    for (let i = 1; i <= count; i += 1) out.push(toRank(floor + step * BigInt(i), width));
-    return out;
+    top *= base;
+    below = below * base + BigInt(width <= lower.length ? digit(lower[width - 1]) : 0);
+    const floor = lower === "" ? 0n : below + 1n;
+    // Every step at least one unit wide, or the same again with a digit more.
+    if (top - floor < marks) continue;
+    return { width, floor, step: (top - floor) / marks };
   }
 }
 
-/** A rank read as a whole number of `width` digits: "a" at width 3 is "a00". */
-function toNumber(rank: string, width: number): bigint {
-  let value = 0n;
-  for (let i = 0; i < width; i += 1) {
-    value = value * BigInt(BASE) + BigInt(i < rank.length ? digit(rank[i]) : 0);
+/**
+ * How long the longest rank of a spread would be, without building one.
+ *
+ * Every mark is `width` digits less the zeros on its end, which `toRank` cuts
+ * off, so the longest rank is the width less the zeros that every mark shares.
+ * A mark is `floor + i × step` and the difference between two of them is one
+ * step, so 62^k divides all of them exactly when it divides the step and the
+ * floor. One mark on its own is only itself.
+ *
+ * `rebalanceTail` asks this of every reach it tries and builds the marks once,
+ * for the reach it keeps. Building them to measure them was most of the work:
+ * 3.4 s of plan on a board of 40,000 rows, inside the project lock.
+ */
+export function spreadLength(after: string | null | undefined, count: number): number {
+  if (count <= 0) return 0;
+  const { width, floor, step } = spreadOf(after && after.length > 0 ? after : "", count);
+  const shared =
+    count === 1 ? zeros(floor + step, width) : Math.min(zeros(step, width), zeros(floor, width));
+  return width - shared;
+}
+
+/** How many times 62 divides `value`, counted no further than `cap`. */
+function zeros(value: bigint, cap: number): number {
+  const base = BigInt(BASE);
+  let left = value;
+  let count = 0;
+  while (count < cap && left % base === 0n) {
+    left /= base;
+    count += 1;
   }
-  return value;
+  return count;
 }
 
 /**
@@ -204,11 +251,12 @@ export function rebalanceTail(positions: string[]): Rebalance | null {
     const from = Math.max(0, positions.length - take);
     const anchor = from > 0 ? positions[from - 1] : null;
     /* One more than the rows, because the task being added takes the top mark. */
-    const fresh = rankSpread(anchor, positions.length - from + 1);
-    // Counted and not spread: this list can be a whole project.
-    const longest = fresh.reduce((most, r) => Math.max(most, r.length), 0);
-    // Half the cap, so the rewrite buys at least another hundred tasks.
-    if (longest * 2 <= RANK_CAP || from === 0) {
+    const count = positions.length - from + 1;
+    /* Measured and never built: a reach that is turned down would throw a
+       whole project's worth of strings away, under the project lock. Half the
+       cap, so the rewrite buys at least another hundred tasks. */
+    if (spreadLength(anchor, count) * 2 <= RANK_CAP || from === 0) {
+      const fresh = rankSpread(anchor, count);
       return { from, ranks: fresh.slice(0, -1), next: fresh[fresh.length - 1] };
     }
   }

@@ -55,7 +55,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     }
 
     const end = onTheEnd
-      ? await rankOnTheEnd(tx, siblings)
+      ? await rankOnTheEnd(tx, projectId, siblings)
       : { position: rankBetween(lower, upper), rewrote: false };
     await tx
       .update(tasks)

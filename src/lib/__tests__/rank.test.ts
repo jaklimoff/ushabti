@@ -7,6 +7,8 @@ import {
   rankSequence,
   rankSpread,
   rebalanceTail,
+  spreadLength,
+  type Rebalance,
 } from "../rank";
 
 describe("fractional ranks", () => {
@@ -279,5 +281,139 @@ describe("a rank left long by an older board", () => {
     expect(new Set(list).size).toBe(501);
     for (let i = 1; i < list.length; i += 1) expect(list[i - 1] < list[i]).toBe(true);
     expect(Math.max(...list.map((r) => r.length))).toBeLessThan(RANK_CAP);
+  });
+});
+
+/**
+ * What a rewrite costs to plan.
+ *
+ * `rebalanceTail` tries one reach after another and keeps the first that is
+ * short enough. It used to build every reach in full to measure it and throw
+ * the rest away, which on a board whose whole order ran away is most of the
+ * work: 3.4 s of planning for 40,000 rows, all of it under the project lock.
+ * It now asks `spreadLength` instead and builds once.
+ *
+ * The plan itself did not change, so the old rule stays here as the answer to
+ * check the new one against.
+ */
+function oldRebalanceTail(positions: string[]): Rebalance | null {
+  const next = rankAfter(positions.at(-1) ?? null);
+  if (next.length < RANK_CAP) return null;
+
+  // 256 is `TAIL`, which the module keeps to itself.
+  for (let take = Math.max(1, Math.min(256, positions.length)); ; take *= 2) {
+    const from = Math.max(0, positions.length - take);
+    const anchor = from > 0 ? positions[from - 1] : null;
+    const fresh = rankSpread(anchor, positions.length - from + 1);
+    const longest = fresh.reduce((most, r) => Math.max(most, r.length), 0);
+    if (longest * 2 <= RANK_CAP || from === 0) {
+      return { from, ranks: fresh.slice(0, -1), next: fresh[fresh.length - 1] };
+    }
+  }
+}
+
+/**
+ * A board whose end has run out of room, in one of its two shapes.
+ *
+ * One ran away from its first task, so every rank in it is long and the reach
+ * has to widen. One has a short body — an import, or an earlier mend — with a
+ * long end grown on top of it, which the first reach can mend on its own.
+ */
+function randomTail(random: () => number): string[] {
+  const list: string[] = [];
+  let last: string | null = null;
+
+  if (random() > 0.4) {
+    list.push(...rankSpread(null, 100 + Math.floor(random() * 700)));
+    last = list.at(-1)!;
+  }
+  const rows = 200 + Math.floor(random() * 500);
+  for (let i = 0; i < rows; i += 1) {
+    last = rankAfter(last);
+    list.push(last);
+  }
+  // And on until the end really has run out of room, so there is a plan to read.
+  while (rankAfter(last).length < RANK_CAP) {
+    last = rankAfter(last);
+    list.push(last);
+  }
+  return list;
+}
+
+describe("how long a spread would be", () => {
+  const anchors = ["", "0", "z", "V", "V0", "0z", "z0", "zzzzzzzzzz", "0000000001", "abc"];
+  const counts = [1, 2, 3, 61, 62, 63, 500, 3843, 3844, 3845];
+
+  it("says what building the spread says", () => {
+    for (const anchor of anchors) {
+      for (const count of counts) {
+        const built = Math.max(...rankSpread(anchor || null, count).map((r) => r.length));
+        expect(spreadLength(anchor || null, count), `${anchor || "nothing"} × ${count}`).toBe(
+          built,
+        );
+      }
+    }
+  });
+
+  it("says the same of a long rank left by an older board", () => {
+    let last = rankAfter(null);
+    for (let i = 0; i < 400; i += 1) last = rankBetween(last, rankAfter(last));
+    for (const count of [1, 2, 300, 5_000]) {
+      const built = Math.max(...rankSpread(last, count).map((r) => r.length));
+      expect(spreadLength(last, count)).toBe(built);
+    }
+  });
+
+  it("asks for nothing and gets nothing", () => {
+    expect(spreadLength(null, 0)).toBe(0);
+    expect(spreadLength("abc", -1)).toBe(0);
+  });
+});
+
+/** One counter written out in six digits, so a wall of `z` above sorts by it. */
+function counterKey(n: number): string {
+  const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  let out = "";
+  let left = n;
+  for (let i = 0; i < 6; i += 1) {
+    out = alphabet[left % 62] + out;
+    left = Math.floor(left / 62);
+  }
+  return out;
+}
+
+describe("planning a rewrite", () => {
+  it("plans what building every reach planned, on twenty random tails", () => {
+    let seed = 20_250_922;
+    const random = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+
+    for (let t = 0; t < 20; t += 1) {
+      const positions = randomTail(random);
+      const plan = rebalanceTail(positions);
+      expect(plan, `tail ${t} of ${positions.length} rows`).not.toBeNull();
+      expect(plan).toEqual(oldRebalanceTail(positions));
+    }
+  });
+
+  it("plans a runaway board of forty thousand rows without building it", () => {
+    /* Every rank long and all of them increasing, which is what an old board
+       looks like after its order ran away. Building every reach to measure it
+       took 3.4 s here; the bound is loose because a busy machine is slow, and
+       it is still a long way under what this used to cost. */
+    const wall = "z".repeat(250);
+    const positions = Array.from({ length: 40_000 }, (_, i) => wall + counterKey(i + 1));
+
+    const started = performance.now();
+    const plan = rebalanceTail(positions);
+    const spent = performance.now() - started;
+
+    expect(plan).not.toBeNull();
+    expect(plan!.from).toBe(0);
+    expect(plan!.ranks).toHaveLength(40_000);
+    expect(Math.max(...plan!.ranks.map((r) => r.length))).toBeLessThan(RANK_CAP / 2);
+    expect(spent).toBeLessThan(500);
   });
 });

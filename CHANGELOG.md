@@ -124,6 +124,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A big board mends its ranks in a moment.** The rewrite used to try one
+  reach after another and write out every one of them in full, only to measure
+  it and throw it away — 3.4 s of that on a board of 40,000 tasks, all of it
+  while the project was locked and nobody else could add a task. It now works
+  out how long a reach would be without building it, and builds once: 9 ms for
+  the same board.
 - **The end to end suite refuses a `BASE_URL` on a bare IP.** A production
   build sets the session cookie `Secure`, and Playwright's request context will
   not send a `Secure` cookie to an IP address, so the specs that read the API
