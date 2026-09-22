@@ -319,6 +319,58 @@ function taskLine(data, task) {
 }
 
 /* ------------------------------------------------------------------ */
+/* A name written on a task                                            */
+/* ------------------------------------------------------------------ */
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Where a name counts as written: `@Ada`, and not inside a longer word.
+ *
+ * Both sides are guarded, so `bob@Ada.com` is an address and not a mention.
+ * The watcher and `unmention` ask this one function, because a name that
+ * wakes an agent and a name the agent can take out again have to be the same
+ * name. If they disagree, the agent is woken by something it cannot clear.
+ */
+const mentionPattern = (name) => `(?<![\\w-])@${escapeRegExp(name)}(?![\\w-])`;
+
+/**
+ * The text with one name taken out, and nothing else touched.
+ *
+ * Only the whitespace the name was sitting in closes up: one space before it,
+ * or — when the name opens the line — the punctuation and the one space after
+ * it. Every other character is written back exactly as it was, because a
+ * description is markdown: an indent is a code block or a nested list, and two
+ * spaces at the end of a line are a line break. A tidy-up that rewrites those
+ * loses the words a person wrote.
+ */
+function without(text, name) {
+  const source = String(text ?? "");
+  let out = "";
+  let last = 0;
+  for (const found of source.matchAll(new RegExp(mentionPattern(name), "gi"))) {
+    const at = found.index;
+    let end = at + found[0].length;
+    let from = at;
+    const lineStart = source.lastIndexOf("\n", at - 1) + 1;
+    if (/^[^\S\n]*$/.test(source.slice(lineStart, at))) {
+      /* The name opens the line, so the indent is not its space: what follows
+         it closes the hole instead. "@Ada, look" is left with "look". */
+      if (source[end] === "," || source[end] === ":") end += 1;
+      if (source[end] === " " || source[end] === "\t") end += 1;
+    } else if (source[at - 1] === " " || source[at - 1] === "\t") {
+      // One space, so that the words on either side do not run together.
+      from = at - 1;
+    }
+    out += source.slice(last, from);
+    last = end;
+  }
+  return out + source.slice(last);
+}
+
+/* ------------------------------------------------------------------ */
 /* Commands                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -674,22 +726,14 @@ http://localhost:3000.`);
     const data = await board();
     const task = findTask(data, positional[0]);
     const name = data.me.agent.name;
-    const pattern = `@${escapeRegExp(name)}(?![\\w-])`;
-    const holds = (text) => new RegExp(pattern, "i").test(String(text ?? ""));
-    /* The name goes, and the hole it leaves goes with it: the spaces on
-       either side become one, and a line does not end in a space. */
-    const without = (text) =>
-      String(text ?? "")
-        .replace(new RegExp(pattern, "gi"), "")
-        .replace(/[^\S\n]{2,}/g, " ")
-        .replace(/[^\S\n]+$/gm, "")
-        .trim();
+    const holds = (text) => new RegExp(mentionPattern(name), "i").test(String(text ?? ""));
 
     const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
     const patch = {};
     // A task must keep a title, so a title that is only the name stays as it is.
-    if (holds(detail.title) && without(detail.title)) patch.title = without(detail.title);
-    if (holds(detail.description)) patch.description = without(detail.description);
+    if (holds(detail.title) && without(detail.title, name).trim())
+      patch.title = without(detail.title, name);
+    if (holds(detail.description)) patch.description = without(detail.description, name);
     if (!Object.keys(patch).length) {
       console.log(`${task.key}: nothing to take out`);
       return;
@@ -898,10 +942,6 @@ function fillCommand(template, values) {
   );
 }
 
-function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 commands.watch = async function watch() {
   const template = flags.run;
   if (!template || template === "true") {
@@ -924,7 +964,7 @@ commands.watch = async function watch() {
   const me = await call("GET", "/api/agent/me");
   const projectId = me.project.id;
   const agentId = me.agent.id;
-  const mention = new RegExp(`@${escapeRegExp(me.agent.name)}(?![\\w-])`, "i");
+  const mention = new RegExp(mentionPattern(me.agent.name), "i");
 
   /* --- where the feed was left ------------------------------------- */
 
