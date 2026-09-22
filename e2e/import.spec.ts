@@ -23,6 +23,23 @@ import {
  */
 const FIXTURE = "e2e/fixtures/trello-small.json";
 
+/**
+ * Opens the page and waits until it is live.
+ *
+ * A file picked before React has taken the page over goes nowhere: the box is
+ * server-rendered and its change event has nobody listening yet. Nothing on
+ * screen says when that moment is, so the wait is the board's own stream,
+ * which opens the instant the store mounts. The waiter is set up before the
+ * page is asked for, or a fast hydration wins the race and nothing answers.
+ */
+async function openImport(page: Page, projectId: string) {
+  const live = page
+    .waitForResponse((res) => res.url().includes("/stream"), { timeout: 20_000 })
+    .catch(() => null);
+  await gotoSettings(page, projectId, "import");
+  await live;
+}
+
 /** Puts the file in the box and waits for the preview to come back. */
 async function pick(page: Page) {
   await settles(page, /\/import\/preview$/, async () => {
@@ -43,7 +60,7 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   await register(page, "Ada Lovelace");
   const projectId = await createProject(page, unique("Import"));
 
-  await gotoSettings(page, projectId, "import");
+  await openImport(page, projectId);
   await pick(page);
 
   // The preview says what will happen, in numbers.
@@ -72,10 +89,7 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   await page.goto(`/p/${projectId}`);
   await expect(column(page, "Done")).toBeVisible();
   await showColumn(page, "Todo");
-  expect(await columnOrder(page, "Todo")).toEqual([
-    "Write the launch note",
-    "Talk to the team",
-  ]);
+  expect(await columnOrder(page, "Todo")).toEqual(["Write the launch note", "Talk to the team"]);
   await showColumn(page, "In Progress");
   await expect(card(page, "Fix the sign-in loop")).toBeVisible();
   await showColumn(page, "Done");
@@ -84,7 +98,7 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   await expect(card(page, "Old idea nobody took")).toHaveCount(0);
 
   // The same file again makes nothing.
-  await gotoSettings(page, projectId, "import");
+  await openImport(page, projectId);
   await pick(page);
   await expect(page.getByText("4 already here")).toBeVisible();
   await expect(page.getByRole("button", { name: "Nothing new to bring in" })).toBeDisabled();
@@ -99,7 +113,7 @@ test("a card brings its labels, its due date, its checklist and its comments", a
   await register(page, "Ada Lovelace");
   const projectId = await createProject(page, unique("Import"));
 
-  await gotoSettings(page, projectId, "import");
+  await openImport(page, projectId);
   await pick(page);
   await settles(page, /\/import$/, () =>
     page.getByRole("button", { name: "Import 4 tasks" }).click(),
@@ -128,7 +142,7 @@ test("the import page reads on a phone", async ({ page }) => {
   await register(page, "Ada Lovelace");
   const projectId = await createProject(page, unique("Import"));
 
-  await gotoSettings(page, projectId, "import");
+  await openImport(page, projectId);
   await pick(page);
 
   expect(await overflow(page)).toBe(0);

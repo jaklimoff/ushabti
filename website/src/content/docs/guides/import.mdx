@@ -1,0 +1,122 @@
+---
+title: Bring a board from Trello
+description: Import a Trello JSON export into an Ushabti project — lists become columns, cards become tasks, and a second run makes nothing twice.
+sidebar:
+  order: 12
+---
+
+import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
+
+**Settings → Import**, or `/p/{projectId}/settings/import`. <Badge text="owner only" variant="caution" size="small" />
+
+A team that cannot bring its board over does not start. This page takes one Trello export and makes
+your project look like the board you left: the same columns, the same cards, in the same order.
+
+Trello only, for now. Jira has no single export — its CSV repeats a column per label and per
+comment, its dates carry the site's locale, and it stops at 1000 rows — so it is its own job and not
+a checkbox on this one.
+
+## The three steps
+
+1. **Export the board from Trello.** Board menu → **More** → **Print and export** → **Export as
+   JSON**. You get one `.json` file.
+2. **Pick it here.** The page becomes the preview: what will be made, what will not come, and where
+   each list is going. Nothing is written yet.
+3. **Press Import.** The page says what it made and points you back at the board.
+
+Nothing is kept on the server between step 2 and step 3. Your browser holds the file and sends it
+twice, so closing the tab is how you cancel.
+
+## What maps to what
+
+| Trello                | Ushabti                                                                   |
+| --------------------- | ------------------------------------------------------------------------- |
+| A list                | An **option** of the property your main view groups by — a column          |
+| A card                | A **task**, in the order it had: lists by their order, cards inside them   |
+| Card title            | The title                                                                  |
+| Card description      | The description, markdown and all                                          |
+| A label               | An option of **Labels**                                                    |
+| Due date              | **Due**, the date part of it, in UTC                                        |
+| The first member      | **Assignee**, if somebody here has that name                               |
+| Checklist items       | The task's checklist, ticks and all                                        |
+| Comments              | Comments, oldest first, each naming who wrote it on Trello                 |
+| An archived card      | An archived task — but only if you turn the switch on                      |
+
+**A list becomes an option, never a property.** Where the name matches something your board already
+has, the import writes into that: a Trello list called *in progress* lands on your **In Progress**
+column, because a name matches whatever its case. Where nothing matches, one new option is added
+beside the others, in the next colour of the palette. The preview shows both, and you can point any
+list at any option before you press the button.
+
+**A property that is missing is made.** A board with no **Due** date gets one the moment a file
+carries due dates — an ordinary property you can rename, move or delete afterwards. Nothing about a
+task is hardcoded in Ushabti, so an import cannot write a field; it can only add a property and fill
+it in.
+
+**A card with two checklists** reads `Before: Draft it`, because a task has one checklist. A card
+with one gets its items plainly, with no prefix.
+
+**People are matched, never made.** Trello carries a name and no email, so the match is a name. When
+nobody here is called that, no account is made and no invite is sent: the name goes on the last line
+of the description, where a reader will find it.
+
+## What does not come
+
+The preview counts each of these on your own file and says it in a sentence, so you read it before
+you press anything, not after:
+
+- **Attachments.** Files on a card are left behind.
+- **Custom fields.** There is no import for them yet.
+- **Start dates**, and the tick that marks a due date complete.
+- **Everything in the history that is not a comment** — a move, a rename, a tick.
+- **Archived lists**, and their cards with them.
+- **The second person on a card.** Only the first one becomes the assignee.
+- **A label no card wears.**
+- **Old comments.** Trello's export holds its last 1000 actions and no more. Nothing can bring back
+  what is not in the file.
+
+**Archived cards** are the one thing you choose. They stay behind by default; one switch brings them
+in, archived, where the [archive page](/ushabti/guides/board/) holds them.
+
+## Nothing twice
+
+Every task an import makes gets one line in the feed naming the card it came from. The next import
+reads those lines first and leaves those cards alone.
+
+So you can import the same file twice, or export the board again next week and import that: the
+cards you already have are counted as *already here* and the new ones are added at the end. The
+**Import** button says **Nothing new to bring in** when there is nothing.
+
+<Aside type="note" title="It does not sync">
+A second import **adds**; it never updates. A card whose title changed on Trello after you imported
+it keeps the title it arrived with. Import is a move, not a bridge.
+</Aside>
+
+## The limits
+
+| Limit          | What happens past it                                                   |
+| -------------- | ---------------------------------------------------------------------- |
+| **5 MB**       | *That file is larger than 5 MB. An import takes 5 MB at a time.*        |
+| **2000 cards** | *That export has 2400 cards. An import takes 2000 at a time.*           |
+
+Both are answered before anything is written. Inside the limits the whole board goes in as one
+change: the task counter is raised once, the rows go in batches of 500, and the project is locked
+for the length of it, so an import can never leave a board half made.
+
+## What the rest of the board sees
+
+Everybody looking at the board gets it at once, the way they get any other change.
+
+A [webhook](/ushabti/api/webhooks/) rings **once for the whole import**, not once per card — two
+thousand deliveries for one press of a button is not an event, it is a flood. The ring carries the
+kind `import` and the project, and the receiver reads the feed for the rest, exactly as it does for
+everything else.
+
+An agent gets nothing new. The page is the owner's, and an agent already hears the doorbell and
+reads `/activity`.
+
+<LinkCard
+  title="Settings"
+  href="/ushabti/guides/settings/"
+  description="The rail of settings pages, and what each one owns."
+/>

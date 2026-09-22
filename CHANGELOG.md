@@ -24,6 +24,20 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A board comes in from Trello.** **Settings → Import**, owner only, takes a
+  Trello JSON export: lists become the columns, cards become tasks in the order
+  they had, with their labels, due dates, first member as assignee, checklists
+  and comments. The page is the flow — pick a file, read the preview with its
+  counts and its mapping, change where any list or label lands, then press
+  **Import**. A name that matches an option the board already has is proposed
+  against it; a property the file needs and the project has not got is made.
+  Archived cards stay behind unless you say otherwise, and what will not come —
+  attachments, custom fields, start dates, an archived list, everything in the
+  history that is not a comment — is counted in a sentence before you press
+  anything. Up to 5 MB and 2000 cards, written under one project lock in
+  batches of 500. The same file twice makes nothing twice, and a webhook rings
+  once for the whole import. Trello only; Jira is its own job.
+
 - **A date rule in a filter can name a window of days, and stays true
   tomorrow.** `is within` sits among the date operators and swaps the date box
   for a list of words: **Today**, **Tomorrow**, **This week**, **Next week**,
