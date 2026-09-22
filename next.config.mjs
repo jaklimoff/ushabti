@@ -2,8 +2,22 @@
 // the build or `next dev` can read it, and the JSDoc line below already gives
 // the checking. Production reads no config file at all — `next build` writes
 // these values into `.next/standalone/server.js`, which is what runs.
+
+// The dev server allows localhost and the name it was started with, and blocks
+// its own HMR for any other name. A dev server reached as `mini-m4.local` logs
+// "Blocked cross-origin request", the client never hydrates, and the login form
+// posts as plain HTML with no error on screen. So the hosts come from the
+// environment: a name here would be tracked, and a mounted file went stale
+// every time git rewrote this one. Only `next dev` reads the key.
+const allowedDevOrigins = (process.env.ALLOWED_DEV_ORIGINS ?? "")
+  .split(",")
+  .map((host) => host.trim())
+  .filter(Boolean);
+
 /** @type {import("next").NextConfig} */
 const nextConfig = {
+  // Unset or empty leaves the key off, so the default stands.
+  ...(allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
   reactStrictMode: true,
   // The image runs `.next/standalone/server.js`. Next traces which files the
   // server really touches and copies them, so the runner stage installs no
