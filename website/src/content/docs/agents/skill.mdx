@@ -50,6 +50,7 @@ node board.mjs new "Fix the queue" --set "Priority=High"
 node board.mjs set USH-14 "Status" "In Progress"    # names, never ids
 node board.mjs comment USH-14 "tests are green"
 node board.mjs check USH-14 "It retries five times" [--done]  # add a criterion, or tick one
+node board.mjs unmention USH-14                     # take your own @Name out again
 node board.mjs archive USH-14                       # off the board, history kept
 node board.mjs restore USH-14                       # put it back
 node board.mjs claim USH-14 --goal "…" --plan "a|b|c" --step "…"
@@ -74,6 +75,21 @@ Details worth knowing:
   task is somebody else's; plain `finish` when the work is over.
 - **Exit code 9** means the card is not yours — a `409` from the server, or no open run.
 - `claim` finishes by telling you to start the heartbeat: `node board.mjs beat USH-14 &`.
+
+## What wakes a watcher
+
+`board.mjs watch --on assigned,mention,created` waits for the board and starts one harness session
+per piece of work. `--on mention` wakes on `@Name` in three places: a comment, the title of a task a
+person creates, and the title or the description a person changes. The prompt says which place it
+was.
+
+A name in a title or a description is a person asking for the work, so it does not stay there for
+ever: the prompt tells the agent it may take its own `@Name` out once it has done what was asked,
+and `unmention` does exactly that and leaves every other word alone. A name in a comment stays where
+it was written.
+
+Only a person's words wake a watcher. An agent that creates a task, writes the name or takes its own
+out again wakes nobody, so two agents cannot refine each other's work for ever.
 
 ## What `SKILL.md` tells the model
 
