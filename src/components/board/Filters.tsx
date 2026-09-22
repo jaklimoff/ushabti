@@ -20,6 +20,7 @@ import { DATE_WINDOWS, DATE_WINDOW_NAME } from "@/lib/day";
 import { canSort, nextSort, sortLabel } from "@/lib/sort";
 import { listColumns } from "@/lib/list-view";
 import type { CardItem } from "@/lib/card-view";
+import type { LeaveSend } from "@/lib/leave";
 import {
   NO_VALUE_KEY,
   type FilterOp,
@@ -32,6 +33,7 @@ import {
 } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { AskBox, BUILTIN_DOT, propertyColor, Rows, step, type Row } from "./Ask";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
@@ -79,6 +81,22 @@ const ASK: Record<PropertyType, string> = {
   date: "Which date?",
 };
 
+/*
+ * What a write of these rules would send.
+ *
+ * The box saves on blur, and a tab closed on it sends no blur, so the box
+ * says here what the write it owes would have been; see `useSaveOnLeave`.
+ * The team's rules are patched onto the view and mine are put on my lens,
+ * which is the only difference between the two.
+ */
+function viewSend(viewId: string, rules: FilterRule[]): LeaveSend {
+  return { method: "PATCH", url: `/api/views/${viewId}`, body: { filters: { rules } } };
+}
+
+function lensSend(viewId: string, rules: FilterRule[]): LeaveSend {
+  return { method: "PUT", url: `/api/views/${viewId}/lens`, body: { filters: { rules } } };
+}
+
 /* ------------------------------------------------------------------ */
 /* Asking one property something                                       */
 /* ------------------------------------------------------------------ */
@@ -93,6 +111,7 @@ function Ask({
   rule,
   members,
   onChange,
+  owed,
   onBack,
   onClose,
 }: {
@@ -100,6 +119,8 @@ function Ask({
   rule: FilterRule;
   members: MemberDTO[];
   onChange: (rule: FilterRule) => void;
+  /** The request this box would send for that rule, for a tab that is going. */
+  owed: (rule: FilterRule) => LeaveSend | null;
   /** Absent in a chip's panel: there is nowhere to go back to. */
   onBack?: () => void;
   onClose: () => void;
@@ -112,6 +133,10 @@ function Ask({
   const win = isWindowOp(rule.op);
   const [query, setQuery] = useState(bare || set || win ? "" : (rule.text ?? ""));
   const [at, setAt] = useState(0);
+  /* Whether somebody typed in the box since its last save. The box is filled
+     in once and goes stale the moment another tab changes the rule, so a box
+     nobody typed in has nothing to save and would put the old words back. */
+  const [typed, setTyped] = useState(false);
 
   // A fresh [] on every render would rebuild the rows on every keystroke.
   const chosen = useMemo(() => rule.values ?? [], [rule.values]);
@@ -174,6 +199,7 @@ function Ask({
   /** The box is the answer for a text, number or date rule. */
   function commitText() {
     if (set || bare || win) return;
+    setTyped(false);
     const text = query.trim();
     if ((rule.text ?? "") === text) return;
     onChange({ ...rule, text });
@@ -186,19 +212,28 @@ function Ask({
    * it, typing a word and clicking the board throws the word away — the one
    * thing the rest of this product never does.
    */
-  const latest = useRef({ query, rule, set, bare, win, onChange });
+  const latest = useRef({ query, rule, set, bare, win, typed, onChange });
   useEffect(() => {
-    latest.current = { query, rule, set, bare, win, onChange };
+    latest.current = { query, rule, set, bare, win, typed, onChange };
   });
   useEffect(
     () => () => {
       const now = latest.current;
-      if (now.set || now.bare || now.win) return;
+      if (now.set || now.bare || now.win || !now.typed) return;
       const text = now.query.trim();
       if ((now.rule.text ?? "") !== text) now.onChange({ ...now.rule, text });
     },
     [],
   );
+
+  /* The fourth way to lose the focus is the tab itself, and that one unmounts
+     nothing. The same words go out on the way off the page instead. */
+  useSaveOnLeave(() => {
+    if (set || bare || win || !typed) return null;
+    const text = query.trim();
+    if ((rule.text ?? "") === text) return null;
+    return owed({ ...rule, text });
+  });
 
   const listId = `filter-values-${property.id}`;
 
@@ -243,6 +278,7 @@ function Ask({
           readOnly={bare}
           onChange={(e) => {
             setQuery(e.target.value);
+            setTyped(true);
             setAt(0);
           }}
           onBlur={commitText}
@@ -334,7 +370,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
      answer to what this board is about, and a member narrowing their screen
      must not re-answer it for everybody. The way onto the view is one press in
      the strip, and it is named. */
-  const { data, filters, viewFilters, lens, setLens } = useBoard();
+  const { data, view, filters, viewFilters, lens, setLens } = useBoard();
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
@@ -421,21 +457,27 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
     setRefused(null);
   }
 
+  /* What my lens would hold with this rule answered, or with the answer taken
+     back. The write and the leave both ask it, so they cannot disagree. */
+  function lensAfter(next: FilterRule): FilterRule[] {
+    if (!hasAnswer(next)) {
+      return slot === null ? lens.rules : lens.rules.filter((_, i) => i !== slot);
+    }
+    if (slot === null) return [...lens.rules, next];
+    return lens.rules.map((r, i) => (i === slot ? next : r));
+  }
+
   /* The one place a rule arrives, changes or goes. It lands in my lens. */
   function change(next: FilterRule) {
     setDraft(next);
     if (hasAnswer(next)) {
-      if (slot === null) {
-        setSlot(lens.rules.length);
-        void setLens([...lens.rules, next]);
-      } else {
-        void setLens(lens.rules.map((r, i) => (i === slot ? next : r)));
-      }
+      if (slot === null) setSlot(lens.rules.length);
+      void setLens(lensAfter(next));
       return;
     }
     // The answer was taken back, so the rule goes with it.
     if (slot !== null) {
-      void setLens(lens.rules.filter((_, i) => i !== slot));
+      void setLens(lensAfter(next));
       setSlot(null);
     }
   }
@@ -462,6 +504,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
               rule={rule}
               members={data.members}
               onChange={change}
+              owed={(next) => (view ? lensSend(view.id, lensAfter(next)) : null)}
               onBack={reset}
               onClose={close}
             />
@@ -631,6 +674,7 @@ export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: bool
 export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
   const {
     data,
+    view,
     filters,
     viewFilters,
     lens,
@@ -667,6 +711,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             members={data.members}
             shared
             onChange={(next) => void setFilters(edited(viewFilters.rules, i, next))}
+            owed={(next) => (view ? viewSend(view.id, edited(viewFilters.rules, i, next)) : null)}
             onRemove={() => void setFilters(edited(viewFilters.rules, i, null))}
           />
         );
@@ -687,6 +732,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             property={property}
             members={data.members}
             onChange={(next) => void setLens(edited(lens.rules, i, next))}
+            owed={(next) => (view ? lensSend(view.id, edited(lens.rules, i, next)) : null)}
             onRemove={() => void setLens(edited(lens.rules, i, null))}
           />
         );
@@ -778,6 +824,7 @@ function Chip({
   members,
   shared = false,
   onChange,
+  owed,
   onRemove,
 }: {
   rule: FilterRule;
@@ -785,6 +832,7 @@ function Chip({
   members: MemberDTO[];
   shared?: boolean;
   onChange: (rule: FilterRule) => void;
+  owed: (rule: FilterRule) => LeaveSend | null;
   onRemove: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -865,6 +913,7 @@ function Chip({
             rule={rule}
             members={members}
             onChange={onChange}
+            owed={owed}
             onClose={() => setOpen(false)}
           />
         </div>

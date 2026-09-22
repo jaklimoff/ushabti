@@ -1163,6 +1163,10 @@ async function whole(name: Locator) {
 /*
  * A field saves on blur, and a tab closed on a focused field sends no blur.
  * The save goes out on the way off the page instead.
+ *
+ * What the next page draws is the whole proof. The request itself cannot be
+ * counted: a page that is going does not report it, however it is watched;
+ * see `useSaveOnLeave`.
  */
 test.describe("An edit the tab was closed on", () => {
   test("the task title is saved although nothing was blurred", async ({ page }) => {

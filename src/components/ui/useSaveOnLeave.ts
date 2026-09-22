@@ -30,6 +30,13 @@ import { sendOnLeave, type LeaveSend } from "@/lib/leave";
  * carries a flag it sets on the first change since its last save, and answers
  * null until it is set.
  *
+ * A test can only see this from the other side. Chromium hands a `keepalive`
+ * request to the browser process as the page goes, and reports it to nobody:
+ * neither `page.on("request")`, nor the same listener on the context, nor
+ * `context.route()` sees it, although the server takes it. So the end to end
+ * proof of a leave is what the next page draws, and a count of the request
+ * would read as zero whatever this hook did.
+ *
  * A `keepalive` body has to stay under 64 KiB. A long description could pass
  * that, and the browser then refuses the send, exactly as it refuses today's
  * lost blur — nothing is made worse, and the `catch` keeps the refusal quiet
@@ -50,6 +57,8 @@ export function useSaveOnLeave(unsaved: () => LeaveSend | null): void {
          request still in flight. */
       sent.current = next.mark;
       const { method, url, body } = next.send;
+      /* A field patches its row and a filter puts a whole lens, so the address
+         carries the method it would have been saved by. */
       const request = method === "PUT" ? api.put : api.patch;
       void request(url, body, { keepalive: true }).catch(() => {
         /* The page is going. There is nobody left to tell. */

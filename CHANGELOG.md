@@ -36,7 +36,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   that tab, so a tab left open on a page somebody else changed puts nothing
   back. The task title, the description, a checklist item,
   the project name, key and time zone, a property name, an option name, a view
-  name, a webhook address and your own name all use it.
+  name, a webhook address, the answer you type into the filter panel and your
+  own name all use it. The value boxes of the task panel are the exception:
+  one of them still loses what you typed if the tab goes while it has the
+  focus.
 
 - **A dying heartbeat no longer closes a hand-over.** `board.mjs beat` reports
   the run `lost` when it is killed with the session, so a card comes back the
