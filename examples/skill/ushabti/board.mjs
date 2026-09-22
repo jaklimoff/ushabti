@@ -825,15 +825,23 @@ const waitingWord = (run) =>
 const PROMPTS = {
   created: (key) => `A person just created task ${key} on the Ushabti board.`,
   assigned: (key) => `Task ${key} on the Ushabti board was just assigned to you.`,
-  mention: (key) => `A person mentioned you in a comment on task ${key} on the Ushabti board.`,
+  /* A name in the title or the description stays there until somebody takes it
+     out, so the agent it names is told it may take its own out. A name in a
+     comment is a line in a conversation, and is left where it was written. */
+  mention: (key, place) =>
+    place === "title" || place === "description"
+      ? `A person mentioned you in the ${place} of task ${key} on the Ushabti board. ` +
+        `When you have done what was asked, you may take your own @Name out of the ` +
+        `title or the description.`
+      : `A person mentioned you in a comment on task ${key} on the Ushabti board.`,
   reply: (key) =>
     `A person answered the question you asked on task ${key} on the Ushabti board. ` +
     `Read the newest comments before anything else.`,
 };
 
-function promptFor(event, key, goal) {
+function promptFor(event, key, goal, place) {
   return (
-    `${PROMPTS[event](key)} Your job: ${goal}. ` +
+    `${PROMPTS[event](key, place)} Your job: ${goal}. ` +
     `Read ${SKILL_DIR}/SKILL.md first and follow it. ` +
     `The watcher already holds the run on ${key} and beats for it, ` +
     `so do not claim the task and do not start a heartbeat.`
@@ -931,10 +939,10 @@ commands.watch = async function watch() {
     console.log(`[watch] ${line}`);
   }
 
-  function wake(taskId, key, event) {
+  function wake(taskId, key, event, place) {
     if (active.has(taskId) || queue.some((job) => job.taskId === taskId)) return;
-    say(`${key}: ${event}`);
-    queue.push({ taskId, key, event });
+    say(place ? `${key}: ${event} in the ${place}` : `${key}: ${event}`);
+    queue.push({ taskId, key, event, place });
     pump();
   }
 
@@ -978,7 +986,7 @@ commands.watch = async function watch() {
       key: job.key,
       id: job.taskId,
       event: job.event,
-      prompt: promptFor(job.event, job.key, goal),
+      prompt: promptFor(job.event, job.key, goal, job.place),
       skill: SKILL_DIR,
     });
 
@@ -1102,10 +1110,29 @@ commands.watch = async function watch() {
     if (entry.kind === "created") {
       // A task an agent wrote is not a reason for another agent to wake:
       // two watchers would otherwise refine each other's work for ever.
-      if (triggers.has("created") && actor.kind === "human")
-        return wake(entry.taskId, key, "created");
+      const byPerson = actor.kind === "human";
+      /* A name in the title asks for this agent and not for any agent, so it
+         wins over the plain `created` wake: the prompt then says where the
+         name is and that the agent may take it out when it is done. */
+      if (byPerson && triggers.has("mention") && mention.test(String(entry.data.title ?? "")))
+        return wake(entry.taskId, key, "mention", "title");
+      if (byPerson && triggers.has("created")) return wake(entry.taskId, key, "created");
       if (triggers.has("assigned") && assignedToMe(await freshBoard(), entry.taskId))
         return wake(entry.taskId, key, "assigned");
+      return;
+    }
+
+    /* A person wrote the name where the task is born. The line says that the
+       title or the description changed and never the words, so the task is
+       read once and both places are tested: an edit of either can be the one
+       that put the name there. An agent's own edit wakes nobody, which is
+       what lets an agent take its own name out again. */
+    if ((entry.kind === "title" || entry.kind === "description") && triggers.has("mention")) {
+      if (actor.kind !== "human") return;
+      const { task } = await request("GET", `/api/tasks/${entry.taskId}`);
+      if (mention.test(task.title ?? "")) return wake(entry.taskId, key, "mention", "title");
+      if (mention.test(task.description ?? ""))
+        return wake(entry.taskId, key, "mention", "description");
       return;
     }
 
@@ -1136,7 +1163,7 @@ commands.watch = async function watch() {
         return pump();
       }
       if (triggers.has("mention") && mention.test(comment.body)) {
-        return wake(entry.taskId, key, "mention");
+        return wake(entry.taskId, key, "mention", "comment");
       }
     }
   }
