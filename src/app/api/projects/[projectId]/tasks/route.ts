@@ -50,7 +50,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     } else if (input.atTop && !input.afterId) {
       position = rankBefore(neighbours[0]?.position ?? null);
     } else {
-      ({ position, rewrote } = await rankOnTheEnd(tx, neighbours));
+      ({ position, rewrote } = await rankOnTheEnd(tx, projectId, neighbours));
     }
 
     const [row] = await tx
