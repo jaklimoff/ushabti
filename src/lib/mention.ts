@@ -79,6 +79,70 @@ export function mentionsFor(
     }));
 }
 
+/* ------------------------------------------------------------------ */
+/* Where the list fits                                                  */
+/* ------------------------------------------------------------------ */
+
+/*
+ * A box near the foot of the screen is the ordinary case, not the odd one:
+ * the comment box is the last thing in a panel that scrolls, so on a task
+ * with a few notes it sits on the bottom edge. A list drawn under it is off
+ * the screen, and somebody presses Enter on a name they never saw.
+ *
+ * So the side is worked out from the room there is. The numbers below are
+ * what one row costs in `board.module.css`; they are here because this is
+ * where the question is answered, and a unit test can ask it.
+ */
+
+/** One row: the avatar and the padding around it. */
+export const MENTION_ROW = 26;
+
+/** The gap between two rows. */
+export const MENTION_ROW_GAP = 1;
+
+/** The list's own padding and border, top and bottom together. */
+export const MENTION_FRAME = 10;
+
+/** The gap between the box and the list. */
+export const MENTION_OFFSET = 4;
+
+/** How tall the list is for a number of rows. */
+export function mentionHeight(rows: number): number {
+  if (rows <= 0) return 0;
+  return rows * MENTION_ROW + (rows - 1) * MENTION_ROW_GAP + MENTION_FRAME;
+}
+
+/** The top and the bottom of something on the screen. */
+export type Edges = { top: number; bottom: number };
+
+/**
+ * Whether the list opens upward.
+ *
+ * `box` is what the list is measured from, and `room` is what it must stay
+ * inside: the screen, narrowed by every ancestor that scrolls, because such
+ * an ancestor cuts off whatever hangs out of it.
+ *
+ * It goes up only when it does not fit below and there is more room above.
+ * Under the box is where a completion belongs, so the flip has to earn
+ * itself; a list that changed sides on the row that fits either way would
+ * move under the reading eye.
+ */
+export function mentionOpensUp(box: Edges, room: Edges, rows: number): boolean {
+  const needed = mentionHeight(rows) + MENTION_OFFSET;
+  const below = room.bottom - box.bottom;
+  const above = box.top - room.top;
+  return below < needed && above > below;
+}
+
+/**
+ * How tall the list may be on that side. The list scrolls inside itself past
+ * it, so no row is ever behind the edge of a panel or under the screen.
+ */
+export function mentionRoom(box: Edges, room: Edges, up: boolean): number {
+  const space = up ? box.top - room.top : room.bottom - box.bottom;
+  return Math.max(MENTION_ROW, space - MENTION_OFFSET);
+}
+
 /**
  * The box after a name is picked: `@Name ` in place of what was typed, and
  * the caret after the space.

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { insertMention, mentionAt, mentionsFor, MENTION_LIMIT } from "../mention";
+import {
+  insertMention,
+  mentionAt,
+  mentionHeight,
+  mentionOpensUp,
+  mentionRoom,
+  mentionsFor,
+  MENTION_LIMIT,
+  MENTION_ROW,
+} from "../mention";
 import { LISTEN_LEASE_MS } from "../presence";
 import type { MemberDTO } from "../types";
 
@@ -116,5 +125,48 @@ describe("what picking a name writes", () => {
 
   it("writes nothing when the caret is not in a name", () => {
     expect(insertMention("nothing here", 12, "Builder")).toBeNull();
+  });
+});
+
+describe("which side the list opens on", () => {
+  /* A screen 900 tall, and a box somewhere on it. */
+  const screen = { top: 0, bottom: 900 };
+
+  it("opens under the box when the rows fit there", () => {
+    expect(mentionOpensUp({ top: 200, bottom: 240 }, screen, 8)).toBe(false);
+  });
+
+  it("opens above it when the box is on the bottom edge", () => {
+    // The comment box of a task with a few notes, at the foot of the panel.
+    expect(mentionOpensUp({ top: 820, bottom: 880 }, screen, 2)).toBe(true);
+  });
+
+  it("counts the rows, so a long list flips where a short one does not", () => {
+    const box = { top: 660, bottom: 700 };
+    expect(mentionOpensUp(box, screen, 2)).toBe(false);
+    expect(mentionOpensUp(box, screen, 8)).toBe(true);
+  });
+
+  it("stays under the box when there is no more room above", () => {
+    expect(mentionOpensUp({ top: 10, bottom: 40 }, { top: 0, bottom: 60 }, 8)).toBe(false);
+  });
+
+  it("measures against what scrolls, not against the whole screen", () => {
+    // The body of the panel ends at 500; the screen goes on to 900.
+    const box = { top: 430, bottom: 470 };
+    expect(mentionOpensUp(box, screen, 4)).toBe(false);
+    expect(mentionOpensUp(box, { top: 100, bottom: 500 }, 4)).toBe(true);
+  });
+
+  it("is as tall as the side it is on, and never shorter than a row", () => {
+    const box = { top: 400, bottom: 440 };
+    expect(mentionRoom(box, screen, false)).toBe(900 - 440 - 4);
+    expect(mentionRoom(box, screen, true)).toBe(400 - 4);
+    expect(mentionRoom({ top: 0, bottom: 10 }, screen, true)).toBe(MENTION_ROW);
+  });
+
+  it("grows a row at a time", () => {
+    expect(mentionHeight(0)).toBe(0);
+    expect(mentionHeight(2) - mentionHeight(1)).toBe(MENTION_ROW + 1);
   });
 });
