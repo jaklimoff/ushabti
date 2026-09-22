@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CLIENT_ID } from "@/lib/client";
+import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Form";
@@ -38,6 +39,9 @@ export function ImportPanel() {
   const [made, setMade] = useState<ImportMadeDTO | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* Whether this page can act on a file yet. The server draws the box too,
+     and until React is holding it a file picked goes nowhere. */
+  const ready = useSyncExternalStore(tellNobody, inBrowser, onServer);
 
   async function look(next: Ask) {
     const picked = file.current;
@@ -116,7 +120,12 @@ export function ImportPanel() {
                     type="file"
                     accept="application/json,.json"
                     aria-label="The Trello export to bring in"
-                    disabled={busy}
+                    /* A file picked before React has taken the page over goes
+                       nowhere: the box is drawn on the server, and its change
+                       has nobody listening. So it is shut until then, and says
+                       why, rather than swallowing the first file somebody
+                       picks. */
+                    disabled={busy || !ready}
                     onChange={(e) => {
                       const picked = e.target.files?.[0] ?? null;
                       file.current = picked;
@@ -132,8 +141,14 @@ export function ImportPanel() {
               </Row>
               <Row>
                 <Note>
-                  In Trello: <b>Board menu → More → Print and export → Export as JSON</b>. Up to 5
-                  MB and 2000 cards at a time. Trello only, for now.
+                  {ready ? (
+                    <>
+                      In Trello: <b>Board menu → More → Print and export → Export as JSON</b>. Up to
+                      5 MB and 2000 cards at a time. Trello only, for now.
+                    </>
+                  ) : (
+                    "One moment — the page is still loading."
+                  )}
                 </Note>
               </Row>
               {error && (

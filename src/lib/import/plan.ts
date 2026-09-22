@@ -329,6 +329,16 @@ export function droppedSaid(plan: Plan): string[] {
     "archived list is left behind, with its cards.",
     "archived lists are left behind, with their cards.",
   );
+  /* Two lists of one name become one column, because an option is a name on
+     this board and two columns called Done cannot be told apart on a card, in
+     a filter or by the next import. It is said here rather than left to be
+     discovered on the board. */
+  for (const [name, count] of sharedNames(plan.lists)) {
+    said.push(`${count} lists are called “${name}”. They become one column.`);
+  }
+  for (const [name, count] of sharedNames(plan.labels.filter((label) => label.cards > 0))) {
+    said.push(`${count} labels are called “${name}”. They become one option.`);
+  }
   line(
     plan.labels.filter((label) => label.cards === 0).length,
     "label is on no card and does not come.",
@@ -381,4 +391,23 @@ export function previewOf(plan: Plan): ImportPreviewDTO {
     people: plan.people,
     dropped: droppedSaid(plan),
   };
+}
+
+/**
+ * The names more than one new option is wanted under, and how many want each.
+ *
+ * Only the rows that are making something: two lists both landing on an
+ * option the board already has are not sharing a new name, they are agreeing
+ * about an old one, which is what the preview shows anyway.
+ */
+function sharedNames(rows: PlanOption[]): [string, number][] {
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const row of rows) {
+    if (!row.making) continue;
+    const word = row.name.trim().toLowerCase();
+    const held = counts.get(word);
+    if (held) held.count += 1;
+    else counts.set(word, { name: row.name, count: 1 });
+  }
+  return [...counts.values()].filter((one) => one.count > 1).map((one) => [one.name, one.count]);
 }

@@ -103,8 +103,11 @@ history row. It says who ran this, when, and how it ended. Ask
 for a closed run exactly as it does for an open one, counts and plan and log and all.
 
 `activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
-`archive`, `link`, `deleted`. An `archive` entry carries `data.action`, which is `archived` or `restored`,
-and so does a `deleted` one — see [the activity feed](/ushabti/api/projects/#the-deleted-line).
+`archive`, `link`, `deleted`, `import`. An `archive` entry carries `data.action`, which is `archived`
+or `restored`, and so does a `deleted` one — see
+[the activity feed](/ushabti/api/projects/#the-deleted-line). An `import` entry says the task came
+in from Trello and names the card it came from in `data.sourceId`; the webhook behind it rings once
+for the whole import, off the line about the project.
 `author` and `actor` are `null` when the user row has been deleted.
 
 This route answers for an archived task exactly as it does for a live one, which is what makes a

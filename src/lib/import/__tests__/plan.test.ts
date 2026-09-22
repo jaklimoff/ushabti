@@ -226,3 +226,55 @@ describe("previewOf", () => {
     expect(preview.labels.every((label) => label.cards > 0)).toBe(true);
   });
 });
+
+/**
+ * Two lists of one name.
+ *
+ * A Trello board may hold two lists called Done, and an option is a name on
+ * this board: two columns called Done cannot be told apart on a card, in a
+ * filter or by the next import. So they become one column, and the preview
+ * says so before anybody presses the button.
+ */
+describe("two lists of one name", () => {
+  const twins = {
+    ...fixture(),
+    lists: [
+      { id: "list-a", name: "Done", pos: 1 },
+      { id: "list-b", name: "done", pos: 2 },
+    ],
+    cards: [
+      { ...fixture().cards[0], id: "card-a", listId: "list-a" },
+      { ...fixture().cards[1], id: "card-b", listId: "list-b" },
+    ],
+  };
+
+  it("keeps the two rows apart, each naming the list it came from", () => {
+    const plan = planImport(twins, board());
+    expect(plan.lists.map((l) => [l.sourceId, l.name, l.cards])).toEqual([
+      ["list-a", "Done", 1],
+      ["list-b", "done", 1],
+    ]);
+    expect(plan.lists.every((l) => l.making)).toBe(true);
+  });
+
+  it("says they become one column", () => {
+    expect(droppedSaid(planImport(twins, board()))).toContain(
+      "2 lists are called “Done”. They become one column.",
+    );
+  });
+
+  it("says nothing when the two land on an option the board already has", () => {
+    /* Agreeing about an old name is not sharing a new one: both point at the
+       board's own option, which the rows already show. */
+    const same = {
+      ...twins,
+      lists: [
+        { ...twins.lists[0], name: "Todo" },
+        { ...twins.lists[1], name: "todo" },
+      ],
+    };
+    expect(droppedSaid(planImport(same, board())).some((line) => line.includes("one column"))).toBe(
+      false,
+    );
+  });
+});

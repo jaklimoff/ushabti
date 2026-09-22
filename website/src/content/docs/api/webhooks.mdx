@@ -38,9 +38,14 @@ secret**.
 ```
 
 `kind` is one of the words the activity feed writes: `created`, `title`, `description`, `value`,
-`checklist`, `comment`, `run`, `archive`, `link`, `deleted`, `reset`. A webhook that names none of
-them rings for all of them. A change that writes no feed line — a view, a property, the card view —
-rings nothing.
+`checklist`, `comment`, `run`, `archive`, `link`, `deleted`, `reset`, `import`. A webhook that names
+none of them rings for all of them. A change that writes no feed line — a view, a property, the card
+view — rings nothing.
+
+`import` rings **once for a whole import**, not once per card: the owner brought a board in from
+Trello, and two thousand deliveries for one press of a button is a flood and not an event. The ring
+carries the line about the project, so `taskId` and `taskKey` are null; the feed holds one `import`
+line per task behind it.
 
 `link` rings both ways, as `deleted` does: a task was made to wait on another, or stopped waiting.
 `taskKey` is the task that gained or lost the blocker; the blocker's own key is on the feed line, in

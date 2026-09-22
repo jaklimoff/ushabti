@@ -53,6 +53,11 @@ carries due dates — an ordinary property you can rename, move or delete afterw
 task is hardcoded in Ushabti, so an import cannot write a field; it can only add a property and fill
 it in.
 
+**Two lists of one name become one column.** An option is a name on this board, so two columns
+called *Done* could not be told apart on a card, in a filter, or by your next import. The preview
+shows both lists and says *"2 lists are called “Done”. They become one column."* before you press
+anything.
+
 **A card with two checklists** reads `Before: Draft it`, because a task has one checklist. A card
 with one gets its items plainly, with no prefix.
 
@@ -100,8 +105,11 @@ it keeps the title it arrived with. Import is a move, not a bridge.
 | **2000 cards** | *That export has 2400 cards. An import takes 2000 at a time.*           |
 
 Both are answered before anything is written. Inside the limits the whole board goes in as one
-change: the task counter is raised once, the rows go in batches of 500, and the project is locked
-for the length of it, so an import can never leave a board half made.
+change: the task counter is raised once, the ranks that hold the card order are worked out in one
+spread rather than one at a time, the rows go in batches of 500, and the project is locked for the
+length of that — the reading of what is already here included. So an import can never leave a board
+half made, and two people pressing **Import** on the same file at the same moment still get one
+board: the second one waits, reads what the first wrote, and has nothing left to do.
 
 ## What the rest of the board sees
 

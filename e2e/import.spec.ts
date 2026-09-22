@@ -24,20 +24,16 @@ import {
 const FIXTURE = "e2e/fixtures/trello-small.json";
 
 /**
- * Opens the page and waits until it is live.
+ * Opens the page and waits until it can take a file.
  *
- * A file picked before React has taken the page over goes nowhere: the box is
- * server-rendered and its change event has nobody listening yet. Nothing on
- * screen says when that moment is, so the wait is the board's own stream,
- * which opens the instant the store mounts. The waiter is set up before the
- * page is asked for, or a fast hydration wins the race and nothing answers.
+ * The box is drawn on the server as well, and a file picked before React has
+ * taken the page over goes nowhere. So the page shuts the box until then and
+ * says why, and the test waits for it to open rather than for a stream or a
+ * clock — the thing on screen is the thing to wait for.
  */
 async function openImport(page: Page, projectId: string) {
-  const live = page
-    .waitForResponse((res) => res.url().includes("/stream"), { timeout: 20_000 })
-    .catch(() => null);
   await gotoSettings(page, projectId, "import");
-  await live;
+  await expect(page.getByLabel("The Trello export to bring in")).toBeEnabled();
 }
 
 /** Puts the file in the box and waits for the preview to come back. */

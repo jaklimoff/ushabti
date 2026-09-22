@@ -16,12 +16,12 @@ import {
 } from "@/db/schema";
 import { byPos } from "@/lib/order";
 import { nextPaletteColor } from "@/lib/colors";
-import { rankAfter, rankSequence } from "@/lib/rank";
+import { rankAfter, rankSpread } from "@/lib/rank";
 import { defaultGroupById, loadProperties, withProjectLock, type Tx } from "@/lib/queries";
-import { logActivityAll, type ActivityEntry } from "@/lib/activity";
+import { logActivityIn, type ActivityEntry } from "@/lib/activity";
 import type { ImportMadeDTO } from "@/lib/types";
-import type { Plan, PlanProperty, ProjectShape } from "./plan";
-import { SOURCE } from "./trello";
+import { planImport, type MappingAsk, type PlanProperty, type ProjectShape } from "./plan";
+import { SOURCE, type SourceBoard } from "./trello";
 
 /**
  * Writing a whole board, once.
@@ -54,17 +54,25 @@ function batches<T>(items: T[], size = BATCH): T[][] {
  * The `already` set is this project's own memory of what it has taken: one
  * read of the `import` lines, which is the only place a card's Trello id is
  * ever written down.
+ *
+ * The write passes its own transaction, and it has to. Read this from outside
+ * the lock and two imports of one file arriving together both find nothing
+ * already here, both write everything, and the board ends with every card
+ * twice. Inside it, the second one waits for the first, reads the lines the
+ * first wrote, and has nothing left to do. The preview reads it without a
+ * transaction, because a preview is a guess about a moment and writes nothing.
  */
-export async function projectShape(projectId: string): Promise<ProjectShape> {
+export async function projectShape(projectId: string, tx?: Tx): Promise<ProjectShape> {
+  const handle = tx ?? db;
   const [propertyRows, memberRows, groupPropertyId, importLines] = await Promise.all([
-    loadProperties(projectId),
-    db
+    loadProperties(projectId, tx),
+    handle
       .select({ id: users.id, name: users.name })
       .from(projectMembers)
       .innerJoin(users, eq(users.id, projectMembers.userId))
       .where(eq(projectMembers.projectId, projectId)),
-    defaultGroupById(projectId),
-    db
+    defaultGroupById(projectId, tx),
+    handle
       .select({ data: activity.data })
       .from(activity)
       .where(and(eq(activity.projectId, projectId), eq(activity.kind, "import"))),
@@ -122,14 +130,27 @@ async function ensureProperty(
   return row.id;
 }
 
-/** Adds the options a plan asks for, each one after the ones already there. */
+/**
+ * Adds the options a plan asks for, each one after the ones already there, and
+ * answers which option each asker landed on.
+ *
+ * The answer is keyed by the id the list or the label has in the file and
+ * never by its name. A Trello board may hold two lists called Done, and a map
+ * of names put both of their cards on whichever one was written last.
+ *
+ * Two askers of one name still share one option, because an option is a name
+ * on this board: two columns called Done cannot be told apart on a card, in a
+ * filter or by the next import, so the second list joins the first rather than
+ * making a twin of it. The preview says so in a sentence before anybody
+ * presses the button.
+ */
 async function addOptions(
   tx: Tx,
   propertyId: string,
-  names: string[],
+  wants: { key: string; name: string }[],
 ): Promise<Map<string, string>> {
-  const made = new Map<string, string>();
-  if (names.length === 0) return made;
+  const landed = new Map<string, string>();
+  if (wants.length === 0) return landed;
 
   const siblings = await tx
     .select({ color: propertyOptions.color, position: propertyOptions.position })
@@ -139,64 +160,76 @@ async function addOptions(
 
   const used = siblings.map((s) => s.color);
   let position = siblings.at(-1)?.position ?? null;
-  const rows = names.map((name) => {
-    position = rankAfter(position);
-    const color = nextPaletteColor(used);
-    used.push(color);
-    return { id: randomUUID(), propertyId, name, color, position };
-  });
+  const rows: { id: string; propertyId: string; name: string; color: string; position: string }[] =
+    [];
+  const byName = new Map<string, string>();
+
+  for (const want of wants) {
+    const word = want.name.trim().toLowerCase();
+    let id = byName.get(word);
+    if (!id) {
+      position = rankAfter(position);
+      const color = nextPaletteColor(used);
+      used.push(color);
+      id = randomUUID();
+      rows.push({ id, propertyId, name: want.name, color, position });
+      byName.set(word, id);
+    }
+    landed.set(want.key, id);
+  }
 
   for (const batch of batches(rows)) await tx.insert(propertyOptions).values(batch);
-  for (let at = 0; at < names.length; at += 1) made.set(names[at], rows[at].id);
-  return made;
+  return landed;
 }
 
 /**
- * Writes the plan, and answers what it made.
+ * Plans the file and writes it, once.
  *
- * Nothing is written when the plan carries no task: an import of a file this
- * board already holds must not add an empty column, and pressing **Import**
- * twice has to be the same as pressing it once.
+ * The plan is made **inside** the lock and not before it. What an import does
+ * depends on what the board already holds — which cards, which options, which
+ * properties — and all three of those are things the import itself changes. A
+ * plan made outside is a plan about a board that may already have moved: two
+ * POSTs of one file arriving together both planned four tasks and the board
+ * ended with eight.
+ *
+ * Nothing is written when the plan carries no task, so pressing **Import**
+ * twice is the same as pressing it once, and an import of a file this board
+ * already holds does not add an empty column.
  */
 export async function applyImport(input: {
   projectId: string;
   actorId: string;
-  plan: Plan;
+  board: SourceBoard;
+  ask: MappingAsk;
 }): Promise<ImportMadeDTO> {
-  const { projectId, actorId, plan } = input;
+  const { projectId, actorId, board, ask } = input;
   const importId = randomUUID();
-  if (plan.tasks.length === 0) {
-    return { importId, tasks: 0, options: 0, already: plan.already };
-  }
 
-  const made = await withProjectLock(projectId, async (tx) => {
+  const { made, ring } = await withProjectLock(projectId, async (tx) => {
+    const plan = planImport(board, await projectShape(projectId, tx), ask);
+    const nothing = { importId, tasks: 0, options: 0, already: plan.already };
+    if (plan.tasks.length === 0) return { made: nothing, ring: null };
+
     const groupId = await ensureProperty(tx, projectId, plan.group, "select");
     /* A list is a column, so every list comes, empty or not: a board has to
        arrive looking like the board it left. A label nobody put on a card is
        not on the board at all, so it is not made. */
-    const listOptions = await addOptions(
-      tx,
-      groupId,
-      plan.lists.filter((l) => l.making).map((l) => l.name),
-    );
+    const listOptions = await addOptions(tx, groupId, asked(plan.lists));
     const optionOfList = new Map<string, string>();
     for (const list of plan.lists) {
-      const id = list.optionId ?? listOptions.get(list.name);
+      const id = list.optionId ?? listOptions.get(list.sourceId);
       if (id) optionOfList.set(list.sourceId, id);
     }
 
     const wornLabels = plan.labels.filter((l) => l.cards > 0);
     const optionOfLabel = new Map<string, string>();
     let labelsId: string | null = null;
+    let labelOptions = new Map<string, string>();
     if (wornLabels.length) {
       labelsId = await ensureProperty(tx, projectId, plan.labelsProperty, "multi_select");
-      const labelOptions = await addOptions(
-        tx,
-        labelsId,
-        wornLabels.filter((l) => l.making).map((l) => l.name),
-      );
+      labelOptions = await addOptions(tx, labelsId, asked(wornLabels));
       for (const label of wornLabels) {
-        const id = label.optionId ?? labelOptions.get(label.name);
+        const id = label.optionId ?? labelOptions.get(label.sourceId);
         if (id) optionOfLabel.set(label.sourceId, id);
       }
     }
@@ -214,7 +247,7 @@ export async function applyImport(input: {
       .update(projects)
       .set({ taskCounter: sql`${projects.taskCounter} + ${plan.tasks.length}` })
       .where(eq(projects.id, projectId))
-      .returning({ counter: projects.taskCounter, key: projects.key });
+      .returning({ counter: projects.taskCounter });
     const first = project.counter - plan.tasks.length + 1;
 
     const last = await tx
@@ -222,24 +255,26 @@ export async function applyImport(input: {
       .from(tasks)
       .where(eq(tasks.projectId, projectId))
       .orderBy(byPos(tasks.position));
-    let position = last.at(-1)?.position ?? null;
+
+    /* One spread and not two thousand `rankAfter` calls. Chained, each rank
+       halves what is left above it: the strings grow a digit every few
+       hundred cards and stop increasing altogether at about the 1,537th, so
+       the back of a big board arrived in no order at all. */
+    const ranks = rankSpread(last.at(-1)?.position ?? null, plan.tasks.length);
 
     const now = new Date();
-    const rows = plan.tasks.map((task, at) => {
-      position = rankAfter(position);
-      return {
-        id: randomUUID(),
-        projectId,
-        number: first + at,
-        title: task.title,
-        description: task.description,
-        position,
-        createdBy: actorId,
-        /* An archived card comes in archived. It is a mark on the row and not
-           a property, exactly as it is for a card archived here. */
-        archivedAt: task.archived ? now : null,
-      };
-    });
+    const rows = plan.tasks.map((task, at) => ({
+      id: randomUUID(),
+      projectId,
+      number: first + at,
+      title: task.title,
+      description: task.description,
+      position: ranks[at],
+      createdBy: actorId,
+      /* An archived card comes in archived. It is a mark on the row and not
+         a property, exactly as it is for a card archived here. */
+      archivedAt: task.archived ? now : null,
+    }));
     for (const batch of batches(rows)) await tx.insert(tasks).values(batch);
 
     const values: (typeof taskValues.$inferInsert)[] = [];
@@ -251,9 +286,13 @@ export async function applyImport(input: {
       const option = optionOfList.get(task.listId);
       if (option) values.push({ taskId, propertyId: groupId, value: option });
       if (labelsId) {
-        const worn = task.labelIds
-          .map((id) => optionOfLabel.get(id))
-          .filter((id): id is string => id !== undefined);
+        const worn = [
+          ...new Set(
+            task.labelIds
+              .map((id) => optionOfLabel.get(id))
+              .filter((id): id is string => id !== undefined),
+          ),
+        ];
         if (worn.length) values.push({ taskId, propertyId: labelsId, value: worn });
       }
       if (dueId && task.due) values.push({ taskId, propertyId: dueId, value: task.due });
@@ -261,9 +300,9 @@ export async function applyImport(input: {
         values.push({ taskId, propertyId: assigneeId, value: task.assigneeId });
       }
 
-      const ranks = rankSequence(task.checklist.length);
+      const itemRanks = rankSpread(null, task.checklist.length);
       task.checklist.forEach((item, i) => {
-        checks.push({ taskId, text: item.text, done: item.done, position: ranks[i] });
+        checks.push({ taskId, text: item.text, done: item.done, position: itemRanks[i] });
       });
       /* Oldest first, and one millisecond apart, so the panel draws them in
          the order they were written rather than in whatever order one
@@ -282,52 +321,59 @@ export async function applyImport(input: {
     for (const batch of batches(checks)) await tx.insert(checklistItems).values(batch);
     for (const batch of batches(notes)) await tx.insert(comments).values(batch);
 
+    /* Only the options this import added. One that matched a name the board
+       already had is not something it made, and two lists of one name added
+       one between them. */
+    const options = new Set([...listOptions.values(), ...labelOptions.values()]).size;
+
+    /* One line on the project and one on each task, all naming this import,
+       so they go in as one statement and the webhooks ring once. The project
+       line goes first: it is the one a doorbell carries.
+       They are written here, under the lock, because the next import reads
+       them to decide what it already holds. */
+    const entries: ActivityEntry[] = [
+      {
+        projectId,
+        taskId: null,
+        actorId,
+        kind: "import",
+        data: {
+          importId,
+          source: plan.source,
+          board: plan.board,
+          tasks: plan.tasks.length,
+          options,
+          already: plan.already,
+        },
+      },
+      ...plan.tasks.map((task, at) => ({
+        projectId,
+        taskId: rows[at].id,
+        actorId,
+        kind: "import",
+        data: {
+          importId,
+          source: plan.source,
+          sourceId: task.sourceId,
+          sourceKey: task.sourceKey,
+          board: plan.board,
+        },
+      })),
+    ];
+
     return {
-      rows,
-      /* Only the options this import added. One that matched a name the board
-         already had is not something it made. */
-      options: listOptions.size + wornLabels.filter((l) => l.making).length,
+      made: { importId, tasks: plan.tasks.length, options, already: plan.already },
+      ring: await logActivityIn(tx, entries),
     };
   });
 
-  /* One line on the project and one on each task, all naming this import, so
-     `logActivityAll` writes them in one statement and the webhooks ring once.
-     The project line goes first: it is the one a doorbell carries. */
-  const entries: ActivityEntry[] = [
-    {
-      projectId,
-      taskId: null,
-      actorId,
-      kind: "import",
-      data: {
-        importId,
-        source: plan.source,
-        board: plan.board,
-        tasks: plan.tasks.length,
-        options: made.options,
-        already: plan.already,
-      },
-    },
-    ...plan.tasks.map((task, at) => ({
-      projectId,
-      taskId: made.rows[at].id,
-      actorId,
-      kind: "import",
-      data: {
-        importId,
-        source: plan.source,
-        sourceId: task.sourceId,
-        sourceKey: task.sourceKey,
-        board: plan.board,
-      },
-    })),
-  ];
-  await logActivityAll(entries);
+  /* After the commit, never before it: a doorbell is about a change that
+     happened, and a transaction that rolled back rang for nothing. */
+  if (ring) await ring();
+  return made;
+}
 
-  return {
-    importId,
-    tasks: plan.tasks.length,
-    options: made.options,
-    already: plan.already,
-  };
+/** What each new option is wanted for, named by the file's own id. */
+function asked(rows: { sourceId: string; name: string; making: boolean }[]) {
+  return rows.filter((row) => row.making).map((row) => ({ key: row.sourceId, name: row.name }));
 }

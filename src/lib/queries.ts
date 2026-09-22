@@ -198,8 +198,8 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unkn
  * would put a property back on every card in a project that never arranged one
  * — on the day somebody made their main view a list.
  */
-export async function defaultGroupById(projectId: string): Promise<string | null> {
-  const rows = await db
+export async function defaultGroupById(projectId: string, tx?: Tx): Promise<string | null> {
+  const rows = await (tx ?? db)
     .select({ groupById: views.groupById, isDefault: views.isDefault, kind: views.kind })
     .from(views)
     .where(eq(views.projectId, projectId))
@@ -208,14 +208,23 @@ export async function defaultGroupById(projectId: string): Promise<string | null
   return (boards.find((v) => v.isDefault) ?? boards[0])?.groupById ?? null;
 }
 
-export async function loadProperties(projectId: string): Promise<PropertyDTO[]> {
+/**
+ * The properties of a project, with their options.
+ *
+ * It takes a transaction for the one caller that has to read the board inside
+ * the lock it is about to write under: an import reads the options it may land
+ * on and then adds the ones it must, and a read from outside that transaction
+ * could answer from before the import that went first.
+ */
+export async function loadProperties(projectId: string, tx?: Tx): Promise<PropertyDTO[]> {
+  const handle = tx ?? db;
   const [propRows, optRows] = await Promise.all([
-    db
+    handle
       .select()
       .from(properties)
       .where(eq(properties.projectId, projectId))
       .orderBy(byPos(properties.position)),
-    db
+    handle
       .select({
         id: propertyOptions.id,
         propertyId: propertyOptions.propertyId,
