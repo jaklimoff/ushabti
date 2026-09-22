@@ -303,6 +303,39 @@ test.describe("Ushabti board", () => {
     await expect(drawn.getByTitle("Comments")).toHaveText("1");
   });
 
+  /*
+   * A field saves when you leave it, and a tab closed on one sends what the
+   * blur would have sent. A comment cannot be sent that way — nobody wrote it
+   * yet — so the words wait in the browser instead.
+   */
+  test("a half-written note survives a closed tab, and sending it clears the draft", async ({
+    page,
+    context,
+  }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Drafts"));
+    await addTask(page, "Todo", "Long note");
+
+    const note = "The queue drops a message when the worker restarts mid-batch.";
+    await page.getByPlaceholder("Leave a note…").fill(note);
+    await page.close();
+
+    const back = await context.newPage();
+    await back.goto(`/p/${projectId}`);
+    await card(back, "Long note").first().click();
+    await expect(back.getByPlaceholder("Leave a note…")).toHaveValue(note);
+
+    await saved(back, () => back.getByRole("button", { name: "Comment", exact: true }).click());
+    await expect(back.getByTestId("comment-markdown")).toContainText("restarts mid-batch");
+    await back.close();
+
+    // Sent is not unsaid: there is nothing left to put back.
+    const after = await context.newPage();
+    await after.goto(`/p/${projectId}`);
+    await card(after, "Long note").first().click();
+    await expect(after.getByPlaceholder("Leave a note…")).toHaveValue("");
+  });
+
   test("n opens a composer in the column the cursor is in", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("NewKey"));
