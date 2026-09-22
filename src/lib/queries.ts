@@ -28,7 +28,7 @@ import { readFilters } from "./filters";
 import { readTimeZone, todayIn } from "./day";
 import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readSort } from "./sort";
-import { rankSequence } from "./rank";
+import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
 import { kickSender } from "./webhooks";
 import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
@@ -72,6 +72,38 @@ export async function withProjectLock<T>(
     await tx.execute(sql`select 1 from ${projects} where ${projects.id} = ${projectId} for update`);
     return work(tx);
   });
+}
+
+/**
+ * Put the end of a task list back where there is room, and answer with the
+ * rank for the task going on it.
+ *
+ * `ordered` is every task in the project, in order, which both callers already
+ * hold under the lock. When the end has run out of room the rewritten rows go
+ * in one statement, because the point of the rewrite is that it costs one
+ * write however many rows it touches. It leaves `updated_at` alone: nothing
+ * moved, and a rank is not something a person said.
+ *
+ * `rewrote` says a rewrite happened. The tab that asked holds the old ranks of
+ * the rows it did not ask about, so it has to be told to read the board again
+ * with everybody else.
+ */
+export async function rankOnTheEnd(
+  tx: Tx,
+  ordered: { id: string; position: string }[],
+): Promise<{ position: string; rewrote: boolean }> {
+  const plan: Rebalance | null = rebalanceTail(ordered.map((t) => t.position));
+  if (!plan) return { position: rankAfter(ordered.at(-1)?.position ?? null), rewrote: false };
+
+  /* Two parameters and not two per row: a list long enough to mend a whole
+     board would pass what one statement may carry. */
+  const ids = ordered.slice(plan.from).map((row) => row.id);
+  await tx.execute(sql`
+    update ${tasks} set position = fresh.position
+    from unnest(${ids}::uuid[], ${plan.ranks}::text[]) as fresh(id, position)
+    where ${tasks.id} = fresh.id
+  `);
+  return { position: plan.next, rewrote: true };
 }
 
 /* ------------------------------------------------------------------ */
