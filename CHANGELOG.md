@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The dev server can be reached by another name.** It used to block its own
+  live-reload resources for any host but `localhost`, so the page never came
+  alive and the login form posted as plain HTML with no error. Set
+  `ALLOWED_DEV_ORIGINS` to the names, comma separated, and those hosts work.
 - **A note you have not sent survives a closed tab.** The comment box writes
   nothing until you send it, so there was nothing for the hook that saves a
   field on leave to send, and a long note typed into a tab that then closed was

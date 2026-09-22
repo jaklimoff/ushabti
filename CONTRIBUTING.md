@@ -24,6 +24,25 @@ docker compose exec app npm run db:seed   # demo data, in a second terminal
 
 The app is then at <http://localhost:3050>.
 
+The dev server answers `localhost` and blocks its own live-reload resources for
+every other name. Reached by another name, the page never comes alive and the
+login form posts as plain HTML with no error on screen. To reach it from another
+computer by a name, set `ALLOWED_DEV_ORIGINS` to those names, comma separated.
+In a `docker-compose.override.yml`, give them to the app:
+
+```yaml
+services:
+  app:
+    environment:
+      ALLOWED_DEV_ORIGINS: mini-m4.local,192.168.1.8
+```
+
+Outside Docker the shell does the same: `ALLOWED_DEV_ORIGINS=mini-m4.local npm run dev`.
+
+Write the host name only, without the scheme and without the port.
+`next.config.mjs` reads the variable, and only `next dev` uses it. Unset, the
+default stands, and the production build is the same either way.
+
 ## Before you open a pull request
 
 Run these. All of them must pass, because CI runs the same list.
