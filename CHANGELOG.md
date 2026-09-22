@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.11.0 — 2026-09-22
+
 ### Added
 
 - **Typing `@` shows who you can mention.** A short list opens beside the box,
