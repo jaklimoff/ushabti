@@ -79,7 +79,7 @@ test.describe("Who an @ can name", () => {
     await expect(page.getByTestId("mention-list")).toBeHidden();
   });
 
-  test("the title of the panel offers the same list", async ({ page }) => {
+  test("the title and the description of the panel offer the same list", async ({ page }) => {
     await register(page, "Ada Lovelace");
     const projectId = await createProject(page, unique("Mentions"));
     await addAgent(page, projectId, AGENT);
@@ -98,5 +98,14 @@ test.describe("Who an @ can name", () => {
     // The name is saved like anything else typed in the box.
     await title.blur();
     await expect(page.getByTestId("card").first()).toContainText(`@${AGENT}`);
+
+    await page.getByText("Add a description…").click();
+    const editor = page.getByPlaceholder("Write in markdown…");
+    await editor.pressSequentially("Over to @nig");
+    await expect(page.getByTestId("mention-list")).toBeVisible();
+    await editor.press("Enter");
+    await expect(editor).toHaveValue(`Over to @${AGENT} `);
+    await editor.blur();
+    await expect(page.getByTestId("markdown")).toContainText(`Over to @${AGENT}`);
   });
 });
