@@ -35,8 +35,13 @@ export function Select({ className, ...rest }: React.SelectHTMLAttributes<HTMLSe
   return <select {...rest} className={[styles.input, className ?? ""].filter(Boolean).join(" ")} />;
 }
 
-/** A name that edits in place. Invisible until you touch it. */
-export function NameInput({ className, ...rest }: React.InputHTMLAttributes<HTMLInputElement>) {
+/**
+ * A name that edits in place. Invisible until you touch it.
+ *
+ * It takes a `ref` because a box that holds its own words has to be readable
+ * when the page is left; see `useSaveOnLeave`.
+ */
+export function NameInput({ className, ...rest }: React.ComponentPropsWithRef<"input">) {
   return (
     <input {...rest} className={[styles.nameInput, className ?? ""].filter(Boolean).join(" ")} />
   );

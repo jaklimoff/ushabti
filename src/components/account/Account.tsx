@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
+import { editedText } from "@/lib/leave";
 import { Button } from "@/components/ui/Button";
 import { ColorSwatches, Field, Input } from "@/components/ui/Form";
 import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
 import { Toasts, type Toast } from "@/components/ui/Toasts";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import styles from "./account.module.css";
 
@@ -24,6 +26,16 @@ export function Account({ user, version }: { user: SessionUser; version: string 
 
   const [name, setName] = useState(user.name);
   const [color, setColor] = useState(user.color);
+  /* The box mirrors a saved name. Only what this tab typed may be written
+     back, so another window of yours cannot be undone by closing this one. */
+  const [typed, setTyped] = useState(false);
+
+  /* The name saves on blur, and a closed tab sends no blur. The colour is
+     picked, not typed, so the pick is its blur and it has nothing to lose. */
+  const nameEdit = typed ? editedText(name, user.name) : null;
+  useSaveOnLeave(() =>
+    nameEdit ? { method: "PATCH", url: "/api/auth/me", body: { name: nameEdit } } : null,
+  );
 
   async function saveProfile(patch: { name?: string; color?: string }) {
     try {
@@ -60,11 +72,14 @@ export function Account({ user, version }: { user: SessionUser; version: string 
                 aria-label="Your name"
                 value={name}
                 maxLength={80}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setTyped(true);
+                }}
                 onBlur={() => {
-                  const trimmed = name.trim();
-                  if (!trimmed) return setName(user.name);
-                  if (trimmed !== user.name) void saveProfile({ name: trimmed });
+                  setTyped(false);
+                  if (!name.trim()) return setName(user.name);
+                  if (nameEdit) void saveProfile({ name: nameEdit });
                 }}
               />
             </Field>

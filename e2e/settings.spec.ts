@@ -10,6 +10,7 @@ import {
   propertyBox,
   register,
   saved,
+  settles,
   unique,
   viewRowOrder,
 } from "./helpers";
@@ -285,6 +286,73 @@ test.describe("Settings on a phone", () => {
     await forAFinger(page.getByRole("button", { name: /^Move / }), 7);
     await forAFinger(page.getByRole("button", { name: /^Colour of / }), 24);
     await forAFinger(page.getByRole("button", { name: /^Delete the option / }), 24);
+  });
+});
+
+/*
+ * A field saves on blur, and a tab closed on a focused field sends no blur.
+ * The save goes out on the way off the page instead, so the words are there
+ * when the person comes back.
+ */
+test.describe("An edit the tab was closed on", () => {
+  test("the time zone is saved although nothing was blurred", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Leaving"));
+
+    await gotoSettings(page, projectId, "project");
+    const label = "The time zone this project's day is worked out in";
+    const zone = page.getByLabel(label);
+    await expect(zone).toBeVisible();
+    await zone.fill("Europe/Berlin");
+
+    // The box still has the focus. Closing the tab here is the lost edit.
+    const context = page.context();
+    await page.close();
+
+    const next = await context.newPage();
+    await expect
+      .poll(
+        async () => {
+          await next.goto(`/p/${projectId}/settings/project`);
+          return next.getByLabel(label).inputValue();
+        },
+        { timeout: 20_000 },
+      )
+      .toBe("Europe/Berlin");
+  });
+
+  /*
+   * A box mirrors what is saved, and the mirror goes stale the moment another
+   * tab changes it. Leaving on that mirror would put the old words back, which
+   * is not a lost edit being saved but a saved edit being lost.
+   */
+  test("a tab that typed nothing writes nothing back", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Quiet"));
+
+    await gotoSettings(page, projectId, "project");
+    const label = "Project name";
+    await expect(page.getByLabel(label)).toBeVisible();
+
+    // The other tab renames the project, and this one hears about it.
+    const context = page.context();
+    const other = await context.newPage();
+    await other.goto(`/p/${projectId}/settings/project`);
+    const renamed = unique("Renamed");
+    const box = other.getByLabel(label);
+    await box.fill(renamed);
+    await settles(other, /^\/api\/projects\/[0-9a-f-]+$/, () => box.blur());
+
+    /* The bar of this tab, and not the answer to its board read: a test that
+       waits for the response can pass on a slow commit with no gate at all,
+       because the tab is still holding the name it was born with. */
+    await expect(page.getByRole("link", { name: renamed })).toBeVisible();
+
+    // Nobody typed in this tab, so closing it writes nothing.
+    await page.close();
+    await other.waitForTimeout(2_000);
+    await other.reload();
+    await expect(other.getByLabel(label)).toHaveValue(renamed);
   });
 });
 

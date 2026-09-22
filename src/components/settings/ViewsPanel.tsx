@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -17,9 +17,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Row, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import {
@@ -155,6 +157,10 @@ export function ViewsPanel() {
 function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] }) {
   const { data, updateView, deleteView, setMainView } = useBoard();
   const confirm = useConfirm();
+  const box = useRef<HTMLInputElement>(null);
+  /* The box holds a name that another tab can change under it, so only what
+     this tab typed may be written back. */
+  const [typed, setTyped] = useState(false);
   const isOwner = data.project.role === "owner";
   const {
     attributes,
@@ -185,6 +191,13 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
     }
     void updateView(view.id, { kind: next });
   }
+
+  /* The name saves on blur, and a closed tab sends no blur. The box holds its
+     own words, so the leave reads the box. */
+  useSaveOnLeave(() => {
+    const edit = typed ? editedText(box.current?.value ?? "", view.name) : null;
+    return edit ? { method: "PATCH", url: `/api/views/${view.id}`, body: { name: edit } } : null;
+  });
 
   if (confirm.asking) {
     return (
@@ -222,12 +235,15 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         <span />
       </button>
       <NameInput
+        ref={box}
         className={styles.viewName}
         aria-label={`Name of the view ${view.name}`}
         defaultValue={view.name}
+        onChange={() => setTyped(true)}
         onBlur={(e) => {
-          const value = e.target.value.trim();
-          if (value && value !== view.name) void updateView(view.id, { name: value });
+          setTyped(false);
+          const edit = editedText(e.target.value, view.name);
+          if (edit) void updateView(view.id, { name: edit });
           else e.target.value = view.name;
         }}
       />

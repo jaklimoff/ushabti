@@ -18,6 +18,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   end of a list is rewritten when a rank would reach 32 characters: one
   statement, about 256 rows, nothing that moves on screen. An old board with
   ranks already past the cap mends itself on the next task added to the end.
+- **An edit is no longer lost when the tab is closed on it.** A field saves on
+  blur, and a tab closed while the field still has the focus sends no blur, so
+  the words went nowhere. One hook, `useSaveOnLeave`, sends what the blur would
+  have sent on `pagehide`, with `keepalive` so the browser finishes it after
+  the page is gone. It is not an autosave: it sends only what you typed in
+  that tab, so a tab left open on a page somebody else changed puts nothing
+  back. The task title, the description, a checklist item,
+  the project name, key and time zone, a property name, an option name, a view
+  name, a webhook address and your own name all use it.
 
 - **A dying heartbeat no longer closes a hand-over.** `board.mjs beat` reports
   the run `lost` when it is killed with the session, so a card comes back the
