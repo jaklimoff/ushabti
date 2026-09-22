@@ -154,7 +154,9 @@ function toRank(value: bigint, width: number): string {
 }
 
 /**
- * Every rank a project carries is shorter than this.
+ * A rank made on the append path stays shorter than this; a task dropped
+ * between two others can still grow past it, and only the order is promised
+ * there.
  *
  * 32 keeps `tasks_project_position_idx` narrow, and it is loose enough that a
  * rewrite is rare: a rank grows a digit every sixth append, so about 150 tasks
