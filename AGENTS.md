@@ -278,7 +278,8 @@ and what is easy to get wrong.
   after another tab changes it, and sending those would put the change back.
   A new blur-saved field that forgets either half loses an edit in silence, or
   undoes somebody else's, and only a closed tab shows it. Every box that holds
-  words says it: the title and the description of a task, the rows of settings
+  words says it: the title, the description and a checklist item of a task, the
+  rows of settings
   and of the account, and the filter box, which is the one that puts a whole
   lens where the others patch a row. The value boxes of the detail panel are
   the exception. `PropertyControl` draws the same scalar and date field for one
