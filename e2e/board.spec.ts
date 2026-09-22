@@ -1158,4 +1158,42 @@ test.describe("An edit the tab was closed on", () => {
       )
       .toContain("The words the tab took");
   });
+
+  /*
+   * A click is not an edit. The box seeds a draft from the title, and that
+   * draft goes stale the moment an agent or another person renames the task —
+   * which on this board is the ordinary case, not the rare one. Closing the
+   * tab on it must not put the old name back.
+   */
+  test("a title clicked into but not typed in writes nothing back", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Quiet"));
+    await addTask(page, "Todo", "The first name");
+
+    // The cursor sits in the title, and nothing is typed.
+    await page.getByTestId("task-title").click();
+
+    // The other tab renames the task, and this one hears about it.
+    const context = page.context();
+    const other = await context.newPage();
+    await other.goto(`/p/${projectId}`);
+    const renamed = "The name that has to stand";
+    await card(other, "The first name").first().click();
+    const box = other.getByTestId("task-title");
+    await box.click();
+    await box.fill(renamed);
+    await settles(other, /^\/api\/tasks\/[0-9a-f-]+$/, () => box.press("Enter"));
+
+    /* The tab that typed nothing draws the new name, cursor and all. This is
+       the assertion with the teeth: a box that still drew the old name would
+       be holding exactly the words a leave would send. */
+    await expect(page.getByTestId("task-title")).toHaveValue(renamed);
+
+    // Nobody typed in this tab, so closing it writes nothing.
+    await page.close();
+    await other.waitForTimeout(2_000);
+    await other.reload();
+    await expect(card(other, renamed).first()).toBeVisible();
+    await expect(card(other, "The first name")).toHaveCount(0);
+  });
 });

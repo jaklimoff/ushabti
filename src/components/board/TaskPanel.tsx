@@ -1211,7 +1211,10 @@ function TitleField({
   onCommit: (v: string) => void;
 }) {
   const [draft, setDraft] = useState(value);
-  const [editing, setEditing] = useState(false);
+  /* Whether this tab typed in the box since its last save. A click is not an
+     edit: the draft it leaves behind goes stale the moment an agent or
+     another person renames the task, and writing it back would undo them. */
+  const [typed, setTyped] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   /* Escape blurs the field, and the blur is what saves. The draft is state, so
@@ -1222,14 +1225,15 @@ function TitleField({
 
   /* The field shows what the task says, and the draft only while somebody is
      writing in it. A title another person changed is therefore on screen at
-     once, and never has to be copied into the draft afterwards. */
-  const text = editing ? draft : value;
+     once, even under a cursor that typed nothing, and never has to be copied
+     into the draft afterwards. */
+  const text = typed ? draft : value;
 
   /* The blur that saves this field never comes when the tab is closed on it,
      so the same words go out on the way off the page. Escape throws them
-     away, and a field nobody is writing in holds an old draft. */
+     away, and a box nobody typed in has nothing to send. */
   useSaveOnLeave(() => {
-    if (!editing || thrown.current) return null;
+    if (!typed || thrown.current) return null;
     const edit = editedText(draft, value);
     return edit ? { method: "PATCH", url: `/api/tasks/${taskId}`, body: { title: edit } } : null;
   });
@@ -1250,13 +1254,14 @@ function TitleField({
       rows={1}
       onFocus={() => {
         thrown.current = false;
-        setDraft(value);
-        setEditing(true);
       }}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        setTyped(true);
+      }}
       onBlur={() => {
-        setEditing(false);
-        if (thrown.current) return;
+        setTyped(false);
+        if (!typed || thrown.current) return;
         const edit = editedText(draft, value);
         if (edit) onCommit(edit);
       }}
@@ -1285,12 +1290,20 @@ function Description({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
+  /* Whether this tab typed since the editor opened. Opening it is not an
+     edit, and the draft it leaves behind goes stale the moment somebody else
+     writes the description. */
+  const [typed, setTyped] = useState(false);
+
+  /* The editor shows what the task says until somebody types, so a
+     description another person wrote is on screen at once. */
+  const text = typed ? draft : value;
 
   /* The same missing blur as the title. An empty description is an answer
      here, so this asks whether the words changed rather than whether there
      are any. */
   useSaveOnLeave(() =>
-    editing && draft !== value
+    typed && draft !== value
       ? { method: "PATCH", url: `/api/tasks/${taskId}`, body: { description: draft } }
       : null,
   );
@@ -1299,6 +1312,7 @@ function Description({
      is what fills it in. */
   function edit() {
     setDraft(value);
+    setTyped(false);
     setEditing(true);
   }
 
@@ -1316,12 +1330,16 @@ function Description({
         <textarea
           className={styles.descEditor}
           autoFocus
-          value={draft}
+          value={text}
           placeholder="Write in markdown…"
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setTyped(true);
+          }}
           onBlur={() => {
             setEditing(false);
-            if (draft !== value) onCommit(draft);
+            setTyped(false);
+            if (typed && draft !== value) onCommit(draft);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -1333,6 +1351,7 @@ function Description({
               // a removed element raises no blur, so nothing is saved. A
               // blur() would save the draft first, which is the title's bug.
               setDraft(value);
+              setTyped(false);
               setEditing(false);
             }
           }}

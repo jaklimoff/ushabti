@@ -339,13 +339,14 @@ test.describe("An edit the tab was closed on", () => {
     const other = await context.newPage();
     await other.goto(`/p/${projectId}/settings/project`);
     const renamed = unique("Renamed");
-    const heard = page.waitForResponse(
-      (r) => new URL(r.url()).pathname.endsWith("/board") && r.request().method() === "GET",
-    );
     const box = other.getByLabel(label);
     await box.fill(renamed);
     await settles(other, /^\/api\/projects\/[0-9a-f-]+$/, () => box.blur());
-    await heard;
+
+    /* The bar of this tab, and not the answer to its board read: a test that
+       waits for the response can pass on a slow commit with no gate at all,
+       because the tab is still holding the name it was born with. */
+    await expect(page.getByRole("link", { name: renamed })).toBeVisible();
 
     // Nobody typed in this tab, so closing it writes nothing.
     await page.close();
