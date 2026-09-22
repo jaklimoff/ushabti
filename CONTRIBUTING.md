@@ -24,6 +24,17 @@ docker compose exec app npm run db:seed   # demo data, in a second terminal
 
 The app is then at <http://localhost:3050>.
 
+To stop a secret before it leaves your machine, install
+[gitleaks](https://github.com/gitleaks/gitleaks) and turn on the hook once per
+clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`.githooks/pre-push` then scans the commits each push adds, and refuses the
+push if one of them holds a key, a token or a password.
+
 The dev server answers `localhost` and blocks its own live-reload resources for
 every other name. Reached by another name, the page never comes alive and the
 login form posts as plain HTML with no error on screen. To reach it from another
