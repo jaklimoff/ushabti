@@ -14,6 +14,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   live-reload resources for any host but `localhost`, so the page never came
   alive and the login form posted as plain HTML with no error. Set
   `ALLOWED_DEV_ORIGINS` to the names, comma separated, and those hosts work.
+- **The Show button beside a password is an eye.** It sits on sign-in, sign-up
+  and the page a reset link opens, it is square and the height of the box, and
+  it still answers to "Show the password" for a screen reader. The button
+  itself was sound; a test now presses it on both forms and reads the field
+  back, so a reveal that stops working is caught here and not in a browser.
 - **A note you have not sent survives a closed tab.** The comment box writes
   nothing until you send it, so there was nothing for the hook that saves a
   field on leave to send, and a long note typed into a tab that then closed was
