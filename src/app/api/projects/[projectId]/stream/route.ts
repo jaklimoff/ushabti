@@ -1,8 +1,8 @@
 import { fail, guard } from "@/lib/api";
 import { markListening } from "@/lib/agents";
 import { HttpError } from "@/lib/auth";
-import { publish, subscribe } from "@/lib/events";
-import { LISTEN_TOUCH_MS } from "@/lib/presence";
+import { isPresence, publish, subscribe } from "@/lib/events";
+import { LISTEN_TOUCH_MS, readClientId } from "@/lib/presence";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,12 +18,23 @@ type Ctx = { params: Promise<{ projectId: string }> };
  * the activity feed after the last line it saw. Neither trusts the event to
  * carry the change, because SSE drops whatever happens while the socket is
  * down, and the feed does not.
+ *
+ * `presence` is the one event that carries its data: which task a person's
+ * tab has open. Nothing stores it, so there is nothing to read instead. An
+ * agent receives it too and ignores it, as it ignores any event it does not
+ * know.
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { projectId } = await ctx.params;
   let tokenId: string | undefined;
+  let userId = "";
+  /* An EventSource cannot set a header, so the tab names itself here. */
+  const clientId = readClientId(new URL(req.url).searchParams.get("client"));
+  let human = false;
   try {
     const { user } = await guard(projectId);
+    userId = user.id;
+    human = user.kind === "human";
     // An agent holding this open hears a new task. That is what "listening"
     // means on the board, so the stream is what says it.
     if (user.kind === "agent") tokenId = user.tokenId;
@@ -45,12 +56,20 @@ export async function GET(req: Request, ctx: Ctx) {
     await publish({ projectId, scope: "project" });
   };
 
+  /* A tab that closes the board says goodbye through its stream, so its face
+     goes at once. The lease covers a crash; this covers a normal close. */
+  const leave = async () => {
+    if (!human || !clientId) return;
+    await publish({ projectId, kind: "presence", clientId, userId, taskId: null, field: null });
+  };
+
   const close = () => {
     if (closed) return;
     closed = true;
     if (heartbeat) clearInterval(heartbeat);
     unsubscribe?.();
     void listening(false);
+    void leave();
   };
 
   const stream = new ReadableStream({
@@ -66,7 +85,8 @@ export async function GET(req: Request, ctx: Ctx) {
       send(`retry: 3000\n\n`);
 
       unsubscribe = await subscribe(projectId, (event) => {
-        send(`event: change\ndata: ${JSON.stringify(event)}\n\n`);
+        const name = isPresence(event) ? "presence" : "change";
+        send(`event: ${name}\ndata: ${JSON.stringify(event)}\n\n`);
       });
 
       // Ready goes out after the subscription, so that a client which reads

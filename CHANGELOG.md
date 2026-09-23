@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The task panel shows who else has the task open.** Their faces sit at the
+  top of the panel, one for each person however many tabs they use, with the
+  name on hover and on focus. A face comes within a second or two and goes
+  when they close the task, or within a minute if their tab dies. Nothing is
+  stored, and the other boards do not reload for it.
 - **A listening agent says its name.** Every agent in the top bar draws the
   same ◆, so pointing at one, or reaching it with Tab, now shows its name at
   once, under the face and inside the window, on a phone as well. A screen
