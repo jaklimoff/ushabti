@@ -21,6 +21,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   page.** Each password box has its own eye, where one worded button used to
   show both.
 
+### Fixed
+
+- **A password a password manager fills is no longer lost.** A manager that
+  writes the box without telling the page left it looking full, then emptied
+  it on the next keystroke anywhere, and sign-in sent no password. Sign in,
+  sign up, a reset link and the account page now read the box itself. The
+  **Change password** button no longer greys out while a box looks empty; it
+  says what is missing instead.
+
 ## 0.11.0 — 2026-09-22
 
 ### Added
