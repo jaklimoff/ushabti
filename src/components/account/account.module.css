@@ -68,17 +68,6 @@
   padding: 6px 0;
 }
 
-.reveal {
-  font-size: var(--t-small);
-  color: var(--muted);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.reveal:hover {
-  color: var(--accent-soft);
-}
-
 .version {
   font-family: var(--font-mono);
   font-size: 9px;
