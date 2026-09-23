@@ -2,6 +2,7 @@ import "server-only";
 import { Client } from "pg";
 import { pool } from "@/db";
 import { databaseUrl } from "@/db/url";
+import type { PresenceSaid } from "./presence";
 
 const CHANNEL = "ushabti_events";
 
@@ -14,7 +15,21 @@ export type BoardEvent = {
   clientId?: string;
 };
 
-type Listener = (event: BoardEvent) => void;
+/**
+ * Which task a person's tab has open. It is not a doorbell: it carries its
+ * data, because nothing stores it and there is nothing to read afterwards.
+ * The stream sends it as `presence`, never as `change`, so it makes no board
+ * read the board again.
+ */
+export type PresenceEvent = PresenceSaid & { projectId: string; kind: "presence" };
+
+export type StreamEvent = BoardEvent | PresenceEvent;
+
+export function isPresence(event: StreamEvent): event is PresenceEvent {
+  return "kind" in event && event.kind === "presence";
+}
+
+type Listener = (event: StreamEvent) => void;
 
 type Hub = {
   listeners: Map<string, Set<Listener>>;
@@ -44,9 +59,9 @@ async function ensureListener(): Promise<void> {
     });
     client.on("notification", (msg) => {
       if (!msg.payload) return;
-      let event: BoardEvent;
+      let event: StreamEvent;
       try {
-        event = JSON.parse(msg.payload) as BoardEvent;
+        event = JSON.parse(msg.payload) as StreamEvent;
       } catch {
         return;
       }
@@ -80,7 +95,7 @@ export async function subscribe(projectId: string, fn: Listener): Promise<() => 
   };
 }
 
-export async function publish(event: BoardEvent): Promise<void> {
+export async function publish(event: StreamEvent): Promise<void> {
   try {
     await pool.query("SELECT pg_notify($1, $2)", [CHANNEL, JSON.stringify(event)]);
   } catch {
