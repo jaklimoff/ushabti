@@ -28,7 +28,7 @@ import { seedNote, seedValues } from "@/lib/filters";
 import { canSort, nextSort, sortTasks } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
 import { useShortcut } from "./keys";
-import { MentionList, useMentions } from "./Mentions";
+import { Composer } from "./Column";
 import { useBoard } from "./store";
 import { TaskRow, pinProps } from "./TaskRow";
 import styles from "./board.module.css";
@@ -101,7 +101,6 @@ export function ListCanvas({
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const picker = useMentions(inputRef, setDraft);
 
   // A list has one composer, at the end, so `n` has one place to open it.
   useShortcut("n", () => {
@@ -425,42 +424,17 @@ export function ListCanvas({
                 places; a list has one order and the drag is right there. */}
             {composing ? (
               <div className={styles.listCompose}>
-                <div className={styles.composer}>
-                  <textarea
-                    ref={inputRef}
-                    className={styles.composerInput}
-                    value={draft}
-                    placeholder="What needs doing?"
-                    onChange={(e) => {
-                      setDraft(e.target.value);
-                      picker.sync();
-                    }}
-                    onSelect={picker.sync}
-                    onKeyDown={(e) => {
-                      /* The list has the keys while it is open, so Enter
-                         picks a name instead of making the task. */
-                      if (picker.onKeyDown(e)) return;
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        void commit();
-                      }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        setDraft("");
-                        setComposing(false);
-                      }
-                    }}
-                    onBlur={() => {
-                      picker.close();
-                      if (draft.trim()) void commit();
-                      else setComposing(false);
-                    }}
-                  />
-                  <span className={styles.composerHint}>
-                    Enter to add · {addNote || "Esc to cancel"}
-                  </span>
-                  <MentionList picker={picker} />
-                </div>
+                <Composer
+                  ref={inputRef}
+                  draft={draft}
+                  setDraft={setDraft}
+                  note={addNote}
+                  commit={() => void commit()}
+                  cancel={() => {
+                    setDraft("");
+                    setComposing(false);
+                  }}
+                />
               </div>
             ) : (
               <button

@@ -8,7 +8,7 @@ import {
   type SortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { BoardColumn } from "@/lib/board";
 import type { TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
@@ -342,7 +342,9 @@ export function Column({
   );
 }
 
-const Composer = function Composer({
+/** The box a new task is typed into. A column draws it at its top and bottom,
+    and a list at its end, so the two read and grow the same way. */
+export const Composer = function Composer({
   ref,
   draft,
   setDraft,
@@ -358,6 +360,16 @@ const Composer = function Composer({
   cancel: () => void;
 }) {
   const picker = useMentions(ref, setDraft);
+
+  /* The box grows with the title, so a long one is read before Enter makes
+     the task. Before paint, so the box never shows a scrollbar for a frame.
+     `field-sizing: content` would do this in CSS, but not in every browser. */
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [ref, draft]);
 
   return (
     <div className={styles.composer}>
