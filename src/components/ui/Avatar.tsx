@@ -13,14 +13,15 @@ export function Avatar({
   name: string;
   color: string;
   size?: number;
-  title?: string;
+  /** Null draws no title, for a caller that names the face in its own way. */
+  title?: string | null;
   kind?: "human" | "agent";
   /** An agent with an open run breathes, so the board shows who is at work. */
   live?: boolean;
 }) {
   const face = (
     <span
-      title={title ?? name}
+      title={title === null ? undefined : (title ?? name)}
       style={{
         width: size,
         height: size,

@@ -88,6 +88,55 @@
   gap: 4px;
 }
 
+.listener {
+  position: relative;
+  display: inline-flex;
+  border-radius: 50%;
+  outline: none;
+}
+
+.listener:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Until it is placed it hangs from the right edge of its face, which keeps
+   it inside a wide window. It shows at once: a tip that waits is the title
+   it replaces. It shows on any focus, not only a keyboard's, because a phone
+   has no hover and a tap is how it asks. It is hidden and not removed, so
+   it can be measured before it shows. */
+.listenerTip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -4px;
+  z-index: 40;
+  display: flex;
+  visibility: hidden;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 16px));
+  padding: 6px 9px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-sm);
+  box-shadow: 0 6px 18px #00000055;
+  font-size: var(--t-micro);
+  line-height: 1.35;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.listener:hover .listenerTip,
+.listener:focus .listenerTip {
+  visibility: visible;
+}
+
+.listenerName {
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--text-2);
+}
+
 .liveDotOff {
   width: 5px;
   height: 5px;
