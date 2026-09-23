@@ -15,8 +15,8 @@ what. No title, no value, no before and after. The receiver reads the board for 
 
 ## Make one
 
-**Settings → Webhooks**, at `/p/{projectId}/settings/webhooks`. Only the owner of the project sees
-the page, and every route below is `ownerOnly` — the read one included. A URL and a secret are
+**Settings → Webhooks**, at `/p/{projectId}/settings/webhooks`. Only the owner and admins see
+the page, and every route below is `adminOnly` — the read one included. A URL and a secret are
 another road onto the board.
 
 The secret is shown **once**, when the webhook is made. Ushabti keeps it whole, because it signs

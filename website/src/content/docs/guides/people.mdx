@@ -1,6 +1,6 @@
 ---
 title: People and projects
-description: Accounts, projects, adding members, and exactly what the owner can do that a member cannot.
+description: Accounts, projects, adding members, and exactly what the owner, an admin and a member can each do.
 sidebar:
   order: 11
 ---
@@ -32,7 +32,7 @@ ordinary rows.
 
 ## Adding somebody
 
-**Settings → People**, owner only. Add them by email.
+**Settings → People**, for the owner and admins. Add them by email.
 
 A person who already has an account is a member at once. One who does not is **invited**: the email
 waits in the list with an *invited* tag, the page hands you a copyable sign-up link to send them,
@@ -41,16 +41,19 @@ the product — so sending the link is yours to do.
 
 An invited email gets through a closed board (`USHABTI_SIGNUP=closed`). That is the point of it:
 before, a closed board told the owner *"ask them to register"* and the person *"ask the owner"*, and
-nobody could break the circle. The owner withdraws an invite from its row, which asks first.
+nobody could break the circle. The owner or an admin withdraws an invite from its row, which asks first.
 
 ## A forgotten password
 
 There is no email in Ushabti, so there is no "forgot my password" form to fill in. The way back is a
-person who can vouch for you: **the owner of any project you are in**. Any of them will do — the
-link is about your account and not about their board — and that holds even if you own a project
-yourself. Owning one does not stop another project's owner making you a link.
+person who can vouch for you: **the owner or an admin of any project you are in**. Any of them will
+do — the link is about your account and not about their board — and that holds even if you own a
+project yourself. Owning one does not stop the owner or an admin of another project making you a
+link, where you are a member there.
 
-In **Settings → People**, the owner presses **Reset password** on that member's row. The row asks
+In **Settings → People**, the owner or an admin presses **Reset password** on that member's row. An
+admin makes one for a member; a link for an admin is the owner's to make, and nobody makes one for
+the owner of that project. The row asks
 first — *"Make a reset link for Ada? It signs them out everywhere once used."* — and then shows one
 link with a copy button:
 
@@ -75,11 +78,11 @@ nothing else:
 It never says whether an account exists — the page is open to anybody with a URL.
 
 <Aside type="caution" title="Two things this does not do">
-The owner never learns the new password, and never sees the old one; the link sets a password, it
+Whoever made the link never learns the new password, and never sees the old one; the link sets a password, it
 does not read one.
 
 And there is no self-service form, so **one person must have somebody to ask**. Every project you
-are a member of is a way back — ask the owner of any of them, whether or not you own a project of
+are a member of is a way back — ask the owner or an admin of any of them, whether or not you own a project of
 your own. Only a person who is in no project but their own has nobody to ask, and their password is
 the one to keep somewhere safe.
 </Aside>
@@ -94,41 +97,64 @@ session. The owner's row never offers *Reset password* for that reason, and an a
 does either: an agent has no password, only [tokens](/ushabti/agents/). Each of the two password
 boxes at `/account` has the same **eye** as the sign-in page.
 
-## Owner and member
+## Owner, admin and member
 
 Everybody in a project sees and edits everything in it. There are no per-task and no per-field
 permissions, and none are planned.
 
-The split that does exist is between **structure and content**:
+The split that does exist is between **structure and content**, and there are three roles:
 
 <CardGrid>
   <Card title="Content is shared" icon="pencil">
     Any member — and any agent — creates, edits, moves and deletes tasks, sets any value, comments,
     edits checklists, adds properties and options, renames them, creates views and regroups them.
   </Card>
-  <Card title="Structure is the owner's" icon="setting">
-    Only the owner deletes a property, an option or a view; adds or removes members; creates agents,
-    issues and revokes tokens; renames the project; or deletes it.
+  <Card title="Structure is an admin's" icon="setting">
+    The owner and admins delete a property, an option or a view; add or remove people; create
+    agents, issue and revoke tokens; set up webhooks and imports; and change the project's settings.
   </Card>
 </CardGrid>
 
 Note which side *deleting* falls on. Adding a property is a Tuesday; deleting one takes fourteen
 values with it.
 
+**One person is the owner.** It is whoever made the project, until they hand it over. The owner can
+do everything an admin can, and three things more: delete the project, make somebody else the owner,
+and change an admin's role. An admin who could do those could remove the owner, which is why a
+second owner does not exist.
+
+### Changing a role
+
+In **Settings → People**, each person's row has a **role** select for the owner and admins. It saves
+on change. An admin can make a member an admin; only the owner can make an admin a member again.
+
+Picking **owner** hands the project over. The row asks first — *"Make Ada the owner? You become an
+admin."* — because it is the one change that takes something from the person making it. There is
+always exactly one owner. The owner's own row has no select.
+
 ### The exact list
 
-**Owner only** — and, in every case, a person rather than an agent:
+**Owner only** — and, in every case, a person:
 
-- delete a property, delete an option, delete a view
-- add a member, remove another member, make a member a reset link
+- delete the project
+- make somebody else the owner
+- change an admin's role, remove an admin, make an admin a reset link
+
+**The owner and admins** — and, in every case, a person rather than an agent:
+
+- delete a property, delete an option, delete a view, pick the main view
+- add a member, withdraw an invite, remove a member, make a member a reset link, make a member an
+  admin
 - create an agent, remove an agent, issue a token, revoke a token
-- rename the project, change the key, delete the project
+- add, change and read webhooks; import a board
+- rename the project, change the key, the time zone and what the project calls done
+- delete somebody else's comment
 
 **Any member:** everything else, including adding properties and options, renaming and recolouring
 them, reordering them, creating and regrouping views, and setting filters.
 
-**A member may remove themselves.** The owner may not — *"The owner cannot leave the project. Delete
-the project instead."*
+**A member or an admin may remove themselves.** The owner may not — *"The owner cannot leave the
+project. Delete the project instead."* Hand the project over first.
 
 ## And an agent
 
@@ -137,7 +163,7 @@ project, using the same JSON API with a bearer token.
 
 It can do everything a member can, **except**:
 
-- anything on the owner-only list above
+- anything on the two lists above: **an agent is always a member**, and never an admin
 - write a view's **filters** — a token that could hide work from the people should not
 - write a run's control word — *Pause* and *Stop* mean nothing if the agent can write them itself
 - leave a project

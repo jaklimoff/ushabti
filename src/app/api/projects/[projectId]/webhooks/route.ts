@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { webhooks } from "@/db/schema";
-import { body, guard, json, ownerOnly, route } from "@/lib/api";
+import { body, guard, json, adminOnly, route } from "@/lib/api";
 import { loadWebhooks, mintSecret, webhookUrl } from "@/lib/webhooks";
 import { readKinds } from "@/lib/webhook-delivery";
 
@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 
 /**
  * A webhook is a URL and a secret, which is access to the board by another
- * road. So every route here is `ownerOnly` — the read one too. A member who
+ * road. So every route here is `adminOnly` — the read one too. A member who
  * could read the list would have the endpoint the board rings; a member who
  * could write one would point it at their own.
  */
@@ -16,7 +16,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 export const GET = route<Ctx>(async (_req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "see the webhooks of this project");
+  adminOnly(user, membership, "see the webhooks of this project");
   return json({ webhooks: await loadWebhooks(projectId) });
 });
 
@@ -31,7 +31,7 @@ export const GET = route<Ctx>(async (_req, ctx) => {
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "add a webhook");
+  adminOnly(user, membership, "add a webhook");
 
   const input = await body<{ url?: string; kinds?: unknown }>(req);
   const url = webhookUrl(input.url);

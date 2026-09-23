@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
+import { canManage, isOwner, outranks, rolesOffered, type Role } from "@/lib/roles";
 import { isListening } from "@/lib/presence";
 import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
-import { Input } from "@/components/ui/Form";
+import { Input, Select } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
@@ -46,7 +47,7 @@ export function PeoplePanel() {
     <>
       <PageHead
         title="People"
-        note="Everybody here can create, edit and move tasks. An agent is a member too — it just signs in with a token."
+        note="Everybody here can create, edit and move tasks. An admin also adds people and agents and changes the shape of the project; only the owner can delete it. An agent is always a member — it just signs in with a token."
       />
       <Members />
       <Agents agents={agents} reload={loadAgents} />
@@ -63,7 +64,7 @@ function Members() {
   const [error, setError] = useState<string | null>(null);
   const [invited, setInvited] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const isOwner = data.project.role === "owner";
+  const canEdit = canManage(data.project.role);
   const origin = useSyncExternalStore(
     subscribeNothing,
     () => window.location.origin,
@@ -104,6 +105,15 @@ function Members() {
     }
   }
 
+  async function changeRole(member: MemberDTO, role: Role) {
+    try {
+      await api.patch(`/api/projects/${data.project.id}/members/${member.id}`, { role });
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not change that role.");
+    }
+  }
+
   async function withdraw(invite: InviteDTO) {
     try {
       await api.del(`/api/projects/${data.project.id}/invites/${encodeURIComponent(invite.email)}`);
@@ -123,10 +133,17 @@ function Members() {
             key={member.id}
             member={member}
             isSelf={member.id === user.id}
-            canRemove={member.role !== "owner" && (isOwner || member.id === user.id)}
-            /* Never the owner's own row: /account changes a password you know,
-               and an agent has no password to change. */
-            canReset={isOwner && member.role !== "owner"}
+            canRemove={
+              member.id === user.id
+                ? !isOwner(member.role)
+                : outranks(data.project.role, member.role)
+            }
+            /* Never your own row: /account changes a password you know. The
+               route asks the same `outranks`, so an admin gets it for a
+               member and only the owner for an admin. */
+            canReset={member.id !== user.id && outranks(data.project.role, member.role)}
+            roles={rolesOffered(data.project.role, member.role, member.kind, member.id === user.id)}
+            onRole={(role) => void changeRole(member, role)}
             projectId={data.project.id}
             onRemove={() => void remove(member)}
           />
@@ -135,12 +152,12 @@ function Members() {
           <InviteRow
             key={invite.email}
             invite={invite}
-            canWithdraw={isOwner}
+            canWithdraw={canEdit}
             onWithdraw={() => void withdraw(invite)}
           />
         ))}
 
-        {isOwner && (
+        {canEdit && (
           <Foot>
             <Input
               style={{ flex: 1, minWidth: 180 }}
@@ -193,6 +210,8 @@ function MemberRow({
   isSelf,
   canRemove,
   canReset,
+  roles,
+  onRole,
   projectId,
   onRemove,
 }: {
@@ -200,12 +219,16 @@ function MemberRow({
   isSelf: boolean;
   canRemove: boolean;
   canReset: boolean;
+  /** The roles the select offers; empty when this row has no select. */
+  roles: Role[];
+  onRole: (role: Role) => void;
   projectId: string;
   onRemove: () => void;
 }) {
   const { notify } = useBoard();
   const confirm = useConfirm();
   const reset = useConfirm();
+  const handOver = useConfirm();
   /** The link, held until the person leaves the page, as a token is. */
   const [link, setLink] = useState<string | null>(null);
 
@@ -225,12 +248,23 @@ function MemberRow({
       <ConfirmRow
         question={
           isSelf
-            ? "Leave this project? Only the owner can put you back."
+            ? "Leave this project? Only the owner or an admin can put you back."
             : `Remove ${member.name}? They lose the board; their tasks and comments stay.`
         }
         confirmLabel={isSelf ? "Yes, leave" : "Yes, remove"}
         onConfirm={() => confirm.confirm(onRemove)}
         onCancel={confirm.cancel}
+      />
+    );
+  }
+
+  if (handOver.asking) {
+    return (
+      <ConfirmRow
+        question={`Make ${member.name} the owner? You become an admin.`}
+        confirmLabel="Yes, make owner"
+        onConfirm={() => handOver.confirm(() => onRole("owner"))}
+        onCancel={handOver.cancel}
       />
     );
   }
@@ -252,7 +286,29 @@ function MemberRow({
         <Avatar name={member.name} color={member.color} size={22} />
         <span className={styles.memberName}>{member.name}</span>
         <span className={styles.memberMail}>{member.email}</span>
-        {member.role === "owner" && <Tag accent>owner</Tag>}
+        {roles.length > 0 ? (
+          /* Saves on change. Only the hand-over asks first, because it is
+             the one change that takes something from the person making it. */
+          <Select
+            aria-label={`Role of ${member.name}`}
+            value={member.role}
+            onChange={(e) => {
+              const next = e.target.value as Role;
+              if (next === "owner") handOver.ask();
+              else onRole(next);
+            }}
+          >
+            {roles.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </Select>
+        ) : isOwner(member.role) ? (
+          <Tag accent>owner</Tag>
+        ) : member.role === "admin" ? (
+          <Tag>admin</Tag>
+        ) : null}
         <Spacer />
         {canReset && (
           <Button variant="ghost" onClick={reset.ask}>
@@ -338,7 +394,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
   const [busy, setBusy] = useState(false);
   /** The plain text of a token, held until the person leaves the page. */
   const [secrets, setSecrets] = useState<Record<string, string>>({});
-  const isOwner = data.project.role === "owner";
+  const canEdit = canManage(data.project.role);
   const projectId = data.project.id;
 
   async function create() {
@@ -414,7 +470,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
           <AgentBox
             key={agent.id}
             agent={agent}
-            isOwner={isOwner}
+            canEdit={canEdit}
             secrets={secrets}
             onConnect={() => void connect(agent)}
             onRevoke={(id) => void revoke(id)}
@@ -423,7 +479,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
           />
         ))}
 
-        {isOwner && (
+        {canEdit && (
           <Foot>
             <Input
               style={{ flex: 1, minWidth: 180 }}
@@ -445,7 +501,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
 
 function AgentBox({
   agent,
-  isOwner,
+  canEdit,
   secrets,
   onConnect,
   onRevoke,
@@ -453,7 +509,7 @@ function AgentBox({
   reload,
 }: {
   agent: AgentDTO;
-  isOwner: boolean;
+  canEdit: boolean;
   secrets: Record<string, string>;
   onConnect: () => void;
   onRevoke: (tokenId: string) => void;
@@ -477,7 +533,7 @@ function AgentBox({
           <span className={styles.memberName}>{agent.name}</span>
           <Tag>agent</Tag>
           <Spacer />
-          {isOwner && (
+          {canEdit && (
             <>
               <Button variant="ghost" onClick={onConnect}>
                 Connect
@@ -501,7 +557,7 @@ function AgentBox({
           token={token}
           agentName={agent.name}
           secret={secrets[token.id]}
-          isOwner={isOwner}
+          canEdit={canEdit}
           onRevoke={() => onRevoke(token.id)}
           reload={reload}
         />
@@ -514,14 +570,14 @@ function TokenRow({
   token,
   agentName,
   secret,
-  isOwner,
+  canEdit,
   onRevoke,
   reload,
 }: {
   token: AgentDTO["tokens"][number];
   agentName: string;
   secret: string | undefined;
-  isOwner: boolean;
+  canEdit: boolean;
   onRevoke: () => void;
   reload: () => Promise<void>;
 }) {
@@ -550,7 +606,7 @@ function TokenRow({
               : "never used"}
         </Note>
         <Spacer />
-        {isOwner && (
+        {canEdit && (
           <IconButton
             danger
             label={`Revoke the token ${token.prefix}`}

@@ -8,16 +8,16 @@ sidebar:
 import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
 
 **Settings** in the top bar, or `/p/{projectId}/settings`. A rail of pages, each with its own
-address, so a document can link to one. The owner sees two more than a member does.
+address, so a document can link to one. The owner and admins see two more than a member does.
 
 | Page                                         | What lives there                                                           |
 | -------------------------------------------- | -------------------------------------------------------------------------- |
 | [Properties](/ushabti/guides/properties/) `…/settings/properties` | Every field on a task. Create, rename, recolour, reorder, delete. |
 | [Card view](/ushabti/guides/card-view/) `…/settings/card`         | What a card on the board carries, where each row sits and how it reads. |
 | [Views](/ushabti/guides/views/) `…/settings/views`                | Rename, regroup, reorder and delete views, and name the main one.   |
-| [People](/ushabti/guides/people/) `…/settings/people`             | Members, agents, and the tokens that connect them.                 |
-| [Webhooks](/ushabti/api/webhooks/) `…/settings/webhooks`          | A call out of the board when something changes. The owner's alone. |
-| [Import](/ushabti/guides/import/) `…/settings/import`             | Bring a board in from a Trello export. The owner's alone.          |
+| [People](/ushabti/guides/people/) `…/settings/people`             | Members and their roles, agents, and the tokens that connect them. |
+| [Webhooks](/ushabti/api/webhooks/) `…/settings/webhooks`          | A call out of the board when something changes. Owner and admins. |
+| [Import](/ushabti/guides/import/) `…/settings/import`             | Bring a board in from a Trello export. Owner and admins.          |
 | Project `…/settings/project`                 | The project name, the task-key prefix, and deleting the project.            |
 
 The rail counts what is on each page, and its foot names the version you are running.
@@ -36,7 +36,8 @@ Those numbers are counted, not estimated. The full set:
 | Delete a property | *Delete Labels? 5 options and 14 values go with it.*                                |
 | Delete a view     | *Delete the view Phases? The tasks stay; only this way of looking at them goes.*     |
 | Remove a member   | *Remove Ada? They lose the board; their tasks and comments stay.*                    |
-| Leave a project   | *Leave this project? Only the owner can put you back.*                              |
+| Leave a project   | *Leave this project? Only the owner or an admin can put you back.*                  |
+| Make owner        | *Make Ada the owner? You become an admin.*                                          |
 | Remove an agent   | *Remove Builder? Its tokens stop working at once. Its comments and its activity stay.* |
 | Revoke a token    | *Revoke this token? Builder stops working within one request.*                       |
 | Delete a webhook  | *Delete this webhook? example.com/ushabti stops being called, and its deliveries go with it.* |
@@ -49,8 +50,8 @@ changelog claims otherwise; the code does not.
 
 ## The Project page
 
-**Name** and **Key**, owner only, both saving on blur. Everybody else sees *"Only the owner can
-change the name and the key."*
+**Name** and **Key**, owner and admins, both saving on blur. Everybody else sees *"Only the owner
+or an admin can change the name and the key."*
 
 The key is uppercased as you type, accepts `A–Z` and `0–9` only, and stops at six characters. It is
 the prefix on every task key — `USH-14` — and a task never stores its own key, it is built from the
@@ -59,7 +60,7 @@ prefix. So changing it renames every task at once, and the page warns the moment
 > ⚠ 40 tasks are called `USH-…` today. Leaving this box renames all of them. Links and agent
 > instructions that use the old key stop working.
 
-**Done when**, owner only, is what this project calls over: a select property, then one of its
+**Done when**, owner and admins, is what this project calls over: a select property, then one of its
 options. It has one job — a task that blocks another stops blocking when it reaches this.
 
 The default is **Archived only**, and archived always counts whatever else is set. There is no Done
@@ -70,7 +71,7 @@ option and the setting falls back to archived by itself; nothing has to be tidie
 Both boxes save the moment they change. Picking a property asks the question and the option answers
 it, so nothing is saved in between.
 
-**Time zone**, owner only, saving on blur, is the zone this project's day is worked out in — an
+**Time zone**, owner and admins, saving on blur, is the zone this project's day is worked out in — an
 IANA name such as `Europe/Berlin`, `America/New_York` or `UTC`, which is where every project starts.
 The note under the box says which day it is there right now.
 
@@ -84,7 +85,7 @@ show you: the current spellings and the old ones alike (`Asia/Kolkata` and `Asia
 `Europe/Kyiv` and `Europe/Kiev`), the fixed offsets (`Etc/UTC`, `Etc/GMT+12`, `GMT`), and any case
 you type it in. The row keeps the spelling you used. A name it cannot use is refused in one line —
 *No time zone is called Europe/Atlantis. Use a name like Europe/Berlin or UTC.* — and nothing is
-saved. Everybody else sees *"Only the owner can change the time zone of this project."*
+saved. Everybody else sees *"Only the owner or an admin can change the time zone of this project."*
 
 ### Deleting the project <Badge text="owner only" variant="caution" size="small" />
 
@@ -117,5 +118,5 @@ password](/ushabti/guides/people/#a-forgotten-password).
 <LinkCard
   title="People and projects"
   href="/ushabti/guides/people/"
-  description="Members, the owner, and exactly what the split between them is."
+  description="The owner, admins and members, and exactly what each may do."
 />

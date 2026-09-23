@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectInvites } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { broadcast, clientIdOf, guard, json, ownerOnly, route } from "@/lib/api";
+import { broadcast, clientIdOf, guard, json, adminOnly, route } from "@/lib/api";
 
 type Ctx = { params: Promise<{ projectId: string; email: string }> };
 
@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ projectId: string; email: string }> };
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { projectId, email: raw } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "withdraw an invite");
+  adminOnly(user, membership, "withdraw an invite");
 
   const email = decodeURIComponent(raw).toLowerCase();
   const gone = await db
