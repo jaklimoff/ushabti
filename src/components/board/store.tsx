@@ -18,6 +18,7 @@ import { deletedSaid } from "@/lib/deleted";
 import { sweepDrafts } from "@/lib/draft";
 import { applyFilters, clashOf, clashSaid, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
 import {
+  editorsOf,
   expirePresence,
   LISTEN_TOUCH_MS,
   mergePresence,
@@ -356,16 +357,24 @@ function makePresence(projectId: string): Presence {
 }
 
 /**
- * The people other than me who have this task open, and a way to say which
- * field I am in. Mounting it says the task is open; unmounting says it closed.
+ * The people other than me who have this task open, a way to say which field
+ * I am in, and who else is in a field. Mounting it says the task is open;
+ * unmounting says it closed.
  */
 export function usePresence(taskId: string) {
   const { presence, data, user } = useBoard();
   const room = useSyncExternalStore(presence.watch, presence.room, emptyRoom);
+  /* A field that closes as the panel closes says so after the panel said
+     goodbye, and would open the task again on every other screen. */
+  const open = useRef<string | null>(null);
 
   useEffect(() => {
+    open.current = taskId;
     presence.say(taskId, null);
-    return () => presence.say(null, null);
+    return () => {
+      open.current = null;
+      presence.say(null, null);
+    };
   }, [presence, taskId]);
 
   const faces = useMemo(
@@ -376,10 +385,20 @@ export function usePresence(taskId: string) {
     [data.members, room, taskId, user.id],
   );
   const inField = useCallback(
-    (field: string | null) => presence.say(taskId, field),
+    (field: string | null) => {
+      if (open.current === taskId) presence.say(taskId, field);
+    },
     [presence, taskId],
   );
-  return { faces, inField };
+  /** Who else is typing in one field of this task, as their names. */
+  const editing = useCallback(
+    (field: string) =>
+      editorsOf(room, taskId, field, user.id)
+        .map((id) => data.members.find((m) => m.id === id)?.name)
+        .filter((name) => name !== undefined),
+    [data.members, room, taskId, user.id],
+  );
+  return { faces, inField, editing };
 }
 
 const noRoom: Room = {};

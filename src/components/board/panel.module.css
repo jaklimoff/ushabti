@@ -314,6 +314,22 @@
   resize: vertical;
 }
 
+/* Who else is typing in a field. One line of small words under it, with no
+   colour of its own: it tells, and it blocks nothing. */
+.editing {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--faint);
+  overflow-wrap: anywhere;
+  animation: ushabti-fade-in 140ms var(--ease);
+}
+
+/* Under a checklist item, it starts where the item's words start. */
+.editingItem {
+  padding-left: 22px;
+  margin-top: -2px;
+}
+
 /* A text save that was refused. The field becomes the question, as a row does
    in ConfirmRow: nothing floats over the panel. */
 .changed {
