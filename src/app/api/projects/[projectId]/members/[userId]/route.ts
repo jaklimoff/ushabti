@@ -7,6 +7,7 @@ import {
   broadcast,
   clientIdOf,
   guard,
+  humanOnly,
   json,
   outranksOnly,
   readId,
@@ -14,6 +15,7 @@ import {
   route,
 } from "@/lib/api";
 import { withProjectLock, type Tx } from "@/lib/queries";
+import { isOwner } from "@/lib/roles";
 
 type Ctx = { params: Promise<{ projectId: string; userId: string }> };
 
@@ -29,7 +31,7 @@ async function memberOf(tx: Tx | typeof db, projectId: string, userId: string) {
 
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { projectId, userId } = await ctx.params;
-  const { user, membership } = await guard(projectId);
+  const { user } = await guard(projectId);
   readId(userId, "member");
 
   const removingSelf = user.id === userId;
@@ -41,18 +43,27 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
       "An agent cannot leave a project. Ask the owner or an admin to remove it.",
     );
   }
-  if (removingSelf && userId === membership.ownerId) {
-    throw new HttpError(400, "The owner cannot leave the project. Delete the project instead.");
-  }
-  if (!removingSelf) {
-    const target = await memberOf(db, projectId, userId);
-    if (!target) throw new HttpError(404, "That person is not in this project.");
-    outranksOnly(user, membership, target, "remove");
-  }
+  if (!removingSelf) humanOnly(user);
 
-  await db
-    .delete(projectMembers)
-    .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)));
+  /* Under the project lock, and with both roles read again inside it. A
+     hand-over commits under the same lock, so the owner this reads is the
+     owner now: without it, a person who leaves while the project is handed
+     to them leaves a project whose owner is not a member. */
+  await withProjectLock(projectId, async (tx) => {
+    const target = await memberOf(tx, projectId, userId);
+    if (!target) throw new HttpError(404, "That person is not in this project.");
+    if (removingSelf && isOwner(target.role)) {
+      throw new HttpError(400, "The owner cannot leave the project. Delete the project instead.");
+    }
+    if (!removingSelf) {
+      const actor = await memberOf(tx, projectId, user.id);
+      if (!actor) throw new HttpError(404, "Project not found.");
+      outranksOnly(user, actor, target, "remove");
+    }
+    await tx
+      .delete(projectMembers)
+      .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)));
+  });
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
   return json({ ok: true });
 });
@@ -66,6 +77,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
 export const PATCH = route<Ctx>(async (req, ctx) => {
   const { projectId, userId } = await ctx.params;
   const { user } = await guard(projectId);
+  humanOnly(user);
   readId(userId, "member");
   const input = await body<{ role?: unknown }>(req);
   const next = typeof input.role === "string" ? input.role : "";
@@ -90,10 +102,13 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
         .set({ role: "admin" })
         .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, user.id)));
     }
-    await tx
+    const updated = await tx
       .update(projectMembers)
       .set({ role: next })
-      .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)));
+      .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)))
+      .returning({ userId: projectMembers.userId });
+    // Throwing rolls the hand-over back with it, so the project keeps its owner.
+    if (updated.length === 0) throw new HttpError(404, "That person is not in this project.");
     return true;
   });
 

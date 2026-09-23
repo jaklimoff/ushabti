@@ -127,6 +127,14 @@ test.describe("Roles", () => {
         headers,
         data: { role: "member" },
       }),
+      // A person the project does not have, and a body that is no JSON: still 403.
+      memberPage.request.patch(`/api/projects/${projectId}/members/${crypto.randomUUID()}`, {
+        headers: { ...headers, "Content-Type": "application/json" },
+        data: "not json",
+      }),
+      memberPage.request.delete(`/api/projects/${projectId}/members/${crypto.randomUUID()}`, {
+        headers,
+      }),
     ];
     for (const answer of await Promise.all(agentTries)) expect(answer.status()).toBe(403);
 
