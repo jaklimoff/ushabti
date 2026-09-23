@@ -98,6 +98,57 @@ test.describe("Agents that wait for work", () => {
     await expect(page.getByTestId("listening-agents")).toBeHidden();
   });
 
+  test("a listening agent says its name on hover and on focus", async ({ page }) => {
+    await register(page, "Tip Owner");
+    const projectId = await createProject(page, unique("Tip"));
+    const token = await connectAgent(page, projectId, "Refiner");
+
+    const socket = new AbortController();
+    const stream = await fetch(`${boardUrl()}/api/projects/${projectId}/stream`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: socket.signal,
+    });
+    expect(stream.ok).toBeTruthy();
+
+    try {
+      await page.goto(`/p/${projectId}`);
+      // A screen reader hears the name, and the face draws no native title.
+      const agent = page.getByRole("img", { name: "Refiner is listening" });
+      await expect(agent).toBeVisible();
+      await expect(agent.locator("[title]")).toHaveCount(0);
+
+      const tip = agent.getByTestId("listening-tip");
+      await expect(tip).toBeHidden();
+      await agent.hover();
+      await expect(tip).toBeVisible({ timeout: 200 });
+      await expect(tip).toContainText("Refiner");
+      await expect(tip).toContainText("Listening. It hears a new task at once.");
+
+      await page.mouse.move(0, 400);
+      await expect(tip).toBeHidden();
+      await page.getByTestId("search-box").focus();
+      await page.keyboard.press("Tab");
+      await expect(agent).toBeFocused();
+      await expect(tip).toBeVisible();
+      await page.getByTestId("search-box").focus();
+
+      // The tip stays in the window at either end of the bar: near the
+      // right on a wide screen, near the left on a phone.
+      for (const width of [1280, 375]) {
+        await page.setViewportSize({ width, height: 700 });
+        await agent.hover();
+        await expect(tip).toBeVisible();
+        const box = await tip.boundingBox();
+        expect(box).toBeTruthy();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+        await page.mouse.move(0, 400);
+      }
+    } finally {
+      socket.abort();
+    }
+  });
+
   test("a waiting run shows its question, keeps its card, and hears the answer", async ({
     page,
     request,
