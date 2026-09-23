@@ -17,6 +17,14 @@ import type { CardItem } from "@/lib/card-view";
 import { deletedSaid } from "@/lib/deleted";
 import { sweepDrafts } from "@/lib/draft";
 import { applyFilters, clashOf, clashSaid, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
+import {
+  expirePresence,
+  LISTEN_TOUCH_MS,
+  mergePresence,
+  peopleOn,
+  type PresenceSaid,
+  type Room,
+} from "@/lib/presence";
 import { rankBetween } from "@/lib/rank";
 import type {
   AgentRunDTO,
@@ -93,6 +101,8 @@ type Store = {
    * was already out is then dropped, as it is for the store's own writes.
    */
   wrote: () => void;
+  /** Who else has which task open. Read it through `usePresence`. */
+  presence: Presence;
 
   createTask: (input: {
     title: string;
@@ -253,6 +263,128 @@ function landedAfter<T extends { id: string }>(
 
 const BoardContext = createContext<Store | null>(null);
 
+/*
+ * Which task every other tab on this project has open.
+ *
+ * It lives outside React state on purpose. A tab says where it is every 25
+ * seconds, and holding the room in the store would draw the whole board again
+ * each time; only the faces in a panel header need to hear it. Nothing here
+ * reads the board, because a panel opening somewhere is not a change to it.
+ */
+type Presence = {
+  watch: (tell: () => void) => () => void;
+  room: () => Room;
+  /** Says what this tab has open. A later `field` is how a box says it is being typed in. */
+  say: (taskId: string | null, field: string | null) => void;
+  /** Takes one message off the stream. */
+  heard: (said: PresenceSaid) => void;
+  /** Says it again, so the tabs that are already here answer a new stream. */
+  announce: () => void;
+  /** The lease: says it again while a task is open, and drops who went quiet. */
+  tick: () => void;
+  touch: () => void;
+};
+
+function makePresence(projectId: string): Presence {
+  let room: Room = {};
+  let mine: { taskId: string | null; field: string | null } = { taskId: null, field: null };
+  const watchers = new Set<() => void>();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let line: Promise<unknown> = Promise.resolve();
+
+  const tell = () => {
+    for (const fn of watchers) fn();
+  };
+
+  /*
+   * One send at a time, and each sends what is true when its turn comes. A
+   * panel that moves from one task to the next closes one and opens the other
+   * in the same breath; two requests in flight could land the wrong way round
+   * and leave the face on nothing.
+   */
+  const send = (after: number) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      line = line.then(() =>
+        api.post(`/api/projects/${projectId}/presence`, mine).catch(() => undefined),
+      );
+    }, after);
+  };
+
+  return {
+    watch(fn) {
+      watchers.add(fn);
+      return () => {
+        watchers.delete(fn);
+      };
+    },
+    room: () => room,
+    say(taskId, field) {
+      if (mine.taskId === taskId && mine.field === field) return;
+      mine = { taskId, field };
+      send(0);
+    },
+    heard(said) {
+      if (said.clientId === CLIENT_ID) {
+        /* A stream this tab has already replaced can say goodbye late, after
+           a blip, and the other tabs would drop a face that is still here. */
+        if (said.taskId === null && mine.taskId) send(300);
+        return;
+      }
+      const merged = mergePresence(room, said);
+      room = merged.room;
+      tell();
+      /* A stranger is a tab that just came, so it knows nobody. Answering
+         once teaches it the room in a second rather than in 25. A tab with
+         nothing open has nothing to teach. The short wait folds the answers
+         to several strangers into one. */
+      if (merged.stranger && mine.taskId) send(300);
+    },
+    announce: () => send(0),
+    tick() {
+      const kept = expirePresence(room);
+      if (kept !== room) {
+        room = kept;
+        tell();
+      }
+    },
+    touch() {
+      if (mine.taskId) send(0);
+    },
+  };
+}
+
+/**
+ * The people other than me who have this task open, and a way to say which
+ * field I am in. Mounting it says the task is open; unmounting says it closed.
+ */
+export function usePresence(taskId: string) {
+  const { presence, data, user } = useBoard();
+  const room = useSyncExternalStore(presence.watch, presence.room, emptyRoom);
+
+  useEffect(() => {
+    presence.say(taskId, null);
+    return () => presence.say(null, null);
+  }, [presence, taskId]);
+
+  const faces = useMemo(
+    () =>
+      peopleOn(room, taskId, user.id)
+        .map((id) => data.members.find((m) => m.id === id))
+        .filter((m) => m !== undefined),
+    [data.members, room, taskId, user.id],
+  );
+  const inField = useCallback(
+    (field: string | null) => presence.say(taskId, field),
+    [presence, taskId],
+  );
+  return { faces, inField };
+}
+
+const noRoom: Room = {};
+const emptyRoom = () => noRoom;
+
 export function useBoard(): Store {
   const store = useContext(BoardContext);
   if (!store) throw new Error("useBoard must run inside BoardProvider.");
@@ -392,9 +524,23 @@ export function BoardProvider({
     refreshRef.current = refresh;
   }, [refresh]);
 
+  const presence = useMemo(() => makePresence(projectId), [projectId]);
+  useEffect(() => {
+    /* The sweep runs more often than the touch, so a tab that died goes
+       within a few seconds of its lease, not up to a whole touch later. */
+    const sweep = setInterval(presence.tick, 5_000);
+    const touch = setInterval(presence.touch, LISTEN_TOUCH_MS);
+    return () => {
+      clearInterval(sweep);
+      clearInterval(touch);
+    };
+  }, [presence]);
+
   /* --- live updates from the other people on the board ---------------- */
   useEffect(() => {
-    const source = new EventSource(`/api/projects/${projectId}/stream`);
+    /* An EventSource cannot set a header, so the tab names itself in the
+       address. The stream says goodbye for it when it closes. */
+    const source = new EventSource(`/api/projects/${projectId}/stream?client=${CLIENT_ID}`);
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     /*
@@ -408,6 +554,7 @@ export function BoardProvider({
     const opened = () => {
       setLive(true);
       void refreshRef.current();
+      presence.announce();
     };
 
     source.addEventListener("ready", opened);
@@ -420,6 +567,11 @@ export function BoardProvider({
         window.dispatchEvent(new CustomEvent("ushabti:remote-change"));
       }, 140);
     });
+    /* Presence carries its data and changes nothing on the board, so it
+       never reads the board again. */
+    source.addEventListener("presence", (event) => {
+      presence.heard(JSON.parse((event as MessageEvent).data) as PresenceSaid);
+    });
     source.onerror = () => setLive(false);
     source.onopen = opened;
 
@@ -427,7 +579,7 @@ export function BoardProvider({
       if (timer) clearTimeout(timer);
       source.close();
     };
-  }, [projectId]);
+  }, [presence, projectId]);
 
   /* --- derived -------------------------------------------------------- */
   const view = useMemo(
@@ -1244,6 +1396,7 @@ export function BoardProvider({
     notify,
     refresh,
     wrote,
+    presence,
     createTask,
     patchTask,
     deleteTask,

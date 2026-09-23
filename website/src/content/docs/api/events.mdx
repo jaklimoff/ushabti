@@ -41,6 +41,7 @@ no-transform`, `Connection: keep-alive`, `X-Accel-Buffering: no`.
 | `retry: 3000` | Sent once, first. The browser reconnects after three seconds. |
 | `event: ready` | Sent once. The subscription is live — nothing more. |
 | `event: change` | One per write. The payload is below. |
+| `event: presence` | Which task a person's tab has open: `{ projectId, kind: "presence", clientId, userId, taskId, field }`, with `taskId` null when it closed. It carries its data because nothing stores it, and it is not a change: do not refetch on it. A client that does not draw faces ignores it. |
 | `: ping` | A comment every 25 seconds, so proxies do not close the connection. `EventSource` ignores it. |
 
 ```jsonc title="a change payload"

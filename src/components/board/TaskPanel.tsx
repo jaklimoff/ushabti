@@ -46,7 +46,8 @@ import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
 import { Markdown } from "./Markdown";
 import { MentionList, useMentions } from "./Mentions";
-import { useBoard } from "./store";
+import { useBoard, usePresence } from "./store";
+import boardStyles from "./board.module.css";
 import styles from "./panel.module.css";
 
 /** One person's answer about their own screen, kept in their own browser. */
@@ -69,6 +70,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     refresh,
     wrote,
   } = useBoard();
+  const { faces } = usePresence(taskId);
   /*
    * What the last read answered, and the task it was asked about. Only a
    * different task clears what is on screen, and holding the two together is
@@ -473,6 +475,30 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
             {shown.key}
           </button>
           <span style={{ flex: 1 }} />
+          {/* Who else has this task open. Fields save on blur and the last
+              write wins, so seeing somebody here is the warning. The tip is
+              the one the listening agents wear: a title never shows on focus. */}
+          {faces.length > 0 && (
+            <span className={boardStyles.listening} data-testid="panel-present">
+              {faces.map((person) => (
+                <span
+                  key={person.id}
+                  className={boardStyles.listener}
+                  data-testid="panel-present-face"
+                  data-name={person.name}
+                  role="img"
+                  aria-label={`${person.name} has this task open`}
+                  tabIndex={0}
+                >
+                  <Avatar name={person.name} color={person.color} size={20} title={null} />
+                  <span className={boardStyles.listenerTip} aria-hidden="true">
+                    <span className={boardStyles.listenerName}>{person.name}</span>
+                    <span>Has this task open.</span>
+                  </span>
+                </span>
+              ))}
+            </span>
+          )}
           <button
             className={styles.iconButton}
             aria-label="Task menu"

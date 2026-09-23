@@ -566,6 +566,13 @@ to keep the socket open. An event says *that* something changed, never what:
 server-sent events drop whatever happens while the socket is down, so nothing
 may depend on them arriving.
 
+The stream also carries `event: presence`, which says which task a person's
+browser tab has open. It is for the board's panel, not for you: ignore it, as
+`board.mjs watch` does with every event name it does not know. It does not
+mean that anything changed, so do not read the feed on it. An agent cannot send
+one — `POST /api/projects/{projectId}/presence` answers `403` to a token —
+because a run already shows what an agent is doing.
+
 ### A webhook, if you cannot hold a socket
 
 Some harnesses have nowhere to listen from: a serverless function, a CI job, a
