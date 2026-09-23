@@ -35,6 +35,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A long line in a description or a comment wraps.** Inline code, a long
+  link and a code block used to make the text scroll sideways, which hid the
+  end of the line. They now wrap as they do in the editor, on a phone too.
+
 - **A text save no longer overwrites a change it did not see.** When two
   people edit the same title, description or checklist item, the second save
   is refused instead of silently winning. The field asks in place: it shows

@@ -376,6 +376,10 @@
   margin-top: 6px;
 }
 
+.markdown {
+  /* A description is read more than it is edited, so it wraps as the editor does. */
+  overflow-wrap: anywhere;
+}
 .markdown p {
   margin: 0 0 8px;
 }
@@ -420,7 +424,7 @@
   background: var(--bg-input);
   border: 1px solid #191c21;
   border-radius: 7px;
-  overflow-x: auto;
+  white-space: pre-wrap;
   margin: 0 0 8px;
 }
 .markdown pre code {
