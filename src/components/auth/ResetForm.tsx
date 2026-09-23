@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
@@ -16,7 +16,8 @@ import styles from "./AuthForm.module.css";
  */
 export function ResetForm({ token }: { token: string }) {
   const router = useRouter();
-  const [password, setPassword] = useState("");
+  // Read from the box and not from state, for the reason `AuthForm` gives.
+  const passwordBox = useRef<HTMLInputElement>(null);
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +28,10 @@ export function ResetForm({ token }: { token: string }) {
     setBusy(true);
     setError(null);
     try {
-      await api.post("/api/auth/reset", { token, password });
+      await api.post("/api/auth/reset", {
+        token,
+        password: passwordBox.current?.value ?? "",
+      });
       router.replace("/projects");
       router.refresh();
     } catch (err) {
@@ -50,15 +54,12 @@ export function ResetForm({ token }: { token: string }) {
               size="lg"
               block
               autoFocus
+              ref={passwordBox}
               type={show ? "text" : "password"}
-              value={password}
               aria-label="Your new password"
               minLength={8}
               invalid={error !== null}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError(null);
-              }}
+              onChange={() => setError(null)}
               placeholder="At least 8 characters"
               autoComplete="new-password"
               required

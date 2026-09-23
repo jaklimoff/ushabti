@@ -3,13 +3,17 @@
 import { AVATAR_COLORS, initials } from "@/lib/colors";
 import styles from "./ui.module.css";
 
+/**
+ * It takes a `ref` because a password box is read from the page and not from
+ * a copy: a password manager can write the box without an event React hears.
+ */
 export function Input({
   size = "md",
   block = false,
   invalid = false,
   className,
   ...rest
-}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & {
+}: Omit<React.ComponentPropsWithRef<"input">, "size"> & {
   size?: "md" | "lg";
   block?: boolean;
   invalid?: boolean;

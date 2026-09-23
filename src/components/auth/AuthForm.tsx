@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
@@ -15,7 +15,10 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // The password is read from the box, never kept in state. A password
+  // manager can write the box with no event React hears, and a controlled box
+  // then empties itself on the next render and sends nothing.
+  const passwordBox = useRef<HTMLInputElement>(null);
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,7 +33,7 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
       await api.post(register ? "/api/auth/register" : "/api/auth/login", {
         name,
         email,
-        password,
+        password: passwordBox.current?.value ?? "",
       });
       router.replace("/projects");
       router.refresh();
@@ -95,11 +98,10 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
             <Input
               size="lg"
               block
+              ref={passwordBox}
               type={show ? "text" : "password"}
-              value={password}
               aria-label="Your password"
               minLength={register ? 8 : undefined}
-              onChange={(e) => setPassword(e.target.value)}
               placeholder={register ? "At least 8 characters" : "Your password"}
               autoComplete={register ? "new-password" : "current-password"}
               required

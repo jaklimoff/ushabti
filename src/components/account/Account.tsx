@@ -125,13 +125,17 @@ export function Account({ user, version }: { user: SessionUser; version: string 
  * back: the owner of a project makes a link.
  */
 function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind"]) => void }) {
-  const [current, setCurrent] = useState("");
-  const [next, setNext] = useState("");
+  // Both passwords are read from their boxes, never kept in state, as on the
+  // sign-in page: a password manager can write a box with no event React
+  // hears, and a controlled box then empties itself on the next render.
+  const currentBox = useRef<HTMLInputElement>(null);
+  const nextBox = useRef<HTMLInputElement>(null);
   // Each box has its own eye, as the sign-in page has, so one reveal reads
   // one way everywhere.
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNext, setShowNext] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Which box an error is about, so the sentence sits under that box.
+  const [error, setError] = useState<{ on: "current" | "next"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [others, setOthers] = useState<number | null>(null);
 
@@ -158,16 +162,24 @@ function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind
   async function change() {
     if (busy) return;
     setError(null);
-    if (next.length < 8) return setError("The new password must have at least 8 characters.");
+    const current = currentBox.current?.value ?? "";
+    const next = nextBox.current?.value ?? "";
+    if (!current) return setError({ on: "current", text: "Type the password you use now." });
+    if (next.length < 8) {
+      return setError({ on: "next", text: "The new password must have at least 8 characters." });
+    }
     setBusy(true);
     try {
       await api.post("/api/auth/password", { current, next });
-      setCurrent("");
-      setNext("");
+      if (currentBox.current) currentBox.current.value = "";
+      if (nextBox.current) nextBox.current.value = "";
       notify("Password changed. Every other session is signed out.", "info");
       await loadSessions();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not change the password.");
+      setError({
+        on: "next",
+        text: err instanceof Error ? err.message : "Could not change the password.",
+      });
     } finally {
       setBusy(false);
     }
@@ -187,16 +199,17 @@ function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind
     <Section title="Password">
       <Card>
         <Row className={styles.stack}>
-          <Field label="Now">
+          <Field label="Now" error={error?.on === "current" ? error.text : null}>
             <PasswordRow>
               <Input
+                ref={currentBox}
                 size="lg"
                 block
                 type={showCurrent ? "text" : "password"}
                 autoComplete="current-password"
                 aria-label="The password you use now"
-                value={current}
-                onChange={(e) => setCurrent(e.target.value)}
+                invalid={error?.on === "current"}
+                onChange={() => setError(null)}
               />
               <RevealButton
                 shown={showCurrent}
@@ -209,23 +222,20 @@ function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind
         <Row className={styles.stack}>
           <Field
             label="New"
-            error={error}
+            error={error?.on === "next" ? error.text : null}
             note="At least 8 characters. Keep it somewhere safe: a password nobody knows needs a link from the owner of your project."
           >
             <PasswordRow>
               <Input
+                ref={nextBox}
                 size="lg"
                 block
                 type={showNext ? "text" : "password"}
                 autoComplete="new-password"
                 aria-label="The password you want"
                 minLength={8}
-                invalid={error !== null}
-                value={next}
-                onChange={(e) => {
-                  setNext(e.target.value);
-                  setError(null);
-                }}
+                invalid={error?.on === "next"}
+                onChange={() => setError(null)}
                 onKeyDown={(e) => e.key === "Enter" && void change()}
               />
               <RevealButton
@@ -238,7 +248,9 @@ function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind
         </Row>
         <Row>
           <Spacer />
-          <Button onClick={() => void change()} disabled={busy || !current || !next}>
+          {/* Not greyed out while a box looks empty: a box a password manager
+              filled looks empty to React, and the button would stay dead. */}
+          <Button onClick={() => void change()} disabled={busy}>
             {busy ? "Changing…" : "Change password"}
           </Button>
         </Row>
