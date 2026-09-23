@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
 import { Tag } from "@/components/ui/Layout";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
+import { canManage } from "@/lib/roles";
 import styles from "./ProjectList.module.css";
 
 export type ProjectRow = {
@@ -79,7 +80,7 @@ export function ProjectList({ user, projects }: { user: SessionUser; projects: P
               <Link href={`/p/${project.id}`} className={styles.card}>
                 <div className={styles.cardTop}>
                   <span className={styles.key}>{project.key}</span>
-                  {project.role === "owner" && <Tag>owner</Tag>}
+                  {canManage(project.role) && <Tag>{project.role}</Tag>}
                 </div>
                 <div className={styles.cardName}>{project.name}</div>
                 <div className={styles.cardMeta}>

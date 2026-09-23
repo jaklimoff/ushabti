@@ -50,7 +50,7 @@ of that becomes `TSK`. **Keys are not unique across projects.**
 
 ---
 
-## `PATCH /api/projects/{projectId}` <Badge text="owner only" variant="caution" size="small" />
+## `PATCH /api/projects/{projectId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 ```json title="request"
 { "name": "Ushabti", "key": "USH",
@@ -123,7 +123,7 @@ confirmation — the interface does, by making you type the key.
 
 ## Members
 
-### `POST /api/projects/{projectId}/members` <Badge text="owner only" variant="caution" size="small" />
+### `POST /api/projects/{projectId}/members` <Badge text="owner and admins" variant="caution" size="small" />
 
 ```json title="request"
 { "email": "ada@example.com" }
@@ -143,7 +143,7 @@ The role is always `member` and cannot be chosen. Invites are listed on the boar
 | --- | --- |
 | `409` | `That email is already invited.` |
 
-### `DELETE /api/projects/{projectId}/invites/{email}` <Badge text="owner only" variant="caution" size="small" />
+### `DELETE /api/projects/{projectId}/invites/{email}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Withdraws an invite. The email is URL-encoded in the path. `404` when no invite uses it.
 
@@ -158,19 +158,52 @@ Withdraws an invite. The email is URL-encoded in the path. `404` when no invite 
 
 There is no `GET` here — the member list comes back with [the board](/ushabti/api/board/).
 
-### `DELETE /api/projects/{projectId}/members/{userId}`
+### `PATCH /api/projects/{projectId}/members/{userId}` <Badge text="owner and admins" variant="caution" size="small" />
 
-Removing **somebody else** is owner only. Removing **yourself** is anybody's, and is how you leave.
+Changes a person's role: `owner`, `admin` or `member`.
+
+```json
+{ "role": "admin" }
+```
+
+An admin may make a member an admin. Only the owner may change an admin's role, and only the owner
+may pick `owner`, which **hands the project over**: in one transaction the person becomes the owner,
+`ownerId` on the project moves to them, and the old owner becomes an admin. There is always exactly
+one owner. Picking the role a person already has changes nothing.
+
+```json title="200"
+{ "ok": true }
+```
 
 | Status | Message |
 | --- | --- |
-| `403` | `An agent cannot leave a project. Ask the owner to remove it.` |
-| `403` | `Only the owner can remove members.` |
+| `400` | `A role is owner, admin or member.` |
+| `400` | `An agent is always a member.` |
+| `400` | `You cannot change your own role.` |
+| `403` | `Only a person can do this.` — an agent token, whoever issued it |
+| `403` | `Only the owner or an admin can change a role.` |
+| `403` | `Only the owner can hand the project over.` |
+| `403` | `Only the owner can change an admin's role.` |
+| `403` | `The owner's role changes only when they hand the project over.` |
+| `404` | `That person is not in this project.` |
+
+### `DELETE /api/projects/{projectId}/members/{userId}`
+
+Removing **somebody else** takes a role above theirs: an admin removes a member, and only the owner
+removes an admin. Removing **yourself** is anybody's but the owner's, and is how you leave.
+
+| Status | Message |
+| --- | --- |
+| `403` | `An agent cannot leave a project. Ask the owner or an admin to remove it.` |
+| `403` | `Only the owner or an admin can remove a member.` |
+| `403` | `Only the owner can remove an admin.` |
+| `403` | `Nobody can remove the owner.` |
 | `400` | `The owner cannot leave the project. Delete the project instead.` |
+| `404` | `That person is not in this project.` |
 
 The membership row goes; the `users` row stays, so the person's tasks, comments and activity remain.
 
-### `POST /api/projects/{projectId}/members/{userId}/reset` <Badge text="owner only" variant="caution" size="small" />
+### `POST /api/projects/{projectId}/members/{userId}/reset` <Badge text="owner and admins" variant="caution" size="small" />
 
 Makes that member a way back into their account, for
 [a forgotten password](/ushabti/guides/people/#a-forgotten-password). Send no body.
@@ -190,14 +223,16 @@ proxy it is the address the team uses.
 
 | Status | Message |
 | --- | --- |
-| `400` | `Change your own password on your account page.` — the owner's own row has `/account` |
+| `400` | `Change your own password on your account page.` — your own row has `/account` |
 | `400` | `An agent has no password. Issue it a token instead.` |
-| `403` | `Only the owner can make a reset link.` |
+| `403` | `Only the owner or an admin can make a reset link for a member.` |
+| `403` | `Only the owner can make a reset link for an admin.` |
+| `403` | `Nobody can make a reset link for the owner.` |
 | `404` | `That person is not in this project.` |
 
 A line is written to the project's activity: kind `reset`, no task, and
 `data: { "forUserId": "…", "forName": "Ada" }`. The link row itself is swept away as soon as the
-link is spent or replaced, so the feed is the only lasting record that the owner handed out access.
+link is spent or replaced, so the feed is the only lasting record that somebody handed out access.
 Every member of the project reads it at `GET /api/projects/{projectId}/activity`, exactly as they
 read any other line. Neither the link nor the password is ever in it.
 
@@ -275,7 +310,7 @@ It is refreshed at most once a minute. The Connect panel polls this route until 
 and then says *"Builder answered."*
 </Aside>
 
-### `POST /api/projects/{projectId}/agents` <Badge text="owner only" variant="caution" size="small" />
+### `POST /api/projects/{projectId}/agents` <Badge text="owner and admins" variant="caution" size="small" />
 
 Creates the machine member: a `users` row with `kind = "agent"`, no email and no password, joined to
 the project.
@@ -290,7 +325,7 @@ the project.
 
 Creating an agent does **not** create a token. That is the next call, deliberately.
 
-### `DELETE /api/projects/{projectId}/agents/{agentId}` <Badge text="owner only" variant="caution" size="small" />
+### `DELETE /api/projects/{projectId}/agents/{agentId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Deletes the agent for good, with its tokens, its runs and its authorship.
 
@@ -303,7 +338,7 @@ Deletes the agent for good, with its tokens, its runs and its authorship.
 
 ## Tokens
 
-### `POST /api/projects/{projectId}/agents/{agentId}/tokens` <Badge text="owner only" variant="caution" size="small" />
+### `POST /api/projects/{projectId}/agents/{agentId}/tokens` <Badge text="owner and admins" variant="caution" size="small" />
 
 Mints a bearer token scoped to this project. **The only time the plain text is returned.**
 
@@ -325,7 +360,7 @@ tokens one agent may hold.
 Only its SHA-256 digest is stored. Lose it and you issue a new one.
 </Aside>
 
-### `DELETE /api/agent-tokens/{tokenId}` <Badge text="owner only" variant="caution" size="small" />
+### `DELETE /api/agent-tokens/{tokenId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Revokes one token — the row stays so the list can still show what it was; only `revoked_at` is
 stamped. The agent stops working within one request.

@@ -1,4 +1,4 @@
-import { guard, json, ownerOnly, route } from "@/lib/api";
+import { guard, json, adminOnly, route } from "@/lib/api";
 import { planImport, previewOf } from "@/lib/import/plan";
 import { projectShape } from "@/lib/import/apply";
 import { readImportRequest } from "@/lib/import/request";
@@ -15,7 +15,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "bring a board in");
+  adminOnly(user, membership, "bring a board in");
 
   const { board, ask } = await readImportRequest(req);
   const plan = planImport(board, await projectShape(projectId), ask);

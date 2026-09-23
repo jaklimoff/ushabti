@@ -3,7 +3,7 @@ import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { projects, properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
 import { fallbackRow, KIND_OF_TYPE, readCardView, setCardPlace } from "@/lib/card-view";
 import {
   defaultGroupById,
@@ -93,7 +93,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const projectId = await propertyProjectId(propertyId);
   if (!projectId) throw new HttpError(404, "Property not found.");
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "delete a property");
+  adminOnly(user, membership, "delete a property");
 
   // A board is meaningless without its grouping property, so deleting the
   // property would take the view with it. Say so instead of doing it quietly.

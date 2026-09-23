@@ -4,6 +4,7 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CLIENT_ID } from "@/lib/client";
+import { canManage } from "@/lib/roles";
 import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
@@ -29,7 +30,7 @@ export function ImportPanel() {
   const { data, refresh } = useBoard();
   const router = useRouter();
   const projectId = data.project.id;
-  const isOwner = data.project.role === "owner";
+  const canEdit = canManage(data.project.role);
 
   /* The file itself, which never leaves the browser between the two posts. */
   const file = useRef<File | null>(null);
@@ -102,11 +103,11 @@ export function ImportPanel() {
         note="Bring a board in from Trello. Its lists become the columns, its cards become tasks, and nothing is made twice."
       />
 
-      {!isOwner ? (
+      {!canEdit ? (
         <Section title="Import">
           <Card>
             <Row>
-              <Note>Only the owner of this project can bring a board in.</Note>
+              <Note>Only the owner or an admin can bring a board in.</Note>
             </Row>
           </Card>
         </Section>

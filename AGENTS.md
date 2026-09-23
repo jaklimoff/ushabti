@@ -67,7 +67,7 @@ and what is easy to get wrong.
   one, and which view cannot be deleted. So the route takes `isDefault: true`
   and nothing else — the flag comes off the old view and goes on the new one in
   one transaction, because a project with two main views, or with none, answers
-  "which view opens?" twice. It is `ownerOnly`, beside deleting a view, and it
+  "which view opens?" twice. It is `adminOnly`, beside deleting a view, and it
   moves what `defaultGroupById` answers: on a project that never arranged a
   card view, the main view is the one that says which property the columns are.
 - **A view is dragged by naming what it landed on, never a rank.** The strip
@@ -260,11 +260,15 @@ and what is easy to get wrong.
   silent run counts reports and never beats. Let a beat write `updated_at` and
   a heartbeat left behind by a killed session holds a card open all day, which
   is the exact fault the lease exists to fix.
-- **Structure is the owner's; content is shared.** A member — and an agent —
-  writes values, comments and runs all day. Only a person, and only the owner,
-  deletes a property, an option or a view, and only a person writes a run's
-  control word. `ownerOnly()` and `humanOnly()` say so at the top of those
-  routes. An agent that loses its token would otherwise take the board apart.
+- **Structure is an admin's; content is shared.** A member — and an agent —
+  writes values, comments and runs all day. Only a person, and only the owner
+  or an admin, deletes a property, an option or a view, and only a person
+  writes a run's control word. `adminOnly()` and `humanOnly()` say so at the
+  top of those routes. An agent that loses its token would otherwise take the
+  board apart. Three acts stay the owner's alone — deleting the project,
+  handing it over, changing an admin's role — behind `ownerOnly()`. The role
+  rule lives once, in `src/lib/roles.ts`, because the settings panels read it
+  too; a route never compares a role by hand. An agent is always a member.
 - **A field saves on blur. A destructive action confirms in place. Nothing
   else has a Save button.** Settings used to hold six different save models on
   one page, and the one field a new person edits first was the odd one out.

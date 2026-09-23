@@ -44,14 +44,15 @@ anything reachable from the internet.
 
 ## Who may call what
 
-Four gates. A route that declares none of them is **callable by an agent**, which is the deliberate
+Five gates. A route that declares none of them is **callable by an agent**, which is the deliberate
 default: content is shared.
 
 | Gate | Refuses with | Guards |
 | --- | --- | --- |
 | *(none)* | — | Any member, human or agent. |
 | **human only** | `403 Only a person can do this.` | Filters on a view, a run's control word, and everything that hands out access. |
-| **owner only** | `403 Only the owner can {what}.` | Deleting a property, an option, a view; members; agents and tokens; the project. |
+| **owner and admins** | `403 Only the owner or an admin can {what}.` | Deleting a property, an option, a view; the main view; members and invites; agents and tokens; webhooks; import; the project's settings. |
+| **owner only** | `403 Only the owner can {what}.` | Deleting the project, handing it over, and changing an admin's role. |
 | **agent only** | `403 Only an agent can do this.` | `GET /api/agent/me` and the run routes. |
 
 Everything also passes through a project check first: **not a member** is answered

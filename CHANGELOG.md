@@ -10,6 +10,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An owner can make a person an admin.** An admin adds and removes people
+  and agents, issues and revokes tokens, sets up webhooks and imports, deletes
+  properties, options and views, and changes the project's settings. Three
+  things stay the owner's: deleting the project, handing it to somebody else,
+  and changing an admin's role. Pick a role from the select on a person's row
+  in Settings → People; "owner" asks first, because you become an admin. An
+  agent is always a member.
 - **A field says who is editing it.** When somebody has the title, the
   description or a checklist item open, the others see one line under it:
   "Anna is editing the title". It goes within a second or two of them leaving
