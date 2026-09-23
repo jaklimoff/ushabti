@@ -7,7 +7,7 @@ sidebar:
 
 import { Aside, Badge } from '@astrojs/starlight/components'
 
-**Adding** is any member's. **Deleting** is the owner's, and a person's.
+**Adding** is any member's. **Deleting** is the owner's or an admin's, and a person's.
 
 ---
 
@@ -54,7 +54,7 @@ All optional and applied independently.
 `200 {"ok": true}`. A body with nothing recognisable in it is a no-op that still answers `200`, and
 broadcasts nothing.
 
-### `DELETE /api/properties/{propertyId}` <Badge text="owner only" variant="caution" size="small" />
+### `DELETE /api/properties/{propertyId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Removes the property, its options and every value written for it.
 
@@ -105,7 +105,7 @@ as it does for properties: `null` or unknown means the front.
 
 Reordering options is what column dragging does on the board.
 
-### `DELETE /api/options/{optionId}` <Badge text="owner only" variant="caution" size="small" />
+### `DELETE /api/options/{optionId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Deletes the option and scrubs it out of every value: a single-select holding it becomes `null`, and a
 multi-select drops it from its list.
@@ -170,7 +170,7 @@ way, in a different order.
 Rules are read and cleaned **on the way in** as well as on the way out, so what you send is not
 necessarily what is stored.
 
-### `DELETE /api/views/{viewId}` <Badge text="owner only" variant="caution" size="small" />
+### `DELETE /api/views/{viewId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 `400 The main view cannot be deleted.` for the project's first view.
 

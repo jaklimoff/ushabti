@@ -32,6 +32,7 @@ import {
   type ViewDTO,
   type ViewKind,
 } from "@/lib/types";
+import { canManage } from "@/lib/roles";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
@@ -161,7 +162,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
   /* The box holds a name that another tab can change under it, so only what
      this tab typed may be written back. */
   const [typed, setTyped] = useState(false);
-  const isOwner = data.project.role === "owner";
+  const canEdit = canManage(data.project.role);
   const {
     attributes,
     listeners,
@@ -258,7 +259,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
           </Tag>
         </span>
       ) : (
-        isOwner && (
+        canEdit && (
           <span className={styles.viewMain}>
             <button
               type="button"
@@ -310,7 +311,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
           </span>
         )}
       </div>
-      {!view.isDefault && isOwner && (
+      {!view.isDefault && canEdit && (
         <IconButton
           className={styles.viewTools}
           danger

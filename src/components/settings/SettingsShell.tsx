@@ -6,6 +6,7 @@ import { ProjectBar } from "@/components/ui/ProjectBar";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardProvider, useBoard } from "@/components/board/store";
+import { canManage } from "@/lib/roles";
 import type { BoardData } from "@/lib/types";
 import styles from "./settings.module.css";
 
@@ -37,12 +38,12 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
     { slug: "card", label: "Card view", count: null },
     { slug: "views", label: "Views", count: data.views.length },
     { slug: "people", label: "People", count: data.members.length },
-    /* A URL and a secret are access, so the read is the owner's too. A member
+    /* A URL and a secret are access, so the read is an admin's too. A member
        who cannot see the page is not offered it. */
     /* An import makes properties and options, and the shape of a project is
-       the owner's. A member who cannot press the button is not offered the
+       an admin's. A member who cannot press the button is not offered the
        page that leads to it. */
-    ...(data.project.role === "owner"
+    ...(canManage(data.project.role)
       ? [
           { slug: "webhooks", label: "Webhooks", count: null },
           { slug: "import", label: "Import", count: null },

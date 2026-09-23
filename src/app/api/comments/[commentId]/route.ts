@@ -4,6 +4,7 @@ import { comments } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { commentRow, taskProjectId } from "@/lib/queries";
+import { canManage } from "@/lib/roles";
 
 type Ctx = { params: Promise<{ commentId: string }> };
 
@@ -15,7 +16,9 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   if (!projectId) throw new HttpError(404, "Comment not found.");
   const { user, membership } = await guard(projectId);
 
-  if (row.authorId !== user.id && membership.role !== "owner") {
+  /* Anybody may take back their own words. Somebody else's comment is taken
+     down by the owner or an admin, and only by a person. */
+  if (row.authorId !== user.id && (user.kind !== "human" || !canManage(membership.role))) {
     throw new HttpError(403, "You can only delete your own comments.");
   }
 

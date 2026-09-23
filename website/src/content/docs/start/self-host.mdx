@@ -58,7 +58,7 @@ echo "USHABTI_WEBHOOK_PRIVATE=1" >> .env
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Only the owner of a project can make a webhook at all, and an agent token is refused by every one
+Only the owner or an admin of a project can make a webhook at all, and an agent token is refused by every one
 of its routes. This flag decides how far a webhook may reach once one exists.
 </Aside>
 

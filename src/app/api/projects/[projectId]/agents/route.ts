@@ -1,7 +1,6 @@
 import { db } from "@/db";
 import { projectMembers, users } from "@/db/schema";
-import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, humanOnly, json, route, str } from "@/lib/api";
+import { body, broadcast, clientIdOf, adminOnly, guard, json, route, str } from "@/lib/api";
 import { loadAgents } from "@/lib/agents";
 import { pickAvatarColor } from "@/lib/colors";
 import type { AgentDTO } from "@/lib/types";
@@ -23,8 +22,7 @@ export const GET = route<Ctx>(async (_req, ctx) => {
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  humanOnly(user);
-  if (membership.role !== "owner") throw new HttpError(403, "Only the owner can add an agent.");
+  adminOnly(user, membership, "add an agent");
 
   const input = await body<{ name?: string }>(req);
   const name = str(input.name, "Name", { max: 80 });

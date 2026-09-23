@@ -19,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useBoard } from "@/components/board/store";
 import { api } from "@/lib/client";
+import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { fallbackRow, KIND_OF_TYPE, setCardPlace, viewOf } from "@/lib/card-view";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -44,7 +45,7 @@ export function PropertiesPanel() {
   const [name, setName] = useState("");
   const [type, setType] = useState<PropertyType>("select");
   const [options, setOptions] = useState("");
-  const isOwner = data.project.role === "owner";
+  const canEdit = canManage(data.project.role);
 
   /* The grip is the only thing that lifts a row, so the name box and the
      buttons on it still take a caret and a click. Space lifts, the arrows
@@ -100,7 +101,7 @@ export function PropertiesPanel() {
             strategy={verticalListSortingStrategy}
           >
             {data.properties.map((property) => (
-              <PropertyRow key={property.id} property={property} isOwner={isOwner} />
+              <PropertyRow key={property.id} property={property} canEdit={canEdit} />
             ))}
           </SortableContext>
         </DndContext>
@@ -142,7 +143,7 @@ export function PropertiesPanel() {
   );
 }
 
-function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: boolean }) {
+function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
   const { cardItems, setCardView, patchProperty, deleteProperty, addOption, notify } = useBoard();
   const {
     attributes,
@@ -295,7 +296,7 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
           >
             On card {showOnCard ? "◉" : "○"}
           </button>
-          {isOwner && (
+          {canEdit && (
             <IconButton
               danger
               label={`Delete the property ${property.name}`}
@@ -311,7 +312,7 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
       {(property.type === "select" || property.type === "multi_select") && (
         <div className={styles.options}>
           {property.options.map((option) => (
-            <OptionChip key={option.id} option={option} isOwner={isOwner} />
+            <OptionChip key={option.id} option={option} canEdit={canEdit} />
           ))}
           {adding ? (
             <Input
@@ -347,10 +348,10 @@ function PropertyRow({ property, isOwner }: { property: PropertyDTO; isOwner: bo
 
 function OptionChip({
   option,
-  isOwner,
+  canEdit,
 }: {
   option: PropertyDTO["options"][number];
-  isOwner: boolean;
+  canEdit: boolean;
 }) {
   const { patchOption, deleteOption } = useBoard();
   const [open, setOpen] = useState(false);
@@ -390,7 +391,7 @@ function OptionChip({
         </span>
       )}
       <OptionName option={option} />
-      {isOwner && (
+      {canEdit && (
         <button
           type="button"
           className={styles.optionRemove}

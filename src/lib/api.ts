@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { HttpError, requireActor, requireMembership, requireUser } from "./auth";
 import { publish, type BoardEvent } from "./events";
 import { isId, notAnId } from "./ids";
+import { canManage, isOwner, outranks, roleChangeRefusal } from "./roles";
 
 export { HttpError };
 
@@ -99,14 +100,57 @@ export function agentOnly(actor: { kind: string }) {
 }
 
 /**
- * The shape of a project is the owner's. A member writes values, comments and
- * runs all day; only the owner removes a property, an option or a view, and
- * only a person does it at all. An agent that loses a token would otherwise
- * take the board apart with it.
+ * People, agents and the shape of a project belong to the owner and the
+ * admins. A member writes values, comments and runs all day; only an admin or
+ * the owner removes a property, an option or a view, adds a person or issues a
+ * token, and only a person does it at all. An agent that loses a token would
+ * otherwise take the board apart with it. The rule itself is `canManage` in
+ * `roles.ts`, which the settings panels read too.
+ */
+export function adminOnly(actor: { kind: string }, membership: { role: string }, what: string) {
+  humanOnly(actor);
+  if (!canManage(membership.role)) {
+    throw new HttpError(403, `Only the owner or an admin can ${what}.`);
+  }
+}
+
+/**
+ * For the few acts that stay the owner's alone: deleting the project, handing
+ * it over, and changing an admin's role. An admin who could do these could
+ * remove the owner, which is the thing a second owner would have done.
  */
 export function ownerOnly(actor: { kind: string }, membership: { role: string }, what: string) {
   humanOnly(actor);
-  if (membership.role !== "owner") throw new HttpError(403, `Only the owner can ${what}.`);
+  if (!isOwner(membership.role)) throw new HttpError(403, `Only the owner can ${what}.`);
+}
+
+/**
+ * For acting on one other person: removing them or making them a reset link.
+ * An admin may act on a member, and only the owner on an admin, so two admins
+ * cannot take each other out. `what` is the verb, as in "remove".
+ */
+export function outranksOnly(
+  actor: { kind: string },
+  membership: { role: string },
+  target: { role: string },
+  what: string,
+) {
+  adminOnly(actor, membership, `${what} a member`);
+  if (outranks(membership.role, target.role)) return;
+  throw new HttpError(
+    403,
+    isOwner(target.role) ? `Nobody can ${what} the owner.` : `Only the owner can ${what} an admin.`,
+  );
+}
+
+/** A role change, refused for the reason `roleChangeRefusal` gives. */
+export function roleChangeOnly(
+  actor: { kind: string },
+  change: Parameters<typeof roleChangeRefusal>[0],
+) {
+  humanOnly(actor);
+  const refusal = roleChangeRefusal(change);
+  if (refusal) throw new HttpError(refusal.status, refusal.message);
 }
 
 export { requireUser };

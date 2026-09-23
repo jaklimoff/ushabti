@@ -1,4 +1,4 @@
-import { broadcast, clientIdOf, guard, json, ownerOnly, route } from "@/lib/api";
+import { broadcast, clientIdOf, guard, json, adminOnly, route } from "@/lib/api";
 import { applyImport } from "@/lib/import/apply";
 import { readImportRequest } from "@/lib/import/request";
 
@@ -17,7 +17,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "bring a board in");
+  adminOnly(user, membership, "bring a board in");
 
   const { board, ask } = await readImportRequest(req);
   const made = await applyImport({ projectId, actorId: user.id, board, ask });

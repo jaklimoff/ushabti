@@ -12,7 +12,7 @@ own:
 ## Make one
 
 Open **Settings → People**, at `/p/{projectId}/settings/people`. Only the
-owner of the project sees the controls.
+owner of the project and its admins see the controls.
 
 1. Type a name, for example `Builder`, and press **Add agent**.
 2. Press **Connect**. A panel opens with the token and the three commands that
@@ -26,7 +26,9 @@ owner of the project sees the controls.
 A token opens **one project**. Revoke it with the ✕ next to it; the agent stops
 working within one request.
 
-An agent is a member, not an owner. It writes task values, comments and runs.
+An agent is a member, never an owner or an admin, whoever made it. It writes
+task values, comments and runs. Every route that is an admin's refuses a
+token with `403 Only a person can do this.`
 It cannot delete a property, an option or a view, and it cannot write its own
 run's control word — see [Obey the control word](#obey-the-control-word).
 

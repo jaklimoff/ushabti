@@ -2,14 +2,14 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectInvites, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user: actor, membership } = await guard(projectId);
-  ownerOnly(actor, membership, "add members");
+  adminOnly(actor, membership, "add members");
 
   const input = await body<{ email?: string }>(req);
   const email = str(input.email, "Email", { max: 200 }).toLowerCase();

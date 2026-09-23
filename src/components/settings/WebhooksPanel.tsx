@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -25,7 +26,7 @@ import styles from "./settings.module.css";
 export function WebhooksPanel() {
   const { data } = useBoard();
   const projectId = data.project.id;
-  const isOwner = data.project.role === "owner";
+  const canEdit = canManage(data.project.role);
   const [hooks, setHooks] = useState<WebhookDTO[] | null>(null);
 
   const reload = useCallback(async () => {
@@ -38,7 +39,7 @@ export function WebhooksPanel() {
   }, [projectId]);
 
   useEffect(() => {
-    if (!isOwner) return;
+    if (!canEdit) return;
     let alive = true;
     void api
       .get<{ webhooks: WebhookDTO[] }>(`/api/projects/${projectId}/webhooks`)
@@ -47,7 +48,7 @@ export function WebhooksPanel() {
     return () => {
       alive = false;
     };
-  }, [projectId, isOwner]);
+  }, [projectId, canEdit]);
 
   /* A delivery that is waiting is about to move, and the sender is a second
      away. Ask again while one is, and stop the moment none is. */
@@ -64,13 +65,13 @@ export function WebhooksPanel() {
         title="Webhooks"
         note="A call out of the board, for a service that cannot hold a socket open. It says that something changed and where; the receiver reads the board for the rest."
       />
-      {isOwner ? (
+      {canEdit ? (
         <Hooks hooks={hooks} reload={reload} projectId={projectId} />
       ) : (
         <Section title="Webhooks">
           <Card>
             <Row>
-              <Note>Only the owner of this project can see its webhooks.</Note>
+              <Note>Only the owner or an admin can see its webhooks.</Note>
             </Row>
           </Card>
         </Section>

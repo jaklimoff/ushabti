@@ -96,7 +96,11 @@ export const projectMembers = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    /** "owner" can delete the project and manage members. "member" can do the rest. */
+    /**
+     * "owner", "admin" or "member"; `src/lib/roles.ts` says what each may do.
+     * One owner per project, the person `projects.owner_id` names. An admin
+     * manages people, agents and structure. An agent is always a member.
+     */
     role: text("role").notNull().default("member"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

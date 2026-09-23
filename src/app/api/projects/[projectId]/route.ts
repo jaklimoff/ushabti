@@ -2,7 +2,17 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, ownerOnly, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  adminOnly,
+  ownerOnly,
+  route,
+  str,
+} from "@/lib/api";
 import { isTimeZone, zoneRefused } from "@/lib/day";
 import { readDoneWhen } from "@/lib/links";
 import { loadProperties } from "@/lib/queries";
@@ -12,7 +22,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 export const PATCH = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "change the project");
+  adminOnly(user, membership, "change the project");
 
   const input = await body<{
     name?: string;

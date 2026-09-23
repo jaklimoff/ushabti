@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRuns, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { broadcast, clientIdOf, guard, humanOnly, json, readId, route } from "@/lib/api";
+import { broadcast, clientIdOf, adminOnly, guard, json, readId, route } from "@/lib/api";
 
 type Ctx = { params: Promise<{ projectId: string; agentId: string }> };
 
@@ -14,8 +14,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { projectId, agentId } = await ctx.params;
   const { user, membership } = await guard(projectId);
   readId(agentId, "agent");
-  humanOnly(user);
-  if (membership.role !== "owner") throw new HttpError(403, "Only the owner can remove an agent.");
+  adminOnly(user, membership, "remove an agent");
 
   const [row] = await db
     .select({ id: users.id, kind: users.kind })

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { webhooks } from "@/db/schema";
-import { body, guard, json, ownerOnly, route } from "@/lib/api";
+import { body, guard, json, adminOnly, route } from "@/lib/api";
 import { HttpError } from "@/lib/auth";
 import { kickSender, mintSecret, queueTest, webhookProjectId, webhookUrl } from "@/lib/webhooks";
 import { readKinds } from "@/lib/webhook-delivery";
@@ -17,7 +17,7 @@ type Ctx = { params: Promise<{ projectId: string; webhookId: string }> };
  */
 async function owner(projectId: string, webhookId: string) {
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "change a webhook");
+  adminOnly(user, membership, "change a webhook");
   const belongsTo = await webhookProjectId(webhookId);
   if (!belongsTo || belongsTo !== projectId) throw new HttpError(404, "Webhook not found.");
 }

@@ -9,7 +9,7 @@ import {
   guard,
   humanOnly,
   json,
-  ownerOnly,
+  adminOnly,
   route,
   str,
 } from "@/lib/api";
@@ -99,7 +99,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
    * would leave the project with no answer at all.
    */
   if (input.isDefault !== undefined) {
-    ownerOnly(user, membership, "change the main view");
+    adminOnly(user, membership, "change the main view");
     if (!input.isDefault)
       throw new HttpError(400, "Make another view the main one instead. A project always has one.");
 
@@ -150,7 +150,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const projectId = await viewProjectId(viewId);
   if (!projectId) throw new HttpError(404, "View not found.");
   const { user, membership } = await guard(projectId);
-  ownerOnly(user, membership, "delete a view");
+  adminOnly(user, membership, "delete a view");
 
   const [view] = await db.select().from(views).where(eq(views.id, viewId)).limit(1);
   if (view.isDefault) throw new HttpError(400, "The main view cannot be deleted.");

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
+import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import type { DoneWhen } from "@/lib/links";
 import { useBoard } from "@/components/board/store";
@@ -16,7 +17,10 @@ import styles from "./settings.module.css";
 export function ProjectPanel() {
   const { data, notify, refresh } = useBoard();
   const router = useRouter();
-  const isOwner = data.project.role === "owner";
+  const canEdit = canManage(data.project.role);
+  /* Deleting the project stays the owner's alone, which is what an admin is
+     for: everything else, without the power to end the board. */
+  const isOwner = isOwnerRole(data.project.role);
 
   const [name, setName] = useState(data.project.name);
   const [key, setKey] = useState(data.project.key);
@@ -103,7 +107,7 @@ export function ProjectPanel() {
               style={{ flex: 1, minWidth: 160 }}
               aria-label="Project name"
               value={name}
-              disabled={!isOwner}
+              disabled={!canEdit}
               onChange={(e) => {
                 setName(e.target.value);
                 setTypedName(true);
@@ -123,7 +127,7 @@ export function ProjectPanel() {
               aria-label="Project key"
               value={key}
               maxLength={6}
-              disabled={!isOwner}
+              disabled={!canEdit}
               onChange={(e) => {
                 setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
                 setTypedKey(true);
@@ -151,9 +155,9 @@ export function ProjectPanel() {
             </span>
           </Row>
         )}
-        {!isOwner && (
+        {!canEdit && (
           <Row>
-            <Note>Only the owner can change the name and the key.</Note>
+            <Note>Only the owner or an admin can change the name and the key.</Note>
           </Row>
         )}
       </Card>
@@ -175,7 +179,7 @@ export function ProjectPanel() {
               style={{ width: 220 }}
               aria-label="The time zone this project's day is worked out in"
               value={zone}
-              disabled={!isOwner}
+              disabled={!canEdit}
               onChange={(e) => {
                 setZone(e.target.value);
                 setTypedZone(true);
@@ -192,9 +196,9 @@ export function ProjectPanel() {
             </Note>
           </Field>
         </Row>
-        {!isOwner && (
+        {!canEdit && (
           <Row>
-            <Note>Only the owner can change the time zone of this project.</Note>
+            <Note>Only the owner or an admin can change the time zone of this project.</Note>
           </Row>
         )}
       </Card>
@@ -211,7 +215,7 @@ export function ProjectPanel() {
             <Select
               aria-label="The property that says a task is done"
               value={doneProperty?.id ?? ""}
-              disabled={!isOwner || selects.length === 0}
+              disabled={!canEdit || selects.length === 0}
               onChange={(e) => {
                 /* The same property again is the same question, so it is not
                    asked twice: re-picking it would otherwise throw away the
@@ -234,7 +238,7 @@ export function ProjectPanel() {
               <Select
                 aria-label="The option that says a task is done"
                 value={doneWhen?.optionId ?? ""}
-                disabled={!isOwner}
+                disabled={!canEdit}
                 onChange={(e) =>
                   void save({
                     doneWhen: e.target.value
@@ -262,9 +266,9 @@ export function ProjectPanel() {
             <Note>This board has no select property with options, so archived is the answer.</Note>
           </Row>
         )}
-        {!isOwner && (
+        {!canEdit && (
           <Row>
-            <Note>Only the owner can change what this project calls done.</Note>
+            <Note>Only the owner or an admin can change what this project calls done.</Note>
           </Row>
         )}
       </Card>

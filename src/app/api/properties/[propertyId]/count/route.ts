@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ propertyId: string }> };
  * pressed. It used to ride on every board read, so the daily read paid for a
  * number the owner reads once a month.
  *
- * Any member may ask. Deleting the property is the owner's, but a count hands
+ * Any member may ask. Deleting the property is an admin's, but a count hands
  * out no access and says nothing a member cannot count off the board itself,
  * so an agent may call it too.
  */
