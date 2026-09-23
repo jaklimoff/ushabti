@@ -26,6 +26,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The box you type a new task into grows with the title.** A long title
+  shows in full, in a board column and at the end of a list, where it used to
+  scroll inside a box two lines high.
 - **The account page shows a password with the same eye as the sign-in
   page.** Each password box has its own eye, where one worded button used to
   show both.
