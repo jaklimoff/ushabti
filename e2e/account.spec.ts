@@ -41,6 +41,42 @@ test.describe("Your own account", () => {
     await expect(page.getByTestId("toast")).toContainText("Password changed");
   });
 
+  test("each password box has the eye the sign-in page has", async ({ page }) => {
+    await register(page, "Careful Person");
+    await page.goto("/account");
+
+    // No worded button any more: one reveal reads one way everywhere.
+    await expect(page.getByRole("button", { name: /the passwords/ })).toHaveCount(0);
+
+    for (const [field, what] of [
+      ["The password you use now", "the current password"],
+      ["The password you want", "the new password"],
+    ]) {
+      const box = page.getByLabel(field);
+      await box.fill("a-long-secret");
+      await expect(box).toHaveAttribute("type", "password");
+
+      const show = page.getByRole("button", { name: `Show ${what}` });
+      await expect(show).toHaveAttribute("aria-pressed", "false");
+      await expect(show).toHaveText("");
+      await expect(show.locator("svg")).toBeVisible();
+
+      await show.click();
+      await expect(box).toHaveAttribute("type", "text");
+      await expect(box).toHaveValue("a-long-secret");
+
+      const hide = page.getByRole("button", { name: `Hide ${what}` });
+      await expect(hide).toHaveAttribute("aria-pressed", "true");
+      await hide.click();
+      await expect(box).toHaveAttribute("type", "password");
+    }
+
+    // Each eye answers for its own box.
+    await page.getByRole("button", { name: "Show the new password" }).click();
+    await expect(page.getByLabel("The password you want")).toHaveAttribute("type", "text");
+    await expect(page.getByLabel("The password you use now")).toHaveAttribute("type", "password");
+  });
+
   test("the account page is reachable from the user menu", async ({ page }) => {
     await register(page);
     await page.goto("/projects");

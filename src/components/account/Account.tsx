@@ -7,6 +7,7 @@ import { api } from "@/lib/client";
 import { editedText } from "@/lib/leave";
 import { Button } from "@/components/ui/Button";
 import { ColorSwatches, Field, Input } from "@/components/ui/Form";
+import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
 import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
 import { Toasts, type Toast } from "@/components/ui/Toasts";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -126,7 +127,10 @@ export function Account({ user, version }: { user: SessionUser; version: string 
 function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind"]) => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
-  const [show, setShow] = useState(false);
+  // Each box has its own eye, as the sign-in page has, so one reveal reads
+  // one way everywhere.
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNext, setShowNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [others, setOthers] = useState<number | null>(null);
@@ -184,15 +188,22 @@ function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind
       <Card>
         <Row className={styles.stack}>
           <Field label="Now">
-            <Input
-              size="lg"
-              block
-              type={show ? "text" : "password"}
-              autoComplete="current-password"
-              aria-label="The password you use now"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-            />
+            <PasswordRow>
+              <Input
+                size="lg"
+                block
+                type={showCurrent ? "text" : "password"}
+                autoComplete="current-password"
+                aria-label="The password you use now"
+                value={current}
+                onChange={(e) => setCurrent(e.target.value)}
+              />
+              <RevealButton
+                shown={showCurrent}
+                onToggle={() => setShowCurrent((v) => !v)}
+                what="the current password"
+              />
+            </PasswordRow>
           </Field>
         </Row>
         <Row className={styles.stack}>
@@ -201,32 +212,31 @@ function PasswordSection({ notify }: { notify: (text: string, kind?: Toast["kind
             error={error}
             note="At least 8 characters. Keep it somewhere safe: a password nobody knows needs a link from the owner of your project."
           >
-            <Input
-              size="lg"
-              block
-              type={show ? "text" : "password"}
-              autoComplete="new-password"
-              aria-label="The password you want"
-              minLength={8}
-              invalid={error !== null}
-              value={next}
-              onChange={(e) => {
-                setNext(e.target.value);
-                setError(null);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && void change()}
-            />
+            <PasswordRow>
+              <Input
+                size="lg"
+                block
+                type={showNext ? "text" : "password"}
+                autoComplete="new-password"
+                aria-label="The password you want"
+                minLength={8}
+                invalid={error !== null}
+                value={next}
+                onChange={(e) => {
+                  setNext(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && void change()}
+              />
+              <RevealButton
+                shown={showNext}
+                onToggle={() => setShowNext((v) => !v)}
+                what="the new password"
+              />
+            </PasswordRow>
           </Field>
         </Row>
         <Row>
-          <button
-            type="button"
-            className={styles.reveal}
-            aria-pressed={show}
-            onClick={() => setShow((v) => !v)}
-          >
-            {show ? "Hide" : "Show"} the passwords
-          </button>
           <Spacer />
           <Button onClick={() => void change()} disabled={busy || !current || !next}>
             {busy ? "Changing…" : "Change password"}
