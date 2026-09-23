@@ -98,7 +98,7 @@ test.describe("Agents that wait for work", () => {
     await expect(page.getByTestId("listening-agents")).toBeHidden();
   });
 
-  test("a listening agent says its name on hover and on focus", async ({ page }) => {
+  test("a listening agent says its name on hover and on focus", async ({ page, browser }) => {
     await register(page, "Tip Owner");
     const projectId = await createProject(page, unique("Tip"));
     const token = await connectAgent(page, projectId, "Refiner");
@@ -126,6 +126,11 @@ test.describe("Agents that wait for work", () => {
 
       await page.mouse.move(0, 400);
       await expect(tip).toBeHidden();
+      // A click gives focus too, and the tip must still go with the pointer.
+      await agent.click();
+      await expect(tip).toBeVisible();
+      await page.mouse.move(0, 400);
+      await expect(tip).toBeHidden();
       await page.getByTestId("search-box").focus();
       await page.keyboard.press("Tab");
       await expect(agent).toBeFocused();
@@ -143,6 +148,26 @@ test.describe("Agents that wait for work", () => {
         expect(box!.x).toBeGreaterThanOrEqual(0);
         expect(box!.x + box!.width).toBeLessThanOrEqual(width);
         await page.mouse.move(0, 400);
+      }
+
+      // A phone has no hover, so a tap is how it asks.
+      const phone = await browser.newContext({
+        storageState: await page.context().storageState(),
+        viewport: { width: 375, height: 700 },
+        hasTouch: true,
+        isMobile: true,
+      });
+      try {
+        const small = await phone.newPage();
+        await small.goto(`/p/${projectId}`);
+        expect(await small.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true);
+        const face = small.getByRole("img", { name: "Refiner is listening" });
+        const smallTip = face.getByTestId("listening-tip");
+        await expect(smallTip).toBeHidden();
+        await face.tap();
+        await expect(smallTip).toBeVisible();
+      } finally {
+        await phone.close();
       }
     } finally {
       socket.abort();
