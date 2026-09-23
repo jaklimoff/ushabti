@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
 import { clampPanelWidth, longAgo, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
@@ -21,6 +21,7 @@ import {
   runLine,
   STATUS_WORD,
 } from "@/lib/run-state";
+import { checklistField, editingSaid } from "@/lib/presence";
 import { searchTasks } from "@/lib/search";
 import type {
   AgentRunDetailDTO,
@@ -70,7 +71,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     refresh,
     wrote,
   } = useBoard();
-  const { faces } = usePresence(taskId);
+  const { faces, inField, editing } = usePresence(taskId);
   /*
    * What the last read answered, and the task it was asked about. Only a
    * different task clears what is on screen, and holding the two together is
@@ -574,6 +575,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           taskId={taskId}
           value={shown.title}
           changedBy={wroteLast("title")}
+          sign={editingSaid(editing("title"), "the title")}
+          inField={inField}
           onCommit={(title, base) => patch({ title }, { title: base })}
         />
       </div>
@@ -635,6 +638,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 taskId={taskId}
                 value={shown.description}
                 changedBy={wroteLast("description")}
+                sign={editingSaid(editing("description"), "the description")}
+                inField={inField}
                 onCommit={(description, base) => patch({ description }, { description: base })}
               />
 
@@ -644,6 +649,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 loading={!detail}
                 reload={reload}
                 onError={notify}
+                signOf={(itemId) => editingSaid(editing(checklistField(itemId)), "this item")}
+                inField={inField}
               />
             </div>
 
@@ -1337,17 +1344,54 @@ function ChangedWhileTyping({
   );
 }
 
+/**
+ * Says which field this tab is typing in while `field` is set, and that it
+ * left when it is not. The cleanup is what covers a box that closes without a
+ * blur, as the description does on Escape.
+ */
+function useSayField(field: string | null, inField: (field: string | null) => void) {
+  useEffect(() => {
+    if (!field) return;
+    inField(field);
+    return () => inField(null);
+  }, [field, inField]);
+}
+
+/**
+ * Who else is typing in this field. Words only, in the same place under every
+ * kind of field, and nothing is disabled: the save guard answers the rare
+ * case where both save.
+ */
+function EditingSign({ said, item = false }: { said: string | null; item?: boolean }) {
+  if (!said) return null;
+  return (
+    <div
+      className={`${styles.editing} ${item ? styles.editingItem : ""}`}
+      data-testid="editing-sign"
+      role="status"
+    >
+      {said}
+    </div>
+  );
+}
+
 function TitleField({
   taskId,
   value,
   changedBy,
+  sign,
+  inField,
   onCommit,
 }: {
   taskId: string;
   value: string;
   changedBy: string | null;
+  sign: string | null;
+  inField: (field: string | null) => void;
   onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
+  const [focused, setFocused] = useState(false);
+  useSayField(focused ? "title" : null, inField);
   const [draft, setDraft] = useState(value);
   /* Whether this tab typed in the box since its last save. A click is not an
      edit: the draft it leaves behind goes stale the moment an agent or
@@ -1427,16 +1471,19 @@ function TitleField({
 
   if (mine !== null)
     return (
-      <ChangedWhileTyping
-        theirs={value}
-        mine={mine}
-        by={changedBy}
-        onKeep={() => {
-          setMine(null);
-          void save(mine, value);
-        }}
-        onTake={() => setMine(null)}
-      />
+      <>
+        <ChangedWhileTyping
+          theirs={value}
+          mine={mine}
+          by={changedBy}
+          onKeep={() => {
+            setMine(null);
+            void save(mine, value);
+          }}
+          onTake={() => setMine(null)}
+        />
+        <EditingSign said={sign} />
+      </>
     );
 
   return (
@@ -1449,6 +1496,7 @@ function TitleField({
         rows={1}
         onFocus={() => {
           thrown.current = false;
+          setFocused(true);
         }}
         onChange={(e) => {
           setDraft(e.target.value);
@@ -1458,6 +1506,7 @@ function TitleField({
         onSelect={picker.sync}
         onBlur={() => {
           picker.close();
+          setFocused(false);
           setTyped(false);
           if (!typed || thrown.current) return;
           const edit = unsaved();
@@ -1478,6 +1527,7 @@ function TitleField({
         }}
       />
       <MentionList picker={picker} />
+      <EditingSign said={sign} />
     </>
   );
 }
@@ -1486,14 +1536,21 @@ function Description({
   taskId,
   value,
   changedBy,
+  sign,
+  inField,
   onCommit,
 }: {
   taskId: string;
   value: string;
   changedBy: string | null;
+  sign: string | null;
+  inField: (field: string | null) => void;
   onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
   const [editing, setEditing] = useState(false);
+  /* Open is editing, whether or not a key was pressed: the sign is there so
+     that two people do not start at once. */
+  useSayField(editing ? "description" : null, inField);
   const [draft, setDraft] = useState(value);
   /* Whether this tab typed since the editor opened. Opening it is not an
      edit, and the draft it leaves behind goes stale the moment somebody else
@@ -1626,6 +1683,7 @@ function Description({
           {shown.trim() ? <Markdown text={shown} /> : "Add a description…"}
         </div>
       )}
+      <EditingSign said={sign} />
     </div>
   );
 }
@@ -1636,16 +1694,21 @@ function Checklist({
   loading,
   reload,
   onError,
+  signOf,
+  inField,
 }: {
   taskId: string;
   items: ChecklistItemDTO[];
   loading: boolean;
   reload: () => Promise<void>;
   onError: (message: string) => void;
+  signOf: (itemId: string) => string | null;
+  inField: (field: string | null) => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  useSayField(editingId ? checklistField(editingId) : null, inField);
   const editBox = useRef<HTMLInputElement>(null);
   /* Only what this tab typed may be written back, as everywhere else. */
   const [typed, setTyped] = useState(false);
@@ -1758,68 +1821,71 @@ function Checklist({
       )}
 
       {local.map((item) => (
-        <div key={item.id} className={styles.check}>
-          <button
-            className={`${styles.box} ${item.done ? styles.boxOn : ""}`}
-            aria-label={item.done ? "Mark as open" : "Mark as done"}
-            onClick={() => {
-              change((list) => list.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)));
-              void run(() => api.patch(`/api/checklist/${item.id}`, { done: !item.done }));
-            }}
-          />
-          {changed?.id === item.id ? (
-            <ChangedWhileTyping
-              theirs={item.text}
-              mine={changed.mine}
-              by={null}
-              onKeep={() => {
-                setChanged(null);
-                void saveText(item.id, changed.mine, item.text);
-              }}
-              onTake={() => setChanged(null)}
-            />
-          ) : editingId === item.id ? (
-            <input
-              ref={editBox}
-              className={styles.checkInput}
-              autoFocus
-              defaultValue={item.text}
-              onChange={() => setTyped(true)}
-              onBlur={(e) => {
-                const text = e.target.value.trim();
-                const from = base.current;
-                editItem(null);
-                if (!text) void run(() => api.del(`/api/checklist/${item.id}`));
-                else if (text !== item.text && text !== from) void saveText(item.id, text, from);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") editItem(null);
+        <Fragment key={item.id}>
+          <div className={styles.check}>
+            <button
+              className={`${styles.box} ${item.done ? styles.boxOn : ""}`}
+              aria-label={item.done ? "Mark as open" : "Mark as done"}
+              onClick={() => {
+                change((list) => list.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)));
+                void run(() => api.patch(`/api/checklist/${item.id}`, { done: !item.done }));
               }}
             />
-          ) : (
-            <span
-              className={`${styles.checkText} ${item.done ? styles.checkDone : ""}`}
-              onClick={() => editItem(item)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && editItem(item)}
+            {changed?.id === item.id ? (
+              <ChangedWhileTyping
+                theirs={item.text}
+                mine={changed.mine}
+                by={null}
+                onKeep={() => {
+                  setChanged(null);
+                  void saveText(item.id, changed.mine, item.text);
+                }}
+                onTake={() => setChanged(null)}
+              />
+            ) : editingId === item.id ? (
+              <input
+                ref={editBox}
+                className={styles.checkInput}
+                autoFocus
+                defaultValue={item.text}
+                onChange={() => setTyped(true)}
+                onBlur={(e) => {
+                  const text = e.target.value.trim();
+                  const from = base.current;
+                  editItem(null);
+                  if (!text) void run(() => api.del(`/api/checklist/${item.id}`));
+                  else if (text !== item.text && text !== from) void saveText(item.id, text, from);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  if (e.key === "Escape") editItem(null);
+                }}
+              />
+            ) : (
+              <span
+                className={`${styles.checkText} ${item.done ? styles.checkDone : ""}`}
+                onClick={() => editItem(item)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && editItem(item)}
+              >
+                {item.text}
+              </span>
+            )}
+            <button
+              className={styles.checkRemove}
+              aria-label={`Remove ${item.text}`}
+              title="Remove"
+              onClick={() => {
+                change((list) => list.filter((i) => i.id !== item.id));
+                void run(() => api.del(`/api/checklist/${item.id}`));
+              }}
             >
-              {item.text}
-            </span>
-          )}
-          <button
-            className={styles.checkRemove}
-            aria-label={`Remove ${item.text}`}
-            title="Remove"
-            onClick={() => {
-              change((list) => list.filter((i) => i.id !== item.id));
-              void run(() => api.del(`/api/checklist/${item.id}`));
-            }}
-          >
-            ✕
-          </button>
-        </div>
+              ✕
+            </button>
+          </div>
+          <EditingSign said={signOf(item.id)} item />
+        </Fragment>
       ))}
 
       {adding ? (

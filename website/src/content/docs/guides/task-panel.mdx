@@ -26,8 +26,10 @@ pixels wide it covers the board instead.
 - **Faces** show who else has this task open, one face for each person, however many tabs they
   use. Point at a face, or reach it with <kbd>Tab</kbd>, to read the name. Your own face is never
   shown. A face comes within a second or two of somebody opening the task, and goes when they close
-  it. If their tab dies without closing, it goes within a minute. Fields save when you leave them and
-  the last save wins, so a face here says: talk before you both edit. Agents do not show here; an
+  it. If their tab dies without closing, it goes within a minute. A text save that did not see a change
+  somebody else made is refused, and the field asks you in place what to keep (see
+  [When somebody else wrote it first](#when-somebody-else-wrote-it-first)). So a face here says: talk
+  before you both edit. Agents do not show here; an
   agent at work shows on the Agent tab.
 - **⋯** holds *Copy link*, *Archive task* and *Delete task*.
 - **✕** closes it, and so does <kbd>Escape</kbd> when you are not typing.
@@ -179,6 +181,18 @@ when the activity feed says. It shows the saved text above your words, and two b
 A property value or a checklist tick never causes this, only a change to the same words. A tab
 closed in the middle of typing still sends its words, but if somebody saved first there is nobody left
 to ask, so the first save stays.
+
+## Who is editing
+
+When somebody else has the title, the description or one checklist item open for editing, one line of
+small words sits under that field: *"Anna is editing the title"*, or *"Anna and Ben are editing the
+title"*. On a checklist item it sits under that item only. It comes within a second or two of them
+putting the cursor there, and goes within a second or two of them leaving it — a blur, <kbd>Escape</kbd>,
+or closing the task.
+
+The line blocks nothing. You can still type and save, and if you both save, the question above catches
+it. Your own other tabs never show it to you. Property values do not carry it: a value is one choice,
+and the last one wins.
 
 <LinkCard
   title="Settings"
