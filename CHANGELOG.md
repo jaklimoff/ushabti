@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A listening agent says its name.** Every agent in the top bar draws the
+  same ◆, so pointing at one, or reaching it with Tab, now shows its name at
+  once, under the face and inside the window, on a phone as well. A screen
+  reader reads "Refiner is listening". The slow browser title is gone from it.
+
 ### Changed
 
 - **The account page shows a password with the same eye as the sign-in
