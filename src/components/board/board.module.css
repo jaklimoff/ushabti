@@ -101,9 +101,11 @@
 
 /* Until it is placed it hangs from the right edge of its face, which keeps
    it inside a wide window. It shows at once: a tip that waits is the title
-   it replaces. It shows on any focus, not only a keyboard's, because a phone
-   has no hover and a tap is how it asks. It is hidden and not removed, so
-   it can be measured before it shows. */
+   it replaces. A mouse click gives focus too, so on a screen with a pointer
+   it shows only on a keyboard's focus, or it would stay open after the
+   pointer leaves. A phone has no hover, so there any focus shows it, since a
+   tap is how it asks. It is hidden and not removed, so it can be measured
+   before it shows. */
 .listenerTip {
   position: absolute;
   top: calc(100% + 8px);
@@ -127,8 +129,14 @@
 }
 
 .listener:hover .listenerTip,
-.listener:focus .listenerTip {
+.listener:focus-visible .listenerTip {
   visibility: visible;
+}
+
+@media (hover: none) {
+  .listener:focus .listenerTip {
+    visibility: visible;
+  }
 }
 
 .listenerName {
