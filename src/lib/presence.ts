@@ -93,9 +93,61 @@ export function peopleOn(
   meId: string,
   now: number = Date.now(),
 ): string[] {
+  return whoIsOn(room, taskId, undefined, meId, now);
+}
+
+/*
+ * A tab that is typing in a box says which one: `"title"`, `"description"`,
+ * or `checklistField(item)` for one checklist item. The others draw a line of
+ * words on that box and nothing more. It blocks nobody, because a sign that
+ * outlived its tab would otherwise lock a field for the length of a lease;
+ * the save guard catches the rare two saves.
+ */
+
+/** The field word of one checklist item. */
+export function checklistField(itemId: string): string {
+  return `checklist:${itemId}`;
+}
+
+/**
+ * The people other than me who are typing in one field of one task, once
+ * each, in the order they came to the task. My own other tabs are never on
+ * it: I know where I type.
+ */
+export function editorsOf(
+  room: Room,
+  taskId: string,
+  field: string,
+  meId: string,
+  now: number = Date.now(),
+): string[] {
+  return whoIsOn(room, taskId, field, meId, now);
+}
+
+/**
+ * The sign on a field: "Anna is editing the title", "Anna and Ben are editing
+ * the title". Null when nobody is, so the line takes no room.
+ */
+export function editingSaid(names: string[], what: string): string | null {
+  if (names.length === 0) return null;
+  const who =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `${who} ${names.length === 1 ? "is" : "are"} editing ${what}`;
+}
+
+function whoIsOn(
+  room: Room,
+  taskId: string,
+  field: string | undefined,
+  meId: string,
+  now: number,
+): string[] {
   const first = new Map<string, number>();
   for (const e of Object.values(room)) {
     if (e.taskId !== taskId || e.userId === meId) continue;
+    if (field !== undefined && e.field !== field) continue;
     if (now - e.heardAt >= LISTEN_LEASE_MS) continue;
     const at = first.get(e.userId);
     if (at === undefined || e.since < at) first.set(e.userId, e.since);

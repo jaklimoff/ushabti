@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A field says who is editing it.** When somebody has the title, the
+  description or a checklist item open, the others see one line under it:
+  "Anna is editing the title". It goes within a second or two of them leaving
+  the field. It blocks nothing; you can still type and save.
 - **The task panel shows who else has the task open.** Their faces sit at the
   top of the panel, one for each person however many tabs they use, with the
   name on hover and on focus. A face comes within a second or two and goes

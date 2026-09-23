@@ -6,6 +6,9 @@ import {
   listeningAgents,
   mergePresence,
   peopleOn,
+  checklistField,
+  editingSaid,
+  editorsOf,
   type PresenceSaid,
   type Room,
 } from "../presence";
@@ -128,5 +131,47 @@ describe("a person on a task", () => {
   it("does not show a tab whose lease ran out before the sweep came", () => {
     const room = roomOf([said({}), now - LISTEN_LEASE_MS]);
     expect(peopleOn(room, "t1", "me", now)).toEqual([]);
+  });
+
+  it("names who types in one field, and nobody in another", () => {
+    const room = roomOf(
+      [said({ clientId: "a1", userId: "ada", field: "title" }), now],
+      [said({ clientId: "b1", userId: "bo", field: checklistField("i1") }), now],
+      [said({ clientId: "c1", userId: "cy" }), now],
+    );
+    expect(editorsOf(room, "t1", "title", "me", now)).toEqual(["ada"]);
+    expect(editorsOf(room, "t1", "checklist:i1", "me", now)).toEqual(["bo"]);
+    expect(editorsOf(room, "t1", checklistField("i2"), "me", now)).toEqual([]);
+    expect(editorsOf(room, "t1", "description", "me", now)).toEqual([]);
+  });
+
+  it("drops the sign when the tab leaves the field", () => {
+    const room = roomOf(
+      [said({ clientId: "a1", userId: "ada", field: "title" }), now - 1_000],
+      [said({ clientId: "a1", userId: "ada", field: null }), now],
+    );
+    expect(editorsOf(room, "t1", "title", "me", now)).toEqual([]);
+  });
+
+  it("never signs my own field, from any of my tabs", () => {
+    const room = roomOf([said({ clientId: "m2", userId: "me", field: "title" }), now]);
+    expect(editorsOf(room, "t1", "title", "me", now)).toEqual([]);
+  });
+
+  it("does not sign a field on another task, or for a tab that went quiet", () => {
+    const room = roomOf(
+      [said({ clientId: "a1", userId: "ada", taskId: "t2", field: "title" }), now],
+      [said({ clientId: "b1", userId: "bo", field: "title" }), now - LISTEN_LEASE_MS],
+    );
+    expect(editorsOf(room, "t1", "title", "me", now)).toEqual([]);
+  });
+
+  it("says who is editing in plain words", () => {
+    expect(editingSaid([], "the title")).toBeNull();
+    expect(editingSaid(["Anna"], "the title")).toBe("Anna is editing the title");
+    expect(editingSaid(["Anna", "Ben"], "the title")).toBe("Anna and Ben are editing the title");
+    expect(editingSaid(["Anna", "Ben", "Cy"], "this item")).toBe(
+      "Anna, Ben and Cy are editing this item",
+    );
   });
 });
