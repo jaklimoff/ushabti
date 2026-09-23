@@ -122,10 +122,23 @@ If the row disappears between the lookup and the read, the answer is `{"task": n
 ## `PATCH /api/tasks/{taskId}`
 
 ```json title="request"
-{ "title": "…", "description": "…" }
+{ "title": "…", "description": "…", "baseTitle": "…", "baseDescription": "…" }
 ```
 
-Both optional, ≤ 400 and ≤ 20000 characters. `""` clears the description. `200 {"ok": true}`.
+All optional. `title` ≤ 400 and `description` ≤ 20000 characters. `""` clears the description.
+`200 {"ok": true}`.
+
+`baseTitle` and `baseDescription` are the words you started from. With one, the field is written
+only if it still holds those words — the compare and the write are one statement. If somebody changed
+it in between, nothing is written and the answer is:
+
+```json title="409"
+{ "error": "This changed while you typed.", "field": "description", "current": "…" }
+```
+
+`current` is the text saved now. Send again with it as the base to keep your words, or leave it.
+Words that already match what you send are not a clash, and a property value or a checklist tick never
+causes one. Without a base the last write wins, as it always did. The panel always sends the base.
 
 ## `DELETE /api/tasks/{taskId}`
 
@@ -433,10 +446,12 @@ first, which is one press on the archive page.
 ### `PATCH /api/checklist/{itemId}`
 
 ```json title="request"
-{ "text": "…", "done": true }
+{ "text": "…", "done": true, "baseText": "…" }
 ```
 
-Both optional. `done` is coerced, so any truthy JSON works.
+All optional. `done` is coerced, so any truthy JSON works. `baseText` guards `text` exactly as
+`baseDescription` guards a description: if the item no longer holds those words, nothing is written —
+the tick included — and the answer is `409 { "error": "…", "current": "…" }`.
 
 ```json title="200"
 { "item": { "id": "…", "taskId": "…", "text": "…", "done": true, "position": "V" } }

@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { projects, tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
@@ -16,20 +16,79 @@ export const GET = route<Ctx>(async (_req, ctx) => {
   return json({ task: await loadTaskDetail(taskId) });
 });
 
+/**
+ * Writes the title or the description, or both.
+ *
+ * A caller may send the text it started from as `baseTitle` or
+ * `baseDescription`. Then the write happens only while the field still holds
+ * that text, and the compare is in the same statement as the update, so no
+ * second write can slip in between. If somebody else changed it first, the
+ * answer is `409` with `current`, the saved text, and nothing is written.
+ * A field that already holds the new words is not a clash: nothing is lost.
+ *
+ * The compare is on the text and not on `updated_at`, because a value or a
+ * tick moves that too, and a Priority change must not refuse a description.
+ * Without a base the last write wins, as it always did, so an agent and an
+ * old client work unchanged.
+ */
 export const PATCH = route<Ctx>(async (req, ctx) => {
   const { taskId } = await ctx.params;
   const projectId = await taskProjectId(taskId);
   if (!projectId) throw new HttpError(404, "Task not found.");
   const { user } = await guard(projectId);
 
-  const input = await body<{ title?: string; description?: string }>(req);
+  const input = await body<{
+    title?: string;
+    description?: string;
+    baseTitle?: string;
+    baseDescription?: string;
+  }>(req);
   const patch: Record<string, unknown> = { updatedAt: new Date() };
 
   if (input.title !== undefined) patch.title = str(input.title, "Title", { max: 400 });
   if (input.description !== undefined)
     patch.description = optionalStr(input.description, "Description") ?? "";
 
-  await db.update(tasks).set(patch).where(eq(tasks.id, taskId));
+  const baseTitle =
+    input.title !== undefined ? optionalStr(input.baseTitle, "The base title") : undefined;
+  const baseDescription =
+    input.description !== undefined
+      ? optionalStr(input.baseDescription, "The base description")
+      : undefined;
+
+  const unchanged = [eq(tasks.id, taskId)];
+  if (baseTitle !== undefined)
+    unchanged.push(or(eq(tasks.title, baseTitle), eq(tasks.title, patch.title as string))!);
+  if (baseDescription !== undefined)
+    unchanged.push(
+      or(
+        eq(tasks.description, baseDescription),
+        eq(tasks.description, patch.description as string),
+      )!,
+    );
+
+  const written = await db
+    .update(tasks)
+    .set(patch)
+    .where(and(...unchanged))
+    .returning({ id: tasks.id });
+
+  if (written.length === 0) {
+    const [row] = await db
+      .select({ title: tasks.title, description: tasks.description })
+      .from(tasks)
+      .where(eq(tasks.id, taskId))
+      .limit(1);
+    if (!row) throw new HttpError(404, "Task not found.");
+    /* Only a base can refuse a write, so the field is the one whose base no
+       longer holds. The title is asked first; a caller that sends both learns
+       of the second clash on its next try. */
+    const field =
+      baseTitle !== undefined && row.title !== baseTitle && row.title !== patch.title
+        ? "title"
+        : "description";
+    return json({ error: "This changed while you typed.", field, current: row[field] }, 409);
+  }
 
   if (input.title !== undefined) {
     await logActivity({

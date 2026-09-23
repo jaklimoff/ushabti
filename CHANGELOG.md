@@ -23,6 +23,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A text save no longer overwrites a change it did not see.** When two
+  people edit the same title, description or checklist item, the second save
+  is refused instead of silently winning. The field asks in place: it shows
+  the saved text above your words, with **Keep mine** and **Take theirs**.
+  An agent may send the text it started from and gets a `409` the same way.
+
 - **A password a password manager fills is no longer lost.** A manager that
   writes the box without telling the page left it looking full, then emptied
   it on the next keystroke anywhere, and sign-in sent no password. Sign in,
