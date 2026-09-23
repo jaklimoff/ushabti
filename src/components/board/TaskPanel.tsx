@@ -67,6 +67,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     controlRun,
     notify,
     refresh,
+    wrote,
   } = useBoard();
   /*
    * What the last read answered, and the task it was asked about. Only a
@@ -214,6 +215,10 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
         await counted(() => patchTask(taskId, fields));
         return "saved";
       }
+      /* The store counts it too. A board read that was out before this save
+         would otherwise land after it and put the old words back on the card
+         and in the field, and the next edit would start from them. */
+      wrote();
       let answer: Saved = "saved";
       try {
         await counted(() =>
@@ -233,7 +238,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       await Promise.all([reload(), refresh()]);
       return answer;
     },
-    [counted, notify, patchTask, refresh, reload, taskId],
+    [counted, notify, patchTask, refresh, reload, taskId, wrote],
   );
 
   /* Who wrote a field last, if the feed says and it was not me. A checklist
