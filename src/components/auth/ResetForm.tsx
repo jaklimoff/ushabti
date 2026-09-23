@@ -5,7 +5,8 @@ import { useState } from "react";
 import { api } from "@/lib/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
-import { AuthCard, RevealButton } from "./AuthForm";
+import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
+import { AuthCard } from "./AuthForm";
 import styles from "./AuthForm.module.css";
 
 /**
@@ -44,7 +45,7 @@ export function ResetForm({ token }: { token: string }) {
       <form className={styles.form} onSubmit={submit}>
         <div className={styles.field}>
           <span className="label">New password</span>
-          <div className={styles.passwordRow}>
+          <PasswordRow>
             <Input
               size="lg"
               block
@@ -65,7 +66,7 @@ export function ResetForm({ token }: { token: string }) {
             {/* The same reveal as sign-up, and for the same reason: nobody is
                 typing this one twice. */}
             <RevealButton shown={show} onToggle={() => setShow((v) => !v)} />
-          </div>
+          </PasswordRow>
         </div>
 
         {error && (

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { api } from "@/lib/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
+import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
 import styles from "./AuthForm.module.css";
 
 type Mode = "login" | "register";
@@ -90,7 +91,7 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
         </div>
         <div className={styles.field}>
           <span className="label">Password</span>
-          <div className={styles.passwordRow}>
+          <PasswordRow>
             <Input
               size="lg"
               block
@@ -109,7 +110,7 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
              * afternoon rather than a second field's.
              */}
             <RevealButton shown={show} onToggle={() => setShow((v) => !v)} />
-          </div>
+          </PasswordRow>
           {register && (
             <span className={styles.hint}>
               At least 8 characters. Keep it somewhere safe: if you forget it, the owner of a
@@ -141,52 +142,6 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
         )}
       </div>
     </AuthCard>
-  );
-}
-
-/**
- * The eye beside a password box. Sign in, sign up and a reset link share it,
- * so the one control is declared once and reads the same on all three.
- *
- * The name is the label and never the glyph: a screen reader, and the tests,
- * ask for "Show the password".
- */
-export function RevealButton({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      className={styles.reveal}
-      aria-pressed={shown}
-      aria-label={shown ? "Hide the password" : "Show the password"}
-      onClick={onToggle}
-    >
-      <EyeIcon struck={shown} />
-    </button>
-  );
-}
-
-/** A hairline eye, drawn like the board's own glyphs. Struck means hide. */
-function EyeIcon({ struck }: { struck: boolean }) {
-  return (
-    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      <path
-        d="M1.6 8c1.6-2.6 3.7-3.9 6.4-3.9S12.8 5.4 14.4 8c-1.6 2.6-3.7 3.9-6.4 3.9S3.2 10.6 1.6 8z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
-      />
-      <circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      {struck && (
-        <path
-          d="M3.2 12.8 12.8 3.2"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-        />
-      )}
-    </svg>
   );
 }
 

@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **The account page shows a password with the same eye as the sign-in
+  page.** Each password box has its own eye, where one worded button used to
+  show both.
+
 ## 0.11.0 — 2026-09-22
 
 ### Added
