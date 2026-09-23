@@ -314,6 +314,52 @@
   resize: vertical;
 }
 
+/* A text save that was refused. The field becomes the question, as a row does
+   in ConfirmRow: nothing floats over the panel. */
+.changed {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(224, 87, 77, 0.06);
+  animation: ushabti-fade-in 140ms var(--ease);
+}
+
+.changedSay {
+  font-size: 12.5px;
+  color: var(--danger-text);
+  text-wrap: pretty;
+}
+
+.changedLabel {
+  margin-top: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.changedText {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.changedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: 6px;
+}
+
 .markdown p {
   margin: 0 0 8px;
 }

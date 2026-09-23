@@ -88,6 +88,11 @@ type Store = {
   setViewId: (id: string) => void;
   notify: (text: string, kind?: Toast["kind"]) => void;
   refresh: () => Promise<void>;
+  /**
+   * Counts a write this tab sends by itself, past the store. A board read that
+   * was already out is then dropped, as it is for the store's own writes.
+   */
+  wrote: () => void;
 
   createTask: (input: {
     title: string;
@@ -1238,6 +1243,7 @@ export function BoardProvider({
     setViewId,
     notify,
     refresh,
+    wrote,
     createTask,
     patchTask,
     deleteTask,

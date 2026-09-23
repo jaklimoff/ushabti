@@ -79,6 +79,16 @@ so an agent sees exactly what a person sees and nothing more.
 | What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
 
+**A text write may say what it started from.** Send `baseTitle` beside
+`title`, `baseDescription` beside `description`, or `baseText` beside a
+checklist item's `text`, holding the words you read before you changed them.
+The server then writes only if the field still holds those words. If somebody
+changed it in between, the answer is `409` with `current`, the words saved now,
+and nothing is written. Read `current`, decide, and send again with it as the
+base — or leave the field alone. Words that already match what you send are
+not a clash. A value or a tick never refuses a text write, and a write with no
+base is the last write and wins, as it always did.
+
 The board answer carries the live tasks in `tasks` and the archived ones in
 `archived`. A live task carries `archivedAt`, null while it is live.
 
