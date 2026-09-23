@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "@/lib/client";
+import { api, ApiError } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
 import { clampPanelWidth, longAgo, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
@@ -35,6 +35,7 @@ import type {
   TaskValue,
 } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
@@ -65,6 +66,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     syncTaskCounts,
     controlRun,
     notify,
+    refresh,
   } = useBoard();
   /*
    * What the last read answered, and the task it was asked about. Only a
@@ -195,11 +197,51 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const reload = useCallback(() => counted(load), [counted, load]);
 
   /* What the panel hands to the store is counted on the way out, as its own
-     writes are. */
+     writes are.
+
+     A field somebody typed in also sends the text it started from, and then
+     the write goes straight to the route rather than through the store: the
+     store turns every refusal into a toast, and a refused text save has to
+     come back here, to the field, which asks in place what to do. The field
+     keeps its words on screen until this answers, so nothing flickers back
+     while the board is read again. */
   const patch = useCallback(
-    (fields: { title?: string; description?: string }) => counted(() => patchTask(taskId, fields)),
-    [counted, patchTask, taskId],
+    async (
+      fields: { title?: string; description?: string },
+      base?: { title?: string; description?: string },
+    ): Promise<Saved> => {
+      if (!base) {
+        await counted(() => patchTask(taskId, fields));
+        return "saved";
+      }
+      let answer: Saved = "saved";
+      try {
+        await counted(() =>
+          api.patch(`/api/tasks/${taskId}`, {
+            ...fields,
+            baseTitle: base.title,
+            baseDescription: base.description,
+          }),
+        );
+      } catch (err) {
+        answer = err instanceof ApiError && err.status === 409 ? "changed" : "failed";
+        if (answer === "failed")
+          notify(err instanceof Error ? err.message : "The change did not save.");
+      }
+      /* Either way the field needs the saved text: the new one to show, or the
+         one somebody else wrote to show beside these words. */
+      await Promise.all([reload(), refresh()]);
+      return answer;
+    },
+    [counted, notify, patchTask, refresh, reload, taskId],
   );
+
+  /* Who wrote a field last, if the feed says and it was not me. A checklist
+     item has no line of its own, so only the title and the description ask. */
+  const wroteLast = (kind: "title" | "description") => {
+    const line = detail?.activity.find((entry) => entry.kind === kind);
+    return line?.actor && line.actor.id !== user.id ? line.actor.name : null;
+  };
 
   const makeOption = useCallback(
     (propertyId: string, name: string) => counted(() => addOption(propertyId, name)),
@@ -500,7 +542,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
         <TitleField
           taskId={taskId}
           value={shown.title}
-          onCommit={(title) => void patch({ title })}
+          changedBy={wroteLast("title")}
+          onCommit={(title, base) => patch({ title }, { title: base })}
         />
       </div>
 
@@ -560,7 +603,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               <Description
                 taskId={taskId}
                 value={shown.description}
-                onCommit={(description) => void patch({ description })}
+                changedBy={wroteLast("description")}
+                onCommit={(description, base) => patch({ description }, { description: base })}
               />
 
               <Checklist
@@ -1204,27 +1248,100 @@ function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
   );
 }
 
+/**
+ * What a text save comes back with. `changed` means somebody else wrote the
+ * field after this tab started typing, so nothing was written.
+ */
+type Saved = "saved" | "changed" | "failed";
+
+/**
+ * A text save that was refused, asked in place. The field turns into the
+ * question the way a row does in `ConfirmRow`: the board has no dialogs, and
+ * the answer belongs where the words are. It shows the saved text above the
+ * words that were not saved, so the choice is made with both in view.
+ *
+ * The saved text is read live. If a third change lands while this is open,
+ * the text above moves with it, and **Keep mine** sends against that one.
+ */
+function ChangedWhileTyping({
+  theirs,
+  mine,
+  by,
+  onKeep,
+  onTake,
+}: {
+  theirs: string;
+  mine: string;
+  by: string | null;
+  onKeep: () => void;
+  onTake: () => void;
+}) {
+  return (
+    <div
+      className={styles.changed}
+      role="group"
+      aria-label="This changed while you typed"
+      data-testid="changed-while-typing"
+    >
+      <span className={styles.changedSay}>
+        This changed while you typed{by ? `. ${by} saved it first` : ""}.
+      </span>
+      <span className={styles.changedLabel}>Saved</span>
+      <div className={styles.changedText} data-testid="changed-theirs">
+        {theirs || "Nothing"}
+      </div>
+      <span className={styles.changedLabel}>Yours</span>
+      <div className={styles.changedText} data-testid="changed-mine">
+        {mine || "Nothing"}
+      </div>
+      <div className={styles.changedActions}>
+        <Button autoFocus onClick={onKeep}>
+          Keep mine
+        </Button>
+        <Button variant="ghost" onClick={onTake}>
+          Take theirs
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function TitleField({
   taskId,
   value,
+  changedBy,
   onCommit,
 }: {
   taskId: string;
   value: string;
-  onCommit: (v: string) => void;
+  changedBy: string | null;
+  onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
   const [draft, setDraft] = useState(value);
   /* Whether this tab typed in the box since its last save. A click is not an
      edit: the draft it leaves behind goes stale the moment an agent or
      another person renames the task, and writing it back would undo them. */
   const [typed, setTyped] = useState(false);
+  /* The title the typing started from. The save sends it, and the server
+     writes only if the title still says it. */
+  const base = useRef(value);
+  /* The words on their way, shown until the answer lands, so the old title
+     does not come back for the length of one round trip. */
+  const [sending, setSending] = useState<string | null>(null);
+  /* Words the server refused because the title changed under them. */
+  const [mine, setMine] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  function startTyping() {
+    if (!typed) base.current = sending ?? value;
+    setTyped(true);
+  }
 
   /* A name picked from the list is typing, so the words are kept and the blur
      — or the closed tab — saves them like any other edit. */
   const picker = useMentions(ref, (text) => {
     setDraft(text);
-    setTyped(true);
+    startTyping();
   });
 
   /* Escape blurs the field, and the blur is what saves. The draft is state, so
@@ -1237,15 +1354,37 @@ function TitleField({
      writing in it. A title another person changed is therefore on screen at
      once, even under a cursor that typed nothing, and never has to be copied
      into the draft afterwards. */
-  const text = typed ? draft : value;
+  const text = typed ? draft : (sending ?? value);
+
+  /* The words that still need a save: trimmed, and different both from what
+     the typing started from and from what the title says now. */
+  function unsaved() {
+    const edit = editedText(draft, value);
+    return edit && edit !== base.current ? edit : null;
+  }
+
+  async function save(edit: string, from: string) {
+    setSending(edit);
+    const answer = await onCommit(edit, from);
+    setSending(null);
+    if (answer === "changed") setMine(edit);
+  }
 
   /* The blur that saves this field never comes when the tab is closed on it,
      so the same words go out on the way off the page. Escape throws them
-     away, and a box nobody typed in has nothing to send. */
+     away, and a box nobody typed in has nothing to send. It carries the base
+     too. A refusal then cannot be shown, because the tab is gone, and that is
+     accepted: whoever saved first keeps their words. */
   useSaveOnLeave(() => {
     if (!typed || thrown.current) return null;
-    const edit = editedText(draft, value);
-    return edit ? { method: "PATCH", url: `/api/tasks/${taskId}`, body: { title: edit } } : null;
+    const edit = unsaved();
+    return edit
+      ? {
+          method: "PATCH",
+          url: `/api/tasks/${taskId}`,
+          body: { title: edit, baseTitle: base.current },
+        }
+      : null;
   });
 
   useEffect(() => {
@@ -1253,7 +1392,21 @@ function TitleField({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [text]);
+  }, [text, mine]);
+
+  if (mine !== null)
+    return (
+      <ChangedWhileTyping
+        theirs={value}
+        mine={mine}
+        by={changedBy}
+        onKeep={() => {
+          setMine(null);
+          void save(mine, value);
+        }}
+        onTake={() => setMine(null)}
+      />
+    );
 
   return (
     <>
@@ -1268,7 +1421,7 @@ function TitleField({
         }}
         onChange={(e) => {
           setDraft(e.target.value);
-          setTyped(true);
+          startTyping();
           picker.sync();
         }}
         onSelect={picker.sync}
@@ -1276,8 +1429,8 @@ function TitleField({
           picker.close();
           setTyped(false);
           if (!typed || thrown.current) return;
-          const edit = editedText(draft, value);
-          if (edit) onCommit(edit);
+          const edit = unsaved();
+          if (edit) void save(edit, base.current);
         }}
         onKeyDown={(e) => {
           /* The list has the keys while it is open: Enter picks a name and
@@ -1301,11 +1454,13 @@ function TitleField({
 function Description({
   taskId,
   value,
+  changedBy,
   onCommit,
 }: {
   taskId: string;
   value: string;
-  onCommit: (v: string) => void;
+  changedBy: string | null;
+  onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -1313,31 +1468,57 @@ function Description({
      edit, and the draft it leaves behind goes stale the moment somebody else
      writes the description. */
   const [typed, setTyped] = useState(false);
+  /* The description the typing started from, as in the title. */
+  const base = useRef(value);
+  /* The words on their way, drawn until the answer lands. */
+  const [sending, setSending] = useState<string | null>(null);
+  /* Words the server refused because the description changed under them. */
+  const [mine, setMine] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const shown = sending ?? value;
+
+  function startTyping() {
+    if (!typed) base.current = shown;
+    setTyped(true);
+  }
 
   /* A name picked from the list is typing, as it is in the title. */
   const picker = useMentions(ref, (text) => {
     setDraft(text);
-    setTyped(true);
+    startTyping();
   });
 
   /* The editor shows what the task says until somebody types, so a
      description another person wrote is on screen at once. */
-  const text = typed ? draft : value;
+  const text = typed ? draft : shown;
 
-  /* The same missing blur as the title. An empty description is an answer
-     here, so this asks whether the words changed rather than whether there
-     are any. */
+  /* An empty description is an answer here, so this asks whether the words
+     changed rather than whether there are any. */
+  const owes = typed && draft !== value && draft !== base.current;
+
+  async function save(words: string, from: string) {
+    setSending(words);
+    const answer = await onCommit(words, from);
+    setSending(null);
+    if (answer === "changed") setMine(words);
+  }
+
+  /* The same missing blur as the title, with the same base, and the same
+     refusal nobody is left to see. */
   useSaveOnLeave(() =>
-    typed && draft !== value
-      ? { method: "PATCH", url: `/api/tasks/${taskId}`, body: { description: draft } }
+    owes
+      ? {
+          method: "PATCH",
+          url: `/api/tasks/${taskId}`,
+          body: { description: draft, baseDescription: base.current },
+        }
       : null,
   );
 
   /* Nothing reads the draft until the editor opens, so the click that opens it
      is what fills it in. */
   function edit() {
-    setDraft(value);
+    setDraft(shown);
     setTyped(false);
     setEditing(true);
   }
@@ -1352,7 +1533,18 @@ function Description({
           {editing ? "Cmd + Enter saves" : "click to edit"}
         </span>
       </div>
-      {editing ? (
+      {mine !== null ? (
+        <ChangedWhileTyping
+          theirs={value}
+          mine={mine}
+          by={changedBy}
+          onKeep={() => {
+            setMine(null);
+            void save(mine, value);
+          }}
+          onTake={() => setMine(null)}
+        />
+      ) : editing ? (
         <>
           <textarea
             ref={ref}
@@ -1362,7 +1554,7 @@ function Description({
             placeholder="Write in markdown…"
             onChange={(e) => {
               setDraft(e.target.value);
-              setTyped(true);
+              startTyping();
               picker.sync();
             }}
             onSelect={picker.sync}
@@ -1370,7 +1562,7 @@ function Description({
               picker.close();
               setEditing(false);
               setTyped(false);
-              if (typed && draft !== value) onCommit(draft);
+              if (owes) void save(draft, base.current);
             }}
             onKeyDown={(e) => {
               /* The list has the keys while it is open, so Escape closes it
@@ -1400,7 +1592,7 @@ function Description({
           tabIndex={0}
           onKeyDown={(e) => e.key === "Enter" && edit()}
         >
-          {value.trim() ? <Markdown text={value} /> : "Add a description…"}
+          {shown.trim() ? <Markdown text={shown} /> : "Add a description…"}
         </div>
       )}
     </div>
@@ -1426,12 +1618,23 @@ function Checklist({
   const editBox = useRef<HTMLInputElement>(null);
   /* Only what this tab typed may be written back, as everywhere else. */
   const [typed, setTyped] = useState(false);
+  /* The words the open box started from. The box holds its own words and
+     does not follow a change that lands while it is open, so the base is what
+     it opened with rather than what the item says when the typing starts. */
+  const base = useRef("");
+  /* Words the server refused because the item changed under them. There is
+     no feed line for an item's words, so the question names nobody. */
+  const [changed, setChanged] = useState<{ id: string; mine: string } | null>(null);
 
   /* One item is edited at a time, so opening or closing a box starts the
      question again. */
-  function editItem(id: string | null) {
-    setEditingId(id);
+  function editItem(item: ChecklistItemDTO | null) {
+    setEditingId(item?.id ?? null);
     setTyped(false);
+    if (item) {
+      base.current = item.text;
+      setChanged(null);
+    }
   }
   /* A box ticks before the server answers. The change is kept beside the list
      it was made on, so the next read of the task replaces both at once: a list
@@ -1461,10 +1664,26 @@ function Checklist({
     const item = local.find((i) => i.id === editingId);
     if (!item || !typed) return null;
     const edit = editedText(editBox.current?.value ?? "", item.text);
-    return edit
-      ? { method: "PATCH", url: `/api/checklist/${item.id}`, body: { text: edit } }
+    /* The base goes too. A refusal here cannot be shown, because the tab is
+       gone, and that is accepted: whoever saved first keeps their words. */
+    return edit && edit !== base.current
+      ? {
+          method: "PATCH",
+          url: `/api/checklist/${item.id}`,
+          body: { text: edit, baseText: base.current },
+        }
       : null;
   });
+
+  async function saveText(id: string, text: string, from: string) {
+    try {
+      await api.patch(`/api/checklist/${id}`, { text, baseText: from });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) setChanged({ id, mine: text });
+      else onError(err instanceof Error ? err.message : "The checklist did not save.");
+    }
+    await reload();
+  }
 
   async function run(work: () => Promise<unknown>) {
     try {
@@ -1517,7 +1736,18 @@ function Checklist({
               void run(() => api.patch(`/api/checklist/${item.id}`, { done: !item.done }));
             }}
           />
-          {editingId === item.id ? (
+          {changed?.id === item.id ? (
+            <ChangedWhileTyping
+              theirs={item.text}
+              mine={changed.mine}
+              by={null}
+              onKeep={() => {
+                setChanged(null);
+                void saveText(item.id, changed.mine, item.text);
+              }}
+              onTake={() => setChanged(null)}
+            />
+          ) : editingId === item.id ? (
             <input
               ref={editBox}
               className={styles.checkInput}
@@ -1526,10 +1756,10 @@ function Checklist({
               onChange={() => setTyped(true)}
               onBlur={(e) => {
                 const text = e.target.value.trim();
+                const from = base.current;
                 editItem(null);
                 if (!text) void run(() => api.del(`/api/checklist/${item.id}`));
-                else if (text !== item.text)
-                  void run(() => api.patch(`/api/checklist/${item.id}`, { text }));
+                else if (text !== item.text && text !== from) void saveText(item.id, text, from);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -1539,10 +1769,10 @@ function Checklist({
           ) : (
             <span
               className={`${styles.checkText} ${item.done ? styles.checkDone : ""}`}
-              onClick={() => editItem(item.id)}
+              onClick={() => editItem(item)}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && editItem(item.id)}
+              onKeyDown={(e) => e.key === "Enter" && editItem(item)}
             >
               {item.text}
             </span>
