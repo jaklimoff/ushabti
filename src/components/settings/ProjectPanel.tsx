@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/client";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import type { DoneWhen } from "@/lib/links";
@@ -15,7 +14,7 @@ import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
 export function ProjectPanel() {
-  const { data, notify, refresh } = useBoard();
+  const { data, notify, refresh, send } = useBoard();
   const router = useRouter();
   const canEdit = canManage(data.project.role);
   /* Deleting the project stays the owner's alone, which is what an admin is
@@ -74,7 +73,7 @@ export function ProjectPanel() {
     timeZone?: string;
   }) {
     try {
-      await api.patch(url, patch);
+      await send.patch(url, patch);
       await refresh();
       router.refresh();
     } catch (err) {
@@ -89,7 +88,7 @@ export function ProjectPanel() {
 
   async function remove() {
     try {
-      await api.del(`/api/projects/${data.project.id}`);
+      await send.del(`/api/projects/${data.project.id}`);
       router.replace("/projects");
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not delete the project.");

@@ -176,11 +176,14 @@ and what is easy to get wrong.
   can also reach the database after the read is answered, so a read is dropped
   if any write was out at any moment while it was — not only one that started
   during it. `trackWrites()` in `src/lib/writes.ts` is the one rule; the store
-  sends every write through `tracked` and the panel through `counted`, or
-  through `direct` when it goes past the store, so both watch it. A write that
-  skips them is a write a read can undo. A dropped read is asked again once no
-  write is out, so a drop never leaves the screen behind for good. Of two
-  reads only the newer lands, and that one is owed nothing.
+  sends every write through `tracked`, which settings reaches as `send`, and
+  the panel through `counted`, or through `direct` when it goes past the store,
+  so both watch it. A write that skips them is a write a read can undo. Two
+  requests stay out on purpose: presence, which changes nothing a read draws,
+  and a save on leave, which goes out as the tab closes. A dropped read is
+  asked again once no write is out, so a drop never leaves the screen behind
+  for good. Of two reads only the newer lands; the older one is dropped and
+  owed nothing, because the newer one is still coming.
 - **The board has one tab stop.** The cursor is a card, and that card is the
   only card `Tab` can reach; `BoardCanvas` holds which one and `TaskCard` sets
   `tabIndex` after dnd-kit's own attributes, which hand every card a stop. Give

@@ -54,6 +54,14 @@ import type {
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 
+/** A write sent through the one rule of `trackWrites`. */
+export type Send = {
+  post: <T = unknown>(url: string, payload?: unknown) => Promise<T>;
+  put: <T = unknown>(url: string, payload?: unknown) => Promise<T>;
+  patch: <T = unknown>(url: string, payload?: unknown) => Promise<T>;
+  del: <T = unknown>(url: string) => Promise<T>;
+};
+
 type Store = {
   data: BoardData;
   user: SessionUser;
@@ -123,6 +131,12 @@ type Store = {
    * then dropped and asked again, as it is for the store's own writes.
    */
   wrote: () => () => void;
+  /**
+   * The routes, for a write that is not one of the store's own — settings,
+   * people, webhooks. It is watched by the same rule as the store's writes, so
+   * a board read that crosses it is dropped and asked again.
+   */
+  send: Send;
   /** Who else has which task open. Read it through `usePresence`. */
   presence: Presence;
 
@@ -538,7 +552,7 @@ export function BoardProvider({
   const refreshRef = useRef<() => Promise<void>>(async () => {});
   const [writes] = useState(() => trackWrites(() => void refreshRef.current()));
   const wrote = useCallback(() => writes.begin(), [writes]);
-  const tracked = useMemo(() => {
+  const tracked = useMemo<Send>(() => {
     const out = <T,>(request: Promise<T>): Promise<T> => request.finally(writes.begin());
     return {
       post: <T,>(url: string, payload?: unknown) => out(api.post<T>(url, payload)),
@@ -1497,6 +1511,7 @@ export function BoardProvider({
     notify,
     refresh,
     wrote,
+    send: tracked,
     presence,
     createTask,
     patchTask,
