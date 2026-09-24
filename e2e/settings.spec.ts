@@ -426,7 +426,7 @@ test.describe("An edit the tab was closed on", () => {
     /* The bar of this tab, and not the answer to its board read: a test that
        waits for the response can pass on a slow commit with no gate at all,
        because the tab is still holding the name it was born with. */
-    await expect(page.getByRole("link", { name: renamed })).toBeVisible();
+    await expect(page.getByTestId("project-switcher")).toHaveAccessibleName(renamed);
 
     // Nobody typed in this tab, so closing it writes nothing.
     await page.close();

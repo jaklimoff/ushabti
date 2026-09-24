@@ -410,7 +410,7 @@ test.describe("Picking on a list", () => {
  */
 async function topBarEnds(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const top = document.querySelector('[data-testid="board-mark"]')!.parentElement!;
+    const top = document.querySelector('[data-testid="top-bar"]')!;
     const drawn = [...top.children].filter((el) => el.getBoundingClientRect().width > 0);
     return Math.round(drawn[drawn.length - 1].getBoundingClientRect().right);
   });

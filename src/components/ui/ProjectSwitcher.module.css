@@ -1,0 +1,138 @@
+/*
+ * A flex item of the top bar, which may be narrower than its content: the
+ * name inside ellipsises instead of pushing the bar off its own side.
+ */
+.wrap {
+  position: relative;
+  min-width: 0;
+  display: flex;
+}
+
+/* The mark and the name sit exactly where they sat before they became a
+   button. No padding: the bar measures every box inside it, and a hover
+   background that reached past the mark would reach past the bar. */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trigger:hover .caret,
+.trigger[aria-expanded="true"] .caret {
+  color: var(--text);
+}
+
+.caret {
+  margin-left: -6px;
+  font-size: 9px;
+  line-height: 1;
+  color: #5d646f;
+  transition: color 140ms var(--ease);
+}
+
+.panel {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  z-index: 60;
+  width: 240px;
+  /* A phone is narrower than the menu is wide. */
+  max-width: calc(100vw - 20px);
+  padding: 5px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: 8px;
+  box-shadow: var(--shadow-menu);
+  animation: ushabti-fade-in 120ms var(--ease);
+}
+
+.box {
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(360px, 60vh);
+  overflow-y: auto;
+  outline: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-4);
+}
+
+.item:hover,
+.itemAt {
+  background: #1b2126;
+  color: var(--text);
+}
+
+/* The projects end here. What follows goes somewhere else. */
+.itemRule {
+  margin-top: 4px;
+  position: relative;
+}
+
+.itemRule::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line-soft);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tick {
+  color: var(--accent);
+}
+
+.note {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+/* A phone keeps the mark as the button and gives the caret's room to the
+   board. Under 16 px iOS zooms in on a box that takes the focus. */
+@media (max-width: 520px) {
+  .caret {
+    display: none;
+  }
+
+  .box {
+    font-size: 16px;
+  }
+}
