@@ -322,6 +322,8 @@ test.describe("Archiving a task", () => {
         stale = await answer.text();
         return route.fulfill({ response: answer, body: stale });
       }
+      /* The panel reads again for the one it threw away. That read is real. */
+      if (reads > 2) return route.fallback();
       arrived();
       await held;
       return route.fulfill({ contentType: "application/json", body: stale });
@@ -351,6 +353,63 @@ test.describe("Archiving a task", () => {
     await detailReadPast(page, parsed);
 
     // The old answer landed and was thrown away.
+    await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
+  });
+
+  /*
+   * A value picked while Archive was still on its way went off the panel. The
+   * read Archive ends with went out while the value was still on its way, was
+   * answered before the server took the value, and was drawn. Nothing read
+   * the task again, so the value stayed off until the panel was opened again.
+   */
+  test("a value picked while Archive is on its way stays on screen", async ({ page }) => {
+    await countDetailReads(page);
+    await register(page);
+    await createProject(page, unique("Crossed"));
+    await addTask(page, "Todo", "Rotate the backup key");
+    /* Archive is a write too, so a first read of the task still on its way
+       would wait for it, and the archived panel has nothing to draw values
+       from until then. The first read lands before the test goes on. */
+    await detailReadPast(page, 0);
+
+    /* Archive is done on the server but answered only when the test says. */
+    let answerArchive = () => {};
+    const archiveHeld = new Promise<void>((resolve) => (answerArchive = resolve));
+    await page.route("**/api/tasks/*/archive", async (route) => {
+      const answer = await route.fetch();
+      await archiveHeld;
+      await route.fulfill({ response: answer });
+    });
+
+    /* The value reaches the server only after the read Archive starts has
+       been answered and parsed, so that answer is from before the value. */
+    let sendValue = () => {};
+    const valueHeld = new Promise<void>((resolve) => (sendValue = resolve));
+    await page.route("**/api/tasks/*/values/*", async (route) => {
+      if (route.request().method() !== "PUT") return route.fallback();
+      await valueHeld;
+      await route.fallback();
+    });
+
+    await page.getByRole("button", { name: "Task menu" }).click();
+    await page.getByTestId("archive-task").click();
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+
+    const valueOut = page.waitForRequest((r) => r.method() === "PUT" && /\/values\//.test(r.url()));
+    await priority(page, "High").click();
+    await valueOut;
+
+    const parsed = await detailReads(page);
+    answerArchive();
+    await detailReadPast(page, parsed);
+
+    const saved = page.waitForResponse(
+      (r) => r.request().method() === "PUT" && /\/values\//.test(r.url()),
+    );
+    sendValue();
+    await saved;
+
+    // The read that crossed the value was thrown away, and the value stays.
     await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
   });
 
@@ -443,6 +502,78 @@ test.describe("Archiving a task", () => {
     await page.getByRole("link", { name: "Back to board" }).click();
     await expect(card(page, "First to go").first()).toBeVisible();
     await expect(card(page, "Second to go")).toHaveCount(0);
+  });
+});
+
+/*
+ * A comment goes straight to its route, past the store, and the panel did not
+ * watch it. A read of the task that went out while the comment was on its way
+ * could answer from before it and be drawn, which took the comments already
+ * on screen off the panel until the comment was answered.
+ */
+test.describe("A read that crosses a write", () => {
+  test("a read that crossed a comment on its way is thrown away", async ({ page }) => {
+    await countDetailReads(page);
+    await register(page);
+    await createProject(page, unique("Crossing"));
+    await addTask(page, "Todo", "Rotate the backup key");
+    await page.getByRole("tab", { name: /^Comments/ }).click();
+
+    /* The first read the test starts is copied: the task before any comment.
+       The second answers with that copy, which is a read from before the
+       comment that follows. Every other read is real. */
+    let stale = "";
+    let step: "copy" | "real" | "stale" = "copy";
+    await page.route("**/api/tasks/*", async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      if (step === "copy") {
+        step = "real";
+        const answer = await route.fetch();
+        stale = await answer.text();
+        return route.fulfill({ response: answer, body: stale });
+      }
+      if (step === "stale") {
+        step = "real";
+        return route.fulfill({ contentType: "application/json", body: stale });
+      }
+      return route.fallback();
+    });
+    const ring = () =>
+      page.evaluate(() => window.dispatchEvent(new CustomEvent("ushabti:remote-change")));
+    const copied = page.waitForResponse((r) => detailRead(r.url()));
+    await ring();
+    await copied;
+
+    const comment = (text: string) => page.getByTestId("comment").filter({ hasText: text });
+    const box = page.getByTestId("comment-box");
+    await box.fill("The old key goes on Friday.");
+    await page.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(comment("The old key goes on Friday.")).toBeVisible();
+
+    /* The next comment is held on its way, and a read goes out meanwhile. */
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/api/tasks/*/comments", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      await held;
+      return route.fallback();
+    });
+    const out = page.waitForRequest((r) => r.method() === "POST" && /\/comments$/.test(r.url()));
+    await box.fill("The new key is in the vault.");
+    await page.getByRole("button", { name: "Comment", exact: true }).click();
+    await out;
+
+    step = "stale";
+    const parsed = await detailReads(page);
+    await ring();
+    await detailReadPast(page, parsed);
+
+    // The read that crossed the comment was thrown away.
+    await expect(comment("The old key goes on Friday.")).toBeVisible();
+
+    release();
+    await expect(comment("The new key is in the vault.")).toBeVisible();
+    await expect(comment("The old key goes on Friday.")).toBeVisible();
   });
 });
 

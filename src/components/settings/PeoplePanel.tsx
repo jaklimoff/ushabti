@@ -58,7 +58,7 @@ export function PeoplePanel() {
 /* ------------------------------------------------------------------ */
 
 function Members() {
-  const { data, refresh, notify, user } = useBoard();
+  const { data, refresh, notify, user, send } = useBoard();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +79,7 @@ function Members() {
     setError(null);
     setInvited(null);
     try {
-      const answer = await api.post<{ invite?: InviteDTO }>(
+      const answer = await send.post<{ invite?: InviteDTO }>(
         `/api/projects/${data.project.id}/members`,
         { email: value },
       );
@@ -97,7 +97,7 @@ function Members() {
 
   async function remove(member: MemberDTO) {
     try {
-      await api.del(`/api/projects/${data.project.id}/members/${member.id}`);
+      await send.del(`/api/projects/${data.project.id}/members/${member.id}`);
       if (member.id === user.id) router.replace("/projects");
       else await refresh();
     } catch (err) {
@@ -107,7 +107,7 @@ function Members() {
 
   async function changeRole(member: MemberDTO, role: Role) {
     try {
-      await api.patch(`/api/projects/${data.project.id}/members/${member.id}`, { role });
+      await send.patch(`/api/projects/${data.project.id}/members/${member.id}`, { role });
       await refresh();
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not change that role.");
@@ -116,7 +116,9 @@ function Members() {
 
   async function withdraw(invite: InviteDTO) {
     try {
-      await api.del(`/api/projects/${data.project.id}/invites/${encodeURIComponent(invite.email)}`);
+      await send.del(
+        `/api/projects/${data.project.id}/invites/${encodeURIComponent(invite.email)}`,
+      );
       await refresh();
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not withdraw that invite.");
@@ -225,7 +227,7 @@ function MemberRow({
   projectId: string;
   onRemove: () => void;
 }) {
-  const { notify } = useBoard();
+  const { notify, send } = useBoard();
   const confirm = useConfirm();
   const reset = useConfirm();
   const handOver = useConfirm();
@@ -234,7 +236,7 @@ function MemberRow({
 
   async function makeLink() {
     try {
-      const res = await api.post<{ link: string }>(
+      const res = await send.post<{ link: string }>(
         `/api/projects/${projectId}/members/${member.id}/reset`,
       );
       setLink(res.link);
@@ -389,7 +391,7 @@ function InviteRow({
  * invited by email, and they sign in with a token rather than a password.
  */
 function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => Promise<void> }) {
-  const { data, notify, refresh } = useBoard();
+  const { data, notify, refresh, send } = useBoard();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   /** The plain text of a token, held until the person leaves the page. */
@@ -402,7 +404,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
     if (!trimmed || busy) return;
     setBusy(true);
     try {
-      await api.post(`/api/projects/${projectId}/agents`, { name: trimmed });
+      await send.post(`/api/projects/${projectId}/agents`, { name: trimmed });
       setName("");
       await reload();
       await refresh();
@@ -415,7 +417,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
 
   async function connect(agent: AgentDTO) {
     try {
-      const res = await api.post<{ token: { id: string }; secret: string }>(
+      const res = await send.post<{ token: { id: string }; secret: string }>(
         `/api/projects/${projectId}/agents/${agent.id}/tokens`,
         { name: "default" },
       );
@@ -428,7 +430,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
 
   async function revoke(tokenId: string) {
     try {
-      await api.del(`/api/agent-tokens/${tokenId}`);
+      await send.del(`/api/agent-tokens/${tokenId}`);
       setSecrets((current) => {
         const next = { ...current };
         delete next[tokenId];
@@ -442,7 +444,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
 
   async function remove(agent: AgentDTO) {
     try {
-      await api.del(`/api/projects/${projectId}/agents/${agent.id}`);
+      await send.del(`/api/projects/${projectId}/agents/${agent.id}`);
       await reload();
       await refresh();
     } catch (err) {
