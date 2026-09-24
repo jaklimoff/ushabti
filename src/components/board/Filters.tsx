@@ -578,8 +578,10 @@ const WAY: Record<SortDirection, string> = {
  *
  * The rows are the columns a list would draw, named the way a list names them:
  * one question, one set of words, whichever shape the view is in. Pressing a
- * row is the press on a heading — down, then up, then back to the order the
- * board itself keeps — so `nextSort` stays the only place that rule lives.
+ * row is the press on a heading, so `pressSort` stays the only place that rule
+ * lives. It works a press out against the view's order: down, then up, then
+ * my order goes, and the screen falls back to the view's order if it has one
+ * and to the board's own order if not.
  */
 export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const { cardItems, sort, viewSort, setSort } = useBoard();

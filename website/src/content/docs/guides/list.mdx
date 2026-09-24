@@ -114,7 +114,8 @@ A drag writes a rank, and a sorted list is not showing ranks — dropping a row 
 would write an order nobody on the screen can see and then leave the row where the sort puts it,
 which reads as the drag having failed. So while an order is on, the rows are held still and
 <kbd>Space</kbd> does not lift one. The third press of the heading, or the `✕` on the chip, gives the
-order — and the drag — back.
+order — and the drag — back. If the view has an order of its own, the third press goes back to that
+order and the list stays held, and a press on that column turns it around.
 
 A sorted board holds still the same way, with one difference: a card can still be *lifted* and
 carried to another column, because that writes the column's value and no rank. Only its place

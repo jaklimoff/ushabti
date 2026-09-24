@@ -394,10 +394,11 @@ export function ListCanvas({
                        its rows are buttons. So the state goes in the name,
                        where it is read either way. */
                     aria-label={said}
-                    /* Down, then up, then back to the order the board keeps —
-                       and the third press is the way back to a list you can
-                       drag, which is why it is on the heading and not hidden
-                       in a menu. */
+                    /* Down, then up, then the third press takes my order
+                       away, which is why it is on the heading and not hidden
+                       in a menu. The list can be dragged again only when the
+                       view has no order of its own; if it has one, the list
+                       falls back to it and stays held. */
                     title={said}
                     onClick={() => void setSort(next)}
                   >
