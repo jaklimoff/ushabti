@@ -23,6 +23,7 @@ import {
 } from "@/lib/run-state";
 import { checklistField, editingSaid } from "@/lib/presence";
 import { searchTasks } from "@/lib/search";
+import { trackWrites } from "@/lib/writes";
 import type {
   AgentRunDTO,
   AgentRunDetailDTO,
@@ -162,27 +163,30 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const now = useNow(!!shown?.archivedAt);
 
   /*
-   * Every write this panel makes, counted, exactly as the board counts its own.
-   * A read of the task that was already out when one went answers with the task
-   * as it was before the write, and drawing that quietly undoes the comment
-   * somebody just sent. Every change anybody makes starts such a read here.
-   */
-  const writes = useRef(0);
-
-  /*
-   * One rule, two subjects: the panel writes some things itself and hands the
-   * rest to the store, and a read that went out before either of them is as
-   * stale. So every write the panel starts is counted here, before it goes.
+   * Every write this panel makes, watched until it is answered, exactly as the
+   * board watches its own. A read of the task that crosses one answers with the
+   * task as it may have been before the write, and drawing that quietly undoes
+   * the value somebody just picked. Every change anybody makes starts such a
+   * read here. A read dropped for a write is asked again once no write is out.
    *
-   * The store keeps a count of its own, for its own read of the board. Two
-   * counters for two reads is the smaller answer: one number would be bumped
-   * by writes the other read cannot see, and a read dropped for a write that
-   * did not touch it is a read lost for nothing.
+   * One rule, two subjects: the panel writes some things itself and hands the
+   * rest to the store, and a read that crosses either of them is as stale. So
+   * every write the panel starts goes through `counted`.
+   *
+   * The store keeps watch of its own, for its own read of the board. Two
+   * watches for two reads is the smaller answer: one would drop a read for a
+   * write it cannot see, and a read dropped for a write that did not touch it
+   * is a read lost for nothing.
    */
-  const counted = useCallback(<T,>(write: () => Promise<T>): Promise<T> => {
-    writes.current += 1;
-    return write();
-  }, []);
+  const loadRef = useRef<() => Promise<void>>(async () => {});
+  const [writes] = useState(() => trackWrites(() => void loadRef.current()));
+  const counted = useCallback(
+    <T,>(write: () => Promise<T>): Promise<T> => {
+      const answered = writes.begin();
+      return write().finally(answered);
+    },
+    [writes],
+  );
 
   /*
    * The task the last read was started for. The panel stays where it is when
@@ -198,12 +202,12 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
      screen in the promise’s own callback rather than in the line that started
      the read. The effect below only asks; this is where the answer lands. */
   const load = useCallback(() => {
-    const at = writes.current;
+    const reading = writes.reading();
     asked.current = taskId;
     return api
       .get<{ task: TaskDetailDTO | null }>(`/api/tasks/${taskId}`)
       .then((res) => {
-        if (writes.current !== at || asked.current !== taskId) return;
+        if (asked.current !== taskId || !writes.keep(reading)) return;
         setLoaded({ taskId, task: res.task });
         if (!res.task) {
           onClose();
@@ -221,11 +225,15 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
         if (asked.current !== taskId) return;
         onClose();
       });
-  }, [onClose, syncTaskCounts, taskId]);
+  }, [onClose, syncTaskCounts, taskId, writes]);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
 
-  /* A write of this panel’s own ends by reading the task again, so the read a
-     broadcast started before it is dropped rather than landing on top of it. */
-  const reload = useCallback(() => counted(load), [counted, load]);
+  /* A write of this panel’s own ends by reading the task again. Only the
+     newest read lands, so the read a broadcast started before it is dropped
+     rather than landing on top of it. */
+  const reload = load;
 
   /* What the panel hands to the store is counted on the way out, as its own
      writes are.
@@ -248,7 +256,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       /* The store counts it too. A board read that was out before this save
          would otherwise land after it and put the old words back on the card
          and in the field, and the next edit would start from them. */
-      wrote();
+      const answered = wrote();
       let answer: Saved = "saved";
       try {
         await counted(() =>
@@ -262,6 +270,8 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
         answer = err instanceof ApiError && err.status === 409 ? "changed" : "failed";
         if (answer === "failed")
           notify(err instanceof Error ? err.message : "The change did not save.");
+      } finally {
+        answered();
       }
       /* Either way the field needs the saved text: the new one to show, or the
          one somebody else wrote to show beside these words. */

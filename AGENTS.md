@@ -170,11 +170,16 @@ and what is easy to get wrong.
   `_checklist` and `_comments` are the task row the board already has, given
   rows so that somebody can take them off. They are not fields on a task and
   must never become any: nothing writes them, and the words are fixed.
-- **A read that started before this tab's own write is thrown away.** The
-  stream asks for the board the moment it connects, and that answer is stale
-  the instant somebody clicks. `store.tsx` counts the writes and `refresh()`
-  drops an answer that was overtaken, which is the only thing standing between
-  a fast click after a page load and having it silently undone.
+- **A read that crossed this tab's own write is thrown away, and asked
+  again.** The stream asks for the board the moment it connects, and that
+  answer is stale the instant somebody clicks. A write sent just before a read
+  can also reach the database after the read is answered, so a read is dropped
+  if any write was out at any moment while it was — not only one that started
+  during it. `trackWrites()` in `src/lib/writes.ts` is the one rule; the store
+  sends every write through `tracked` and the panel through `counted`, and a
+  write that skips them is a write a read can undo. A dropped read is asked
+  again once no write is out, so a drop never leaves the screen behind for
+  good. Of two reads only the newer lands, and that one is owed nothing.
 - **The board has one tab stop.** The cursor is a card, and that card is the
   only card `Tab` can reach; `BoardCanvas` holds which one and `TaskCard` sets
   `tabIndex` after dnd-kit's own attributes, which hand every card a stop. Give

@@ -34,6 +34,7 @@ import {
   type Room,
 } from "@/lib/presence";
 import { rankBetween } from "@/lib/rank";
+import { trackWrites } from "@/lib/writes";
 import type {
   AgentRunDTO,
   ArchivedTaskDTO,
@@ -117,10 +118,11 @@ type Store = {
   notify: Notify;
   refresh: () => Promise<void>;
   /**
-   * Counts a write this tab sends by itself, past the store. A board read that
-   * was already out is then dropped, as it is for the store's own writes.
+   * Marks a write this tab sends by itself, past the store, as out. Call what
+   * it gives back once the write is answered. A board read that crosses it is
+   * then dropped and asked again, as it is for the store's own writes.
    */
-  wrote: () => void;
+  wrote: () => () => void;
   /** Who else has which task open. Read it through `usePresence`. */
   presence: Presence;
 
@@ -522,22 +524,35 @@ export function BoardProvider({
   );
 
   /*
-   * Every write this tab makes, counted. A read that was already in flight when
-   * one went out answers with the board as it was before, and putting that on
-   * screen quietly undoes the click that just happened. The stream asks for a
-   * board the moment it connects, so the window is widest right after a page
-   * loads — which is exactly when somebody clicks.
+   * Every write this tab makes, watched from the moment it goes out until it
+   * is answered. A read that crosses one answers with the board as it may have
+   * been before it, and putting that on screen quietly undoes the click that
+   * just happened. The stream asks for a board the moment it connects, so the
+   * window is widest right after a page loads — which is exactly when somebody
+   * clicks. `trackWrites` holds the rule; a read it drops is asked again once
+   * no write is out.
+   *
+   * So every write of the store goes through `tracked`, never through `api`.
+   * A write that forgets is a write a read can undo.
    */
-  const writes = useRef(0);
-  const wrote = useCallback(() => {
-    writes.current += 1;
-  }, []);
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
+  const [writes] = useState(() => trackWrites(() => void refreshRef.current()));
+  const wrote = useCallback(() => writes.begin(), [writes]);
+  const tracked = useMemo(() => {
+    const out = <T,>(request: Promise<T>): Promise<T> => request.finally(writes.begin());
+    return {
+      post: <T,>(url: string, payload?: unknown) => out(api.post<T>(url, payload)),
+      put: <T,>(url: string, payload?: unknown) => out(api.put<T>(url, payload)),
+      patch: <T,>(url: string, payload?: unknown) => out(api.patch<T>(url, payload)),
+      del: <T,>(url: string) => out(api.del<T>(url)),
+    };
+  }, [writes]);
 
   const refresh = useCallback(async () => {
-    const at = writes.current;
+    const reading = writes.reading();
     try {
       const fresh = await api.get<BoardData>(`/api/projects/${projectId}/board`);
-      if (writes.current !== at) return;
+      if (!writes.keep(reading)) return;
       setData(fresh);
       /* The answer names every task this project still has, so it is the one
          place that can say which unsent notes have nothing left to sit on. */
@@ -546,7 +561,7 @@ export function BoardProvider({
       // The project is gone, or this person was removed from it.
       if (err instanceof ApiError && err.status === 404) router.push("/projects");
     }
-  }, [projectId, router]);
+  }, [projectId, router, writes]);
 
   /*
    * The stream must outlive every re-render, so the effect below holds the
@@ -555,7 +570,6 @@ export function BoardProvider({
    * changes: the EventSource then closed and reopened, and any broadcast that
    * arrived in the gap was gone for good, because SSE does not replay.
    */
-  const refreshRef = useRef(refresh);
   useEffect(() => {
     refreshRef.current = refresh;
   }, [refresh]);
@@ -744,7 +758,6 @@ export function BoardProvider({
    */
   const guarded = useCallback(
     async (work: () => Promise<void>): Promise<boolean> => {
-      wrote();
       try {
         await work();
         return true;
@@ -754,7 +767,7 @@ export function BoardProvider({
         return false;
       }
     },
-    [notify, refresh, wrote],
+    [notify, refresh],
   );
 
   /* --- tasks ---------------------------------------------------------- */
@@ -787,12 +800,11 @@ export function BoardProvider({
 
   const createTask = useCallback<Store["createTask"]>(
     async (input) => {
-      wrote();
       try {
         /* What the route really answers: the row it wrote, and the key it
            wears. Not a whole card — calling it one is how a card reached the
            board without the fields that are counted or joined. */
-        const { task } = await api.post<{
+        const { task } = await tracked.post<{
           task: Pick<
             TaskDTO,
             | "id"
@@ -830,17 +842,17 @@ export function BoardProvider({
         return null;
       }
     },
-    [notify, projectId, wrote],
+    [notify, projectId, tracked],
   );
 
   const patchTask = useCallback<Store["patchTask"]>(
     async (taskId, patch) => {
       patchLocalTask(taskId, patch);
       await guarded(async () => {
-        await api.patch(`/api/tasks/${taskId}`, patch);
+        await tracked.patch(`/api/tasks/${taskId}`, patch);
       });
     },
-    [guarded, patchLocalTask],
+    [guarded, patchLocalTask, tracked],
   );
 
   /*
@@ -852,10 +864,10 @@ export function BoardProvider({
   const undeleteTask = useCallback<Store["undeleteTask"]>(
     async (taskId) =>
       guarded(async () => {
-        await api.post(`/api/tasks/${taskId}/restore`, {});
+        await tracked.post(`/api/tasks/${taskId}/restore`, {});
         await refresh();
       }),
-    [guarded, refresh],
+    [guarded, refresh, tracked],
   );
 
   /*
@@ -884,9 +896,8 @@ export function BoardProvider({
         archived: current.archived.filter((t) => t.id !== taskId),
       }));
 
-      wrote();
       try {
-        const said = await api.del<{ goesAt?: string }>(`/api/tasks/${taskId}`);
+        const said = await tracked.del<{ goesAt?: string }>(`/api/tasks/${taskId}`);
         if (key)
           notify(deletedSaid(key, said?.goesAt ?? null), "info", {
             label: "Undo",
@@ -899,7 +910,7 @@ export function BoardProvider({
         await refresh();
       }
     },
-    [data.archived, data.tasks, holdsUpACard, notify, refresh, undeleteTask, wrote],
+    [data.archived, data.tasks, holdsUpACard, notify, refresh, tracked, undeleteTask],
   );
 
   /* The card leaves the board at once and joins the archived list, so a search
@@ -930,13 +941,13 @@ export function BoardProvider({
         };
       });
       await guarded(async () => {
-        await api.post(`/api/tasks/${taskId}/archive`, {});
+        await tracked.post(`/api/tasks/${taskId}/archive`, {});
       });
       /* An archived task is over, whatever else the project calls over, so
          every card that was waiting on this one is free now. */
       if (holdsUp) await refresh();
     },
-    [guarded, holdsUpACard, refresh],
+    [guarded, holdsUpACard, refresh, tracked],
   );
 
   /*
@@ -950,10 +961,10 @@ export function BoardProvider({
   const restoreTask = useCallback<Store["restoreTask"]>(
     async (taskId) =>
       guarded(async () => {
-        await api.del(`/api/tasks/${taskId}/archive`);
+        await tracked.del(`/api/tasks/${taskId}/archive`);
         await refresh();
       }),
-    [guarded, refresh],
+    [guarded, refresh, tracked],
   );
 
   /* How many cards went is the server's answer, because the sweep names a
@@ -961,9 +972,8 @@ export function BoardProvider({
   const archiveColumn = useCallback<Store["archiveColumn"]>(
     async (propertyId, value) => {
       if (!propertyId) return 0;
-      wrote();
       try {
-        const res = await api.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
+        const res = await tracked.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
           propertyId,
           value,
         });
@@ -975,7 +985,7 @@ export function BoardProvider({
         return 0;
       }
     },
-    [notify, projectId, refresh, wrote],
+    [notify, projectId, refresh, tracked],
   );
 
   const moveTask = useCallback<Store["moveTask"]>(
@@ -1010,7 +1020,7 @@ export function BoardProvider({
       });
 
       await guarded(async () => {
-        const res = await api.post<{ position: string }>(`/api/tasks/${taskId}/move`, {
+        const res = await tracked.post<{ position: string }>(`/api/tasks/${taskId}/move`, {
           beforeId,
           afterId,
           values: values ?? {},
@@ -1021,7 +1031,7 @@ export function BoardProvider({
          may be the one the project calls done. */
       if (Object.keys(values ?? {}).some(saysDone)) await refresh();
     },
-    [guarded, patchLocalTask, refresh, saysDone],
+    [guarded, patchLocalTask, refresh, saysDone, tracked],
   );
 
   const setValue = useCallback<Store["setValue"]>(
@@ -1033,24 +1043,23 @@ export function BoardProvider({
         ),
       }));
       const saved = await guarded(async () => {
-        await api.put(`/api/tasks/${taskId}/values/${propertyId}`, { value });
+        await tracked.put(`/api/tasks/${taskId}/values/${propertyId}`, { value });
       });
       if (saved && saysDone(propertyId)) await refresh();
       return saved;
     },
-    [guarded, refresh, saysDone],
+    [guarded, refresh, saysDone, tracked],
   );
 
   const linkBlocker = useCallback<Store["linkBlocker"]>(
     async (waitsId, blockerId, on) => {
-      wrote();
-      if (on) await api.post(`/api/tasks/${waitsId}/blockers`, { blockerId });
-      else await api.del(`/api/tasks/${waitsId}/blockers/${blockerId}`);
+      if (on) await tracked.post(`/api/tasks/${waitsId}/blockers`, { blockerId });
+      else await tracked.del(`/api/tasks/${waitsId}/blockers/${blockerId}`);
       /* What a card waits on is worked out on the server, so the board is
          read again rather than patched here. */
       await refresh();
     },
-    [refresh, wrote],
+    [refresh, tracked],
   );
 
   /*
@@ -1074,7 +1083,7 @@ export function BoardProvider({
         ),
       }));
       await guarded(async () => {
-        await api.post(`/api/projects/${projectId}/tasks/values`, {
+        await tracked.post(`/api/projects/${projectId}/tasks/values`, {
           taskIds: ids,
           propertyId,
           value,
@@ -1082,7 +1091,7 @@ export function BoardProvider({
       });
       if (saysDone(propertyId)) await refresh();
     },
-    [guarded, pickedHere, projectId, refresh, saysDone],
+    [guarded, pickedHere, projectId, refresh, saysDone, tracked],
   );
 
   /*
@@ -1099,9 +1108,8 @@ export function BoardProvider({
   const archivePicked = useCallback<Store["archivePicked"]>(async () => {
     const ids = pickedHere;
     if (ids.length === 0) return 0;
-    wrote();
     try {
-      const res = await api.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
+      const res = await tracked.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
         taskIds: ids,
       });
       clearPicks();
@@ -1112,18 +1120,18 @@ export function BoardProvider({
       await refresh();
       return 0;
     }
-  }, [clearPicks, notify, pickedHere, projectId, refresh, wrote]);
+  }, [clearPicks, notify, pickedHere, projectId, refresh, tracked]);
 
   const controlRun = useCallback<Store["controlRun"]>(
     async (runId, control) => {
       try {
-        await api.post(`/api/runs/${runId}/control`, { control });
+        await tracked.post(`/api/runs/${runId}/control`, { control });
         await refresh();
       } catch (err) {
         notify(err instanceof Error ? err.message : "The agent did not hear that.");
       }
     },
-    [notify, refresh],
+    [notify, refresh, tracked],
   );
 
   /* Only the live list: an archived task carries no counts to go stale. */
@@ -1148,9 +1156,8 @@ export function BoardProvider({
   /* --- views ---------------------------------------------------------- */
   const createView = useCallback<Store["createView"]>(
     async (name, kind, groupById) => {
-      wrote();
       try {
-        const { view: created } = await api.post<{ view: ViewDTO }>(
+        const { view: created } = await tracked.post<{ view: ViewDTO }>(
           `/api/projects/${projectId}/views`,
           { name, kind, groupById },
         );
@@ -1160,7 +1167,7 @@ export function BoardProvider({
         notify(err instanceof Error ? err.message : "The view did not save.");
       }
     },
-    [notify, projectId, setViewId, wrote],
+    [notify, projectId, setViewId, tracked],
   );
 
   const updateView = useCallback<Store["updateView"]>(
@@ -1170,10 +1177,10 @@ export function BoardProvider({
         views: current.views.map((v) => (v.id === id ? { ...v, ...patch } : v)),
       }));
       await guarded(async () => {
-        await api.patch(`/api/views/${id}`, patch);
+        await tracked.patch(`/api/views/${id}`, patch);
       });
     },
-    [guarded],
+    [guarded, tracked],
   );
 
   const setFilters = useCallback<Store["setFilters"]>(
@@ -1199,10 +1206,10 @@ export function BoardProvider({
         views: current.views.map((v) => (v.id === id ? { ...v, lens: { rules }, lensSort } : v)),
       }));
       await guarded(async () => {
-        await api.put(`/api/views/${id}/lens`, { filters: { rules }, sort: lensSort });
+        await tracked.put(`/api/views/${id}/lens`, { filters: { rules }, sort: lensSort });
       });
     },
-    [guarded],
+    [guarded, tracked],
   );
 
   const setLens = useCallback<Store["setLens"]>(
@@ -1234,14 +1241,14 @@ export function BoardProvider({
     if (clash) return notify(clashSaid(clash));
 
     await guarded(async () => {
-      await api.post(`/api/views/${id}/lens/promote`);
+      await tracked.post(`/api/views/${id}/lens/promote`);
       /* The board comes back from the server rather than being worked out
          here. The joining is the same, but a set made before the write would
          be written over a board that arrived while the write was in flight.
          Nothing flashes, because this write already waited for its answer. */
       await refresh();
     });
-  }, [data.properties, guarded, notify, refresh, view]);
+  }, [data.properties, guarded, notify, refresh, tracked, view]);
 
   const clearLens = useCallback<Store["clearLens"]>(async () => {
     if (!view) return;
@@ -1269,10 +1276,10 @@ export function BoardProvider({
     async (next) => {
       setData((current) => ({ ...current, cardView: next }));
       await guarded(async () => {
-        await api.patch(`/api/projects/${projectId}/card-view`, { cardView: next });
+        await tracked.patch(`/api/projects/${projectId}/card-view`, { cardView: next });
       });
     },
-    [guarded, projectId],
+    [guarded, projectId, tracked],
   );
 
   const resetCardView = useCallback<Store["resetCardView"]>(async () => {
@@ -1281,9 +1288,9 @@ export function BoardProvider({
       cardView: defaultCardView(current.properties, mainBoardGroupById(current.views)),
     }));
     await guarded(async () => {
-      await api.patch(`/api/projects/${projectId}/card-view`, { cardView: null });
+      await tracked.patch(`/api/projects/${projectId}/card-view`, { cardView: null });
     });
-  }, [guarded, projectId]);
+  }, [guarded, projectId, tracked]);
 
   const deleteView = useCallback<Store["deleteView"]>(
     async (id) => {
@@ -1291,10 +1298,10 @@ export function BoardProvider({
       setData((current) => ({ ...current, views: remaining }));
       if (viewId === id) setViewId(remaining[0]?.id ?? "");
       await guarded(async () => {
-        await api.del(`/api/views/${id}`);
+        await tracked.del(`/api/views/${id}`);
       });
     },
-    [data.views, guarded, setViewId, viewId],
+    [data.views, guarded, setViewId, tracked, viewId],
   );
 
   const setMainView = useCallback<Store["setMainView"]>(
@@ -1304,10 +1311,10 @@ export function BoardProvider({
         views: current.views.map((v) => ({ ...v, isDefault: v.id === id })),
       }));
       await guarded(async () => {
-        await api.patch(`/api/views/${id}`, { isDefault: true });
+        await tracked.patch(`/api/views/${id}`, { isDefault: true });
       });
     },
-    [guarded],
+    [guarded, tracked],
   );
 
   /*
@@ -1322,18 +1329,17 @@ export function BoardProvider({
 
       setData((current) => ({ ...current, views: landed.ordered }));
       await guarded(async () => {
-        await api.patch(`/api/views/${id}`, { afterId: landed.afterId });
+        await tracked.patch(`/api/views/${id}`, { afterId: landed.afterId });
       });
     },
-    [data.views, guarded],
+    [data.views, guarded, tracked],
   );
 
   /* --- properties and options ----------------------------------------- */
   const addOption = useCallback<Store["addOption"]>(
     async (propertyId, name) => {
-      wrote();
       try {
-        const { option } = await api.post<{ option: PropertyDTO["options"][number] }>(
+        const { option } = await tracked.post<{ option: PropertyDTO["options"][number] }>(
           `/api/properties/${propertyId}/options`,
           { name },
         );
@@ -1349,7 +1355,7 @@ export function BoardProvider({
         return null;
       }
     },
-    [notify, wrote],
+    [notify, tracked],
   );
 
   const patchOption = useCallback<Store["patchOption"]>(
@@ -1372,11 +1378,11 @@ export function BoardProvider({
         }));
       }
       await guarded(async () => {
-        await api.patch(`/api/options/${optionId}`, patch);
+        await tracked.patch(`/api/options/${optionId}`, patch);
         if (patch.afterId !== undefined) await refresh();
       });
     },
-    [guarded, refresh],
+    [guarded, refresh, tracked],
   );
 
   /* The order shows at once, in Settings and in every column grouped by the
@@ -1402,21 +1408,21 @@ export function BoardProvider({
   const deleteOption = useCallback<Store["deleteOption"]>(
     async (optionId) => {
       await guarded(async () => {
-        await api.del(`/api/options/${optionId}`);
+        await tracked.del(`/api/options/${optionId}`);
         await refresh();
       });
     },
-    [guarded, refresh],
+    [guarded, refresh, tracked],
   );
 
   const addProperty = useCallback<Store["addProperty"]>(
     async (name, type, options) => {
       await guarded(async () => {
-        await api.post(`/api/projects/${projectId}/properties`, { name, type, options });
+        await tracked.post(`/api/projects/${projectId}/properties`, { name, type, options });
         await refresh();
       });
     },
-    [guarded, projectId, refresh],
+    [guarded, projectId, refresh, tracked],
   );
 
   const patchProperty = useCallback<Store["patchProperty"]>(
@@ -1428,10 +1434,10 @@ export function BoardProvider({
         ),
       }));
       await guarded(async () => {
-        await api.patch(`/api/properties/${propertyId}`, patch);
+        await tracked.patch(`/api/properties/${propertyId}`, patch);
       });
     },
-    [guarded],
+    [guarded, tracked],
   );
 
   /*
@@ -1446,20 +1452,20 @@ export function BoardProvider({
 
       setData((current) => ({ ...current, properties: landed.ordered }));
       await guarded(async () => {
-        await api.patch(`/api/properties/${propertyId}`, { afterId: landed.afterId });
+        await tracked.patch(`/api/properties/${propertyId}`, { afterId: landed.afterId });
       });
     },
-    [data.properties, guarded],
+    [data.properties, guarded, tracked],
   );
 
   const deleteProperty = useCallback<Store["deleteProperty"]>(
     async (propertyId) => {
       await guarded(async () => {
-        await api.del(`/api/properties/${propertyId}`);
+        await tracked.del(`/api/properties/${propertyId}`);
         await refresh();
       });
     },
-    [guarded, refresh],
+    [guarded, refresh, tracked],
   );
 
   const store: Store = {

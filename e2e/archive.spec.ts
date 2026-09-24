@@ -322,6 +322,8 @@ test.describe("Archiving a task", () => {
         stale = await answer.text();
         return route.fulfill({ response: answer, body: stale });
       }
+      /* The panel reads again for the one it threw away. That read is real. */
+      if (reads > 2) return route.fallback();
       arrived();
       await held;
       return route.fulfill({ contentType: "application/json", body: stale });
@@ -351,6 +353,59 @@ test.describe("Archiving a task", () => {
     await detailReadPast(page, parsed);
 
     // The old answer landed and was thrown away.
+    await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
+  });
+
+  /*
+   * A value picked while Archive was still on its way went off the panel. The
+   * read Archive ends with went out while the value was still on its way, was
+   * answered before the server took the value, and was drawn. Nothing read
+   * the task again, so the value stayed off until the panel was opened again.
+   */
+  test("a value picked while Archive is on its way stays on screen", async ({ page }) => {
+    await countDetailReads(page);
+    await register(page);
+    await createProject(page, unique("Crossed"));
+    await addTask(page, "Todo", "Rotate the backup key");
+
+    /* Archive is done on the server but answered only when the test says. */
+    let answerArchive = () => {};
+    const archiveHeld = new Promise<void>((resolve) => (answerArchive = resolve));
+    await page.route("**/api/tasks/*/archive", async (route) => {
+      const answer = await route.fetch();
+      await archiveHeld;
+      await route.fulfill({ response: answer });
+    });
+
+    /* The value reaches the server only after the read Archive starts has
+       been answered and parsed, so that answer is from before the value. */
+    let sendValue = () => {};
+    const valueHeld = new Promise<void>((resolve) => (sendValue = resolve));
+    await page.route("**/api/tasks/*/values/*", async (route) => {
+      if (route.request().method() !== "PUT") return route.fallback();
+      await valueHeld;
+      await route.fallback();
+    });
+
+    await page.getByRole("button", { name: "Task menu" }).click();
+    await page.getByTestId("archive-task").click();
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+
+    const valueOut = page.waitForRequest((r) => r.method() === "PUT" && /\/values\//.test(r.url()));
+    await priority(page, "High").click();
+    await valueOut;
+
+    const parsed = await detailReads(page);
+    answerArchive();
+    await detailReadPast(page, parsed);
+
+    const saved = page.waitForResponse(
+      (r) => r.request().method() === "PUT" && /\/values\//.test(r.url()),
+    );
+    sendValue();
+    await saved;
+
+    // The read that crossed the value was thrown away, and the value stays.
     await expect(priority(page, "High")).toHaveAttribute("title", "Click to clear");
   });
 
