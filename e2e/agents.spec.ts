@@ -717,6 +717,65 @@ test.describe("Agents on the board", () => {
     expect(detail.task.pastRuns[0]).not.toHaveProperty("lastLog");
   });
 
+  test("a task opens on the Agent tab while an agent works on it", async ({ page, request }) => {
+    await register(page, "Tab Owner");
+    const projectId = await createProject(page, unique("Tabs"));
+    await addTask(page, "Todo", "Being worked on");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Worker");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Worker" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find((t: { title: string }) => t.title === "Being worked on");
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, { goal: "Do the work", step: "Reading" })
+    ).json();
+
+    await page.goto(`/p/${projectId}`);
+    const held = card(page, "Being worked on").first();
+    const close = page.getByRole("button", { name: "Close task" });
+
+    /* ---- a running run opens on the work ----------------------------- */
+
+    await held.click();
+    await expect(page.getByTestId("panel-run")).toBeVisible();
+    await expect(page.getByTestId("comment-box")).toBeHidden();
+
+    /* ---- a tab the person picks holds through a board read ----------- */
+
+    await page.getByRole("button", { name: /^Comments/ }).click();
+    await expect(page.getByTestId("comment-box")).toBeVisible();
+    await api.patch(`/api/runs/${run.id}`, { step: "Writing", log: "moved on" });
+    await expect(held.getByTestId("card-run-step")).toHaveText("Writing");
+    await expect(page.getByTestId("comment-box")).toBeVisible();
+    await expect(page.getByTestId("panel-run")).toBeHidden();
+    await close.click();
+
+    /* ---- a paused run still opens on the work ------------------------ */
+
+    await api.patch(`/api/runs/${run.id}`, { status: "paused" });
+    await held.click();
+    await expect(page.getByTestId("panel-run")).toContainText("paused");
+    await close.click();
+
+    /* ---- a run that asks opens on the question ----------------------- */
+
+    await api.patch(`/api/runs/${run.id}`, { status: "waiting", step: "Which queue?" });
+    await expect(held.getByTestId("card-run-step")).toHaveText("Which queue?");
+    await held.click();
+    await expect(page.getByTestId("comment-box")).toBeVisible();
+    await expect(page.getByTestId("panel-run")).toBeHidden();
+    await expect(page.getByTestId("agent-tab")).toBeVisible();
+  });
+
   test("an agent may write the board but not take it apart", async ({ page, request }) => {
     await register(page, "Careful Owner");
     const projectId = await createProject(page, unique("Limits"));

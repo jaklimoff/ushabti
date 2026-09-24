@@ -24,6 +24,7 @@ import {
 import { checklistField, editingSaid } from "@/lib/presence";
 import { searchTasks } from "@/lib/search";
 import type {
+  AgentRunDTO,
   AgentRunDetailDTO,
   AgentRunLogDTO,
   AgentRunRowDTO,
@@ -54,6 +55,18 @@ import styles from "./panel.module.css";
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
 
+type PanelTab = "comments" | "activity" | "agent";
+
+/**
+ * The tab a task opens on. While an agent works — running or paused — the work
+ * is what somebody opens the task to see. A run that waits asked a question or
+ * handed the task on, and both of those are read in the comments. The board
+ * carries only open runs, so no run here means nobody is working.
+ */
+function openingTab(run: AgentRunDTO | null): PanelTab {
+  return run && !isWaiting(run.status) ? "agent" : "comments";
+}
+
 export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const {
     data,
@@ -67,6 +80,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     addOption,
     syncTaskCounts,
     controlRun,
+    runOf,
     notify,
     refresh,
     wrote,
@@ -82,7 +96,16 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
    */
   const [loaded, setLoaded] = useState<{ taskId: string; task: TaskDetailDTO | null } | null>(null);
   const detail = loaded?.taskId === taskId ? loaded.task : null;
-  const [tab, setTab] = useState<"comments" | "activity" | "agent">("comments");
+  /*
+   * The tab is picked once, when a task opens, and belongs to that task. A
+   * board read that moves the run on must not move the person off the tab they
+   * chose, so the run is asked only here and never again while the task stays
+   * open. Another task opening is the one thing that asks again.
+   */
+  const [picked, setPicked] = useState(() => ({ taskId, tab: openingTab(runOf(taskId)) }));
+  if (picked.taskId !== taskId) setPicked({ taskId, tab: openingTab(runOf(taskId)) });
+  const tab = picked.taskId === taskId ? picked.tab : openingTab(runOf(taskId));
+  const setTab = (next: PanelTab) => setPicked({ taskId, tab: next });
   const [menuOpen, setMenuOpen] = useState(false);
   /* Which list is taking a key, and on which task. A task with no links draws
      nothing here at all, so the way in is the menu — the panel stays as quiet
@@ -413,7 +436,9 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
    */
   const run = detail?.run ?? null;
   const pastRuns = detail?.pastRuns ?? [];
-  const anyRun = run ?? pastRuns[0] ?? null;
+  /* The board knows an open run before the detail lands, so the tab a task
+     opens on is drawn at once and not after a moment on Comments. */
+  const anyRun = run ?? pastRuns[0] ?? runOf(taskId);
   const shownTab = tab === "agent" && !anyRun ? "comments" : tab;
 
   /* The board knows every task this panel can be opened on, so there is
