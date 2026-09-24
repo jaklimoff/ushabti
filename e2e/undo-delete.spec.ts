@@ -72,7 +72,7 @@ test.describe("Undoing a delete", () => {
 
     /* The way back is on another page, so the one line the board draws has to
        say so, and has to say how long there is. Without it the undo is
-       invisible to anybody who never opens the Archive. */
+       invisible to anybody who never opens the archive page. */
     await expect(page.getByTestId("toast")).toContainText(
       `${key} deleted. It stays under Archived for 30 days.`,
     );
@@ -285,7 +285,7 @@ test.describe("Undoing a delete", () => {
     const toast = page.getByTestId("toast");
     const undo = toast.getByRole("button", { name: "Undo" });
     await expect(undo).toBeVisible();
-    // The Archive is still named, for the moment the toast has gone.
+    // Archived is still named, for the moment the toast has gone.
     await expect(toast).toContainText(`${key} deleted. It stays under Archived for 30 days.`);
     // A toast that arrives never takes the focus from the board.
     await expect(undo).not.toBeFocused();

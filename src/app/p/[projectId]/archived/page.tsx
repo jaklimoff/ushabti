@@ -5,7 +5,7 @@ import { Archive } from "@/components/archive/Archive";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Archive · Ushabti" };
+export const metadata = { title: "Archived · Ushabti" };
 
 /**
  * The archive sits beside Settings rather than in the view strip: it is not a
