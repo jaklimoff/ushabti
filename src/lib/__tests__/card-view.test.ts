@@ -4,9 +4,9 @@ import {
   buildRow,
   cardAccent,
   cardItems,
+  cardOrder,
   defaultCardView,
   mainBoardGroupById,
-  moveCardRow,
   previewTasks,
   readCardView,
   setCardMode,
@@ -109,8 +109,16 @@ describe("the default card", () => {
   });
 
   it("puts the lead colour before the key, so the square opens the row", () => {
-    const view = defaultCardView(PROPERTIES, "p-status");
-    expect(view.order.indexOf("p-prio")).toBeLessThan(view.order.indexOf("_key"));
+    const card = buildCard(items(null), task({ "p-prio": "o-urgent" }), [ADA]);
+    expect(card.headerL.map((c) => c.tip)).toEqual(["Priority · Urgent", "Task ID · USH-1"]);
+  });
+
+  it("takes the first select in the order of the properties as the lead", () => {
+    const second: PropertyDTO = { ...PRIORITY, id: "p-size", name: "Size" };
+    expect(defaultCardView([STATUS, second, PRIORITY], "p-status").rows["p-size"]).toEqual({
+      place: "headerL",
+      mode: "colour",
+    });
   });
 
   it("keeps a property that an older project took off the card off it", () => {
@@ -123,34 +131,31 @@ describe("the default card", () => {
 describe("reading a saved card view", () => {
   it("throws away a row that names a property nobody can see any more", () => {
     const saved = {
-      order: ["p-gone", "_key", "_title"],
       rows: {
         "p-gone": { place: "edge", mode: "colour" },
         _key: { place: "footerR", mode: "text" },
       },
     };
     const view = readCardView(saved, PROPERTIES, "p-status");
-    expect(view.order).not.toContain("p-gone");
     expect(view.rows["p-gone"]).toBeUndefined();
     /* And what the row was holding is free again. */
-    expect(view.order.filter((id) => view.rows[id].place === "edge")).toHaveLength(0);
+    expect(Object.values(view.rows).filter((row) => row.place === "edge")).toHaveLength(0);
   });
 
   it("gives a property nobody has placed the home its kind belongs to", () => {
-    const saved = { order: ["_title"], rows: { _title: { place: "title", mode: "fixed" } } };
+    const saved = { rows: { _title: { place: "title", mode: "fixed" } } };
     expect(placeOf(saved, "p-who")).toBe("headerR");
     expect(placeOf(saved, "p-due")).toBe("footerL");
   });
 
   it("never lets the title move or come off", () => {
-    const saved = { order: ["_title"], rows: { _title: { place: "off", mode: "text" } } };
+    const saved = { rows: { _title: { place: "off", mode: "text" } } };
     const title = items(saved).find((i) => i.id === "_title");
     expect(title).toMatchObject({ place: "title", mode: "fixed", fixed: true });
   });
 
   it("hands the edge to one row only", () => {
     const saved = {
-      order: ["p-prio", "p-who"],
       rows: {
         "p-prio": { place: "edge", mode: "colour" },
         "p-who": { place: "edge", mode: "avatar" },
@@ -162,12 +167,12 @@ describe("reading a saved card view", () => {
   });
 
   it("keeps the edge off a row with no colours of its own", () => {
-    const saved = { order: ["p-due"], rows: { "p-due": { place: "edge", mode: "text" } } };
+    const saved = { rows: { "p-due": { place: "edge", mode: "text" } } };
     expect(placeOf(saved, "p-due")).toBe("footerL");
   });
 
   it("swaps a mode the row cannot read for one it can", () => {
-    const saved = { order: ["p-due"], rows: { "p-due": { place: "footerR", mode: "avatar" } } };
+    const saved = { rows: { "p-due": { place: "footerR", mode: "avatar" } } };
     const due = items(saved).find((i) => i.id === "p-due");
     expect(due).toMatchObject({ place: "footerR", mode: "text" });
   });
@@ -176,7 +181,93 @@ describe("reading a saved card view", () => {
     expect(readCardView(null, PROPERTIES, "p-status")).toEqual(
       defaultCardView(PROPERTIES, "p-status"),
     );
-    expect(readCardView({ order: "no" }, PROPERTIES, null).order).toContain("_title");
+    expect(readCardView({ order: "no" }, PROPERTIES, null).rows._title).toBeDefined();
+  });
+});
+
+describe("the order of the rows", () => {
+  it("is the order of the properties, with the task's own parts fixed around them", () => {
+    expect(items(null).map((i) => i.id)).toEqual([
+      "_key",
+      "_title",
+      "_desc",
+      "p-status",
+      "p-prio",
+      "p-who",
+      "p-due",
+      "_checklist",
+      "_comments",
+    ]);
+    expect(cardOrder(PROPERTIES)).toEqual(items(null).map((i) => i.id));
+  });
+
+  it("puts two chips in one place in the order of the properties", () => {
+    const saved = {
+      rows: {
+        "p-prio": { place: "footerL", mode: "text" },
+        "p-due": { place: "footerL", mode: "text" },
+      },
+    };
+    const values = task({ "p-prio": "o-urgent", "p-due": "2026-08-29" });
+    const tips = (properties: PropertyDTO[]) =>
+      buildCard(
+        cardItems(readCardView(saved, properties, null), properties),
+        values,
+        [],
+      ).footerL.map((c) => c.tip);
+
+    expect(tips([PRIORITY, DUE])).toEqual(["Priority · Urgent", "Due · Aug 29"]);
+    /* A drag in Settings is the one thing that moves them. */
+    expect(tips([DUE, PRIORITY])).toEqual(["Due · Aug 29", "Priority · Urgent"]);
+  });
+
+  it("opens a place with the chips that carry no words, keyed off the mode", () => {
+    const saved = (prio: string, who: string) => ({
+      rows: {
+        _key: { place: "footerL", mode: "text" },
+        "p-prio": { place: "footerL", mode: prio },
+        "p-who": { place: "footerL", mode: who },
+        "p-due": { place: "footerL", mode: "text" },
+      },
+    });
+    const values = task({ "p-prio": "o-urgent", "p-who": "m-ada", "p-due": "2026-08-29" });
+    const tips = (view: unknown) => buildCard(items(view), values, [ADA]).footerL.map((c) => c.tip);
+
+    /* A square and a face come first, in the order of the properties. */
+    expect(tips(saved("colour", "avatar"))).toEqual([
+      "Priority · Urgent",
+      "Assignee · Ada Lovelace",
+      "Task ID · USH-1",
+      "Due · Aug 29",
+    ]);
+    /* The same property with words is back in its order. */
+    expect(tips(saved("text", "avatar"))).toEqual([
+      "Assignee · Ada Lovelace",
+      "Task ID · USH-1",
+      "Priority · Urgent",
+      "Due · Aug 29",
+    ]);
+    expect(tips(saved("text", "text"))).toEqual([
+      "Task ID · USH-1",
+      "Priority · Urgent",
+      "Assignee · Ada Lovelace",
+      "Due · Aug 29",
+    ]);
+  });
+
+  it("does not read an order an older release saved, and does not write one", () => {
+    const saved = {
+      order: ["_comments", "p-due", "p-prio", "_title", "_key"],
+      rows: {
+        "p-prio": { place: "footerL", mode: "text" },
+        "p-due": { place: "footerL", mode: "text" },
+      },
+    };
+    const view = readCardView(saved, PROPERTIES, "p-status");
+    expect(view).not.toHaveProperty("order");
+    expect(cardItems(view, PROPERTIES).map((i) => i.id)).toEqual(cardOrder(PROPERTIES));
+    /* The rows it saved still hold. */
+    expect(view.rows["p-due"].place).toBe("footerL");
   });
 });
 
@@ -197,20 +288,13 @@ describe("clicking a row", () => {
     expect(worded.rows["p-prio"]).toEqual({ place: "headerL", mode: "both" });
   });
 
-  it("moves a row one place up the list and no further", () => {
-    const at = view.order.indexOf("p-due");
-    expect(moveCardRow(view, "p-due", -1).order.indexOf("p-due")).toBe(at - 1);
-    expect(moveCardRow(view, view.order[0], -1)).toEqual(view);
-  });
-
   it("survives a round trip through the rows on screen", () => {
-    expect(viewOf(cardItems(view, PROPERTIES)).rows).toEqual(view.rows);
+    expect(viewOf(cardItems(view, PROPERTIES))).toEqual(view);
   });
 });
 
 describe("drawing a card", () => {
   const saved = {
-    order: ["p-prio", "_key", "_title", "_desc", "p-who", "p-due", "_checklist", "_comments"],
     rows: {
       "p-prio": { place: "edge", mode: "colour" },
       _key: { place: "headerL", mode: "text" },
@@ -266,11 +350,7 @@ describe("drawing a card", () => {
       ],
     };
     const list = cardItems(
-      readCardView(
-        { order: ["p-labels"], rows: { "p-labels": { place: "footerL", mode: "both" } } },
-        [labels],
-        null,
-      ),
+      readCardView({ rows: { "p-labels": { place: "footerL", mode: "both" } } }, [labels], null),
       [labels],
     );
     const card = buildCard(list, task({ "p-labels": ["l-bug", "l-ux"] }), []);
@@ -279,7 +359,6 @@ describe("drawing a card", () => {
 
   it("paints the colour behind the name when the row is filled", () => {
     const filled = items({
-      order: ["p-prio"],
       rows: { "p-prio": { place: "footerL", mode: "fill" } },
     });
     const [chip] = buildCard(filled, task({ "p-prio": "o-urgent" }), []).footerL;
@@ -290,7 +369,6 @@ describe("drawing a card", () => {
 
   it("takes the panel colour from a filled row too", () => {
     const filled = items({
-      order: ["p-prio"],
       rows: { "p-prio": { place: "footerL", mode: "fill" } },
     });
     expect(cardAccent(filled, task({ "p-prio": "o-urgent" }), [])).toBe("#e0574d");
@@ -324,7 +402,6 @@ describe("the preview", () => {
 
 describe("the colour a panel takes from a card", () => {
   const edged = items({
-    order: ["p-status", "p-prio", "_key", "_title", "p-who"],
     rows: {
       "p-status": { place: "edge", mode: "colour" },
       "p-prio": { place: "headerL", mode: "colour" },
@@ -355,7 +432,6 @@ describe("the colour a panel takes from a card", () => {
 
   it("takes no colour from a row that reads as words", () => {
     const words = items({
-      order: ["p-prio", "_title"],
       rows: {
         "p-prio": { place: "headerL", mode: "text" },
         _title: { place: "title", mode: "fixed" },
@@ -391,7 +467,6 @@ describe("a task laid out as a row", () => {
     expect(buildRow(items(null), task({ "p-prio": "o-urgent" }), [ADA]).edge).toBe(null);
 
     const edged = {
-      order: ["_key", "_title", "p-prio"],
       rows: { "p-prio": { place: "edge", mode: "colour" } },
     };
     const slots = buildRow(items(edged), task({ "p-prio": "o-urgent" }), [ADA]);
@@ -402,7 +477,6 @@ describe("a task laid out as a row", () => {
 
   it("puts the description beside the title, not in a column of its own", () => {
     const saved = {
-      order: ["_key", "_title", "_desc"],
       rows: { _desc: { place: "body", mode: "two" } },
     };
     const slots = buildRow(items(saved), task(), [ADA]);

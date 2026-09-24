@@ -249,12 +249,14 @@ export type CardKind = (typeof CARD_KINDS)[number];
 export type CardRow = { place: CardPlace; mode: CardMode };
 
 /**
- * What every card in the project carries. `order` decides which row is drawn
- * first where two share a place; `rows` says where each one sits. A row nobody
- * named falls back to the place its kind belongs in, so a new property lands
- * on the card the way it always did.
+ * What every card in the project carries: where each row sits and how it
+ * reads. It holds no order. Two rows in one place follow the order of the
+ * properties in Settings, with the key, the title and the description before
+ * them and the checklist and the comments after, so one drag orders the panel,
+ * the card and the list. A row nobody named falls back to the place its kind
+ * belongs in, so a new property lands on the card the way it always did.
  */
-export type CardView = { order: string[]; rows: Record<string, CardRow> };
+export type CardView = { rows: Record<string, CardRow> };
 
 /* ------------------------------------------------------------------ */
 /* Filters                                                             */

@@ -101,8 +101,9 @@ function widthOf(item: ListColumn["item"]): number {
  * read from the left and the name of the task is what somebody looks for.
  *
  * The five places of a card collapse here. `headerL`, `body`, `footerR` and
- * the rest all mean "a column", in card-view order: a place says where a chip
- * sits on a card, and a row is one line. Only `off` and `edge` still say
+ * the rest all mean "a column", in `cardOrder`: the properties in their order
+ * from Settings, the checklist and the comments after them. A place says where
+ * a chip sits on a card, and a row is one line. Only `off` and `edge` still say
  * anything, which is why the card view page needs no new place and no new mode.
  */
 export function listColumns(items: CardItem[]): ListColumn[] {
