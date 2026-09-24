@@ -367,6 +367,10 @@ test.describe("Archiving a task", () => {
     await register(page);
     await createProject(page, unique("Crossed"));
     await addTask(page, "Todo", "Rotate the backup key");
+    /* Archive is a write too, so a first read of the task still on its way
+       would wait for it, and the archived panel has nothing to draw values
+       from until then. The first read lands before the test goes on. */
+    await detailReadPast(page, 0);
 
     /* Archive is done on the server but answered only when the test says. */
     let answerArchive = () => {};
