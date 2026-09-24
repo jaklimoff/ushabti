@@ -124,7 +124,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
              the box is the same check it always was. */
           data-on={picking ? "true" : undefined}
           aria-pressed={mine}
-          aria-label={mine ? `Leave ${task.key} out` : `Pick ${task.key}`}
+          aria-label={mine ? `Deselect ${task.key}` : `Select ${task.key}`}
           /* The board has one tab stop, which is the card carrying the cursor.
              Forty checks would give it forty-one. `x` is the keyboard way in,
              exactly as the grip in settings is the keyboard way to drag. */

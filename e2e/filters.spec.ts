@@ -414,7 +414,7 @@ test.describe("Filters inside a view", () => {
     await expect(chip(page, "Priority is Urgent, High")).toBeVisible();
 
     // ‹ goes back to the property list without touching the rule.
-    await page.getByRole("button", { name: /Pick another property/ }).click();
+    await page.getByRole("button", { name: /Choose another property/ }).click();
     await expect(page.getByTestId("filter-search")).toBeVisible();
     await expect(chip(page, "Priority is Urgent, High")).toBeVisible();
   });

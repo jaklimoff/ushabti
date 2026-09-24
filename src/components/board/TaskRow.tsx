@@ -128,7 +128,7 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
                the box is the same check it always was. */
             data-on={picking ? "true" : undefined}
             aria-pressed={mine}
-            aria-label={mine ? `Leave ${task.key} out` : `Pick ${task.key}`}
+            aria-label={mine ? `Deselect ${task.key}` : `Select ${task.key}`}
             /* The list has one tab stop, which is the row the cursor is on.
                Forty checks would give it forty-one. `x` is the keyboard way
                in, exactly as it is on the board. */

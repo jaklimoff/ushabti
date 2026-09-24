@@ -252,8 +252,8 @@ function Ask({
         {onBack ? (
           <button
             className={styles.askTag}
-            title="Pick another property"
-            aria-label={`Filtering by ${property.name}. Pick another property`}
+            title="Choose another property"
+            aria-label={`Filtering by ${property.name}. Choose another property`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={onBack}
           >

@@ -87,7 +87,7 @@ This is the answer to a Shipped column that grows without limit. What went is on
 
 ## The archive
 
-**Archive** in the top bar, beside **Settings**, opens `/p/{project}/archived`: every archived task
+**Archived** in the top bar, beside **Settings**, opens `/p/{project}/archived`: every archived task
 of the project, newest first, with the key, the title and when it went. It is not a view — no view
 draws an archived task — which is why it is a page of its own and not a pill in the view strip.
 
@@ -111,11 +111,11 @@ task. For thirty days it is still here, and **Put back** on its row returns it w
 it had, the rank it had, and its values, its checklist, its comments and its history. A task you
 deleted while it was archived comes back archived.
 
-**The delete itself says so**, in one line at the bottom of the board: _USH-14 deleted. Put it back
-from the Archive within 30 days._ Beside it is **Undo**, which puts the task back at once, in the
+**The delete itself says so**, in one line at the bottom of the board: _USH-14 deleted. It stays under
+Archived for 30 days._ Beside it is **Undo**, which puts the task back at once, in the
 column and the place it left. The line stays ten seconds, and longer while the pointer or the focus
 is on it. It does not take the focus from the board: press <kbd>Tab</kbd> to reach **Undo**, then
-<kbd>Enter</kbd>. After the line goes, the Archive in the top bar beside **Settings** is the way
+<kbd>Enter</kbd>. After the line goes, **Archived** in the top bar beside **Settings** is the way
 back.
 
 - **Newest first**, with when it went and how many days are left.
@@ -222,56 +222,56 @@ heading over an empty list, on every task in the project, would cost more than t
 is no graph, no Gantt and no dates — see [the roadmap](https://github.com/jaklimoff/ushabti/blob/main/ROADMAP.md).
 </Aside>
 
-## Picking several cards
+## Selecting several cards
 
 Moving ten cards to a new owner one at a time is the tenth-time friction a team notices most. So a
-card can be **picked**, and one answer goes on all of them.
+card can be **selected**, and one answer goes on all of them.
 
 There is no mode to turn on. Hover a card and a check appears in its top-left corner; press it and
-the card is picked. Once anything is picked, every card shows its check, so the way out is where the
-way in was.
+the card is selected. Once anything is selected, every card shows its check, so the way out is where
+the way in was.
 
 <div class="keys">
 
-| How | What it picks |
-| --- | ------------- |
-| The check in the corner | That card, or puts it back. |
-| <kbd>Shift</kbd> + click a card | Every card from the last one you picked to this one, **inside one column**. In another column it picks that one card and starts again from it. |
-| <kbd>x</kbd> | The card the cursor is on, or puts it back. It is the whole keyboard route in, because the board keeps [one tab stop](/ushabti/guides/keyboard/). |
+| How | What it selects |
+| --- | --------------- |
+| The check in the corner | That card, or deselects it. |
+| <kbd>Shift</kbd> + click a card | Every card from the last one you selected to this one, **inside one column**. In another column it selects that one card and starts again from it. |
+| <kbd>x</kbd> | The card the cursor is on, or deselects it. It is the whole keyboard route in, because the board keeps [one tab stop](/ushabti/guides/keyboard/). |
 
 </div>
 
-A plain click still opens the task, and <kbd>Space</kbd> still lifts a card for a drag. A picked card
-**wears a border and nothing more**: a board with ten picked cards on it has to stay readable.
+A plain click still opens the task, and <kbd>Space</kbd> still lifts a card for a drag. A selected
+card **wears a border and nothing more**: a board with ten selected cards on it has to stay readable.
 
-While anything is picked, a small bar stands in the top bar beside the search box:
+While anything is selected, a small bar stands in the top bar beside the search box:
 
 > **3 selected** · Set… · Archive · ✕
 
 **Set…** asks the same two questions the filter asks, in the same panel: which property, then what
-about it. The answer goes on every picked card in one write, so the board never ends up half set. The
-picks stand afterwards, because setting a second property on the same cards is the next thing anybody
+about it. The answer goes on every selected card in one write, so the board never ends up half set. The
+selection stands afterwards, because setting a second property on the same cards is the next thing anybody
 does.
 
 **Archive** takes the cards off the board. It asks first, and the bar itself is the question —
 *Archive 3 tasks?* — because the board has no dialogs. The cards keep everything they had and are on
 the [archive page](#the-archive), one press from coming back. Unlike **Set…**, it ends the
-pick: the cards are gone, so there is nothing left to count.
+selection: the cards are gone, so there is nothing left to count.
 
-**✕** or <kbd>Escape</kbd> ends it, and so does moving to another view. With the question standing,
-<kbd>Escape</kbd> takes the question away first and leaves the picks.
+**✕** (*Clear selection*) or <kbd>Escape</kbd> ends it, and so does moving to another view. With the question standing,
+<kbd>Escape</kbd> takes the question away first and leaves the selection.
 
-<Aside type="note" title="A filter hides a card; it does not unpick it">
-The bar counts what this view is drawing. Pick three cards, add a rule that hides one of them, and
+<Aside type="note" title="A filter hides a card; it does not deselect it">
+The bar counts what this view is drawing. Select three cards, add a rule that hides one of them, and
 the bar reads *2 selected* — and **Set…** writes two. The third is not lost; it is hidden, exactly as
 it is on the board behind. Nothing you cannot see is quietly written to.
 </Aside>
 
 On a phone the bar takes the room it needs: the project name goes, and below 560 px so do the search
 box and the two links off the board. The question is longer than the count, so while it stands the
-project mark goes too. Everything comes back the moment nothing is picked.
+project mark goes too. Everything comes back the moment nothing is selected.
 
-A [list](/ushabti/guides/list/) picks the same way, with the same bar.
+A [list](/ushabti/guides/list/) selects the same way, with the same bar.
 
 ## On a phone
 
@@ -304,12 +304,12 @@ What is different down here, and why:
 
 - **No drag.** There is one column on screen, so a card has nowhere to be carried. To move a card,
   open it and set the grouping property in the panel — that is the one value a drop across a board
-  writes. **Set…** in the [pick bar](#picking-several-cards) does several at once. With the drag
+  writes. **Set…** in the [selection bar](#selecting-several-cards) does several at once. With the drag
   sensors off, a finger going sideways belongs to the board.
 - **No column drag**, for the same reason, and **no folding**: a fold gives width back, and there is
   no width here to give. A fold you made on a wider window is ignored rather than cleared, so the
   wider window gets it back.
-- **The check that picks a card is always drawn**, on a card and on a list row, because a finger
+- **The check that selects a card is always drawn**, on a card and on a list row, because a finger
   cannot hover.
 
 A [list](/ushabti/guides/list/) changes nothing on a phone: it is one column of rows already, so it

@@ -65,15 +65,15 @@ export function saysLeft(goes: string | number | Date, now: number): string {
  * that said thirty while the server meant something else would be the one
  * sentence nobody could check.
  *
- * The toast carries an Undo button as well, and the sentence still names the
- * Archive: the button goes with the toast, and the Archive keeps the task for
- * the whole window.
+ * The toast carries an Undo button as well, and the sentence still names
+ * Archived, the page the top bar links to: the button goes with the toast, and
+ * that page keeps the task for the whole window.
  */
 export function deletedSaid(key: string, goes: string | null, now = Date.now()): string {
   const days = goes ? daysLeft(goes, now) : 0;
   if (days === 0) return `${key} deleted.`;
   const many = days === 1 ? "1 day" : `${days} days`;
-  return `${key} deleted. Put it back from the Archive within ${many}.`;
+  return `${key} deleted. It stays under Archived for ${many}.`;
 }
 
 export type DeletedAction = "deleted" | "restored";

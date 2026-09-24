@@ -89,21 +89,19 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
 
   return (
     <div className={styles.page}>
-      <ProjectBar project={data.project} here="Archive" user={user} />
+      <ProjectBar project={data.project} here="Archived" user={user} />
 
       <div className={styles.shell}>
         <div className={styles.head}>
-          <h1 className={styles.h1}>Archive</h1>
+          <h1 className={styles.h1}>Archived</h1>
         </div>
 
         {/* Each list says its own count, on its own words. One number over two
             lists would have to name which list it counted, and a reader would
             have to work out which. */}
         <div className={styles.section}>
-          {/* The heading is drawn only when there are two lists. One list
-              under one title does not need to be told what it is. */}
-          {deleted.length > 0 && <h2 className={styles.h2}>Archived</h2>}
-
+          {/* The page title already says Archived, so the first list needs no
+              heading of its own. Only the deleted list below is named. */}
           <span className={styles.lead}>
             {all.length > 0 && <b>{count(all.length)}. </b>}
             An archived task is on no board and in no list, and keeps everything else: its values,

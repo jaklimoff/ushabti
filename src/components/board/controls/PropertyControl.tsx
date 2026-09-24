@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { tint } from "@/lib/colors";
 import { formatDate } from "@/lib/board";
+import { keyName } from "@/lib/filters";
+import { NO_VALUE_KEY } from "@/lib/types";
 import type { MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
 import { optionMenu } from "@/lib/option-menu";
 import { Avatar } from "@/components/ui/Avatar";
@@ -24,8 +26,8 @@ type Props = {
 
 /**
  * The name a screen reader gives a control: the label, then what the control
- * itself says. Without it the panel read "Empty, button" once for each empty
- * field, and nobody could tell which one.
+ * itself says. Without it the panel read "No priority, button" once for each
+ * empty field, and nobody could tell which one.
  */
 function named(labelId: string | undefined, selfId?: string) {
   if (!labelId) return {};
@@ -40,6 +42,14 @@ function named(labelId: string | undefined, selfId?: string) {
 function focusBack(trigger: HTMLElement | null) {
   const field = trigger?.closest(`.${styles.wrap}`);
   if (field && field.contains(document.activeElement)) trigger?.focus();
+}
+
+/**
+ * What an empty field says: "No priority", "Unassigned". A column and a filter
+ * chip already say it that way, so the panel does not teach a second word.
+ */
+function noneName(property: PropertyDTO): string {
+  return keyName(NO_VALUE_KEY, property, []);
 }
 
 /** A row of options fits as a segmented control only when it stays narrow. */
@@ -190,6 +200,7 @@ function OptionMenu({
         {entries.map((entry, i) => (
           <EntryRow
             key={entryKey(entry)}
+            none={noneName(property)}
             id={`${listId}-${i}`}
             entry={entry}
             at={i === at}
@@ -202,15 +213,17 @@ function OptionMenu({
   );
 }
 
-/** A row of the menu. Empty and Add wear a dot like an option, so they line up. */
+/** A row of the menu. None and Add wear a dot like an option, so they line up. */
 function EntryRow({
   id,
+  none,
   entry,
   at,
   on,
   onPick,
 }: {
   id: string;
+  none: string;
   entry: Entry;
   at: boolean;
   on: boolean;
@@ -240,7 +253,7 @@ function EntryRow({
         ? entry.option.name
         : entry.kind === "add"
           ? `Add “${entry.name}”`
-          : "Empty"}
+          : none}
       {entry.kind !== "add" && (
         <>
           <span style={{ flex: 1 }} />
@@ -271,7 +284,7 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId }: Props) 
   const current = property.options.find((o) => o.id === value);
 
   const { matches, add } = optionMenu(property.options, draft);
-  // A search shows what matches, so Empty steps aside while somebody types.
+  // A search shows what matches, so the empty row steps aside while somebody types.
   const entries: Entry[] = [
     ...(draft.trim() ? [] : [{ kind: "empty" } as const]),
     ...matches.map((option) => ({ kind: "option", option }) as const),
@@ -320,7 +333,7 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId }: Props) 
       >
         <span className={styles.dot} style={{ background: current?.color ?? "#3f4650" }} />
         <span className={`${styles.triggerText} ${current ? "" : styles.triggerEmpty}`}>
-          {current?.name ?? "Empty"}
+          {current?.name ?? noneName(property)}
         </span>
         <span className={styles.caret} aria-hidden="true">
           ▾
@@ -587,7 +600,7 @@ function CheckboxToggle({ value, onChange, labelId }: Props) {
   );
 }
 
-function DateField({ value, onChange, labelId }: Props) {
+function DateField({ property, value, onChange, labelId }: Props) {
   const [editing, setEditing] = useState(false);
   const buttonId = useId();
   const text = typeof value === "string" && value ? formatDate(value) : "";
@@ -620,13 +633,19 @@ function DateField({ value, onChange, labelId }: Props) {
       onClick={() => setEditing(true)}
     >
       <span className={`${styles.triggerText} ${text ? "" : styles.triggerEmpty}`}>
-        {text || "Empty"}
+        {text || noneName(property)}
       </span>
     </button>
   );
 }
 
-function ScalarField({ value, onChange, numeric, labelId }: Props & { numeric?: boolean }) {
+function ScalarField({
+  property,
+  value,
+  onChange,
+  numeric,
+  labelId,
+}: Props & { numeric?: boolean }) {
   const [draft, setDraft] = useState<string>(
     value === null || value === undefined ? "" : String(value),
   );
@@ -650,7 +669,7 @@ function ScalarField({ value, onChange, numeric, labelId }: Props & { numeric?: 
       inputMode={numeric ? "decimal" : undefined}
       {...named(labelId)}
       value={shown}
-      placeholder="Empty"
+      placeholder={noneName(property)}
       onChange={(e) => {
         setDirty(true);
         setDraft(e.target.value);

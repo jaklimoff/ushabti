@@ -93,7 +93,7 @@ describe("what a delete says on the way out", () => {
 
   it("names the task and where the way back is", () => {
     expect(deletedSaid("USH-14", goes, at)).toBe(
-      "USH-14 deleted. Put it back from the Archive within 30 days.",
+      "USH-14 deleted. It stays under Archived for 30 days.",
     );
   });
 
@@ -102,7 +102,7 @@ describe("what a delete says on the way out", () => {
      else would be the one sentence nobody could check. */
   it("counts the days the answer gave it", () => {
     expect(deletedSaid("USH-14", goesAt(at - 29 * DAY), at)).toBe(
-      "USH-14 deleted. Put it back from the Archive within 1 day.",
+      "USH-14 deleted. It stays under Archived for 1 day.",
     );
   });
 

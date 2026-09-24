@@ -131,7 +131,7 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
             href={`/p/${data.project.id}/archived`}
             title="The tasks that are archived"
           >
-            Archive
+            Archived
           </Link>
           <Link
             className={styles.iconLink}

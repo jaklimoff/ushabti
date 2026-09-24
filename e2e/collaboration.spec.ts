@@ -163,7 +163,7 @@ test.describe("Two people on one board", () => {
     await expect(owner.page.getByTestId("task-panel")).toBeVisible();
 
     // And the way back travels the same distance.
-    await friend.page.getByRole("button", { name: "Put it back" }).click();
+    await friend.page.getByRole("button", { name: "Put back", exact: true }).click();
     await expect(friend.page.getByTestId("archived-row")).toHaveCount(0);
 
     await expect(owner.page.getByTestId("archived-row")).toHaveCount(0, { timeout: 15_000 });

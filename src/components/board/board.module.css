@@ -180,10 +180,16 @@
  * A small tablet. The bar is exactly full once both names are on it, and a
  * name one pixel short of its box loses three letters to the ellipsis. So
  * every gap gives two pixels: twelve nobody sees, and the names stay whole.
+ * The two links give five pixels a side as well, which pays for the letter
+ * "Archived" has over "Archive" with room to spare for a wider font.
  */
 @media (max-width: 560px) {
   .top {
     gap: 10px;
+  }
+
+  .iconLink {
+    padding: 0 4px;
   }
 }
 
