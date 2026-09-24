@@ -67,7 +67,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **A sort names its two ways by what the column holds.** A→Z and Z→A for a title, Earliest first
   and Latest first for a date, Option order and Reverse order for a select. Smallest first is left
-  to numbers. The Sort button, the list headings and the chip read one table, so they agree.
+  to numbers, and a checkbox runs Ticked first or Not ticked first. The Sort button, the list
+  headings and the chip read one table, so they agree.
 - **One word for each idea.** An empty field in the task panel says what its column and a filter
   chip say — _No due_, _Unassigned_ — and not _Empty_. Selecting cards says "select" throughout:
   the check reads **Select** and **Deselect**, and the ✕ reads **Clear selection**. The top bar

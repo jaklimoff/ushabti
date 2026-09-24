@@ -43,7 +43,7 @@ import {
 const WORDS = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 
 /** What one task is worth for one column, or null when it holds nothing. */
-type SortKey = string | number | boolean | null;
+type SortKey = string | number | null;
 
 function isDirection(raw: unknown): raw is SortDirection {
   return typeof raw === "string" && (SORT_DIRECTIONS as readonly string[]).includes(raw);
@@ -149,6 +149,10 @@ function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[]): SortKey {
   const property = item.property;
   if (!property) return null;
   const value = task.values[property.id];
+  /* A checkbox draws no empty state: a box nobody ticked reads as not ticked.
+     So not ticked is a value here, and the order can run both ways. Ticked is
+     the lower key, so the first press puts the ticked tasks first. */
+  if (item.kind === "flag") return value === true ? 0 : 1;
   if (value === null || value === undefined || value === "") return null;
 
   switch (item.kind) {
@@ -176,8 +180,6 @@ function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[]): SortKey {
     case "date":
       /* An ISO date compares as words and comes out chronological. */
       return String(value);
-    case "flag":
-      return value === true ? true : null;
     default:
       /* A number is a number. Everything else with words is words — the two
          share a card kind, and here they must not. */
@@ -187,7 +189,6 @@ function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[]): SortKey {
 
 function compareKeys(a: SortKey, b: SortKey): number {
   if (typeof a === "string" && typeof b === "string") return WORDS.compare(a, b);
-  if (typeof a === "boolean" || typeof b === "boolean") return Number(a) - Number(b);
   return Number(a) - Number(b);
 }
 
@@ -245,8 +246,8 @@ function byPosition(a: TaskDTO, b: TaskDTO): number {
  *
  * Each pair says what `sortTasks` does. A select runs in the order somebody
  * arranged its options, so that is the name. A key is given out in order, so
- * the lowest key is the oldest task. A flag has one value and an empty, and
- * the empty always goes last, so both ways put the ticked tasks first.
+ * the lowest key is the oldest task. A box nobody ticked is not ticked, not
+ * empty, so a checkbox runs both ways.
  */
 const WAYS_OF_KIND: Record<CardKind, Record<SortDirection, string>> = {
   id: { asc: "Oldest first", desc: "Newest first" },
@@ -257,7 +258,7 @@ const WAYS_OF_KIND: Record<CardKind, Record<SortDirection, string>> = {
   select: { asc: "Option order", desc: "Reverse order" },
   person: { asc: "A→Z", desc: "Z→A" },
   date: { asc: "Earliest first", desc: "Latest first" },
-  flag: { asc: "Ticked first", desc: "Ticked first" },
+  flag: { asc: "Ticked first", desc: "Not ticked first" },
   text: { asc: "A→Z", desc: "Z→A" },
 };
 

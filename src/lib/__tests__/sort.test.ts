@@ -336,6 +336,39 @@ describe("the words for which way an order runs", () => {
   });
 });
 
+describe("ordering by a checkbox", () => {
+  /* A checkbox draws no empty state, so a box nobody ticked is a value and
+     not an empty that goes last both ways. */
+  const DONE: PropertyDTO = {
+    id: "p-done",
+    name: "Done",
+    type: "checkbox",
+    position: "z",
+    config: {},
+    options: [],
+  };
+  const withDone = [...PROPERTIES, DONE];
+  const items = cardItems(readCardView(SAVED, withDone, null), withDone);
+  const tasks = [task("a"), task("b", { "p-done": true }), task("c", { "p-done": false })];
+
+  function byDone(direction: "asc" | "desc"): string[] {
+    return sortTasks(tasks, { columnId: "p-done", direction }, items, MEMBERS).map((t) => t.id);
+  }
+
+  it("runs both ways, with an unticked box as a value", () => {
+    expect(byDone("asc")).toEqual(["b", "a", "c"]);
+    expect(byDone("desc")).toEqual(["a", "c", "b"]);
+  });
+
+  it("says Ticked first and Not ticked first", () => {
+    const item = items.find((i) => i.id === "p-done")!;
+    expect([sortWay(item, "asc"), sortWay(item, "desc")]).toEqual([
+      "Ticked first",
+      "Not ticked first",
+    ]);
+  });
+});
+
 describe("which headings can be pressed", () => {
   it("is every column a list draws", () => {
     expect(ITEMS.filter((i) => i.place !== "off").every(canSort)).toBe(true);

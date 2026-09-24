@@ -136,7 +136,8 @@ and what is easy to get wrong.
   select orders by its option index, because that order was arranged by hand
   and is the meaning; a multi-select by its lowest index, because its values
   arrive in whatever order somebody clicked them. Empty always sorts last, both
-  ways, and equal keys fall back to `position` so a list never shuffles and
+  ways; an unticked checkbox is not empty but a value, because a checkbox draws
+  no empty state, so it sorts Ticked first or Not ticked first. Equal keys fall back to `position` so a list never shuffles and
   always agrees with the board. Words go through one named `Intl.Collator`, not
   `localeCompare`: the list is drawn on the server and again in the browser, and
   the default locale differs between them — the same hazard the written-out
