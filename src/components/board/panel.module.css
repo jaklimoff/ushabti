@@ -609,6 +609,14 @@
   box-shadow: inset 0 -1px 0 var(--accent);
 }
 
+/* The tab panel only names what is under the tabs. It lays its children out
+   the way the body did before it existed, so nothing under the tabs moved. */
+.tabPanel {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
 /* The agent tab carries the only live thing in the panel head. */
 .tabDot {
   width: 6px;

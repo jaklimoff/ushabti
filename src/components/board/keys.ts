@@ -33,3 +33,30 @@ export function useShortcut(key: string, handler: () => void) {
     return () => window.removeEventListener("keydown", onKey);
   }, [key]);
 }
+
+/**
+ * When the task panel closes, the focus goes back to the board's cursor, on
+ * the task that was open. The panel lies over the canvas and not inside it,
+ * so it cannot do this itself, and the cursor is already the one thing that
+ * says which card holds the focus — a second way to remember a card would
+ * soon disagree with it.
+ *
+ * Only a focus that has nowhere to be is taken. A panel closed by a click on
+ * the search box, or on another card, leaves the focus where that click put
+ * it.
+ */
+export function useCursorBack(openTaskId: string | null, back: (taskId: string) => void) {
+  const was = useRef(openTaskId);
+  const latest = useRef(back);
+  useEffect(() => {
+    latest.current = back;
+  });
+  useEffect(() => {
+    const closed = was.current;
+    was.current = openTaskId;
+    if (!closed || openTaskId) return;
+    const at = document.activeElement;
+    if (at && at !== document.body) return;
+    latest.current(closed);
+  }, [openTaskId]);
+}

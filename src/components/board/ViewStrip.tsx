@@ -199,12 +199,15 @@ export function ViewStrip({
 
           {kind === "board" ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span className="label">Columns by</span>
-              <div className={styles.chipRow}>
+              <span className="label" id="new-view-columns">
+                Columns by
+              </span>
+              <div className={styles.chipRow} role="group" aria-labelledby="new-view-columns">
                 {groupable.map((property) => (
                   <button
                     key={property.id}
                     className={`${styles.chip} ${groupById === property.id ? styles.chipOn : ""}`}
+                    aria-pressed={groupById === property.id}
                     onClick={() => setGroupById(property.id)}
                   >
                     <span
@@ -258,6 +261,11 @@ export function ViewStrip({
  * The keyboard picks a view here and orders them in settings. A pill answers
  * Space and Enter the way every other button does, which is worth more in the
  * top bar than a second way to say the same thing.
+ *
+ * So the pill must not say otherwise. dnd-kit hands every sortable a role
+ * description and a line of instructions for a keyboard drag, and this strip
+ * has no keyboard sensor to keep that promise. Those two are dropped, and the
+ * tooltip names the view, because a long name is cut short on the pill.
  */
 function ViewPill({
   view,
@@ -273,6 +281,11 @@ function ViewPill({
     transition: { duration: 190, easing: "cubic-bezier(0.2, 0, 0, 1)" },
   });
   const color = active ? dotOf(view) : "#3f4650";
+  const {
+    "aria-roledescription": _roledescription,
+    "aria-describedby": _describedby,
+    ...buttonAttributes
+  } = attributes;
 
   return (
     <button
@@ -281,13 +294,14 @@ function ViewPill({
         .filter(Boolean)
         .join(" ")}
       data-testid="view-pill"
-      title="Drag to reorder"
+      title={view.name}
+      aria-current={active ? "true" : undefined}
       style={{
         transform: CSS.Translate.toString(transform),
         transition: transition ?? undefined,
       }}
       onClick={onPick}
-      {...attributes}
+      {...buttonAttributes}
       {...listeners}
     >
       {/* The one place the two kinds sit side by side, so the mark earns its

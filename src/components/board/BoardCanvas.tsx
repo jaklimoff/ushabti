@@ -46,7 +46,7 @@ import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { COLUMN_PREFIX, CONTAINER_PREFIX, Column, type ComposerPlace } from "./Column";
 import { ColumnStrip } from "./ColumnStrip";
-import { useShortcut } from "./keys";
+import { useCursorBack, useShortcut } from "./keys";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
 
@@ -615,6 +615,13 @@ export function BoardCanvas({
     if (!taskId) return;
     focusWanted.current = null;
     focusCard(scrollRef.current, taskId);
+  });
+
+  useCursorBack(selectedTaskId, (taskId) => {
+    const back = isReachable(drawn, taskId) ? taskId : cursorTaskId;
+    if (!back) return;
+    setCursor(back);
+    focusCard(scrollRef.current, back);
   });
 
   /* Focus and the cursor are the same thing, so a click or a Tab onto a card
