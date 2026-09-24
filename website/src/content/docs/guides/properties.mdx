@@ -107,13 +107,14 @@ A property that a view groups by cannot be deleted at all:
 
 ### Delete an option <Badge text="owner and admins" variant="caution" size="small" />
 
-The ✕ on the option chip. Deleting an option clears it from every single-select value and removes it
-from every multi-select list.
+The ✕ on the option chip. The row of options becomes the question, and it counts the tasks that
+hold the option, archived ones included:
 
-<Aside type="caution" title="This one does not ask">
-Unlike a property, a view or a member, **deleting an option happens on the first click**. Everything
-else destructive in Ushabti confirms in its own row; this control has not caught up.
-</Aside>
+> **Delete Doing?** 14 tasks lose it. — *Yes, delete* · *Cancel*
+
+Nothing goes until you answer. Then the option is cleared from every single-select value and removed
+from every multi-select list. On a board grouped by that property its column goes too, and its cards
+move to the column for tasks with no value.
 
 ## "On card"
 

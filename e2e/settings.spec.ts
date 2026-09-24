@@ -238,6 +238,82 @@ test.describe("Settings", () => {
     await page.unroute(/\/api\/properties\/[^/]+\/count$/);
   });
 
+  test("deleting an option asks first, and names the tasks that lose it", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Option"));
+    await addTask(page, "Todo", "Holds urgent");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "properties");
+    const box = propertyBox(page, "Priority");
+    const chipOf = box.getByLabel("Name of the option Urgent");
+
+    await box.getByRole("button", { name: "Delete the option Urgent" }).click();
+    await expect(page.getByText("Delete Urgent? 1 task loses it.")).toBeVisible();
+
+    // Nothing goes until the question is answered.
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(chipOf).toBeVisible();
+
+    await box.getByRole("button", { name: "Delete the option Urgent" }).click();
+    await saved(page, () => page.getByRole("button", { name: "Yes, delete" }).click());
+    await expect(chipOf).toHaveCount(0);
+
+    // An option nobody holds says so, rather than a count of nought.
+    await box.getByRole("button", { name: "Delete the option Low" }).click();
+    await expect(page.getByText("Delete Low? No task holds it.")).toBeVisible();
+  });
+
+  test("an option count names its own option, and counts a label list", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Late count"));
+    await addTask(page, "Todo", "Holds bug and ux");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    /* A multi-select holds its options in a list, so the count reads the list. */
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const labels = board.properties.find((p: { name: string }) => p.name === "Labels");
+    const idOf = (name: string) =>
+      labels.options.find((o: { name: string }) => o.name === name).id as string;
+    const task = board.tasks.find((t: { title: string }) => t.title === "Holds bug and ux");
+    const wrote = await page.request.put(`/api/tasks/${task.id}/values/${labels.id}`, {
+      data: { value: [idOf("bug"), idOf("ux")] },
+    });
+    expect(wrote.ok()).toBeTruthy();
+
+    /* The first count is held, and the person moves on to another option before
+       it lands. The late answer must not name the second option's cost. */
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let first = true;
+    await page.route(/\/api\/options\/[^/]+\/count$/, async (route) => {
+      if (first) {
+        first = false;
+        await held;
+      }
+      await route.continue();
+    });
+
+    await gotoSettings(page, projectId, "properties");
+    const box = propertyBox(page, "Labels");
+    await box.getByRole("button", { name: "Delete the option feature" }).click();
+    await expect(page.getByText("Delete feature? Counting the tasks that hold it…")).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await box.getByRole("button", { name: "Delete the option ux" }).click();
+    await expect(page.getByText("Delete ux? 1 task loses it.")).toBeVisible();
+
+    const late = page.waitForResponse(/\/api\/options\/[^/]+\/count$/);
+    release();
+    await late;
+    await expect(page.getByText("Delete ux? 1 task loses it.")).toBeVisible();
+    await expect(page.getByText(/^Delete feature\?/)).toHaveCount(0);
+    await page.unroute(/\/api\/options\/[^/]+\/count$/);
+  });
+
   test("a new board says where its columns come from", async ({ page }) => {
     await register(page);
     await createProject(page, unique("First"));

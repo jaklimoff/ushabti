@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Deleting an option asks first, and names the cost.** The ✕ on an option
+  turns the row into a question with the number of tasks that lose it:
+  "Delete Doing? 14 tasks lose it." **Reset to default** in Card view asks
+  first too, and says how many rows go back. `GET /api/options/{id}/count`
+  gives the number.
 - **An owner can make a person an admin.** An admin adds and removes people
   and agents, issues and revokes tokens, sets up webhooks and imports, deletes
   properties, options and views, and changes the project's settings. Three
