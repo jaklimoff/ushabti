@@ -193,7 +193,7 @@ test.describe("Custom properties", () => {
 
     await dragOnto(
       page,
-      priority.getByRole("button", { name: "Reorder the option Low" }),
+      priority.getByRole("button", { name: "Move the option Low" }),
       priority.getByLabel("Name of the option Urgent"),
       /^\/api\/options\/[0-9a-f-]+$/,
     );
@@ -220,7 +220,7 @@ test.describe("Custom properties", () => {
 
     await gotoSettings(page, projectId);
     const status = propertyBox(page, "Status");
-    await status.getByRole("button", { name: "Reorder the option Backlog" }).focus();
+    await status.getByRole("button", { name: "Move the option Backlog" }).focus();
 
     // Space lifts the chip, the arrows move it, Space puts it down.
     await page.keyboard.press("Space");

@@ -443,7 +443,7 @@ function OptionChip({
         type="button"
         ref={setActivatorNodeRef}
         className={`${styles.grip} ${styles.optionGrip}`}
-        aria-label={`Reorder the option ${option.name}`}
+        aria-label={`Move the option ${option.name}`}
         title="Drag to reorder"
         {...attributes}
         {...listeners}
