@@ -507,6 +507,34 @@ test.describe("Filters inside a view", () => {
     await expect(page.getByTestId("filter-divider")).toHaveCount(0);
   });
 
+  test("the panel of a view's chip says a change is for everyone", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("SaidShared"));
+
+    await addFilter(page, "Priority", "Urgent");
+    await putFilterOnView(page);
+    await addFilter(page, "Status", "Todo");
+
+    const editor = page.getByTestId("filter-editor");
+
+    // The view's rule is everybody's, so its panel says so before anything changes.
+    await chip(page, "Priority is Urgent").click();
+    await expect(editor).toBeVisible();
+    await expect(editor.getByTestId("filter-editor-shared")).toHaveText(
+      "Changes this for everyone",
+    );
+    // A line, not a question: nothing is asked and nothing is written yet.
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(editor).toHaveCount(0);
+
+    // Mine is mine alone, so its panel says nothing extra.
+    await chip(page, "Status is Todo").click();
+    await expect(editor).toBeVisible();
+    await expect(page.getByTestId("filter-editor-shared")).toHaveCount(0);
+  });
+
   test("removing a rule of the view asks in the chip first", async ({ page }) => {
     await register(page);
     await createProject(page, unique("AskingFirst"));

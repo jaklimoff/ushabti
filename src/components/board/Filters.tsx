@@ -890,7 +890,8 @@ function SortChip({
  * everybody who is looking at this board. The board has no dialogs, so the
  * chip becomes the question where it stands, exactly as a settings row does,
  * and it names who pays: "Remove for everyone?". Escape or a click elsewhere
- * puts the chip back.
+ * puts the chip back. Its panel says the same above the question, because
+ * changing a rule of the view changes it for everybody as well.
  */
 function Chip({
   rule,
@@ -982,6 +983,13 @@ function Chip({
 
       {open && (
         <div className={`${styles.popover} ${styles.filterPop}`} data-testid="filter-editor">
+          {/* The ✕ of this chip asks before it takes the rule from everybody,
+              so changing the rule says the same before anything is written. */}
+          {shared && (
+            <p className={styles.filterShared} data-testid="filter-editor-shared">
+              Changes this for everyone
+            </p>
+          )}
           <Ask
             property={property}
             rule={rule}
