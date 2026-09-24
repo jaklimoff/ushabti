@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   addTask,
   card,
+  columnOrder,
   createProject,
   forAFinger,
   inDatabase,
@@ -263,6 +264,66 @@ test.describe("Undoing a delete", () => {
     );
     expect(left.rowCount).toBe(0);
   });
+
+  /*
+   * The quick way back. The toast that says where the task went carries the
+   * button that brings it straight back, to the column and the place it left.
+   */
+  test("Undo in the toast puts the task back where it was", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Oops"));
+    for (const title of ["First of three", "Second of three", "Third of three"]) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+    const before = await columnOrder(page, "Todo");
+
+    await card(page, "Second of three").first().click();
+    const key = await page.getByTestId("task-key").innerText();
+    await deleteOpenTask(page);
+
+    const toast = page.getByTestId("toast");
+    const undo = toast.getByRole("button", { name: "Undo" });
+    await expect(undo).toBeVisible();
+    // The Archive is still named, for the moment the toast has gone.
+    await expect(toast).toContainText(
+      `${key} deleted. Put it back from the Archive within 30 days.`,
+    );
+    // A toast that arrives never takes the focus from the board.
+    await expect(undo).not.toBeFocused();
+    await expect(card(page, "Second of three")).toHaveCount(0);
+
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/restore$/, () => undo.click());
+    await expect(toast).toHaveCount(0);
+    await expect.poll(() => columnOrder(page, "Todo")).toEqual(before);
+
+    await page.reload();
+    await expect.poll(() => columnOrder(page, "Todo")).toEqual(before);
+    await page.goto(`/p/${projectId}/archived`);
+    await expect(page.getByTestId("deleted-row")).toHaveCount(0);
+  });
+
+  /* Tab reaches the button, and the toast waits while it holds the focus. */
+  test("Undo is reached by the keyboard and waits while it has the focus", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Keys"));
+    await addTask(page, "Todo", "Undone by a key");
+    await deleteOpenTask(page);
+
+    const undo = page.getByTestId("toast").getByRole("button", { name: "Undo" });
+    await expect(undo).toBeVisible();
+    await expect(undo).not.toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(undo).toBeFocused();
+
+    // Longer than any toast lives: a focused button must not vanish.
+    await page.waitForTimeout(11_000);
+    await expect(undo).toBeFocused();
+
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/restore$/, () => page.keyboard.press("Enter"));
+    await expect(page.getByTestId("toast")).toHaveCount(0);
+    await expect(card(page, "Undone by a key").first()).toBeVisible();
+  });
 });
 
 test.describe("The drawer on a phone", () => {
@@ -278,6 +339,7 @@ test.describe("The drawer on a phone", () => {
 
     await addTask(page, "Todo", "A title long enough to need the whole of a small screen");
     await deleteOpenTask(page);
+    await forAFinger(page.getByTestId("toast").getByRole("button", { name: "Undo" }), 1);
 
     await page.goto(`/p/${projectId}/archived`);
     await expect(page.getByTestId("archive-row")).toHaveCount(1);

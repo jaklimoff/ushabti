@@ -44,8 +44,7 @@ import type {
   ViewSort,
 } from "@/lib/types";
 import type { SessionUser } from "@/components/ui/UserMenu";
-
-type Toast = { id: number; text: string; kind: "error" | "info" };
+import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 
 type Store = {
   data: BoardData;
@@ -95,7 +94,7 @@ type Store = {
   live: boolean;
   toasts: Toast[];
   setViewId: (id: string) => void;
-  notify: (text: string, kind?: Toast["kind"]) => void;
+  notify: Notify;
   refresh: () => Promise<void>;
   /**
    * Counts a write this tab sends by itself, past the store. A board read that
@@ -468,8 +467,7 @@ export function BoardProvider({
 }) {
   const [data, setData] = useState<BoardData>(initial);
   const [live, setLive] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const toastSeq = useRef(0);
+  const { toasts, notify } = useToasts();
   const router = useRouter();
   const projectId = data.project.id;
 
@@ -497,12 +495,6 @@ export function BoardProvider({
     },
     [projectId],
   );
-
-  const notify = useCallback((text: string, kind: Toast["kind"] = "error") => {
-    const id = (toastSeq.current += 1);
-    setToasts((list) => [...list, { id, text, kind }]);
-    setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), 5200);
-  }, []);
 
   /*
    * Every write this tab makes, counted. A read that was already in flight when
@@ -819,10 +811,29 @@ export function BoardProvider({
   );
 
   /*
-   * A delete is the one press on this board with a way back, and the way back
-   * is on another page. So the toast says so, with the days the server
-   * counted. It is written out here rather than through `guarded`, which
-   * throws the answer away, and the answer is the only place the window is.
+   * This one waits for the board rather than drawing the answer itself: a
+   * deleted task is on no list the browser holds, so there is nothing here to
+   * draw it from. It comes back live or archived — whichever it was — and only the
+   * server knows which.
+   */
+  const undeleteTask = useCallback<Store["undeleteTask"]>(
+    async (taskId) =>
+      guarded(async () => {
+        await api.post(`/api/tasks/${taskId}/restore`, {});
+        await refresh();
+      }),
+    [guarded, refresh],
+  );
+
+  /*
+   * A delete is the one press on this board with a way back. The toast
+   * carries the quick way, Undo, and names the slow one, the Archive, with the
+   * days the server counted — the toast goes in seconds and the Archive does
+   * not. It is written out here rather than through `guarded`, which throws the
+   * answer away, and the answer is the only place the window is.
+   *
+   * Undo is tied to the id read here, not to whatever is open when it is
+   * pressed, so a press after somebody moved on still brings back this task.
    */
   const deleteTask = useCallback<Store["deleteTask"]>(
     async (taskId) => {
@@ -843,7 +854,11 @@ export function BoardProvider({
       wrote();
       try {
         const said = await api.del<{ goesAt?: string }>(`/api/tasks/${taskId}`);
-        if (key) notify(deletedSaid(key, said?.goesAt ?? null), "info");
+        if (key)
+          notify(deletedSaid(key, said?.goesAt ?? null), "info", {
+            label: "Undo",
+            run: () => void undeleteTask(taskId),
+          });
         /* A deleted task is on no board, so it blocks nothing any more. */
         if (holdsUp) await refresh();
       } catch (err) {
@@ -851,7 +866,7 @@ export function BoardProvider({
         await refresh();
       }
     },
-    [data.archived, data.tasks, holdsUpACard, notify, refresh, wrote],
+    [data.archived, data.tasks, holdsUpACard, notify, refresh, undeleteTask, wrote],
   );
 
   /* The card leaves the board at once and joins the archived list, so a search
@@ -903,21 +918,6 @@ export function BoardProvider({
     async (taskId) =>
       guarded(async () => {
         await api.del(`/api/tasks/${taskId}/archive`);
-        await refresh();
-      }),
-    [guarded, refresh],
-  );
-
-  /*
-   * This one waits for the board as well, and for a stronger reason: a deleted
-   * task is on no list the browser holds, so there is nothing here to draw it
-   * from. It comes back live or archived — whichever it was — and only the
-   * server knows which.
-   */
-  const undeleteTask = useCallback<Store["undeleteTask"]>(
-    async (taskId) =>
-      guarded(async () => {
-        await api.post(`/api/tasks/${taskId}/restore`, {});
         await refresh();
       }),
     [guarded, refresh],
