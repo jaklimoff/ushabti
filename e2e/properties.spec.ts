@@ -1,8 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   addTask,
   card,
   column,
+  columnOrder,
   confirmDelete,
   createProject,
   dragOnto,
@@ -11,8 +12,21 @@ import {
   propertyRowOrder,
   register,
   saved,
+  sortBoard,
   unique,
 } from "./helpers";
+
+/** The options of one property in Settings, in the order the chips sit. */
+async function optionOrder(box: Locator): Promise<string[]> {
+  return box
+    .locator('input[aria-label^="Name of the option "]')
+    .evaluateAll((boxes) => boxes.map((b) => (b as HTMLInputElement).value));
+}
+
+/** The names of the board's columns, left to right. */
+async function columnNames(page: Page): Promise<string[]> {
+  return (await page.getByTestId("column-name").allInnerTexts()).map((t) => t.trim().toUpperCase());
+}
 
 test.describe("Custom properties", () => {
   test("create a property, give it options and group a board by it", async ({ page }) => {
@@ -157,6 +171,72 @@ test.describe("Custom properties", () => {
     await expect
       .poll(async () => (await propertyRowOrder(page)).slice(0, 2))
       .toEqual(["Priority", "Status"]);
+  });
+
+  test("an option is dragged into its place, and the sort follows it", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("OptOrder"));
+    for (const [title, priority] of [
+      ["Aardvark", "Low"],
+      ["Beetle", "Urgent"],
+    ] as const) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: priority, exact: true }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+    await sortBoard(page, "Priority");
+    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark"]);
+
+    await gotoSettings(page, projectId);
+    const priority = propertyBox(page, "Priority");
+    expect(await optionOrder(priority)).toEqual(["Urgent", "High", "Medium", "Low"]);
+
+    await dragOnto(
+      page,
+      priority.getByRole("button", { name: "Move the option Low" }),
+      priority.getByLabel("Name of the option Urgent"),
+      /^\/api\/options\/[0-9a-f-]+$/,
+    );
+    expect(await optionOrder(priority)).toEqual(["Low", "Urgent", "High", "Medium"]);
+
+    // The order is the server's, so it survives the page going away.
+    await page.reload();
+    expect(await optionOrder(propertyBox(page, "Priority"))).toEqual([
+      "Low",
+      "Urgent",
+      "High",
+      "Medium",
+    ]);
+
+    // A select sorts by its option order, so Low now comes first.
+    await page.goto(`/p/${projectId}`);
+    await expect.poll(() => columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle"]);
+  });
+
+  test("the keyboard moves an option, and the columns follow it", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("OptKeys"));
+    expect((await columnNames(page)).slice(0, 2)).toEqual(["BACKLOG", "TODO"]);
+
+    await gotoSettings(page, projectId);
+    const status = propertyBox(page, "Status");
+    await status.getByRole("button", { name: "Move the option Backlog" }).focus();
+
+    // Space lifts the chip, the arrows move it, Space puts it down.
+    await page.keyboard.press("Space");
+    await page.waitForTimeout(120);
+    await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(120);
+    await page.keyboard.press("Space");
+
+    await expect
+      .poll(async () => (await optionOrder(status)).slice(0, 2))
+      .toEqual(["Todo", "Backlog"]);
+
+    await page.goto(`/p/${projectId}`);
+    await expect
+      .poll(async () => (await columnNames(page)).slice(0, 2))
+      .toEqual(["TODO", "BACKLOG"]);
   });
 
   test("text, number and checkbox properties keep their value", async ({ page }) => {

@@ -241,6 +241,11 @@ type Store = {
     optionId: string,
     patch: { name?: string; color?: string; afterId?: string | null },
   ) => Promise<void>;
+  /**
+   * Puts one option where another one of the same property sits. Settings
+   * names the chip it landed on, and the move is the one a column drag makes.
+   */
+  moveOption: (optionId: string, overId: string) => Promise<void>;
   deleteOption: (optionId: string) => Promise<void>;
   addProperty: (name: string, type: PropertyType, options?: string[]) => Promise<void>;
   patchProperty: (propertyId: string, patch: { name?: string }) => Promise<void>;
@@ -1374,6 +1379,26 @@ export function BoardProvider({
     [guarded, refresh],
   );
 
+  /* The order shows at once, in Settings and in every column grouped by the
+     property, because both read the one list of options. */
+  const moveOption = useCallback<Store["moveOption"]>(
+    async (optionId, overId) => {
+      const property = data.properties.find((p) => p.options.some((o) => o.id === optionId));
+      if (!property) return;
+      const landed = landedAfter(property.options, optionId, overId);
+      if (!landed) return;
+
+      setData((current) => ({
+        ...current,
+        properties: current.properties.map((p) =>
+          p.id === property.id ? { ...p, options: landed.ordered } : p,
+        ),
+      }));
+      await patchOption(optionId, { afterId: landed.afterId });
+    },
+    [data.properties, patchOption],
+  );
+
   const deleteOption = useCallback<Store["deleteOption"]>(
     async (optionId) => {
       await guarded(async () => {
@@ -1496,6 +1521,7 @@ export function BoardProvider({
     addProperty,
     patchProperty,
     moveProperty,
+    moveOption,
     deleteProperty,
   };
 

@@ -365,9 +365,17 @@ test.describe("Settings on a phone", () => {
 
     expect(await overflow(page)).toBe(0);
     await whole(page.locator('input[aria-label$=" property"]'), 7);
-    await forAFinger(page.getByRole("button", { name: /^Move / }), 7);
+    // The option grips say "Move" too, so the property grips are named in full.
+    const names = await page
+      .locator('input[aria-label$=" property"]')
+      .evaluateAll((boxes) => boxes.map((b) => (b as HTMLInputElement).value));
+    await forAFinger(
+      page.getByRole("button", { name: new RegExp(`^Move (${names.join("|")})$`) }),
+      7,
+    );
     await forAFinger(page.getByRole("button", { name: /^Colour of / }), 24);
     await forAFinger(page.getByRole("button", { name: /^Delete the option / }), 24);
+    await forAFinger(page.getByRole("button", { name: /^Move the option / }), 24);
   });
 });
 

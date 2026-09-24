@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Options can be reordered in Settings.** Drag an option by the grip on its chip, or lift it with
+  `Space` and move it with the arrows. The order is the order of the columns and of a sort, so
+  Priority can be put in order although no board is grouped by it.
 - **The project name switches between projects.** Press it in the top bar of the board, Settings
   or the Archive for a menu of your projects, the current one marked ✓, then **New project** and
   **All projects**. The arrow keys, `Enter` and `Escape` work, and past eight projects a box
