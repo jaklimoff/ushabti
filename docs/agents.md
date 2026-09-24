@@ -127,12 +127,14 @@ the owner changes it in **Settings → Project**.
 hardcoded, so the board cannot know what done means. A view that wants "late
 and not finished" says so with a second rule beside it.
 
-**A rule may name no property at all.** One `propertyId` is a fixed word rather
-than an id: `_blocked`, which asks whether the task is waiting on another one.
-It is in no row of `properties`, so look it up there and you find nothing —
-read it as a checkbox whose value is `blockedBy` being non-empty. It is the
-only such word, and it cannot be deleted, so a view keeps a rule about it for
-ever.
+**A rule may name no property at all.** Two `propertyId`s are fixed words
+rather than ids. `_blocked` asks whether the task is waiting on another one:
+read it as a checkbox whose value is `blockedBy` being non-empty.
+`_agent_waiting` asks whether an agent waits for a person on the task: read it
+as a checkbox whose value is the task's run in `runs` having `status`
+`waiting`. A `handed_over` run does not count. Neither word is in a row of
+`properties`, so look it up there and you find nothing. Neither can be
+deleted, so a view keeps a rule about one for ever.
 
 The two routes that write those rules are a person's, and answer `403` to a
 token: `PUT /api/views/{viewId}/lens` and `POST /api/views/{viewId}/lens/promote`.

@@ -113,17 +113,31 @@ version does not know is thrown away rather than left hiding cards.
 
 ## "Blocked" is a rule and not a property
 
-One word in the property list is not a property: **Blocked**. It asks whether the task is waiting on
+Two words in the property list are not properties: **Blocked** and
+[**Agent waiting**](#agent-waiting-finds-who-waits-for-you). **Blocked** asks whether the task is waiting on
 another one, and it reads as a checkbox — *Blocked* or *Not blocked*, one rule, one answer.
 
 There is no property behind it and nobody has to add one. A blocked-by link is not a field on a
 task, so the board has one fixed word for it, the way a card has one fixed row for its key. Nothing
 writes it: a task added to a board filtered to *Blocked* is written with no link and no value for it
-— the only rule the composer cannot fill in.
+— one of the two rules the composer cannot fill in.
 
 Because the word cannot be deleted, a rule about it is never thrown away. See
 [Blocked by](/ushabti/guides/board/#blocked-by) for what makes a task blocked, and for what makes it
 stop.
+
+## "Agent waiting" finds who waits for you
+
+The second fixed word is **Agent waiting**. It keeps the tasks where an agent asked a person
+something and stopped until somebody answers: its open run is `waiting`. It reads as a checkbox too
+— *Agent waiting* or *No agent waiting*.
+
+A hand-over does not count. That run gave the task to somebody else and asks nobody anything, so the
+filter would only add noise to the one question it answers: where does an agent wait for me. Answer
+in a comment. The agent wakes, goes back to work, and the card leaves the filter on its own.
+
+Like *Blocked*, it is no property and nothing writes it, so a task added under it is written without
+it. See [Runs](/ushabti/agents/runs/) for how an agent asks.
 
 ## Using it
 
