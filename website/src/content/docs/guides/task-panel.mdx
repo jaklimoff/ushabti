@@ -41,10 +41,10 @@ values, the checklist, the comments, the history and the link. The panel stays o
 row at the top:
 
 ```
-Archived 3 days ago · Put it back
+Archived 3 days ago · Put back
 ```
 
-**Put it back** returns it to the rank it never lost, so it lands where it was.
+**Put back** returns it to the rank it never lost, so it lands where it was.
 
 Three ways lead back to one: [the archive page](/ushabti/guides/board/#the-archive), which lists
 them all with a **Put back** on each row; the [search](/ushabti/guides/search/), which finds it and
@@ -70,12 +70,13 @@ A textarea that grows with the text. <kbd>Enter</kbd> saves and leaves the field
 
 Every property of the project, in project order, as a grid of label and value. Each one is edited by
 the control its type deserves — a segmented row, a dropdown, an avatar menu, a switch, a date picker.
-Every change saves at once.
+Every change saves at once. An empty field says what a column and a filter say: *No priority*,
+*Unassigned*, *No due date*.
 
 The select and multi-select menus carry a **Find or add…** box. The arrow keys move a highlight
 through the options that match, and Enter picks the highlighted one. When no option has exactly the
 name you typed, the last row offers to create it and apply it in one go. Nothing else makes an option,
-so Enter never adds one by mistake. The same menu sets a property on several picked cards.
+so Enter never adds one by mistake. The same menu sets a property on several selected cards.
 
 ## Blocked by, and Blocks
 
@@ -93,7 +94,7 @@ a blocker over, and for the circle that is refused.
 ## Description
 
 Markdown, rendered. The header carries an `MD` badge and a hint that changes from *click to edit* to
-<kbd>⌘</kbd><kbd>Enter</kbd> *saves*. Clicking away saves too; <kbd>Escape</kbd> reverts.
+<kbd>⌘</kbd><kbd>Enter</kbd> *saves* — Ctrl on Windows and Linux, and the hint says which. Clicking away saves too; <kbd>Escape</kbd> reverts.
 
 <Aside type="note" title="What is safe to paste in">
 The markdown is rendered and then sanitised before it reaches the page, so raw HTML in a description
@@ -115,7 +116,7 @@ text, and a ✕.
 
 Avatar, name, relative time, body. You can delete your own; the project owner can delete anybody's.
 
-The composer takes <kbd>⌘</kbd><kbd>Enter</kbd> or the **Comment** button. Its placeholder is
+The composer takes <kbd>⌘</kbd><kbd>Enter</kbd> (<kbd>Ctrl</kbd><kbd>Enter</kbd> off a Mac) or the **Comment** button. Its placeholder is
 *"Leave a note…"* — or *"Leave a note for the agent…"* while an agent is working on the card, because
 that changes who you are talking to.
 

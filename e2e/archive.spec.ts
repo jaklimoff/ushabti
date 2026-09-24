@@ -93,7 +93,7 @@ test.describe("Archiving a task", () => {
     await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText(/archived the task/)).toBeVisible();
 
-    await page.getByRole("button", { name: "Put it back" }).click();
+    await page.getByRole("button", { name: "Put back", exact: true }).click();
     await expect(page.getByTestId("archived-row")).toHaveCount(0);
     await expect(card(page, "Ship the release image").first()).toBeVisible();
 
@@ -151,7 +151,7 @@ test.describe("Archiving a task", () => {
     await expect(page.getByText(/archived the task/)).toBeVisible();
 
     // And it comes back where it was.
-    await page.getByRole("button", { name: "Put it back" }).click();
+    await page.getByRole("button", { name: "Put back", exact: true }).click();
     await expect(card(page, "First shipped").first()).toBeVisible();
     await expect(column(page, "Shipped").getByTestId("column-count")).toHaveText("1");
 
@@ -403,7 +403,7 @@ test.describe("Archiving a task", () => {
     await page.getByRole("button", { name: "Close task" }).click();
 
     // The way in is the top bar, beside Settings. The archive is not a view.
-    await page.getByRole("link", { name: "Archive", exact: true }).click();
+    await page.getByRole("link", { name: "Archived", exact: true }).click();
     await page.waitForURL(`**/p/${projectId}/archived`);
 
     const rows = page.getByTestId("archive-row");
@@ -463,7 +463,7 @@ test.describe("The archive on a phone", () => {
     }
 
     // The way in is on the screen at this width too.
-    await page.getByRole("link", { name: "Archive", exact: true }).click();
+    await page.getByRole("link", { name: "Archived", exact: true }).click();
     await page.waitForURL(`**/p/${projectId}/archived`);
     await expect(page.getByTestId("archive-row")).toHaveCount(2);
 

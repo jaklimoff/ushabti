@@ -43,6 +43,7 @@ import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { useDraft } from "@/components/ui/useDraft";
+import { useModKey } from "@/components/ui/useModKey";
 import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
@@ -491,7 +492,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               await reload();
             }}
           >
-            Put it back
+            Put back
           </button>
         </div>
       )}
@@ -1677,6 +1678,7 @@ function Description({
   onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
   const [editing, setEditing] = useState(false);
+  const mod = useModKey();
   /* Open is editing, whether or not a key was pressed: the sign is there so
      that two people do not start at once. */
   useSayField(editing ? "description" : null, inField);
@@ -1747,7 +1749,8 @@ function Description({
         <span style={{ flex: 1 }} />
         <span className={styles.hint}>
           <span className={styles.kbd}>MD</span>
-          {editing ? "Cmd + Enter saves" : "click to edit"}
+          {/* Editing starts with a click, so the browser has the word by then. */}
+          {editing ? `${mod ?? "Ctrl"} + Enter saves` : "click to edit"}
         </span>
       </div>
       {mine !== null ? (
@@ -2076,6 +2079,7 @@ function Comments({
   onError: (message: string) => void;
 }) {
   const { data } = useBoard();
+  const mod = useModKey();
   /* A note can be long, and a create is not a save, so the words wait in the
      browser until you send them rather than being sent when the tab goes. */
   const [draft, setDraft] = useDraft(commentDraftKey(data.project.id, taskId));
@@ -2140,7 +2144,7 @@ function Comments({
             onBlur={picker.close}
             onKeyDown={(e) => {
               /* The list has the keys while it is open, so Enter picks a
-                 name. Cmd + Enter still sends, which is how a note ends. */
+                 name. ⌘ or Ctrl + Enter still sends, which is how a note ends. */
               if (picker.onKeyDown(e)) return;
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -2151,7 +2155,10 @@ function Comments({
           <MentionList picker={picker} />
           <div className={styles.composerFoot}>
             <span style={{ fontSize: 10.5, color: "var(--faint-3)" }}>
-              Markdown · Cmd + Enter to send
+              Markdown
+              {/* The server does not know the machine, so the key waits for
+                  the browser rather than naming the wrong one. */}
+              {mod && ` · ${mod} + Enter to send`}
             </span>
             <span style={{ flex: 1 }} />
             <button

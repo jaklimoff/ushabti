@@ -179,18 +179,20 @@ test.describe("Custom properties", () => {
     await addTask(page, "Todo", "All the types");
 
     const panel = page.getByTestId("task-panel");
-    const scalars = panel.getByPlaceholder("Empty");
-    await scalars.nth(0).fill("Ask Ada");
-    await saved(page, () => scalars.nth(0).press("Enter"));
-    await scalars.nth(1).fill("8");
-    await saved(page, () => scalars.nth(1).press("Enter"));
+    // An empty field says what a column says: "No points", not "Empty".
+    const note = panel.getByPlaceholder("No owner note");
+    const points = panel.getByPlaceholder("No points");
+    await note.fill("Ask Ada");
+    await saved(page, () => note.press("Enter"));
+    await points.fill("8");
+    await saved(page, () => points.press("Enter"));
     await saved(page, () => panel.getByRole("switch").click());
     await expect(panel.getByRole("switch")).toHaveAttribute("aria-checked", "true");
 
     await page.goto(`/p/${projectId}`);
     await card(page, "All the types").click();
-    await expect(panel.getByPlaceholder("Empty").nth(0)).toHaveValue("Ask Ada");
-    await expect(panel.getByPlaceholder("Empty").nth(1)).toHaveValue("8");
+    await expect(note).toHaveValue("Ask Ada");
+    await expect(points).toHaveValue("8");
     await expect(panel.getByRole("switch")).toHaveAttribute("aria-checked", "true");
   });
 });

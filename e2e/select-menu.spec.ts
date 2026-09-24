@@ -129,7 +129,7 @@ test.describe("The menu of a select", () => {
     await search.press("Enter");
 
     const menu = page.getByTestId("pick-menu");
-    await menu.getByRole("button", { name: /Empty/ }).first().click();
+    await menu.getByRole("button", { name: "No status" }).first().click();
     const box = menu.getByLabel("Find or add status");
     await box.fill("re");
     await box.press("ArrowDown");

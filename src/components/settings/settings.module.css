@@ -541,14 +541,6 @@
   color: var(--faint-2);
 }
 
-.cardRowNote {
-  font-family: var(--font-mono);
-  font-size: var(--t-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--faint-3);
-}
-
 .cardRowType {
   display: flex;
   justify-content: flex-end;

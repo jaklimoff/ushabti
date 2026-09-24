@@ -153,8 +153,8 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
                 <div className={styles.askHead}>
                   <button
                     className={styles.askTag}
-                    title="Pick another property"
-                    aria-label={`Setting ${property.name}. Pick another property`}
+                    title="Choose another property"
+                    aria-label={`Setting ${property.name}. Choose another property`}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => pickProperty(null)}
                   >
@@ -233,8 +233,8 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
       <button
         className={styles.pickClear}
         data-testid="pick-clear"
-        aria-label="Leave every task out"
-        title="Leave every task out (Escape)"
+        aria-label="Clear selection"
+        title="Clear selection (Escape)"
         onClick={clearPicks}
       >
         ✕

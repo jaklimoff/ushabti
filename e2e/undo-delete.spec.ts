@@ -91,7 +91,7 @@ test.describe("Undoing a delete", () => {
     await box.fill("");
 
     // The drawer has it, with how long is left.
-    await page.getByRole("link", { name: "Archive", exact: true }).click();
+    await page.getByRole("link", { name: "Archived", exact: true }).click();
     await page.waitForURL(`**/p/${projectId}/archived`);
     const row = page.getByTestId("deleted-row");
     await expect(row).toHaveCount(1);

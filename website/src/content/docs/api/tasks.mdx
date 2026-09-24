@@ -274,7 +274,7 @@ Nothing is hardcoded: there is no Done status in Ushabti, only the option somebo
 
 Archives several tasks at once. One route, two bodies, because it is one act.
 
-**The tasks somebody picked** — what **Archive** in the pick bar sends:
+**The tasks somebody selected** — what **Archive** in the selection bar sends:
 
 ```json title="request"
 { "taskIds": ["…", "…", "…"] }
@@ -386,7 +386,7 @@ see [value shapes](/ushabti/api/properties/#value-shapes-by-type).
 ## `POST /api/projects/{projectId}/tasks/values`
 
 Writes **one property on many tasks**, in one call. It is what the board's **Set…** does with the
-cards you picked.
+cards you selected.
 
 ```json title="request"
 {
@@ -426,7 +426,7 @@ the writes that compute a rank and this touches none.
 <Aside type="note" title="All of it, or none of it">
 One bad id refuses the whole call. Writing what it could reach would leave the board half set, and
 the answer would then have to say which half — which is the thing one call exists to avoid. An
-archived task is refused with the rest: no view draws one, so it cannot be picked on a board, and
+archived task is refused with the rest: no view draws one, so it cannot be selected on a board, and
 setting a property on a card nobody can see is a change with nothing to show for it. Put it back
 first, which is one press on the archive page.
 </Aside>
