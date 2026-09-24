@@ -404,9 +404,10 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
   const count = filters.rules.length;
   // The property may have been deleted by somebody else while the panel is
   // open, in which case there is nothing left to ask about.
-  /* The project's properties, and the one word that is not one. A link is not
-     a field, so "Blocked" has no property to be — it is a fixed word, the way
-     a card's key is a fixed row. */
+  /* The project's properties, and the words that are not properties. A link
+     and a run are not fields, so "Blocked" and "Agent waiting" have no
+     property to be — each is a fixed word, the way a card's key is a fixed
+     row. */
   const askable = useMemo(() => filterProperties(data.properties), [data.properties]);
   const picked = pickedId ? (askable.find((p) => p.id === pickedId) ?? null) : null;
   const rule = picked ? ((slot !== null ? lens.rules[slot] : null) ?? draft) : null;
