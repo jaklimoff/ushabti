@@ -23,7 +23,7 @@ import { Aside, Badge } from '@astrojs/starlight/components'
 | --- | --- |
 | `name` | required, ≤ 40 characters |
 | `type` | required — `select`, `multi_select`, `person`, `text`, `number`, `date`, `checkbox` |
-| `options` | only read for `select` and `multi_select`; blanks dropped, then capped at 40 |
+| `options` | only read for `select` and `multi_select`; blanks dropped, then capped at 40. Two names that differ only in letter case or spaces answer `400 Environment already has an option named local.` and make nothing |
 
 Option colours cycle through the palette. The property is appended last, and joins every card in the
 footer, where its type belongs.

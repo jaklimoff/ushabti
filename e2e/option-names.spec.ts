@@ -48,6 +48,19 @@ test.describe("One name, one option", () => {
     expect(names).toContain("todo");
   });
 
+  test("a new property refuses two options with one name, and makes nothing", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("New names"));
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Stage", type: "select", options: ["Draft", "Live", " draft "] },
+    });
+    expect(made.status()).toBe(400);
+    expect((await made.json()).error).toBe("Stage already has an option named Draft.");
+
+    const board: Board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(board.properties.map((p) => p.name)).not.toContain("Stage");
+  });
+
   test("two creates at once make one option", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Race"));
