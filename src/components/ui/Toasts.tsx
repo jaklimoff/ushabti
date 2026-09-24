@@ -92,11 +92,15 @@ export function useToasts(): { toasts: Toast[]; notify: Notify } {
  * Nothing here takes the focus. A toast arrives while somebody is working on
  * the board, and moving their cursor to it would send their next key to a
  * button they never chose. Its button is reached with Tab like any other.
+ *
+ * Each toast speaks for itself: an error as an alert, which a screen reader
+ * reads at once, and anything else as a status, which waits its turn. The
+ * stack is not a live region of its own, or an error would be read twice.
  */
 export function Toasts({ toasts }: { toasts: Toast[] }) {
   if (toasts.length === 0) return null;
   return (
-    <div className={styles.toasts} role="status" aria-live="polite">
+    <div className={styles.toasts}>
       {toasts.map((toast) => (
         <ToastRow key={toast.id} toast={toast} />
       ))}
@@ -112,6 +116,7 @@ function ToastRow({ toast }: { toast: Toast }) {
   return (
     <div
       data-testid="toast"
+      role={toast.kind === "error" ? "alert" : "status"}
       className={`${styles.toast} ${toast.kind === "error" ? styles.toastError : ""} ${
         toast.action ? styles.toastWithAction : ""
       }`}

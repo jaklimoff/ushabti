@@ -286,7 +286,7 @@ test.describe("Agents on the board", () => {
     await page.getByTestId("agent-tab").click();
     await expect(page.getByTestId("past-run").first()).toContainText("lost");
     await expect(page.getByTestId("panel-run")).toBeHidden();
-    await page.getByRole("button", { name: /^Activity/ }).click();
+    await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText("stopped answering")).toBeVisible();
   });
 
@@ -328,7 +328,7 @@ test.describe("Agents on the board", () => {
     await expect(row).not.toContainText("lost");
 
     // And the feed says the same, because it names the author of the word.
-    await page.getByRole("button", { name: /^Activity/ }).click();
+    await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText("shut down, and the run ended with it")).toBeVisible();
     await expect(page.getByText("stopped answering")).toBeHidden();
   });
@@ -751,7 +751,7 @@ test.describe("Agents on the board", () => {
 
     /* ---- a tab the person picks holds through a board read ----------- */
 
-    await page.getByRole("button", { name: /^Comments/ }).click();
+    await page.getByRole("tab", { name: /^Comments/ }).click();
     await expect(page.getByTestId("comment-box")).toBeVisible();
     await api.patch(`/api/runs/${run.id}`, { step: "Writing", log: "moved on" });
     await expect(held.getByTestId("card-run-step")).toHaveText("Writing");

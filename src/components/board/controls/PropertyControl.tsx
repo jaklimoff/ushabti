@@ -17,7 +17,30 @@ type Props = {
   members: MemberDTO[];
   onChange: (value: TaskValue) => void;
   onAddOption?: (name: string) => Promise<string | null>;
+  /** The label beside the field, which names it. A selection draws the
+      property's name as a button of its own, so it has none to point at. */
+  labelId?: string;
 };
+
+/**
+ * The name a screen reader gives a control: the label, then what the control
+ * itself says. Without it the panel read "Empty, button" once for each empty
+ * field, and nobody could tell which one.
+ */
+function named(labelId: string | undefined, selfId?: string) {
+  if (!labelId) return {};
+  return { "aria-labelledby": selfId ? `${labelId} ${selfId}` : labelId };
+}
+
+/**
+ * Where the focus goes when a menu shuts on a key: back to the button that
+ * opened it. Only when the focus was inside the menu, so a click somewhere
+ * else keeps the focus it gave.
+ */
+function focusBack(trigger: HTMLElement | null) {
+  const field = trigger?.closest(`.${styles.wrap}`);
+  if (field && field.contains(document.activeElement)) trigger?.focus();
+}
 
 /** A row of options fits as a segmented control only when it stays narrow. */
 function fitsSegmented(property: PropertyDTO): boolean {
@@ -49,11 +72,11 @@ export function PropertyControl(props: Props) {
   }
 }
 
-function SelectSegmented({ property, value, onChange }: Props) {
+function SelectSegmented({ property, value, onChange, labelId }: Props) {
   const mono = property.options.every((o) => o.name.length <= 3);
   return (
     <div className={styles.wrap}>
-      <div className={styles.seg}>
+      <div className={styles.seg} role="group" {...named(labelId)}>
         {property.options.map((option) => {
           const on = value === option.id;
           return (
@@ -61,6 +84,7 @@ function SelectSegmented({ property, value, onChange }: Props) {
               key={option.id}
               className={`${styles.segItem} ${mono ? styles.segMono : ""} ${on ? styles.segItemOn : ""}`}
               style={on ? { background: tint(option.color, 0.18) } : undefined}
+              aria-pressed={on}
               onClick={() => onChange(on ? null : option.id)}
               title={on ? "Click to clear" : option.name}
             >
@@ -233,11 +257,16 @@ function EntryRow({
   );
 }
 
-function SelectMenu({ property, value, onChange, onAddOption }: Props) {
+function SelectMenu({ property, value, onChange, onAddOption, labelId }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [rawAt, setAt] = useState(0);
-  const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
+  const triggerId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const ref = useDismiss<HTMLDivElement>(() => {
+    focusBack(trigger.current);
+    setOpen(false);
+  }, open);
   const once = useOneAtATime();
   const current = property.options.find((o) => o.id === value);
 
@@ -253,6 +282,7 @@ function SelectMenu({ property, value, onChange, onAddOption }: Props) {
   const menu = useHighlightInView(at, open);
 
   function close() {
+    focusBack(trigger.current);
     setOpen(false);
     setDraft("");
   }
@@ -280,14 +310,21 @@ function SelectMenu({ property, value, onChange, onAddOption }: Props) {
   return (
     <div className={styles.wrap} ref={ref}>
       <button
+        ref={trigger}
+        id={triggerId}
         className={`${styles.trigger} ${open ? styles.triggerOpen : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        {...named(labelId, triggerId)}
         onClick={toggleOpen}
       >
         <span className={styles.dot} style={{ background: current?.color ?? "#3f4650" }} />
         <span className={`${styles.triggerText} ${current ? "" : styles.triggerEmpty}`}>
           {current?.name ?? "Empty"}
         </span>
-        <span className={styles.caret}>▾</span>
+        <span className={styles.caret} aria-hidden="true">
+          ▾
+        </span>
       </button>
       {open && (
         <div className={styles.menu} ref={menu}>
@@ -310,11 +347,15 @@ function SelectMenu({ property, value, onChange, onAddOption }: Props) {
   );
 }
 
-function MultiSelect({ property, value, onChange, onAddOption }: Props) {
+function MultiSelect({ property, value, onChange, onAddOption, labelId }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [rawAt, setAt] = useState(0);
-  const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const ref = useDismiss<HTMLDivElement>(() => {
+    focusBack(trigger.current);
+    setOpen(false);
+  }, open);
   const once = useOneAtATime();
   const selected = Array.isArray(value) ? value : [];
   const chosen = selected
@@ -352,7 +393,7 @@ function MultiSelect({ property, value, onChange, onAddOption }: Props) {
 
   return (
     <div className={styles.wrap} ref={ref} style={{ display: "block" }}>
-      <div className={styles.chips}>
+      <div className={styles.chips} role="group" {...named(labelId)}>
         {chosen.map((option) => (
           <span
             key={option.id}
@@ -361,13 +402,21 @@ function MultiSelect({ property, value, onChange, onAddOption }: Props) {
           >
             <span className={styles.dot} style={{ background: option.color }} />
             {option.name}
-            <button className={styles.chipRemove} title="Remove" onClick={() => toggle(option.id)}>
+            <button
+              className={styles.chipRemove}
+              title="Remove"
+              aria-label={`Remove ${option.name}`}
+              onClick={() => toggle(option.id)}
+            >
               ✕
             </button>
           </span>
         ))}
         <button
+          ref={trigger}
           className={styles.chipAdd}
+          aria-haspopup="listbox"
+          aria-expanded={open}
           onClick={() => {
             if (!open) setAt(0);
             setOpen((v) => !v);
@@ -395,95 +444,142 @@ function MultiSelect({ property, value, onChange, onAddOption }: Props) {
   );
 }
 
-function PersonMenu({ value, members, onChange }: Props) {
+const NOBODY = (
+  <span
+    style={{
+      width: 18,
+      height: 18,
+      borderRadius: "50%",
+      border: "1px dashed #2f343c",
+      display: "inline-block",
+    }}
+  />
+);
+
+const LIST_STEPS: Record<string, (at: number, count: number) => number> = {
+  ArrowDown: (at, count) => Math.min(at + 1, count - 1),
+  ArrowUp: (at) => Math.max(at - 1, 0),
+  Home: () => 0,
+  End: (_at, count) => count - 1,
+};
+
+/**
+ * A short list of people, so it has no box to type in: the focus goes into
+ * the list, onto the person already chosen, and the arrows walk it. Every row
+ * is still a button, so Enter and Space pick as they always did. The list is
+ * one tab stop, like every listbox: Tab leaves it.
+ */
+function PersonMenu({ value, members, onChange, labelId }: Props) {
   const [open, setOpen] = useState(false);
-  const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
+  const triggerId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const ref = useDismiss<HTMLDivElement>(() => {
+    focusBack(trigger.current);
+    setOpen(false);
+  }, open);
   const current = members.find((m) => m.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    list.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+  }, [open]);
+
+  function pick(id: string | null) {
+    onChange(id);
+    focusBack(trigger.current);
+    setOpen(false);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const step = LIST_STEPS[event.key];
+    if (!step || !list.current) return;
+    event.preventDefault();
+    const rows = [...list.current.querySelectorAll<HTMLElement>('[role="option"]')];
+    const at = rows.indexOf(document.activeElement as HTMLElement);
+    rows[step(Math.max(at, 0), rows.length)]?.focus();
+  }
+
+  const rows: { id: string | null; name: string; face: React.ReactNode }[] = [
+    { id: null, name: "Unassigned", face: NOBODY },
+    ...members.map((member) => ({
+      id: member.id,
+      name: member.name,
+      face: <Avatar name={member.name} color={member.color} size={18} />,
+    })),
+  ];
 
   return (
     <div className={styles.wrap} ref={ref}>
       <button
+        ref={trigger}
+        id={triggerId}
         className={`${styles.trigger} ${styles.triggerAvatar} ${open ? styles.triggerOpen : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        {...named(labelId, triggerId)}
         onClick={() => setOpen((v) => !v)}
       >
-        {current ? (
-          <Avatar name={current.name} color={current.color} size={18} />
-        ) : (
-          <span
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              border: "1px dashed #2f343c",
-              display: "inline-block",
-            }}
-          />
-        )}
+        {/* The face draws initials as text, and the name is already there. */}
+        <span aria-hidden="true" style={{ display: "contents" }}>
+          {current ? <Avatar name={current.name} color={current.color} size={18} /> : NOBODY}
+        </span>
         <span className={`${styles.triggerText} ${current ? "" : styles.triggerEmpty}`}>
           {current?.name ?? "Unassigned"}
         </span>
-        <span className={styles.caret}>▾</span>
+        <span className={styles.caret} aria-hidden="true">
+          ▾
+        </span>
       </button>
       {open && (
-        <div className={styles.menu} style={{ top: 32 }}>
-          <button
-            className={styles.menuItem}
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-          >
-            <span
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                border: "1px dashed #2f343c",
-                display: "inline-block",
-              }}
-            />
-            Unassigned
-            <span style={{ flex: 1 }} />
-            <span
-              className={styles.tick}
-              style={{ color: value ? "transparent" : "var(--accent)" }}
-            >
-              ✓
-            </span>
-          </button>
-          {members.map((member) => (
-            <button
-              key={member.id}
-              className={`${styles.menuItem} ${value === member.id ? styles.menuItemOn : ""}`}
-              onClick={() => {
-                onChange(member.id);
-                setOpen(false);
-              }}
-            >
-              <Avatar name={member.name} color={member.color} size={18} />
-              {member.name}
-              <span style={{ flex: 1 }} />
-              <span
-                className={styles.tick}
-                style={{ color: value === member.id ? "var(--accent)" : "transparent" }}
+        <div
+          className={styles.menu}
+          style={{ top: 32 }}
+          ref={list}
+          role="listbox"
+          {...(labelId ? { "aria-labelledby": labelId } : { "aria-label": "People" })}
+          onKeyDown={onKeyDown}
+        >
+          {rows.map((row) => {
+            const on = (value ?? null) === row.id;
+            return (
+              <button
+                key={row.id ?? "nobody"}
+                className={`${styles.menuItem} ${on && row.id ? styles.menuItemOn : ""}`}
+                role="option"
+                aria-selected={on}
+                tabIndex={-1}
+                onClick={() => pick(row.id)}
               >
-                ✓
-              </span>
-            </button>
-          ))}
+                <span aria-hidden="true" style={{ display: "contents" }}>
+                  {row.face}
+                </span>
+                {row.name}
+                <span style={{ flex: 1 }} />
+                <span
+                  className={styles.tick}
+                  aria-hidden="true"
+                  style={{ color: on ? "var(--accent)" : "transparent" }}
+                >
+                  ✓
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function CheckboxToggle({ value, onChange }: Props) {
+function CheckboxToggle({ value, onChange, labelId }: Props) {
   const on = value === true;
   return (
     <button
       className={`${styles.toggle} ${on ? styles.toggleOn : ""}`}
       role="switch"
       aria-checked={on}
+      {...named(labelId)}
       onClick={() => onChange(!on)}
     >
       <span className={`${styles.knob} ${on ? styles.knobOn : ""}`} />
@@ -491,8 +587,9 @@ function CheckboxToggle({ value, onChange }: Props) {
   );
 }
 
-function DateField({ value, onChange }: Props) {
+function DateField({ value, onChange, labelId }: Props) {
   const [editing, setEditing] = useState(false);
+  const buttonId = useId();
   const text = typeof value === "string" && value ? formatDate(value) : "";
 
   if (editing) {
@@ -501,6 +598,7 @@ function DateField({ value, onChange }: Props) {
         className={styles.textInput}
         type="date"
         autoFocus
+        {...named(labelId)}
         defaultValue={typeof value === "string" ? value : ""}
         onBlur={(e) => {
           setEditing(false);
@@ -515,7 +613,12 @@ function DateField({ value, onChange }: Props) {
   }
 
   return (
-    <button className={styles.trigger} onClick={() => setEditing(true)}>
+    <button
+      className={styles.trigger}
+      id={buttonId}
+      {...named(labelId, buttonId)}
+      onClick={() => setEditing(true)}
+    >
       <span className={`${styles.triggerText} ${text ? "" : styles.triggerEmpty}`}>
         {text || "Empty"}
       </span>
@@ -523,7 +626,7 @@ function DateField({ value, onChange }: Props) {
   );
 }
 
-function ScalarField({ value, onChange, numeric }: Props & { numeric?: boolean }) {
+function ScalarField({ value, onChange, numeric, labelId }: Props & { numeric?: boolean }) {
   const [draft, setDraft] = useState<string>(
     value === null || value === undefined ? "" : String(value),
   );
@@ -545,6 +648,7 @@ function ScalarField({ value, onChange, numeric }: Props & { numeric?: boolean }
     <input
       className={styles.textInput}
       inputMode={numeric ? "decimal" : undefined}
+      {...named(labelId)}
       value={shown}
       placeholder="Empty"
       onChange={(e) => {

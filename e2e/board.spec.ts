@@ -85,7 +85,7 @@ test.describe("Ushabti board", () => {
 
     await addTask(page, "Todo", "Write the first task");
     // The panel opens by itself after the task is created.
-    await expect(page.getByRole("button", { name: /^Comments/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Comments/ })).toBeVisible();
 
     // title
     const title = page.getByTestId("task-title");
@@ -115,7 +115,7 @@ test.describe("Ushabti board", () => {
     const composer = page.getByPlaceholder("Leave a note…");
     await composer.fill("Looks **right** to me.\n\n- one\n- two");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Comments 1/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Comments 1/ })).toBeVisible();
 
     // a comment reads like a description: it is markdown too
     const posted = page.getByTestId("comment-markdown");
@@ -123,7 +123,7 @@ test.describe("Ushabti board", () => {
     await expect(posted.locator("li")).toHaveCount(2);
 
     // activity
-    await page.getByRole("button", { name: /^Activity/ }).click();
+    await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText(/created the task/)).toBeVisible();
   });
 
@@ -453,10 +453,11 @@ test.describe("Ushabti board", () => {
       await page.getByRole("button", { name: "Close task" }).click();
     }
 
-    // The whole board is one tab stop, not one for every card.
+    // The whole board is one tab stop, not one for every card. Closing a
+    // task left the cursor on the card that was open.
     const tabStop = page.locator('[data-testid="card"][tabindex="0"]');
     await expect(tabStop).toHaveCount(1);
-    await expect(tabStop).toContainText("Top of the pile");
+    await expect(tabStop).toContainText("Two columns over");
 
     await card(page, "Top of the pile").first().focus();
     await page.keyboard.press("ArrowDown");
@@ -874,7 +875,7 @@ test.describe("A board on a phone", () => {
        one value a drop across a board writes. */
     await card(page, "Beetle").click();
     const panel = page.getByTestId("task-panel");
-    await panel.getByRole("button", { name: /^Todo/ }).click();
+    await panel.getByRole("button", { name: "Status Todo" }).click();
     await saved(page, () => panel.getByRole("option", { name: /^Ready/ }).click());
     await page.getByRole("button", { name: "Close task" }).click();
 

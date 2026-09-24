@@ -62,7 +62,7 @@ test.describe("Undoing a delete", () => {
     const comment = page.getByPlaceholder("Leave a note…");
     await comment.fill("The key is in the vault.");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Comments 1/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Comments 1/ })).toBeVisible();
 
     await addTask(page, "Todo", "Still on the board");
     await page.getByRole("button", { name: "Close task" }).click();
@@ -117,7 +117,7 @@ test.describe("Undoing a delete", () => {
     await page.goto(`/p/${projectId}?task=${key}`);
     await expect(page.getByTestId("task-key")).toHaveText(key);
     await expect(page.getByTestId("task-title")).toHaveValue("Rotate the signing key");
-    await expect(page.getByRole("button", { name: /^Comments 1/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Comments 1/ })).toBeVisible();
     await expect(card(page, "Rotate the signing key").first()).toBeVisible();
   });
 

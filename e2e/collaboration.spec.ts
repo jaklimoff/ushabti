@@ -193,7 +193,7 @@ test.describe("Two people on one board", () => {
 
     const panel = owner.page.getByTestId("task-panel");
     await panel.getByRole("button", { name: "Unassigned" }).click();
-    await saved(owner.page, () => panel.getByRole("button", { name: "Friend Person" }).click());
+    await saved(owner.page, () => panel.getByRole("option", { name: "Friend Person" }).click());
 
     await owner.page.goto(`/p/${projectId}`);
     await card(owner.page, "Give it to a friend").click();
@@ -394,7 +394,7 @@ test.describe("A shared view that says Me", () => {
     ]) {
       await addTask(owner.page, "Todo", title);
       await panel.getByRole("button", { name: "Unassigned" }).click();
-      await saved(owner.page, () => panel.getByRole("button", { name: who }).click());
+      await saved(owner.page, () => panel.getByRole("option", { name: who }).click());
       await owner.page.getByRole("button", { name: "Close task" }).click();
     }
 
