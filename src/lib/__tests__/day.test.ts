@@ -233,9 +233,9 @@ describe("a window is read the same wherever the process runs", () => {
     const rule: FilterRule = { propertyId: due.id, op: "within", text: "this_week" };
     for (const zone of ["UTC", "Pacific/Auckland", "America/Los_Angeles", "Asia/Kolkata"]) {
       process.env.TZ = zone;
-      expect(matches(task("2026-09-27"), rule, due, MONDAY)).toBe(true);
-      expect(matches(task("2026-09-28"), rule, due, MONDAY)).toBe(false);
-      expect(matches(task("2026-09-20"), rule, due, MONDAY)).toBe(false);
+      expect(matches(task("2026-09-27"), rule, due, MONDAY, null)).toBe(true);
+      expect(matches(task("2026-09-28"), rule, due, MONDAY, null)).toBe(false);
+      expect(matches(task("2026-09-20"), rule, due, MONDAY, null)).toBe(false);
     }
   });
 });

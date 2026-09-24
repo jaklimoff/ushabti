@@ -49,6 +49,17 @@ export const EMPTY_FILTERS: ViewFilters = { rules: [] };
 export const BLOCKED_KEY = "_blocked";
 
 /**
+ * The member of a person rule's set that stands for whoever is reading.
+ *
+ * It is a value, as NO_VALUE_KEY is, and never the id of a person: the view is
+ * shared, so "Assignee is Me" has to mean me on my screen and you on yours.
+ * The stored rule keeps the word. `matches` reads it against the viewer it is
+ * handed, and `seedValues` writes that viewer, so nothing rewrites the rule.
+ * An agent reads it as itself. With nobody to read it as, it matches nobody.
+ */
+export const ME_KEY = "__me__";
+
+/**
  * The rule's stand-in property. A checkbox is what it reads like, so it is
  * one: the menu, the chip and the matching all follow from the type.
  */
@@ -186,12 +197,17 @@ function isEmpty(value: TaskValue, type: PropertyType): boolean {
  * with no default, because a default would be a clock and this function runs
  * once on the server and again in the browser. Two clocks are two answers,
  * and the second one throws the first render away.
+ *
+ * `viewer` is the id of whoever reads the board, and it is what ME_KEY means.
+ * It has no default for the same reason: a view is shared, so a caller that
+ * forgot it would read "Me" as nobody on every screen.
  */
 export function matches(
   task: TaskDTO,
   rule: FilterRule,
   property: PropertyDTO,
   today: string,
+  viewer: string | null,
 ): boolean {
   /* The built-in word reads off the links rather than off the values, and
      nothing else about it differs: it is a checkbox from here down. */
@@ -209,7 +225,9 @@ export function matches(
 
     case "is":
     case "is_not": {
-      const wanted = rule.values ?? [];
+      /* Me is read here and only here. Without a viewer the word stays as it
+         is, and no task holds it, so it matches nobody. */
+      const wanted = (rule.values ?? []).map((key) => (key === ME_KEY && viewer ? viewer : key));
       // A set with nothing chosen asks nothing, so it hides nothing.
       if (wanted.length === 0) return true;
       const held = keysOf(value, type);
@@ -333,7 +351,9 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
 /**
  * The keys a set rule may hold for this property, or null when the property
  * has no list to check against — a person rule names members, and a member who
- * left is still a fair question to ask about the tasks they left behind.
+ * left is still a fair question to ask about the tasks they left behind. ME_KEY
+ * passes the same way, and only a person rule can hold it: every other type
+ * has a list, and the word is not on it.
  */
 function liveKeys(property: PropertyDTO): Set<string> | null {
   if (property.type === "select" || property.type === "multi_select") {
@@ -419,13 +439,14 @@ export function applyFilters(
   filters: ViewFilters,
   properties: PropertyDTO[],
   today: string,
+  viewer: string | null,
 ): TaskDTO[] {
   if (filters.rules.length === 0) return tasks;
   const byId = byIdWithBlocked(properties);
   return tasks.filter((task) =>
     filters.rules.every((rule) => {
       const property = byId.get(rule.propertyId);
-      return property ? matches(task, rule, property, today) : true;
+      return property ? matches(task, rule, property, today, viewer) : true;
     }),
   );
 }
@@ -447,6 +468,7 @@ export function allowedColumns<T extends { value: TaskValue }>(
   filters: ViewFilters,
   groupProperty: PropertyDTO | null,
   today: string,
+  viewer: string | null,
 ): T[] {
   if (!groupProperty) return columns;
   const rules = filters.rules.filter((r) => r.propertyId === groupProperty.id);
@@ -454,7 +476,7 @@ export function allowedColumns<T extends { value: TaskValue }>(
 
   return columns.filter((column) => {
     const stand = { values: { [groupProperty.id]: column.value } } as TaskDTO;
-    return rules.every((rule) => matches(stand, rule, groupProperty, today));
+    return rules.every((rule) => matches(stand, rule, groupProperty, today, viewer));
   });
 }
 
@@ -473,11 +495,15 @@ export function allowedColumns<T extends { value: TaskValue }>(
  * something, and names exactly one. "Priority is High or Urgent" has no single
  * answer, "Priority is not Low" has too many, and the grouping property is the
  * column's to decide. Anything it cannot answer is left alone.
+ *
+ * "Assignee is Me" has one answer, and it is `viewer`: the task goes to
+ * whoever added it. With no viewer it has none, and it is left alone.
  */
 export function seedValues(
   filters: ViewFilters,
   properties: PropertyDTO[],
   groupPropertyId: string | null,
+  viewer: string | null,
 ): Record<string, TaskValue> {
   const byId = new Map(properties.map((p) => [p.id, p]));
   const seed: Record<string, TaskValue> = {};
@@ -496,6 +522,10 @@ export function seedValues(
     if (keys.length !== 1 || keys[0] === NO_VALUE_KEY) continue;
     const property = byId.get(rule.propertyId);
     if (!property) continue;
+    if (keys[0] === ME_KEY) {
+      if (property.type === "person" && viewer) seed[property.id] = viewer;
+      continue;
+    }
 
     switch (property.type) {
       case "multi_select":
@@ -553,6 +583,7 @@ export function keyName(key: string, property: PropertyDTO, members: MemberDTO[]
   if (key === NO_VALUE_KEY) {
     return property.type === "person" ? "Unassigned" : `No ${property.name.toLowerCase()}`;
   }
+  if (key === ME_KEY) return "Me";
   if (property.type === "checkbox") {
     return key === "true" ? property.name : `Not ${property.name.toLowerCase()}`;
   }
@@ -576,6 +607,8 @@ function windowSaid(property: PropertyDTO, word: string): string {
 /** The colour of one key, for the dot on the chip. */
 export function keyColor(key: string, property: PropertyDTO, members: MemberDTO[]): string {
   if (key === NO_VALUE_KEY) return "#3f4650";
+  /* Me is a different person on every screen, so it wears no one's colour. */
+  if (key === ME_KEY) return "#6b7280";
   if (property.type === "checkbox") return key === "true" ? "#4f8a5b" : "#6b7280";
   if (property.type === "person") return members.find((m) => m.id === key)?.color ?? "#3f4650";
   return property.options.find((o) => o.id === key)?.color ?? "#3f4650";

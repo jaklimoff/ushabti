@@ -241,6 +241,7 @@ export function BoardCanvas({
     runOf,
     controlRun,
     notify,
+    user,
   } = useBoard();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
@@ -296,8 +297,9 @@ export function BoardCanvas({
         filters,
         groupProperty,
         data.today,
+        user.id,
       ),
-    [visibleTasks, sort, cardItems, data.members, data.today, filters, groupProperty],
+    [visibleTasks, sort, cardItems, data.members, data.today, filters, groupProperty, user.id],
   );
 
   /*
@@ -400,7 +402,7 @@ export function BoardCanvas({
   }, [activeTaskId, activeColumnId]);
 
   const addNote = seedNote(
-    seedValues(filters, data.properties, groupProperty?.id ?? null),
+    seedValues(filters, data.properties, groupProperty?.id ?? null, user.id),
     data.properties,
     data.members,
   );
@@ -566,6 +568,7 @@ export function BoardCanvas({
       filters,
       data.properties,
       groupProperty?.id ?? null,
+      user.id,
     );
     if (groupProperty && !column.isNone) values[groupProperty.id] = column.value;
     const neighbour = atTop ? null : (column.tasks.at(-1)?.id ?? null);

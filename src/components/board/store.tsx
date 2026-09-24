@@ -628,10 +628,11 @@ export function BoardProvider({
   /* The day comes off the board answer and never off this browser's clock,
      so a relative date rule draws the same cards here as it did on the
      server. A board left open over midnight keeps yesterday until the next
-     read, which is the price of the two renders agreeing. */
+     read, which is the price of the two renders agreeing. "Me" is read as
+     the person at this screen, so one shared view is each viewer's own. */
   const visibleTasks = useMemo(
-    () => applyFilters(data.tasks, filters, data.properties, data.today),
-    [data.properties, data.tasks, data.today, filters],
+    () => applyFilters(data.tasks, filters, data.properties, data.today, user.id),
+    [data.properties, data.tasks, data.today, filters, user.id],
   );
 
   /*
