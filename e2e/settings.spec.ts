@@ -79,15 +79,21 @@ test.describe("Settings", () => {
     await expect(page).toHaveURL(/\/settings\/views$/);
   });
 
-  test("a view can be created and deleted from settings", async ({ page }) => {
+  test("a view made in the strip is deleted from settings, which makes none", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Views"));
 
-    await gotoSettings(page, projectId, "views");
+    await page.getByRole("button", { name: "New view" }).click();
     await page.getByLabel("Name of the new view").fill("By assignee");
-    await page.getByLabel("Grouping property of the new view").selectOption({ label: "Assignee" });
-    await page.getByRole("button", { name: "Add view" }).click();
+    await page.getByRole("button", { name: "Assignee" }).click();
+    await page.getByRole("button", { name: "Create view" }).click();
+    await expect(page.getByTestId("view-pill").filter({ hasText: "By assignee" })).toBeVisible();
+
+    await gotoSettings(page, projectId, "views");
     await expect(page.getByLabel("Name of the view By assignee")).toBeVisible();
+    // One act has one place: the + in the strip. Settings only arranges views.
+    await expect(page.getByLabel("Name of the new view")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add view" })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Delete the view By assignee" }).click();
     await expect(page.getByText(/Delete the view By assignee\?/)).toBeVisible();
