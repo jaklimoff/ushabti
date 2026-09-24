@@ -65,6 +65,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A shared filter chip says that a change is for everyone.** Open one of the view's chips and
+  its panel reads _Changes this for everyone_ above the question, as its `✕` already asks
+  _Remove for everyone?_. A chip of your own says nothing extra.
 - **A sort names its two ways by what the column holds.** A→Z and Z→A for a title, Earliest first
   and Latest first for a date, Option order and Reverse order for a select. Smallest first is left
   to numbers, and a checkbox runs Ticked first or Not ticked first. The Sort button, the list
