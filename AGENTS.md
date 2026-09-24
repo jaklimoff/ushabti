@@ -33,14 +33,27 @@ and what is easy to get wrong.
   readable, which is why the step count and the log ticker never reached the
   card.
 - **A card draws the card view and decides nothing.** What a card carries is
-  `projects.card_view`, one object of `order` and `rows` that everybody on the
-  board shares. `TaskCard` knows how to draw a chip and nothing else — which
-  chips there are, where they sit and how they read all come from
-  `src/lib/card-view.ts`. Adding a property type means one line in
-  `KIND_OF_TYPE`. Putting a decision back in the card, however small, splits
-  the answer in two. The detail panel takes the same colour by the same route:
-  `cardAccent()` asks the card view for the stripe the card wears, so moving
-  the edge moves the panel with it and no screen names a property of its own.
+  `projects.card_view`, one object of `rows` that everybody on the board shares:
+  where each row sits and how it reads. `TaskCard` knows how to draw a chip and
+  nothing else — which chips there are, where they sit and how they read all
+  come from `src/lib/card-view.ts`. Adding a property type means one line in
+  `KIND_OF_TYPE`. Putting a decision back in the card, however small, splits the
+  answer in two. The detail panel takes the same colour by the same route:
+  `cardAccent()` asks the card view for the stripe the card wears, so moving the
+  edge moves the panel with it and no screen names a property of its own.
+- **Properties have one order, and it is the Settings drag.** The card view
+  holds no order. `cardOrder()` in `card-view.ts` is the one place that says
+  which row comes first: `_key`, `_title` and `_desc`, then the properties in
+  their `position`, then `_checklist` and `_comments`. The chips that share a
+  place on a card, the columns of a list and the fields of the task panel all
+  follow it. One rule sits on top, on a card only: in each place a chip with no
+  words — mode `colour` or `avatar` — comes first, so a card nobody rearranged
+  still opens with its square of colour. `buildCard` keys it off the mode, never
+  off a property. The card view used to keep an `order` of its own, so a
+  property dragged up in Settings moved in the panel and stayed where it was on
+  the card. Old rows still carry that `order`; `readCardView()` does not read it
+  and does not write it back, so no migration was needed. Do not give the card
+  view an order again, and do not let a task row move among the properties.
 - **A view has a kind, and a list is the same tasks lying down.** `views.kind`
   is `board` or `list`, and nothing else about a view changes with it: one
   filter set, one card view, one card order. A list groups by nothing on
@@ -56,12 +69,13 @@ and what is easy to get wrong.
   columns a list has: a row that is off the card is off the list, the edge is
   the stripe and not a column, the description joins the title because a line
   has one line, and the key and the title open the row because a table is read
-  from the left. The five places of a card collapse to "a column" — a place
-  says where a chip sits on a _card_ — so adding a property type is still one
-  line in `KIND_OF_TYPE` plus one width. `buildRow()` sits beside `buildCard()`
-  and shares `chipsFor`, so a value cannot read one way on a card and another
-  in a list. Its one deliberate difference is that a colour-only chip gets its
-  name back: a column's heading names the property, never the value.
+  from the left. The rest follow `cardOrder()`, as the chips on a card do. The
+  five places of a card collapse to "a column" — a place says where a chip sits
+  on a _card_ — so adding a property type is still one line in `KIND_OF_TYPE`
+  plus one width. `buildRow()` sits beside `buildCard()` and shares `chipsFor`,
+  so a value cannot read one way on a card and another in a list. Its one
+  deliberate difference is that a colour-only chip gets its name back: a
+  column's heading names the property, never the value.
 - **One view is the main one, and it is named rather than unnamed.** The word
   says two things at once: which view a board opens on when nobody has picked
   one, and which view cannot be deleted. So the route takes `isDefault: true`
@@ -142,13 +156,14 @@ and what is easy to get wrong.
   skips the grouping property because the column decides it; a list has no
   column, so it passes `null` and the filter answers for that property too.
   Without it the row is written and hidden in the same breath.
-- **The card view is read afresh, never cleaned up**, exactly as a filter is.
-  A row can name a property that has been deleted, so `readCardView()` throws
+- **The card view is read afresh, never cleaned up**, exactly as a filter is. A
+  row can name a property that has been deleted, so `readCardView()` throws
   those away every time — on the server in `loadBoard`, and again on the write.
   It settles the invariants in the same pass: the title never moves, one row at
   most holds the edge, and a mode a row's kind cannot read becomes one it can.
-  Do not add a cleanup pass to the delete transaction; it would lose the same
-  race the filter one would.
+  An `order` saved by an older release is dropped in the same pass. Do not add a
+  cleanup pass to the delete transaction; it would lose the same race the filter
+  one would.
 - **Five rows of the card view are not properties.** `_key`, `_title`, `_desc`,
   `_checklist` and `_comments` are the task row the board already has, given
   rows so that somebody can take them off. They are not fields on a task and

@@ -81,7 +81,6 @@ const MEMBERS: MemberDTO[] = [
 
 /** Every property on the card, so every one of them is a column of the list. */
 const SAVED = {
-  order: ["_key", "_title", ...PROPERTIES.map((p) => p.id), "_checklist", "_comments"],
   rows: Object.fromEntries(PROPERTIES.map((p) => [p.id, { place: "footerL", mode: "text" }])),
 };
 

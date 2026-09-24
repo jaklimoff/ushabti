@@ -12,7 +12,6 @@ import {
   defaultCardView,
   mainBoardGroupById,
   MODES_FOR_KIND,
-  moveCardRow,
   previewTasks,
   setCardMode,
   setCardPlace,
@@ -35,21 +34,17 @@ export function CardViewPanel() {
   const confirm = useConfirm();
 
   /* The card view is everybody's, so a reset names what it moves: the rows
-     whose place, reading or order differ from the default. The default is the
-     one the store puts back, worked out the same way. */
+     whose place or reading differ from the default. The default is the one the
+     store puts back, worked out the same way. There is no order to count: it
+     is the order of the properties, and a reset leaves that alone. */
   const changed = useMemo(() => {
     const fresh = itemsOf(
       defaultCardView(data.properties, mainBoardGroupById(data.views)),
       data.properties,
     );
-    return cardItems.filter((item, index) => {
+    return cardItems.filter((item) => {
       const other = fresh.find((f) => f.id === item.id);
-      return (
-        !other ||
-        other.place !== item.place ||
-        other.mode !== item.mode ||
-        fresh.indexOf(other) !== index
-      );
+      return !other || other.place !== item.place || other.mode !== item.mode;
     }).length;
   }, [cardItems, data.properties, data.views]);
 
@@ -63,7 +58,7 @@ export function CardViewPanel() {
     <>
       <PageHead
         title="Card view"
-        note="What a card on the board carries. Open a row to say how it reads and where it sits, and move rows to change the order — rows sharing a place sit in list order."
+        note="What a card on the board carries. Open a row to say how it reads and where it sits. Rows sharing a place follow the order of the properties — drag them in Properties to change it."
       />
 
       <div className={styles.cardLayout}>
@@ -74,19 +69,16 @@ export function CardViewPanel() {
             <span className={styles.cardHeadPlace}>On card</span>
           </div>
 
-          {cardItems.map((item, index) => (
+          {cardItems.map((item) => (
             <CardRowBox
               key={item.id}
               item={item}
               edgeHolder={edge}
               open={open === item.id}
-              first={index === 0}
-              last={index === cardItems.length - 1}
               onToggle={() => setOpen((current) => (current === item.id ? null : item.id))}
               onClose={() => setOpen(null)}
               onPlace={(place) => void setCardView(setCardPlace(view, item.id, place))}
               onMode={(mode) => void setCardView(setCardMode(view, item.id, mode))}
-              onMove={(by) => void setCardView(moveCardRow(view, item.id, by))}
             />
           ))}
 
@@ -132,24 +124,18 @@ function CardRowBox({
   item,
   edgeHolder,
   open,
-  first,
-  last,
   onToggle,
   onClose,
   onPlace,
   onMode,
-  onMove,
 }: {
   item: CardItem;
   edgeHolder: CardItem | null;
   open: boolean;
-  first: boolean;
-  last: boolean;
   onToggle: () => void;
   onClose: () => void;
   onPlace: (place: CardPlace) => void;
   onMode: (mode: CardMode) => void;
-  onMove: (by: -1 | 1) => void;
 }) {
   const off = item.place === "off";
   const modes = MODES_FOR_KIND[item.kind];
@@ -166,25 +152,6 @@ function CardRowBox({
   return (
     <div className={styles.cardRowBox} data-testid="card-row" data-place={item.place}>
       <div className={styles.cardRow}>
-        <span className={styles.cardRowMove}>
-          <IconButton
-            label={`Move ${item.name} up`}
-            title="Move up"
-            disabled={first}
-            onClick={() => onMove(-1)}
-          >
-            ↑
-          </IconButton>
-          <IconButton
-            label={`Move ${item.name} down`}
-            title="Move down"
-            disabled={last}
-            onClick={() => onMove(1)}
-          >
-            ↓
-          </IconButton>
-        </span>
-
         <span className={styles.cardRowName}>
           <span className={styles.cardRowDot} style={{ background: item.color }} />
           <span className={off ? styles.cardRowOff : undefined}>{item.name}</span>

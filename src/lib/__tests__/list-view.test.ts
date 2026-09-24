@@ -64,7 +64,6 @@ describe("the columns of a list", () => {
     expect(idsOf(null)).not.toContain("p-status");
     /* And it comes back the moment somebody puts it on the card. */
     const put = {
-      order: ["_key", "_title", "p-status"],
       rows: { "p-status": { place: "footerL", mode: "text" } },
     };
     expect(idsOf(put)).toContain("p-status");
@@ -72,7 +71,6 @@ describe("the columns of a list", () => {
 
   it("leaves out the edge, because a stripe is not a column", () => {
     const saved = {
-      order: ["_key", "_title", "p-prio"],
       rows: { "p-prio": { place: "edge", mode: "colour" } },
     };
     expect(idsOf(saved)).not.toContain("p-prio");
@@ -80,13 +78,12 @@ describe("the columns of a list", () => {
 
   it("leaves out the description, because a line has one line", () => {
     const saved = {
-      order: ["_key", "_title", "_desc"],
       rows: { _desc: { place: "body", mode: "two" } },
     };
     expect(idsOf(saved)).not.toContain("_desc");
   });
 
-  it("opens with the key and the title, whatever the card view says", () => {
+  it("opens with the key and the title, even under an order an older release saved", () => {
     /* A table is read from the left, and the name of the task is what a
        person looks for. */
     const saved = {
@@ -101,14 +98,18 @@ describe("the columns of a list", () => {
   });
 
   it("always has a title, even when the card view has lost it", () => {
-    const ids = idsOf({ order: ["p-prio"], rows: { "p-prio": { place: "footerL" } } });
+    const ids = idsOf({ rows: { "p-prio": { place: "footerL" } } });
     expect(ids).toContain("_title");
   });
 
-  it("keeps the rest in the order the card view puts them", () => {
-    const ids = idsOf(null).filter((id) => id.startsWith("p-"));
-    const order = readCardView(null, PROPERTIES, "p-status").order.filter((id) => ids.includes(id));
-    expect(ids).toEqual(order);
+  it("keeps the rest in the order of the properties", () => {
+    const ids = (properties: PropertyDTO[]) =>
+      listColumns(cardItems(readCardView(null, properties, "p-status"), properties))
+        .map((c) => c.id)
+        .filter((id) => id.startsWith("p-"));
+    expect(ids(PROPERTIES)).toEqual(["p-prio", "p-who", "p-points"]);
+    /* A drag in Settings moves the column, and the key and the title stay first. */
+    expect(ids([...PROPERTIES].reverse())).toEqual(["p-points", "p-who", "p-prio"]);
   });
 
   it("holds the key and the title in place, and nothing else", () => {

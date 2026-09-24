@@ -56,8 +56,8 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
   ],
 
   "cardView": {              // what every card carries, already read afresh
-    "order": ["<propertyId>", "_key", "_title", "_desc", "_checklist", "_comments"],
-    "rows": {
+    "rows": {                // in a shared place: wordless rows (colour, avatar) first,
+                             // then the order of "properties" — see api/projects
       "<propertyId>": { "place": "headerL", "mode": "colour" },
       "_title": { "place": "title", "mode": "fixed" }
     }

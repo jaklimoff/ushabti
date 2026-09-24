@@ -140,6 +140,22 @@ export function fallbackRow(kind: CardKind): CardRow {
 }
 
 /* ------------------------------------------------------------------ */
+/* The order                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The one order of the rows, and a card view holds none of its own. The
+ * properties follow their order in Settings → Properties, and the parts a task
+ * has of its own stand fixed around them. The card view once kept a second
+ * order beside that one, so a property dragged up in Settings moved in the
+ * panel and stayed where it was on the card. `properties` must be in their
+ * order, which is how the board carries them.
+ */
+export function cardOrder(properties: readonly { id: string }[]): string[] {
+  return ["_key", "_title", "_desc", ...properties.map((p) => p.id), "_checklist", "_comments"];
+}
+
+/* ------------------------------------------------------------------ */
 /* The default                                                         */
 /* ------------------------------------------------------------------ */
 
@@ -161,6 +177,8 @@ export function mainBoardGroupById(
  * The card a project has before anybody arranges one: the card this board drew
  * for its first six versions. The lead colour and the key open the header, the
  * people and the labels close it, and everything else lines up in the footer.
+ * The colour comes first because a wordless chip opens its place in
+ * `buildCard`, not because the card view holds an order.
  *
  * It does not go through `fallbackRow`, and it should not. That answers "a
  * property arrived, where does it go"; this answers "nobody has ever said", and
@@ -175,20 +193,19 @@ export function defaultCardView(properties: PropertyDTO[], groupById: string | n
     _comments: { place: "footerL", mode: "text" },
   };
 
-  /* The small square of colour a card has always opened with: the first select
-     that is not the columns of the default view. */
+  /* The small square of colour a card has always opened with: the first
+     select, in the order of the properties, that is not the columns of the
+     default view. */
   const lead = properties.find(
     (p) => p.type === "select" && p.id !== groupById && p.config.showOnCard !== false,
   );
 
-  const rest: string[] = [];
   for (const property of properties) {
     const kind = KIND_OF_TYPE[property.type];
     if (property.id === lead?.id) {
       rows[property.id] = { place: "headerL", mode: "colour" };
       continue;
     }
-    rest.push(property.id);
     /* The columns already say it, so the card never did. */
     if (property.id === groupById || property.config.showOnCard === false) {
       rows[property.id] = { place: "off", mode: firstMode(kind) };
@@ -199,17 +216,7 @@ export function defaultCardView(properties: PropertyDTO[], groupById: string | n
     }
   }
 
-  const order = [
-    ...(lead ? [lead.id] : []),
-    "_key",
-    "_title",
-    "_desc",
-    ...rest,
-    "_checklist",
-    "_comments",
-  ];
-
-  return { order, rows };
+  return { rows };
 }
 
 /* ------------------------------------------------------------------ */
@@ -232,14 +239,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *
  * It also settles what a hand-written PATCH cannot be trusted to: the title
  * never moves, only one row holds the edge, and a mode a kind does not offer
- * becomes the one it does.
+ * becomes the one it does. An `order` saved by an older release is not read,
+ * and it is not written back: the order is the properties' own.
  */
 export function readCardView(
   saved: unknown,
   properties: PropertyDTO[],
   groupById: string | null,
 ): CardView {
-  if (!isRecord(saved) || !Array.isArray(saved.order) || !isRecord(saved.rows)) {
+  if (!isRecord(saved) || !isRecord(saved.rows)) {
     return defaultCardView(properties, groupById);
   }
 
@@ -247,17 +255,11 @@ export function readCardView(
   for (const id of CARD_BUILTINS) kinds.set(id, KIND_OF_BUILTIN[id]);
   for (const property of properties) kinds.set(property.id, KIND_OF_TYPE[property.type]);
 
-  const order: string[] = [];
-  for (const id of saved.order) {
-    if (typeof id === "string" && kinds.has(id) && !order.includes(id)) order.push(id);
-  }
-  for (const id of kinds.keys()) if (!order.includes(id)) order.push(id);
-
   const savedRows = saved.rows as Record<string, unknown>;
   const rows: Record<string, CardRow> = {};
   let edgeTaken = false;
 
-  for (const id of order) {
+  for (const id of cardOrder(properties)) {
     const kind = kinds.get(id)!;
     const fallback = fallbackRow(kind);
 
@@ -291,7 +293,7 @@ export function readCardView(
     rows[id] = { place, mode };
   }
 
-  return { order, rows };
+  return { rows };
 }
 
 /**
@@ -325,16 +327,6 @@ export function setCardMode(view: CardView, id: string, mode: CardMode): CardVie
   return { ...view, rows };
 }
 
-/** Moves one row up or down the list. Rows sharing a place sit in this order. */
-export function moveCardRow(view: CardView, id: string, by: -1 | 1): CardView {
-  const order = [...view.order];
-  const at = order.indexOf(id);
-  const to = at + by;
-  if (at < 0 || to < 0 || to >= order.length) return view;
-  order.splice(to, 0, order.splice(at, 1)[0]);
-  return { ...view, order };
-}
-
 /* ------------------------------------------------------------------ */
 /* Rows, joined to the properties behind them                          */
 /* ------------------------------------------------------------------ */
@@ -356,12 +348,12 @@ export type CardItem = {
 
 const BUILTIN_COLOR = "#8b8f98";
 
-/** Every row of the card view, in order, with the property behind it. */
+/** Every row of the card view, in `cardOrder`, with the property behind it. */
 export function cardItems(view: CardView, properties: PropertyDTO[]): CardItem[] {
   const byId = new Map(properties.map((p) => [p.id, p]));
   const items: CardItem[] = [];
 
-  for (const id of view.order) {
+  for (const id of cardOrder(properties)) {
     const row = view.rows[id];
     if (!row) continue;
     const property = byId.get(id) ?? null;
@@ -406,7 +398,6 @@ export function cardItems(view: CardView, properties: PropertyDTO[]): CardItem[]
  */
 export function viewOf(items: CardItem[]): CardView {
   return {
-    order: items.map((i) => i.id),
     rows: Object.fromEntries(items.map((i) => [i.id, { place: i.place, mode: i.mode }])),
   };
 }
@@ -566,6 +557,17 @@ function chipsFor(item: CardItem, task: TaskDTO, members: MemberDTO[]): CardChip
 }
 
 /**
+ * A chip that carries a colour and no words: a square, or a face. It opens its
+ * place, ahead of the key and of any chip that reads as words, so a card that
+ * nobody rearranged still leads with its square of colour. The rule keys off
+ * the mode and never off a property, so it names nothing and moves with the
+ * mode a person picks.
+ */
+function wordless(item: CardItem): boolean {
+  return item.mode === "colour" || item.mode === "avatar";
+}
+
+/**
  * A task, laid out the way the card view asks for. A card only draws what a
  * task actually holds, so a task with no due date has a shorter footer than the
  * one beside it and neither leaves a gap.
@@ -581,7 +583,10 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
     footerR: [],
   };
 
-  for (const item of items) {
+  /* Wordless chips first, then the rest; each half keeps `cardOrder`. */
+  const drawn = [...items.filter(wordless), ...items.filter((item) => !wordless(item))];
+
+  for (const item of drawn) {
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
