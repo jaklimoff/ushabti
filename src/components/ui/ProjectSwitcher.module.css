@@ -125,13 +125,18 @@
   color: var(--faint);
 }
 
-/* A phone keeps the mark as the button and gives the caret's room to the
-   board. Under 16 px iOS zooms in on a box that takes the focus. */
-@media (max-width: 520px) {
+/* From a small tablet down the bar has two names to fit and no room to
+   spare: the caret's twelve pixels came out of the project name, which was
+   cut short. So the caret goes and the button is the mark and the name, as
+   the bar was before it was a button. */
+@media (max-width: 560px) {
   .caret {
     display: none;
   }
+}
 
+/* Under 16 px iOS zooms in on a box that takes the focus. */
+@media (max-width: 520px) {
   .box {
     font-size: 16px;
   }
