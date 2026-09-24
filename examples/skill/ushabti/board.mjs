@@ -24,8 +24,39 @@ const SKILL_DIR = dirname(fileURLToPath(import.meta.url));
 /**
  * One call. It throws on a bad answer, with the status on the error, so that
  * the watcher can live through one. A command uses `call`, which exits.
+ *
+ * A read that loses its connection is sent once more. Node's fetch speaks
+ * HTTP/2 to a proxy that offers it, and it drops a stream that is still
+ * arriving when the proxy says it will close the connection, so a call can
+ * fail with "terminated" although the server answered. A write is never sent
+ * twice: it may have landed, and a second comment or a second finish is worse
+ * than an error that says so.
  */
 async function request(method, path, payload) {
+  try {
+    return await requestOnce(method, path, payload);
+  } catch (err) {
+    if (method !== "GET" || !connectionDropped(err)) throw err;
+    await sleep(200);
+    return await requestOnce(method, path, payload);
+  }
+}
+
+/**
+ * The connection closed under the call: after the answer began
+ * ("terminated"), or on a connection that was already going away. A refused
+ * connection or an unknown host is not one of them. The board is not there,
+ * and asking again at once changes nothing.
+ */
+const DROPPED = ["UND_ERR_SOCKET", "UND_ERR_CLOSED", "ECONNRESET", "EPIPE"];
+
+function connectionDropped(err) {
+  if (err?.status) return false;
+  if (err?.message === "terminated") return true;
+  return DROPPED.includes(err?.cause?.code) || DROPPED.includes(err?.code);
+}
+
+async function requestOnce(method, path, payload) {
   if (!TOKEN) fail("Set USHABTI_TOKEN. The owner issues one in Settings -> People, with Connect.");
   const res = await fetch(BASE + path, {
     method,
