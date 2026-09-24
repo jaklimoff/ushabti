@@ -134,6 +134,12 @@
   color: var(--text);
 }
 
+/* The row Enter would pick. It reads as a hover, because it is one by key. */
+.menuItemAt {
+  background: #1b2126;
+  color: var(--text);
+}
+
 .menuItemOn {
   color: var(--text);
 }
