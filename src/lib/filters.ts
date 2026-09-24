@@ -13,6 +13,7 @@ import {
   type MemberDTO,
   type PropertyDTO,
   type PropertyType,
+  type AgentRunRowDTO,
   type TaskDTO,
   type TaskValue,
   type ViewFilters,
@@ -49,6 +50,32 @@ export const EMPTY_FILTERS: ViewFilters = { rules: [] };
 export const BLOCKED_KEY = "_blocked";
 
 /**
+ * "Is an agent waiting on a person here?"
+ *
+ * The second built-in word, and built exactly as the first one is. A run is
+ * not a field on a task either, so it reads off the open run rather than off
+ * the values, and it is a checkbox from there on.
+ *
+ * Only `waiting` counts, and not every word of `WAITING_STATUSES`. A run that
+ * waits asked a person something and cannot go on until somebody answers; a
+ * hand-over gave the task away and waits for nobody in particular. The rule
+ * answers one question — where does an agent wait for me — and the answer
+ * leaves it the moment the run moves on.
+ */
+export const AGENT_WAITING_KEY = "_agent_waiting";
+
+/**
+ * The tasks whose open run waits for a person, by id.
+ *
+ * The board carries the open runs beside the tasks rather than on them, so the
+ * caller hands this in the way it hands in `today`: one answer for the whole
+ * board, worked out once.
+ */
+export function waitingTasks(runs: Pick<AgentRunRowDTO, "taskId" | "status">[]): Set<string> {
+  return new Set(runs.filter((run) => run.status === "waiting").map((run) => run.taskId));
+}
+
+/**
  * The member of a person rule's set that stands for whoever is reading.
  *
  * It is a value, as NO_VALUE_KEY is, and never the id of a person: the view is
@@ -72,19 +99,37 @@ export const BLOCKED_PROPERTY: PropertyDTO = {
   options: [],
 };
 
+/** The stand-in of the second word, a checkbox for the same reason. */
+export const AGENT_WAITING_PROPERTY: PropertyDTO = {
+  id: AGENT_WAITING_KEY,
+  name: "Agent waiting",
+  type: "checkbox",
+  position: "",
+  config: {},
+  options: [],
+};
+
+/** The words that are not properties, in the order the panel lists them. */
+const BUILT_IN: PropertyDTO[] = [BLOCKED_PROPERTY, AGENT_WAITING_PROPERTY];
+
+/** True when a rule names one of the words rather than a property. */
+export function isBuiltIn(propertyId: string): boolean {
+  return BUILT_IN.some((p) => p.id === propertyId);
+}
+
 /**
- * The properties a filter may ask about: the project's, and the one word that
- * is not a property. The panel and the chips read this; nothing else does,
+ * The properties a filter may ask about: the project's, and the words that
+ * are not properties. The panel and the chips read this; nothing else does,
  * because nothing else may put "Blocked" where a property belongs.
  */
 export function filterProperties(properties: PropertyDTO[]): PropertyDTO[] {
-  return [...properties, BLOCKED_PROPERTY];
+  return [...properties, ...BUILT_IN];
 }
 
-/** The properties by id, with the built-in word among them. */
-function byIdWithBlocked(properties: PropertyDTO[]): Map<string, PropertyDTO> {
+/** The properties by id, with the built-in words among them. */
+function byIdWithBuiltIn(properties: PropertyDTO[]): Map<string, PropertyDTO> {
   const byId = new Map(properties.map((p) => [p.id, p]));
-  byId.set(BLOCKED_KEY, BLOCKED_PROPERTY);
+  for (const word of BUILT_IN) byId.set(word.id, word);
   return byId;
 }
 
@@ -201,6 +246,9 @@ function isEmpty(value: TaskValue, type: PropertyType): boolean {
  * `viewer` is the id of whoever reads the board, and it is what ME_KEY means.
  * It has no default for the same reason: a view is shared, so a caller that
  * forgot it would read "Me" as nobody on every screen.
+ *
+ * `waiting` is `waitingTasks()` of the open runs, and it has no default
+ * either: a caller that forgot it would find no agent waiting anywhere.
  */
 export function matches(
   task: TaskDTO,
@@ -208,13 +256,17 @@ export function matches(
   property: PropertyDTO,
   today: string,
   viewer: string | null,
+  waiting: ReadonlySet<string>,
 ): boolean {
-  /* The built-in word reads off the links rather than off the values, and
-     nothing else about it differs: it is a checkbox from here down. */
+  /* The built-in words read off the links and the runs rather than off the
+     values, and nothing else about them differs: each is a checkbox from here
+     down. */
   const value =
     rule.propertyId === BLOCKED_KEY
       ? (task.blockedBy?.length ?? 0) > 0
-      : (task.values[rule.propertyId] ?? null);
+      : rule.propertyId === AGENT_WAITING_KEY
+        ? waiting.has(task.id)
+        : (task.values[rule.propertyId] ?? null);
   const type = property.type;
 
   switch (rule.op) {
@@ -305,7 +357,7 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
   const list = (raw as { rules?: unknown })?.rules;
   if (!Array.isArray(list)) return EMPTY_FILTERS;
 
-  const byId = byIdWithBlocked(properties);
+  const byId = byIdWithBuiltIn(properties);
   const rules: FilterRule[] = [];
 
   for (const entry of list) {
@@ -421,7 +473,7 @@ export function clashOf(
   /* The built-in word counts as a property here: two rules about it fight
      each other exactly as two about Priority would, and it has a name to put
      in the sentence. */
-  return byIdWithBlocked(properties).get(rule.propertyId) ?? null;
+  return byIdWithBuiltIn(properties).get(rule.propertyId) ?? null;
 }
 
 /** The one sentence both doors say, so a person hears the same thing twice. */
@@ -433,6 +485,8 @@ export function clashSaid(property: PropertyDTO): string {
 /* Using them                                                          */
 /* ------------------------------------------------------------------ */
 
+const NO_RUNS: ReadonlySet<string> = new Set();
+
 /** The tasks a view shows. Every rule has to pass. */
 export function applyFilters(
   tasks: TaskDTO[],
@@ -440,13 +494,14 @@ export function applyFilters(
   properties: PropertyDTO[],
   today: string,
   viewer: string | null,
+  waiting: ReadonlySet<string>,
 ): TaskDTO[] {
   if (filters.rules.length === 0) return tasks;
-  const byId = byIdWithBlocked(properties);
+  const byId = byIdWithBuiltIn(properties);
   return tasks.filter((task) =>
     filters.rules.every((rule) => {
       const property = byId.get(rule.propertyId);
-      return property ? matches(task, rule, property, today, viewer) : true;
+      return property ? matches(task, rule, property, today, viewer, waiting) : true;
     }),
   );
 }
@@ -476,7 +531,8 @@ export function allowedColumns<T extends { value: TaskValue }>(
 
   return columns.filter((column) => {
     const stand = { values: { [groupProperty.id]: column.value } } as TaskDTO;
-    return rules.every((rule) => matches(stand, rule, groupProperty, today, viewer));
+    /* The rules here name a property, never a word, so no run is asked. */
+    return rules.every((rule) => matches(stand, rule, groupProperty, today, viewer, NO_RUNS));
   });
 }
 
@@ -515,9 +571,10 @@ export function seedValues(
        and hidden, which is the cost "Priority is High or Urgent" already
        carries. */
     if (rule.op !== "is" || rule.propertyId === groupPropertyId) continue;
-    /* Nothing writes a link from the composer, and a value for a word that is
-       not a property would be written to a property that is not there. */
-    if (rule.propertyId === BLOCKED_KEY) continue;
+    /* Nothing writes a link or a run from the composer, and a value for a
+       word that is not a property would be written to a property that is not
+       there. */
+    if (isBuiltIn(rule.propertyId)) continue;
     const keys = rule.values ?? [];
     if (keys.length !== 1 || keys[0] === NO_VALUE_KEY) continue;
     const property = byId.get(rule.propertyId);

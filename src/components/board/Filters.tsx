@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   asksAbout,
-  BLOCKED_KEY,
   clashSaid,
   describeRule,
   filterProperties,
   hasAnswer,
   isBareOp,
+  isBuiltIn,
   isSetOp,
   isWindowOp,
   keyColor,
@@ -427,7 +427,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
       .map((p) => ({
         id: p.id,
         name: p.name,
-        color: p.id === BLOCKED_KEY ? BUILTIN_DOT : propertyColor(p),
+        color: isBuiltIn(p.id) ? BUILTIN_DOT : propertyColor(p),
         note: summary.get(p.id),
       }));
   }, [askable, query, summary]);

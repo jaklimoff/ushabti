@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DATE_WINDOWS } from "../day";
 import {
+  AGENT_WAITING_KEY,
+  AGENT_WAITING_PROPERTY,
   allowedColumns,
   applyFilters,
   BLOCKED_KEY,
@@ -17,12 +19,14 @@ import {
   readFilters,
   seedNote,
   seedValues,
+  waitingTasks,
 } from "../filters";
 import {
   NO_VALUE_KEY,
   type FilterRule,
   type MemberDTO,
   type PropertyDTO,
+  type RunStatus,
   type TaskDTO,
 } from "../types";
 
@@ -105,6 +109,8 @@ const properties = [status, labels, assignee, due, estimate, notes, blocked];
  * 2026-09-21 is a Monday.
  */
 const TODAY = "2026-09-21";
+/** No open run waits anywhere, which is what every rule about a property sees. */
+const NONE: ReadonlySet<string> = new Set();
 
 const members: MemberDTO[] = [
   {
@@ -147,7 +153,7 @@ function task(id: string, values: TaskDTO["values"] = {}, blockedBy: string[] = 
 }
 
 function keep(rule: FilterRule, values: TaskDTO["values"], property: PropertyDTO) {
-  return matches(task("t", values), rule, property, TODAY, null);
+  return matches(task("t", values), rule, property, TODAY, null, NONE);
 }
 
 describe("a select rule", () => {
@@ -379,6 +385,7 @@ describe("every rule has to pass", () => {
       properties,
       TODAY,
       null,
+      NONE,
     );
     expect(one.map((t) => t.id)).toEqual(["a", "b"]);
 
@@ -393,12 +400,13 @@ describe("every rule has to pass", () => {
       properties,
       TODAY,
       null,
+      NONE,
     );
     expect(two.map((t) => t.id)).toEqual(["a"]);
   });
 
   it("hands back the same list when there is no rule", () => {
-    expect(applyFilters(tasks, { rules: [] }, properties, TODAY, null)).toBe(tasks);
+    expect(applyFilters(tasks, { rules: [] }, properties, TODAY, null, NONE)).toBe(tasks);
   });
 
   it("ignores a rule whose property has gone", () => {
@@ -408,6 +416,7 @@ describe("every rule has to pass", () => {
       properties,
       TODAY,
       null,
+      NONE,
     );
     expect(gone).toHaveLength(3);
   });
@@ -748,6 +757,7 @@ describe("a question with an answer", () => {
         estimate,
         TODAY,
         null,
+        NONE,
       ),
     ).toBe(true);
   });
@@ -779,7 +789,7 @@ describe("a view's rules and one person's", () => {
       task("c", { "p-status": "o-todo", "p-labels": ["o-ux"] }),
     ];
 
-    const shared = applyFilters(tasks, { rules: [ofView] }, properties, TODAY, null);
+    const shared = applyFilters(tasks, { rules: [ofView] }, properties, TODAY, null, NONE);
     expect(shared.map((t) => t.id)).toEqual(["a", "b"]);
 
     const both = applyFilters(
@@ -788,6 +798,7 @@ describe("a view's rules and one person's", () => {
       properties,
       TODAY,
       null,
+      NONE,
     );
     expect(both.map((t) => t.id)).toEqual(["a"]);
 
@@ -972,24 +983,28 @@ describe("the blocked rule", () => {
 
   it("is offered beside the properties and is not one of them", () => {
     const askable = filterProperties([status]);
-    expect(askable.map((p) => p.id)).toEqual(["p-status", BLOCKED_KEY]);
+    expect(askable.map((p) => p.id)).toEqual(["p-status", BLOCKED_KEY, AGENT_WAITING_KEY]);
     expect(BLOCKED_PROPERTY.type).toBe("checkbox");
   });
 
   it("keeps a task that waits on another", () => {
-    expect(matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY, TODAY, null)).toBe(true);
-    expect(matches(task("t", {}, []), blocked, BLOCKED_PROPERTY, TODAY, null)).toBe(false);
+    expect(matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY, TODAY, null, NONE)).toBe(
+      true,
+    );
+    expect(matches(task("t", {}, []), blocked, BLOCKED_PROPERTY, TODAY, null, NONE)).toBe(false);
   });
 
   it("keeps a task that waits on nothing", () => {
-    expect(matches(task("t", {}, []), free, BLOCKED_PROPERTY, TODAY, null)).toBe(true);
-    expect(matches(task("t", {}, ["USH-2"]), free, BLOCKED_PROPERTY, TODAY, null)).toBe(false);
+    expect(matches(task("t", {}, []), free, BLOCKED_PROPERTY, TODAY, null, NONE)).toBe(true);
+    expect(matches(task("t", {}, ["USH-2"]), free, BLOCKED_PROPERTY, TODAY, null, NONE)).toBe(
+      false,
+    );
   });
 
   it("hides the cards it names, with only the project's properties passed in", () => {
     const tasks = [task("a", {}, ["USH-2"]), task("b")];
     expect(
-      applyFilters(tasks, { rules: [blocked] }, [status], TODAY, null).map((t) => t.id),
+      applyFilters(tasks, { rules: [blocked] }, [status], TODAY, null, NONE).map((t) => t.id),
     ).toEqual(["a"]);
   });
 
@@ -1020,6 +1035,60 @@ describe("the blocked rule", () => {
   });
 });
 
+describe("the agent waiting rule", () => {
+  const waits: FilterRule = { propertyId: AGENT_WAITING_KEY, op: "is", values: ["true"] };
+  const moving: FilterRule = { propertyId: AGENT_WAITING_KEY, op: "is", values: ["false"] };
+  const run = (taskId: string, status: RunStatus) => ({ taskId, status });
+
+  it("is offered beside Blocked and reads as a checkbox", () => {
+    expect(filterProperties([]).map((p) => p.name)).toEqual(["Blocked", "Agent waiting"]);
+    expect(AGENT_WAITING_PROPERTY.type).toBe("checkbox");
+  });
+
+  /* A hand-over gave the task away and asks nobody anything, so only the one
+     word counts, and not every open run that stopped on purpose. */
+  it("counts only a run that asked a person something", () => {
+    const runs = [
+      run("a", "waiting"),
+      run("b", "handed_over"),
+      run("c", "running"),
+      run("d", "paused"),
+    ];
+    expect([...waitingTasks(runs)]).toEqual(["a"]);
+  });
+
+  it("keeps the tasks whose open run waits, and nothing else", () => {
+    const tasks = [task("a"), task("b"), task("c")];
+    const waiting = waitingTasks([run("a", "waiting"), run("b", "running")]);
+    const ids = (rule: FilterRule) =>
+      applyFilters(tasks, { rules: [rule] }, [status], TODAY, null, waiting).map((t) => t.id);
+    expect(ids(waits)).toEqual(["a"]);
+    expect(ids(moving)).toEqual(["b", "c"]);
+  });
+
+  /* An answer wakes the agent, the agent puts the run back to running, and
+     the next board read carries that. Nothing else has to let go of the card. */
+  it("lets a task go the moment its run moves on", () => {
+    const one = [task("a")];
+    const before = waitingTasks([run("a", "waiting")]);
+    const after = waitingTasks([run("a", "running")]);
+    expect(applyFilters(one, { rules: [waits] }, [status], TODAY, null, before)).toHaveLength(1);
+    expect(applyFilters(one, { rules: [waits] }, [status], TODAY, null, after)).toHaveLength(0);
+  });
+
+  it("survives readFilters, is never seeded, and reads on the chip", () => {
+    expect(readFilters({ rules: [waits] }, []).rules).toEqual([waits]);
+    expect(seedValues({ rules: [waits] }, [status], null, null)).toEqual({});
+    expect(describeRule(waits, AGENT_WAITING_PROPERTY, members)).toBe("Agent waiting");
+  });
+
+  it("clashes with itself across the two sets, and not with Blocked", () => {
+    expect(clashOf({ rules: [waits] }, { rules: [moving] }, [status])?.name).toBe("Agent waiting");
+    const blocked: FilterRule = { propertyId: BLOCKED_KEY, op: "is", values: ["true"] };
+    expect(clashOf({ rules: [blocked] }, { rules: [waits] }, [status])).toBeNull();
+  });
+});
+
 describe("a person rule that says Me", () => {
   const me: FilterRule = { propertyId: assignee.id, op: "is", values: [ME_KEY] };
   const tasks = [
@@ -1030,23 +1099,23 @@ describe("a person rule that says Me", () => {
 
   it("means whoever reads the view, so one shared rule is each viewer's own", () => {
     const ids = (viewer: string | null) =>
-      applyFilters(tasks, { rules: [me] }, properties, TODAY, viewer).map((t) => t.id);
+      applyFilters(tasks, { rules: [me] }, properties, TODAY, viewer, NONE).map((t) => t.id);
     expect(ids("u-ada")).toEqual(["a"]);
     expect(ids("u-bot")).toEqual(["b"]);
   });
 
   it("matches nobody when there is nobody to read it as", () => {
-    expect(applyFilters(tasks, { rules: [me] }, properties, TODAY, null)).toEqual([]);
+    expect(applyFilters(tasks, { rules: [me] }, properties, TODAY, null, NONE)).toEqual([]);
   });
 
   it("sits beside a person and beside nothing yet", () => {
     const rule: FilterRule = { ...me, values: [ME_KEY, NO_VALUE_KEY] };
     expect(
-      applyFilters(tasks, { rules: [rule] }, properties, TODAY, "u-bot").map((t) => t.id),
+      applyFilters(tasks, { rules: [rule] }, properties, TODAY, "u-bot", NONE).map((t) => t.id),
     ).toEqual(["b", "c"]);
     const not: FilterRule = { ...me, op: "is_not" };
     expect(
-      applyFilters(tasks, { rules: [not] }, properties, TODAY, "u-ada").map((t) => t.id),
+      applyFilters(tasks, { rules: [not] }, properties, TODAY, "u-ada", NONE).map((t) => t.id),
     ).toEqual(["b", "c"]);
   });
 
