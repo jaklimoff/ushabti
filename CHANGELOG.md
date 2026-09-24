@@ -57,6 +57,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Settings has one place that says what a card shows.** The **On card ◉ / ○** switch left each
+  row of **Settings → Properties**. Use **Settings → Card view**: it shows and hides every property,
+  and it keeps the place a property had. `showOnCard` on `PATCH /api/properties/{id}` still works.
 - **Properties have one order, set in Settings.** Drag a property in **Settings → Properties** and
   it moves in the task panel, among the chips that share its place on a card, and among the columns
   of a list. **Card view** keeps only where a row sits and how it reads, so its ↑ and ↓ buttons are
