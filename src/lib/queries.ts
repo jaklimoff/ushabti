@@ -27,7 +27,7 @@ import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
 import { readTimeZone, todayIn } from "./day";
 import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
-import { readSort } from "./sort";
+import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
 import { kickSender } from "./webhooks";
@@ -203,10 +203,11 @@ type ViewRow = typeof views.$inferSelect;
  * whose property or option was deleted never leaves this function. That is the
  * only cleanup there is: nothing rewrites a view when a property goes.
  *
- * `lens` is the rules the person reading added to this view, and only theirs.
- * It is read the same way and for the same reason: a lens is saved once and
- * read for months, so it outlives the property it names just as a view's rule
- * does. Nothing is passed for an agent, which has no lens.
+ * `lens` is the rules the person reading added to this view, and only theirs,
+ * with the order they picked beside them. It is read the same way and for the
+ * same reason: a lens is saved once and read for months, so it outlives the
+ * property it names just as a view's rule does. Nothing is passed for an
+ * agent, which has no lens.
  */
 export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unknown): ViewDTO {
   return {
@@ -221,6 +222,7 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unkn
     filters: readFilters((row.config as { filters?: unknown } | null)?.filters, propertyList),
     lens: readFilters(lens, propertyList),
     sort: readSort((row.config as { sort?: unknown } | null)?.sort, propertyList),
+    lensSort: readLensSort(lens, propertyList),
   };
 }
 

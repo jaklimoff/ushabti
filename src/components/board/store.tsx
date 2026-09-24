@@ -79,15 +79,28 @@ type Store = {
   setFilters: (rules: FilterRule[]) => Promise<void>;
   /** Writes my own rules on this view. They save at once, exactly as those do. */
   setLens: (rules: FilterRule[]) => Promise<void>;
+  /** Takes my rules and my order off this view in one write. */
+  clearLens: () => Promise<void>;
   /**
    * Puts my rules on the view, for everybody, and empties my lens. One write,
    * so the board never holds the same question twice.
    */
   promoteLens: () => Promise<void>;
-  /** The order the view draws in — rows, or cards in a column — or null. */
+  /**
+   * The order this screen draws in — rows, or cards in a column — or null.
+   * Mine while I have picked one, and the view's otherwise. Everything that
+   * orders or holds still reads this one answer, so a board holds still only
+   * for the person whose order it is.
+   */
   sort: ViewSort | null;
-  /** Writes that order. It saves at once, exactly as a rule does. */
+  /** The order of the view itself. Everybody on the board sees it. */
+  viewSort: ViewSort | null;
+  /** The order I picked on this view. Only I see it. */
+  lensSort: ViewSort | null;
+  /** Writes my own order on this view, in my lens. Nobody else is told. */
   setSort: (sort: ViewSort | null) => Promise<void>;
+  /** Writes the order of the view, for everybody. */
+  setViewSort: (sort: ViewSort | null) => Promise<void>;
   /** Every row of the card, in order, with the property behind it. */
   cardItems: CardItem[];
   /** Arranges the card. It saves as you click; there is no Save button. */
@@ -615,7 +628,11 @@ export function BoardProvider({
   /* One answer for the screen. A filter narrows and never widens, so mine only
      goes on the end of the view's. */
   const filters = useMemo(() => mergeFilters(viewFilters, lens), [viewFilters, lens]);
-  const sort = view?.sort ?? null;
+  const viewSort = view?.sort ?? null;
+  const lensSort = view?.lensSort ?? null;
+  /* Mine wins while it exists, exactly as the lens is the last word on what
+     this screen shows. */
+  const sort = lensSort ?? viewSort;
 
   /*
    * The card view is read afresh here, exactly as the server reads it: a row
@@ -1166,20 +1183,29 @@ export function BoardProvider({
    * A lens is written like a filter and broadcast like nothing at all: it
    * changes one screen, so no other browser is told. The board still redraws
    * here at once, because the view it belongs to is carrying it.
+   *
+   * The route puts the whole lens, so my rules and my order always go
+   * together: a write of one that left the other out would take it away.
    */
+  const putLens = useCallback(
+    async (id: string, rules: FilterRule[], lensSort: ViewSort | null) => {
+      setData((current) => ({
+        ...current,
+        views: current.views.map((v) => (v.id === id ? { ...v, lens: { rules }, lensSort } : v)),
+      }));
+      await guarded(async () => {
+        await api.put(`/api/views/${id}/lens`, { filters: { rules }, sort: lensSort });
+      });
+    },
+    [guarded],
+  );
+
   const setLens = useCallback<Store["setLens"]>(
     async (rules) => {
       if (!view) return;
-      const id = view.id;
-      setData((current) => ({
-        ...current,
-        views: current.views.map((v) => (v.id === id ? { ...v, lens: { rules } } : v)),
-      }));
-      await guarded(async () => {
-        await api.put(`/api/views/${id}/lens`, { filters: { rules } });
-      });
+      await putLens(view.id, rules, view.lensSort);
     },
-    [guarded, view],
+    [putLens, view],
   );
 
   /*
@@ -1212,7 +1238,20 @@ export function BoardProvider({
     });
   }, [data.properties, guarded, notify, refresh, view]);
 
+  const clearLens = useCallback<Store["clearLens"]>(async () => {
+    if (!view) return;
+    await putLens(view.id, [], null);
+  }, [putLens, view]);
+
   const setSort = useCallback<Store["setSort"]>(
+    async (next) => {
+      if (!view) return;
+      await putLens(view.id, view.lens.rules, next);
+    },
+    [putLens, view],
+  );
+
+  const setViewSort = useCallback<Store["setViewSort"]>(
     async (next) => {
       if (!view) return;
       await updateView(view.id, { sort: next });
@@ -1409,9 +1448,13 @@ export function BoardProvider({
     visibleTasks,
     setFilters,
     setLens,
+    clearLens,
     promoteLens,
     sort,
+    viewSort,
+    lensSort,
     setSort,
+    setViewSort,
     cardItems: items,
     setCardView,
     resetCardView,

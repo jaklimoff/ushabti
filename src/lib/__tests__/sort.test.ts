@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
 import { buildColumns } from "../board";
-import { canSort, nextSort, readSort, sortTasks } from "../sort";
+import { canSort, nextSort, pressSort, readLensSort, readSort, sortTasks } from "../sort";
 import type { MemberDTO, PropertyDTO, TaskDTO, ViewSort } from "../types";
 
 const PRIORITY: PropertyDTO = {
@@ -212,6 +212,48 @@ describe("one press on a heading", () => {
   it("starts again on another column", () => {
     const current = { columnId: "p-prio", direction: "desc" as const };
     expect(nextSort(current, "p-due")).toEqual({ columnId: "p-due", direction: "asc" });
+  });
+});
+
+describe("one press when the view has an order of its own", () => {
+  const ofView = { columnId: "p-prio", direction: "asc" as const };
+
+  it("writes my own order, which wins over the view's", () => {
+    expect(pressSort(null, null, "p-due")).toEqual({ columnId: "p-due", direction: "asc" });
+    expect(pressSort(ofView, ofView, "p-due")).toEqual({ columnId: "p-due", direction: "asc" });
+    expect(pressSort(ofView, ofView, "p-prio")).toEqual({ columnId: "p-prio", direction: "desc" });
+  });
+
+  it("writes nothing of mine where mine would say what the view says", () => {
+    const mine = { columnId: "p-prio", direction: "desc" as const };
+    // Down to nothing of mine, and the screen is back on the view's order.
+    expect(pressSort(mine, ofView, "p-prio")).toBeNull();
+    const down = { columnId: "p-prio", direction: "desc" as const };
+    expect(pressSort({ columnId: "p-prio", direction: "asc" }, down, "p-prio")).toBeNull();
+  });
+
+  it("turns the view's order around rather than doing nothing", () => {
+    /* The view says largest first. The third press of a heading means "no
+       order of mine", which would fall back to the same screen, so it turns. */
+    const down = { columnId: "p-prio", direction: "desc" as const };
+    expect(pressSort(down, down, "p-prio")).toEqual({ columnId: "p-prio", direction: "asc" });
+  });
+
+  it("goes back to the board's own order when the view has none", () => {
+    const mine = { columnId: "p-prio", direction: "desc" as const };
+    expect(pressSort(mine, null, "p-prio")).toBeNull();
+  });
+});
+
+describe("reading a lens sort", () => {
+  it("reads it from beside the rules, and drops one that names nothing", () => {
+    const saved = { rules: [], sort: { columnId: "p-prio", direction: "desc" } };
+    expect(readLensSort(saved, PROPERTIES)).toEqual({ columnId: "p-prio", direction: "desc" });
+    expect(
+      readLensSort({ rules: [], sort: { columnId: "p-gone", direction: "asc" } }, PROPERTIES),
+    ).toBeNull();
+    expect(readLensSort({ rules: [] }, PROPERTIES)).toBeNull();
+    expect(readLensSort(undefined, PROPERTIES)).toBeNull();
   });
 });
 

@@ -200,6 +200,10 @@ A view carries two sets of rules: `filters`, which everybody on the board sees, 
 the rules the caller added to that view and nobody else's. A board shows the view's plus the
 caller's; the caller's only ever narrow further.
 
+An order works the same way. `sort` is the view's, for everybody; `lensSort` is the order the caller
+picked on that view. While the caller has one, it wins over the view's on their screen only — so a
+board held still by a sort is held still for the person who sorted it, and nobody else.
+
 Both read the same way and use the same rule shape.
 
 ### `lens` on a view
@@ -207,23 +211,25 @@ Both read the same way and use the same rule shape.
 Every view in the board answer carries it:
 
 ```json
-{ "id": "…", "name": "Board", "filters": { "rules": [ … ] }, "lens": { "rules": [ … ] }, … }
+{ "id": "…", "name": "Board", "filters": { "rules": [ … ] }, "lens": { "rules": [ … ] },
+  "sort": null, "lensSort": { "columnId": "…", "direction": "desc" }, … }
 ```
 
 <Aside type="caution" title="An agent has none">
 `lens` is the rules of whoever asked. An agent has no screen to narrow, so it always reads
-`{ "rules": [] }` and never anybody else's. `filters` is unchanged and is still the whole team's
+`{ "rules": [] }` and a `lensSort` of `null`, and never anybody else's. `filters` is unchanged and is still the whole team's
 answer — which is what an agent should be working from.
 </Aside>
 
 ### `PUT /api/views/{viewId}/lens` <Badge text="human only" variant="caution" size="small" />
 
 ```json title="request"
-{ "filters": { "rules": [ … ] } }
+{ "filters": { "rules": [ … ] }, "sort": { "columnId": "…", "direction": "asc" } }
 ```
 
-Replaces the caller's own rules on that view. Rules are read and cleaned on the way in, exactly as a
-view's are. An empty list removes them. **Nothing is broadcast**: the change moves one screen, so no
+Replaces the caller's whole lens on that view: the rules and the order together. Leave `sort` out,
+or send `null`, and the caller has no order of their own. Both are read and cleaned on the way in,
+exactly as a view's are. No rules and no order removes the lens. **Nothing is broadcast**: the change moves one screen, so no
 other browser is told about it.
 
 `403 Only a person can do this.` for an agent.
@@ -234,8 +240,9 @@ about one property empty the board with two chips that fight each other.
 
 ### `POST /api/views/{viewId}/lens/promote` <Badge text="human only" variant="caution" size="small" />
 
-No body. Appends the caller's rules to the view's `filters`, in that order, and empties the caller's
-own — one transaction under the project lock. Any member may call it. It broadcasts, so everybody's
+No body. Appends the caller's rules to the view's `filters`, in that order, puts the caller's order
+on the view's `sort` if they have one, and empties the caller's own — one transaction under the
+project lock. A lens with no order leaves the view's `sort` where it is. Any member may call it. It broadcasts, so everybody's
 board narrows.
 
 `409 The view already filters Priority. Remove it for everyone first.` when the caller's rules name a

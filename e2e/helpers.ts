@@ -254,7 +254,8 @@ export async function sortBoard(page: Page, columnName: string) {
   await page.getByTestId("sort-button").click();
   // Not by its whole name: the row of the order that is on says which way it
   // runs, and every row carries the tick that says whether it is the one.
-  await settles(page, /\/api\/views\/[0-9a-f-]+$/, () =>
+  // The order is this person's own, so it lands on their lens.
+  await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
     page.getByTestId("sort-menu").getByRole("option", { name: columnName }).click(),
   );
   await page.keyboard.press("Escape");

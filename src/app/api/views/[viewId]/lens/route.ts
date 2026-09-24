@@ -5,18 +5,25 @@ import { HttpError } from "@/lib/auth";
 import { body, guard, humanOnly, json, readId, route } from "@/lib/api";
 import { clashOf, clashSaid, readFilters } from "@/lib/filters";
 import { loadProperties } from "@/lib/queries";
+import { readSort } from "@/lib/sort";
 
 type Ctx = { params: Promise<{ viewId: string }> };
 
 /**
- * The rules this person added to this view. Nobody else reads them.
+ * The rules this person added to this view, and the order they picked. Nobody
+ * else reads them.
+ *
+ * It puts the whole lens: `filters` and `sort` together, the way the view
+ * route takes them. A lens is one row, and a write that sent only half of it
+ * would take the other half away. The order is kept in the row's `filters`
+ * beside the rules, so the lens stays one row.
  *
  * Nothing is broadcast. A lens changes one screen, so telling the project
  * about it would wake every other browser to fetch a board that has not
  * moved — and the stream is for what the team shares.
  *
- * An empty set removes the row rather than saving an empty one, so a person
- * who cleared their filter leaves nothing behind.
+ * An empty lens — no rule and no order — removes the row rather than saving
+ * an empty one, so a person who cleared both leaves nothing behind.
  *
  * It refuses, with 409 and the sentence the promote route says, a rule about a
  * property the view already filters. The panel will not start such a rule, but
@@ -40,11 +47,12 @@ export const PUT = route<Ctx>(async (req, ctx) => {
   // Only a person has a screen of their own to narrow.
   humanOnly(user);
 
-  const input = await body<{ filters?: unknown }>(req);
+  const input = await body<{ filters?: unknown; sort?: unknown }>(req);
   const properties = await loadProperties(view.projectId);
   // The same reading the board does, so a rule this cannot make sense of is
   // dropped here rather than saved and ignored for ever afterwards.
   const filters = readFilters(input.filters, properties);
+  const sort = readSort(input.sort, properties);
 
   /* One property, one rule, whoever asked. The view's rules are read afresh
      here too, so what this compares against is what the screen shows.
@@ -54,19 +62,21 @@ export const PUT = route<Ctx>(async (req, ctx) => {
   const clash = clashOf(ofView, filters, properties);
   if (clash) throw new HttpError(409, clashSaid(clash));
 
-  if (filters.rules.length === 0) {
+  if (filters.rules.length === 0 && !sort) {
     await db
       .delete(viewLenses)
       .where(and(eq(viewLenses.userId, user.id), eq(viewLenses.viewId, viewId)));
     return json({ ok: true });
   }
 
+  // Only a lens that holds an order says so, so a lens of rules reads as it always did.
+  const lens = sort ? { ...filters, sort } : filters;
   await db
     .insert(viewLenses)
-    .values({ userId: user.id, viewId, filters })
+    .values({ userId: user.id, viewId, filters: lens })
     .onConflictDoUpdate({
       target: [viewLenses.userId, viewLenses.viewId],
-      set: { filters, updatedAt: new Date() },
+      set: { filters: lens, updatedAt: new Date() },
     });
 
   return json({ ok: true });

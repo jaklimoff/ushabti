@@ -149,12 +149,16 @@ project shares — until you ask for another one.
 **Filter**. The panel lists everything a card carries: press a row for smallest first, press it
 again for largest first, and a third time for the order the board itself keeps. **Every column** is
 drawn in that order, and a chip above the board names it so you can see at a glance that the board
-is not in its own order. The `✕` on the chip is the other way back.
+is not in its own order. The `✕` on the chip is the other way back. If the view has an order of its
+own, the third press goes back to that order, and a press on that column turns it around.
 
 It is the same order a list gets from its headings, decided by the same rules — which column kinds
 order which way, and why a task that holds nothing goes last, are in
-[The list](/ushabti/guides/list/#ordering-by-a-column). The order is remembered on the view, so
-everybody looking at that view sees it, the way they see its filters.
+[The list](/ushabti/guides/list/#ordering-by-a-column). The order is **yours**, the way a filter
+you add is: it is remembered for you on that view, it follows you to another browser, and nobody
+else's board moves. The chip says *Only you see this*, and **Save for everyone** puts your order on
+the view together with your filters. A view can carry an order for everybody too; yours wins on your
+screen while you have one, and its chip's `✕` asks *Remove for everyone?* first.
 
 A sort **writes nothing**. The rank each task carries is untouched. A task you add while an order
 is on lands where the order puts it, not at the top or the end you pressed.
@@ -162,7 +166,8 @@ is on lands where the order puts it, not at the top or the end you pressed.
 <Aside type="caution" title="A sorted column cannot be rearranged">
 A drag writes a rank, and a sorted board is not showing ranks — dropping a card between two others
 would write an order nobody on the screen can see and then leave the card where the sort puts it.
-So while an order is on, the cards inside a column hold still and <kbd>↑</kbd> <kbd>↓</kbd> do not
+So while an order is on, the cards inside a column hold still — on the screen of whoever picked it,
+and for everybody only when the order is the view's — and <kbd>↑</kbd> <kbd>↓</kbd> do not
 move a lifted one.
 
 **Dragging a card to another column still works**, because that writes the column's value and no

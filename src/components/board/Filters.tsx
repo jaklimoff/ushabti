@@ -18,7 +18,7 @@ import {
   OP_LABEL,
 } from "@/lib/filters";
 import { DATE_WINDOWS, DATE_WINDOW_NAME } from "@/lib/day";
-import { canSort, nextSort, sortLabel } from "@/lib/sort";
+import { canSort, pressSort, sortLabel } from "@/lib/sort";
 import { listColumns } from "@/lib/list-view";
 import type { CardItem } from "@/lib/card-view";
 import type { LeaveSend } from "@/lib/leave";
@@ -30,6 +30,7 @@ import {
   type PropertyDTO,
   type PropertyType,
   type SortDirection,
+  type ViewDTO,
   type ViewSort,
 } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
@@ -90,14 +91,19 @@ const ASK: Record<PropertyType, string> = {
  * The box saves on blur, and a tab closed on it sends no blur, so the box
  * says here what the write it owes would have been; see `useSaveOnLeave`.
  * The team's rules are patched onto the view and mine are put on my lens,
- * which is the only difference between the two.
+ * which is the only difference between the two. A lens is put whole, so mine
+ * carry my order with them, or a tab closed on the box would take it away.
  */
 function viewSend(viewId: string, rules: FilterRule[]): LeaveSend {
   return { method: "PATCH", url: `/api/views/${viewId}`, body: { filters: { rules } } };
 }
 
-function lensSend(viewId: string, rules: FilterRule[]): LeaveSend {
-  return { method: "PUT", url: `/api/views/${viewId}/lens`, body: { filters: { rules } } };
+function lensSend(view: ViewDTO, rules: FilterRule[]): LeaveSend {
+  return {
+    method: "PUT",
+    url: `/api/views/${view.id}/lens`,
+    body: { filters: { rules }, sort: view.lensSort },
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -508,7 +514,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
               rule={rule}
               members={data.members}
               onChange={change}
-              owed={(next) => (view ? lensSend(view.id, lensAfter(next)) : null)}
+              owed={(next) => (view ? lensSend(view, lensAfter(next)) : null)}
               onBack={reset}
               onClose={close}
             />
@@ -572,11 +578,13 @@ const WAY: Record<SortDirection, string> = {
  *
  * The rows are the columns a list would draw, named the way a list names them:
  * one question, one set of words, whichever shape the view is in. Pressing a
- * row is the press on a heading — down, then up, then back to the order the
- * board itself keeps — so `nextSort` stays the only place that rule lives.
+ * row is the press on a heading, so `pressSort` stays the only place that rule
+ * lives. It works a press out against the view's order: down, then up, then
+ * my order goes, and the screen falls back to the view's order if it has one
+ * and to the board's own order if not.
  */
 export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
-  const { cardItems, sort, setSort } = useBoard();
+  const { cardItems, sort, viewSort, setSort } = useBoard();
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
 
@@ -608,9 +616,10 @@ export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: bool
   }, [cardItems, query, sort]);
 
   /* The panel stays open, because the second press is the one that turns the
-     order around and it belongs on the row that says which order is on. */
+     order around and it belongs on the row that says which order is on. The
+     order is mine, so it lands on my lens and nobody else's board holds still. */
   function pick(columnId: string) {
-    void setSort(nextSort(sort, columnId));
+    void setSort(pressSort(sort, viewSort, columnId));
     setQuery("");
     setAt(0);
   }
@@ -683,16 +692,26 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
     viewFilters,
     lens,
     sort,
+    viewSort,
+    lensSort,
     setSort,
+    setViewSort,
     cardItems,
     setFilters,
     setLens,
+    clearLens,
     promoteLens,
   } = useBoard();
   const askable = filterProperties(data.properties);
   /* One order, drawn two ways, so one chip says it either way: a board is in
      the order as much as a list is, and the ✕ is the way out of both. */
   if (filters.rules.length === 0 && !sort && !panelOpen) return null;
+
+  /* Mine wins over the view's, so only the order on the screen gets a chip:
+     two would name two orders when the cards are in one. */
+  const teamSort = lensSort ? null : viewSort;
+  const theirs = viewFilters.rules.length > 0 || teamSort !== null;
+  const mine = lens.rules.length > 0 || lensSort !== null;
 
   /** One rule of a set, changed or taken out. Both sets go the same way. */
   function edited(rules: FilterRule[], at: number, next: FilterRule | null): FilterRule[] {
@@ -702,7 +721,9 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
 
   return (
     <div className={styles.filterRow} data-testid="filter-row">
-      {sort && <SortChip sort={sort} items={cardItems} onClear={() => void setSort(null)} />}
+      {teamSort && (
+        <SortChip sort={teamSort} items={cardItems} shared onClear={() => void setViewSort(null)} />
+      )}
 
       {viewFilters.rules.map((rule, i) => {
         const property = askable.find((p) => p.id === rule.propertyId);
@@ -722,8 +743,12 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
       })}
 
       {/* Only where the two meet. One set on its own needs nothing said. */}
-      {viewFilters.rules.length > 0 && lens.rules.length > 0 && (
+      {theirs && mine && (
         <span className={styles.filterDivider} data-testid="filter-divider" aria-hidden />
+      )}
+
+      {lensSort && (
+        <SortChip sort={lensSort} items={cardItems} onClear={() => void setSort(null)} />
       )}
 
       {lens.rules.map((rule, i) => {
@@ -736,21 +761,21 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             property={property}
             members={data.members}
             onChange={(next) => void setLens(edited(lens.rules, i, next))}
-            owed={(next) => (view ? lensSend(view.id, edited(lens.rules, i, next)) : null)}
+            owed={(next) => (view ? lensSend(view, edited(lens.rules, i, next)) : null)}
             onRemove={() => void setLens(edited(lens.rules, i, null))}
           />
         );
       })}
 
-      {lens.rules.length > 0 && (
+      {mine && (
         <>
           {/* Mine only. The view's rules are the team's and go one at a time,
               through the question their own ✕ asks. */}
           <button
             className={styles.filterClear}
             data-testid="filter-clear"
-            title="Remove the filters you added"
-            onClick={() => void setLens([])}
+            title="Remove the filters and the order you added"
+            onClick={() => void clearLens()}
           >
             Clear
           </button>
@@ -762,7 +787,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             <button
               className={styles.filterPromote}
               data-testid="filter-promote"
-              title="Everybody on this board will see these filters"
+              title="Everybody on this board will see what you picked"
               onClick={() => void promoteLens()}
             >
               <span className={styles.wide}>Save for everyone</span>
@@ -786,30 +811,81 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
 function SortChip({
   sort,
   items,
+  shared = false,
   onClear,
 }: {
   sort: ViewSort;
   items: CardItem[];
+  shared?: boolean;
   onClear: () => void;
 }) {
+  const asking = useConfirm();
+  const ref = useDismiss<HTMLDivElement>(() => asking.cancel(), asking.asking);
+
+  /* The question takes the focus, so putting the chip back gives it back to
+     the ✕, exactly as a rule's chip does. */
+  const cross = useRef<HTMLButtonElement>(null);
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current && !asking.asking) cross.current?.focus();
+    asked.current = asking.asking;
+  }, [asking.asking]);
+
   const name = sortLabel(sort, items);
   if (!name) return null;
+  const said = `${sort.direction === "asc" ? "\u2191" : "\u2193"} ${name}`;
+
+  /* The view's order is the team's: taking it away moves every board that
+     reads this view, so it asks first, as a shared rule does. */
+  if (asking.asking) {
+    return (
+      <div className={styles.filterAnchor} ref={ref}>
+        <span
+          className={`${styles.filterChip} ${styles.sortChip} ${styles.filterChipAsking}`}
+          role="alertdialog"
+          aria-label={`Remove the order ${name} for everyone?`}
+          data-testid="sort-chip-question"
+        >
+          <span className={styles.filterChipBody}>Remove for everyone?</span>
+          <button
+            className={styles.filterChipGo}
+            autoFocus
+            data-testid="sort-chip-remove"
+            onClick={() => asking.confirm(onClear)}
+          >
+            Remove
+          </button>
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <span className={`${styles.filterChip} ${styles.sortChip}`} data-testid="sort-chip">
-      <span className={styles.filterChipBody}>
-        {sort.direction === "asc" ? "\u2191" : "\u2193"} {name}
-      </span>
-      <button
-        className={styles.filterChipX}
-        data-testid="sort-clear"
-        aria-label="Back to the board's own order"
-        title="Back to the board's own order, which is the one you can drag"
-        onClick={onClear}
+    <div className={styles.filterAnchor} ref={ref}>
+      <span
+        className={`${styles.filterChip} ${styles.sortChip}`}
+        data-testid="sort-chip"
+        data-shared={shared ? "true" : undefined}
       >
-        ✕
-      </button>
-    </span>
+        <span className={styles.filterChipBody}>{said}</span>
+        <button
+          className={styles.filterChipX}
+          ref={cross}
+          data-testid="sort-clear"
+          aria-label={
+            shared ? "Back to the board's own order, for everyone" : "Back to the board's own order"
+          }
+          title={
+            shared
+              ? "Back to the board's own order, for everyone on this board"
+              : "Back to the board's own order, which is the one you can drag"
+          }
+          onClick={() => (shared ? asking.ask() : onClear())}
+        >
+          ✕
+        </button>
+      </span>
+    </div>
   );
 }
 

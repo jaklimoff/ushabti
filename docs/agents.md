@@ -138,6 +138,8 @@ deleted, so a view keeps a rule about one for ever.
 
 The two routes that write those rules are a person's, and answer `403` to a
 token: `PUT /api/views/{viewId}/lens` and `POST /api/views/{viewId}/lens/promote`.
+A person's order lives in the same lens, so the `lensSort` of every view an
+agent reads is `null`; `sort` is the view's own, and the one to work from.
 Both answer `409` and one sentence — _The view already filters Priority. Remove
 it for everyone first._ — when a rule names a property the view already
 filters, because one property carries one rule, whoever asked.

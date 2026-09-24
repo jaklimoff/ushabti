@@ -385,6 +385,12 @@ export type ViewDTO = {
    * grouping property it is not using.
    */
   sort: ViewSort | null;
+  /**
+   * The order the person asking picked on this view, which only they see. It
+   * wins over `sort` while it exists. It is kept in the lens beside the rules,
+   * so an agent — which has no lens — always reads null here.
+   */
+  lensSort: ViewSort | null;
 };
 
 export type ChecklistItemDTO = {

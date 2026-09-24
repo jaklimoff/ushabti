@@ -803,6 +803,49 @@ test.describe("Filters inside a view", () => {
   });
 });
 
+/* An order a person picked lives in their lens beside the rules, and is read
+   afresh the same way: a column that is gone must stop ordering anything. */
+test.describe("An order in a lens", () => {
+  test("is dropped when the column it names is deleted", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("LensSort"));
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Effort", type: "number" },
+    });
+    expect(made.ok()).toBeTruthy();
+
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const view = board.views[0];
+    const effort = board.properties.find((p: { name: string }) => p.name === "Effort");
+
+    const written = await page.request.put(`/api/views/${view.id}/lens`, {
+      data: { filters: { rules: [] }, sort: { columnId: effort.id, direction: "desc" } },
+    });
+    expect(written.ok()).toBeTruthy();
+    // An order alone is a lens: the row is kept, and the view is not touched.
+    expect(await savedLens(view.id)).toEqual({
+      rules: [],
+      sort: { columnId: effort.id, direction: "desc" },
+    });
+    const mine = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const read = mine.views.find((v: { id: string }) => v.id === view.id);
+    expect(read.lensSort).toEqual({ columnId: effort.id, direction: "desc" });
+    expect(read.sort).toBeNull();
+
+    // The property goes, under a lens nobody rewrites.
+    expect((await page.request.delete(`/api/properties/${effort.id}`)).ok()).toBeTruthy();
+    expect((await savedLens(view.id)) as unknown).toMatchObject({ sort: { columnId: effort.id } });
+
+    const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(after.views.find((v: { id: string }) => v.id === view.id).lensSort).toBeNull();
+
+    // And Save for everyone carries nothing of it to the view.
+    expect((await page.request.post(`/api/views/${view.id}/lens/promote`)).ok()).toBeTruthy();
+    const promoted = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(promoted.views.find((v: { id: string }) => v.id === view.id).sort).toBeNull();
+  });
+});
+
 /* On a phone the row has no room to wrap, so it scrolls sideways and the tail
    shortens. Nothing about the rules changes with the width. */
 test.describe("Filters on a phone", () => {
