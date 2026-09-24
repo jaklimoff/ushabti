@@ -144,6 +144,20 @@ export function fallbackRow(kind: CardKind): CardRow {
 /* ------------------------------------------------------------------ */
 
 /**
+ * The property the columns of the main board are, which the default card
+ * leaves off. Only a board answers: a list keeps a `groupById` it never reads,
+ * so a main view that is a list hands the question to the first board. The
+ * server and the browser both ask here, so a reset puts back the card the
+ * server would draw. `views` must be in their order.
+ */
+export function mainBoardGroupById(
+  views: readonly { kind: string; isDefault: boolean; groupById: string | null }[],
+): string | null {
+  const boards = views.filter((v) => v.kind === "board");
+  return (boards.find((v) => v.isDefault) ?? boards[0])?.groupById ?? null;
+}
+
+/**
  * The card a project has before anybody arranges one: the card this board drew
  * for its first six versions. The lead colour and the key open the header, the
  * people and the labels close it, and everything else lines up in the footer.

@@ -144,7 +144,8 @@ export function PropertiesPanel() {
 }
 
 function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
-  const { cardItems, setCardView, patchProperty, deleteProperty, addOption, notify } = useBoard();
+  const { cardItems, setCardView, patchProperty, deleteProperty, addOption, deleteOption, notify } =
+    useBoard();
   const {
     attributes,
     listeners,
@@ -166,6 +167,15 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
   const confirm = useConfirm();
   /* How many values the delete takes. Null while the server is counting. */
   const [values, setValues] = useState<number | null>(null);
+  /* The option whose ✕ was pressed, and how many tasks hold it. The row of
+     options becomes the question, because a chip is too small to hold one. */
+  const dropConfirm = useConfirm();
+  const [dropping, setDropping] = useState<PropertyDTO["options"][number] | null>(null);
+  const [holders, setHolders] = useState<number | null>(null);
+  /* Which question an answer belongs to. A count that lands after Cancel, or
+     after the ✕ of another option, would name the wrong number, so it is
+     dropped. */
+  const asked = useRef(0);
   /* Where a property sits on a card belongs to the card view, so this reads
      from there and writes there. This page keeps the short answer; the card
      view page has the long one. */
@@ -195,6 +205,28 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
       confirm.cancel();
       notify("Could not count what goes with it.");
     }
+  }
+
+  /* Counted the same way as the property, and for the same reason: an option
+     leaves archived tasks too, and on a board grouped by this property its
+     column goes with it. */
+  async function askOption(option: PropertyDTO["options"][number]) {
+    const mine = ++asked.current;
+    setDropping(option);
+    setHolders(null);
+    dropConfirm.ask();
+    try {
+      const answer = await api.get<{ tasks: number }>(`/api/options/${option.id}/count`);
+      if (asked.current === mine) setHolders(answer.tasks);
+    } catch {
+      if (asked.current !== mine) return;
+      dropConfirm.cancel();
+      notify("Could not count the tasks that hold it.");
+    }
+  }
+
+  function dropAnswered() {
+    asked.current++;
   }
 
   const cost = [
@@ -309,10 +341,37 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
         </div>
       </div>
 
-      {(property.type === "select" || property.type === "multi_select") && (
+      {(property.type === "select" || property.type === "multi_select") &&
+        dropConfirm.asking &&
+        dropping && (
+          <ConfirmRow
+            question={
+              holders === null
+                ? `Delete ${dropping.name}? Counting the tasks that hold it…`
+                : holders === 0
+                  ? `Delete ${dropping.name}? No task holds it.`
+                  : `Delete ${dropping.name}? ${holders} ${holders === 1 ? "task loses" : "tasks lose"} it.`
+            }
+            pending={holders === null}
+            onConfirm={() => {
+              dropAnswered();
+              dropConfirm.confirm(() => void deleteOption(dropping.id));
+            }}
+            onCancel={() => {
+              dropAnswered();
+              dropConfirm.cancel();
+            }}
+          />
+        )}
+      {(property.type === "select" || property.type === "multi_select") && !dropConfirm.asking && (
         <div className={styles.options}>
           {property.options.map((option) => (
-            <OptionChip key={option.id} option={option} canEdit={canEdit} />
+            <OptionChip
+              key={option.id}
+              option={option}
+              canEdit={canEdit}
+              onDelete={() => void askOption(option)}
+            />
           ))}
           {adding ? (
             <Input
@@ -349,11 +408,14 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
 function OptionChip({
   option,
   canEdit,
+  onDelete,
 }: {
   option: PropertyDTO["options"][number];
   canEdit: boolean;
+  /** Asks first. The row above owns the question. */
+  onDelete: () => void;
 }) {
-  const { patchOption, deleteOption } = useBoard();
+  const { patchOption } = useBoard();
   const [open, setOpen] = useState(false);
   const ref = useDismiss<HTMLSpanElement>(() => setOpen(false), open);
 
@@ -397,7 +459,7 @@ function OptionChip({
           className={styles.optionRemove}
           aria-label={`Delete the option ${option.name}`}
           title="Delete option"
-          onClick={() => void deleteOption(option.id)}
+          onClick={onDelete}
         >
           ✕
         </button>

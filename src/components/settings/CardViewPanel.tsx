@@ -5,8 +5,12 @@ import { useBoard } from "@/components/board/store";
 import { TaskCard } from "@/components/board/TaskCard";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
+import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import {
   canEdge,
+  cardItems as itemsOf,
+  defaultCardView,
+  mainBoardGroupById,
   MODES_FOR_KIND,
   moveCardRow,
   previewTasks,
@@ -26,8 +30,28 @@ import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
 export function CardViewPanel() {
-  const { cardItems, setCardView, resetCardView } = useBoard();
+  const { data, cardItems, setCardView, resetCardView } = useBoard();
   const [open, setOpen] = useState<string | null>(null);
+  const confirm = useConfirm();
+
+  /* The card view is everybody's, so a reset names what it moves: the rows
+     whose place, reading or order differ from the default. The default is the
+     one the store puts back, worked out the same way. */
+  const changed = useMemo(() => {
+    const fresh = itemsOf(
+      defaultCardView(data.properties, mainBoardGroupById(data.views)),
+      data.properties,
+    );
+    return cardItems.filter((item, index) => {
+      const other = fresh.find((f) => f.id === item.id);
+      return (
+        !other ||
+        other.place !== item.place ||
+        other.mode !== item.mode ||
+        fresh.indexOf(other) !== index
+      );
+    }).length;
+  }, [cardItems, data.properties, data.views]);
 
   /* A click says what the whole card view becomes, not what one row does. */
   const view: CardView = useMemo(() => viewOf(cardItems), [cardItems]);
@@ -66,21 +90,32 @@ export function CardViewPanel() {
             />
           ))}
 
-          <Foot>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setOpen(null);
-                void resetCardView();
-              }}
-            >
-              Reset to default
-            </Button>
-            <span style={{ flex: 1 }} />
-            <Note>
-              {shown} of {cardItems.length} on the card
-            </Note>
-          </Foot>
+          {confirm.asking ? (
+            <ConfirmRow
+              question={`Reset the card view for everyone? ${changed} ${changed === 1 ? "row goes" : "rows go"} back to the default.`}
+              confirmLabel="Yes, reset"
+              onConfirm={() => confirm.confirm(() => void resetCardView())}
+              onCancel={confirm.cancel}
+            />
+          ) : (
+            <Foot>
+              <Button
+                variant="ghost"
+                disabled={changed === 0}
+                title={changed === 0 ? "The card view is already the default" : undefined}
+                onClick={() => {
+                  setOpen(null);
+                  confirm.ask();
+                }}
+              >
+                Reset to default
+              </Button>
+              <span style={{ flex: 1 }} />
+              <Note>
+                {shown} of {cardItems.length} on the card
+              </Note>
+            </Foot>
+          )}
         </Card>
 
         <Preview />

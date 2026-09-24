@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
-import { cardItems, defaultCardView, readCardView } from "@/lib/card-view";
+import { cardItems, defaultCardView, mainBoardGroupById, readCardView } from "@/lib/card-view";
 import type { CardItem } from "@/lib/card-view";
 import { deletedSaid } from "@/lib/deleted";
 import { sweepDrafts } from "@/lib/draft";
@@ -1223,10 +1223,7 @@ export function BoardProvider({
   const resetCardView = useCallback<Store["resetCardView"]>(async () => {
     setData((current) => ({
       ...current,
-      cardView: defaultCardView(
-        current.properties,
-        (current.views.find((v) => v.isDefault) ?? current.views[0])?.groupById ?? null,
-      ),
+      cardView: defaultCardView(current.properties, mainBoardGroupById(current.views)),
     }));
     await guarded(async () => {
       await api.patch(`/api/projects/${projectId}/card-view`, { cardView: null });

@@ -431,9 +431,9 @@ test.describe("Filters inside a view", () => {
     await expect(chip(page, "Priority is Urgent")).toBeVisible();
 
     await page.goto(`/p/${projectId}/settings/properties`);
-    // An option goes at once. Only a whole property asks first.
+    await page.getByRole("button", { name: "Delete the option Urgent" }).click();
     await settles(page, /\/api\/options\//, () =>
-      page.getByRole("button", { name: "Delete the option Urgent" }).click(),
+      page.getByRole("button", { name: "Yes, delete" }).click(),
     );
 
     // The rule named one option and that option has gone, so the rule has

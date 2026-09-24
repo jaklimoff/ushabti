@@ -161,8 +161,16 @@ test.describe("Card view", () => {
     );
 
     await gotoSettings(page, projectId, "card");
-    await saved(page, () => page.getByRole("button", { name: "Reset to default" }).click());
+    // The card view is everybody's, so a reset asks first and says how much moves.
+    await page.getByRole("button", { name: "Reset to default" }).click();
+    await expect(
+      page.getByText("Reset the card view for everyone? 1 row goes back to the default."),
+    ).toBeVisible();
+    await expect(row(page, "Description")).not.toHaveAttribute("data-place", "off");
+    await saved(page, () => page.getByRole("button", { name: "Yes, reset" }).click());
     await expect(row(page, "Description")).toHaveAttribute("data-place", "off");
+    // Now there is nothing to reset.
+    await expect(page.getByRole("button", { name: "Reset to default" })).toBeDisabled();
   });
 
   test("the title cannot be moved and cannot come off", async ({ page }) => {

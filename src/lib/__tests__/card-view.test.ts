@@ -5,6 +5,7 @@ import {
   cardAccent,
   cardItems,
   defaultCardView,
+  mainBoardGroupById,
   moveCardRow,
   previewTasks,
   readCardView,
@@ -407,5 +408,23 @@ describe("a task laid out as a row", () => {
     const slots = buildRow(items(saved), task(), [ADA]);
     expect(slots.desc).toBe("The long version of it.");
     expect(slots.cells._desc).toBeUndefined();
+  });
+});
+
+describe("mainBoardGroupById", () => {
+  const board = (groupById: string, isDefault = false) => ({ kind: "board", isDefault, groupById });
+  const list = (groupById: string, isDefault = false) => ({ kind: "list", isDefault, groupById });
+
+  it("takes the main view when it is a board", () => {
+    expect(mainBoardGroupById([board("a"), board("b", true)])).toBe("b");
+  });
+
+  it("passes over a main list, whose grouping nobody reads", () => {
+    expect(mainBoardGroupById([list("x", true), board("a"), board("b")])).toBe("a");
+  });
+
+  it("answers null when there is no board", () => {
+    expect(mainBoardGroupById([list("x", true)])).toBeNull();
+    expect(mainBoardGroupById([])).toBeNull();
   });
 });

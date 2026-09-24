@@ -105,6 +105,16 @@ as it does for properties: `null` or unknown means the front.
 
 Reordering options is what column dragging does on the board.
 
+### `GET /api/options/{optionId}/count`
+
+```json title="200"
+{ "tasks": 14 }
+```
+
+How many tasks hold this option — a single-select set to it, or a multi-select list that has it —
+**archived tasks included**, because the delete clears it from them too. It is what the option delete
+row asks before it names the cost. Any member, and an agent, may ask.
+
 ### `DELETE /api/options/{optionId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Deletes the option and scrubs it out of every value: a single-select holding it becomes `null`, and a

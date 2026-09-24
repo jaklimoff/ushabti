@@ -21,7 +21,7 @@ import {
 } from "@/db/schema";
 import { readId } from "./api";
 import { HttpError } from "./auth";
-import { readCardView } from "./card-view";
+import { mainBoardGroupById, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters } from "./filters";
@@ -239,8 +239,7 @@ export async function defaultGroupById(projectId: string, tx?: Tx): Promise<stri
     .from(views)
     .where(eq(views.projectId, projectId))
     .orderBy(byPos(views.position));
-  const boards = rows.filter((v) => v.kind === "board");
-  return (boards.find((v) => v.isDefault) ?? boards[0])?.groupById ?? null;
+  return mainBoardGroupById(rows);
 }
 
 /**
