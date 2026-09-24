@@ -144,15 +144,6 @@ export function fallbackRow(kind: CardKind): CardRow {
 /* ------------------------------------------------------------------ */
 
 /**
- * The card a project has before anybody arranges one: the card this board drew
- * for its first six versions. The lead colour and the key open the header, the
- * people and the labels close it, and everything else lines up in the footer.
- *
- * It does not go through `fallbackRow`, and it should not. That answers "a
- * property arrived, where does it go"; this answers "nobody has ever said", and
- * the honest answer to that is the card people already know.
- */
-/**
  * The property the columns of the main board are, which the default card
  * leaves off. Only a board answers: a list keeps a `groupById` it never reads,
  * so a main view that is a list hands the question to the first board. The
@@ -166,6 +157,15 @@ export function mainBoardGroupById(
   return (boards.find((v) => v.isDefault) ?? boards[0])?.groupById ?? null;
 }
 
+/**
+ * The card a project has before anybody arranges one: the card this board drew
+ * for its first six versions. The lead colour and the key open the header, the
+ * people and the labels close it, and everything else lines up in the footer.
+ *
+ * It does not go through `fallbackRow`, and it should not. That answers "a
+ * property arrived, where does it go"; this answers "nobody has ever said", and
+ * the honest answer to that is the card people already know.
+ */
 export function defaultCardView(properties: PropertyDTO[], groupById: string | null): CardView {
   const rows: Record<string, CardRow> = {
     _key: { place: "headerL", mode: "text" },
