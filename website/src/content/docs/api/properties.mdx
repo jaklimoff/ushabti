@@ -94,6 +94,11 @@ silently** and the next unused palette colour is used instead.
 `201 { "option": { "id", "propertyId", "name", "color", "position" } }`, or
 `400 Only select properties have options.`
 
+A property holds one option of each name. The check ignores letter case and the spaces around the
+name, so `blocked` next to `Blocked` answers `409 Status already has an option named Blocked.` Two
+creates at the same moment make one option: the other one gets the same 409. Read the board again
+and use the option that is there.
+
 ### `PATCH /api/options/{optionId}`
 
 ```json title="request"
@@ -102,6 +107,9 @@ silently** and the next unused palette colour is used instead.
 
 Here a malformed `color` **is** an error — `400 The colour must look like #3fb0c8.` `afterId` behaves
 as it does for properties: `null` or unknown means the front.
+
+A new `name` that another option of the property already carries answers `409` with the same
+sentence as the create. An option may change the letter case of its own name.
 
 Reordering options is what column dragging does on the board.
 

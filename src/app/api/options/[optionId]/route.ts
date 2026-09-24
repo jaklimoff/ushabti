@@ -1,11 +1,12 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import { byPos } from "@/lib/order";
 import { db } from "@/db";
-import { propertyOptions, taskValues } from "@/db/schema";
+import { properties, propertyOptions, taskValues } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
 import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
+import { takenBy, takenSaid } from "@/lib/option-name";
 
 type Ctx = { params: Promise<{ optionId: string }> };
 
@@ -25,30 +26,45 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     }
     patch.color = input.color;
   }
-  if (input.afterId !== undefined) {
-    await withProjectLock(owner.projectId, async (tx) => {
-      const siblings = await tx
-        .select({ id: propertyOptions.id, position: propertyOptions.position })
-        .from(propertyOptions)
-        .where(
-          and(eq(propertyOptions.propertyId, owner.propertyId), ne(propertyOptions.id, optionId)),
-        )
-        .orderBy(byPos(propertyOptions.position));
+  if (Object.keys(patch).length === 0 && input.afterId === undefined) return json({ ok: true });
+
+  // A new name and a new place both read the other options first, so both
+  // are written under the lock that every other option write takes.
+  await withProjectLock(owner.projectId, async (tx) => {
+    const siblings = await tx
+      .select({
+        id: propertyOptions.id,
+        name: propertyOptions.name,
+        position: propertyOptions.position,
+      })
+      .from(propertyOptions)
+      .where(
+        and(eq(propertyOptions.propertyId, owner.propertyId), ne(propertyOptions.id, optionId)),
+      )
+      .orderBy(byPos(propertyOptions.position));
+
+    if (typeof patch.name === "string") {
+      const taken = takenBy(siblings, patch.name);
+      if (taken) {
+        const [prop] = await tx
+          .select({ name: properties.name })
+          .from(properties)
+          .where(eq(properties.id, owner.propertyId))
+          .limit(1);
+        throw new HttpError(409, takenSaid(prop.name, taken.name));
+      }
+    }
+
+    if (input.afterId !== undefined) {
       const index = input.afterId ? siblings.findIndex((s) => s.id === input.afterId) : -1;
       const before = index >= 0 ? siblings[index].position : null;
       const after = siblings[index + 1]?.position ?? null;
-      await tx
-        .update(propertyOptions)
-        .set({ ...patch, position: rankBetween(before, after) })
-        .where(eq(propertyOptions.id, optionId));
-    });
-    await broadcast({ projectId: owner.projectId, scope: "board", clientId: clientIdOf(req) });
-    return json({ ok: true });
-  }
+      patch.position = rankBetween(before, after);
+    }
 
-  if (Object.keys(patch).length === 0) return json({ ok: true });
+    await tx.update(propertyOptions).set(patch).where(eq(propertyOptions.id, optionId));
+  });
 
-  await db.update(propertyOptions).set(patch).where(eq(propertyOptions.id, optionId));
   await broadcast({ projectId: owner.projectId, scope: "board", clientId: clientIdOf(req) });
   return json({ ok: true });
 });
