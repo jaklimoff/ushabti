@@ -93,6 +93,7 @@ export function ListCanvas({
     runOf,
     controlRun,
     notify,
+    user,
   } = useBoard();
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [preview, setPreview] = useState<TaskDTO[] | null>(null);
@@ -198,7 +199,7 @@ export function ListCanvas({
    * the filter has to answer for it too. Without the null the row is written
    * and hidden in the same breath, with nothing on screen to say why.
    */
-  const seed = seedValues(filters, data.properties, null);
+  const seed = seedValues(filters, data.properties, null, user.id);
   const addNote = seedNote(seed, data.properties, data.members);
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;

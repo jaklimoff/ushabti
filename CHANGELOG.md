@@ -14,6 +14,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   button that puts the task back in its column and its place. It stays while the pointer or the
   focus is on it, and `Tab` reaches it without the toast taking the focus. The line still
   names the Archive, which keeps the task for thirty days.
+- **A person filter can say Me.** Me sits at the top of a person rule's
+  values and means whoever is reading, so one shared "Assignee is Me" view
+  shows each person their own tasks. A task added under it is assigned to the
+  person who added it. The rule stores `"__me__"`, and an agent reads it as
+  itself.
 - **Deleting an option asks first, and names the cost.** The ✕ on an option
   turns the row into a question with the number of tasks that lose it:
   "Delete Doing? 14 tasks lose it." **Reset to default** in Card view asks

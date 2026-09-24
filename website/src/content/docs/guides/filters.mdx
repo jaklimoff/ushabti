@@ -41,6 +41,16 @@ the set, so `Doing, or nothing yet` is **one rule** rather than two rules that c
 It wears the same words the columns use: **Unassigned** for a person property, **No priority** for
 everything else. A checkbox never gets one — off is a value, not emptiness.
 
+## 4. "Me" is whoever is reading
+
+At the top of a person property's value list sits **Me**. It is not your name: it is a value that
+means *the person looking at the board*. Put `Assignee is Me` on a view with **Save for everyone**,
+and the one view shows each person their own tasks. Nobody builds a "My tasks" filter by hand, and
+nobody's name is saved in the rule.
+
+Me sits beside the other values like any of them, so `Me, or Unassigned` is one rule. An agent reads
+Me as itself.
+
 ## The operators
 
 <div class="ops">
@@ -223,7 +233,8 @@ thing a filter can do. So the composer fills in what the filter asks for.
 
 It only answers a rule it can answer **without guessing**: the operator is `is`, there is exactly one
 value, that value is not "nothing yet", and the property is not the grouping property — the column
-decides that one. Everything else is left alone.
+decides that one. Everything else is left alone. Under `Assignee is Me` that value is you, so a task
+you add under a shared "My tasks" view is yours.
 
 And it says so first. The composer's hint reads:
 
