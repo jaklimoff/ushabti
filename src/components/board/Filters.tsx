@@ -761,8 +761,8 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
               title="Everybody on this board will see these filters"
               onClick={() => void promoteLens()}
             >
-              <span className={styles.wide}>Put on the view</span>
-              <span className={styles.narrow}>Put on view</span>
+              <span className={styles.wide}>Save for everyone</span>
+              <span className={styles.narrow}>Save for all</span>
             </button>
           </span>
         </>

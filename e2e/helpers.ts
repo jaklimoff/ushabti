@@ -127,7 +127,7 @@ export async function addTask(page: Page, columnName: string, title: string) {
  * on its own writes nothing, which is the point of the two steps.
  *
  * A rule added here is this person's own, so it lands on their lens. Nobody
- * else's board moves until somebody presses "Put on the view".
+ * else's board moves until somebody presses "Save for everyone".
  */
 export async function addFilter(page: Page, property: string, value: string) {
   await page.getByTestId("filter-button").click();

@@ -623,7 +623,7 @@ test.describe("Filters inside a view", () => {
   /* The panel cannot see a clash that arrives after my rule does: somebody
      else puts that property on the view while I hold mine. So the door the
      team comes through says it again, and writes nothing. */
-  test("Put on the view refuses a rule about a property the view filters", async ({ page }) => {
+  test("Save for everyone refuses a rule about a property the view filters", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("PromoteClash"));
 
@@ -661,7 +661,7 @@ test.describe("Filters inside a view", () => {
   /* A refused promote must not move the board first. The board it would draw
      is the contradicting one the refusal exists to prevent, so this one write
      waits for the answer. */
-  test("a refused Put on the view says so and the board holds still", async ({ page }) => {
+  test("a refused Save for everyone says so and the board holds still", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("PromoteRefusedUI"));
 
@@ -819,7 +819,7 @@ test.describe("Filters on a phone", () => {
     await addFilter(page, "Priority", "Urgent");
 
     await expect(page.getByText("Only you ·")).toBeVisible();
-    await expect(page.getByText("Put on view")).toBeVisible();
+    await expect(page.getByText("Save for all")).toBeVisible();
     await expect(page.getByText("Only you see this")).toBeHidden();
 
     // One line of chips, however many there are: the row scrolls instead.

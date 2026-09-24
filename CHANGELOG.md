@@ -33,6 +33,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The button that shares your filters now reads "Save for everyone".** It
+  used to read "Put on the view". On a phone it reads "Save for all". It does
+  the same thing: your filters become the view's, and everybody sees them.
 - **The box you type a new task into grows with the title.** A long title
   shows in full, in a board column and at the end of a list, where it used to
   scroll inside a box two lines high.
