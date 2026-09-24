@@ -51,6 +51,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Properties have one order, set in Settings.** Drag a property in **Settings → Properties** and
+  it moves in the task panel, among the chips that share its place on a card, and among the columns
+  of a list. **Card view** keeps only where a row sits and how it reads, so its ↑ and ↓ buttons are
+  gone. The key, the title and the description stay before the properties, and the checklist and
+  the comments after. A card view saved with an order of its own now shows the Properties order,
+  and the API ignores `order` in a card view.
 - **A sort belongs to the person who picked it.** **Sort** and a list heading now change only your
   screen, the way a filter you add does, and the strip says _Only you see this_. A sorted board
   holds still, so one person's order no longer stops everybody else dragging inside a column.

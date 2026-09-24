@@ -179,7 +179,9 @@ test.describe("Ushabti board", () => {
     await page.getByRole("button", { name: "Urgent" }).click();
     await page.getByRole("button", { name: "Close task" }).click();
 
-    const square = card(page, "Priority test").getByTestId("card-chip").first();
+    // The key opens the card and the colour square follows it: the task's own
+    // rows stand before the properties.
+    const square = card(page, "Priority test").getByTestId("card-chip").nth(1);
     await expect(square).toHaveAttribute("title", "Priority · Urgent");
   });
 
