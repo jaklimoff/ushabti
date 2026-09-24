@@ -114,7 +114,15 @@
   animation: ushabti-fade-in 110ms var(--ease);
 }
 
+/* The rows sit in a listbox of their own, so the box above is not one of them. */
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .menuItem {
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 9px;

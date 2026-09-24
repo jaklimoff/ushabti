@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
 import type { PropertyDTO } from "@/lib/types";
 import styles from "./board.module.css";
 
@@ -78,6 +78,33 @@ export function step(at: number, count: number, way: number): number {
 }
 
 /**
+ * The keys of a box above rows: the arrows move the highlight, Enter picks the
+ * highlighted row and nothing else. `AskBox` and the menus of a select both
+ * walk with it, so a fix to the keys reaches every list that has a box.
+ */
+export function walkKeys(
+  count: number,
+  at: number,
+  setAt: Dispatch<SetStateAction<number>>,
+  pick: (index: number) => void,
+) {
+  return (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      return setAt((n) => step(n, count, 1));
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      return setAt((n) => step(n, count, -1));
+    }
+    if (e.key === "Enter" && at >= 0 && at < count) {
+      e.preventDefault();
+      pick(at);
+    }
+  };
+}
+
+/**
  * The box itself.
  *
  * `Ask` in `Filters.tsx` keeps a box of its own, because it answers a question
@@ -124,20 +151,7 @@ export function AskBox({
           onQuery(e.target.value);
           setAt(0);
         }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            return setAt((n) => step(n, rows.length, 1));
-          }
-          if (e.key === "ArrowUp") {
-            e.preventDefault();
-            return setAt((n) => step(n, rows.length, -1));
-          }
-          if (e.key === "Enter" && rows[at]) {
-            e.preventDefault();
-            onPick(rows[at]);
-          }
-        }}
+        onKeyDown={walkKeys(rows.length, at, setAt, (i) => onPick(rows[i]))}
       />
     </div>
   );

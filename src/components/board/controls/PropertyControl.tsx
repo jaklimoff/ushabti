@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { tint } from "@/lib/colors";
 import { formatDate } from "@/lib/board";
 import type { MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
 import { optionMenu } from "@/lib/option-menu";
 import { Avatar } from "@/components/ui/Avatar";
 import { useDismiss } from "@/components/ui/useDismiss";
-import { step } from "../Ask";
+import { walkKeys } from "../Ask";
 import styles from "./controls.module.css";
 
 type Props = {
@@ -88,33 +88,6 @@ function entryKey(entry: Entry): string {
   return entry.kind;
 }
 
-/**
- * The keys of the box above a menu. It is the walk `AskBox` makes: the box
- * keeps the focus, the arrows move a highlight, Enter picks the highlighted
- * row and nothing else. Typing puts the highlight back on the first row.
- */
-function walkKeys(
-  entries: Entry[],
-  at: number,
-  setAt: Dispatch<SetStateAction<number>>,
-  pick: (entry: Entry) => void,
-) {
-  return (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      return setAt((n) => step(n, entries.length, 1));
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      return setAt((n) => step(n, entries.length, -1));
-    }
-    if (e.key === "Enter" && entries[at]) {
-      e.preventDefault();
-      pick(entries[at]);
-    }
-  };
-}
-
 /** A menu taller than its box scrolls, and the highlight must stay in sight. */
 function useHighlightInView(at: number, open: boolean) {
   const menu = useRef<HTMLDivElement>(null);
@@ -125,11 +98,147 @@ function useHighlightInView(at: number, open: boolean) {
   return menu;
 }
 
+/**
+ * Making an option is a write everybody sees, and the server takes a name
+ * twice. So while one is on its way, a second Enter or press does nothing:
+ * one Enter makes one option.
+ */
+function useOneAtATime() {
+  const busy = useRef(false);
+  return async (work: () => Promise<void>) => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      await work();
+    } finally {
+      busy.current = false;
+    }
+  };
+}
+
+/**
+ * The box and the rows under it, in the shape `AskBox` has: the box keeps the
+ * focus and the highlight is `aria-activedescendant`, so a row is an option
+ * and not a button, and a press on one does not take the focus away.
+ */
+function OptionMenu({
+  property,
+  entries,
+  at,
+  setAt,
+  draft,
+  setDraft,
+  canAdd,
+  isOn,
+  pick,
+}: {
+  property: PropertyDTO;
+  entries: Entry[];
+  at: number;
+  setAt: Dispatch<SetStateAction<number>>;
+  draft: string;
+  setDraft: (value: string) => void;
+  canAdd: boolean;
+  isOn: (entry: Entry) => boolean;
+  pick: (entry: Entry) => void;
+}) {
+  const listId = useId();
+  const name = property.name.toLowerCase();
+  return (
+    <>
+      <input
+        className={styles.menuInput}
+        autoFocus
+        role="combobox"
+        aria-expanded
+        aria-controls={listId}
+        aria-activedescendant={entries.length ? `${listId}-${at}` : undefined}
+        aria-label={canAdd ? `Find or add ${name}` : `Find ${name}`}
+        value={draft}
+        placeholder={canAdd ? "Find or add…" : "Find…"}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setAt(0);
+        }}
+        onKeyDown={walkKeys(entries.length, at, setAt, (i) => pick(entries[i]))}
+      />
+      <div className={styles.menuList} role="listbox" id={listId} aria-label={property.name}>
+        {entries.map((entry, i) => (
+          <EntryRow
+            key={entryKey(entry)}
+            id={`${listId}-${i}`}
+            entry={entry}
+            at={i === at}
+            on={isOn(entry)}
+            onPick={() => pick(entry)}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** A row of the menu. Empty and Add wear a dot like an option, so they line up. */
+function EntryRow({
+  id,
+  entry,
+  at,
+  on,
+  onPick,
+}: {
+  id: string;
+  entry: Entry;
+  at: boolean;
+  on: boolean;
+  onPick: () => void;
+}) {
+  const color =
+    entry.kind === "option"
+      ? entry.option.color
+      : entry.kind === "add"
+        ? "var(--accent)"
+        : "#3f4650";
+  return (
+    <div
+      id={id}
+      role="option"
+      aria-selected={on}
+      className={`${styles.menuItem} ${on && entry.kind === "option" ? styles.menuItemOn : ""} ${
+        at ? styles.menuItemAt : ""
+      }`}
+      data-at={at}
+      // The box must keep the focus, so the press must not move it.
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onPick}
+    >
+      <span className={styles.dot} style={{ background: color }} />
+      {entry.kind === "option"
+        ? entry.option.name
+        : entry.kind === "add"
+          ? `Add “${entry.name}”`
+          : "Empty"}
+      {entry.kind !== "add" && (
+        <>
+          <span style={{ flex: 1 }} />
+          <span
+            className={styles.tick}
+            aria-hidden
+            style={{ color: on ? "var(--accent)" : "transparent" }}
+          >
+            ✓
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
 function SelectMenu({ property, value, onChange, onAddOption }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [rawAt, setAt] = useState(0);
   const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
+  const once = useOneAtATime();
   const current = property.options.find((o) => o.id === value);
 
   const { matches, add } = optionMenu(property.options, draft);
@@ -148,15 +257,14 @@ function SelectMenu({ property, value, onChange, onAddOption }: Props) {
     setDraft("");
   }
 
-  async function createOption(name: string) {
-    if (!onAddOption) return;
-    const id = await onAddOption(name);
-    close();
-    if (id) onChange(id);
-  }
-
   function pick(entry: Entry) {
-    if (entry.kind === "add") return void createOption(entry.name);
+    if (entry.kind === "add") {
+      return void once(async () => {
+        const id = await onAddOption?.(entry.name);
+        close();
+        if (id) onChange(id);
+      });
+    }
     onChange(entry.kind === "option" ? entry.option.id : null);
     close();
   }
@@ -183,80 +291,22 @@ function SelectMenu({ property, value, onChange, onAddOption }: Props) {
       </button>
       {open && (
         <div className={styles.menu} ref={menu}>
-          {onAddOption && (
-            <input
-              className={styles.menuInput}
-              autoFocus
-              value={draft}
-              placeholder="Find or add…"
-              aria-label={`Find or add ${property.name.toLowerCase()}`}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                setAt(0);
-              }}
-              onKeyDown={walkKeys(entries, at, setAt, pick)}
-            />
-          )}
-          {entries.map((entry, i) => (
-            <EntryRow
-              key={entryKey(entry)}
-              entry={entry}
-              at={i === at}
-              on={
-                entry.kind === "option"
-                  ? value === entry.option.id
-                  : entry.kind === "empty" && !value
-              }
-              onPick={() => pick(entry)}
-            />
-          ))}
+          <OptionMenu
+            property={property}
+            entries={entries}
+            at={at}
+            setAt={setAt}
+            draft={draft}
+            setDraft={setDraft}
+            canAdd={!!onAddOption}
+            isOn={(entry) =>
+              entry.kind === "option" ? value === entry.option.id : entry.kind === "empty" && !value
+            }
+            pick={pick}
+          />
         </div>
       )}
     </div>
-  );
-}
-
-/** A row of the menu. Empty and Add wear a dot like an option, so they line up. */
-function EntryRow({
-  entry,
-  at,
-  on,
-  onPick,
-}: {
-  entry: Entry;
-  at: boolean;
-  on: boolean;
-  onPick: () => void;
-}) {
-  const color =
-    entry.kind === "option"
-      ? entry.option.color
-      : entry.kind === "add"
-        ? "var(--accent)"
-        : "#3f4650";
-  return (
-    <button
-      className={`${styles.menuItem} ${on && entry.kind === "option" ? styles.menuItemOn : ""} ${
-        at ? styles.menuItemAt : ""
-      }`}
-      data-at={at}
-      onClick={onPick}
-    >
-      <span className={styles.dot} style={{ background: color }} />
-      {entry.kind === "option"
-        ? entry.option.name
-        : entry.kind === "add"
-          ? `Add “${entry.name}”`
-          : "Empty"}
-      {entry.kind !== "add" && (
-        <>
-          <span style={{ flex: 1 }} />
-          <span className={styles.tick} style={{ color: on ? "var(--accent)" : "transparent" }}>
-            ✓
-          </span>
-        </>
-      )}
-    </button>
   );
 }
 
@@ -265,6 +315,7 @@ function MultiSelect({ property, value, onChange, onAddOption }: Props) {
   const [draft, setDraft] = useState("");
   const [rawAt, setAt] = useState(0);
   const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
+  const once = useOneAtATime();
   const selected = Array.isArray(value) ? value : [];
   const chosen = selected
     .map((id) => property.options.find((o) => o.id === id))
@@ -282,18 +333,17 @@ function MultiSelect({ property, value, onChange, onAddOption }: Props) {
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
   }
 
-  async function createOption(name: string) {
-    if (!onAddOption) return;
-    const id = await onAddOption(name);
-    setDraft("");
-    setAt(0);
-    if (id) onChange([...selected, id]);
-  }
-
   // The menu stays open to take a second option, so the highlight stays on
   // the one just toggled rather than jumping to the top of the list.
   function pick(entry: Entry) {
-    if (entry.kind === "add") return void createOption(entry.name);
+    if (entry.kind === "add") {
+      return void once(async () => {
+        const id = await onAddOption?.(entry.name);
+        setDraft("");
+        setAt(0);
+        if (id) onChange([...selected, id]);
+      });
+    }
     if (entry.kind !== "option") return;
     toggle(entry.option.id);
     setDraft("");
@@ -328,29 +378,17 @@ function MultiSelect({ property, value, onChange, onAddOption }: Props) {
       </div>
       {open && (
         <div className={styles.menu} style={{ top: 28 }} ref={menu}>
-          {onAddOption && (
-            <input
-              className={styles.menuInput}
-              autoFocus
-              value={draft}
-              placeholder="Find or add…"
-              aria-label={`Find or add ${property.name.toLowerCase()}`}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                setAt(0);
-              }}
-              onKeyDown={walkKeys(entries, at, setAt, pick)}
-            />
-          )}
-          {entries.map((entry, i) => (
-            <EntryRow
-              key={entryKey(entry)}
-              entry={entry}
-              at={i === at}
-              on={entry.kind === "option" && selected.includes(entry.option.id)}
-              onPick={() => pick(entry)}
-            />
-          ))}
+          <OptionMenu
+            property={property}
+            entries={entries}
+            at={at}
+            setAt={setAt}
+            draft={draft}
+            setDraft={setDraft}
+            canAdd={!!onAddOption}
+            isOn={(entry) => entry.kind === "option" && selected.includes(entry.option.id)}
+            pick={pick}
+          />
         </div>
       )}
     </div>
