@@ -10,6 +10,7 @@ import {
   canEdge,
   cardItems as itemsOf,
   defaultCardView,
+  mainBoardGroupById,
   MODES_FOR_KIND,
   moveCardRow,
   previewTasks,
@@ -37,9 +38,8 @@ export function CardViewPanel() {
      whose place, reading or order differ from the default. The default is the
      one the store puts back, worked out the same way. */
   const changed = useMemo(() => {
-    const main = data.views.find((v) => v.isDefault) ?? data.views[0];
     const fresh = itemsOf(
-      defaultCardView(data.properties, main?.groupById ?? null),
+      defaultCardView(data.properties, mainBoardGroupById(data.views)),
       data.properties,
     );
     return cardItems.filter((item, index) => {

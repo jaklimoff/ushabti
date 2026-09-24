@@ -152,6 +152,20 @@ export function fallbackRow(kind: CardKind): CardRow {
  * property arrived, where does it go"; this answers "nobody has ever said", and
  * the honest answer to that is the card people already know.
  */
+/**
+ * The property the columns of the main board are, which the default card
+ * leaves off. Only a board answers: a list keeps a `groupById` it never reads,
+ * so a main view that is a list hands the question to the first board. The
+ * server and the browser both ask here, so a reset puts back the card the
+ * server would draw. `views` must be in their order.
+ */
+export function mainBoardGroupById(
+  views: readonly { kind: string; isDefault: boolean; groupById: string | null }[],
+): string | null {
+  const boards = views.filter((v) => v.kind === "board");
+  return (boards.find((v) => v.isDefault) ?? boards[0])?.groupById ?? null;
+}
+
 export function defaultCardView(properties: PropertyDTO[], groupById: string | null): CardView {
   const rows: Record<string, CardRow> = {
     _key: { place: "headerL", mode: "text" },

@@ -172,6 +172,10 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
   const dropConfirm = useConfirm();
   const [dropping, setDropping] = useState<PropertyDTO["options"][number] | null>(null);
   const [holders, setHolders] = useState<number | null>(null);
+  /* Which question an answer belongs to. A count that lands after Cancel, or
+     after the ✕ of another option, would name the wrong number, so it is
+     dropped. */
+  const asked = useRef(0);
   /* Where a property sits on a card belongs to the card view, so this reads
      from there and writes there. This page keeps the short answer; the card
      view page has the long one. */
@@ -207,16 +211,22 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
      leaves archived tasks too, and on a board grouped by this property its
      column goes with it. */
   async function askOption(option: PropertyDTO["options"][number]) {
+    const mine = ++asked.current;
     setDropping(option);
     setHolders(null);
     dropConfirm.ask();
     try {
       const answer = await api.get<{ tasks: number }>(`/api/options/${option.id}/count`);
-      setHolders(answer.tasks);
+      if (asked.current === mine) setHolders(answer.tasks);
     } catch {
+      if (asked.current !== mine) return;
       dropConfirm.cancel();
       notify("Could not count the tasks that hold it.");
     }
+  }
+
+  function dropAnswered() {
+    asked.current++;
   }
 
   const cost = [
@@ -343,8 +353,14 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
                   : `Delete ${dropping.name}? ${holders} ${holders === 1 ? "task loses" : "tasks lose"} it.`
             }
             pending={holders === null}
-            onConfirm={() => dropConfirm.confirm(() => void deleteOption(dropping.id))}
-            onCancel={dropConfirm.cancel}
+            onConfirm={() => {
+              dropAnswered();
+              dropConfirm.confirm(() => void deleteOption(dropping.id));
+            }}
+            onCancel={() => {
+              dropAnswered();
+              dropConfirm.cancel();
+            }}
           />
         )}
       {(property.type === "select" || property.type === "multi_select") && !dropConfirm.asking && (
