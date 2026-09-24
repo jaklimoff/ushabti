@@ -85,6 +85,47 @@ export function nextSort(current: ViewSort | null, columnId: string): ViewSort |
   return null;
 }
 
+function sameSort(a: ViewSort | null, b: ViewSort | null): boolean {
+  if (!a || !b) return a === b;
+  return a.columnId === b.columnId && a.direction === b.direction;
+}
+
+/**
+ * What one press writes on my lens, when the view may carry an order of its
+ * own for everybody.
+ *
+ * A sort a person picks is theirs, exactly as a filter is, and it wins over
+ * the view's while it exists. So "back to the board's order" on my lens means
+ * no sort of mine, and the screen falls back to the view's. Two turns keep
+ * that honest. A press that would land on the view's own order writes nothing
+ * of mine, because a lens that repeats the view says nothing. And a press that
+ * would change nothing on the screen — the view's order is showing and mine
+ * would fall back to it — turns the order around instead, because a press
+ * that does nothing reads as broken.
+ *
+ * `current` is the order on the screen, mine or else the view's.
+ */
+export function pressSort(
+  current: ViewSort | null,
+  ofView: ViewSort | null,
+  columnId: string,
+): ViewSort | null {
+  let next = nextSort(current, columnId);
+  if (!next && sameSort(ofView, current) && current) {
+    next = { columnId, direction: current.direction === "asc" ? "desc" : "asc" };
+  }
+  return sameSort(next, ofView) ? null : next;
+}
+
+/**
+ * The sort a lens row holds, read as a view's is. It lives in the row's
+ * `filters` next to the rules, so a lens is still one row and one write.
+ */
+export function readLensSort(raw: unknown, properties: PropertyDTO[]): ViewSort | null {
+  if (!raw || typeof raw !== "object") return null;
+  return readSort((raw as { sort?: unknown }).sort, properties);
+}
+
 /** What a task is worth for one column. Empty is null, whatever its type. */
 function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[]): SortKey {
   switch (item.kind) {

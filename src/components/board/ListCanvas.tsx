@@ -25,7 +25,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
 import { listColumns, listTemplate } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
-import { canSort, nextSort, sortTasks } from "@/lib/sort";
+import { canSort, pressSort, sortTasks } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
 import { useShortcut } from "./keys";
 import { Composer } from "./Column";
@@ -85,6 +85,7 @@ export function ListCanvas({
     visibleTasks,
     cardItems,
     sort,
+    viewSort,
     setSort,
     moveTask,
     createTask,
@@ -345,6 +346,25 @@ export function ListCanvas({
               {columns.map((column, at) => {
                 const held = pinProps(columns, column, at);
                 const on = sort?.columnId === column.id ? sort.direction : null;
+                /* The press writes my order, and mine falls back to the view's.
+                   So the heading says what the screen will show after it, which
+                   is not always the board's own order. */
+                const next = pressSort(sort, viewSort, column.id);
+                const after = next ?? viewSort;
+                const again =
+                  after?.columnId === column.id
+                    ? after.direction === "asc"
+                      ? "Again for smallest first."
+                      : "Again for largest first."
+                    : after
+                      ? "Again for this view's own order."
+                      : "Again for the board's own order.";
+                const said =
+                  on === "asc"
+                    ? `${column.name}, smallest first. ${again}`
+                    : on === "desc"
+                      ? `${column.name}, largest first. ${again}`
+                      : `Order by ${column.name}`;
                 const className = [
                   styles.listHeadCell,
                   column.right ? styles.listHeadRight : "",
@@ -373,25 +393,14 @@ export function ListCanvas({
                        is one: the list is a grid that reads like a table, and
                        its rows are buttons. So the state goes in the name,
                        where it is read either way. */
-                    aria-label={
-                      on === "asc"
-                        ? `${column.name}, smallest first. Again for largest first.`
-                        : on === "desc"
-                          ? `${column.name}, largest first. Again for the board's own order.`
-                          : `Order by ${column.name}`
-                    }
-                    /* Down, then up, then back to the order the board keeps —
-                       and the third press is the way back to a list you can
-                       drag, which is why it is on the heading and not hidden
-                       in a menu. */
-                    title={
-                      on === "asc"
-                        ? `${column.name}, smallest first. Again for largest first.`
-                        : on === "desc"
-                          ? `${column.name}, largest first. Again for the board's own order.`
-                          : `Order by ${column.name}`
-                    }
-                    onClick={() => void setSort(nextSort(sort, column.id))}
+                    aria-label={said}
+                    /* Down, then up, then the third press takes my order
+                       away, which is why it is on the heading and not hidden
+                       in a menu. The list can be dragged again only when the
+                       view has no order of its own; if it has one, the list
+                       falls back to it and stays held. */
+                    title={said}
+                    onClick={() => void setSort(next)}
                   >
                     <span className={styles.listHeadWords} data-testid="list-head-name">
                       {column.name}
