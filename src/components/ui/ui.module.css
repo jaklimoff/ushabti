@@ -468,6 +468,18 @@
   color: var(--danger-soft);
 }
 
+/* The words wrap; the button keeps its size and sits at the end of the line. */
+.toastWithAction {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toastAction {
+  flex: none;
+  margin: -3px -4px -3px 0;
+}
+
 /* ---- skeleton ------------------------------------------------------ */
 
 .skeleton {
