@@ -33,6 +33,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A task opens on the Agent tab while an agent works on it.** A running or
+  paused run shows first. A run that waits for an answer opens on Comments,
+  because the question is a comment. A tab you pick stays while the agent
+  reports.
 - **The button that shares your filters now reads "Save for everyone".** It
   used to read "Put on the view". On a phone it reads "Save for all". It does
   the same thing: your filters become the view's, and everybody sees them.
