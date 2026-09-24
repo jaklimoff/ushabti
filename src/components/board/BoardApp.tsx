@@ -97,7 +97,7 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         <div className={styles.top} data-testid="top-bar">
           {/* The mark is inside the button, so a phone that hides the name
               still has something to press. */}
-          <ProjectSwitcher project={data.project}>
+          <ProjectSwitcher project={data.project} className={styles.switcher}>
             <div className={styles.mark} data-testid="board-mark">
               {data.project.key.slice(0, 1)}
             </div>

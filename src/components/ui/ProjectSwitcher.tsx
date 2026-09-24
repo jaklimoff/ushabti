@@ -34,7 +34,16 @@ const MANY = 8;
  * shows, because the board and the settings bar draw the mark and the name at
  * their own sizes and hide them at their own widths.
  */
-export function ProjectSwitcher({ project, children }: { project: Project; children: ReactNode }) {
+export function ProjectSwitcher({
+  project,
+  className,
+  children,
+}: {
+  project: Project;
+  /** Lets a bar hide the whole switcher at a width of its own choosing. */
+  className?: string;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const menuId = useId();
   const [open, setOpen] = useState(false);
@@ -126,7 +135,7 @@ export function ProjectSwitcher({ project, children }: { project: Project; child
 
   return (
     <div
-      className={styles.wrap}
+      className={`${styles.wrap} ${className ?? ""}`}
       ref={wrap}
       onBlur={(e) => {
         // Tab out of the menu closes it, as a press outside does.

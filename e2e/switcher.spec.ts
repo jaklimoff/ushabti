@@ -1,5 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createProject, gotoSettings, overflow, register, unique } from "./helpers";
+import {
+  addTask,
+  card,
+  createProject,
+  gotoSettings,
+  overflow,
+  pastTheBar,
+  register,
+  showColumn,
+  unique,
+} from "./helpers";
 
 function switcher(page: Page) {
   return page.getByTestId("project-switcher");
@@ -70,6 +80,9 @@ test.describe("The project switcher", () => {
     /* The highlight starts on this project. Up goes to the one before it. */
     await page.keyboard.press("ArrowDown");
     await expect(menu(page)).toBeFocused();
+    /* The menu opens on this project alone and the list follows. A walk
+       before it arrives would wrap onto All projects. */
+    await expect(page.getByRole("menuitemradio")).toHaveCount(2);
     await page.keyboard.press("ArrowUp");
     const at = await menu(page).getAttribute("aria-activedescendant");
     await expect(page.locator(`[id="${at}"]`)).toHaveText(first);
@@ -154,5 +167,30 @@ test.describe("The project switcher on a phone", () => {
 
     await page.getByRole("menuitemradio", { name: first }).click();
     await page.waitForURL(`**/p/${firstId}`);
+  });
+});
+
+/* A question from the pick bar takes the last of a small tablet's bar, the
+   mark included. The mark is the switcher's button, so the caret must not
+   stay behind alone and take that room back. */
+test.describe("The project switcher while the pick bar asks", () => {
+  test.use({ viewport: { width: 540, height: 820 } });
+
+  test("goes with the mark, and nothing is pushed off the bar", async ({ page }) => {
+    await register(page, "Wilhelmina Featherstonehaugh");
+    await createProject(page, unique("Pocket"));
+    for (const title of ["Aardvark", "Beetle"]) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+    await showColumn(page, "Todo");
+    for (const title of ["Aardvark", "Beetle"]) {
+      await card(page, title).getByTestId("card-pick").click();
+    }
+    await expect(page.getByTestId("project-switcher")).toBeVisible();
+
+    await page.getByTestId("pick-archive").click();
+    await expect(page.getByTestId("project-switcher")).toBeHidden();
+    expect(await pastTheBar(page)).toBe(0);
   });
 });
