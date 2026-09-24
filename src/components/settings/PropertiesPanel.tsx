@@ -21,7 +21,6 @@ import { useBoard } from "@/components/board/store";
 import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
-import { fallbackRow, KIND_OF_TYPE, setCardPlace, viewOf } from "@/lib/card-view";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -144,8 +143,7 @@ export function PropertiesPanel() {
 }
 
 function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
-  const { cardItems, setCardView, patchProperty, deleteProperty, addOption, deleteOption, notify } =
-    useBoard();
+  const { patchProperty, deleteProperty, addOption, deleteOption, notify } = useBoard();
   const {
     attributes,
     listeners,
@@ -176,10 +174,6 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
      after the ✕ of another option, would name the wrong number, so it is
      dropped. */
   const asked = useRef(0);
-  /* Where a property sits on a card belongs to the card view, so this reads
-     from there and writes there. This page keeps the short answer; the card
-     view page has the long one. */
-  const showOnCard = cardItems.find((i) => i.id === property.id)?.place !== "off";
 
   /* The name saves on blur, and a closed tab sends no blur. */
   const nameEdit = typed ? editedText(name, property.name) : null;
@@ -306,28 +300,6 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           )}
         </div>
         <div className={styles.propTools}>
-          <button
-            type="button"
-            className={`${styles.cardToggle} ${showOnCard ? styles.cardToggleOn : ""}`}
-            aria-label={`${showOnCard ? "Hide" : "Show"} ${property.name} on the card`}
-            aria-pressed={showOnCard}
-            onClick={() => {
-              const view = viewOf(cardItems);
-              void setCardView(
-                showOnCard
-                  ? setCardPlace(view, property.id, "off")
-                  : {
-                      ...view,
-                      rows: {
-                        ...view.rows,
-                        [property.id]: fallbackRow(KIND_OF_TYPE[property.type]),
-                      },
-                    },
-              );
-            }}
-          >
-            On card {showOnCard ? "◉" : "○"}
-          </button>
           {canEdit && (
             <IconButton
               danger
