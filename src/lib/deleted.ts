@@ -65,8 +65,9 @@ export function saysLeft(goes: string | number | Date, now: number): string {
  * that said thirty while the server meant something else would be the one
  * sentence nobody could check.
  *
- * There is no button on it. `notify()` has none, and adding one would put the
- * undo in a place that is gone in five seconds.
+ * The toast carries an Undo button as well, and the sentence still names the
+ * Archive: the button goes with the toast, and the Archive keeps the task for
+ * the whole window.
  */
 export function deletedSaid(key: string, goes: string | null, now = Date.now()): string {
   const days = goes ? daysLeft(goes, now) : 0;
