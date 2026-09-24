@@ -23,6 +23,7 @@ import {
 } from "@/lib/run-state";
 import { checklistField, editingSaid } from "@/lib/presence";
 import { searchTasks } from "@/lib/search";
+import { trackWrites } from "@/lib/writes";
 import type {
   AgentRunDTO,
   AgentRunDetailDTO,
@@ -55,6 +56,9 @@ import styles from "./panel.module.css";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
+
+/* Sends one write of the panel's, watched until it is answered. */
+type Counted = <T>(write: () => Promise<T>) => Promise<T>;
 
 type PanelTab = "comments" | "activity" | "agent";
 
@@ -162,27 +166,40 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   const now = useNow(!!shown?.archivedAt);
 
   /*
-   * Every write this panel makes, counted, exactly as the board counts its own.
-   * A read of the task that was already out when one went answers with the task
-   * as it was before the write, and drawing that quietly undoes the comment
-   * somebody just sent. Every change anybody makes starts such a read here.
+   * Every write this panel makes, watched until it is answered, exactly as the
+   * board watches its own. A read of the task that crosses one answers with the
+   * task as it may have been before the write, and drawing that quietly undoes
+   * the value somebody just picked. Every change anybody makes starts such a
+   * read here. A read dropped for a write is asked again once no write is out.
+   *
+   * One rule, two subjects: the panel writes some things itself and hands the
+   * rest to the store, and a read that crosses either of them is as stale. So
+   * every write the panel starts goes through `counted`.
+   *
+   * The store keeps watch of its own, for its own read of the board. Two
+   * watches for two reads is the smaller answer: one would drop a read for a
+   * write it cannot see, and a read dropped for a write that did not touch it
+   * is a read lost for nothing.
    */
-  const writes = useRef(0);
+  const loadRef = useRef<() => Promise<void>>(async () => {});
+  const [writes] = useState(() => trackWrites(() => void loadRef.current()));
+  const counted = useCallback(
+    <T,>(write: () => Promise<T>): Promise<T> => {
+      const answered = writes.begin();
+      return write().finally(answered);
+    },
+    [writes],
+  );
 
   /*
-   * One rule, two subjects: the panel writes some things itself and hands the
-   * rest to the store, and a read that went out before either of them is as
-   * stale. So every write the panel starts is counted here, before it goes.
-   *
-   * The store keeps a count of its own, for its own read of the board. Two
-   * counters for two reads is the smaller answer: one number would be bumped
-   * by writes the other read cannot see, and a read dropped for a write that
-   * did not touch it is a read lost for nothing.
+   * A write the panel sends straight to a route, past the store. The board
+   * draws some of it too — a title, a count of comments or of checklist
+   * items — so the store watches it as well as the panel.
    */
-  const counted = useCallback(<T,>(write: () => Promise<T>): Promise<T> => {
-    writes.current += 1;
-    return write();
-  }, []);
+  const direct = useCallback(
+    <T,>(write: () => Promise<T>): Promise<T> => counted(write).finally(wrote()),
+    [counted, wrote],
+  );
 
   /*
    * The task the last read was started for. The panel stays where it is when
@@ -198,12 +215,12 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
      screen in the promise’s own callback rather than in the line that started
      the read. The effect below only asks; this is where the answer lands. */
   const load = useCallback(() => {
-    const at = writes.current;
+    const reading = writes.reading();
     asked.current = taskId;
     return api
       .get<{ task: TaskDetailDTO | null }>(`/api/tasks/${taskId}`)
       .then((res) => {
-        if (writes.current !== at || asked.current !== taskId) return;
+        if (asked.current !== taskId || !writes.keep(reading)) return;
         setLoaded({ taskId, task: res.task });
         if (!res.task) {
           onClose();
@@ -221,11 +238,15 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
         if (asked.current !== taskId) return;
         onClose();
       });
-  }, [onClose, syncTaskCounts, taskId]);
+  }, [onClose, syncTaskCounts, taskId, writes]);
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
 
-  /* A write of this panel’s own ends by reading the task again, so the read a
-     broadcast started before it is dropped rather than landing on top of it. */
-  const reload = useCallback(() => counted(load), [counted, load]);
+  /* A write of this panel’s own ends by reading the task again. Only the
+     newest read lands, so the read a broadcast started before it is dropped
+     rather than landing on top of it. */
+  const reload = load;
 
   /* What the panel hands to the store is counted on the way out, as its own
      writes are.
@@ -245,13 +266,12 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
         await counted(() => patchTask(taskId, fields));
         return "saved";
       }
-      /* The store counts it too. A board read that was out before this save
-         would otherwise land after it and put the old words back on the card
-         and in the field, and the next edit would start from them. */
-      wrote();
+      /* The store watches it too. A board read that crossed this save would
+         otherwise put the old words back on the card and in the field, and
+         the next edit would start from them. */
       let answer: Saved = "saved";
       try {
-        await counted(() =>
+        await direct(() =>
           api.patch(`/api/tasks/${taskId}`, {
             ...fields,
             baseTitle: base.title,
@@ -268,7 +288,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
       await Promise.all([reload(), refresh()]);
       return answer;
     },
-    [counted, notify, patchTask, refresh, reload, taskId, wrote],
+    [counted, direct, notify, patchTask, refresh, reload, taskId],
   );
 
   /* Who wrote a field last, if the feed says and it was not me. A checklist
@@ -486,7 +506,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           <button
             className={styles.archivedBack}
             onClick={async () => {
-              await restoreTask(taskId);
+              await counted(() => restoreTask(taskId));
               /* The task's own history gained a line, and this panel is the
                  thing showing it. */
               await reload();
@@ -582,7 +602,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                   data-testid="archive-task"
                   onClick={async () => {
                     setMenuOpen(false);
-                    await archiveTask(taskId);
+                    await counted(() => archiveTask(taskId));
                     await reload();
                   }}
                 >
@@ -595,7 +615,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 onClick={() => {
                   setMenuOpen(false);
                   onClose();
-                  void deleteTask(taskId);
+                  void counted(() => deleteTask(taskId));
                 }}
               >
                 <span className={styles.menuDot} />
@@ -670,6 +690,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 adding={addingLink}
                 setAdding={(way) => setLinking(way ? { taskId, way } : null)}
                 reload={reload}
+                counted={counted}
                 onError={notify}
               />
 
@@ -687,6 +708,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 items={detail?.checklist ?? []}
                 loading={!detail}
                 reload={reload}
+                counted={direct}
                 onError={notify}
                 signOf={(itemId) => editingSaid(editing(checklistField(itemId)), "this item")}
                 inField={inField}
@@ -728,6 +750,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                   description={shown.description}
                   onUseAsDescription={(description) => patch({ description })}
                   reload={reload}
+                  counted={direct}
                   onError={notify}
                 />
               )}
@@ -755,7 +778,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                     <AgentRunBlock
                       run={run}
                       onControl={async (control) => {
-                        await controlRun(run.id, control);
+                        await counted(() => controlRun(run.id, control));
                         await reload();
                       }}
                     />
@@ -882,6 +905,7 @@ function Links({
   adding,
   setAdding,
   reload,
+  counted,
   onError,
 }: {
   taskId: string;
@@ -889,6 +913,7 @@ function Links({
   adding: LinkWay | null;
   setAdding: (way: LinkWay | null) => void;
   reload: () => Promise<void>;
+  counted: Counted;
   onError: (message: string) => void;
 }) {
   const { data, linkBlocker } = useBoard();
@@ -930,7 +955,7 @@ function Links({
   async function add(way: LinkWay, other: string) {
     const { to, from } = ends(way, other);
     try {
-      await linkBlocker(to, from, true);
+      await counted(() => linkBlocker(to, from, true));
       setQuery("");
       setRefused(null);
       setAdding(null);
@@ -945,7 +970,7 @@ function Links({
   async function remove(way: LinkWay, other: string) {
     const { to, from } = ends(way, other);
     try {
-      await linkBlocker(to, from, false);
+      await counted(() => linkBlocker(to, from, false));
       await reload();
     } catch (err) {
       onError(err instanceof Error ? err.message : "That link did not go.");
@@ -1825,6 +1850,7 @@ function Checklist({
   items,
   loading,
   reload,
+  counted,
   onError,
   signOf,
   inField,
@@ -1833,6 +1859,7 @@ function Checklist({
   items: ChecklistItemDTO[];
   loading: boolean;
   reload: () => Promise<void>;
+  counted: Counted;
   onError: (message: string) => void;
   signOf: (itemId: string) => string | null;
   inField: (field: string | null) => void;
@@ -1903,7 +1930,7 @@ function Checklist({
 
   async function saveText(id: string, text: string, from: string) {
     try {
-      await api.patch(`/api/checklist/${id}`, { text, baseText: from });
+      await counted(() => api.patch(`/api/checklist/${id}`, { text, baseText: from }));
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) setChanged({ id, mine: text });
       else onError(err instanceof Error ? err.message : "The checklist did not save.");
@@ -1913,7 +1940,7 @@ function Checklist({
 
   async function run(work: () => Promise<unknown>) {
     try {
-      await work();
+      await counted(work);
       await reload();
     } catch (err) {
       onError(err instanceof Error ? err.message : "The checklist did not save.");
@@ -2068,6 +2095,7 @@ function Comments({
   description,
   onUseAsDescription,
   reload,
+  counted,
   onError,
 }: {
   taskId: string;
@@ -2076,6 +2104,7 @@ function Comments({
   description: string;
   onUseAsDescription: (body: string) => Promise<unknown>;
   reload: () => Promise<void>;
+  counted: Counted;
   onError: (message: string) => void;
 }) {
   const { data } = useBoard();
@@ -2096,7 +2125,7 @@ function Comments({
     if (!text || busy) return;
     setBusy(true);
     try {
-      await api.post(`/api/tasks/${taskId}/comments`, { body: text });
+      await counted(() => api.post(`/api/tasks/${taskId}/comments`, { body: text }));
       setDraft("");
       await reload();
     } catch (err) {
@@ -2116,6 +2145,7 @@ function Comments({
           description={description}
           onUseAsDescription={onUseAsDescription}
           reload={reload}
+          counted={counted}
           onError={onError}
         />
       ))}
@@ -2188,6 +2218,7 @@ function CommentItem({
   description,
   onUseAsDescription,
   reload,
+  counted,
   onError,
 }: {
   comment: TaskDetailDTO["comments"][number];
@@ -2195,6 +2226,7 @@ function CommentItem({
   description: string;
   onUseAsDescription: (body: string) => Promise<unknown>;
   reload: () => Promise<void>;
+  counted: Counted;
   onError: (message: string) => void;
 }) {
   const confirm = useConfirm();
@@ -2231,7 +2263,7 @@ function CommentItem({
               title="Delete"
               onClick={async () => {
                 try {
-                  await api.del(`/api/comments/${comment.id}`);
+                  await counted(() => api.del(`/api/comments/${comment.id}`));
                   await reload();
                 } catch (err) {
                   onError(err instanceof Error ? err.message : "Could not delete.");

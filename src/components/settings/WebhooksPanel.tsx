@@ -91,6 +91,7 @@ function Hooks({
   reload: () => Promise<void>;
   projectId: string;
 }) {
+  const { send } = useBoard();
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   /* Why the last URL was refused. It is a sentence in the row rather than a
@@ -106,7 +107,7 @@ function Hooks({
     setBusy(true);
     setError(null);
     try {
-      const res = await api.post<{ webhook: WebhookDTO; secret: string }>(
+      const res = await send.post<{ webhook: WebhookDTO; secret: string }>(
         `/api/projects/${projectId}/webhooks`,
         { url: trimmed, kinds: [] },
       );
@@ -205,7 +206,7 @@ function HookBox({
   show: (secret: string) => void;
   reload: () => Promise<void>;
 }) {
-  const { notify } = useBoard();
+  const { notify, send } = useBoard();
   const confirm = useConfirm();
   const roll = useConfirm();
   const [url, setUrl] = useState(hook.url);
@@ -225,7 +226,7 @@ function HookBox({
   async function save(patch: Record<string, unknown>) {
     setError(null);
     try {
-      await api.patch(base, patch);
+      await send.patch(base, patch);
       await reload();
     } catch (err) {
       /* A refused address stays beside the box that holds it. The box keeps
@@ -250,7 +251,7 @@ function HookBox({
 
   async function rollSecret() {
     try {
-      const res = await api.patch<{ secret: string }>(base, { roll: true });
+      const res = await send.patch<{ secret: string }>(base, { roll: true });
       show(res.secret);
       await reload();
     } catch (err) {
@@ -260,7 +261,7 @@ function HookBox({
 
   async function test() {
     try {
-      await api.post(base);
+      await send.post(base);
       await reload();
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not send a test.");
@@ -270,7 +271,7 @@ function HookBox({
   async function remove() {
     try {
       forget();
-      await api.del(base);
+      await send.del(base);
       await reload();
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not delete the webhook.");
