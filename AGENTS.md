@@ -137,11 +137,12 @@ and what is easy to get wrong.
   and is the meaning; a multi-select by its lowest index, because its values
   arrive in whatever order somebody clicked them. Empty always sorts last, both
   ways; an unticked checkbox is not empty but a value, because a checkbox draws
-  no empty state, so it sorts Ticked first or Not ticked first. Equal keys fall back to `position` so a list never shuffles and
-  always agrees with the board. Words go through one named `Intl.Collator`, not
-  `localeCompare`: the list is drawn on the server and again in the browser, and
-  the default locale differs between them — the same hazard the written-out
-  month names in `board.ts` exist for.
+  no empty state, so it sorts Ticked first or Not ticked first. Equal keys fall
+  back to `position` so a list never shuffles and always agrees with the board.
+  Words go through one named `Intl.Collator`, not `localeCompare`: the list is
+  drawn on the server and again in the browser, and the default locale differs
+  between them — the same hazard the written-out month names in `board.ts`
+  exist for.
 - **A list is one column of rows, so it walks the board's own cursor.**
   `cursorTarget` over a single synthetic column already answers up, down, Home
   and End, and answers null sideways because its loop finds no second column.
