@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
@@ -39,21 +40,24 @@ import {
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
+/* The grip is the only thing that lifts a row or a chip, so the name boxes
+   and the buttons beside them still take a caret and a click. Space lifts, the
+   arrows move, Space puts it down: that is the route the up and down buttons
+   gave. The same 4 px as the views rows, because it is one settings page. */
+function useGripSensors() {
+  return useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+}
+
 export function PropertiesPanel() {
   const { data, addProperty, moveProperty } = useBoard();
   const [name, setName] = useState("");
   const [type, setType] = useState<PropertyType>("select");
   const [options, setOptions] = useState("");
   const canEdit = canManage(data.project.role);
-
-  /* The grip is the only thing that lifts a row, so the name box and the
-     buttons on it still take a caret and a click. Space lifts, the arrows
-     move, Space puts it down: that is the route the up and down buttons gave.
-     The same 4 px as the views rows, because it is one settings page. */
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const sensors = useGripSensors();
 
   /* The drag names the row it landed on, never a rank. The store works the
      neighbour out, as it does for a view, and the rank is made on the server
@@ -83,7 +87,7 @@ export function PropertiesPanel() {
     <>
       <PageHead
         title="Properties"
-        note="Every field on a task lives here. Nothing is built in — rename, recolour or delete whatever you like. Drag a property by its grip to change the order of the fields in the task panel."
+        note="Every field on a task lives here. Nothing is built in — rename, recolour or delete whatever you like. Drag a property by its grip to change the order of the fields in the task panel, and an option by its grip to change the order of its columns and its sort."
       />
 
       <Card>
@@ -143,7 +147,8 @@ export function PropertiesPanel() {
 }
 
 function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
-  const { patchProperty, deleteProperty, addOption, deleteOption, notify } = useBoard();
+  const { patchProperty, deleteProperty, addOption, deleteOption, moveOption, notify } = useBoard();
+  const optionSensors = useGripSensors();
   const {
     attributes,
     listeners,
@@ -337,14 +342,32 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
         )}
       {(property.type === "select" || property.type === "multi_select") && !dropConfirm.asking && (
         <div className={styles.options}>
-          {property.options.map((option) => (
-            <OptionChip
-              key={option.id}
-              option={option}
-              canEdit={canEdit}
-              onDelete={() => void askOption(option)}
-            />
-          ))}
+          {/* The chips wrap, so the strategy is a grid's and not a row's. The
+              drag names the chip it landed on, and the store makes the same
+              move a column drag makes: no rank leaves this page. */}
+          <DndContext
+            id={`ushabti-options-${property.id}`}
+            sensors={optionSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={({ active, over }) => {
+              if (over && active.id !== over.id)
+                void moveOption(String(active.id), String(over.id));
+            }}
+          >
+            <SortableContext
+              items={property.options.map((o) => o.id)}
+              strategy={rectSortingStrategy}
+            >
+              {property.options.map((option) => (
+                <OptionChip
+                  key={option.id}
+                  option={option}
+                  canEdit={canEdit}
+                  onDelete={() => void askOption(option)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
           {adding ? (
             <Input
               style={{ height: 24, width: 130 }}
@@ -390,9 +413,48 @@ function OptionChip({
   const { patchOption } = useBoard();
   const [open, setOpen] = useState(false);
   const ref = useDismiss<HTMLSpanElement>(() => setOpen(false), open);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: option.id,
+    transition: { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+  });
 
   return (
-    <span className={styles.option} ref={ref}>
+    <span
+      className={`${styles.option} ${isDragging ? styles.rowLifted : ""}`}
+      ref={(node) => {
+        ref.current = node;
+        setNodeRef(node);
+      }}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition: transition ?? undefined,
+      }}
+    >
+      {/* Six dots, as on the property row: one grip reads as one gesture. */}
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        className={`${styles.grip} ${styles.optionGrip}`}
+        aria-label={`Reorder the option ${option.name}`}
+        title="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </button>
       {/* The colour is the longhand, because on a phone the button holds a
           24 px square and clips the colour to the middle of it. The
           `background` shorthand would put that clip back to the whole button. */}

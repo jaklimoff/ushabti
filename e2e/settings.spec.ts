@@ -368,6 +368,7 @@ test.describe("Settings on a phone", () => {
     await forAFinger(page.getByRole("button", { name: /^Move / }), 7);
     await forAFinger(page.getByRole("button", { name: /^Colour of / }), 24);
     await forAFinger(page.getByRole("button", { name: /^Delete the option / }), 24);
+    await forAFinger(page.getByRole("button", { name: /^Reorder the option / }), 24);
   });
 });
 

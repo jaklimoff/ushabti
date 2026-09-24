@@ -873,6 +873,18 @@
   background: var(--bg-hover);
 }
 
+/* The same 24 px square on a chip only 24 px tall, so it takes the chip's own
+   left padding instead of adding to it, and the chip keeps its height. */
+.optionGrip {
+  margin: 0 -3px 0 -7px;
+}
+
+@media (max-width: 620px) {
+  .optionGrip {
+    margin: 0;
+  }
+}
+
 /* The word "main" is given, never taken away, so only the rows that have not
    got it carry a button. It stays quiet until the pointer is on it. */
 .makeMain {
