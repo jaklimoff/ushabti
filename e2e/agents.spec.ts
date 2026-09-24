@@ -193,15 +193,28 @@ test.describe("Agents on the board", () => {
       await api.post(`/api/tasks/${task.id}/run`, { goal: "Build it", step: "Running the build" })
     ).json();
 
-    const before = (await (await api.get(`/api/runs/${run.id}`)).json()).run;
+    const readRun = async () => (await (await api.get(`/api/runs/${run.id}`)).json()).run;
+    const beatOnce = async () => {
+      const beat = await api.patch(`/api/runs/${run.id}`, { beat: true });
+      expect(beat.ok()).toBeTruthy();
+    };
 
-    const beat = await api.patch(`/api/runs/${run.id}`, { beat: true });
-    expect(beat.ok()).toBeTruthy();
+    /* The claim stamps `beat_at` with the database clock and a beat with the
+       server's, and the two need not agree to the millisecond. So one beat
+       comes first, and `before` is read from the server's own clock. */
+    await beatOnce();
+    const before = await readRun();
 
-    const after = (await (await api.get(`/api/runs/${run.id}`)).json()).run;
-
-    // The one thing a beat may move.
-    expect(new Date(after.beatAt).getTime()).toBeGreaterThan(new Date(before.beatAt).getTime());
+    // The one thing a beat may move. Two beats can land in one millisecond,
+    // so the test beats again until the stamp has moved, not for a set time.
+    let after = before;
+    await expect
+      .poll(async () => {
+        await beatOnce();
+        after = await readRun();
+        return new Date(after.beatAt).getTime();
+      })
+      .toBeGreaterThan(new Date(before.beatAt).getTime());
 
     // And everything it may not. The card is a report of work, and a timer
     // does no work: it must not be able to look like progress.
