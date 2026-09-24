@@ -21,10 +21,18 @@ export type ProjectRow = {
   memberCount: number;
 };
 
-export function ProjectList({ user, projects }: { user: SessionUser; projects: ProjectRow[] }) {
+export function ProjectList({
+  user,
+  projects,
+  adding: asked = false,
+}: {
+  user: SessionUser;
+  projects: ProjectRow[];
+  adding?: boolean;
+}) {
   const router = useRouter();
   const first = projects.length === 0;
-  const [adding, setAdding] = useState(first);
+  const [adding, setAdding] = useState(first || asked);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);

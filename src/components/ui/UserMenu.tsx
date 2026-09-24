@@ -47,14 +47,6 @@ export function UserMenu({ user, extra }: { user: SessionUser; extra?: React.Rea
           >
             Account
           </Link>
-          <Link
-            className={styles.item}
-            role="menuitem"
-            href="/projects"
-            onClick={() => setOpen(false)}
-          >
-            All projects
-          </Link>
           <div className={styles.rule} />
           <button className={styles.item} role="menuitem" onClick={signOut}>
             Sign out

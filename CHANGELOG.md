@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The project name switches between projects.** Press it in the top bar of the board, Settings
+  or the Archive for a menu of your projects, the current one marked ✓, then **New project** and
+  **All projects**. The arrow keys, `Enter` and `Escape` work, and past eight projects a box
+  narrows the list. **All projects** left the user menu, and the name in the Settings and Archive
+  bar is no longer a link to the board: **Back to board** is. On a phone the letter beside the
+  name is the button.
 - **A filter finds the tasks where an agent waits.** **Agent waiting** sits beside **Blocked** in
   the filter list and keeps only the tasks whose open run asked a person something. A hand-over
   does not count. The card leaves when the agent takes the answer and goes back to work. A rule

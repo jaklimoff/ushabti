@@ -307,8 +307,10 @@
 
   /* A question is longer than a count, and at this width the bar has already
      been given everything else. So the mark lends it the last of the room,
-     for as long as the question stands. */
-  .top:has(.pickAsking) .mark {
+     for as long as the question stands. The mark is the switcher's button,
+     so the whole switcher goes with it; a caret left alone would take the
+     room back. */
+  .top:has(.pickAsking) .switcher {
     display: none;
   }
 }
