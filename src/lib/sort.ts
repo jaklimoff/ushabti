@@ -4,6 +4,7 @@ import {
   CARD_BUILTINS,
   SORT_DIRECTIONS,
   type CardBuiltin,
+  type CardKind,
   type MemberDTO,
   type PropertyDTO,
   type SortDirection,
@@ -234,10 +235,64 @@ function byPosition(a: TaskDTO, b: TaskDTO): number {
   return a.position < b.position ? -1 : a.position > b.position ? 1 : 0;
 }
 
+/**
+ * The words for the two ways an order runs, by what the column holds.
+ *
+ * "Smallest first" is true of a number and nonsense for a title, a status or a
+ * due date. So the words key off the card kind, as the order itself does, and
+ * the Sort button, a list heading and the chip all read this one table. Three
+ * places that chose their own words would say three things about one order.
+ *
+ * Each pair says what `sortTasks` does. A select runs in the order somebody
+ * arranged its options, so that is the name. A key is given out in order, so
+ * the lowest key is the oldest task. A flag has one value and an empty, and
+ * the empty always goes last, so both ways put the ticked tasks first.
+ */
+const WAYS_OF_KIND: Record<CardKind, Record<SortDirection, string>> = {
+  id: { asc: "Oldest first", desc: "Newest first" },
+  title: { asc: "A→Z", desc: "Z→A" },
+  desc: { asc: "A→Z", desc: "Z→A" },
+  checklist: { asc: "Least done first", desc: "Most done first" },
+  comments: { asc: "Fewest first", desc: "Most first" },
+  select: { asc: "Option order", desc: "Reverse order" },
+  person: { asc: "A→Z", desc: "Z→A" },
+  date: { asc: "Earliest first", desc: "Latest first" },
+  flag: { asc: "Ticked first", desc: "Ticked first" },
+  text: { asc: "A→Z", desc: "Z→A" },
+};
+
+/** A number shares the text kind on a card, and here it must not. */
+const WAYS_OF_NUMBER: Record<SortDirection, string> = {
+  asc: "Smallest first",
+  desc: "Largest first",
+};
+
+function kindOf(item: CardItem): CardKind {
+  return item.property ? KIND_OF_TYPE[item.property.type] : KIND_OF_BUILTIN[item.id as CardBuiltin];
+}
+
+/** Which way an order by this column runs, in the words a person reads. */
+export function sortWay(item: CardItem, direction: SortDirection): string {
+  if (item.property?.type === "number") return WAYS_OF_NUMBER[direction];
+  return WAYS_OF_KIND[kindOf(item)][direction];
+}
+
+/**
+ * The same words inside a sentence. Only a word loses its capital: "A→Z"
+ * stays as it is.
+ */
+export function sortWayInline(item: CardItem, direction: SortDirection): string {
+  const way = sortWay(item, direction);
+  return /^[A-Z][a-z]/.test(way) ? way[0].toLowerCase() + way.slice(1) : way;
+}
+
 /** What the chip says: the column, and which way it runs. */
-export function sortLabel(sort: ViewSort, columns: CardItem[]): string {
+export function sortLabel(
+  sort: ViewSort,
+  columns: CardItem[],
+): { name: string; way: string } | null {
   const item = columns.find((c) => c.id === sort.columnId);
-  return item ? item.name : "";
+  return item ? { name: item.name, way: sortWay(item, sort.direction) } : null;
 }
 
 /**
@@ -246,8 +301,5 @@ export function sortLabel(sort: ViewSort, columns: CardItem[]): string {
  * here rather than at every heading.
  */
 export function canSort(item: CardItem): boolean {
-  const kind = item.property
-    ? KIND_OF_TYPE[item.property.type]
-    : KIND_OF_BUILTIN[item.id as CardBuiltin];
-  return kind !== "desc";
+  return kindOf(item) !== "desc";
 }

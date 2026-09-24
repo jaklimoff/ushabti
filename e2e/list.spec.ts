@@ -341,6 +341,31 @@ test.describe("A list view", () => {
     await expect(page.getByTestId("sort-chip")).toHaveCount(0);
   });
 
+  test("names each way of an order as the board's Sort button does", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Ways"));
+    await threeTasks(page);
+    await addListView(page, "Ways");
+
+    const chip = page.getByTestId("sort-chip");
+
+    await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
+    await expect(listHead(page, "Priority")).toHaveAccessibleName(
+      "Priority, option order. Again for reverse order.",
+    );
+    await expect(chip).toContainText("Priority: Option order");
+
+    await settles(page, /\/api\/views\//, () => listHead(page, "Title").click());
+    await expect(listHead(page, "Title")).toHaveAccessibleName("Title, A→Z. Again for Z→A.");
+    await expect(chip).toContainText("Title: A→Z");
+
+    await settles(page, /\/api\/views\//, () => listHead(page, "Title").click());
+    await expect(listHead(page, "Title")).toHaveAccessibleName(
+      "Title, Z→A. Again for the board's own order.",
+    );
+    await expect(chip).toContainText("Title: Z→A");
+  });
+
   test("holds its order across a reload, and says it is holding one", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Holds"));
