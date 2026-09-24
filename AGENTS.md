@@ -185,7 +185,7 @@ and what is easy to get wrong.
   member cannot see past a view's rule, which is what the main view is for.
   `readFilters()` runs on both sets, on the server and on every write. Writing
   a lens broadcasts nothing — it moves one screen, and the stream is for what
-  the team shares — while **Put on the view** is one transaction under the
+  the team shares — while **Save for everyone** is one transaction under the
   project lock and does broadcast. An agent has no lens and never reads one:
   `filters` on the view DTO stays the view's.
 - **One property carries one rule, whoever asked.** Two rules about one
