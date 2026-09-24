@@ -372,7 +372,7 @@ export function asksAbout(filters: ViewFilters, propertyId: string): boolean {
  * One property, one rule, whoever asked. A lens may only narrow, so a second
  * rule about a property the view already speaks about is a trap: "Priority is
  * High" on the view and "Priority is Low" of mine empties the board with two
- * chips and nothing that says why, and **Put on the view** would hand that to
+ * chips and nothing that says why, and **Save for everyone** would hand that to
  * the team. It counts the property and not the operator, because nobody
  * reading two chips can tell a pair that narrows from a pair that can never
  * both pass.
