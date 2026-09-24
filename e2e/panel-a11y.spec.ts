@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addTask, card, createProject, register, unique } from "./helpers";
+import { addListView, addTask, card, createProject, listRow, register, unique } from "./helpers";
 
 /*
  * The task panel and the view strip, read by a keyboard and by a screen
@@ -76,17 +76,53 @@ test.describe("The panel and the view strip work without a mouse", () => {
     const assignee = panel.getByRole("button", { name: "Assignee Unassigned", exact: true });
     await assignee.click();
     const people = panel.getByRole("listbox", { name: "Assignee" });
-    await expect(people.getByRole("option", { name: "Unassigned" })).toBeFocused();
-    await expect(people.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
+    await expect(people.getByRole("option", { name: "Unassigned", exact: true })).toBeFocused();
+    await expect(people.getByRole("option", { name: "Unassigned", exact: true })).toHaveAttribute(
       "aria-selected",
       "true",
     );
     await page.keyboard.press("ArrowDown");
-    await expect(people.getByRole("option", { name: "Test Person" })).toBeFocused();
+    const me = people.getByRole("option", { name: "Test Person", exact: true });
+    await expect(me).toBeFocused();
+    // The list is one tab stop: the arrows walk it, and one Tab leaves it.
+    await expect(people.locator('[role="option"][tabindex="0"]')).toHaveCount(0);
+    await page.keyboard.press("Tab");
+    await expect(people.locator(":focus")).toHaveCount(0);
     await page.keyboard.press("Escape");
-    await expect(assignee).toBeFocused();
+    await expect(people).toHaveCount(0);
+    // Pick with Enter, and the field reads the person by name alone.
+    await assignee.click();
+    await expect(people.getByRole("option", { name: "Unassigned", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    const assigned = panel.getByRole("button", { name: "Assignee Test Person", exact: true });
+    await expect(assigned).toBeFocused();
+    await assigned.click();
+    await page.keyboard.press("Escape");
+    await expect(assigned).toBeFocused();
     // The menu took that Escape, so the panel is still open.
     await expect(panel).toBeVisible();
+  });
+
+  test("a list gives the focus back to the row that was open", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("List focus"));
+    await addTask(page, "Todo", "Row one");
+    await addTask(page, "Todo", "Row two");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await addListView(page, "Rows");
+
+    const first = listRow(page, "Row one");
+    await first.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("task-title")).toBeFocused();
+    await expect(page.getByTestId("task-title")).toHaveValue("Row one");
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
+    await expect(first).toBeFocused();
+    const tabStop = page.locator('[data-testid="list-row"][tabindex="0"]');
+    await expect(tabStop).toHaveCount(1);
+    await expect(tabStop).toContainText("Row one");
   });
 
   test("the panel's tabs are tabs, and the arrows move between them", async ({ page }) => {

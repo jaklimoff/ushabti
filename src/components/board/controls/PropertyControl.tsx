@@ -466,7 +466,8 @@ const LIST_STEPS: Record<string, (at: number, count: number) => number> = {
 /**
  * A short list of people, so it has no box to type in: the focus goes into
  * the list, onto the person already chosen, and the arrows walk it. Every row
- * is still a button, so Enter and Space pick as they always did.
+ * is still a button, so Enter and Space pick as they always did. The list is
+ * one tab stop, like every listbox: Tab leaves it.
  */
 function PersonMenu({ value, members, onChange, labelId }: Props) {
   const [open, setOpen] = useState(false);
@@ -519,7 +520,10 @@ function PersonMenu({ value, members, onChange, labelId }: Props) {
         {...named(labelId, triggerId)}
         onClick={() => setOpen((v) => !v)}
       >
-        {current ? <Avatar name={current.name} color={current.color} size={18} /> : NOBODY}
+        {/* The face draws initials as text, and the name is already there. */}
+        <span aria-hidden="true" style={{ display: "contents" }}>
+          {current ? <Avatar name={current.name} color={current.color} size={18} /> : NOBODY}
+        </span>
         <span className={`${styles.triggerText} ${current ? "" : styles.triggerEmpty}`}>
           {current?.name ?? "Unassigned"}
         </span>
@@ -544,9 +548,12 @@ function PersonMenu({ value, members, onChange, labelId }: Props) {
                 className={`${styles.menuItem} ${on && row.id ? styles.menuItemOn : ""}`}
                 role="option"
                 aria-selected={on}
+                tabIndex={-1}
                 onClick={() => pick(row.id)}
               >
-                {row.face}
+                <span aria-hidden="true" style={{ display: "contents" }}>
+                  {row.face}
+                </span>
                 {row.name}
                 <span style={{ flex: 1 }} />
                 <span
