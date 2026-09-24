@@ -2154,6 +2154,16 @@ button.listHeadCell:focus-visible {
   padding: 4px 6px;
 }
 
+/* A line above the question, not a second question: the rule is still
+   changed with one press, and nobody is asked to confirm it. */
+.filterShared {
+  margin: 0 0 6px;
+  padding: 0 2px 6px;
+  border-bottom: 1px solid var(--line-menu);
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
 /* The row exists only while the view has a rule. An unfiltered board pays
    nothing for it, and a board that hides work can never do it quietly. */
 .filterRow {
