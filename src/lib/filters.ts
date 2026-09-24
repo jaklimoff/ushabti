@@ -642,7 +642,10 @@ export function keyName(key: string, property: PropertyDTO, members: MemberDTO[]
   }
   if (key === ME_KEY) return "Me";
   if (property.type === "checkbox") {
-    return key === "true" ? property.name : `Not ${property.name.toLowerCase()}`;
+    if (key === "true") return property.name;
+    /* "Not agent waiting" reads as broken English; the word names a thing. */
+    if (property.id === AGENT_WAITING_KEY) return "No agent waiting";
+    return `Not ${property.name.toLowerCase()}`;
   }
   if (property.type === "person") return members.find((m) => m.id === key)?.name ?? "?";
   return property.options.find((o) => o.id === key)?.name ?? "?";

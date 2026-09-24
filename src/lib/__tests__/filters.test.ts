@@ -1080,6 +1080,7 @@ describe("the agent waiting rule", () => {
     expect(readFilters({ rules: [waits] }, []).rules).toEqual([waits]);
     expect(seedValues({ rules: [waits] }, [status], null, null)).toEqual({});
     expect(describeRule(waits, AGENT_WAITING_PROPERTY, members)).toBe("Agent waiting");
+    expect(describeRule(moving, AGENT_WAITING_PROPERTY, members)).toBe("No agent waiting");
   });
 
   it("clashes with itself across the two sets, and not with Blocked", () => {
