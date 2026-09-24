@@ -63,14 +63,35 @@ test.describe("Custom properties", () => {
 
     await expect(card(page, "Hidden props").locator('[title="Priority · Urgent"]')).toBeVisible();
 
-    await gotoSettings(page, projectId);
-    await saved(page, () =>
-      page.getByRole("button", { name: "Hide Priority on the card" }).click(),
-    );
-    await expect(page.getByRole("button", { name: "Show Priority on the card" })).toBeVisible();
+    await gotoSettings(page, projectId, "card");
+    await page.getByRole("button", { name: /^Priority on the card/ }).click();
+    await saved(page, () => page.getByRole("button", { name: "Take off the card" }).click());
 
     await page.goto(`/p/${projectId}`);
     await expect(card(page, "Hidden props").locator('[title="Priority · Urgent"]')).toHaveCount(0);
+  });
+
+  test("showOnCard on the API still takes a property off the card and back", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Api"));
+    await addTask(page, "Todo", "Chip by API");
+    await page.getByRole("button", { name: "Urgent" }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+    const chip = card(page, "Chip by API").locator('[title="Priority · Urgent"]');
+    await expect(chip).toBeVisible();
+
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
+    const patch = (showOnCard: boolean) =>
+      page.request.patch(`/api/properties/${priority.id}`, { data: { showOnCard } });
+
+    expect((await patch(false)).ok()).toBe(true);
+    await page.reload();
+    await expect(chip).toHaveCount(0);
+
+    expect((await patch(true)).ok()).toBe(true);
+    await page.reload();
+    await expect(chip).toBeVisible();
   });
 
   test("delete a property and its values disappear", async ({ page }) => {

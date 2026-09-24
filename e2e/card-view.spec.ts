@@ -246,9 +246,9 @@ test.describe("Card view", () => {
     await expect(page.getByRole("button", { name: /^Title on the card/ })).toBeDisabled();
   });
 
-  test("a row taken off the card comes back from the properties page", async ({ page }) => {
+  test("a row taken off the card comes back from the same page", async ({ page }) => {
     await register(page);
-    const projectId = await createProject(page, unique("Both"));
+    const projectId = await createProject(page, unique("Back"));
     await gotoSettings(page, projectId, "card");
 
     await row(page, "Due")
@@ -257,11 +257,17 @@ test.describe("Card view", () => {
     await saved(page, () => page.getByRole("button", { name: "Take off the card" }).click());
     await expect(row(page, "Due")).toHaveAttribute("data-place", "off");
 
+    // The card view is the one place that says what a card shows.
     await gotoSettings(page, projectId, "properties");
-    await expect(page.getByRole("button", { name: "Show Due on the card" })).toBeVisible();
-    await saved(page, () => page.getByRole("button", { name: "Show Due on the card" }).click());
+    await expect(page.getByRole("button", { name: /on the card/ })).toHaveCount(0);
 
     await gotoSettings(page, projectId, "card");
+    await row(page, "Due")
+      .getByRole("button", { name: /^Due on the card/ })
+      .click();
+    await saved(page, () =>
+      page.getByRole("button", { name: "Put Due in the footer left" }).click(),
+    );
     await expect(row(page, "Due")).toHaveAttribute("data-place", "footerL");
   });
 });
