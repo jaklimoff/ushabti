@@ -7,6 +7,7 @@ import type { BoardData } from "@/lib/types";
 
 /** What opening a task needs: which one, and the key its link carries. */
 type Openable = { id: string; key: string };
+import { ProjectSwitcher } from "@/components/ui/ProjectSwitcher";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
@@ -94,12 +95,16 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         {/* The bar itself is named, so a test that measures what hangs out
             of it holds the bar and not whatever the mark sits in. */}
         <div className={styles.top} data-testid="top-bar">
-          <div className={styles.mark} data-testid="board-mark">
-            {data.project.key.slice(0, 1)}
-          </div>
-          <span className={styles.crumbName} data-testid="board-crumb">
-            {data.project.name}
-          </span>
+          {/* The mark is inside the button, so a phone that hides the name
+              still has something to press. */}
+          <ProjectSwitcher project={data.project} className={styles.switcher}>
+            <div className={styles.mark} data-testid="board-mark">
+              {data.project.key.slice(0, 1)}
+            </div>
+            <span className={styles.crumbName} data-testid="board-crumb">
+              {data.project.name}
+            </span>
+          </ProjectSwitcher>
           <span className={styles.crumbSep}>/</span>
           <span className={styles.crumbView}>{view?.name ?? "Board"}</span>
           <div className={styles.spacer} />
