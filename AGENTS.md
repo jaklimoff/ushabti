@@ -102,6 +102,22 @@ and what is easy to get wrong.
   column that is gone, on the server in `toViewDTO` and again on the write. It
   is not `humanOnly` — a filter is guarded because it hides work from the
   people, and a sort hides nothing.
+- **A sort belongs to the person who picked it.** A sorted board holds still,
+  so an order written on the view stopped the whole team dragging inside a
+  column with nothing on their screens to say why. `setSort` writes the lens,
+  beside the rules in the same `filters` jsonb, so there is no second row and
+  no migration; `readLensSort()` reads it afresh as `readSort()` does. Mine
+  wins over the view's while it exists, and the store's `sort` is that one
+  answer, so everything that orders or holds still asks it and a board holds
+  still only for the person whose order it is. A lens is put whole, so every
+  write of it — the rules, the order, and the filter box's `useSaveOnLeave` —
+  carries both halves; a write that sent one would take the other away.
+  **Save for everyone** moves the order with the rules in the one transaction
+  it already has. `pressSort()` is the one place a press is worked out against
+  the view's order: mine never repeats the view's, and a press that would fall
+  back to the order already on the screen turns it around instead. The view
+  can still carry an order for everybody, and its chip asks before its ✕
+  takes it away, as a shared rule does.
 - **A sort keys off the card kind, and off the type only where it must.** A
   select orders by its option index, because that order was arranged by hand
   and is the meaning; a multi-select by its lowest index, because its values

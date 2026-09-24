@@ -4,15 +4,19 @@ import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
 import { clashOf, clashSaid, mergeFilters, readFilters } from "@/lib/filters";
 import { loadProperties, viewProjectId, withProjectLock } from "@/lib/queries";
+import { readLensSort } from "@/lib/sort";
 
 type Ctx = { params: Promise<{ viewId: string }> };
 
 /**
- * Puts one person's rules on the view, for everybody.
+ * Puts one person's rules on the view, for everybody, and their order with
+ * them.
  *
  * The rules go end to end, the view's first, exactly as a screen already reads
  * them — so the board this person was looking at is the board the team now
- * gets. The lens is emptied in the same transaction: with the rules on the
+ * gets. The order goes with the rules: mine was winning over the view's on
+ * this screen, so it is the one the team now gets, and a lens with no order
+ * leaves the view's where it is. The lens is emptied in the same transaction: with the rules on the
  * view, keeping them twice would ask the same question twice and leave a
  * "Clear" that appeared to do nothing.
  *
@@ -57,10 +61,11 @@ export const POST = route<Ctx>(async (req, ctx) => {
     if (clash) throw new HttpError(409, clashSaid(clash));
 
     const filters = mergeFilters(ofView, mine);
+    const sort = readLensSort(lens?.filters, properties);
 
     await tx
       .update(views)
-      .set({ config: { ...config, filters } })
+      .set({ config: { ...config, filters, ...(sort ? { sort } : {}) } })
       .where(eq(views.id, viewId));
     await tx
       .delete(viewLenses)

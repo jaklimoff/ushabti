@@ -703,7 +703,9 @@ test.describe("Ordering a board", () => {
     // The ✕ gives the board its own order back, and it is the order it always
     // had: Aardvark is above Dingo again, so nothing the drags did wrote a
     // rank.
-    await settles(page, /\/api\/views\/[0-9a-f-]+$/, () => page.getByTestId("sort-clear").click());
+    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+      page.getByTestId("sort-clear").click(),
+    );
     await expect(page.getByTestId("sort-chip")).toHaveCount(0);
     expect(await columnOrder(page, "Backlog")).toEqual(["Aardvark", "Dingo"]);
     expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Cricket"]);

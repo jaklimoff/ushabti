@@ -4,6 +4,7 @@ import {
   addTask,
   card,
   column,
+  columnOrder,
   createProject,
   dragCard,
   gotoSettings,
@@ -12,6 +13,7 @@ import {
   saved,
   signIn,
   settles,
+  sortBoard,
   unique,
   type Account,
 } from "./helpers";
@@ -255,6 +257,75 @@ test.describe("Two people on one board", () => {
     await expect(friend.page.getByTestId("filter-chip")).toHaveText("Priority is Urgent");
     // It is the view's on their side too, so nothing there says "only you".
     await expect(friend.page.getByTestId("filter-mine")).toHaveCount(0);
+
+    await owner.context.close();
+    await friend.context.close();
+  });
+});
+
+/*
+ * A sorted board holds still, so an order one person picked used to stop the
+ * whole team dragging inside a column, with nothing on their screen to say
+ * why. The order is theirs now, exactly as a filter is.
+ */
+test.describe("An order one person picks", () => {
+  test("holds only their board still, until they save it for everyone", async ({ browser }) => {
+    const owner = await freshPage(browser);
+    const friend = await freshPage(browser);
+
+    await register(owner.page, "Owner Person");
+    const projectId = await createProject(owner.page, unique("SortLens"));
+    const friendAccount = await register(friend.page, "Friend Person");
+
+    await gotoSettings(owner.page, projectId, "people");
+    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
+    await owner.page.getByRole("button", { name: "Add member" }).click();
+    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+
+    await owner.page.goto(`/p/${projectId}`);
+    await addTask(owner.page, "Todo", "Ordinary work");
+    await owner.page.getByRole("button", { name: "Close task" }).click();
+    await addTask(owner.page, "Todo", "Urgent work");
+    await owner.page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await owner.page.getByRole("button", { name: "Close task" }).click();
+
+    await friend.page.goto(`/p/${projectId}`);
+    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
+    await expect(card(friend.page, "Urgent work")).toBeVisible();
+
+    // Mine, and the strip says so.
+    await sortBoard(owner.page, "Priority");
+    await expect(owner.page.getByTestId("sort-chip")).toContainText("Priority");
+    await expect(owner.page.getByTestId("sort-chip")).not.toHaveAttribute("data-shared", "true");
+    await expect(owner.page.getByTestId("filter-mine")).toBeVisible();
+    expect(await columnOrder(owner.page, "Todo")).toEqual(["Urgent work", "Ordinary work"]);
+
+    /* The friend's board must not move, and it must still drag. A shared
+       write arrives in well under this. */
+    await friend.page.waitForTimeout(2500);
+    await expect(friend.page.getByTestId("sort-chip")).toHaveCount(0);
+    expect(await columnOrder(friend.page, "Todo")).toEqual(["Ordinary work", "Urgent work"]);
+
+    const ordinary = (await card(friend.page, "Ordinary work").boundingBox())!;
+    await dragCard(friend.page, "Urgent work", {
+      x: ordinary.x + ordinary.width / 2,
+      y: ordinary.y + 10,
+    });
+    expect(await columnOrder(friend.page, "Todo")).toEqual(["Urgent work", "Ordinary work"]);
+
+    // One press, and the order goes to the view with the rules.
+    await putFilterOnView(owner.page);
+    await expect(owner.page.getByTestId("filter-mine")).toHaveCount(0);
+    await expect(owner.page.getByTestId("sort-chip")).toHaveAttribute("data-shared", "true");
+    await expect(friend.page.getByTestId("sort-chip")).toContainText("Priority", {
+      timeout: 15_000,
+    });
+    await expect(friend.page.getByTestId("sort-chip")).toHaveAttribute("data-shared", "true");
+
+    const board = await (await owner.page.request.get(`/api/projects/${projectId}/board`)).json();
+    const view = board.views.find((v: { isDefault: boolean }) => v.isDefault);
+    expect(view.sort).toEqual({ columnId: expect.any(String), direction: "asc" });
+    expect(view.lensSort).toBeNull();
 
     await owner.context.close();
     await friend.context.close();

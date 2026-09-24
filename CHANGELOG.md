@@ -51,6 +51,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A sort belongs to the person who picked it.** **Sort** and a list heading now change only your
+  screen, the way a filter you add does, and the strip says _Only you see this_. A sorted board
+  holds still, so one person's order no longer stops everybody else dragging inside a column.
+  **Save for everyone** puts your order on the view with your filters. The lens `PUT` takes `sort`
+  beside `filters`, and a view carries `lensSort`.
 - **A task opens on the Agent tab while an agent works on it.** A running or
   paused run shows first. A run that waits for an answer opens on Comments,
   because the question is a comment. A tab you pick stays while the agent
