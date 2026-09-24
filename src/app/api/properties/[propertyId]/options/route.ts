@@ -7,6 +7,7 @@ import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api"
 import { propertyProjectId, withProjectLock } from "@/lib/queries";
 import { nextPaletteColor } from "@/lib/colors";
 import { rankAfter } from "@/lib/rank";
+import { takenBy, takenSaid } from "@/lib/option-name";
 
 type Ctx = { params: Promise<{ propertyId: string }> };
 
@@ -17,7 +18,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   await guard(projectId);
 
   const [prop] = await db
-    .select({ type: properties.type })
+    .select({ name: properties.name, type: properties.type })
     .from(properties)
     .where(eq(properties.id, propertyId))
     .limit(1);
@@ -30,10 +31,18 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   const option = await withProjectLock(projectId, async (tx) => {
     const siblings = await tx
-      .select({ color: propertyOptions.color, position: propertyOptions.position })
+      .select({
+        name: propertyOptions.name,
+        color: propertyOptions.color,
+        position: propertyOptions.position,
+      })
       .from(propertyOptions)
       .where(eq(propertyOptions.propertyId, propertyId))
       .orderBy(byPos(propertyOptions.position));
+
+    // A double Enter, or two people at once, would otherwise make two columns.
+    const taken = takenBy(siblings, name);
+    if (taken) throw new HttpError(409, takenSaid(prop.name, taken.name));
 
     const color =
       typeof input.color === "string" && /^#[0-9a-fA-F]{6}$/.test(input.color)

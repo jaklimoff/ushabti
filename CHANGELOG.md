@@ -54,6 +54,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A property never gets two options with the same name.** The server refuses
+  a second option, or a rename, whose name is already there in any letter
+  case, and says which one: "Priority already has an option named High."
+  Two people, a quick double Enter or an agent can no longer make two
+  "Blocked" columns.
 - **Enter in a select picks an option and never makes one by mistake.** When
   two options matched what you typed, Enter made a new option of the typed
   words, and on a board grouped by it a new column. Now the arrow keys move a
