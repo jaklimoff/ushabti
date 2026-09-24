@@ -247,6 +247,7 @@ describe("the column a phone shows", () => {
       { rules: [{ propertyId: "p-status", op: "is", values: ["o-todo", "o-done"] }] },
       status,
       "2026-09-21",
+      null,
     );
 
     expect(kept.map((c) => c.id)).toEqual(["c0", "c2"]);

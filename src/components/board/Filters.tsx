@@ -13,6 +13,7 @@ import {
   isWindowOp,
   keyColor,
   keyName,
+  ME_KEY,
   OPS_FOR_TYPE,
   OP_LABEL,
 } from "@/lib/filters";
@@ -49,7 +50,9 @@ import styles from "./board.module.css";
  * rule has to pass.
  */
 function keysFor(property: PropertyDTO, members: MemberDTO[]): string[] {
-  if (property.type === "person") return [...members.map((m) => m.id), NO_VALUE_KEY];
+  /* Me comes first: it is the one a shared "My tasks" view is made of, and it
+     means whoever reads the view, not the person who picked it. */
+  if (property.type === "person") return [ME_KEY, ...members.map((m) => m.id), NO_VALUE_KEY];
   if (property.type === "checkbox") return ["true", "false"];
   return [...property.options.map((o) => o.id), NO_VALUE_KEY];
 }

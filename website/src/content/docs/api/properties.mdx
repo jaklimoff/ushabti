@@ -295,6 +295,11 @@ A rule never carries both `values` and `text`.
 sentinel `"__none__"` — *nothing yet*. That sentinel is a **value in the set, not an operator**, which
 is why `["<doingId>", "__none__"]` is one rule meaning "Doing, or nothing yet".
 
+A `person` rule may also hold `"__me__"` — *Me*: whoever reads the board. It is stored as the word
+and never as an id, so one shared view means each viewer. Read it as your own id, which
+`GET /api/agent/me` gives as `agent.id`. Only a person rule can hold it; on any other type it is
+dropped on the read.
+
 The semantics — every rule must pass, `is_not` keeps the empties, values within a rule are an "or" —
 are explained in [the filters guide](/ushabti/guides/filters/).
 

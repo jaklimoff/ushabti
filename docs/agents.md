@@ -98,6 +98,13 @@ A view's `filters` is the whole team's, and it is the only filter you read: the
 rules a person adds to their own screen are theirs, never yours, and never
 reach `filters` until that person puts them on the view.
 
+**A person rule may say Me.** Its `values` may hold `"__me__"` beside member
+ids and `"__none__"`. It means whoever reads the view, and for you that is your
+own user id — `agent.id` from `GET /api/agent/me`. The word is stored, never an
+id, so `Assignee is Me` on a shared view means each person, and you. The board
+answer hands you every task and hides none; `filters` is what a view asks, and
+applying it is yours to do.
+
 **A date rule may name a window of days rather than one day.** Its `op` is
 `within` and its `text` is one word from a closed list:
 

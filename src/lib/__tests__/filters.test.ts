@@ -12,6 +12,7 @@ import {
   describeRule,
   hasAnswer,
   matches,
+  ME_KEY,
   mergeFilters,
   readFilters,
   seedNote,
@@ -146,7 +147,7 @@ function task(id: string, values: TaskDTO["values"] = {}, blockedBy: string[] = 
 }
 
 function keep(rule: FilterRule, values: TaskDTO["values"], property: PropertyDTO) {
-  return matches(task("t", values), rule, property, TODAY);
+  return matches(task("t", values), rule, property, TODAY, null);
 }
 
 describe("a select rule", () => {
@@ -377,6 +378,7 @@ describe("every rule has to pass", () => {
       { rules: [{ propertyId: status.id, op: "is", values: ["o-todo"] }] },
       properties,
       TODAY,
+      null,
     );
     expect(one.map((t) => t.id)).toEqual(["a", "b"]);
 
@@ -390,12 +392,13 @@ describe("every rule has to pass", () => {
       },
       properties,
       TODAY,
+      null,
     );
     expect(two.map((t) => t.id)).toEqual(["a"]);
   });
 
   it("hands back the same list when there is no rule", () => {
-    expect(applyFilters(tasks, { rules: [] }, properties, TODAY)).toBe(tasks);
+    expect(applyFilters(tasks, { rules: [] }, properties, TODAY, null)).toBe(tasks);
   });
 
   it("ignores a rule whose property has gone", () => {
@@ -404,6 +407,7 @@ describe("every rule has to pass", () => {
       { rules: [{ propertyId: "p-vanished", op: "is", values: ["x"] }] },
       properties,
       TODAY,
+      null,
     );
     expect(gone).toHaveLength(3);
   });
@@ -611,6 +615,7 @@ describe("a task added to a filtered board", () => {
       },
       properties,
       status.id,
+      null,
     );
     expect(seed).toEqual({
       "p-assignee": "u-ada",
@@ -635,20 +640,21 @@ describe("a task added to a filtered board", () => {
       },
       properties,
       null,
+      null,
     );
     expect(seed).toEqual({});
   });
 
   it("never answers for the grouping property, which the column decides", () => {
     const rules = [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }];
-    expect(seedValues({ rules }, properties, status.id)).toEqual({});
+    expect(seedValues({ rules }, properties, status.id, null)).toEqual({});
     /*
      * A list has no columns, so nothing else decides it and the filter has to
      * answer for it too. This is the whole difference between the two callers,
      * and without it a row added to a filtered list is written and hidden in
      * the same breath.
      */
-    expect(seedValues({ rules }, properties, null)).toEqual({ "p-status": "o-todo" });
+    expect(seedValues({ rules }, properties, null, null)).toEqual({ "p-status": "o-todo" });
   });
 
   /*
@@ -658,8 +664,8 @@ describe("a task added to a filtered board", () => {
    */
   it("leaves a relative date rule alone, because it cannot answer it", () => {
     const rules = [{ propertyId: due.id, op: "within" as const, text: "this_week" }];
-    expect(seedValues({ rules }, properties, null)).toEqual({});
-    expect(seedValues({ rules }, properties, status.id)).toEqual({});
+    expect(seedValues({ rules }, properties, null, null)).toEqual({});
+    expect(seedValues({ rules }, properties, status.id, null)).toEqual({});
   });
 
   it("says out loud what it is about to write", () => {
@@ -678,19 +684,21 @@ describe("the columns a filtered board keeps", () => {
 
   it("keeps them all when no rule names the grouping property", () => {
     const filters = { rules: [{ propertyId: labels.id, op: "is" as const, values: ["o-bug"] }] };
-    expect(allowedColumns(columns, filters, status, TODAY)).toHaveLength(3);
+    expect(allowedColumns(columns, filters, status, TODAY, null)).toHaveLength(3);
   });
 
   it("drops the columns a card could not live in", () => {
     const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
-    expect(allowedColumns(columns, filters, status, TODAY).map((c) => c.id)).toEqual(["o-todo"]);
+    expect(allowedColumns(columns, filters, status, TODAY, null).map((c) => c.id)).toEqual([
+      "o-todo",
+    ]);
   });
 
   it("keeps the no-value column when the rule names Empty", () => {
     const filters = {
       rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo", NO_VALUE_KEY] }],
     };
-    expect(allowedColumns(columns, filters, status, TODAY).map((c) => c.id)).toEqual([
+    expect(allowedColumns(columns, filters, status, TODAY, null).map((c) => c.id)).toEqual([
       "o-todo",
       "none",
     ]);
@@ -700,7 +708,7 @@ describe("the columns a filtered board keeps", () => {
     const filters = {
       rules: [{ propertyId: status.id, op: "is_not" as const, values: ["o-done"] }],
     };
-    expect(allowedColumns(columns, filters, status, TODAY).map((c) => c.id)).toEqual([
+    expect(allowedColumns(columns, filters, status, TODAY, null).map((c) => c.id)).toEqual([
       "o-todo",
       "none",
     ]);
@@ -708,7 +716,7 @@ describe("the columns a filtered board keeps", () => {
 
   it("keeps them all when the board groups by nothing", () => {
     const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
-    expect(allowedColumns(columns, filters, null, TODAY)).toHaveLength(3);
+    expect(allowedColumns(columns, filters, null, TODAY, null)).toHaveLength(3);
   });
 });
 
@@ -739,6 +747,7 @@ describe("a question with an answer", () => {
         { propertyId: estimate.id, op: "eq", text: "0" },
         estimate,
         TODAY,
+        null,
       ),
     ).toBe(true);
   });
@@ -770,7 +779,7 @@ describe("a view's rules and one person's", () => {
       task("c", { "p-status": "o-todo", "p-labels": ["o-ux"] }),
     ];
 
-    const shared = applyFilters(tasks, { rules: [ofView] }, properties, TODAY);
+    const shared = applyFilters(tasks, { rules: [ofView] }, properties, TODAY, null);
     expect(shared.map((t) => t.id)).toEqual(["a", "b"]);
 
     const both = applyFilters(
@@ -778,6 +787,7 @@ describe("a view's rules and one person's", () => {
       mergeFilters({ rules: [ofView] }, { rules: [mine] }),
       properties,
       TODAY,
+      null,
     );
     expect(both.map((t) => t.id)).toEqual(["a"]);
 
@@ -796,12 +806,14 @@ describe("a view's rules and one person's", () => {
       mergeFilters({ rules: [mine] }, { rules: [] }),
       status,
       TODAY,
+      null,
     );
     const byMine = allowedColumns(
       columns,
       mergeFilters({ rules: [] }, { rules: [mine] }),
       status,
       TODAY,
+      null,
     );
     expect(byView.map((c) => c.id)).toEqual(["c1"]);
     expect(byMine.map((c) => c.id)).toEqual(["c1"]);
@@ -809,7 +821,12 @@ describe("a view's rules and one person's", () => {
 
   /* Otherwise my own lens hides the card I just made, and nothing says why. */
   it("seeds a task for both sets", () => {
-    const seed = seedValues(mergeFilters({ rules: [ofView] }, { rules: [mine] }), properties, null);
+    const seed = seedValues(
+      mergeFilters({ rules: [ofView] }, { rules: [mine] }),
+      properties,
+      null,
+      null,
+    );
     expect(seed).toEqual({ "p-labels": ["o-bug"], "p-status": "o-todo" });
   });
 
@@ -960,20 +977,20 @@ describe("the blocked rule", () => {
   });
 
   it("keeps a task that waits on another", () => {
-    expect(matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY, TODAY)).toBe(true);
-    expect(matches(task("t", {}, []), blocked, BLOCKED_PROPERTY, TODAY)).toBe(false);
+    expect(matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY, TODAY, null)).toBe(true);
+    expect(matches(task("t", {}, []), blocked, BLOCKED_PROPERTY, TODAY, null)).toBe(false);
   });
 
   it("keeps a task that waits on nothing", () => {
-    expect(matches(task("t", {}, []), free, BLOCKED_PROPERTY, TODAY)).toBe(true);
-    expect(matches(task("t", {}, ["USH-2"]), free, BLOCKED_PROPERTY, TODAY)).toBe(false);
+    expect(matches(task("t", {}, []), free, BLOCKED_PROPERTY, TODAY, null)).toBe(true);
+    expect(matches(task("t", {}, ["USH-2"]), free, BLOCKED_PROPERTY, TODAY, null)).toBe(false);
   });
 
   it("hides the cards it names, with only the project's properties passed in", () => {
     const tasks = [task("a", {}, ["USH-2"]), task("b")];
-    expect(applyFilters(tasks, { rules: [blocked] }, [status], TODAY).map((t) => t.id)).toEqual([
-      "a",
-    ]);
+    expect(
+      applyFilters(tasks, { rules: [blocked] }, [status], TODAY, null).map((t) => t.id),
+    ).toEqual(["a"]);
   });
 
   /* The word cannot be deleted, so the rule always survives the read that
@@ -989,7 +1006,7 @@ describe("the blocked rule", () => {
   });
 
   it("is never seeded onto a new task", () => {
-    expect(seedValues({ rules: [blocked] }, [status], null)).toEqual({});
+    expect(seedValues({ rules: [blocked] }, [status], null, null)).toEqual({});
   });
 
   it("reads as a checkbox on the chip", () => {
@@ -1000,5 +1017,77 @@ describe("the blocked rule", () => {
   it("clashes with itself across the two sets", () => {
     const clash = clashOf({ rules: [blocked] }, { rules: [free] }, [status]);
     expect(clash?.name).toBe("Blocked");
+  });
+});
+
+describe("a person rule that says Me", () => {
+  const me: FilterRule = { propertyId: assignee.id, op: "is", values: [ME_KEY] };
+  const tasks = [
+    task("a", { "p-assignee": "u-ada" }),
+    task("b", { "p-assignee": "u-bot" }),
+    task("c", {}),
+  ];
+
+  it("means whoever reads the view, so one shared rule is each viewer's own", () => {
+    const ids = (viewer: string | null) =>
+      applyFilters(tasks, { rules: [me] }, properties, TODAY, viewer).map((t) => t.id);
+    expect(ids("u-ada")).toEqual(["a"]);
+    expect(ids("u-bot")).toEqual(["b"]);
+  });
+
+  it("matches nobody when there is nobody to read it as", () => {
+    expect(applyFilters(tasks, { rules: [me] }, properties, TODAY, null)).toEqual([]);
+  });
+
+  it("sits beside a person and beside nothing yet", () => {
+    const rule: FilterRule = { ...me, values: [ME_KEY, NO_VALUE_KEY] };
+    expect(
+      applyFilters(tasks, { rules: [rule] }, properties, TODAY, "u-bot").map((t) => t.id),
+    ).toEqual(["b", "c"]);
+    const not: FilterRule = { ...me, op: "is_not" };
+    expect(
+      applyFilters(tasks, { rules: [not] }, properties, TODAY, "u-ada").map((t) => t.id),
+    ).toEqual(["b", "c"]);
+  });
+
+  it("is kept on the stored rule and never rewritten to an id", () => {
+    const read = readFilters({ rules: [me] }, properties);
+    expect(read.rules).toEqual([me]);
+    expect(hasAnswer(me)).toBe(true);
+  });
+
+  it("is not a value any other type can hold", () => {
+    const odd = { propertyId: status.id, op: "is", values: [ME_KEY, "o-todo"] };
+    expect(readFilters({ rules: [odd] }, properties).rules[0].values).toEqual(["o-todo"]);
+  });
+
+  it("puts the viewer on a task added under it", () => {
+    expect(seedValues({ rules: [me] }, properties, null, "u-bot")).toEqual({
+      "p-assignee": "u-bot",
+    });
+    expect(seedValues({ rules: [me] }, properties, null, null)).toEqual({});
+    expect(seedValues({ rules: [me] }, properties, assignee.id, "u-bot")).toEqual({});
+  });
+
+  it("keeps only the viewer's column on a board grouped by that person", () => {
+    const columns = [
+      { id: "u-ada", value: "u-ada" },
+      { id: "u-bot", value: "u-bot" },
+      { id: "none", value: null },
+    ];
+    const kept = allowedColumns(columns, { rules: [me] }, assignee, TODAY, "u-ada");
+    expect(kept.map((c) => c.id)).toEqual(["u-ada"]);
+  });
+
+  it("reads as Me on the chip", () => {
+    expect(describeRule(me, assignee, members)).toBe("Assignee is Me");
+    expect(describeRule({ ...me, values: [ME_KEY, "u-ada"] }, assignee, members)).toBe(
+      "Assignee is Me, Ada",
+    );
+  });
+
+  it("clashes with a view rule about the same person property", () => {
+    const ofView: FilterRule = { propertyId: assignee.id, op: "is", values: ["u-ada"] };
+    expect(clashOf({ rules: [ofView] }, { rules: [me] }, properties)).toBe(assignee);
   });
 });
