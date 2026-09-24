@@ -59,7 +59,7 @@ async function setOnPicked(page: Page, property: string, option: string) {
 
   const menu = page.getByTestId("pick-menu");
   await menu.getByRole("button", { name: /Empty/ }).first().click();
-  await settles(page, BULK, () => menu.getByRole("button", { name: option }).first().click());
+  await settles(page, BULK, () => menu.getByRole("option", { name: option }).first().click());
   await page.keyboard.press("Escape");
 }
 

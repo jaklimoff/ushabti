@@ -873,7 +873,7 @@ test.describe("A board on a phone", () => {
     await card(page, "Beetle").click();
     const panel = page.getByTestId("task-panel");
     await panel.getByRole("button", { name: /^Todo/ }).click();
-    await saved(page, () => panel.getByRole("button", { name: /^Ready/ }).click());
+    await saved(page, () => panel.getByRole("option", { name: /^Ready/ }).click());
     await page.getByRole("button", { name: "Close task" }).click();
 
     const pills = page.getByTestId("column-pill");
