@@ -808,6 +808,8 @@ node board.mjs watch --on assigned --run 'claude -p {prompt}'
 
 `step` prints `control: none | pause | stop`, `pause` answers the first of
 those and waits for Resume, and exit code 9 means the card was taken over.
+A read that loses its connection halfway is sent once more; a write never is,
+because it may have landed.
 That is the whole contract, and `SKILL.md` says so in the words a model needs.
 
 For another framework, put the text of `SKILL.md` in the system prompt and ship

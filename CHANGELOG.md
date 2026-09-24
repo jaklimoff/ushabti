@@ -118,6 +118,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   of the task that crossed the value's save used to put the old value back
   until the panel was opened again. Now a read that crosses any of your own
   saves is thrown away and made again once the save is done.
+
+- **A board read no longer fails with "terminated".** `board.mjs` sends a read once more when
+  the connection drops halfway through the answer. It never sends a write twice.
+
 - **A property never gets two options with the same name.** The server refuses
   a second option, or a rename, whose name is already there in any letter
   case, and says which one: "Priority already has an option named High."

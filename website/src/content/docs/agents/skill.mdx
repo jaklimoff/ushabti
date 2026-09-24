@@ -74,6 +74,9 @@ Details worth knowing:
   until the next agent claims the task, which closes it. Use it when your session is over but the
   task is somebody else's; plain `finish` when the work is over.
 - **Exit code 9** means the card is not yours — a `409` from the server, or no open run.
+- A read that loses its connection halfway (`terminated`) is sent once more. A write is never
+  sent twice, because it may have landed: when one fails that way, read the task before you send
+  it again.
 - `claim` finishes by telling you to start the heartbeat: `node board.mjs beat USH-14 &`.
 
 ## What wakes a watcher
