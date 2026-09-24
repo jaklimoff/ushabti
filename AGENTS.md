@@ -46,7 +46,10 @@ and what is easy to get wrong.
   which row comes first: `_key`, `_title` and `_desc`, then the properties in
   their `position`, then `_checklist` and `_comments`. The chips that share a
   place on a card, the columns of a list and the fields of the task panel all
-  follow it. The card view used to keep an `order` of its own, so a property
+  follow it. One rule sits on top, on a card only: in each place a chip with
+  no words — mode `colour` or `avatar` — comes first, so a card nobody
+  rearranged still opens with its square of colour. `buildCard` keys it off
+  the mode, never off a property. The card view used to keep an `order` of its own, so a property
   dragged up in Settings moved in the panel and stayed where it was on the
   card. Old rows still carry that `order`; `readCardView()` does not read it
   and does not write it back, so no migration was needed. Do not give the card

@@ -103,7 +103,8 @@ Five ids are not properties: `_key`, `_title`, `_desc`, `_checklist` and `_comme
 
 A card view has **no order**. Where two rows share a place they follow the order of the properties
 (set with `afterId` on [`PATCH /api/properties/{id}`](/ushabti/api/properties/)), after `_key`,
-`_title` and `_desc` and before `_checklist` and `_comments`. An `order` in the body is ignored and
+`_title` and `_desc` and before `_checklist` and `_comments`. A row whose mode is `colour` or
+`avatar` carries no words and is drawn first in its place. An `order` in the body is ignored and
 never stored.
 
 The body is read the way the board reads it, so what comes back is what was stored, not what was

@@ -108,9 +108,9 @@ describe("the default card", () => {
     expect(view.rows._desc.place).toBe("off");
   });
 
-  it("puts the lead colour after the key, because the key stands first", () => {
+  it("puts the lead colour before the key, so the square opens the row", () => {
     const card = buildCard(items(null), task({ "p-prio": "o-urgent" }), [ADA]);
-    expect(card.headerL.map((c) => c.tip)).toEqual(["Task ID · USH-1", "Priority · Urgent"]);
+    expect(card.headerL.map((c) => c.tip)).toEqual(["Priority · Urgent", "Task ID · USH-1"]);
   });
 
   it("takes the first select in the order of the properties as the lead", () => {
@@ -219,6 +219,40 @@ describe("the order of the rows", () => {
     expect(tips([PRIORITY, DUE])).toEqual(["Priority · Urgent", "Due · Aug 29"]);
     /* A drag in Settings is the one thing that moves them. */
     expect(tips([DUE, PRIORITY])).toEqual(["Due · Aug 29", "Priority · Urgent"]);
+  });
+
+  it("opens a place with the chips that carry no words, keyed off the mode", () => {
+    const saved = (prio: string, who: string) => ({
+      rows: {
+        _key: { place: "footerL", mode: "text" },
+        "p-prio": { place: "footerL", mode: prio },
+        "p-who": { place: "footerL", mode: who },
+        "p-due": { place: "footerL", mode: "text" },
+      },
+    });
+    const values = task({ "p-prio": "o-urgent", "p-who": "m-ada", "p-due": "2026-08-29" });
+    const tips = (view: unknown) => buildCard(items(view), values, [ADA]).footerL.map((c) => c.tip);
+
+    /* A square and a face come first, in the order of the properties. */
+    expect(tips(saved("colour", "avatar"))).toEqual([
+      "Priority · Urgent",
+      "Assignee · Ada Lovelace",
+      "Task ID · USH-1",
+      "Due · Aug 29",
+    ]);
+    /* The same property with words is back in its order. */
+    expect(tips(saved("text", "avatar"))).toEqual([
+      "Assignee · Ada Lovelace",
+      "Task ID · USH-1",
+      "Priority · Urgent",
+      "Due · Aug 29",
+    ]);
+    expect(tips(saved("text", "text"))).toEqual([
+      "Task ID · USH-1",
+      "Priority · Urgent",
+      "Assignee · Ada Lovelace",
+      "Due · Aug 29",
+    ]);
   });
 
   it("does not read an order an older release saved, and does not write one", () => {

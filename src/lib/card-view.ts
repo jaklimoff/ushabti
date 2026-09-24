@@ -175,9 +175,10 @@ export function mainBoardGroupById(
 
 /**
  * The card a project has before anybody arranges one: the card this board drew
- * for its first six versions. The key and a lead colour open the header, the
+ * for its first six versions. The lead colour and the key open the header, the
  * people and the labels close it, and everything else lines up in the footer.
- * Inside a place the rows keep `cardOrder`, so the key comes before the colour.
+ * The colour comes first because a wordless chip opens its place in
+ * `buildCard`, not because the card view holds an order.
  *
  * It does not go through `fallbackRow`, and it should not. That answers "a
  * property arrived, where does it go"; this answers "nobody has ever said", and
@@ -192,8 +193,9 @@ export function defaultCardView(properties: PropertyDTO[], groupById: string | n
     _comments: { place: "footerL", mode: "text" },
   };
 
-  /* The small square of colour beside the key: the first select, in the order
-     of the properties, that is not the columns of the default view. */
+  /* The small square of colour a card has always opened with: the first
+     select, in the order of the properties, that is not the columns of the
+     default view. */
   const lead = properties.find(
     (p) => p.type === "select" && p.id !== groupById && p.config.showOnCard !== false,
   );
@@ -555,6 +557,17 @@ function chipsFor(item: CardItem, task: TaskDTO, members: MemberDTO[]): CardChip
 }
 
 /**
+ * A chip that carries a colour and no words: a square, or a face. It opens its
+ * place, ahead of the key and of any chip that reads as words, so a card that
+ * nobody rearranged still leads with its square of colour. The rule keys off
+ * the mode and never off a property, so it names nothing and moves with the
+ * mode a person picks.
+ */
+function wordless(item: CardItem): boolean {
+  return item.mode === "colour" || item.mode === "avatar";
+}
+
+/**
  * A task, laid out the way the card view asks for. A card only draws what a
  * task actually holds, so a task with no due date has a shorter footer than the
  * one beside it and neither leaves a gap.
@@ -570,7 +583,10 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
     footerR: [],
   };
 
-  for (const item of items) {
+  /* Wordless chips first, then the rest; each half keeps `cardOrder`. */
+  const drawn = [...items.filter(wordless), ...items.filter((item) => !wordless(item))];
+
+  for (const item of drawn) {
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
