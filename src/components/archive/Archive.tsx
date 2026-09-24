@@ -89,11 +89,11 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
 
   return (
     <div className={styles.page}>
-      <ProjectBar project={data.project} here="Archive" user={user} />
+      <ProjectBar project={data.project} here="Archived" user={user} />
 
       <div className={styles.shell}>
         <div className={styles.head}>
-          <h1 className={styles.h1}>Archive</h1>
+          <h1 className={styles.h1}>Archived</h1>
         </div>
 
         {/* Each list says its own count, on its own words. One number over two

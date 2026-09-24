@@ -65,8 +65,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **One word for each idea.** An empty field in the task panel says what its column and a filter
   chip say — _No due_, _Unassigned_ — and not _Empty_. Selecting cards says "select" throughout:
   the check reads **Select** and **Deselect**, and the ✕ reads **Clear selection**. The top bar
-  link to the archive reads **Archived**, so it no longer sits beside an **Archive** button that
-  does something else, and an archived task comes back with **Put back** everywhere. The hint
+  link to the archive, the page it opens and the toast after a delete all say **Archived**, so the
+  link no longer sits beside an **Archive** button that does something else, and an archived task
+  comes back with **Put back** everywhere. The hint
   under the description and the comment box says ⌘ on a Mac and Ctrl everywhere else. The card
   view no longer tags the task rows "built in"; the Type column already says **Task**.
 - **Settings has one place that says what a card shows.** The **On card ◉ / ○** switch left each
