@@ -28,7 +28,7 @@ there too — focus *is* the cursor, so the two can never disagree.
 | <kbd>←</kbd> <kbd>→</kbd> | To the nearest column in that direction **that has cards**, keeping your place down the column. Empty columns are stepped over, and so are [folded](/ushabti/guides/board/) ones — a strip draws no cards to land on. Below 560 px, where [the board draws one column](/ushabti/guides/board/#on-a-phone), the board pages to the column the cursor lands in. |
 | <kbd>Home</kbd> | The first card in this column. |
 | <kbd>End</kbd> | The last card in this column. |
-| <kbd>Enter</kbd> | Open the card the cursor is on. |
+| <kbd>Enter</kbd> | Open the card the cursor is on. The focus goes to its title. |
 | <kbd>Space</kbd> | Pick the card up. |
 | <kbd>x</kbd> | Pick the card for a [bulk change](/ushabti/guides/board/#picking-several-cards), or put it back. The checks on the cards are not tab stops, because the board keeps one. |
 
@@ -87,6 +87,25 @@ The sideways keys above are worked out by hand because an empty column is as tal
 loses every distance contest. A list has one column of equal rows and no such container, so it uses
 the library's own answer, which is correct there. Unifying the two would break the board.
 </Aside>
+
+## The task panel
+
+A task opens with the focus on its title, so a screen reader reads its name first. When the panel
+closes, the focus goes back to the board's cursor, on the card that was open. There is one
+exception: on a phone the title does not take the focus, because the keyboard would cover the panel.
+
+<div class="keys">
+
+| Key | What it does |
+| --- | ------------ |
+| <kbd>Escape</kbd> | Closes the panel while the focus is still where the panel put it. After you click or type in the title, the first <kbd>Escape</kbd> leaves the title and reverts what you typed, and the second <kbd>Escape</kbd> closes the panel. |
+| <kbd>Tab</kbd> | The next field. Each field is read with the name of its property, for example "Status, Todo". |
+| <kbd>Enter</kbd> <kbd>Space</kbd> | Open a menu. <kbd>↑</kbd> <kbd>↓</kbd> move in it, <kbd>Enter</kbd> picks, and <kbd>Escape</kbd> closes it and goes back to the field. |
+| <kbd>←</kbd> <kbd>→</kbd> <kbd>Home</kbd> <kbd>End</kbd> | On the **Comments**, **Activity** and **Agent** tabs, go to the next tab and open it. The three tabs are one tab stop. |
+
+</div>
+
+An error toast is read at once. Any other toast waits until the screen reader finishes.
 
 ## Everywhere else
 

@@ -80,7 +80,7 @@ test.describe("Archiving a task", () => {
     const comment = page.getByPlaceholder("Leave a note…");
     await comment.fill("The image builds.");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Comments 1/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Comments 1/ })).toBeVisible();
 
     await archiveOpenTask(page);
 
@@ -89,15 +89,15 @@ test.describe("Archiving a task", () => {
     await expect(page.getByTestId("archived-row")).toContainText("Archived just now");
 
     // Everything on the task is still there.
-    await expect(page.getByRole("button", { name: /^Comments 1/ })).toBeVisible();
-    await page.getByRole("button", { name: /^Activity/ }).click();
+    await expect(page.getByRole("tab", { name: /^Comments 1/ })).toBeVisible();
+    await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText(/archived the task/)).toBeVisible();
 
     await page.getByRole("button", { name: "Put it back" }).click();
     await expect(page.getByTestId("archived-row")).toHaveCount(0);
     await expect(card(page, "Ship the release image").first()).toBeVisible();
 
-    await page.getByRole("button", { name: /^Activity/ }).click();
+    await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText(/put the task back/)).toBeVisible();
 
     // It survives a reload, on both sides of the change.
@@ -147,7 +147,7 @@ test.describe("Archiving a task", () => {
     await hit.click();
 
     await expect(page.getByTestId("archived-row")).toBeVisible();
-    await page.getByRole("button", { name: /^Activity/ }).click();
+    await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText(/archived the task/)).toBeVisible();
 
     // And it comes back where it was.
@@ -225,7 +225,7 @@ test.describe("Archiving a task", () => {
     // Then the rest of the task arrives, and no card is drawn behind it.
     release();
     await expect(page.getByTestId("panel-loading")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Comments/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Comments/ })).toBeVisible();
     await expect(page.getByTestId("card")).toHaveCount(0);
   });
 

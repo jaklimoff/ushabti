@@ -27,7 +27,7 @@ import { listColumns, listTemplate } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
 import { canSort, pressSort, sortTasks } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
-import { useShortcut } from "./keys";
+import { useCursorBack, useShortcut } from "./keys";
 import { Composer } from "./Column";
 import { useBoard } from "./store";
 import { TaskRow, pinProps } from "./TaskRow";
@@ -279,6 +279,13 @@ export function ListCanvas({
       );
     else togglePick(taskId);
   }
+
+  useCursorBack(selectedTaskId, (taskId) => {
+    const back = rows.some((t) => t.id === taskId) ? taskId : cursorTaskId;
+    if (!back) return;
+    setCursor(back);
+    focusRow(scrollRef.current, back);
+  });
 
   /* Focus and the cursor are the same thing, so a click or a Tab onto a row
      moves the cursor with it. */

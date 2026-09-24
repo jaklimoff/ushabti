@@ -166,7 +166,7 @@ test.describe("A list view", () => {
     await expect(listRow(page, "First thing")).toBeFocused();
 
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("button", { name: /^Comments/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /^Comments/ })).toBeVisible();
   });
 
   test("n opens the composer at the end", async ({ page }) => {

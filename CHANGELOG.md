@@ -16,6 +16,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   narrows the list. **All projects** left the user menu, and the name in the Settings and Archive
   bar is no longer a link to the board: **Back to board** is. On a phone the letter beside the
   name is the button.
+- **The task panel and the view strip work with a keyboard and a screen reader.** A task opens
+  with the focus on its title, and closing the panel puts the focus back on its card. Each field is
+  read with its property's name, the menus say when they are open, the tabs are real tabs that the
+  arrows walk, and an error toast is an alert. The view you are on is marked as the current one, and
+  its pill no longer offers a keyboard drag that the strip cannot do.
 - **A filter finds the tasks where an agent waits.** **Agent waiting** sits beside **Blocked** in
   the filter list and keeps only the tasks whose open run asked a person something. A hand-over
   does not count. The card leaves when the agent takes the answer and goes back to work. A rule

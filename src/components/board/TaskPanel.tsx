@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
 import { clampPanelWidth, longAgo, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
@@ -106,6 +106,9 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   if (picked.taskId !== taskId) setPicked({ taskId, tab: openingTab(runOf(taskId)) });
   const tab = picked.taskId === taskId ? picked.tab : openingTab(runOf(taskId));
   const setTab = (next: PanelTab) => setPicked({ taskId, tab: next });
+  /* The names the fields and the tabs point at. One stem for the panel, so an
+     id never has to be made inside a loop. */
+  const ids = useId();
   const [menuOpen, setMenuOpen] = useState(false);
   /* Which list is taking a key, and on which task. A task with no links draws
      nothing here at all, so the way in is the menu — the panel stays as quiet
@@ -446,7 +449,12 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
   if (!shown) return null;
 
   return (
-    <aside className={styles.panel} data-testid="task-panel" ref={panelRef}>
+    <aside
+      className={styles.panel}
+      data-testid="task-panel"
+      ref={panelRef}
+      aria-label={`Task ${shown.key}`}
+    >
       {/* The panel is dragged wider by its own left edge. There is no handle
           to look at: the cursor over the line is the whole invitation. */}
       <div
@@ -603,6 +611,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
           sign={editingSaid(editing("title"), "the title")}
           inField={inField}
           onCommit={(title, base) => patch({ title }, { title: base })}
+          onLeave={onClose}
         />
       </div>
 
@@ -620,7 +629,10 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
             <div className={styles.props}>
               {data.properties.map((property, index) => (
                 <div key={property.id} style={{ display: "contents" }}>
-                  <div className={`${styles.propLabel} ${index > 0 ? styles.rowLine : ""}`}>
+                  <div
+                    className={`${styles.propLabel} ${index > 0 ? styles.rowLine : ""}`}
+                    id={`${ids}-field-${property.id}`}
+                  >
                     {property.name}
                   </div>
                   {/* The row is a grid of two cells, so the value carries the
@@ -633,6 +645,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                       property={property}
                       value={shown.values[property.id] ?? null}
                       members={data.members}
+                      labelId={`${ids}-field-${property.id}`}
                       onChange={(value: TaskValue) => void writeValue(property.id, value)}
                       onAddOption={
                         property.type === "select" || property.type === "multi_select"
@@ -679,85 +692,149 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
               />
             </div>
 
-            <div className={styles.tabs}>
-              <button
-                className={`${styles.tab} ${shownTab === "comments" ? styles.tabOn : ""}`}
-                onClick={() => setTab("comments")}
-              >
-                Comments {detail ? detail.comments.length : ""}
-              </button>
-              <button
-                className={`${styles.tab} ${shownTab === "activity" ? styles.tabOn : ""}`}
-                onClick={() => setTab("activity")}
-              >
-                Activity
-              </button>
-              {/* No count on the label. The tab opens; the list is the
-                  count. The dot pulses only while an agent is working. */}
-              {anyRun && (
-                <button
-                  className={`${styles.tab} ${shownTab === "agent" ? styles.tabOn : ""}`}
-                  onClick={() => setTab("agent")}
-                  data-testid="agent-tab"
-                >
+            <PanelTabs
+              ids={ids}
+              shown={shownTab}
+              onPick={setTab}
+              tabs={[
+                { id: "comments", label: `Comments ${detail ? detail.comments.length : ""}` },
+                { id: "activity", label: "Activity" },
+                ...(anyRun ? [{ id: "agent" as const, label: "Agent" }] : []),
+              ]}
+              agentDot={
+                anyRun && (
                   <span
                     className={`${styles.tabDot} ${run?.status === "running" ? styles.tabDotLive : ""}`}
                     style={{ background: anyRun.agent.color }}
                   />
-                  Agent
-                </button>
+                )
+              }
+            />
+
+            <div
+              className={styles.tabPanel}
+              role="tabpanel"
+              id={`${ids}-tabpanel`}
+              aria-labelledby={`${ids}-tab-${shownTab}`}
+            >
+              {!detail && <div className={styles.loading}>Loading…</div>}
+
+              {detail && shownTab === "comments" && (
+                <Comments
+                  taskId={taskId}
+                  detail={detail}
+                  me={user}
+                  description={shown.description}
+                  onUseAsDescription={(description) => patch({ description })}
+                  reload={reload}
+                  onError={notify}
+                />
+              )}
+
+              {detail && shownTab === "activity" && (
+                <div className={styles.feed}>
+                  {detail.activity.length === 0 && (
+                    <div className={styles.activityRow}>
+                      <span className={styles.activityTime}>—</span>
+                      <span className={styles.activityText}>Nothing has happened yet.</span>
+                    </div>
+                  )}
+                  {detail.activity.map((entry) => (
+                    <div key={entry.id} className={styles.activityRow}>
+                      <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
+                      <span className={styles.activityText}>{describeActivity(entry)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {shownTab === "agent" && (
+                <>
+                  {run && (
+                    <AgentRunBlock
+                      run={run}
+                      onControl={async (control) => {
+                        await controlRun(run.id, control);
+                        await reload();
+                      }}
+                    />
+                  )}
+                  {pastRuns.length > 0 && <PastRuns runs={pastRuns} />}
+                </>
               )}
             </div>
-
-            {!detail && <div className={styles.loading}>Loading…</div>}
-
-            {detail && shownTab === "comments" && (
-              <Comments
-                taskId={taskId}
-                detail={detail}
-                me={user}
-                description={shown.description}
-                onUseAsDescription={(description) => patch({ description })}
-                reload={reload}
-                onError={notify}
-              />
-            )}
-
-            {detail && shownTab === "activity" && (
-              <div className={styles.feed}>
-                {detail.activity.length === 0 && (
-                  <div className={styles.activityRow}>
-                    <span className={styles.activityTime}>—</span>
-                    <span className={styles.activityText}>Nothing has happened yet.</span>
-                  </div>
-                )}
-                {detail.activity.map((entry) => (
-                  <div key={entry.id} className={styles.activityRow}>
-                    <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
-                    <span className={styles.activityText}>{describeActivity(entry)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {shownTab === "agent" && (
-              <>
-                {run && (
-                  <AgentRunBlock
-                    run={run}
-                    onControl={async (control) => {
-                      await controlRun(run.id, control);
-                      await reload();
-                    }}
-                  />
-                )}
-                {pastRuns.length > 0 && <PastRuns runs={pastRuns} />}
-              </>
-            )}
           </>
         )}
       </div>
     </aside>
+  );
+}
+
+const TAB_STEPS: Record<string, (at: number, count: number) => number> = {
+  ArrowRight: (at, count) => (at + 1) % count,
+  ArrowLeft: (at, count) => (at - 1 + count) % count,
+  Home: () => 0,
+  End: (_at, count) => count - 1,
+};
+
+/**
+ * Comments, Activity and Agent. They are one tab stop, and the arrows walk
+ * them, so Tab goes from the checklist to the comment box in one press. A tab
+ * opens as the arrow lands on it: all three are already loaded, so there is
+ * nothing to wait for.
+ */
+function PanelTabs({
+  ids,
+  tabs,
+  shown,
+  onPick,
+  agentDot,
+}: {
+  ids: string;
+  tabs: { id: PanelTab; label: string }[];
+  shown: PanelTab;
+  onPick: (tab: PanelTab) => void;
+  agentDot: React.ReactNode;
+}) {
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const step = TAB_STEPS[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const at = tabs.findIndex((t) => t.id === shown);
+    const next = tabs[step(Math.max(at, 0), tabs.length)];
+    onPick(next.id);
+    document.getElementById(`${ids}-tab-${next.id}`)?.focus();
+  }
+
+  return (
+    <div
+      className={styles.tabs}
+      role="tablist"
+      aria-label="Comments and history"
+      onKeyDown={onKeyDown}
+    >
+      {tabs.map((tab) => {
+        const on = tab.id === shown;
+        return (
+          <button
+            key={tab.id}
+            id={`${ids}-tab-${tab.id}`}
+            className={`${styles.tab} ${on ? styles.tabOn : ""}`}
+            role="tab"
+            aria-selected={on}
+            aria-controls={`${ids}-tabpanel`}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onPick(tab.id)}
+            data-testid={tab.id === "agent" ? "agent-tab" : undefined}
+          >
+            {/* No count on the Agent label. The tab opens; the list is the
+                count. The dot pulses only while an agent is working. */}
+            {tab.id === "agent" && agentDot}
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1407,6 +1484,7 @@ function TitleField({
   sign,
   inField,
   onCommit,
+  onLeave,
 }: {
   taskId: string;
   value: string;
@@ -1414,9 +1492,15 @@ function TitleField({
   sign: string | null;
   inField: (field: string | null) => void;
   onCommit: (text: string, base: string) => Promise<Saved>;
+  onLeave: () => void;
 }) {
   const [focused, setFocused] = useState(false);
-  useSayField(focused ? "title" : null, inField);
+  /* The focus the opening put here, before anybody touched the box. Opening a
+     task is reading it, so it tells nobody "is editing the title", and one
+     Escape still closes the panel as it did before the title took the focus. */
+  const [arrived, setArrived] = useState(false);
+  const opening = useRef(false);
+  useSayField(focused && !arrived ? "title" : null, inField);
   const [draft, setDraft] = useState(value);
   /* Whether this tab typed in the box since its last save. A click is not an
      edit: the draft it leaves behind goes stale the moment an agent or
@@ -1432,9 +1516,20 @@ function TitleField({
   const [mine, setMine] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
 
+  /* A task that opens puts the focus on its title, so a keyboard lands on the
+     task it asked for and a screen reader reads its name. A phone is left
+     alone: there the focus would push a keyboard up over the panel. */
+  useEffect(() => {
+    if (window.matchMedia?.("(pointer: coarse)").matches) return;
+    opening.current = true;
+    ref.current?.focus({ preventScroll: true });
+    opening.current = false;
+  }, [taskId]);
+
   function startTyping() {
     if (!typed) base.current = sending ?? value;
     setTyped(true);
+    setArrived(false);
   }
 
   /* A name picked from the list is typing, so the words are kept and the blur
@@ -1517,9 +1612,12 @@ function TitleField({
         ref={ref}
         className={styles.title}
         data-testid="task-title"
+        aria-label="Title"
         value={text}
         rows={1}
+        onPointerDown={() => setArrived(false)}
         onFocus={() => {
+          setArrived(opening.current);
           thrown.current = false;
           setFocused(true);
         }}
@@ -1532,6 +1630,7 @@ function TitleField({
         onBlur={() => {
           picker.close();
           setFocused(false);
+          setArrived(false);
           setTyped(false);
           if (!typed || thrown.current) return;
           const edit = unsaved();
@@ -1544,6 +1643,11 @@ function TitleField({
           if (e.key === "Enter") {
             e.preventDefault();
             (e.target as HTMLTextAreaElement).blur();
+          }
+          if (e.key === "Escape" && arrived && !typed) {
+            e.preventDefault();
+            onLeave();
+            return;
           }
           if (e.key === "Escape") {
             thrown.current = true;

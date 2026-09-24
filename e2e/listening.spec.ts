@@ -214,7 +214,7 @@ test.describe("Agents that wait for work", () => {
     await expect(panel.getByRole("button", { name: "Stop" })).toBeHidden();
     await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible();
 
-    await page.getByRole("button", { name: /^Comments/ }).click();
+    await page.getByRole("tab", { name: /^Comments/ }).click();
     const composer = page.getByPlaceholder("Answer Asker…");
     await composer.fill("The billing service.");
     // The words are in the box before they are on the server, so wait for
