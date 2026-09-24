@@ -25,7 +25,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
 import { listColumns, listTemplate } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
-import { canSort, pressSort, sortTasks } from "@/lib/sort";
+import { canSort, pressSort, sortTasks, sortWayInline } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
 import { useCursorBack, useShortcut } from "./keys";
 import { Composer } from "./Column";
@@ -358,20 +358,17 @@ export function ListCanvas({
                    is not always the board's own order. */
                 const next = pressSort(sort, viewSort, column.id);
                 const after = next ?? viewSort;
+                /* The words come from the one table the Sort button and the
+                   chip read, so a heading never names an order another way. */
                 const again =
                   after?.columnId === column.id
-                    ? after.direction === "asc"
-                      ? "Again for smallest first."
-                      : "Again for largest first."
+                    ? `Again for ${sortWayInline(column.item, after.direction)}.`
                     : after
                       ? "Again for this view's own order."
                       : "Again for the board's own order.";
-                const said =
-                  on === "asc"
-                    ? `${column.name}, smallest first. ${again}`
-                    : on === "desc"
-                      ? `${column.name}, largest first. ${again}`
-                      : `Order by ${column.name}`;
+                const said = on
+                  ? `${column.name}, ${sortWayInline(column.item, on)}. ${again}`
+                  : `Order by ${column.name}`;
                 const className = [
                   styles.listHeadCell,
                   column.right ? styles.listHeadRight : "",

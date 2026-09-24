@@ -735,6 +735,37 @@ test.describe("Ordering a board", () => {
     expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
   });
 
+  test("names each way of an order by what the column holds", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Ways"));
+
+    const menu = page.getByTestId("sort-menu");
+    const chip = page.getByTestId("sort-chip");
+    const press = (name: string) =>
+      settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+        menu.getByRole("option", { name }).click(),
+      );
+
+    await page.getByTestId("sort-button").click();
+
+    // A select runs in the order its options were put in, not small to large.
+    await press("Priority");
+    await expect(menu.getByRole("option", { name: "Priority" })).toContainText("Option order");
+    await expect(chip).toContainText("Priority: Option order");
+
+    await press("Priority");
+    await expect(menu.getByRole("option", { name: "Priority" })).toContainText("Reverse order");
+    await expect(chip).toContainText("Priority: Reverse order");
+
+    await press("Title");
+    await expect(menu.getByRole("option", { name: "Title" })).toContainText("A→Z");
+    await expect(chip).toContainText("Title: A→Z");
+
+    await press("Due");
+    await expect(menu.getByRole("option", { name: "Due" })).toContainText("Earliest first");
+    await expect(chip).toContainText("Due: Earliest first");
+  });
+
   test("a list is ordered by its headings, so it has no button", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Headings"));

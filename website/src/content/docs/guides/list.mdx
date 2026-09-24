@@ -71,9 +71,26 @@ the hidden tasks between them stay where they are.
 
 ## Ordering by a column
 
-**Press a heading.** Once for smallest first, again for largest first, and a third time for the
-order the board itself keeps. The heading you pressed carries an arrow, and a chip above the list
-names the column so you can see at a glance that the list is not in its own order.
+**Press a heading.** Once for one way, again for the other, and a third time for the order the
+board itself keeps. The heading you pressed carries an arrow, and a chip above the list names the
+column and the way, so you can see at a glance that the list is not in its own order.
+
+The two ways are named by what the column holds, and the board's **Sort** button uses the same
+words:
+
+| Column                         | First press      | Second press    |
+| ------------------------------ | ---------------- | --------------- |
+| Title, text, person            | A→Z              | Z→A             |
+| Date                           | Earliest first   | Latest first    |
+| Select, multi-select           | Option order     | Reverse order   |
+| Number                         | Smallest first   | Largest first   |
+| Key                            | Oldest first     | Newest first    |
+| Checklist                      | Least done first | Most done first |
+| Comments                       | Fewest first     | Most first      |
+| Checkbox                       | Ticked first     | Not ticked first |
+
+A select runs in the order its options stand in Settings, so Urgent comes before Low. An empty
+value goes last both ways. A checkbox has no empty value: a box nobody ticked is not ticked.
 
 A board asks for the same order from its **Sort** button, because it has no heading to press, and
 everything below holds there too — each column is drawn in the order. See
@@ -96,7 +113,7 @@ How each kind of column orders:
 | **date** | the day it names |
 | **number** | its size, so 9 comes before 10 |
 | **text**, **title** | the words |
-| **checkbox** | off before on |
+| **checkbox** | ticked before not ticked; a box nobody ticked is not ticked, so it never holds nothing |
 | **Task ID** | the number |
 | **Checklist** | how far along it is — three of four is further than three of ten |
 | **Comments** | how many |
