@@ -238,6 +238,33 @@ test.describe("Settings", () => {
     await page.unroute(/\/api\/properties\/[^/]+\/count$/);
   });
 
+  test("deleting an option asks first, and names the tasks that lose it", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Option"));
+    await addTask(page, "Todo", "Holds urgent");
+    await page.getByRole("button", { name: "Urgent", exact: true }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "properties");
+    const box = propertyBox(page, "Priority");
+    const chipOf = box.getByLabel("Name of the option Urgent");
+
+    await box.getByRole("button", { name: "Delete the option Urgent" }).click();
+    await expect(page.getByText("Delete Urgent? 1 task loses it.")).toBeVisible();
+
+    // Nothing goes until the question is answered.
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(chipOf).toBeVisible();
+
+    await box.getByRole("button", { name: "Delete the option Urgent" }).click();
+    await saved(page, () => page.getByRole("button", { name: "Yes, delete" }).click());
+    await expect(chipOf).toHaveCount(0);
+
+    // An option nobody holds says so, rather than a count of nought.
+    await box.getByRole("button", { name: "Delete the option Low" }).click();
+    await expect(page.getByText("Delete Low? No task holds it.")).toBeVisible();
+  });
+
   test("a new board says where its columns come from", async ({ page }) => {
     await register(page);
     await createProject(page, unique("First"));
