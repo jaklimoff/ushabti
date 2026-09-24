@@ -15,6 +15,7 @@ import type { FilterRule, PropertyDTO, TaskDTO } from "../types";
 
 /* 2026-09-21 is a Monday, and 2026-09-27 the Sunday that closes its week. */
 const MONDAY = "2026-09-21";
+const NONE: ReadonlySet<string> = new Set();
 const SUNDAY = "2026-09-27";
 
 describe("the day it is in a zone", () => {
@@ -233,9 +234,9 @@ describe("a window is read the same wherever the process runs", () => {
     const rule: FilterRule = { propertyId: due.id, op: "within", text: "this_week" };
     for (const zone of ["UTC", "Pacific/Auckland", "America/Los_Angeles", "Asia/Kolkata"]) {
       process.env.TZ = zone;
-      expect(matches(task("2026-09-27"), rule, due, MONDAY, null)).toBe(true);
-      expect(matches(task("2026-09-28"), rule, due, MONDAY, null)).toBe(false);
-      expect(matches(task("2026-09-20"), rule, due, MONDAY, null)).toBe(false);
+      expect(matches(task("2026-09-27"), rule, due, MONDAY, null, NONE)).toBe(true);
+      expect(matches(task("2026-09-28"), rule, due, MONDAY, null, NONE)).toBe(false);
+      expect(matches(task("2026-09-20"), rule, due, MONDAY, null, NONE)).toBe(false);
     }
   });
 });

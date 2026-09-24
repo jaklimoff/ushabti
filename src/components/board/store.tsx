@@ -16,7 +16,14 @@ import { cardItems, defaultCardView, mainBoardGroupById, readCardView } from "@/
 import type { CardItem } from "@/lib/card-view";
 import { deletedSaid } from "@/lib/deleted";
 import { sweepDrafts } from "@/lib/draft";
-import { applyFilters, clashOf, clashSaid, EMPTY_FILTERS, mergeFilters } from "@/lib/filters";
+import {
+  applyFilters,
+  clashOf,
+  clashSaid,
+  EMPTY_FILTERS,
+  mergeFilters,
+  waitingTasks,
+} from "@/lib/filters";
 import {
   editorsOf,
   expirePresence,
@@ -629,10 +636,13 @@ export function BoardProvider({
      so a relative date rule draws the same cards here as it did on the
      server. A board left open over midnight keeps yesterday until the next
      read, which is the price of the two renders agreeing. "Me" is read as
-     the person at this screen, so one shared view is each viewer's own. */
+     the person at this screen, so one shared view is each viewer's own.
+     "Agent waiting" reads the open runs of the same answer, so an answered
+     question takes the card out on the read the answer rings for. */
+  const waiting = useMemo(() => waitingTasks(data.runs), [data.runs]);
   const visibleTasks = useMemo(
-    () => applyFilters(data.tasks, filters, data.properties, data.today, user.id),
-    [data.properties, data.tasks, data.today, filters, user.id],
+    () => applyFilters(data.tasks, filters, data.properties, data.today, user.id, waiting),
+    [data.properties, data.tasks, data.today, filters, user.id, waiting],
   );
 
   /*

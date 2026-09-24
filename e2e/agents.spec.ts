@@ -776,6 +776,57 @@ test.describe("Agents on the board", () => {
     await expect(page.getByTestId("agent-tab")).toBeVisible();
   });
 
+  test("Agent waiting finds the tasks where an agent asked a person", async ({ page, request }) => {
+    await register(page, "Waited On");
+    const projectId = await createProject(page, unique("Waiting"));
+    for (const title of ["Asks a question", "Hands it over", "Just works", "Nobody on it"]) {
+      await addTask(page, "Todo", title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Builder");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Builder" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+    const api = agentApi(request, token);
+
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const idOf = (title: string) =>
+      board.tasks.find((t: { title: string }) => t.title === title).id as string;
+    const open = async (title: string) =>
+      (await (await api.post(`/api/tasks/${idOf(title)}/run`, { goal: title })).json()).run
+        .id as string;
+
+    const asks = await open("Asks a question");
+    await api.patch(`/api/runs/${asks}`, { status: "waiting", step: "Which queue?" });
+    const hands = await open("Hands it over");
+    await api.patch(`/api/runs/${hands}`, { status: "handed_over", step: "review" });
+    await open("Just works");
+
+    await page.goto(`/p/${projectId}`);
+    await expect(card(page, "Just works").getByTestId("card-run")).toBeVisible();
+
+    /* Only the run that asked somebody something is on it. A hand-over gave
+       the task away and waits for nobody in particular. */
+    await addFilter(page, "Agent waiting", "Agent waiting");
+    await expect(
+      page.getByRole("button", { name: "Remove the filter Agent waiting" }),
+    ).toBeVisible();
+    await expect(card(page, "Asks a question")).toBeVisible();
+    await expect(card(page, "Hands it over")).toHaveCount(0);
+    await expect(card(page, "Just works")).toHaveCount(0);
+    await expect(card(page, "Nobody on it")).toHaveCount(0);
+
+    /* The answer wakes the agent, the agent goes back to work, and the card
+       leaves on the read that change rings for. Nobody reloads. */
+    await api.patch(`/api/runs/${asks}`, { status: "running", step: "Reading the answer" });
+    await expect(card(page, "Asks a question")).toHaveCount(0);
+  });
+
   test("an agent may write the board but not take it apart", async ({ page, request }) => {
     await register(page, "Careful Owner");
     const projectId = await createProject(page, unique("Limits"));

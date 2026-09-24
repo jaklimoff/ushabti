@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A filter finds the tasks where an agent waits.** **Agent waiting** sits beside **Blocked** in
+  the filter list and keeps only the tasks whose open run asked a person something. A hand-over
+  does not count. The card leaves when the agent takes the answer and goes back to work. A rule
+  stores it as `_agent_waiting`.
 - **A deleted task can be undone from its toast.** The line after **Delete task** has an **Undo**
   button that puts the task back in its column and its place. It stays while the pointer or the
   focus is on it, and `Tab` reaches it without the toast taking the focus. The line still
