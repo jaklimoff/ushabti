@@ -19,10 +19,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
-import { Button, IconButton } from "@/components/ui/Button";
-import { Input, NameInput, Select } from "@/components/ui/Form";
+import { IconButton } from "@/components/ui/Button";
+import { NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { Card, Foot, Note, Row, Tag } from "@/components/ui/Layout";
+import { Card, Row, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import {
   GROUPABLE_TYPES,
@@ -37,11 +37,8 @@ import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
 export function ViewsPanel() {
-  const { data, createView, moveView } = useBoard();
+  const { data, moveView } = useBoard();
   const groupable = data.properties.filter((p) => GROUPABLE_TYPES.includes(p.type));
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<ViewKind>("board");
-  const [groupById, setGroupById] = useState(groupable[0]?.id ?? "");
 
   /* The grip is the only thing that lifts a row, so the boxes on it still take
      a caret and a click. Space lifts, the arrows move, Space puts it down:
@@ -57,26 +54,11 @@ export function ViewsPanel() {
     void moveView(String(active.id), String(over.id));
   }
 
-  async function create() {
-    const chosen = groupById || groupable[0]?.id || null;
-    if (kind === "board" && !chosen) return;
-    const property = data.properties.find((p) => p.id === chosen);
-    const taken = new Set(data.views.map((v) => v.name.toLowerCase()));
-    let fallback = `By ${property?.name.toLowerCase() ?? "property"}`;
-    if (kind === "list") {
-      fallback = "List";
-      for (let n = 2; taken.has(fallback.toLowerCase()); n += 1) fallback = `List ${n}`;
-    }
-    const title = name.trim() || fallback;
-    setName("");
-    await createView(title, kind, kind === "board" ? chosen : null);
-  }
-
   return (
     <>
       <PageHead
         title="Views"
-        note="A view is one way of looking at the same tasks. A board puts them in columns; a list puts them in rows. Drag a view by its grip to change where it sits, here and in the strip above the board."
+        note="A view is one way of looking at the same tasks. A board puts them in columns; a list puts them in rows. Drag a view by its grip to change where it sits, here and in the strip above the board. A new view is made with the + at the end of that strip."
       />
 
       <Card>
@@ -97,59 +79,6 @@ export function ViewsPanel() {
             ))}
           </SortableContext>
         </DndContext>
-
-        <Foot>
-          <Input
-            style={{ flex: 1, minWidth: 140 }}
-            aria-label="Name of the new view"
-            value={name}
-            placeholder="View name"
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void create()}
-          />
-          <span className="label">Shows as</span>
-          <Select
-            aria-label="How the new view shows"
-            value={kind}
-            onChange={(e) => setKind(e.target.value as ViewKind)}
-          >
-            {VIEW_KINDS.map((option) => (
-              <option
-                key={option}
-                value={option}
-                disabled={option === "board" && !groupable.length}
-              >
-                {VIEW_KIND_LABEL[option]}
-              </option>
-            ))}
-          </Select>
-          {/* A list groups nothing, so the question is not asked. Hidden, not
-              disabled: a disabled control is a question with no answer. */}
-          {kind === "board" && (
-            <>
-              <span className="label">Columns by</span>
-              <Select
-                aria-label="Grouping property of the new view"
-                value={groupById}
-                onChange={(e) => setGroupById(e.target.value)}
-              >
-                {groupable.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
-            </>
-          )}
-          <Button onClick={() => void create()} disabled={kind === "board" && !groupable.length}>
-            Add view
-          </Button>
-          {groupable.length === 0 && (
-            <span style={{ width: "100%" }}>
-              <Note>A board needs a select, person or checkbox property. Add one first.</Note>
-            </span>
-          )}
-        </Foot>
       </Card>
     </>
   );
