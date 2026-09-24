@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
 import { buildColumns } from "../board";
-import { canSort, nextSort, pressSort, readLensSort, readSort, sortTasks } from "../sort";
+import {
+  canSort,
+  nextSort,
+  pressSort,
+  readLensSort,
+  readSort,
+  sortLabel,
+  sortTasks,
+  sortWay,
+  sortWayInline,
+} from "../sort";
 import type { MemberDTO, PropertyDTO, TaskDTO, ViewSort } from "../types";
 
 const PRIORITY: PropertyDTO = {
@@ -276,6 +286,86 @@ describe("reading a saved sort", () => {
     expect(readSort({ columnId: "_desc", direction: "asc" }, PROPERTIES)).toBeNull();
     expect(readSort(null, PROPERTIES)).toBeNull();
     expect(readSort("desc", PROPERTIES)).toBeNull();
+  });
+});
+
+describe("the words for which way an order runs", () => {
+  function ways(id: string): [string, string] {
+    const item = ITEMS.find((i) => i.id === id);
+    if (!item) throw new Error(`no column ${id}`);
+    return [sortWay(item, "asc"), sortWay(item, "desc")];
+  }
+
+  it("says A→Z for words and people", () => {
+    expect(ways("_title")).toEqual(["A→Z", "Z→A"]);
+    expect(ways("p-who")).toEqual(["A→Z", "Z→A"]);
+  });
+
+  it("says earliest and latest for a date", () => {
+    expect(ways("p-due")).toEqual(["Earliest first", "Latest first"]);
+  });
+
+  it("names the option order for a select, one or many", () => {
+    expect(ways("p-prio")).toEqual(["Option order", "Reverse order"]);
+    expect(ways("p-labels")).toEqual(["Option order", "Reverse order"]);
+  });
+
+  it("keeps smallest and largest for a number only", () => {
+    expect(ways("p-points")).toEqual(["Smallest first", "Largest first"]);
+    const others = ITEMS.filter((i) => i.id !== "p-points").flatMap((i) => [
+      sortWay(i, "asc"),
+      sortWay(i, "desc"),
+    ]);
+    expect(others).not.toContain("Smallest first");
+    expect(others).not.toContain("Largest first");
+  });
+
+  it("drops the capital of a word inside a sentence, and only of a word", () => {
+    const due = ITEMS.find((i) => i.id === "p-due")!;
+    const title = ITEMS.find((i) => i.id === "_title")!;
+    expect(sortWayInline(due, "desc")).toBe("latest first");
+    expect(sortWayInline(title, "asc")).toBe("A→Z");
+  });
+
+  it("gives the chip the same words", () => {
+    expect(sortLabel({ columnId: "p-due", direction: "asc" }, ITEMS)).toEqual({
+      name: "Due",
+      way: "Earliest first",
+    });
+    expect(sortLabel({ columnId: "p-gone", direction: "asc" }, ITEMS)).toBeNull();
+  });
+});
+
+describe("ordering by a checkbox", () => {
+  /* A checkbox draws no empty state, so a box nobody ticked is a value and
+     not an empty that goes last both ways. */
+  const DONE: PropertyDTO = {
+    id: "p-done",
+    name: "Done",
+    type: "checkbox",
+    position: "z",
+    config: {},
+    options: [],
+  };
+  const withDone = [...PROPERTIES, DONE];
+  const items = cardItems(readCardView(SAVED, withDone, null), withDone);
+  const tasks = [task("a"), task("b", { "p-done": true }), task("c", { "p-done": false })];
+
+  function byDone(direction: "asc" | "desc"): string[] {
+    return sortTasks(tasks, { columnId: "p-done", direction }, items, MEMBERS).map((t) => t.id);
+  }
+
+  it("runs both ways, with an unticked box as a value", () => {
+    expect(byDone("asc")).toEqual(["b", "a", "c"]);
+    expect(byDone("desc")).toEqual(["a", "c", "b"]);
+  });
+
+  it("says Ticked first and Not ticked first", () => {
+    const item = items.find((i) => i.id === "p-done")!;
+    expect([sortWay(item, "asc"), sortWay(item, "desc")]).toEqual([
+      "Ticked first",
+      "Not ticked first",
+    ]);
   });
 });
 

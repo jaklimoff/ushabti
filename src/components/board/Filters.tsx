@@ -18,7 +18,7 @@ import {
   OP_LABEL,
 } from "@/lib/filters";
 import { DATE_WINDOWS, DATE_WINDOW_NAME } from "@/lib/day";
-import { canSort, pressSort, sortLabel } from "@/lib/sort";
+import { canSort, pressSort, sortLabel, sortWay } from "@/lib/sort";
 import { listColumns } from "@/lib/list-view";
 import type { CardItem } from "@/lib/card-view";
 import type { LeaveSend } from "@/lib/leave";
@@ -29,7 +29,6 @@ import {
   type MemberDTO,
   type PropertyDTO,
   type PropertyType,
-  type SortDirection,
   type ViewDTO,
   type ViewSort,
 } from "@/lib/types";
@@ -565,12 +564,6 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
 /* Asking a board for an order                                         */
 /* ------------------------------------------------------------------ */
 
-/** What the row of the order that is on says about which way it runs. */
-const WAY: Record<SortDirection, string> = {
-  asc: "Smallest first",
-  desc: "Largest first",
-};
-
 /**
  * A list is ordered by pressing a heading. A board has no heading, so it asks
  * here instead — the same panel the filter opens, in the same place, because
@@ -610,7 +603,7 @@ export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: bool
           name: column.name,
           color: column.item.property ? propertyColor(column.item.property) : BUILTIN_DOT,
           on,
-          note: on && sort ? WAY[sort.direction] : undefined,
+          note: on && sort ? sortWay(column.item, sort.direction) : undefined,
         };
       });
   }, [cardItems, query, sort]);
@@ -831,9 +824,10 @@ function SortChip({
     asked.current = asking.asking;
   }, [asking.asking]);
 
-  const name = sortLabel(sort, items);
-  if (!name) return null;
-  const said = `${sort.direction === "asc" ? "\u2191" : "\u2193"} ${name}`;
+  const label = sortLabel(sort, items);
+  if (!label) return null;
+  const { name } = label;
+  const said = `${name}: ${label.way}`;
 
   /* The view's order is the team's: taking it away moves every board that
      reads this view, so it asks first, as a shared rule does. */
