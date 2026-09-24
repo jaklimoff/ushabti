@@ -145,6 +145,9 @@ Keep it short. A refined task is one a person reads in a minute.
 - **Exit code 9 means the card is not yours any more.** Somebody pressed Take
   over or dragged the card. Stop work, do not re-claim it, tell the person.
 - **One open run per task.** Claiming a held task fails with 9. Pick another.
+- **"did not answer" on a write may still have landed.** A read is already
+  sent twice when the connection drops. A write is not, so run `task` first,
+  and send it again only if the change is not there.
 - **Never invent a property or an option.** Run `props` to see what this board
   has, and use the names. `set` refuses an unknown one and lists the real
   choices. Status, Priority and the rest belong to the board's owner, who may
