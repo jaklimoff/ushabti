@@ -54,6 +54,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Enter in a select picks an option and never makes one by mistake.** When
+  two options matched what you typed, Enter made a new option of the typed
+  words, and on a board grouped by it a new column. Now the arrow keys move a
+  highlight, Enter picks the highlighted row, and a new option comes only from
+  its own **Add** row, which a name that is already there never shows.
 - **A long line in a description or a comment wraps.** Inline code, a long
   link and a code block used to make the text scroll sideways, which hid the
   end of the line. They now wrap as they do in the editor, on a phone too.

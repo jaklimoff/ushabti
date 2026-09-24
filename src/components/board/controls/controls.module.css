@@ -114,7 +114,15 @@
   animation: ushabti-fade-in 110ms var(--ease);
 }
 
+/* The rows sit in a listbox of their own, so the box above is not one of them. */
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .menuItem {
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -130,6 +138,12 @@
 }
 
 .menuItem:hover {
+  background: #1b2126;
+  color: var(--text);
+}
+
+/* The row Enter would pick. It reads as a hover, because it is one by key. */
+.menuItemAt {
   background: #1b2126;
   color: var(--text);
 }
