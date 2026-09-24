@@ -860,9 +860,9 @@ export function BoardProvider({
 
   /*
    * A delete is the one press on this board with a way back. The toast
-   * carries the quick way, Undo, and names the slow one, the Archive, with the
-   * days the server counted — the toast goes in seconds and the Archive does
-   * not. It is written out here rather than through `guarded`, which throws the
+   * carries the quick way, Undo, and names the slow one, the archive page, with
+   * the days the server counted — the toast goes in seconds and the archive
+   * page does not. It is written out here rather than through `guarded`, which throws the
    * answer away, and the answer is the only place the window is.
    *
    * Undo is tied to the id read here, not to whatever is open when it is

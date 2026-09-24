@@ -91,7 +91,7 @@ test.describe("The project switcher", () => {
     await expect(page.getByTestId("board-crumb")).toHaveText(first);
   });
 
-  test("is the same menu in Settings and the Archive, and the name is not a link", async ({
+  test("is the same menu in Settings and Archived, and the name is not a link", async ({
     page,
   }) => {
     await register(page);

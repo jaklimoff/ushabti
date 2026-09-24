@@ -158,7 +158,7 @@ export function useMentions(
       setAt((n) => (n - 1 + found.length) % found.length);
       return true;
     }
-    /* Cmd + Enter belongs to the box: it sends the note and saves the
+    /* ⌘ or Ctrl + Enter belongs to the box: it sends the note and saves the
        description. Only a plain Enter picks a name. */
     if ((event.key === "Enter" || event.key === "Tab") && !event.metaKey && !event.ctrlKey) {
       event.preventDefault();

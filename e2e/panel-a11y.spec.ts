@@ -54,7 +54,7 @@ test.describe("The panel and the view strip work without a mouse", () => {
     await addTask(page, "Todo", "Named fields");
     const panel = page.getByTestId("task-panel");
 
-    // A menu is read with its label, not as "Empty, button".
+    // A menu is read with its label, not as "No status, button".
     const status = panel.getByRole("button", { name: "Status Todo", exact: true });
     await expect(status).toHaveAttribute("aria-expanded", "false");
     await status.click();

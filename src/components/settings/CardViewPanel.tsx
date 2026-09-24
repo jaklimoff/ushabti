@@ -155,7 +155,6 @@ function CardRowBox({
         <span className={styles.cardRowName}>
           <span className={styles.cardRowDot} style={{ background: item.color }} />
           <span className={off ? styles.cardRowOff : undefined}>{item.name}</span>
-          {item.builtin && <span className={styles.cardRowNote}>built in</span>}
         </span>
 
         <span className={styles.cardRowType}>
