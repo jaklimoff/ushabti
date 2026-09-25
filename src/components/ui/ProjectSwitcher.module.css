@@ -91,16 +91,65 @@
   color: var(--text);
 }
 
+.itemCurrent {
+  color: var(--text);
+}
+
+/* An action goes somewhere else, so it stays quieter than a project until
+   it is pointed at. */
+.itemAction {
+  color: var(--muted);
+}
+
+.itemAction:hover,
+.itemAction.itemAt {
+  color: var(--text);
+}
+
+/* The same square the bar draws beside the name, at the size of a row. */
+.mark {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* Sits where a mark sits and is as wide, but is not filled: it is not a
+   project. */
+.glyph {
+  width: 16px;
+  flex: 0 0 16px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Two projects can start with the same letter; the key tells them apart. */
+.key {
+  flex: 0 0 auto;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--faint);
+}
+
 /* The projects end here. What follows goes somewhere else. */
 .itemRule {
-  margin-top: 4px;
+  margin-top: 9px;
   position: relative;
 }
 
 .itemRule::before {
   content: "";
   position: absolute;
-  top: -3px;
+  top: -5px;
   left: 0;
   right: 0;
   height: 1px;
@@ -116,6 +165,7 @@
 }
 
 .tick {
+  flex: 0 0 10px;
   color: var(--accent);
 }
 

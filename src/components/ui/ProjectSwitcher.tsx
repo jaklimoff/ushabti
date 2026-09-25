@@ -19,7 +19,17 @@ import styles from "./ProjectSwitcher.module.css";
 
 type Project = { id: string; key: string; name: string };
 
-type Row = { key: string; label: string; href: string; current?: boolean; project?: boolean };
+/* A project row carries its key, which draws its mark; an action row carries
+   a glyph in the same place, so the two read apart and the words still line
+   up. */
+type Row = {
+  key: string;
+  label: string;
+  href: string;
+  current?: boolean;
+  projectKey?: string;
+  glyph?: string;
+};
 
 /** Past this many projects the list is long enough to want a box. */
 const MANY = 8;
@@ -93,10 +103,10 @@ export function ProjectSwitcher({
       label: p.name,
       href: `/p/${p.id}`,
       current: p.id === project.id,
-      project: true,
+      projectKey: p.key,
     })),
-    { key: "_new", label: "New project", href: "/projects?new" },
-    { key: "_all", label: "All projects", href: "/projects" },
+    { key: "_new", label: "New project", href: "/projects?new", glyph: "+" },
+    { key: "_all", label: "All projects", href: "/projects", glyph: "→" },
   ];
 
   /* The highlight follows a row and not a place, so the list arriving or
@@ -197,34 +207,51 @@ export function ProjectSwitcher({
             onKeyDown={many ? undefined : keys}
           >
             {shown.length === 0 && <span className={styles.note}>No project matches.</span>}
-            {rows.map((row, i) => (
-              <Link
-                key={row.key}
-                id={`${menuId}-${i}`}
-                href={row.href}
-                role={row.project ? "menuitemradio" : "menuitem"}
-                aria-checked={row.project ? !!row.current : undefined}
-                tabIndex={-1}
-                className={`${styles.item} ${i === at ? styles.itemAt : ""} ${
-                  row.key === "_new" ? styles.itemRule : ""
-                }`}
-                // The menu keeps the focus, so the press must not move it.
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  if (row.current) {
-                    e.preventDefault();
-                    close();
-                  } else setOpen(false);
-                }}
-              >
-                <span className={styles.label}>{row.label}</span>
-                {row.project && (
-                  <span className={styles.tick} aria-hidden>
-                    {row.current ? "✓" : ""}
-                  </span>
-                )}
-              </Link>
-            ))}
+            {rows.map((row, i) => {
+              const isProject = row.projectKey !== undefined;
+              return (
+                <Link
+                  key={row.key}
+                  id={`${menuId}-${i}`}
+                  href={row.href}
+                  role={isProject ? "menuitemradio" : "menuitem"}
+                  aria-checked={isProject ? !!row.current : undefined}
+                  tabIndex={-1}
+                  className={`${styles.item} ${isProject ? "" : styles.itemAction} ${
+                    row.current ? styles.itemCurrent : ""
+                  } ${i === at ? styles.itemAt : ""} ${row.key === "_new" ? styles.itemRule : ""}`}
+                  // The menu keeps the focus, so the press must not move it.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    if (row.current) {
+                      e.preventDefault();
+                      close();
+                    } else setOpen(false);
+                  }}
+                >
+                  {isProject ? (
+                    <span className={styles.mark} aria-hidden>
+                      {row.projectKey!.slice(0, 1)}
+                    </span>
+                  ) : (
+                    <span className={styles.glyph} aria-hidden>
+                      {row.glyph}
+                    </span>
+                  )}
+                  <span className={styles.label}>{row.label}</span>
+                  {isProject && (
+                    <>
+                      <span className={styles.key} aria-hidden>
+                        {row.projectKey}
+                      </span>
+                      <span className={styles.tick} aria-hidden>
+                        {row.current ? "✓" : ""}
+                      </span>
+                    </>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
