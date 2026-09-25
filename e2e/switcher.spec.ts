@@ -85,7 +85,7 @@ test.describe("The project switcher", () => {
     await expect(page.getByRole("menuitemradio")).toHaveCount(2);
     await page.keyboard.press("ArrowUp");
     const at = await menu(page).getAttribute("aria-activedescendant");
-    await expect(page.locator(`[id="${at}"]`)).toHaveText(first);
+    await expect(page.locator(`[id="${at}"]`)).toHaveAccessibleName(first);
     await page.keyboard.press("Enter");
     await page.waitForURL(`**/p/${firstId}`);
     await expect(page.getByTestId("board-crumb")).toHaveText(first);
