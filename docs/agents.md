@@ -720,7 +720,7 @@ What it does for each one:
 | Flag        | Default              | What it does                                   |
 | ----------- | -------------------- | ---------------------------------------------- |
 | `--on`      | `assigned,mention`   | What wakes it                                  |
-| `--goal`    | refine the task      | The job, in the prompt and on the run          |
+| `--goal`    | refine and retitle   | The job, in the prompt and on the run          |
 | `--jobs`    | `1`                  | How many harness sessions run at once          |
 | `--timeout` | `30`                 | Minutes before a session is stopped as failed  |
 | `--state`   | none                 | A file that keeps the cursor across restarts   |
@@ -798,6 +798,7 @@ node board.mjs comment USH-14 "…"
 node board.mjs check USH-14 "A failed send retries five times"
 node board.mjs check USH-14 "retries five times" --done   # tick it; --undone puts it back
 node board.mjs describe USH-14 --file draft.md   # only if empty, or yours
+node board.mjs retitle USH-14 "Retries stop after five tries"   # a title that says what it is
 node board.mjs unmention USH-14            # take your own @Name out again
 node board.mjs ask USH-14 "Which service owns the queue?"
 node board.mjs pause USH-14                # answer a Pause, wait for Resume
