@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An agent that refines a task gives it a new title.** `board.mjs retitle <key> "<title>"`
+  writes the whole title and never puts the agent's own @Name in it. The skill makes a new title
+  the first step of refining, with no exception for a title that looks clear enough, and the
+  watcher's default goal and its mention prompt say so too. Until now the skill said nothing
+  about the title, so an agent kept a hurried title whenever its own name was not in it.
 - **Options can be reordered in Settings.** Drag an option by the grip on its chip, or lift it with
   `Space` and move it with the arrows. The order is the order of the columns and of a sort, so
   Priority can be put in order although no board is grouped by it.

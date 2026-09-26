@@ -426,6 +426,7 @@ const commands = {
   step <key> --say "<now>" [--index 2] [--log "<line>"] [--for 45]
   check <key> "<item>" [--done]       add an item, or tick one; --undone unticks
   describe <key> "<markdown>"         write the description, if it is empty or yours
+  retitle <key> "<title>"             give the task a title that says what it is
   unmention <key>                     take your own @Name out of the title and description
   ask <key> "<question>"              ask a person, wait, and end your session
   pause <key> [--for 5]               answer a Pause: stop, wait for Resume, go on
@@ -774,6 +775,24 @@ http://localhost:3000.`);
   },
 
   /**
+   * A title that says what the task is. A person writes a title in a hurry,
+   * or writes `@Ada fix it` and asks for work without naming it; once the
+   * work is understood, the agent writes the title it should have had. The
+   * new title replaces the old one whole, and the agent's own @Name never
+   * goes back in, or the next edit of the title would wake it again.
+   */
+  async retitle() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const name = data.me.agent.name;
+    const given = String(positional[1] ?? "");
+    const title = without(given, name).replace(/\s+/g, " ").trim();
+    if (!title) fail('Give the title: retitle USH-14 "Retries stop after five tries"');
+    await call("PATCH", `/api/tasks/${task.id}`, { title });
+    console.log(`${task.key}: title is now "${title}"`);
+  },
+
+  /**
    * A question the agent cannot answer alone. The question goes up as a
    * comment, where the person answers it, and the run waits: the card says
    * so, and the board does not close a waiting run for silence. The watcher
@@ -946,7 +965,8 @@ const PROMPTS = {
     place === "title" || place === "description"
       ? `A person mentioned you in the ${place} of task ${key} on the Ushabti board. ` +
         `When you have done what was asked, you may take your own @Name out of the ` +
-        `title or the description.`
+        `title or the description. If you refine the task, give it a new title ` +
+        `with retitle whatever the old one says.`
       : `A person mentioned you in a comment on task ${key} on the Ushabti board.`,
   reply: (key) =>
     `A person answered the question you asked on task ${key} on the Ushabti board. ` +
@@ -987,7 +1007,10 @@ commands.watch = async function watch() {
   for (const t of triggers) {
     if (!TRIGGERS.includes(t)) fail(`--on takes ${TRIGGERS.join(", ")}. "${t}" is not one.`);
   }
-  const goal = String(flags.goal ?? "refine the task so that a developer or an agent can start it");
+  const goal = String(
+    flags.goal ??
+      "refine the task so that a developer or an agent can start it, and give it a title that says what it is",
+  );
   const jobs = Math.max(1, Number(flags.jobs ?? 1) || 1);
   const timeout = Math.max(1, Number(flags.timeout ?? 30) || 30) * 60_000;
   const once = flags.once === "true";

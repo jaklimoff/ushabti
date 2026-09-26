@@ -89,7 +89,9 @@ which of those it was.
   may take your own name out: `node board.mjs unmention $USHABTI_TASK` takes
   `@Name` out of the title and the description and leaves every other word
   alone. Do it last, and only for your own name. A name in a comment stays
-  where it was written.
+  where it was written. When you refine, `retitle` writes the whole title
+  and never puts your name in it, so `unmention` is then only for the
+  description.
 - **Report with `step`** as usual, and obey `control` as usual.
 - **End with `finish`, with `finish --to`, or with `ask`.** Each ends your
   session. If you just stop, the watcher closes the run for you, but the card
@@ -101,21 +103,30 @@ A person wrote a title in a hurry. Make it something a developer or another
 agent can start without asking anything.
 
 1. **Read the board's properties** with `props`, and the task with `task`.
-2. **Set only what you are sure of.** A label the title names, an estimate the
+2. **Write a new title. Always.** The title a person wrote in a hurry is the
+   first thing you replace, not a thing you keep because it is "clear enough"
+   or because it does not name you. The new title says the outcome, in words
+   a person scanning the board understands without opening the card: "Retries
+   stop after five tries", not "retries" and not "@Ada fix the queue thing".
+   Keep it under about 70 characters, with no key, no tag and no @Name.
+   `node board.mjs retitle <key> "<title>"`. A refined task always leaves
+   with a title you wrote.
+3. **Set only what you are sure of.** A label the title names, an estimate the
    work makes obvious. Leave a property empty rather than guess. Never set a
    person property: who does the work is the people's decision.
-3. **Write the acceptance criteria as checklist items**, one `check` each. A
+4. **Write the acceptance criteria as checklist items**, one `check` each. A
    criterion is a thing somebody can test: "A failed send retries five times",
    not "Retries work".
-4. **Write the description, or propose one.** If it is empty, `describe` it:
+5. **Write the description, or propose one.** If it is empty, `describe` it:
    what is wanted, why, what is out of scope, and where in the code it lives if
    you can find out. If a person already wrote one, do not write over it —
    `describe` refuses anyway. Post your version with `comment --file`, and the
    person can make it the description with one press.
-5. **If you cannot go on without an answer, `ask`**, and stop. One question,
+6. **If you cannot go on without an answer, `ask`**, and stop. One question,
    the one that matters, answerable in a sentence. Do not ask what you could
    find out by reading the code.
-6. **`finish`**, with a `--log` line that says what you added.
+7. **`finish`**, with a `--log` line that says what you added, the new title
+   first.
 
 Keep it short. A refined task is one a person reads in a minute.
 
