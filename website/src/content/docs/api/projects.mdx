@@ -137,8 +137,14 @@ If an account uses that email, it becomes a member at once and the answer carrie
 does, the email is remembered as an invite and the answer carries `invite` instead:
 
 ```json title="201, no account yet"
-{ "invite": { "email": "ada@example.com", "createdAt": "…" } }
+{ "invite": { "email": "ada@example.com", "createdAt": "…" }, "emailed": true }
 ```
+
+`emailed` says whether the server emailed the invite: who invited them, to which project, and the
+sign-up link. It is `true` only when the mail server took it. It is `false` when mail is off (no
+[`SMTP_URL` and `MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from)), when the send failed, when the caller has spent
+its ten sends in ten minutes, and always for an account that joined at once. The invite is written before the send, so `false` never means it is missing: send the
+sign-up link (`<origin>/register`) yourself. The server waits for the send at most 10 seconds.
 
 Whoever registers with that email joins the project as they sign up — through a closed board too.
 The role is always `member` and cannot be chosen. Invites are listed on the board as `invites`.
@@ -152,7 +158,7 @@ The role is always `member` and cannot be chosen. Invites are listed on the boar
 Withdraws an invite. The email is URL-encoded in the path. `404` when no invite uses it.
 
 ```json title="201"
-{ "member": { "id": "…", "name": "Ada", "email": "ada@example.com", "color": "#6d5bd0", "role": "member" } }
+{ "member": { "id": "…", "name": "Ada", "email": "ada@example.com", "color": "#6d5bd0", "role": "member" }, "emailed": false }
 ```
 
 | Status | Message |
@@ -213,17 +219,22 @@ Makes that member a way back into their account, for
 [a forgotten password](/ushabti/guides/people/#a-forgotten-password). Send no body.
 
 ```json title="201 — the only copy"
-{ "link": "https://your-board.example.com/reset/ushr_…" }
+{ "link": "https://your-board.example.com/reset/ushr_…", "emailed": true }
 ```
 
-The link is readable in this answer and never again: the table keeps a SHA-256 digest of the token,
+`emailed` says whether the same link also went to the member's email, with a word that it works
+once, for 24 hours. It is `false` when mail is off (no [`SMTP_URL` and `MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from)), when the
+send failed, or when the caller has spent its ten sends in ten minutes; the link is written before the send and works either way, so send it yourself. The
+server waits for the send at most 10 seconds.
+
+The link is readable in this answer, and in that one email, and never again: the table keeps a SHA-256 digest of the token,
 its account, who made it, when it expires and when it was used. It works **once**, for **24 hours**,
 and making a new one for the same person puts the older ones out of use. The person spends it at
 [`POST /api/auth/reset`](/ushabti/api/auth/#post-apiauthreset), which ends every session that account
 had.
 
 The address in the link is the one the call arrived at (`x-forwarded-host`, then `host`), so behind a
-proxy it is the address the team uses.
+proxy it is the address the team uses. The emailed link is the same link.
 
 | Status | Message |
 | --- | --- |

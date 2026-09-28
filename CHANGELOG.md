@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The server emails the invite and the reset link.** Set `SMTP_URL` and `MAIL_FROM`, and an
+  invite to an email with no account, or a reset link made for a member, goes to that email as plain
+  text. The page says "Emailed to …" or "Could not email …", and the link stays on it either way.
+  Both routes answer `emailed: true | false`. With neither variable set, nothing changes.
+
 - **An agent that refines a task gives it a new title.** `board.mjs retitle <key> "<title>"`
   writes the whole title and never puts the agent's own @Name in it. The skill makes a new title
   the first step of refining, with no exception for a title that looks clear enough, and the

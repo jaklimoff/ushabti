@@ -39,15 +39,26 @@ report:
   in production a proxy writes it. Make that proxy replace the header rather
   than add to it, or a caller names its own address and the limit means
   nothing.
-- **The address in a reset link comes from `x-forwarded-host`.** The same
-  trust, and the same instruction: have the proxy **replace** that header as
-  well. A caller that names the host writes the address the owner then copies
-  out of the page and sends to somebody, and the token in it is real.
-- **A password reset is a person, not an email.** There is no email in the
-  system. The owner of a project makes a member a one-time link, good for 24
-  hours, and sends it by hand; the token is stored as a SHA-256 digest and
-  using it ends every session that account had. Whoever can read that link can
-  take the account, so send it the way you would send a password.
+- **The address in a reset link and an invite comes from `x-forwarded-host`.**
+  The same trust, and the same instruction: have the proxy **replace** that
+  header as well. A caller that names the host writes the address the owner
+  copies out of the page — and, with mail on, the address the server itself
+  emails from `MAIL_FROM` — and the token in a reset link is real.
+- **A password reset is a person, not a form.** There is no "forgot my
+  password" page. The owner or an admin of a project makes a member a one-time
+  link, good for 24 hours; the token is stored as a SHA-256 digest and using it
+  ends every session that account had. With `SMTP_URL` and `MAIL_FROM` set, the
+  server emails that link to the member's address, so that mailbox is as good
+  as the password until the link is spent. Without them, the owner sends it by
+  hand. Whoever can read that link can take the account, so send it the way you
+  would send a password.
+- **With mail on, an open board lets a stranger make it send email.** Anybody
+  who can sign up can make a project and invite any address, and the invite
+  carries the project's name and their own, which they chose. Every email the
+  server sends spends one of ten tries per ten minutes, counted per account and
+  per calling address, and a refused send is written as "Could not email". That
+  slows a relay; it does not stop one made of many addresses. Close sign-up
+  (`USHABTI_SIGNUP=closed`) once your team is in, before you set `SMTP_URL`.
 - **Every member of a project sees everything in it.** There are no per-field or
   per-task permissions.
 - **The session cookie is marked `secure` in production.** Serve the app over

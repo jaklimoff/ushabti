@@ -82,6 +82,33 @@ receiver is on their own machine. `docker-compose.prod.yml` deliberately does no
 | `NEXT_TELEMETRY_DISABLED` | `1` in both images   | Next.js telemetry is off.                                              |
 | `CI`                      | unset                | When set, Playwright serves the **production build** instead of the dev server. |
 
+### `SMTP_URL` and `MAIL_FROM`
+
+Set both to let the server email an [invite](/ushabti/guides/people/#adding-somebody) and a
+[reset link](/ushabti/guides/people/#a-forgotten-password). Leave both unset and nothing is ever
+emailed: every screen and every answer is as it was before there was any mail, and the owner sends
+the link by hand.
+
+```bash
+SMTP_URL=smtps://user:password@smtp.example.com:465
+MAIL_FROM="Ushabti <board@example.com>"
+```
+
+`SMTP_URL` is where the mail goes: `smtps://` for TLS from the first byte (usually port 465), or
+`smtp://` for a server that upgrades with STARTTLS (usually 587). Any provider that speaks SMTP works.
+Put the user name and the password in the URL, percent-encoded where they hold a `@` or a `:`.
+`MAIL_FROM` is the sender every email carries, and your provider has to accept it.
+
+One without the other leaves mail off, and the server logs one line at start that says which is
+missing. The mail is plain text. Nothing is queued and nothing retries: the server sends after the
+invite or the link is written, waits at most 10 seconds, and the page says whether it went. The link
+stays on the page either way, because an email can still be lost.
+
+Each email spends one of ten tries per ten minutes, counted per account and per calling address;
+past that the invite or the link is still made, and the page says it could not email. With mail on,
+anybody who can sign up can make the server send invites, so close sign-up
+([`USHABTI_SIGNUP=closed`](#ushabti_signup)) once your team is in.
+
 ## What is not configurable
 
 Worth stating plainly, so you do not go looking:
@@ -96,8 +123,9 @@ Worth stating plainly, so you do not go looking:
 - **The colour palette** is twelve fixed colours for options and eight for avatars. A board where
   anybody can pick any colour stops meaning anything.
 - **The run lease** is 30 minutes without a report, or longer when a report said so with `reportFor`, up to 60 minutes; a run reads *quiet* after 6 minutes.
-- **There is no SMTP setting**, because there is no email anywhere in the product — no invites, no
-  notifications, and no reset mail. A forgotten password is answered by the owner of a project, who
-  makes a link and sends it by hand: [A forgotten
+- **Mail carries two things and nothing else**: an invite to an email with no account, and a reset
+  link to the member it was made for — and only with [`SMTP_URL`](#smtp_url-and-mail_from) set.
+  There are no notifications and no "forgot my password" form. A forgotten password is answered by
+  the owner of a project, who makes a link: [A forgotten
   password](/ushabti/guides/people/#a-forgotten-password).
 - **The life of a reset link** is 24 hours and one use.
