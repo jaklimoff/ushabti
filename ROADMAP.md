@@ -219,7 +219,9 @@ runs this.
   what about it — and writes them all in one call,
   `POST /api/projects/{id}/tasks/values`, which an agent may make too. Escape,
   the ✕ or a change of view ends it, and a card a filter hides leaves the count
-  quietly. Archive from the bar, and picking on a list, come next.
+  quietly. The bar also offers **Archive**, which asks in the bar before it
+  takes the picked tasks off the board, and a list picks the same way: the
+  check sits in the gutter, and Shift-click picks a range down the whole list.
 
 - **A page lists the archived tasks.** A search and the task's own link were
   the two ways back to one: enough to find a task you can name, and nothing at
