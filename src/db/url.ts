@@ -13,3 +13,15 @@ export function databaseUrl(): string | undefined {
   if (process.env.NEXT_PHASE === "phase-production-build") return undefined;
   throw new Error("DATABASE_URL is not set.");
 }
+
+/**
+ * How many connections this process may hold. Twelve suits a database that
+ * belongs to Ushabti alone. A managed cluster shared with other applications
+ * usually allows far fewer in total — DigitalOcean's smallest allows 25 for
+ * everything on it — so set DATABASE_POOL_MAX there and leave room for the
+ * others. Live updates open one more connection on top of this, for LISTEN.
+ * An empty value is the production compose file saying it is unset.
+ */
+export function poolMax(env: Record<string, string | undefined> = process.env): number {
+  return Math.max(1, Number(env.DATABASE_POOL_MAX) || 12);
+}
