@@ -204,7 +204,8 @@ as listening. You never run `watch` from inside a session.
 `mention` wakes on `@Name` in three places: a comment, the title of a task a
 person created, and the title or the description a person changed. The prompt
 says which. Only a person's words wake it, so an agent that writes the name,
-or takes its own out again, wakes nobody.
+or takes its own out again, wakes nobody. An edit of a comment wakes nobody
+either: the words were read when they were written.
 
 ## The rest of the API
 

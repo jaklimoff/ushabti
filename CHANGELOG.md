@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The author of a comment can edit it.** **Edit** opens the comment as a box in place, and it
+  saves as the description does. The comment keeps its place in the thread and reads _edited_
+  beside its time. Only the author may: an owner or an admin can still delete another person's
+  comment, but not put words in it. `PATCH /api/comments/{id}` takes `body` and an optional
+  `baseBody`, and the feed line is `comment` with `action: "edited"`.
+
 - **A task key in a description or a comment opens that task.** `USH-12`, in any letter case, is a
   link when it names a task on the board or in the archive. A click opens the task in the panel,
   and the link is the task's own address, so ⌘-click and a copied link work too. A key in code, in
