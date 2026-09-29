@@ -58,6 +58,16 @@ import type {
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/** What a project is called, for a sentence addressed to somebody outside the board. */
+export async function projectName(projectId: string): Promise<string> {
+  const [project] = await db
+    .select({ name: projects.name })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  return project?.name ?? "Ushabti";
+}
+
 /**
  * Anything that reads its neighbours and then writes a rank has to do both
  * inside one transaction, or two writes at the same moment read the same
