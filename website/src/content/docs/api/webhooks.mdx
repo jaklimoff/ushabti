@@ -52,6 +52,9 @@ line per task behind it.
 `data.blockerKey`, beside `data.action`, which is `linked` or `unlinked`. A blocker becoming over
 rings nothing, because nothing happened to that task.
 
+`comment` rings for a new comment and for an edit of one. The feed line tells them apart: an edit
+carries `data.action: "edited"` beside `data.commentId`.
+
 `taskId` and `taskKey` are **null** on a line about the project rather than about a task. **Send a
 test** carries `kind: "test"` and no task, because there is no feed line behind it.
 

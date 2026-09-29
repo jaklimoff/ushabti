@@ -443,6 +443,61 @@ test.describe("Agents that wait for work", () => {
   });
 });
 
+test.describe("An edited comment", () => {
+  /* The edit writes a `comment` line of its own. Read as a new comment, it
+     would wake the agent a second time for a name it already answered. */
+  test("wakes a watching agent once, not again when it is edited", async ({ page }) => {
+    await register(page, "Edit Owner");
+    const projectId = await createProject(page, unique("EditWake"));
+    await addTask(page, "Todo", "Talk to me");
+    await page.getByRole("button", { name: "Close task" }).click();
+    const token = await connectAgent(page, projectId, "Refiner");
+
+    const harness = `node ${JSON.stringify(BOARD_MJS)} finish {key} --log heard`;
+    const watcher = spawn(
+      process.execPath,
+      [BOARD_MJS, "watch", "--on", "mention", "--run", harness],
+      {
+        env: { ...process.env, USHABTI_URL: boardUrl(), USHABTI_TOKEN: token },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    let output = "";
+    watcher.stdout.on("data", (chunk) => (output += chunk));
+    watcher.stderr.on("data", (chunk) => (output += chunk));
+
+    try {
+      await page.goto(`/p/${projectId}`);
+      await expect(page.getByTestId("listening-agent")).toBeVisible();
+
+      const { task } = await taskByTitle(page.request, projectId, "Talk to me");
+      const posted = await page.request.post(`/api/tasks/${task.id}/comments`, {
+        data: { body: "@Refiner have a look" },
+      });
+      const { comment } = await posted.json();
+      await expect.poll(() => output, { timeout: 30_000 }).toContain(`${task.key}: done`);
+      const wakes = () => output.split(`${task.key}: mention`).length - 1;
+      expect(wakes(), output).toBe(1);
+
+      const edited = await page.request.patch(`/api/comments/${comment.id}`, {
+        data: { body: "@Refiner have a look, please" },
+      });
+      expect(edited.status()).toBe(200);
+      // A later line proves the watcher read past the edit before we count.
+      await addTask(page, "Todo", "Read after the edit");
+      await page.getByRole("button", { name: "Close task" }).click();
+      const after = await taskByTitle(page.request, projectId, "Read after the edit");
+      await page.request.post(`/api/tasks/${after.task.id}/comments`, {
+        data: { body: "@Refiner and this one" },
+      });
+      await expect.poll(() => output, { timeout: 30_000 }).toContain(`${after.task.key}: done`);
+      expect(wakes(), output).toBe(1);
+    } finally {
+      watcher.kill("SIGTERM");
+    }
+  });
+});
+
 test.describe("An agent's checklist", () => {
   test("board.mjs adds an item, ticks the one its words name, and refuses to guess or to take an empty term", async ({
     page,

@@ -85,7 +85,7 @@ Details worth knowing:
 `board.mjs watch --on assigned,mention,created` waits for the board and starts one harness session
 per piece of work. `--on mention` wakes on `@Name` in three places: a comment, the title of a task a
 person creates, and the title or the description a person changes. The prompt says which place it
-was.
+was. An edit of a comment wakes nobody: the words were read when they were written.
 
 A name in a title or a description is a person asking for the work, so it does not stay there for
 ever: the prompt tells the agent it may take its own `@Name` out once it has done what was asked,

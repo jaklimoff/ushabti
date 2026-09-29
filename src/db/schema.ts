@@ -308,6 +308,8 @@ export const comments = pgTable(
     authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
     body: text("body").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // Set only when an edit changed the words, so "edited" never marks a save of the same text.
+    editedAt: timestamp("edited_at", { withTimezone: true }),
   },
   (t) => [index("comments_task_idx").on(t.taskId)],
 );
