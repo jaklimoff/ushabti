@@ -135,6 +135,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **An invited person never gets an account without their projects.** Sign-up
+  writes the account, the memberships and the spent invites in one transaction.
+  A failure used to leave an account with no project, and a second try then
+  said the email already had an account. An invite sent during the sign-up is
+  no longer lost.
+
 - **`USHABTI_SIGNUP`, `USHABTI_WEBHOOK_PRIVATE` and `DATABASE_POOL_MAX` in `.env` now reach the
   server with `docker-compose.prod.yml`.** Before, the file did not name them, so the server never
   saw them: sign-up stayed open with `USHABTI_SIGNUP=closed`, a private webhook stayed refused and
