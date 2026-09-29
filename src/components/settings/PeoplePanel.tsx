@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
+import { emailedLine } from "@/lib/emailed";
 import { canManage, isOwner, outranks, rolesOffered, type Role } from "@/lib/roles";
 import { isListening } from "@/lib/presence";
 import { useBoard } from "@/components/board/store";
@@ -16,7 +17,8 @@ import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
-export function PeoplePanel() {
+/** `mail` is whether the server sends email at all; off, no screen mentions it. */
+export function PeoplePanel({ mail }: { mail: boolean }) {
   const { data } = useBoard();
   const [agents, setAgents] = useState<AgentDTO[] | null>(null);
   const projectId = data.project.id;
@@ -49,7 +51,7 @@ export function PeoplePanel() {
         title="People"
         note="Everybody here can create, edit and move tasks. An admin also adds people and agents and changes the shape of the project; only the owner can delete it. An agent is always a member — it just signs in with a token."
       />
-      <Members />
+      <Members mail={mail} />
       <Agents agents={agents} reload={loadAgents} />
     </>
   );
@@ -57,12 +59,12 @@ export function PeoplePanel() {
 
 /* ------------------------------------------------------------------ */
 
-function Members() {
+function Members({ mail }: { mail: boolean }) {
   const { data, refresh, notify, user, send } = useBoard();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [invited, setInvited] = useState<string | null>(null);
+  const [invited, setInvited] = useState<{ email: string; emailed: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const canEdit = canManage(data.project.role);
   const origin = useSyncExternalStore(
@@ -79,12 +81,14 @@ function Members() {
     setError(null);
     setInvited(null);
     try {
-      const answer = await send.post<{ invite?: InviteDTO }>(
+      const answer = await send.post<{ invite?: InviteDTO; emailed?: boolean }>(
         `/api/projects/${data.project.id}/members`,
         { email: value },
       );
       // No account yet, so the email waits as an invite: say what happens next.
-      if (answer.invite) setInvited(answer.invite.email);
+      if (answer.invite) {
+        setInvited({ email: answer.invite.email, emailed: answer.emailed === true });
+      }
       setEmail("");
       await refresh();
     } catch (err) {
@@ -126,6 +130,7 @@ function Members() {
   }
 
   const people = data.members.filter((m) => m.kind === "human");
+  const inviteLine = invited && emailedLine(mail, invited.emailed, invited.email);
 
   return (
     <Section title="Members">
@@ -147,6 +152,7 @@ function Members() {
             roles={rolesOffered(data.project.role, member.role, member.kind, member.id === user.id)}
             onRole={(role) => void changeRole(member, role)}
             projectId={data.project.id}
+            mail={mail}
             onRemove={() => void remove(member)}
           />
         ))}
@@ -187,8 +193,17 @@ function Members() {
             ) : invited && signUpLink ? (
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 7 }}>
                 <Note>
-                  {invited} has no account yet, so it is invited. Send them this link; they are in
-                  the moment they sign up with that email.
+                  {inviteLine === null ? (
+                    <>
+                      {invited.email} has no account yet, so it is invited. Send them this link;
+                      they are in the moment they sign up with that email.
+                    </>
+                  ) : (
+                    <>
+                      {inviteLine} They have no account yet; they are in the moment they sign up
+                      with that email.
+                    </>
+                  )}
                 </Note>
                 <CopyField value={signUpLink} label="the sign-up link" />
               </div>
@@ -215,6 +230,7 @@ function MemberRow({
   roles,
   onRole,
   projectId,
+  mail,
   onRemove,
 }: {
   member: MemberDTO;
@@ -225,6 +241,7 @@ function MemberRow({
   roles: Role[];
   onRole: (role: Role) => void;
   projectId: string;
+  mail: boolean;
   onRemove: () => void;
 }) {
   const { notify, send } = useBoard();
@@ -232,14 +249,14 @@ function MemberRow({
   const reset = useConfirm();
   const handOver = useConfirm();
   /** The link, held until the person leaves the page, as a token is. */
-  const [link, setLink] = useState<string | null>(null);
+  const [link, setLink] = useState<{ link: string; emailed: boolean } | null>(null);
 
   async function makeLink() {
     try {
-      const res = await send.post<{ link: string }>(
+      const res = await send.post<{ link: string; emailed?: boolean }>(
         `/api/projects/${projectId}/members/${member.id}/reset`,
       );
-      setLink(res.link);
+      setLink({ link: res.link, emailed: res.emailed === true });
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not make a reset link.");
     }
@@ -331,10 +348,11 @@ function MemberRow({
       {link && (
         <div className={styles.resetLink} data-testid="reset-link">
           <Note>
-            Send this to {member.name}. It works once, for 24 hours. Reloading this page hides it
-            for good.
+            {emailedLine(mail, link.emailed, member.email ?? member.name) ??
+              `Send this to ${member.name}.`}{" "}
+            It works once, for 24 hours. Reloading this page hides it for good.
           </Note>
-          <CopyField value={link} label="the reset link" loud />
+          <CopyField value={link.link} label="the reset link" loud />
         </div>
       )}
     </>

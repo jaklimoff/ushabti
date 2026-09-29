@@ -3,6 +3,10 @@ import { db } from "@/db";
 import { projectInvites, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
+import { inviteMail, mailIsOn, sendMail } from "@/lib/mail";
+import { originOf } from "@/lib/origin";
+import { limiter, spendMail } from "@/lib/rate-limit";
+import { projectName } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -33,8 +37,23 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .values({ projectId, email, invitedBy: actor.id })
       .returning({ email: projectInvites.email, createdAt: projectInvites.createdAt });
     await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
+
+    /* The invite is written before anything is sent, so a send that fails or
+       hangs takes nothing back: the owner still has the link on screen. */
+    const emailed =
+      mailIsOn() &&
+      spendMail(limiter, req.headers, actor.id) &&
+      (await sendMail(
+        inviteMail({
+          to: invite.email,
+          inviter: actor.name,
+          project: await projectName(projectId),
+          origin: originOf(req),
+        }),
+      ));
+
     return json(
-      { invite: { email: invite.email, createdAt: invite.createdAt.toISOString() } },
+      { invite: { email: invite.email, createdAt: invite.createdAt.toISOString() }, emailed },
       201,
     );
   }
@@ -57,6 +76,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
         color: user.color,
         role: "member",
       },
+      // Somebody with an account is in at once; nothing is emailed to them.
+      emailed: false,
     },
     201,
   );

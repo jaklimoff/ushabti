@@ -541,9 +541,9 @@ export const agentRunLog = pgTable(
 /* ------------------------------------------------------------------ */
 
 /**
- * One link that sets one password. There is no email in Ushabti, so the person
- * who vouches for you is the owner of a project you are in: they make the link
- * and send it by whatever channel the team already has.
+ * One link that sets one password. The person who vouches for you is the
+ * owner of a project you are in: they make the link, the server emails it when
+ * mail is on, and the page shows it to copy either way.
  *
  * The plain token is shown once and never stored, exactly as an agent token
  * is: only its SHA-256 digest is kept. A row is read afresh and never cleaned

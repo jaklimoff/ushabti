@@ -1,9 +1,10 @@
 /**
  * The life of a reset link.
  *
- * There is no email in Ushabti, so the way back into an account nobody can
- * sign in to is a person: the owner of a project you are in makes a link and
- * sends it by whatever channel the team already has.
+ * There is no "forgot my password" form, so the way back into an account
+ * nobody can sign in to is a person: the owner of a project you are in makes
+ * a link. With mail set up the server emails it to the member as well; either
+ * way the page shows it, so it can go by whatever channel the team has.
  *
  * Nothing here reads the database and nothing here reads the clock — the
  * moment is an argument — so a unit test drives the whole rule.

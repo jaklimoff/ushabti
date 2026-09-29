@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { defineConfig, devices } from "@playwright/test";
 
 // `npm run start` is the standalone server, and it reads `PORT`. So the tests
@@ -18,6 +19,20 @@ if (/^\d+(\.\d+){3}$/.test(host) || host.startsWith("[")) {
     `Use localhost in BASE_URL, not ${host}: the session cookie is Secure, and page.request will not send a Secure cookie to a bare IP.`,
   );
 }
+
+// Mail is set by the environment of the server, so a test cannot switch it on
+// for itself. When Playwright starts the server, it points the server at a
+// free port of this machine, where `e2e/mail.spec.ts` listens with a small
+// SMTP receiver of its own. The port is chosen once, here, and handed to the
+// workers through the environment they inherit. A server that is reused — the
+// dev server in Docker — has no mail, and the spec checks that instead.
+if (process.env.CI && !process.env.USHABTI_TEST_SMTP_PORT) {
+  process.env.USHABTI_TEST_SMTP_PORT = execFileSync(process.execPath, [
+    "-e",
+    "const s = require('net').createServer().listen(0, '127.0.0.1', () => { process.stdout.write(String(s.address().port)); s.close(); });",
+  ]).toString();
+}
+const smtpPort = process.env.USHABTI_TEST_SMTP_PORT;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -40,7 +55,12 @@ export default defineConfig({
     // The webhook specs start a receiver of their own on a free port of this
     // machine, which is a loopback address and refused by default. A test
     // server is allowed to call one; nothing else in the suite reads this.
-    env: { USHABTI_WEBHOOK_PRIVATE: "1" },
+    env: {
+      USHABTI_WEBHOOK_PRIVATE: "1",
+      ...(smtpPort
+        ? { SMTP_URL: `smtp://127.0.0.1:${smtpPort}`, MAIL_FROM: "Ushabti <board@example.com>" }
+        : {}),
+    },
     url,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

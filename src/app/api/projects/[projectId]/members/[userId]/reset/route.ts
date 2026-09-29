@@ -3,7 +3,11 @@ import { db } from "@/db";
 import { projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { adminOnly, guard, json, outranksOnly, readId, route } from "@/lib/api";
-import { logActivity } from "@/lib/queries";
+import { mailIsOn, resetMail, sendMail } from "@/lib/mail";
+import { originOf } from "@/lib/origin";
+import { limiter, spendMail } from "@/lib/rate-limit";
+import { logActivity, projectName } from "@/lib/queries";
+import { RESET_HOURS } from "@/lib/reset-link";
 import { makeResetToken } from "@/lib/resets";
 
 type Ctx = { params: Promise<{ projectId: string; userId: string }> };
@@ -11,7 +15,7 @@ type Ctx = { params: Promise<{ projectId: string; userId: string }> };
 /**
  * Makes a way back into a member's account. The answer carries the only copy
  * of the link: the table keeps a digest, so it is readable here and nowhere
- * again.
+ * again — except in the one email sent to the member, when mail is on.
  *
  * `adminOnly` and then `outranksOnly` are the whole guard, and both are
  * `humanOnly` by construction: this hands out access to an account. An admin
@@ -30,7 +34,13 @@ export const POST = route<Ctx>(async (req, ctx) => {
   }
 
   const [member] = await db
-    .select({ id: users.id, name: users.name, kind: users.kind, role: projectMembers.role })
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      kind: users.kind,
+      role: projectMembers.role,
+    })
     .from(projectMembers)
     .innerJoin(users, eq(users.id, projectMembers.userId))
     .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)))
@@ -59,17 +69,25 @@ export const POST = route<Ctx>(async (req, ctx) => {
     data: { forUserId: member.id, forName: member.name },
   });
 
-  return json({ link: `${originOf(req)}/reset/${token}` }, 201);
-});
+  const link = `${originOf(req)}/reset/${token}`;
 
-/**
- * The address this board is reached at, as the browser that asked reached it.
- * The person who asked has to send this link to somebody, so it has to be the address
- * their team uses and not the one the container listens on.
- */
-function originOf(req: Request): string {
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  if (!host) return new URL(req.url).origin;
-  const proto = req.headers.get("x-forwarded-proto") ?? new URL(req.url).protocol.slice(0, -1);
-  return `${proto}://${host}`;
-}
+  /* The link is written and the feed says so before anything is sent, so a
+     send that fails or hangs takes nothing back. The link is answered either
+     way: an email can still be lost. */
+  const emailed =
+    mailIsOn() &&
+    member.email !== null &&
+    spendMail(limiter, req.headers, actor.id) &&
+    (await sendMail(
+      resetMail({
+        to: member.email,
+        name: member.name,
+        maker: actor.name,
+        project: await projectName(projectId),
+        link,
+        hours: RESET_HOURS,
+      }),
+    ));
+
+  return json({ link, emailed }, 201);
+});
