@@ -406,6 +406,8 @@ export type CommentDTO = {
   id: string;
   body: string;
   createdAt: string;
+  /** When an edit last changed the words; null for a comment never changed. */
+  editedAt: string | null;
   author: { id: string; name: string; color: string } | null;
 };
 

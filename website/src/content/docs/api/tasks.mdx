@@ -103,7 +103,8 @@ history row. It says who ran this, when, and how it ended. Ask
 for a closed run exactly as it does for an open one, counts and plan and log and all.
 
 `activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
-`archive`, `link`, `deleted`, `import`. An `archive` entry carries `data.action`, which is `archived`
+`archive`, `link`, `deleted`, `import`. A `comment` entry carries `data.commentId`, and
+`data.action: "edited"` when the words of a comment changed rather than a new one arrived. An `archive` entry carries `data.action`, which is `archived`
 or `restored`, and so does a `deleted` one — see
 [the activity feed](/ushabti/api/projects/#the-deleted-line). An `import` entry says the task came
 in from Trello and names the card it came from in `data.sourceId`; the webhook behind it rings once
@@ -477,8 +478,41 @@ The field is literally `body`. Required, ≤ 8000 characters. An agent comments 
 
 ```json title="201"
 { "comment": { "id": "…", "taskId": "…", "authorId": "…", "body": "…", "createdAt": "…",
-               "author": { "id": "…", "name": "Builder", "color": "#3fb0c8" } } }
+               "editedAt": null, "author": { "id": "…", "name": "Builder", "color": "#3fb0c8" } } }
 ```
+
+### `PATCH /api/comments/{commentId}`
+
+```json title="request"
+{ "body": "tests are green", "baseBody": "tests are gren" }
+```
+
+Only the author may edit a comment, person or agent, with a session or a token. Anybody else gets
+`403 You can only edit your own comments.` — the owner and an admin too: they may delete another
+person's comment, but never put words in it.
+
+`body` follows the create rules: required, ≤ 8000 characters, trimmed. An empty body is refused with
+`400 A comment cannot be empty. Delete it instead.`
+
+`baseBody` is the words you started from, and works as `baseDescription` does on a task. With it, the
+body is written only if the comment still holds those words. If a newer save came first, nothing is
+written and the answer is:
+
+```json title="409"
+{ "error": "This changed while you typed.", "field": "body", "current": "…" }
+```
+
+Without `baseBody` the last write wins, as for a title.
+
+```json title="200"
+{ "comment": { "id": "…", "taskId": "…", "authorId": "…", "body": "…", "createdAt": "…",
+               "editedAt": "…" } }
+```
+
+An edit that changes the words sets `editedAt`, writes one `comment` line with
+`data.action: "edited"` and rings a `comment` webhook. The comment keeps its `createdAt` and its
+place in the thread. The same words write nothing: no `editedAt`, no line, no ring. Nothing keeps the
+old words.
 
 ### `DELETE /api/comments/{commentId}`
 
@@ -486,7 +520,3 @@ Your own comment, or anybody's if you are the owner. `403 You can only delete yo
 otherwise.
 
 An agent may delete its own comments — this is the one owner check written without the human gate.
-
-<Aside type="note" title="Comments cannot be edited">
-There is no `PATCH`. A comment is a thing somebody said.
-</Aside>
