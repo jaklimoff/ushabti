@@ -201,7 +201,7 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         )}
       </div>
 
-      {openTask && <TaskPanel taskId={openTask} onClose={closePanel} />}
+      {openTask && <TaskPanel taskId={openTask} onClose={closePanel} onOpenTask={open} />}
 
       <Toasts toasts={toasts} />
     </div>

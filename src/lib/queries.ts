@@ -58,6 +58,16 @@ import type {
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/** What a project is called, for a sentence addressed to somebody outside the board. */
+export async function projectName(projectId: string): Promise<string> {
+  const [project] = await db
+    .select({ name: projects.name })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  return project?.name ?? "Ushabti";
+}
+
 /**
  * Anything that reads its neighbours and then writes a rank has to do both
  * inside one transaction, or two writes at the same moment read the same
@@ -748,6 +758,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
         id: comments.id,
         body: comments.body,
         createdAt: comments.createdAt,
+        editedAt: comments.editedAt,
         authorId: users.id,
         authorName: users.name,
         authorColor: users.color,
@@ -811,6 +822,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     id: c.id,
     body: c.body,
     createdAt: c.createdAt.toISOString(),
+    editedAt: c.editedAt?.toISOString() ?? null,
     author: c.authorId ? { id: c.authorId, name: c.authorName!, color: c.authorColor! } : null,
   }));
 
@@ -1085,7 +1097,14 @@ export async function checklistTaskId(itemId: string): Promise<string | null> {
 export async function commentRow(commentId: string) {
   readId(commentId, "comment");
   const [row] = await db
-    .select({ id: comments.id, taskId: comments.taskId, authorId: comments.authorId })
+    .select({
+      id: comments.id,
+      taskId: comments.taskId,
+      authorId: comments.authorId,
+      body: comments.body,
+      createdAt: comments.createdAt,
+      editedAt: comments.editedAt,
+    })
     .from(comments)
     .where(eq(comments.id, commentId))
     .limit(1);

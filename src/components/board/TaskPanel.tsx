@@ -48,7 +48,7 @@ import { useModKey } from "@/components/ui/useModKey";
 import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
-import { Markdown } from "./Markdown";
+import { Markdown, type TaskKeyLinks } from "./Markdown";
 import { MentionList, useMentions } from "./Mentions";
 import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
@@ -72,7 +72,16 @@ function openingTab(run: AgentRunDTO | null): PanelTab {
   return run && !isWaiting(run.status) ? "agent" : "comments";
 }
 
-export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => void }) {
+export function TaskPanel({
+  taskId,
+  onClose,
+  onOpenTask,
+}: {
+  taskId: string;
+  onClose: () => void;
+  /** The board's own way to open a task, which search uses too. */
+  onOpenTask: (task: { id: string; key: string }) => void;
+}) {
   const {
     data,
     user,
@@ -91,6 +100,17 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     wrote,
   } = useBoard();
   const { faces, inField, editing } = usePresence(taskId);
+  /* A key in the words below opens its task. An archived task still has a
+     panel, so the archive answers a key as the board does. */
+  const links = useMemo<TaskKeyLinks>(
+    () => ({
+      projectId: data.project.id,
+      projectKey: data.project.key,
+      tasks: [...data.tasks, ...data.archived],
+      open: onOpenTask,
+    }),
+    [data.project.id, data.project.key, data.tasks, data.archived, onOpenTask],
+  );
   /*
    * What the last read answered, and the task it was asked about. Only a
    * different task clears what is on screen, and holding the two together is
@@ -700,6 +720,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 changedBy={wroteLast("description")}
                 sign={editingSaid(editing("description"), "the description")}
                 inField={inField}
+                links={links}
                 onCommit={(description, base) => patch({ description }, { description: base })}
               />
 
@@ -749,6 +770,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                   me={user}
                   description={shown.description}
                   onUseAsDescription={(description) => patch({ description })}
+                  links={links}
                   reload={reload}
                   counted={direct}
                   onError={notify}
@@ -1096,7 +1118,7 @@ function describeActivity(entry: {
     case "checklist":
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;
     case "comment":
-      return `${who} left a comment`;
+      return d.action === "edited" ? `${who} edited a comment` : `${who} left a comment`;
     case "archive":
       return d.action === "restored" ? `${who} put the task back` : `${who} archived the task`;
     case "import":
@@ -1693,6 +1715,7 @@ function Description({
   changedBy,
   sign,
   inField,
+  links,
   onCommit,
 }: {
   taskId: string;
@@ -1700,6 +1723,7 @@ function Description({
   changedBy: string | null;
   sign: string | null;
   inField: (field: string | null) => void;
+  links: TaskKeyLinks;
   onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1837,7 +1861,7 @@ function Description({
           tabIndex={0}
           onKeyDown={(e) => e.key === "Enter" && edit()}
         >
-          {shown.trim() ? <Markdown text={shown} /> : "Add a description…"}
+          {shown.trim() ? <Markdown text={shown} links={links} /> : "Add a description…"}
         </div>
       )}
       <EditingSign said={sign} />
@@ -2094,6 +2118,7 @@ function Comments({
   me,
   description,
   onUseAsDescription,
+  links,
   reload,
   counted,
   onError,
@@ -2103,6 +2128,7 @@ function Comments({
   me: { id: string; name: string; color: string };
   description: string;
   onUseAsDescription: (body: string) => Promise<unknown>;
+  links: TaskKeyLinks;
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
@@ -2144,6 +2170,7 @@ function Comments({
           mine={comment.author?.id === me.id}
           description={description}
           onUseAsDescription={onUseAsDescription}
+          links={links}
           reload={reload}
           counted={counted}
           onError={onError}
@@ -2211,12 +2238,17 @@ function Comments({
  * where a draft becomes the description, in one press. Replacing words that
  * are there asks first, and says how many are lost; filling an empty
  * description asks nothing, because nothing is lost.
+ *
+ * Its author can edit it in place, as the description is edited: blur and
+ * Mod + Enter save, Escape puts the old words back. Only the author, because
+ * an admin may take a comment down but never put words in it.
  */
 function CommentItem({
   comment,
   mine,
   description,
   onUseAsDescription,
+  links,
   reload,
   counted,
   onError,
@@ -2225,6 +2257,7 @@ function CommentItem({
   mine: boolean;
   description: string;
   onUseAsDescription: (body: string) => Promise<unknown>;
+  links: TaskKeyLinks;
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
@@ -2234,6 +2267,56 @@ function CommentItem({
   const words = description.trim() ? description.trim().split(/\s+/).length : 0;
 
   const use = () => void onUseAsDescription(comment.body);
+
+  const mod = useModKey();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(comment.body);
+  /* Only what this tab typed may be written back, as everywhere else. */
+  const [typed, setTyped] = useState(false);
+  /* The words the box opened with. The box holds its own words and does not
+     follow a change that lands while it is open, as a checklist item does. */
+  const base = useRef(comment.body);
+  /* The words on their way, drawn until the answer lands. */
+  const [sending, setSending] = useState<string | null>(null);
+  /* Words the server refused because the comment changed under them. */
+  const [refused, setRefused] = useState<string | null>(null);
+  const shown = sending ?? comment.body;
+  const edit = draft.trim();
+  const owes = editing && typed && edit !== base.current && edit !== comment.body;
+
+  /* A closed tab sends no blur. The base goes too; a refusal nobody is left
+     to see keeps the words that were saved first. */
+  useSaveOnLeave(() =>
+    owes
+      ? {
+          method: "PATCH",
+          url: `/api/comments/${comment.id}`,
+          body: { body: edit, baseBody: base.current },
+        }
+      : null,
+  );
+
+  function open() {
+    base.current = comment.body;
+    setDraft(comment.body);
+    setTyped(false);
+    setRefused(null);
+    setEditing(true);
+  }
+
+  async function save(words: string, from: string) {
+    setSending(words);
+    try {
+      await counted(() =>
+        api.patch(`/api/comments/${comment.id}`, { body: words, baseBody: from }),
+      );
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) setRefused(words);
+      else onError(err instanceof Error ? err.message : "The comment did not save.");
+    }
+    await reload();
+    setSending(null);
+  }
 
   return (
     <div className={styles.comment} data-testid="comment">
@@ -2246,6 +2329,21 @@ function CommentItem({
         <div className={styles.commentHead}>
           <span className={styles.commentName}>{comment.author?.name ?? "Removed user"}</span>
           <span className={styles.commentTime}>{relativeTime(comment.createdAt)}</span>
+          {comment.editedAt && (
+            /* A mark that can be reached by the keyboard, so the time it
+               hides shows on focus as well as under the pointer. */
+            <span className={styles.commentEdited} tabIndex={0} data-testid="comment-edited">
+              edited
+              <time
+                className={styles.commentEditedAt}
+                dateTime={comment.editedAt}
+                role="tooltip"
+                suppressHydrationWarning
+              >
+                {new Date(comment.editedAt).toLocaleString()}
+              </time>
+            </span>
+          )}
           <span style={{ flex: 1 }} />
           {!already && !confirm.asking && (
             <button
@@ -2254,6 +2352,11 @@ function CommentItem({
               onClick={words ? confirm.ask : use}
             >
               Use as description
+            </button>
+          )}
+          {mine && !editing && refused === null && (
+            <button className={styles.commentUse} title="Edit this comment" onClick={open}>
+              Edit
             </button>
           )}
           {mine && (
@@ -2284,9 +2387,55 @@ function CommentItem({
             onCancel={confirm.cancel}
           />
         )}
-        <div className={styles.commentText}>
-          <Markdown text={comment.body} testId="comment-markdown" />
-        </div>
+        {refused !== null ? (
+          <ChangedWhileTyping
+            theirs={comment.body}
+            mine={refused}
+            by={null}
+            onKeep={() => {
+              setRefused(null);
+              void save(refused, comment.body);
+            }}
+            onTake={() => setRefused(null)}
+          />
+        ) : editing ? (
+          <>
+            <textarea
+              className={styles.descEditor}
+              data-testid="comment-editor"
+              aria-label="Edit comment"
+              autoFocus
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setTyped(true);
+              }}
+              onBlur={() => {
+                setEditing(false);
+                setTyped(false);
+                if (owes) void save(edit, base.current);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  (e.target as HTMLTextAreaElement).blur();
+                }
+                if (e.key === "Escape") {
+                  // No blur() here: closing the box unmounts it, and a removed
+                  // element raises no blur, so nothing is saved.
+                  setDraft(comment.body);
+                  setTyped(false);
+                  setEditing(false);
+                }
+              }}
+            />
+            <span className={styles.hint}>{`${mod ?? "Ctrl"} + Enter saves · Esc cancels`}</span>
+          </>
+        ) : (
+          <div className={styles.commentText}>
+            <Markdown text={shown} testId="comment-markdown" links={links} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -39,8 +39,14 @@ ordinary rows.
 
 A person who already has an account is a member at once. One who does not is **invited**: the email
 waits in the list with an *invited* tag, the page hands you a copyable sign-up link to send them,
-and they are in the moment they sign up with that email. No email is sent — there is no email in
-the product — so sending the link is yours to do.
+and they are in the moment they sign up with that email.
+
+When the server has mail set up ([`SMTP_URL` and
+`MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from)), it also emails them: who
+invited them, to which project, and the sign-up link, with a word to sign up with this same email.
+The page then says *"Emailed to ada@example.com."* — or *"Could not email ada@example.com. Send them
+this link."* when the send failed. The link stays on the page in both cases, because an email can
+still be lost. Without mail set up, nothing is emailed and sending the link is yours to do.
 
 An invited email gets through a closed board (`USHABTI_SIGNUP=closed`). That is the point of it:
 before, a closed board told the owner *"ask them to register"* and the person *"ask the owner"*, and
@@ -48,8 +54,7 @@ nobody could break the circle. The owner or an admin withdraws an invite from it
 
 ## A forgotten password
 
-There is no email in Ushabti, so there is no "forgot my password" form to fill in. The way back is a
-person who can vouch for you: **the owner or an admin of any project you are in**. Any of them will
+There is no "forgot my password" form to fill in. The way back is a person who can vouch for you: **the owner or an admin of any project you are in**. Any of them will
 do — the link is about your account and not about their board — and that holds even if you own a
 project yourself. Owning one does not stop the owner or an admin of another project making you a
 link, where you are a member there.
@@ -65,8 +70,10 @@ https://your-board.example.com/reset/ushr_…
 ```
 
 **It is shown once.** Reloading the page hides it for good, exactly as an agent token is: the table
-keeps a SHA-256 digest and never the link itself. Send it by whatever channel your team already
-has.
+keeps a SHA-256 digest and never the link itself. When the server has [mail set
+up](/ushabti/start/configuration/#smtp_url-and-mail_from), the same link also goes to the member's
+email, with a word that it works once, for 24 hours, and the row says *"Emailed to …"* or *"Could not
+email …"*. Without mail, send it by whatever channel your team already has.
 
 The person opens it, types one new password of at least eight characters, and presses **Set the
 password**. That signs them in here and **ends every other session of the account** — so a link

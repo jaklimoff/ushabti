@@ -139,7 +139,8 @@ Changes your password and **signs every other session out**.
 
 ## `POST /api/auth/reset`
 
-Sets a password with a link the owner of a project made, and signs this browser in. This is the way
+Sets a password with a link the owner of a project made — copied to you, or emailed when the server
+has [mail set up](/ushabti/start/configuration/#smtp_url-and-mail_from) — and signs this browser in. This is the way
 back into an account whose password nobody knows — see
 [A forgotten password](/ushabti/guides/people/#a-forgotten-password).
 
@@ -192,9 +193,10 @@ Unexpired sessions for your account, not counting the one asking.
 Ends every session except this one. `200 {"ok": true}`.
 
 <Aside type="tip" title="The two levers you have">
-There is no email of any kind in Ushabti. If you no longer trust a password, change it — which signs
-the others out — or sign out everywhere from `/account`. If you cannot sign in at all, the owner of
-a project you are in makes you a [reset link](#post-apiauthreset).
+There is no "forgot my password" email you can ask for. If you no longer trust a password, change
+it — which signs the others out — or sign out everywhere from `/account`. If you cannot sign in at
+all, the owner of a project you are in makes you a [reset link](#post-apiauthreset); with [mail set
+up](/ushabti/start/configuration/#smtp_url-and-mail_from), the server emails it to you as well.
 </Aside>
 
 ---

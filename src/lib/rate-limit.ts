@@ -5,6 +5,9 @@
  * must never meet it, and a team signing up on its first day would otherwise
  * spend the budget of the address they all share.
  *
+ * One thing is counted although it worked: an email the server sends for
+ * somebody, because there the success is what a stranger would be after.
+ *
  * Everything is in memory. One server is the only deployment today, so a count
  * per process is enough; two processes would each keep a count of their own.
  * Nothing here reads the database, the clock is an argument, and the numbers
@@ -79,7 +82,7 @@ export function createLimiter(): Limiter {
 /** The one limiter this process counts in. */
 export const limiter = createLimiter();
 
-/* The five keys. They live together so that nothing else invents a sixth. */
+/* The keys. They live together so that nothing else invents another. */
 export const loginByAddress = (address: string) => `login:ip:${address}`;
 export const loginByEmail = (email: string) => `login:email:${email}`;
 export const signupByAddress = (address: string) => `signup:ip:${address}`;
@@ -88,6 +91,12 @@ export const tokenByAddress = (address: string) => `token:ip:${address}`;
    address space. There is no key for the account: the address is all a dead
    link tells us, and a key per account would say that the account is real. */
 export const resetByAddress = (address: string) => `reset:ip:${address}`;
+/* A send is a try in itself, not a failure: every email the server sends for
+   somebody is one they chose the address and the words of. Counted per
+   person and per address, so neither a new account nor a new network buys a
+   fresh ten. */
+export const mailByUser = (userId: string) => `mail:user:${userId}`;
+export const mailByAddress = (address: string) => `mail:ip:${address}`;
 
 /**
  * Who is calling.
@@ -111,4 +120,21 @@ export function retryAfterSeconds(ms: number): number {
 export function tooManyMessage(ms: number): string {
   const minutes = Math.max(1, Math.ceil(ms / 60_000));
   return `Too many tries. Wait ${minutes} ${minutes === 1 ? "minute" : "minutes"} and try again.`;
+}
+
+/**
+ * Whether this person may make the server send one more email, and spends the
+ * try when they may. Refused, nothing is spent: the write still happens and
+ * the page shows the link to send by hand, exactly as for a send that failed.
+ */
+export function spendMail(
+  on: Limiter,
+  headers: { get(name: string): string | null },
+  userId: string,
+  now = Date.now(),
+): boolean {
+  const keys = [mailByUser(userId), mailByAddress(addressOf(headers))];
+  if (keys.some((key) => on.limited(key, now))) return false;
+  for (const key of keys) on.hit(key, now);
+  return true;
 }
