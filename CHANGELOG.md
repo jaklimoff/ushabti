@@ -140,6 +140,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   A failure used to leave an account with no project, and a second try then
   said the email already had an account. An invite sent during the sign-up is
   no longer lost.
+
+- **`USHABTI_SIGNUP`, `USHABTI_WEBHOOK_PRIVATE` and `DATABASE_POOL_MAX` in `.env` now reach the
+  server with `docker-compose.prod.yml`.** Before, the file did not name them, so the server never
+  saw them: sign-up stayed open with `USHABTI_SIGNUP=closed`, a private webhook stayed refused and
+  the pool stayed at 12. If you closed sign-up this way, check it now: pull, run
+  `docker compose -f docker-compose.prod.yml up -d`, and look for accounts you did not expect.
+
 - **A value picked while a task is being archived stays on the panel.** A read
   of the task that crossed the value's save used to put the old value back
   until the panel was opened again. Now a read that crosses any of your own
