@@ -17,6 +17,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   request. `POST /api/auth/forgot` is limited per address and per typed email. With mail on and no
   `USHABTI_URL`, the server logs at start that the forgot page is off.
 
+- **An admin downloads the whole project as one JSON file.** Settings → Project has an **Export**
+  row for the owner and the admins. **Download** saves `ushabti-{KEY}-{YYYY-MM-DD}.json` with the
+  properties, views, members, invites and every live and archived task with its values, checklist,
+  comments and blockers. No password, token, session, reset link or webhook is in it, and the
+  activity feed is not. `GET /api/projects/{id}/export` answers it; a token gets `403`.
+
 - **The server emails the invite and the reset link.** Set `SMTP_URL` and `MAIL_FROM`, and an
   invite to an email with no account, or a reset link made for a member, goes to that email as plain
   text. The page says "Emailed to …" or "Could not email …", and the link stays on it either way.
