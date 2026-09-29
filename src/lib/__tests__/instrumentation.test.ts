@@ -12,6 +12,7 @@ describe("register", () => {
     vi.stubEnv("NEXT_RUNTIME", "nodejs");
     vi.stubEnv("SMTP_URL", env.SMTP_URL ?? "");
     vi.stubEnv("MAIL_FROM", env.MAIL_FROM ?? "");
+    vi.stubEnv("USHABTI_URL", env.USHABTI_URL ?? "");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     return { warn, done: register() };
   }
@@ -29,8 +30,24 @@ describe("register", () => {
     expect(off.warn).not.toHaveBeenCalled();
     vi.restoreAllMocks();
 
-    const on = start({ SMTP_URL: "smtp://127.0.0.1:2525", MAIL_FROM: "board@example.com" });
+    const on = start({
+      SMTP_URL: "smtp://127.0.0.1:2525",
+      MAIL_FROM: "board@example.com",
+      USHABTI_URL: "https://tasks.example.com",
+    });
     await on.done;
     expect(on.warn).not.toHaveBeenCalled();
+  });
+
+  it("logs one line that says the forgot page is off when mail is on and USHABTI_URL is not", async () => {
+    const { warn, done } = start({
+      SMTP_URL: "smtp://127.0.0.1:2525",
+      MAIL_FROM: "board@example.com",
+    });
+    await done;
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "Forgot password is off: mail is on, but USHABTI_URL is not set, so the server does not know the address to put in the link.",
+    );
   });
 });

@@ -11,7 +11,16 @@ import styles from "./AuthForm.module.css";
 
 type Mode = "login" | "register";
 
-export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?: boolean }) {
+export function AuthForm({
+  mode,
+  signupOpen = true,
+  forgotOn = false,
+}: {
+  mode: Mode;
+  signupOpen?: boolean;
+  /** Whether this board can email a reset link, which the server alone knows. */
+  forgotOn?: boolean;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -115,9 +124,15 @@ export function AuthForm({ mode, signupOpen = true }: { mode: Mode; signupOpen?:
           </PasswordRow>
           {register && (
             <span className={styles.hint}>
-              At least 8 characters. Keep it somewhere safe: if you forget it, the owner of a
-              project you are in has to make you a way back.
+              {forgotOn
+                ? "At least 8 characters. If you forget it, Forgot password? on the sign-in page emails you a way back."
+                : "At least 8 characters. Keep it somewhere safe: if you forget it, the owner of a project you are in has to make you a way back."}
             </span>
+          )}
+          {!register && forgotOn && (
+            <Link href="/forgot" className={styles.forgot}>
+              Forgot password?
+            </Link>
           )}
         </div>
 

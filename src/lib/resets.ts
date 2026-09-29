@@ -11,7 +11,8 @@ import { lifeOfLink, RESET_MS, RESET_PREFIX } from "./reset-link";
 const newer = alias(passwordResets, "newer");
 
 /**
- * Makes a link for one account and answers the only copy of its token. The
+ * Makes a link for one account and answers the only copy of its token.
+ * `madeBy` is null when the person asked for it on the sign-in page. The
  * table keeps the digest, so nobody — the owner included — reads it again.
  *
  * No older link is rewritten: `lifeOfLink` calls one superseded when it is
@@ -27,7 +28,7 @@ const newer = alias(passwordResets, "newer");
  * by a rule of their own, so no link that survives the sweep reads any
  * differently for it.
  */
-export async function makeResetToken(userId: string, madeBy: string): Promise<string> {
+export async function makeResetToken(userId: string, madeBy: string | null): Promise<string> {
   const minted = mintToken(RESET_PREFIX);
   const now = new Date();
 

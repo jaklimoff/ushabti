@@ -83,6 +83,12 @@ p.tagline,
   text-wrap: pretty;
 }
 
+.forgot {
+  align-self: flex-start;
+  font-size: var(--t-small);
+  line-height: 1.5;
+}
+
 .error {
   padding: 8px 10px;
   border-radius: var(--r-md);

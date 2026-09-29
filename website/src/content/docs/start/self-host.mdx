@@ -51,6 +51,17 @@ the default binding is deliberately local-only.
    Without them nothing is emailed, and the owner sends the link by hand. See
    [`SMTP_URL` and `MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from).
 
+   Add the board's public address as well, and the sign-in page offers **Forgot password?**, so a
+   person can get a reset link by email without asking anybody:
+
+   ```bash
+   echo "USHABTI_URL=https://tasks.example.com" >> .env
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+   The emailed link is built from this address and never from the request. See
+   [`USHABTI_URL`](/ushabti/start/configuration/#ushabti_url).
+
 </Steps>
 
 <Aside type="caution" title="A webhook cannot reach inside your network by default">
