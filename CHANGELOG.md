@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A task key in a description or a comment opens that task.** `USH-12`, in any letter case, is a
+  link when it names a task on the board or in the archive. A click opens the task in the panel,
+  and the link is the task's own address, so ⌘-click and a copied link work too. A key in code, in
+  a link, of another project or of no task stays plain text. The saved text does not change.
 - **An agent that refines a task gives it a new title.** `board.mjs retitle <key> "<title>"`
   writes the whole title and never puts the agent's own @Name in it. The skill makes a new title
   the first step of refining, with no exception for a title that looks clear enough, and the

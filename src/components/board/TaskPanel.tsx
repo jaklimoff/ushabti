@@ -48,7 +48,7 @@ import { useModKey } from "@/components/ui/useModKey";
 import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
-import { Markdown } from "./Markdown";
+import { Markdown, type TaskKeyLinks } from "./Markdown";
 import { MentionList, useMentions } from "./Mentions";
 import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
@@ -72,7 +72,16 @@ function openingTab(run: AgentRunDTO | null): PanelTab {
   return run && !isWaiting(run.status) ? "agent" : "comments";
 }
 
-export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => void }) {
+export function TaskPanel({
+  taskId,
+  onClose,
+  onOpenTask,
+}: {
+  taskId: string;
+  onClose: () => void;
+  /** The board's own way to open a task, which search uses too. */
+  onOpenTask: (task: { id: string; key: string }) => void;
+}) {
   const {
     data,
     user,
@@ -91,6 +100,17 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
     wrote,
   } = useBoard();
   const { faces, inField, editing } = usePresence(taskId);
+  /* A key in the words below opens its task. An archived task still has a
+     panel, so the archive answers a key as the board does. */
+  const links = useMemo<TaskKeyLinks>(
+    () => ({
+      projectId: data.project.id,
+      projectKey: data.project.key,
+      tasks: [...data.tasks, ...data.archived],
+      open: onOpenTask,
+    }),
+    [data.project.id, data.project.key, data.tasks, data.archived, onOpenTask],
+  );
   /*
    * What the last read answered, and the task it was asked about. Only a
    * different task clears what is on screen, and holding the two together is
@@ -700,6 +720,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                 changedBy={wroteLast("description")}
                 sign={editingSaid(editing("description"), "the description")}
                 inField={inField}
+                links={links}
                 onCommit={(description, base) => patch({ description }, { description: base })}
               />
 
@@ -749,6 +770,7 @@ export function TaskPanel({ taskId, onClose }: { taskId: string; onClose: () => 
                   me={user}
                   description={shown.description}
                   onUseAsDescription={(description) => patch({ description })}
+                  links={links}
                   reload={reload}
                   counted={direct}
                   onError={notify}
@@ -1693,6 +1715,7 @@ function Description({
   changedBy,
   sign,
   inField,
+  links,
   onCommit,
 }: {
   taskId: string;
@@ -1700,6 +1723,7 @@ function Description({
   changedBy: string | null;
   sign: string | null;
   inField: (field: string | null) => void;
+  links: TaskKeyLinks;
   onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1837,7 +1861,7 @@ function Description({
           tabIndex={0}
           onKeyDown={(e) => e.key === "Enter" && edit()}
         >
-          {shown.trim() ? <Markdown text={shown} /> : "Add a description…"}
+          {shown.trim() ? <Markdown text={shown} links={links} /> : "Add a description…"}
         </div>
       )}
       <EditingSign said={sign} />
@@ -2094,6 +2118,7 @@ function Comments({
   me,
   description,
   onUseAsDescription,
+  links,
   reload,
   counted,
   onError,
@@ -2103,6 +2128,7 @@ function Comments({
   me: { id: string; name: string; color: string };
   description: string;
   onUseAsDescription: (body: string) => Promise<unknown>;
+  links: TaskKeyLinks;
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
@@ -2144,6 +2170,7 @@ function Comments({
           mine={comment.author?.id === me.id}
           description={description}
           onUseAsDescription={onUseAsDescription}
+          links={links}
           reload={reload}
           counted={counted}
           onError={onError}
@@ -2217,6 +2244,7 @@ function CommentItem({
   mine,
   description,
   onUseAsDescription,
+  links,
   reload,
   counted,
   onError,
@@ -2225,6 +2253,7 @@ function CommentItem({
   mine: boolean;
   description: string;
   onUseAsDescription: (body: string) => Promise<unknown>;
+  links: TaskKeyLinks;
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
@@ -2285,7 +2314,7 @@ function CommentItem({
           />
         )}
         <div className={styles.commentText}>
-          <Markdown text={comment.body} testId="comment-markdown" />
+          <Markdown text={comment.body} testId="comment-markdown" links={links} />
         </div>
       </div>
     </div>
