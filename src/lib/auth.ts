@@ -72,14 +72,7 @@ export type CurrentUser = {
   color: string;
 };
 
-/**
- * Whether this instance still takes new accounts. A board on the open internet
- * wants to stop after the team has signed up; the limiter slows a stranger,
- * this shuts the door.
- */
-export function signupIsOpen(): boolean {
-  return (process.env.USHABTI_SIGNUP ?? "open").toLowerCase() !== "closed";
-}
+export { signupIsOpen } from "./signup";
 
 /**
  * Whoever is behind a request: a person with a session cookie, or an agent

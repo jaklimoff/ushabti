@@ -34,6 +34,11 @@ services:
       # reset link. Unset, nothing is emailed; see .env.example.
       SMTP_URL: ${SMTP_URL:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # Compose hands the server only what is named here, so each setting
+      # .env.example offers is named, empty when unset. Empty reads as unset.
+      USHABTI_SIGNUP: ${USHABTI_SIGNUP:-}
+      USHABTI_WEBHOOK_PRIVATE: ${USHABTI_WEBHOOK_PRIVATE:-}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
