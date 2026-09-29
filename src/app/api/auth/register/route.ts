@@ -51,24 +51,30 @@ async function signUp(req: Request): Promise<Response> {
     .limit(1);
   if (existing.length) throw new HttpError(409, "An account with that email already exists.");
 
-  const [user] = await db
-    .insert(users)
-    .values({
-      email,
-      name,
-      passwordHash: await hashPassword(input.password),
-      color: pickAvatarColor(email),
-    })
-    .returning({ id: users.id, email: users.email, name: users.name, color: users.color });
+  const passwordHash = await hashPassword(input.password);
 
-  if (invites.length) {
-    await db
-      .insert(projectMembers)
-      .values(invites.map((i) => ({ projectId: i.projectId, userId: user.id, role: "member" })));
-    await db.delete(projectInvites).where(eq(projectInvites.email, email));
-    for (const invite of invites) {
-      await broadcast({ projectId: invite.projectId, scope: "project" });
+  /* One transaction, so a failure leaves no account without its projects.
+     The memberships come from the invites the delete took, never from the
+     read above: an invite that lands in between still gets its member. */
+  const { user, joined } = await db.transaction(async (tx) => {
+    const [user] = await tx
+      .insert(users)
+      .values({ email, name, passwordHash, color: pickAvatarColor(email) })
+      .returning({ id: users.id, email: users.email, name: users.name, color: users.color });
+    const joined = await tx
+      .delete(projectInvites)
+      .where(eq(projectInvites.email, email))
+      .returning({ projectId: projectInvites.projectId });
+    if (joined.length) {
+      await tx
+        .insert(projectMembers)
+        .values(joined.map((i) => ({ projectId: i.projectId, userId: user.id, role: "member" })));
     }
+    return { user, joined };
+  });
+
+  for (const invite of joined) {
+    await broadcast({ projectId: invite.projectId, scope: "project" });
   }
 
   await createSession(user.id);
