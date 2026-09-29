@@ -119,6 +119,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **An invited person never gets an account without their projects.** Sign-up
+  writes the account, the memberships and the spent invites in one transaction.
+  A failure used to leave an account with no project, and a second try then
+  said the email already had an account. An invite sent during the sign-up is
+  no longer lost.
 - **A value picked while a task is being archived stays on the panel.** A read
   of the task that crossed the value's save used to put the old value back
   until the panel was opened again. Now a read that crosses any of your own
