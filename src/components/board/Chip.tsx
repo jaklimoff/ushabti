@@ -33,7 +33,14 @@ export function Chip({ chip }: { chip: CardChip }) {
           style={{ background: chip.swatch.color }}
         />
       )}
-      {chip.person && <Avatar name={chip.person.name} color={chip.person.color} size={17} />}
+      {chip.person && (
+        <Avatar
+          name={chip.person.name}
+          color={chip.person.color}
+          emoji={chip.person.emoji}
+          size={17}
+        />
+      )}
       {chip.bubble && <CommentIcon />}
       {chip.bar && (
         <span className={styles.cardProgressBar}>

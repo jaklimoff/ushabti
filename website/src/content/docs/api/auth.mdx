@@ -54,7 +54,7 @@ Your avatar colour is not yours to choose here: it is derived from the email, so
 unlikely to collide. Change it later at `/account`.
 
 ```json title="200 — and a Set-Cookie"
-{ "user": { "id": "…", "email": "ada@example.com", "name": "Ada", "color": "#3fb0c8" } }
+{ "user": { "id": "…", "email": "ada@example.com", "name": "Ada", "color": "#3fb0c8", "emoji": null } }
 ```
 
 | Status | Message |
@@ -73,7 +73,7 @@ unlikely to collide. Change it later at `/account`.
 ```
 
 ```json title="200 — and a Set-Cookie"
-{ "user": { "id": "…", "email": "ada@example.com", "name": "Ada", "color": "#3fb0c8" } }
+{ "user": { "id": "…", "email": "ada@example.com", "name": "Ada", "color": "#3fb0c8", "emoji": null } }
 ```
 
 <Aside type="note" title="One message for three failures">
@@ -96,10 +96,10 @@ it without a cookie is a no-op that still succeeds.
 
 ## `PATCH /api/auth/me`
 
-Changes your display name and avatar colour. Both fields optional; send either or both.
+Changes your display name, avatar colour and face. Every field is optional; send any of them.
 
 ```json title="request"
-{ "name": "Ada L.", "color": "#3fb0c8" }
+{ "name": "Ada L.", "color": "#3fb0c8", "emoji": "🦊" }
 ```
 
 `color` must be one of the eleven avatar colours. They are the palette that options use, except the
@@ -110,16 +110,23 @@ grey `#8b8f98`, which reads as "nobody":
 #c2557a  #b6763f  #2f9e7a  #7a8a2f  #3d7fc1
 ```
 
+`emoji` is the face drawn on that colour in place of your initials. It must be exactly one emoji: a
+ZWJ sequence such as `👩‍💻`, a skin tone such as `👋🏽` and a flag such as `🇺🇦` are each one.
+`null` clears it, and the initials come back. The Account page offers a grid of about thirty, but
+the route takes any single emoji. Every member, comment author, activity actor and run agent on the
+board carries `emoji` beside `color`; it is `null` for somebody who wears their initials.
+
 ```json title="200"
-{ "user": { "id": "…", "name": "Ada L.", "color": "#3fb0c8", "email": "ada@example.com" } }
+{ "user": { "id": "…", "name": "Ada L.", "color": "#3fb0c8", "emoji": "🦊", "email": "ada@example.com" } }
 ```
 
 <Aside type="caution" title="Two shapes from one route">
-Send **neither** field and the answer is `{"ok": true}` instead of `{"user": …}`. Handle both.
+Send **no** field and the answer is `{"ok": true}` instead of `{"user": …}`. Handle both.
 </Aside>
 
-Errors: `400 Pick one of the colours on offer.` for any other colour, the grey included, plus
-the usual length messages for `Name` and `Colour`.
+Errors: `400 Pick one of the colours on offer.` for any other colour, the grey included;
+`400 A face is one emoji, or null for your initials.` for letters, two emoji, an empty string or
+anything that is not a string; plus the usual length messages for `Name` and `Colour`.
 
 ---
 
@@ -251,7 +258,7 @@ The agent counterpart. It exists so that nothing else needs the project id in co
 
 ```json title="200"
 {
-  "agent":   { "id": "…", "name": "Builder", "color": "#3fb0c8" },
+  "agent":   { "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null },
   "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member" }
 }
 ```

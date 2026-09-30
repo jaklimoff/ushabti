@@ -64,6 +64,8 @@ export type MemberDTO = {
   /** Null for an agent. Only a person has an email address. */
   email: string | null;
   color: string;
+  /** Worn instead of the initials. Null is the initials. */
+  emoji: string | null;
   role: string;
   kind: "human" | "agent";
   /**
@@ -408,7 +410,7 @@ export type CommentDTO = {
   createdAt: string;
   /** When an edit last changed the words; null for a comment never changed. */
   editedAt: string | null;
-  author: { id: string; name: string; color: string } | null;
+  author: { id: string; name: string; color: string; emoji: string | null } | null;
 };
 
 export type ActivityDTO = {
@@ -416,7 +418,7 @@ export type ActivityDTO = {
   kind: string;
   data: Record<string, unknown>;
   createdAt: string;
-  actor: { id: string; name: string; color: string } | null;
+  actor: { id: string; name: string; color: string; emoji: string | null } | null;
 };
 
 /** One end of a blocked-by link, as the panel draws the row. */
@@ -520,7 +522,7 @@ export type AgentRunRowDTO = {
   /** When the next report is due, if the last one said. Null is the ordinary lease. */
   reportDueAt: string | null;
   endedAt: string | null;
-  agent: { id: string; name: string; color: string };
+  agent: { id: string; name: string; color: string; emoji: string | null };
 };
 
 /** A run with what the card of a live run draws: the progress and the last word. */
@@ -549,6 +551,7 @@ export type AgentDTO = {
   id: string;
   name: string;
   color: string;
+  emoji: string | null;
   createdAt: string;
   tokens: AgentTokenDTO[];
 };

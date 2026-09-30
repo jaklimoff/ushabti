@@ -302,7 +302,7 @@ function MemberRow({
   return (
     <>
       <Row>
-        <Avatar name={member.name} color={member.color} size={22} />
+        <Avatar name={member.name} color={member.color} emoji={member.emoji} size={22} />
         <span className={styles.memberName}>{member.name}</span>
         <span className={styles.memberMail}>{member.email}</span>
         {roles.length > 0 ? (
@@ -549,7 +549,13 @@ function AgentBox({
         />
       ) : (
         <Row>
-          <Avatar name={agent.name} color={agent.color} size={22} kind="agent" />
+          <Avatar
+            name={agent.name}
+            color={agent.color}
+            emoji={agent.emoji}
+            size={22}
+            kind="agent"
+          />
           <span className={styles.memberName}>{agent.name}</span>
           <Tag>agent</Tag>
           <Spacer />

@@ -56,7 +56,15 @@ export function Listening() {
           onPointerEnter={(e) => placeTip(e.currentTarget)}
           onFocus={(e) => placeTip(e.currentTarget)}
         >
-          <Avatar name={agent.name} color={agent.color} size={18} kind="agent" live title={null} />
+          <Avatar
+            name={agent.name}
+            color={agent.color}
+            emoji={agent.emoji}
+            size={18}
+            kind="agent"
+            live
+            title={null}
+          />
           <span className={styles.listenerTip} data-testid="listening-tip" aria-hidden="true">
             <span className={styles.listenerName}>{agent.name}</span>
             <span>Listening. It hears a new task at once.</span>

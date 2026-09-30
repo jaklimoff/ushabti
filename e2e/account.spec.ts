@@ -1,5 +1,14 @@
-import { expect, test } from "@playwright/test";
-import { addTask, createProject, register, unique } from "./helpers";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { addTask, card, createProject, register, saved, unique } from "./helpers";
+
+/** A click on a face saves at once; this waits for the save to answer. */
+async function pick(page: Page, face: Locator) {
+  const saved = page.waitForResponse(
+    (res) => res.url().endsWith("/api/auth/me") && res.request().method() === "PATCH",
+  );
+  await face.click();
+  expect((await saved).status()).toBe(200);
+}
 
 test.describe("Your own account", () => {
   test("a name and a colour can be changed, and the board follows", async ({ page }) => {
@@ -19,7 +28,7 @@ test.describe("Your own account", () => {
 
     // The palette, not the operating system's colour wheel, and all of it but
     // the grey that reads as nobody.
-    const swatches = page.getByRole("radio");
+    const swatches = page.getByRole("radiogroup", { name: "Your colour" }).getByRole("radio");
     await expect(swatches).toHaveCount(11);
     await expect(page.getByRole("radio", { name: "Colour #8b8f98" })).toHaveCount(0);
     const saved = page.waitForResponse(
@@ -36,6 +45,90 @@ test.describe("Your own account", () => {
 
     await page.goto(`/p/${projectId}`);
     await expect(page.getByRole("button", { name: /Ada Lovelace/ })).toBeVisible();
+  });
+
+  test("a face can be an emoji, and Initials brings the initials back", async ({ page }) => {
+    await register(page, "Ada Lovelace");
+    const projectId = await createProject(page, unique("Face"));
+    await addTask(page, "Todo", "Whose face");
+    const panel = page.getByTestId("task-panel");
+    await panel.getByRole("button", { name: "Assignee Unassigned", exact: true }).click();
+    await saved(page, () =>
+      panel.getByRole("option", { name: "Ada Lovelace", exact: true }).click(),
+    );
+    await page.getByRole("button", { name: "Close task" }).click();
+    const onCard = card(page, "Whose face").locator('[title="Ada Lovelace"]');
+    await expect(onCard).toHaveText("AL");
+
+    await page.goto("/account");
+    const faces = page.getByRole("radiogroup", { name: "Your face" });
+    await expect(faces.getByRole("radio", { name: "Initials" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await pick(page, faces.getByRole("radio", { name: "Face 🦊" }));
+    await expect(faces.getByRole("radio", { name: "Face 🦊" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    // The board is read afresh, and the face follows the person everywhere.
+    await page.goto(`/p/${projectId}`);
+    await expect(onCard).toHaveText("🦊");
+    await card(page, "Whose face").click();
+    await expect(panel.locator('[title="Ada Lovelace"]').first()).toHaveText("🦊");
+    await expect(panel.locator('[title="Ada Lovelace"]', { hasText: "AL" })).toHaveCount(0);
+
+    await page.goto("/account");
+    await pick(page, faces.getByRole("radio", { name: "Initials" }));
+    await page.goto(`/p/${projectId}`);
+    await expect(onCard).toHaveText("AL");
+  });
+
+  test("a quick pick back to the first face is still saved", async ({ page }) => {
+    await register(page, "Quick Picker");
+    await page.goto("/account");
+    const faces = page.getByRole("radiogroup", { name: "Your face" });
+    const sent: unknown[] = [];
+    page.on("request", (req) => {
+      if (req.url().endsWith("/api/auth/me") && req.method() === "PATCH") {
+        sent.push(req.postDataJSON().emoji);
+      }
+    });
+    const both = page.waitForResponse(
+      (res) =>
+        res.url().endsWith("/api/auth/me") &&
+        res.request().method() === "PATCH" &&
+        res.request().postDataJSON().emoji === null,
+    );
+    await faces.getByRole("radio", { name: "Face 🦊" }).click();
+    await faces.getByRole("radio", { name: "Initials" }).click();
+    expect((await both).status()).toBe(200);
+    expect(sent).toEqual(["🦊", null]);
+
+    await page.reload();
+    await expect(faces.getByRole("radio", { name: "Initials" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
+  test("a face set through the API and not on the grid still shows as picked", async ({ page }) => {
+    await register(page, "Grace Hopper");
+    const pair = "🧑🏿‍🤝‍🧑🏻";
+    const res = await page.request.patch("/api/auth/me", { data: { emoji: pair } });
+    expect(res.status()).toBe(200);
+    expect((await page.request.patch("/api/auth/me", { data: { emoji: "GH" } })).status()).toBe(
+      400,
+    );
+
+    await page.goto("/account");
+    const faces = page.getByRole("radiogroup", { name: "Your face" });
+    await expect(faces.getByRole("radio", { name: `Face ${pair}` })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(faces.locator('[aria-checked="true"]')).toHaveCount(1);
   });
 
   test("the password needs the old one, and says so when it is wrong", async ({ page }) => {
