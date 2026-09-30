@@ -214,6 +214,7 @@ export function MentionList({ picker }: { picker: MentionPicker }) {
           <Avatar
             name={mention.member.name}
             color={mention.member.color}
+            emoji={mention.member.emoji}
             size={18}
             kind={mention.member.kind}
             live={mention.listening}

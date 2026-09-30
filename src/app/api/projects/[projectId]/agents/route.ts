@@ -36,7 +36,13 @@ export const POST = route<Ctx>(async (req, ctx) => {
       passwordHash: null,
       color: pickAvatarColor(`${projectId}:${name}`),
     })
-    .returning({ id: users.id, name: users.name, color: users.color, createdAt: users.createdAt });
+    .returning({
+      id: users.id,
+      name: users.name,
+      color: users.color,
+      emoji: users.avatarEmoji,
+      createdAt: users.createdAt,
+    });
 
   await db.insert(projectMembers).values({ projectId, userId: agent.id, role: "member" });
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
@@ -47,6 +53,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         id: agent.id,
         name: agent.name,
         color: agent.color,
+        emoji: agent.emoji,
         createdAt: agent.createdAt.toISOString(),
         tokens: [],
       } satisfies AgentDTO,

@@ -45,6 +45,7 @@ export type TokenHolder = {
   id: string;
   name: string;
   color: string;
+  emoji: string | null;
   /** The one project this token opens. */
   projectId: string;
   tokenId: string;
@@ -60,6 +61,7 @@ export async function holderOfToken(token: string): Promise<TokenHolder | null> 
       id: users.id,
       name: users.name,
       color: users.color,
+      emoji: users.avatarEmoji,
       kind: users.kind,
     })
     .from(agentTokens)
@@ -73,6 +75,7 @@ export async function holderOfToken(token: string): Promise<TokenHolder | null> 
     id: row.id,
     name: row.name,
     color: row.color,
+    emoji: row.emoji,
     projectId: row.projectId,
     tokenId: row.tokenId,
   };
@@ -126,6 +129,7 @@ export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
         id: users.id,
         name: users.name,
         color: users.color,
+        emoji: users.avatarEmoji,
         createdAt: users.createdAt,
       })
       .from(projectMembers)
@@ -151,6 +155,7 @@ export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
     id: row.id,
     name: row.name,
     color: row.color,
+    emoji: row.emoji,
     createdAt: row.createdAt.toISOString(),
     tokens: tokenRows
       .filter((t) => t.agentId === row.id)

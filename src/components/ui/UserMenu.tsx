@@ -8,7 +8,13 @@ import { Avatar } from "./Avatar";
 import { useDismiss } from "./useDismiss";
 import styles from "./UserMenu.module.css";
 
-export type SessionUser = { id: string; name: string; email: string; color: string };
+export type SessionUser = {
+  id: string;
+  name: string;
+  email: string;
+  color: string;
+  emoji: string | null;
+};
 
 export function UserMenu({ user, extra }: { user: SessionUser; extra?: React.ReactNode }) {
   const router = useRouter();
@@ -29,7 +35,7 @@ export function UserMenu({ user, extra }: { user: SessionUser; extra?: React.Rea
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <Avatar name={user.name} color={user.color} size={20} />
+        <Avatar name={user.name} color={user.color} emoji={user.emoji} size={20} />
         <span className={styles.name} data-testid="user-name">
           {user.name}
         </span>

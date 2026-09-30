@@ -544,6 +544,7 @@ export async function loadBoard(
           name: users.name,
           email: users.email,
           color: users.color,
+          emoji: users.avatarEmoji,
           kind: users.kind,
           role: projectMembers.role,
           /* The newest moment any live token of this agent held the stream.
@@ -690,6 +691,7 @@ export async function loadBoard(
     name: m.name,
     email: m.email,
     color: m.color,
+    emoji: m.emoji,
     role: m.role,
     kind: m.kind === "agent" ? "agent" : "human",
     listeningAt: m.listeningAt ? new Date(m.listeningAt).toISOString() : null,
@@ -762,6 +764,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
         authorId: users.id,
         authorName: users.name,
         authorColor: users.color,
+        authorEmoji: users.avatarEmoji,
       })
       .from(comments)
       .leftJoin(users, eq(users.id, comments.authorId))
@@ -776,6 +779,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
         actorId: users.id,
         actorName: users.name,
         actorColor: users.color,
+        actorEmoji: users.avatarEmoji,
       })
       .from(activity)
       .leftJoin(users, eq(users.id, activity.actorId))
@@ -823,7 +827,9 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     body: c.body,
     createdAt: c.createdAt.toISOString(),
     editedAt: c.editedAt?.toISOString() ?? null,
-    author: c.authorId ? { id: c.authorId, name: c.authorName!, color: c.authorColor! } : null,
+    author: c.authorId
+      ? { id: c.authorId, name: c.authorName!, color: c.authorColor!, emoji: c.authorEmoji }
+      : null,
   }));
 
   const activityList: ActivityDTO[] = activityRows.map((a) => ({
@@ -831,7 +837,9 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     kind: a.kind,
     data: (a.data ?? {}) as Record<string, unknown>,
     createdAt: a.createdAt.toISOString(),
-    actor: a.actorId ? { id: a.actorId, name: a.actorName!, color: a.actorColor! } : null,
+    actor: a.actorId
+      ? { id: a.actorId, name: a.actorName!, color: a.actorColor!, emoji: a.actorEmoji }
+      : null,
   }));
 
   return {

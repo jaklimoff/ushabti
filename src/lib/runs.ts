@@ -59,6 +59,7 @@ type RunRow = {
   agentId: string;
   agentName: string;
   agentColor: string;
+  agentEmoji: string | null;
 };
 
 const runColumns = {
@@ -76,6 +77,7 @@ const runColumns = {
   agentId: users.id,
   agentName: users.name,
   agentColor: users.color,
+  agentEmoji: users.avatarEmoji,
 };
 
 /** A run in its own columns. It reads no other table, which is the point. */
@@ -92,7 +94,7 @@ function shapeRow(row: RunRow): AgentRunRowDTO {
     beatAt: row.beatAt.toISOString(),
     reportDueAt: row.reportDueAt?.toISOString() ?? null,
     endedAt: row.endedAt?.toISOString() ?? null,
-    agent: { id: row.agentId, name: row.agentName, color: row.agentColor },
+    agent: { id: row.agentId, name: row.agentName, color: row.agentColor, emoji: row.agentEmoji },
   };
 }
 

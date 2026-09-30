@@ -30,7 +30,12 @@ export const POST = route<Ctx>(async (req, ctx) => {
   });
   await broadcast({ projectId, scope: "task", taskId, clientId: clientIdOf(req) });
   return json(
-    { comment: { ...comment, author: { id: user.id, name: user.name, color: user.color } } },
+    {
+      comment: {
+        ...comment,
+        author: { id: user.id, name: user.name, color: user.color, emoji: user.emoji },
+      },
+    },
     201,
   );
 });

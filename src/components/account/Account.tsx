@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { editedText } from "@/lib/leave";
 import { Button } from "@/components/ui/Button";
-import { ColorSwatches, Field, Input } from "@/components/ui/Form";
+import { ColorSwatches, FaceSwatches, Field, Input } from "@/components/ui/Form";
 import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
 import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
 import { Toasts, type Toast } from "@/components/ui/Toasts";
@@ -27,6 +27,16 @@ export function Account({ user, version }: { user: SessionUser; version: string 
 
   const [name, setName] = useState(user.name);
   const [color, setColor] = useState(user.color);
+  const [emoji, setEmoji] = useState(user.emoji);
+  /* What this tab last asked the server to wear. A pick is compared with it
+     and not with the page's first answer, so a quick pick back to the old
+     face is still sent. The saves go out one after another, so the server
+     keeps the last pick and not whichever request arrived last. */
+  const sentFace = useRef(user.emoji);
+  const faceSaves = useRef<Promise<unknown>>(Promise.resolve());
+  /* Only the newest pick may put the face back when its save fails, so a
+     slow refusal never undoes a face picked after it. */
+  const facePick = useRef(0);
   /* The box mirrors a saved name. Only what this tab typed may be written
      back, so another window of yours cannot be undone by closing this one. */
   const [typed, setTyped] = useState(false);
@@ -38,15 +48,21 @@ export function Account({ user, version }: { user: SessionUser; version: string 
     nameEdit ? { method: "PATCH", url: "/api/auth/me", body: { name: nameEdit } } : null,
   );
 
-  async function saveProfile(patch: { name?: string; color?: string }) {
+  async function saveProfile(patch: {
+    name?: string;
+    color?: string;
+    emoji?: string | null;
+  }): Promise<boolean> {
     try {
       await api.patch("/api/auth/me", patch);
       router.refresh();
       notify("Saved.", "info");
+      return true;
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not save.");
       setName(user.name);
       setColor(user.color);
+      return false;
     }
   }
 
@@ -58,7 +74,7 @@ export function Account({ user, version }: { user: SessionUser; version: string 
           Ushabti
         </Link>
         <span style={{ flex: 1 }} />
-        <UserMenu user={{ ...user, name, color }} />
+        <UserMenu user={{ ...user, name, color, emoji }} />
       </div>
 
       <div className={styles.body}>
@@ -93,10 +109,37 @@ export function Account({ user, version }: { user: SessionUser; version: string 
             >
               <ColorSwatches
                 name={name || user.name}
+                emoji={emoji}
                 value={color}
                 onPick={(next) => {
                   setColor(next);
                   if (next !== user.color) void saveProfile({ color: next });
+                }}
+              />
+            </Field>
+          </Row>
+
+          <Row className={styles.stack}>
+            <Field
+              label="Face"
+              note="Worn on your colour in place of your initials, so two people with the same initials still look different."
+            >
+              <FaceSwatches
+                name={name || user.name}
+                color={color}
+                value={emoji}
+                onPick={(next) => {
+                  const pick = (facePick.current += 1);
+                  const before = sentFace.current;
+                  setEmoji(next);
+                  if (next === before) return;
+                  sentFace.current = next;
+                  faceSaves.current = faceSaves.current.then(async () => {
+                    const saved = await saveProfile({ emoji: next });
+                    if (saved || pick !== facePick.current) return;
+                    sentFace.current = before;
+                    setEmoji(before);
+                  });
                 }}
               />
             </Field>

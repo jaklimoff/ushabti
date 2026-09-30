@@ -174,7 +174,7 @@ If an account uses that email, it becomes a member at once and the answer carrie
 does, the email is remembered as an invite and the answer carries `invite` instead:
 
 ```json title="201, an account uses it"
-{ "member": { "id": "…", "name": "Ada", "email": "ada@example.com", "color": "#6d5bd0", "role": "member" }, "emailed": false }
+{ "member": { "id": "…", "name": "Ada", "email": "ada@example.com", "color": "#6d5bd0", "emoji": null, "role": "member" }, "emailed": false }
 ```
 
 ```json title="201, no account yet"
@@ -341,7 +341,7 @@ Every agent of the project with its live tokens, ordered by name.
 ```json title="200"
 {
   "agents": [{
-    "id": "…", "name": "Builder", "color": "#3fb0c8", "createdAt": "…",
+    "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null, "createdAt": "…",
     "tokens": [{
       "id": "…", "name": "default", "prefix": "ush_xK3nQ8vB",
       "createdAt": "…", "lastUsedAt": "2026-08-25T10:02:11.000Z"
@@ -368,7 +368,7 @@ the project.
 ```
 
 ```json title="201"
-{ "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8", "createdAt": "…", "tokens": [] } }
+{ "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null, "createdAt": "…", "tokens": [] } }
 ```
 
 Creating an agent does **not** create a token. That is the next call, deliberately.

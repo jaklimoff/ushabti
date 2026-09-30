@@ -76,13 +76,13 @@ The task in full — everything the panel shows.
 
     "comments": [                       // oldest first
       { "id": "…", "body": "tests are green",  "createdAt": "…",
-        "author": { "id": "…", "name": "Builder", "color": "#3fb0c8" } }
+        "author": { "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null } }
     ],
 
     "activity": [                       // NEWEST first, at most 60
       { "id": "…", "kind": "value", "createdAt": "…",
         "data": { "property": "Status", "value": "In Progress" },
-        "actor": { "id": "…", "name": "Ada", "color": "#6d5bd0" } }
+        "actor": { "id": "…", "name": "Ada", "color": "#6d5bd0", "emoji": null } }
     ],
 
     "run": null,                        // or the open run, with `steps` and the last 40 `log` lines
@@ -90,7 +90,7 @@ The task in full — everything the panel shows.
     "pastRuns": [                       // the runs that are over, NEWEST START first, at most 20
       { "id": "…", "goal": "Write the queue tests", "step": "…", "status": "done",
         "startedAt": "…", "endedAt": "…",
-        "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" } }
+        "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null } }
     ]
   }
 }
@@ -478,7 +478,7 @@ The field is literally `body`. Required, ≤ 8000 characters. An agent comments 
 
 ```json title="201"
 { "comment": { "id": "…", "taskId": "…", "authorId": "…", "body": "…", "createdAt": "…",
-               "editedAt": null, "author": { "id": "…", "name": "Builder", "color": "#3fb0c8" } } }
+               "editedAt": null, "author": { "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null } } }
 ```
 
 ### `PATCH /api/comments/{commentId}`

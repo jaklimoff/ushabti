@@ -2,9 +2,12 @@
 
 import { ink, initials } from "@/lib/colors";
 
+const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+
 export function Avatar({
   name,
   color,
+  emoji = null,
   size = 18,
   title,
   kind = "human",
@@ -12,6 +15,8 @@ export function Avatar({
 }: {
   name: string;
   color: string;
+  /** Worn instead of the initials, on the same colour. Null is the initials. */
+  emoji?: string | null;
   size?: number;
   /** Null draws no title, for a caller that names the face in its own way. */
   title?: string | null;
@@ -32,15 +37,25 @@ export function Avatar({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "var(--font-mono)",
-        fontWeight: 500,
-        fontSize: Math.max(7.5, size * (kind === "agent" ? 0.5 : 0.44)),
-        letterSpacing: "0.02em",
+        ...(emoji
+          ? {
+              /* An emoji is drawn by the system's emoji font, which sits a
+                 little high and wide; this size keeps it inside the circle. */
+              fontFamily: EMOJI_FONT,
+              fontSize: Math.max(8, size * 0.62),
+              lineHeight: 1,
+            }
+          : {
+              fontFamily: "var(--font-mono)",
+              fontWeight: 500,
+              fontSize: Math.max(7.5, size * (kind === "agent" ? 0.5 : 0.44)),
+              letterSpacing: "0.02em",
+            }),
         userSelect: "none",
         position: "relative",
       }}
     >
-      {kind === "agent" ? "◆" : initials(name)}
+      {emoji ?? (kind === "agent" ? "◆" : initials(name))}
     </span>
   );
 
