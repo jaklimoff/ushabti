@@ -15,6 +15,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   person's colour everywhere their face shows. `PATCH /api/auth/me` takes `emoji`, which is exactly
   one emoji or `null`, and every member, comment author, activity actor and run agent carries it.
   The release adds one nullable column, `users.avatar_emoji`.
+- **An admin changes the colour and the emoji of an agent.** In **Settings → People**, **Face** on
+  an agent's row opens the same colour swatches and emoji grid as `/account`, saved on click. An
+  agent with an emoji keeps a small ◆ badge, and a card or the assignee picker now draws an agent
+  with ◆ rather than initials. `PATCH /api/projects/{id}/agents/{agentId}` takes `color` and
+  `emoji`, for the owner and admins only.
 
 ## 0.12.0 — 2026-09-30
 

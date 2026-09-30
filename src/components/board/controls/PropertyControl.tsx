@@ -518,7 +518,15 @@ function PersonMenu({ value, members, onChange, labelId }: Props) {
     ...members.map((member) => ({
       id: member.id,
       name: member.name,
-      face: <Avatar name={member.name} color={member.color} emoji={member.emoji} size={18} />,
+      face: (
+        <Avatar
+          name={member.name}
+          color={member.color}
+          emoji={member.emoji}
+          kind={member.kind}
+          size={18}
+        />
+      ),
     })),
   ];
 
@@ -536,7 +544,13 @@ function PersonMenu({ value, members, onChange, labelId }: Props) {
         {/* The face draws initials as text, and the name is already there. */}
         <span aria-hidden="true" style={{ display: "contents" }}>
           {current ? (
-            <Avatar name={current.name} color={current.color} emoji={current.emoji} size={18} />
+            <Avatar
+              name={current.name}
+              color={current.color}
+              emoji={current.emoji}
+              kind={current.kind}
+              size={18}
+            />
           ) : (
             NOBODY
           )}

@@ -410,7 +410,13 @@ export type CommentDTO = {
   createdAt: string;
   /** When an edit last changed the words; null for a comment never changed. */
   editedAt: string | null;
-  author: { id: string; name: string; color: string; emoji: string | null } | null;
+  author: {
+    id: string;
+    name: string;
+    color: string;
+    emoji: string | null;
+    kind: "human" | "agent";
+  } | null;
 };
 
 export type ActivityDTO = {
@@ -418,7 +424,13 @@ export type ActivityDTO = {
   kind: string;
   data: Record<string, unknown>;
   createdAt: string;
-  actor: { id: string; name: string; color: string; emoji: string | null } | null;
+  actor: {
+    id: string;
+    name: string;
+    color: string;
+    emoji: string | null;
+    kind: "human" | "agent";
+  } | null;
 };
 
 /** One end of a blocked-by link, as the panel draws the row. */

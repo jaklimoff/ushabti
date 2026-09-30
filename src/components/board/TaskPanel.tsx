@@ -2337,6 +2337,7 @@ function CommentItem({
         name={comment.author?.name ?? "?"}
         color={comment.author?.color ?? "#3f4650"}
         emoji={comment.author?.emoji}
+        kind={comment.author?.kind}
         size={20}
       />
       <div className={styles.commentBody}>

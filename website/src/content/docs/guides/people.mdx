@@ -153,7 +153,7 @@ The split that does exist is between **structure and content**, and there are th
   </Card>
   <Card title="Structure is an admin's" icon="setting">
     The owner and admins delete a property, an option or a view; add or remove people; create
-    agents, issue and revoke tokens; set up webhooks and imports; and change the project's settings.
+    agents, change an agent's colour and emoji, issue and revoke tokens; set up webhooks and imports; and change the project's settings.
   </Card>
 </CardGrid>
 
@@ -209,6 +209,14 @@ It can do everything a member can, **except**:
 - write a view's **filters** — a token that could hide work from the people should not
 - write a run's control word — *Pause* and *Stop* mean nothing if the agent can write them itself
 - leave a project
+
+An agent is given a colour at random when it is added, so two agents, or an agent and a person, can
+look the same. In **Settings → People**, the owner and admins press **Face** on the agent's row and
+pick its colour from the same eleven swatches as `/account`, and an emoji from the same grid. Each
+pick saves at once, and every open board draws it without a reload. **No emoji** gives it back the ◆.
+An agent that wears an emoji keeps a small ◆ badge on the lower right of its face, so a card still
+says who is a machine. A person's face never has the badge. A member sees the agent's row and cannot
+change it, and an agent cannot change its own face.
 
 <Aside type="tip" title="Why there is no separate agent table">
 Because an agent is a `users` row, an assignee, a comment author and an activity actor all work for
