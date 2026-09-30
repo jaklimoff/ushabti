@@ -10,6 +10,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A person who forgot their password gets a reset link by email.** With mail on and
+  `USHABTI_URL` set to the board's public address, the sign-in page shows **Forgot password?**.
+  `/forgot` asks for an email and always answers the same sentence, whether or not an account uses
+  it; the link works once, for 24 hours. The link is built from `USHABTI_URL`, never from the
+  request. `POST /api/auth/forgot` is limited per address and per typed email. With mail on and no
+  `USHABTI_URL`, the server logs at start that the forgot page is off.
+
 - **The server emails the invite and the reset link.** Set `SMTP_URL` and `MAIL_FROM`, and an
   invite to an email with no account, or a reset link made for a member, goes to that email as plain
   text. The page says "Emailed to …" or "Could not email …", and the link stays on it either way.

@@ -155,3 +155,24 @@ export function resetMail(input: {
     ].join("\n"),
   };
 }
+
+/**
+ * A reset link the person asked for on the sign-in page. Its own words,
+ * because nobody made this link for them: anybody can type an email there.
+ */
+export function forgotMail(input: { to: string; name: string; link: string; hours: number }): Mail {
+  return {
+    to: input.to,
+    subject: "A link to set a new Ushabti password",
+    text: [
+      `Hello ${input.name},`,
+      "",
+      "Somebody asked for a link to set a new password for your Ushabti account.",
+      "",
+      input.link,
+      "",
+      `It works once, for ${input.hours} hours. Using it signs you out everywhere.`,
+      "If you did not ask for this, do nothing. Your password stays as it is.",
+    ].join("\n"),
+  };
+}

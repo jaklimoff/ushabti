@@ -54,7 +54,32 @@ nobody could break the circle. The owner or an admin withdraws an invite from it
 
 ## A forgotten password
 
-There is no "forgot my password" form to fill in. The way back is a person who can vouch for you: **the owner or an admin of any project you are in**. Any of them will
+### Forgot password?
+
+When the server has [mail set up](/ushabti/start/configuration/#smtp_url-and-mail_from) **and**
+[`USHABTI_URL`](/ushabti/start/configuration/#ushabti_url) names its public address, the sign-in
+page shows **Forgot password?** under the password box. It opens `/forgot`, which asks for one
+email. Whatever you type, it answers the same sentence:
+
+> If an account uses that email, a link is on its way. It works once, for 24 hours.
+
+The server answers before it looks the email up, so neither the words nor the time to answer say
+whether an account uses it. For a person with a password, it emails a link to that address. The
+link is built from `USHABTI_URL`, never from the request, and the email says: if you did not ask
+for this, do nothing. An agent, an email with no account, and a person with no password get nothing.
+It follows the same rules as a link an owner makes, below: once, for 24 hours, and the newest one
+wins. It writes no line to any feed, because it belongs to no project.
+
+One address, and one typed email, may ask ten times in ten minutes; after that the page answers
+*"Too many tries. Wait … minutes and try again."*, exactly as sign-in does. The count is the same
+for an email with an account and one without.
+
+Without mail or without `USHABTI_URL`, there is no **Forgot password?** link, and `/forgot` says to
+ask an admin of your project for a link. That is the way below.
+
+### A link from the owner
+
+The way back that always works is a person who can vouch for you: **the owner or an admin of any project you are in**. Any of them will
 do — the link is about your account and not about their board — and that holds even if you own a
 project yourself. Owning one does not stop the owner or an admin of another project making you a
 link, where you are a member there.
@@ -85,13 +110,14 @@ nothing else:
 
 > This link does not work any more. Ask the owner of your project for a new one.
 
-It never says whether an account exists — the page is open to anybody with a URL.
+While **Forgot password?** is on, the sentence points there instead: *"Ask for a new one with
+Forgot password? on the sign-in page."* It never says whether an account exists — the page is open to anybody with a URL.
 
 <Aside type="caution" title="Two things this does not do">
 Whoever made the link never learns the new password, and never sees the old one; the link sets a password, it
 does not read one.
 
-And there is no self-service form, so **one person must have somebody to ask**. Every project you
+And without **Forgot password?**, **one person must have somebody to ask**. Every project you
 are a member of is a way back — ask the owner or an admin of any of them, whether or not you own a project of
 your own. Only a person who is in no project but their own has nobody to ask, and their password is
 the one to keep somewhere safe.

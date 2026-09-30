@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { AuthCard } from "@/components/auth/AuthForm";
 import { ResetForm } from "@/components/auth/ResetForm";
 import { addressOf, limiter, resetByAddress } from "@/lib/rate-limit";
-import { LINK_IS_DEAD } from "@/lib/reset-link";
+import { forgotIsOn } from "@/lib/forgot";
+import { deadLinkSaid } from "@/lib/reset-link";
 import { accountOfToken } from "@/lib/resets";
 import styles from "@/components/auth/AuthForm.module.css";
 
@@ -46,7 +47,7 @@ function Dead() {
   return (
     <AuthCard>
       <p className={styles.tagline} data-testid="reset-dead">
-        {LINK_IS_DEAD}
+        {deadLinkSaid(forgotIsOn())}
       </p>
     </AuthCard>
   );

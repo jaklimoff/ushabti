@@ -1,10 +1,11 @@
 /**
  * The life of a reset link.
  *
- * There is no "forgot my password" form, so the way back into an account
- * nobody can sign in to is a person: the owner of a project you are in makes
- * a link. With mail set up the server emails it to the member as well; either
- * way the page shows it, so it can go by whatever channel the team has.
+ * The way back into an account nobody can sign in to is a person: the owner
+ * of a project you are in makes a link. With mail set up the server emails it
+ * to the member as well; either way the page shows it, so it can go by
+ * whatever channel the team has. With mail and `USHABTI_URL` both set, the
+ * person can also ask for one by email on the sign-in page (`forgot.ts`).
  *
  * Nothing here reads the database and nothing here reads the clock — the
  * moment is an argument — so a unit test drives the whole rule.
@@ -54,3 +55,21 @@ export function lifeOfLink(link: StoredLink, newestAt: Date, now: Date): LinkLif
  */
 export const LINK_IS_DEAD =
   "This link does not work any more. Ask the owner of your project for a new one.";
+
+/** The same sentence while "Forgot password?" is on, which points there instead. */
+export const LINK_IS_DEAD_FORGOT =
+  "This link does not work any more. Ask for a new one with Forgot password? on the sign-in page.";
+
+export function deadLinkSaid(forgotOn: boolean): string {
+  return forgotOn ? LINK_IS_DEAD_FORGOT : LINK_IS_DEAD;
+}
+
+/**
+ * The one answer to every forgot request, so the answer says nothing about
+ * whether an account uses the email.
+ */
+export const FORGOT_SENT = `If an account uses that email, a link is on its way. It works once, for ${RESET_HOURS} hours.`;
+
+/** What `/forgot` says, and its route answers, when the board cannot email a link. */
+export const FORGOT_OFF =
+  "This board cannot email you a link. Ask an admin of your project to make you one.";

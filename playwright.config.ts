@@ -58,7 +58,12 @@ export default defineConfig({
     env: {
       USHABTI_WEBHOOK_PRIVATE: "1",
       ...(smtpPort
-        ? { SMTP_URL: `smtp://127.0.0.1:${smtpPort}`, MAIL_FROM: "Ushabti <board@example.com>" }
+        ? {
+            SMTP_URL: `smtp://127.0.0.1:${smtpPort}`,
+            MAIL_FROM: "Ushabti <board@example.com>",
+            // "Forgot password?" builds its link from this, never from the request.
+            USHABTI_URL: url,
+          }
         : {}),
     },
     url,

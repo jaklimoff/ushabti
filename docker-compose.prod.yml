@@ -34,6 +34,9 @@ services:
       # reset link. Unset, nothing is emailed; see .env.example.
       SMTP_URL: ${SMTP_URL:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      # Optional. The board's public address. With mail on as well, the
+      # sign-in page offers "Forgot password?"; see .env.example.
+      USHABTI_URL: ${USHABTI_URL:-}
       # Compose hands the server only what is named here, so each setting
       # .env.example offers is named, empty when unset. Empty reads as unset.
       USHABTI_SIGNUP: ${USHABTI_SIGNUP:-}

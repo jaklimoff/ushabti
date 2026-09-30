@@ -97,6 +97,11 @@ export const resetByAddress = (address: string) => `reset:ip:${address}`;
    fresh ten. */
 export const mailByUser = (userId: string) => `mail:user:${userId}`;
 export const mailByAddress = (address: string) => `mail:ip:${address}`;
+/* A forgot request is counted every time, whether or not an account uses the
+   email, so a limit says nothing about the account. The email is the one the
+   caller typed, lowercased, and not an account id for the same reason. */
+export const forgotByAddress = (address: string) => `forgot:ip:${address}`;
+export const forgotByEmail = (email: string) => `forgot:email:${email}`;
 
 /**
  * Who is calling.

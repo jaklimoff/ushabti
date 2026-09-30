@@ -44,8 +44,12 @@ report:
   header as well. A caller that names the host writes the address the owner
   copies out of the page — and, with mail on, the address the server itself
   emails from `MAIL_FROM` — and the token in a reset link is real.
-- **A password reset is a person, not a form.** There is no "forgot my
-  password" page. The owner or an admin of a project makes a member a one-time
+- **A password reset is a person, or a form that emails.** With `SMTP_URL`,
+  `MAIL_FROM` and `USHABTI_URL` set, **Forgot password?** emails a one-time link
+  to the account's own address. The link is built from `USHABTI_URL` and never
+  from the request's `Host`, which anybody can forge; the answer is one
+  sentence for every email and goes out before the email is looked up. Without
+  them there is no such page. The owner or an admin of a project makes a member a one-time
   link, good for 24 hours; the token is stored as a SHA-256 digest and using it
   ends every session that account had. With `SMTP_URL` and `MAIL_FROM` set, the
   server emails that link to the member's address, so that mailbox is as good
