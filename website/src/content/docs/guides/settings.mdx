@@ -18,9 +18,19 @@ address, so a document can link to one. The owner and admins see two more than a
 | [People](/ushabti/guides/people/) `…/settings/people`             | Members and their roles, agents, and the tokens that connect them. |
 | [Webhooks](/ushabti/api/webhooks/) `…/settings/webhooks`          | A call out of the board when something changes. Owner and admins. |
 | [Import](/ushabti/guides/import/) `…/settings/import`             | Bring a board in from a Trello export. Owner and admins.          |
-| Project `…/settings/project`                 | The project name, the task-key prefix, and deleting the project.            |
+| Project `…/settings/project`                 | The project name, the task-key prefix, the time zone, what done means, the export (owner and admins), and deleting the project. |
 
 The rail counts what is on each page, and its foot names the version you are running.
+
+## Taking the project out
+
+An owner or an admin sees an **Export** row on the Project page. **Download** saves the whole
+project as one JSON file, `ushabti-{KEY}-{YYYY-MM-DD}.json`, the day being the project's own. It
+holds the properties with their options, the views with the team's filters and sort, the members,
+the invites, and every live and archived task with its values, checklist, comments and blockers.
+A deleted task is not in it, and neither is anybody's own filter. See
+[`GET /api/projects/{projectId}/export`](/ushabti/api/projects/#get-apiprojectsprojectidexport) for
+what is in the file and what is not.
 
 ## How a destructive action asks
 

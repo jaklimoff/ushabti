@@ -118,6 +118,43 @@ read becomes the first one it can.
 
 `403 Only a person can do this.` for a token.
 
+## `GET /api/projects/{projectId}/export` <Badge text="owner and admins" variant="caution" size="small" />
+
+The whole project as one JSON file to save. It answers `Content-Disposition: attachment;
+filename="ushabti-{KEY}-{YYYY-MM-DD}.json"`, the day being the project's time zone, and
+`Cache-Control: no-store`. The read costs the same number of queries whatever the number of tasks.
+
+```json title="200"
+{
+  "format": "ushabti-export",
+  "version": 1,
+  "exportedAt": "2026-09-29T10:00:00.000Z",
+  "project": { "name": "Ushabti", "key": "USH", "timeZone": "Europe/Berlin", "cardView": { "rows": {} }, "doneWhen": null },
+  "properties": [{ "id": "…", "name": "Status", "type": "select", "position": "a0", "config": {}, "options": [{ "id": "…", "name": "Todo", "color": "#8a8f98", "position": "a0" }] }],
+  "views": [{ "id": "…", "name": "Board", "kind": "board", "groupById": "…", "position": "a0", "isDefault": true, "filters": { "rules": [] }, "sort": null }],
+  "members": [{ "id": "…", "name": "Ada", "email": "ada@example.com", "kind": "human", "role": "owner", "color": "#6d5bd0" }],
+  "invites": [{ "email": "new@example.com" }],
+  "tasks": [{
+    "id": "…", "key": "USH-14", "number": 14, "title": "…", "description": "…", "rank": "a0",
+    "createdBy": "…", "createdAt": "…", "updatedAt": "…", "archivedAt": null,
+    "values": { "<propertyId>": "<optionId>" },
+    "checklist": [{ "text": "…", "done": false }],
+    "comments": [{ "authorId": "…", "body": "…", "createdAt": "…", "editedAt": null }],
+    "blockedBy": ["USH-9"]
+  }]
+}
+```
+
+- A value, an author and a `createdBy` name the ids the file lists under `properties` and
+  `members`. An id that is not listed is a person who has left the project.
+- Every live and archived task is in it. A deleted task is not.
+- A view carries the team's filters and sort. Nobody's own filter is in it.
+- **Not included:** the activity feed and the runs (the feed has no limit; read it with
+  [`/activity`](#get-apiprojectsprojectidactivity)), passwords, sessions, tokens, reset links and
+  webhooks.
+
+`403` for a member, and for a token: the file holds every member's email.
+
 ## `DELETE /api/projects/{projectId}` <Badge text="owner only" variant="caution" size="small" />
 
 Deletes the project and, by cascade, everything in it. `200 {"ok": true}`. The API asks for no

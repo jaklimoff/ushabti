@@ -6,7 +6,7 @@ import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import type { DoneWhen } from "@/lib/links";
 import { useBoard } from "@/components/board/store";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { Card, Note, Row, Spacer } from "@/components/ui/Layout";
@@ -271,6 +271,27 @@ export function ProjectPanel() {
           </Row>
         )}
       </Card>
+
+      {/*
+       * The file holds every member's email, so it is an admin's, as the
+       * route says. The server answers with an attachment, so following it
+       * saves the file and leaves this page where it is.
+       */}
+      {canEdit && (
+        <Card>
+          <Row>
+            <Field label="Export" inline>
+              <ButtonLink variant="ghost" href={`/api/projects/${data.project.id}/export`} download>
+                Download
+              </ButtonLink>
+              <Note>
+                One JSON file with the properties, views, members, and every live and archived task
+                with its values, checklist and comments.
+              </Note>
+            </Field>
+          </Row>
+        </Card>
+      )}
 
       {isOwner && (
         <div className={styles.danger}>
