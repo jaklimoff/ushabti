@@ -102,10 +102,12 @@ Changes your display name and avatar colour. Both fields optional; send either o
 { "name": "Ada L.", "color": "#3fb0c8" }
 ```
 
-`color` must be one of the eight avatar colours:
+`color` must be one of the eleven avatar colours. They are the palette that options use, except the
+grey `#8b8f98`, which reads as "nobody":
 
 ```
-#6d5bd0  #2f9e7a  #c2557a  #b6763f  #4b8fbe  #3fb0c8  #d1913a  #7a8a2f
+#e0574d  #d1913a  #4f8a5b  #3fb0c8  #4b8fbe  #6d5bd0
+#c2557a  #b6763f  #2f9e7a  #7a8a2f  #3d7fc1
 ```
 
 ```json title="200"
@@ -116,7 +118,7 @@ Changes your display name and avatar colour. Both fields optional; send either o
 Send **neither** field and the answer is `{"ok": true}` instead of `{"user": …}`. Handle both.
 </Aside>
 
-Errors: `400 Pick one of the colours on offer.` for a well-formed colour outside the palette, plus
+Errors: `400 Pick one of the colours on offer.` for any other colour, the grey included, plus
 the usual length messages for `Name` and `Colour`.
 
 ---
