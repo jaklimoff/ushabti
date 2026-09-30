@@ -425,7 +425,6 @@
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   font-size: 9px;
   font-weight: 600;
-  color: #fff;
   transition: border-color 140ms var(--ease);
 }
 

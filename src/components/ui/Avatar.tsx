@@ -1,6 +1,6 @@
 "use client";
 
-import { initials } from "@/lib/colors";
+import { ink, initials } from "@/lib/colors";
 
 export function Avatar({
   name,
@@ -28,7 +28,7 @@ export function Avatar({
         flex: `0 0 ${size}px`,
         borderRadius: "50%",
         background: color,
-        color: kind === "agent" ? "#05242b" : "#fff",
+        color: ink(color),
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",

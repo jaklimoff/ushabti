@@ -17,11 +17,22 @@ test.describe("Your own account", () => {
     await name.blur();
     await expect(page.getByTestId("toast")).toContainText("Saved.");
 
-    // The palette, not the operating system's colour wheel.
+    // The palette, not the operating system's colour wheel, and all of it but
+    // the grey that reads as nobody.
     const swatches = page.getByRole("radio");
-    await expect(swatches).toHaveCount(8);
-    await swatches.nth(3).click();
-    await expect(swatches.nth(3)).toHaveAttribute("aria-checked", "true");
+    await expect(swatches).toHaveCount(11);
+    await expect(page.getByRole("radio", { name: "Colour #8b8f98" })).toHaveCount(0);
+    const saved = page.waitForResponse(
+      (res) => res.url().endsWith("/api/auth/me") && res.request().method() === "PATCH",
+    );
+    await swatches.nth(10).click();
+    await expect(swatches.nth(10)).toHaveAttribute("aria-checked", "true");
+    expect((await saved).status()).toBe(200);
+    await page.reload();
+    await expect(page.getByRole("radio", { name: "Colour #3d7fc1" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
 
     await page.goto(`/p/${projectId}`);
     await expect(page.getByRole("button", { name: /Ada Lovelace/ })).toBeVisible();

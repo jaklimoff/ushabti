@@ -22,7 +22,7 @@ export const PATCH = route(async (req: Request) => {
     const color = str(input.color, "Colour", { max: 7 }).toLowerCase();
     // The palette is the palette. A free colour picker is how the board ends
     // up with a person nobody can see against the background.
-    if (!(AVATAR_COLORS as readonly string[]).includes(color)) {
+    if (!AVATAR_COLORS.includes(color)) {
       throw new HttpError(400, "Pick one of the colours on offer.");
     }
     patch.color = color;
