@@ -208,6 +208,11 @@ gunzip -c ushabti-2026-09-20.sql.gz | docker compose -f docker-compose.prod.yml 
 Then count what came back — `select count(*) from tasks` — against the live database, and drop
 the scratch one.
 
+The **Export** row on Settings → Project is not this. It saves one project as a JSON file an owner or
+an admin can read and take away, without shell access. It leaves out the activity feed, the runs
+and every account's password, so it cannot bring an instance back. `pg_dump` stays the backup of
+the whole instance.
+
 <LinkCard
   title="Configuration"
   href="/ushabti/start/configuration/"

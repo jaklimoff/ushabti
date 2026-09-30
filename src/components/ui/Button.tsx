@@ -33,6 +33,23 @@ export function Button({
 }
 
 /**
+ * A link that looks like a button, for a press that goes to an address — a
+ * file to save — rather than one that runs code on this page.
+ */
+export function ButtonLink({
+  variant = "primary",
+  className,
+  ...rest
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: Variant }) {
+  return (
+    <a
+      {...rest}
+      className={[styles.btn, styles[variant], className ?? ""].filter(Boolean).join(" ")}
+    />
+  );
+}
+
+/**
  * A square glyph button. The label is required: the view pill used to carry a
  * bare ✕ that announced as nothing at all.
  */
