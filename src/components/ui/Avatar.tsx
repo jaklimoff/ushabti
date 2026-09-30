@@ -56,6 +56,7 @@ export function Avatar({
       }}
     >
       {emoji ?? (kind === "agent" ? "◆" : initials(name))}
+      {emoji && kind === "agent" && <AgentBadge color={color} size={size} />}
     </span>
   );
 
@@ -83,6 +84,40 @@ export function Avatar({
         }}
       />
       {face}
+    </span>
+  );
+}
+
+/**
+ * The ◆ is the only sign on a card that a face belongs to an agent, so an
+ * agent that wears an emoji keeps it as a badge on the lower right. A person
+ * never wears it.
+ */
+function AgentBadge({ color, size }: { color: string; size: number }) {
+  const badge = Math.max(7, Math.round(size * 0.46));
+  return (
+    <span
+      data-testid="agent-badge"
+      aria-hidden
+      style={{
+        position: "absolute",
+        right: -2,
+        bottom: -2,
+        width: badge,
+        height: badge,
+        borderRadius: "50%",
+        background: color,
+        color: ink(color),
+        boxShadow: "0 0 0 1px var(--bg-card)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "var(--font-mono)",
+        fontSize: Math.max(5, badge * 0.62),
+        lineHeight: 1,
+      }}
+    >
+      ◆
     </span>
   );
 }

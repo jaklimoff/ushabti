@@ -33,7 +33,13 @@ export const POST = route<Ctx>(async (req, ctx) => {
     {
       comment: {
         ...comment,
-        author: { id: user.id, name: user.name, color: user.color, emoji: user.emoji },
+        author: {
+          id: user.id,
+          name: user.name,
+          color: user.color,
+          emoji: user.emoji,
+          kind: user.kind,
+        },
       },
     },
     201,

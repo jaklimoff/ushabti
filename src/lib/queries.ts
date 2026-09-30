@@ -765,6 +765,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
         authorName: users.name,
         authorColor: users.color,
         authorEmoji: users.avatarEmoji,
+        authorKind: users.kind,
       })
       .from(comments)
       .leftJoin(users, eq(users.id, comments.authorId))
@@ -780,6 +781,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
         actorName: users.name,
         actorColor: users.color,
         actorEmoji: users.avatarEmoji,
+        actorKind: users.kind,
       })
       .from(activity)
       .leftJoin(users, eq(users.id, activity.actorId))
@@ -828,7 +830,13 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     createdAt: c.createdAt.toISOString(),
     editedAt: c.editedAt?.toISOString() ?? null,
     author: c.authorId
-      ? { id: c.authorId, name: c.authorName!, color: c.authorColor!, emoji: c.authorEmoji }
+      ? {
+          id: c.authorId,
+          name: c.authorName!,
+          color: c.authorColor!,
+          emoji: c.authorEmoji,
+          kind: c.authorKind === "agent" ? "agent" : "human",
+        }
       : null,
   }));
 
@@ -838,7 +846,13 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     data: (a.data ?? {}) as Record<string, unknown>,
     createdAt: a.createdAt.toISOString(),
     actor: a.actorId
-      ? { id: a.actorId, name: a.actorName!, color: a.actorColor!, emoji: a.actorEmoji }
+      ? {
+          id: a.actorId,
+          name: a.actorName!,
+          color: a.actorColor!,
+          emoji: a.actorEmoji,
+          kind: a.actorKind === "agent" ? "agent" : "human",
+        }
       : null,
   }));
 
