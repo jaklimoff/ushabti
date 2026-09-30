@@ -1,6 +1,7 @@
 "use client";
 
 import { AVATAR_COLORS, ink, initials } from "@/lib/colors";
+import { FACE_EMOJI } from "@/lib/emoji";
 import styles from "./ui.module.css";
 
 /**
@@ -90,14 +91,17 @@ export function Field({
  */
 export function ColorSwatches({
   name,
+  emoji = null,
   value,
   onPick,
 }: {
   name: string;
+  /** A person who wears an emoji sees it on each colour, as the board will draw it. */
+  emoji?: string | null;
   value: string;
   onPick: (color: string) => void;
 }) {
-  const mark = initials(name);
+  const mark = emoji ?? initials(name);
   return (
     <div className={styles.swatches} role="radiogroup" aria-label="Your colour">
       {AVATAR_COLORS.map((color) => (
@@ -108,11 +112,62 @@ export function ColorSwatches({
           aria-checked={color === value}
           aria-label={`Colour ${color}`}
           title={color}
-          className={`${styles.swatch} ${color === value ? styles.swatchOn : ""}`}
+          className={`${styles.swatch} ${emoji ? styles.swatchFace : ""} ${color === value ? styles.swatchOn : ""}`}
           style={{ background: color, color: ink(color) }}
           onClick={() => onPick(color)}
         >
           {mark}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Initials, or one emoji from a fixed grid, each on the person's own colour.
+ * The route takes any one emoji, so a face set elsewhere joins the grid and
+ * shows as picked rather than leaving nothing picked.
+ */
+export function FaceSwatches({
+  name,
+  color,
+  value,
+  onPick,
+}: {
+  name: string;
+  color: string;
+  value: string | null;
+  onPick: (emoji: string | null) => void;
+}) {
+  const faces = value && !FACE_EMOJI.includes(value) ? [...FACE_EMOJI, value] : FACE_EMOJI;
+  const swatch = { background: color, color: ink(color) };
+  return (
+    <div className={styles.swatches} role="radiogroup" aria-label="Your face">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={value === null}
+        aria-label="Initials"
+        title="Initials"
+        className={`${styles.swatch} ${value === null ? styles.swatchOn : ""}`}
+        style={swatch}
+        onClick={() => onPick(null)}
+      >
+        {initials(name)}
+      </button>
+      {faces.map((face) => (
+        <button
+          key={face}
+          type="button"
+          role="radio"
+          aria-checked={face === value}
+          aria-label={`Face ${face}`}
+          title={face}
+          className={`${styles.swatch} ${styles.swatchFace} ${face === value ? styles.swatchOn : ""}`}
+          style={swatch}
+          onClick={() => onPick(face)}
+        >
+          {face}
         </button>
       ))}
     </div>

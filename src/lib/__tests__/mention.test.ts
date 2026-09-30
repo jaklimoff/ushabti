@@ -21,6 +21,7 @@ function member(over: Partial<MemberDTO>): MemberDTO {
     name: "Builder",
     email: null,
     color: "#3fb0c8",
+    emoji: null,
     role: "member",
     kind: "agent",
     listeningAt: null,

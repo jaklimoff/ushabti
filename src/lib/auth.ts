@@ -70,6 +70,7 @@ export type CurrentUser = {
   email: string;
   name: string;
   color: string;
+  emoji: string | null;
 };
 
 export { signupIsOpen } from "./signup";
@@ -83,6 +84,7 @@ export type Actor = {
   id: string;
   name: string;
   color: string;
+  emoji: string | null;
   kind: "human" | "agent";
   /** Set for an agent. The token opens this project and no other. */
   tokenProjectId?: string;
@@ -101,6 +103,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       email: users.email,
       name: users.name,
       color: users.color,
+      emoji: users.avatarEmoji,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -138,6 +141,7 @@ export async function getActor(): Promise<Actor | null> {
       id: holder.id,
       name: holder.name,
       color: holder.color,
+      emoji: holder.emoji,
       kind: "agent",
       tokenProjectId: holder.projectId,
       tokenId: holder.tokenId,
@@ -146,7 +150,7 @@ export async function getActor(): Promise<Actor | null> {
 
   const user = await getCurrentUser();
   if (!user) return null;
-  return { id: user.id, name: user.name, color: user.color, kind: "human" };
+  return { id: user.id, name: user.name, color: user.color, emoji: user.emoji, kind: "human" };
 }
 
 export async function requireActor(): Promise<Actor> {

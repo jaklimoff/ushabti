@@ -32,5 +32,7 @@ export const POST = route(async (req: Request) => {
   limiter.clear(byEmail);
 
   await createSession(user.id);
-  return json({ user: { id: user.id, email, name: user.name, color: user.color } });
+  return json({
+    user: { id: user.id, email, name: user.name, color: user.color, emoji: user.avatarEmoji },
+  });
 });

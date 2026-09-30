@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A person wears an emoji instead of their initials.** `/account` has a **Face** row below
+  **Colour**: **Initials** and a grid of about thirty emoji, saved on click. The emoji is drawn on the
+  person's colour everywhere their face shows. `PATCH /api/auth/me` takes `emoji`, which is exactly
+  one emoji or `null`, and every member, comment author, activity actor and run agent carries it.
+  The release adds one nullable column, `users.avatar_emoji`.
+
 ## 0.12.0 — 2026-09-30
 
 ### Added

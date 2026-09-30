@@ -18,7 +18,7 @@ export const GET = route(async () => {
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
   return json({
-    agent: { id: actor.id, name: actor.name, color: actor.color },
+    agent: { id: actor.id, name: actor.name, color: actor.color, emoji: actor.emoji },
     project: {
       id: project.id,
       name: project.name,

@@ -61,6 +61,7 @@ const ADA: MemberDTO = {
   name: "Ada Lovelace",
   email: "ada@example.com",
   color: "#6d5bd0",
+  emoji: null,
   role: "owner",
   kind: "human",
   listeningAt: null,

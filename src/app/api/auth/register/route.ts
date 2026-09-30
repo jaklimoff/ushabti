@@ -60,7 +60,13 @@ async function signUp(req: Request): Promise<Response> {
     const [user] = await tx
       .insert(users)
       .values({ email, name, passwordHash, color: pickAvatarColor(email) })
-      .returning({ id: users.id, email: users.email, name: users.name, color: users.color });
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        color: users.color,
+        emoji: users.avatarEmoji,
+      });
     const joined = await tx
       .delete(projectInvites)
       .where(eq(projectInvites.email, email))

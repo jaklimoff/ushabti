@@ -565,7 +565,13 @@ export function TaskPanel({
                   aria-label={`${person.name} has this task open`}
                   tabIndex={0}
                 >
-                  <Avatar name={person.name} color={person.color} size={20} title={null} />
+                  <Avatar
+                    name={person.name}
+                    color={person.color}
+                    emoji={person.emoji}
+                    size={20}
+                    title={null}
+                  />
                   <span className={boardStyles.listenerTip} aria-hidden="true">
                     <span className={boardStyles.listenerName}>{person.name}</span>
                     <span>Has this task open.</span>
@@ -1197,6 +1203,7 @@ function AgentRunBlock({
         <Avatar
           name={run.agent.name}
           color={run.agent.color}
+          emoji={run.agent.emoji}
           size={18}
           kind="agent"
           live={run.status === "running" && life === "reporting"}
@@ -1398,7 +1405,13 @@ function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
               aria-expanded={open}
               onClick={() => void press(run.id)}
             >
-              <Avatar name={run.agent.name} color={run.agent.color} size={16} kind="agent" />
+              <Avatar
+                name={run.agent.name}
+                color={run.agent.color}
+                emoji={run.agent.emoji}
+                size={16}
+                kind="agent"
+              />
               <span className={styles.pastAgent}>{run.agent.name}</span>
               <span className={styles.pastDot}>·</span>
               <span className={styles.pastWhen}>{words.when}</span>
@@ -2125,7 +2138,7 @@ function Comments({
 }: {
   taskId: string;
   detail: TaskDetailDTO;
-  me: { id: string; name: string; color: string };
+  me: { id: string; name: string; color: string; emoji: string | null };
   description: string;
   onUseAsDescription: (body: string) => Promise<unknown>;
   links: TaskKeyLinks;
@@ -2178,7 +2191,7 @@ function Comments({
       ))}
 
       <div className={styles.composer}>
-        <Avatar name={me.name} color={me.color} size={24} />
+        <Avatar name={me.name} color={me.color} emoji={me.emoji} size={24} />
         <div className={styles.composerBox}>
           <textarea
             ref={box}
@@ -2323,6 +2336,7 @@ function CommentItem({
       <Avatar
         name={comment.author?.name ?? "?"}
         color={comment.author?.color ?? "#3f4650"}
+        emoji={comment.author?.emoji}
         size={20}
       />
       <div className={styles.commentBody}>

@@ -18,6 +18,12 @@ Passwords are scrypt hashes with a random salt. A session is a random identifier
 behind an `httpOnly` cookie that lasts thirty days, and in production it is marked `secure` — so a
 board served over plain HTTP cannot keep anybody signed in.
 
+**Your face** is a circle in your colour with your initials on it, on every card, comment and
+mention. Change the name and the colour at `/account`. Below **Colour**, **Face** offers
+**Initials** and a grid of about thirty emoji; a click saves at once. An emoji tells two people with
+the same initials apart at a glance, even at the size of a card. Another board that is open shows
+the new face the next time it reads the board.
+
 To close an instance once your team is in, set `USHABTI_SIGNUP=closed`. See
 [Configuration](/ushabti/start/configuration/#ushabti_signup).
 

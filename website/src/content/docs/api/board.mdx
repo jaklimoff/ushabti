@@ -28,9 +28,9 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
   "invites": [ { "email": "…", "createdAt": "…" } ],   // added before they had an account
   "members": [               // people AND agents, by name
     { "id": "…", "name": "Ada", "email": "ada@example.com",
-      "color": "#6d5bd0", "role": "owner", "kind": "human" },
+      "color": "#6d5bd0", "emoji": null, "role": "owner", "kind": "human" },
     { "id": "…", "name": "Builder", "email": null,
-      "color": "#3fb0c8", "role": "member", "kind": "agent" }
+      "color": "#3fb0c8", "emoji": null, "role": "member", "kind": "agent" }
   ],
 
   "properties": [            // in the order they are shown
@@ -90,7 +90,7 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
       "step": "Writing tests/queue.spec.ts",
       "control": null,
       "startedAt": "…", "updatedAt": "…", "beatAt": "…", "endedAt": null,
-      "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" },
+      "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null },
       "stepsTotal": 4, "stepsDone": 2, "lastLog": "12 cases, 3 failing"
     }
   ]

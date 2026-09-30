@@ -74,6 +74,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         name: user.name,
         email: user.email,
         color: user.color,
+        emoji: user.avatarEmoji,
         role: "member",
       },
       // Somebody with an account is in at once; nothing is emailed to them.

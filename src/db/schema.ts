@@ -27,6 +27,8 @@ export const users = pgTable(
     /** human | agent. An agent is a member like any other, with no password. */
     kind: text("kind").notNull().default("human"),
     color: text("color").notNull().default("#6d5bd0"),
+    /** One emoji drawn on the colour in place of the initials. Null is the initials. */
+    avatarEmoji: text("avatar_emoji"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("users_email_key").on(t.email)],

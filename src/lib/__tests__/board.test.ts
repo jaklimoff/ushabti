@@ -56,6 +56,7 @@ const members: MemberDTO[] = [
     name: "Ada",
     email: "a@x.io",
     color: "#6d5bd0",
+    emoji: null,
     role: "owner",
     kind: "human",
     listeningAt: null,
