@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.12.0 — 2026-09-30
+
 ### Added
 
 - **A person who forgot their password gets a reset link by email.** With mail on and
