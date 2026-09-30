@@ -11,7 +11,8 @@ These routes are for people. **A bearer token is ignored here** — an agent has
 and no password to change.
 
 <Aside type="caution" title="Ten failures in ten minutes">
-`register`, `login` and `reset` are rate limited. Ten **failures** inside ten minutes answer
+`register`, `login`, `reset` and `forgot` are rate limited. Ten **failures** inside ten minutes —
+ten **requests**, for `forgot` — answer
 
 ```json title="429 — and a Retry-After header in seconds"
 { "error": "Too many tries. Wait 8 minutes and try again." }
@@ -22,7 +23,9 @@ over the limit refuses the call before the password is read. A sign-in that work
 and clears the count for that email. Sign-up counts a refusal against the calling address only; a
 sign-up that works counts nothing. A reset link that does not work counts against the calling
 address and against nothing else — whether it was opened as a page at `/reset/<token>` or sent to
-the route below, because otherwise the page would test tokens for free.
+the route below, because otherwise the page would test tokens for free. A forgot request counts
+every time, against the calling address and against the typed email, whether or not an account
+uses that email.
 
 The address is the first value of `x-forwarded-for`. The count lives in the memory of one process,
 so it is forgotten by a restart. See
@@ -139,8 +142,9 @@ Changes your password and **signs every other session out**.
 
 ## `POST /api/auth/reset`
 
-Sets a password with a link the owner of a project made — copied to you, or emailed when the server
-has [mail set up](/ushabti/start/configuration/#smtp_url-and-mail_from) — and signs this browser in. This is the way
+Sets a password with a reset link — one the owner of a project made, copied to you or emailed when
+the server has [mail set up](/ushabti/start/configuration/#smtp_url-and-mail_from), or one you asked
+for with [`POST /api/auth/forgot`](#post-apiauthforgot) — and signs this browser in. This is the way
 back into an account whose password nobody knows — see
 [A forgotten password](/ushabti/guides/people/#a-forgotten-password).
 
@@ -152,7 +156,7 @@ back into an account whose password nobody knows — see
 
 | Field | Rules |
 | --- | --- |
-| `token` | the token out of `/reset/<token>`, made by [`POST …/members/{userId}/reset`](/ushabti/api/projects/#post-apiprojectsprojectidmembersuseridreset) |
+| `token` | the token out of `/reset/<token>`, made by [`POST …/members/{userId}/reset`](/ushabti/api/projects/#post-apiprojectsprojectidmembersuseridreset) or emailed by [`POST /api/auth/forgot`](#post-apiauthforgot) |
 | `password` | required, **at least 8 characters** |
 
 It works once and for 24 hours, and a newer link for the same person puts the older ones out of use.
@@ -166,7 +170,7 @@ called.
 | Status | Message |
 | --- | --- |
 | `400` | `The password must have at least 8 characters.` |
-| `400` | `This link does not work any more. Ask the owner of your project for a new one.` — used, expired, superseded or never real, all four the same |
+| `400` | `This link does not work any more. Ask the owner of your project for a new one.` — used, expired, superseded or never real, all four the same. While `forgot` is on, it ends `Ask for a new one with Forgot password? on the sign-in page.` |
 | `429` | `Too many tries. Wait N minutes and try again.` — after ten dead links from this address |
 
 <Aside type="note" title="One message, and nothing about the account">
@@ -177,6 +181,42 @@ The page at `/reset/<token>` counts on the same key. It has to: it decides betwe
 sentence, so a guesser who was not counted there could find a live token for nothing and spend a try
 only once it worked. Over the limit, the page stops looking tokens up at all and shows the sentence.
 </Aside>
+
+---
+
+## `POST /api/auth/forgot`
+
+Emails a reset link to the account that uses this email. It is what **Forgot password?** on the
+sign-in page calls.
+
+**Auth** — none. It is on only when the server has [mail set
+up](/ushabti/start/configuration/#smtp_url-and-mail_from) **and**
+[`USHABTI_URL`](/ushabti/start/configuration/#ushabti_url) is set.
+
+```json title="request"
+{ "email": "ada@example.com" }
+```
+
+```json title="200 — for every email"
+{
+  "ok": true,
+  "message": "If an account uses that email, a link is on its way. It works once, for 24 hours."
+}
+```
+
+The answer is the same whether or not an account uses the email, and it goes out before the server
+looks the email up, so the time to answer says nothing either. Then, for a person with a password,
+the server makes a link and emails it. An agent, an unknown email and a person with no password get
+no link and no email. The link is built from `USHABTI_URL` and never from `Host` or
+`x-forwarded-host`, which anybody can forge. It works once, for 24 hours, and replaces any older link
+for that person, exactly as one an owner makes.
+
+| Status | Message |
+| --- | --- |
+| `400` | `Type the email of your account.` — the body has no email |
+| `400` | `Email is too long (max 200 characters).` |
+| `404` | `This board cannot email you a link. Ask an admin of your project to make you one.` — mail or `USHABTI_URL` is not set |
+| `429` | `Too many tries. Wait N minutes and try again.` — after ten requests from this address, or for this email, lowercased, in ten minutes |
 
 ---
 
@@ -193,10 +233,12 @@ Unexpired sessions for your account, not counting the one asking.
 Ends every session except this one. `200 {"ok": true}`.
 
 <Aside type="tip" title="The two levers you have">
-There is no "forgot my password" email you can ask for. If you no longer trust a password, change
-it — which signs the others out — or sign out everywhere from `/account`. If you cannot sign in at
-all, the owner of a project you are in makes you a [reset link](#post-apiauthreset); with [mail set
-up](/ushabti/start/configuration/#smtp_url-and-mail_from), the server emails it to you as well.
+If you no longer trust a password, change it — which signs the others out — or sign out everywhere
+from `/account`. If you cannot sign in at all, ask for a link with
+[`POST /api/auth/forgot`](#post-apiauthforgot) when the server has mail and `USHABTI_URL`.
+Otherwise the owner of a project you are in makes you a [reset link](#post-apiauthreset); with
+[mail set up](/ushabti/start/configuration/#smtp_url-and-mail_from), the server emails it to you as
+well.
 </Aside>
 
 ---

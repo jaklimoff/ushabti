@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AuthForm } from "@/components/auth/AuthForm";
+import { ForgotForm } from "@/components/auth/ForgotForm";
 import { getCurrentUser } from "@/lib/auth";
 import { forgotIsOn } from "@/lib/forgot";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Sign in · Ushabti" };
+export const metadata: Metadata = { title: "Forgot password · Ushabti" };
 
-export default async function LoginPage() {
+export default async function ForgotPage() {
   if (await getCurrentUser()) redirect("/projects");
-  return <AuthForm mode="login" forgotOn={forgotIsOn()} />;
+  return <ForgotForm on={forgotIsOn()} />;
 }

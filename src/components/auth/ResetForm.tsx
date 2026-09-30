@@ -11,8 +11,9 @@ import styles from "./AuthForm.module.css";
 
 /**
  * One field, because the person holding this link has one thing to say. The
- * link is the proof: it was made by the owner of a project they are in, it
- * works once, and using it ends every other session of the account.
+ * link is the proof: the owner of a project they are in made it, or it reached
+ * the account's own email. It works once, and using it ends every other
+ * session of the account.
  */
 export function ResetForm({ token }: { token: string }) {
   const router = useRouter();
@@ -43,7 +44,7 @@ export function ResetForm({ token }: { token: string }) {
   return (
     <AuthCard title="Set a new password">
       <p className={styles.tagline}>
-        The owner of your project made this link. Using it signs you out everywhere else.
+        This link sets a new password for your account. Using it signs you out everywhere else.
       </p>
 
       <form className={styles.form} onSubmit={submit}>

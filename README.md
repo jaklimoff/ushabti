@@ -97,7 +97,8 @@ Board  ·  Phases  ·  By assignee            ← views you create
   change your password, and sign every other session out.
 - **A way back in.** A forgotten password is answered by a person: the owner
   of a project makes a one-time link that lasts a day, and the server emails
-  it when mail is set up.
+  it when mail is set up. With `USHABTI_URL` set as well, **Forgot password?**
+  on the sign-in page emails the person a link without asking anybody.
 - **Projects with members.** The owner adds people by email.
 - **Agents.** A project can have machine members. An agent signs in with a
   token, uses the same JSON API the browser uses, and while it works a strip

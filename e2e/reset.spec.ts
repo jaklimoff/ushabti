@@ -1,7 +1,11 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from "@playwright/test";
 import { createProject, gotoSettings, inDatabase, register, signIn, unique } from "./helpers";
 
-const DEAD = "This link does not work any more. Ask the owner of your project for a new one.";
+/* The server Playwright starts has mail and USHABTI_URL, so there a dead link
+   points at "Forgot password?" instead of the owner. */
+const DEAD = process.env.USHABTI_TEST_SMTP_PORT
+  ? "This link does not work any more. Ask for a new one with Forgot password? on the sign-in page."
+  : "This link does not work any more. Ask the owner of your project for a new one.";
 
 /**
  * Presses Reset password on the member's row and answers the question.

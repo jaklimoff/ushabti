@@ -1,11 +1,12 @@
 import { createSession, HttpError, refuseIfLimited } from "@/lib/auth";
 import { body, json, route } from "@/lib/api";
 import { addressOf, limiter, resetByAddress } from "@/lib/rate-limit";
-import { LINK_IS_DEAD } from "@/lib/reset-link";
+import { forgotIsOn } from "@/lib/forgot";
+import { deadLinkSaid } from "@/lib/reset-link";
 import { useResetToken } from "@/lib/resets";
 
 /**
- * Sets a password with a link the owner made, and signs this browser in.
+ * Sets a password with a reset link, and signs this browser in.
  *
  * No auth: whoever holds the link is the only person this can be. A dead link
  * is counted against the calling address, because guessing a token is the one
@@ -27,7 +28,7 @@ export const POST = route(async (req: Request) => {
   const userId = await useResetToken(token, password);
   if (!userId) {
     limiter.hit(key);
-    throw new HttpError(400, LINK_IS_DEAD);
+    throw new HttpError(400, deadLinkSaid(forgotIsOn()));
   }
 
   await createSession(userId);

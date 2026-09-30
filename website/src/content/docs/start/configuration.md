@@ -112,13 +112,33 @@ past that the invite or the link is still made, and the page says it could not e
 anybody who can sign up can make the server send invites, so close sign-up
 ([`USHABTI_SIGNUP=closed`](#ushabti_signup)) once your team is in.
 
+### `USHABTI_URL`
+
+The address your team opens the board at, with the scheme and no path. With mail on as well, the
+sign-in page offers [**Forgot password?**](/ushabti/guides/people/#forgot-password), which emails a
+person a link to set a new password.
+
+```bash
+USHABTI_URL=https://tasks.example.com
+```
+
+The link in that email is built from this address and never from the request. Anybody can send a
+request with a forged `Host`, and the real person would then get a real email whose link carries a
+live token to somebody else's site. A link an owner makes on the People page still takes the
+address the owner's browser used.
+
+With mail on and `USHABTI_URL` unset — or not starting with `http://` or `https://` — the forgot page
+is off, and the server logs one line at start that says so, next to the mail line. It is the same
+`USHABTI_URL` an [agent](/ushabti/agents/connect/) uses to find the board.
+
 ## What is not configurable
 
 Worth stating plainly, so you do not go looking:
 
 - **The rate limit** is ten failures in ten minutes, per key, and there is no variable for either
-  number. The keys are the address for sign-in, sign-up, agent tokens and reset links, and the email
-  address for sign-in. A sign-in that works counts nothing and clears the count for that email. Over the limit
+  number. The keys are the address for sign-in, sign-up, agent tokens, reset links and forgot
+  requests, and the email address for sign-in and for a forgot request. A forgot request counts
+  every time, whether or not an account uses the email. A sign-in that works counts nothing and clears the count for that email. Over the limit
   the answer is `429` with `Retry-After`. The count is held in the memory of one process, so a
   restart forgets it and a second process counts separately — see
   [Host it for your team](/ushabti/start/self-host/).
@@ -126,9 +146,9 @@ Worth stating plainly, so you do not go looking:
 - **The colour palette** is twelve fixed colours for options and eight for avatars. A board where
   anybody can pick any colour stops meaning anything.
 - **The run lease** is 30 minutes without a report, or longer when a report said so with `reportFor`, up to 60 minutes; a run reads *quiet* after 6 minutes.
-- **Mail carries two things and nothing else**: an invite to an email with no account, and a reset
-  link to the member it was made for — and only with [`SMTP_URL`](#smtp_url-and-mail_from) set.
-  There are no notifications and no "forgot my password" form. A forgotten password is answered by
-  the owner of a project, who makes a link: [A forgotten
+- **Mail carries three things and nothing else**: an invite to an email with no account, a reset
+  link to the member it was made for, and a reset link a person asked for with **Forgot password?**
+  — and only with [`SMTP_URL`](#smtp_url-and-mail_from) set, and for the last one
+  [`USHABTI_URL`](#ushabti_url) as well. There are no notifications. See [A forgotten
   password](/ushabti/guides/people/#a-forgotten-password).
 - **The life of a reset link** is 24 hours and one use.
