@@ -86,6 +86,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **You pick your colour from the whole palette.** The Account page offers the eleven colours
+  that options use, not eight, so each person on a team of six or more can have a colour of their
+  own. Only the grey is left out, because it reads as "nobody". The initials on an avatar, and an
+  agent's mark, now take a dark or a light ink, whichever reads on the colour. A colour you saved
+  before still works.
 - **A shared filter chip says that a change is for everyone.** Open one of the view's chips and
   its panel reads _Changes this for everyone_ above the question, as its `✕` already asks
   _Remove for everyone?_. A chip of your own says nothing extra.

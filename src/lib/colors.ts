@@ -14,16 +14,15 @@ export const PALETTE = [
   "#8b8f98",
 ] as const;
 
-export const AVATAR_COLORS = [
-  "#6d5bd0",
-  "#2f9e7a",
-  "#c2557a",
-  "#b6763f",
-  "#4b8fbe",
-  "#3fb0c8",
-  "#d1913a",
-  "#7a8a2f",
-] as const;
+/** The grey of the palette. On an avatar it reads as nobody, so no person wears it. */
+const NOBODY = "#8b8f98";
+
+/**
+ * The colours a person may wear: the whole palette but the grey. Eight used to
+ * be too few, and on a team of six two people often wore the same one. The
+ * account route and the swatches both read this list.
+ */
+export const AVATAR_COLORS: readonly string[] = PALETTE.filter((c) => c !== NOBODY);
 
 export function pickAvatarColor(seed: string): string {
   let h = 0;

@@ -1,6 +1,6 @@
 "use client";
 
-import { AVATAR_COLORS, initials } from "@/lib/colors";
+import { AVATAR_COLORS, ink, initials } from "@/lib/colors";
 import styles from "./ui.module.css";
 
 /**
@@ -109,7 +109,7 @@ export function ColorSwatches({
           aria-label={`Colour ${color}`}
           title={color}
           className={`${styles.swatch} ${color === value ? styles.swatchOn : ""}`}
-          style={{ background: color }}
+          style={{ background: color, color: ink(color) }}
           onClick={() => onPick(color)}
         >
           {mark}
