@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.13.0 — 2026-09-30
+
 ### Added
 
 - **A person wears an emoji instead of their initials.** `/account` has a **Face** row below
