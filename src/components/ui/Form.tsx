@@ -92,18 +92,23 @@ export function Field({
 export function ColorSwatches({
   name,
   emoji = null,
+  kind = "human",
+  label = "Your colour",
   value,
   onPick,
 }: {
   name: string;
   /** A person who wears an emoji sees it on each colour, as the board will draw it. */
   emoji?: string | null;
+  /** An agent with no emoji wears ◆ where a person wears initials. */
+  kind?: "human" | "agent";
+  label?: string;
   value: string;
   onPick: (color: string) => void;
 }) {
-  const mark = emoji ?? initials(name);
+  const mark = emoji ?? plainMark(name, kind);
   return (
-    <div className={styles.swatches} role="radiogroup" aria-label="Your colour">
+    <div className={styles.swatches} role="radiogroup" aria-label={label}>
       {AVATAR_COLORS.map((color) => (
         <button
           key={color}
@@ -131,29 +136,35 @@ export function ColorSwatches({
 export function FaceSwatches({
   name,
   color,
+  kind = "human",
+  label = "Your face",
   value,
   onPick,
 }: {
   name: string;
   color: string;
+  /** An agent's plain face is ◆, not initials. */
+  kind?: "human" | "agent";
+  label?: string;
   value: string | null;
   onPick: (emoji: string | null) => void;
 }) {
   const faces = value && !FACE_EMOJI.includes(value) ? [...FACE_EMOJI, value] : FACE_EMOJI;
   const swatch = { background: color, color: ink(color) };
+  const plain = kind === "agent" ? "No emoji" : "Initials";
   return (
-    <div className={styles.swatches} role="radiogroup" aria-label="Your face">
+    <div className={styles.swatches} role="radiogroup" aria-label={label}>
       <button
         type="button"
         role="radio"
         aria-checked={value === null}
-        aria-label="Initials"
-        title="Initials"
+        aria-label={plain}
+        title={plain}
         className={`${styles.swatch} ${value === null ? styles.swatchOn : ""}`}
         style={swatch}
         onClick={() => onPick(null)}
       >
-        {initials(name)}
+        {plainMark(name, kind)}
       </button>
       {faces.map((face) => (
         <button
@@ -172,4 +183,8 @@ export function FaceSwatches({
       ))}
     </div>
   );
+}
+
+function plainMark(name: string, kind: "human" | "agent") {
+  return kind === "agent" ? "◆" : initials(name);
 }

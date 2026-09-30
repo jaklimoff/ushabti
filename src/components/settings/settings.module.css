@@ -365,6 +365,13 @@
   border-bottom: 0;
 }
 
+.agentFace {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 4px 13px 13px 45px;
+}
+
 .tokenRow {
   display: flex;
   align-items: center;

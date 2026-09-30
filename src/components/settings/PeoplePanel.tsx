@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import { emailedLine } from "@/lib/emailed";
@@ -10,7 +10,7 @@ import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
-import { Input, Select } from "@/components/ui/Form";
+import { ColorSwatches, FaceSwatches, Field, Input, Select } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
@@ -460,6 +460,20 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
     }
   }
 
+  /* The board draws the agent too, so the board is asked again with the list. */
+  async function changeFace(
+    agent: AgentDTO,
+    patch: { color?: string; emoji?: string | null },
+  ): Promise<void> {
+    try {
+      await send.patch(`/api/projects/${projectId}/agents/${agent.id}`, patch);
+      await reload();
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not change the agent.");
+    }
+  }
+
   async function remove(agent: AgentDTO) {
     try {
       await send.del(`/api/projects/${projectId}/agents/${agent.id}`);
@@ -495,6 +509,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
             onConnect={() => void connect(agent)}
             onRevoke={(id) => void revoke(id)}
             onRemove={() => void remove(agent)}
+            onFace={(patch) => changeFace(agent, patch)}
             reload={reload}
           />
         ))}
@@ -526,6 +541,7 @@ function AgentBox({
   onConnect,
   onRevoke,
   onRemove,
+  onFace,
   reload,
 }: {
   agent: AgentDTO;
@@ -534,9 +550,12 @@ function AgentBox({
   onConnect: () => void;
   onRevoke: (tokenId: string) => void;
   onRemove: () => void;
+  onFace: (patch: { color?: string; emoji?: string | null }) => Promise<void>;
   reload: () => Promise<void>;
 }) {
   const confirm = useConfirm();
+  const [editing, setEditing] = useState(false);
+  const face = usePickedFace(agent, onFace);
 
   return (
     <div className={styles.agentBox} data-testid="agent-box">
@@ -549,18 +568,20 @@ function AgentBox({
         />
       ) : (
         <Row>
-          <Avatar
-            name={agent.name}
-            color={agent.color}
-            emoji={agent.emoji}
-            size={22}
-            kind="agent"
-          />
+          <Avatar name={agent.name} color={face.color} emoji={face.emoji} size={22} kind="agent" />
           <span className={styles.memberName}>{agent.name}</span>
           <Tag>agent</Tag>
           <Spacer />
           {canEdit && (
             <>
+              <Button
+                variant="ghost"
+                aria-expanded={editing}
+                aria-label={`Face of ${agent.name}`}
+                onClick={() => setEditing((open) => !open)}
+              >
+                Face
+              </Button>
               <Button variant="ghost" onClick={onConnect}>
                 Connect
               </Button>
@@ -577,6 +598,34 @@ function AgentBox({
         </Row>
       )}
 
+      {canEdit && editing && (
+        <div className={styles.agentFace} data-testid="agent-face">
+          <Field label="Colour" note="Pick one no other agent and no person on the team wears.">
+            <ColorSwatches
+              name={agent.name}
+              emoji={face.emoji}
+              kind="agent"
+              label={`Colour of ${agent.name}`}
+              value={face.color}
+              onPick={(color) => face.pick({ color })}
+            />
+          </Field>
+          <Field
+            label="Emoji"
+            note="Worn on the colour in place of the ◆, with a small ◆ beside it."
+          >
+            <FaceSwatches
+              name={agent.name}
+              color={face.color}
+              kind="agent"
+              label={`Emoji of ${agent.name}`}
+              value={face.emoji}
+              onPick={(emoji) => face.pick({ emoji })}
+            />
+          </Field>
+        </div>
+      )}
+
       {agent.tokens.map((token) => (
         <TokenRow
           key={token.id}
@@ -590,6 +639,35 @@ function AgentBox({
       ))}
     </div>
   );
+}
+
+/**
+ * A pick shows at once and saves at once, as on the Account page. The saves go
+ * out one after another, so the server keeps the last pick, and only the
+ * newest pick hands the row back to the saved face: a slow answer never undoes
+ * a pick made after it, and a refused one shows the face the server kept.
+ */
+function usePickedFace(
+  agent: AgentDTO,
+  save: (patch: { color?: string; emoji?: string | null }) => Promise<void>,
+) {
+  const [shown, setShown] = useState<{ color?: string; emoji?: string | null }>({});
+  const saves = useRef<Promise<unknown>>(Promise.resolve());
+  const newest = useRef(0);
+  const color = shown.color ?? agent.color;
+  const emoji = shown.emoji !== undefined ? shown.emoji : agent.emoji;
+
+  function pick(patch: { color?: string; emoji?: string | null }) {
+    if (patch.color === color || (patch.emoji !== undefined && patch.emoji === emoji)) return;
+    const turn = (newest.current += 1);
+    setShown((current) => ({ ...current, ...patch }));
+    saves.current = saves.current.then(async () => {
+      await save(patch);
+      if (turn === newest.current) setShown({});
+    });
+  }
+
+  return { color, emoji, pick };
 }
 
 function TokenRow({

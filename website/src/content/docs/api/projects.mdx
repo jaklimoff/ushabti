@@ -373,6 +373,31 @@ the project.
 
 Creating an agent does **not** create a token. That is the next call, deliberately.
 
+### `PATCH /api/projects/{projectId}/agents/{agentId}` <Badge text="owner and admins" variant="caution" size="small" />
+
+Changes the colour and the emoji of an agent. Send either one, or both.
+
+```json title="request"
+{ "color": "#2f9e7a", "emoji": "🦊" }
+```
+
+`color` is one of the eleven avatar colours, the same list a person picks from on `/account`.
+`emoji` is exactly one emoji, checked as a person's is, and `null` clears it so the agent wears ◆
+again. An agent with an emoji keeps a small ◆ badge on its face. An agent token cannot call this,
+not even for itself. The change is broadcast, so every open board draws it.
+
+```json title="200"
+{ "agent": { "id": "…", "name": "Builder", "color": "#2f9e7a", "emoji": "🦊" } }
+```
+
+| Status | Message |
+| --- | --- |
+| `400` | `That member is a person, not an agent.` |
+| `400` | `Pick one of the colours on offer.` |
+| `400` | `A face is one emoji, or null for the ◆.` |
+| `403` | `Only the owner or an admin can change an agent.` |
+| `404` | `That agent is not in this project.` |
+
 ### `DELETE /api/projects/{projectId}/agents/{agentId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Deletes the agent for good, with its tokens, its runs and its authorship.
