@@ -58,10 +58,17 @@ test.describe("The face of an agent", () => {
     const emojis = agentBox.getByRole("radiogroup", { name: "Emoji of Painter" });
     await pick(page, emojis.getByRole("radio", { name: "Face 🦊" }));
     await expect(agentBox.getByTestId("agent-badge").first()).toBeVisible();
+    // The swatch's fill and ring end at one edge, as the avatar's do.
+    await expect(emojis.getByRole("radio", { name: "Face 🦊" })).toHaveCSS(
+      "background-clip",
+      "padding-box",
+    );
 
     // The member's board heard the broadcast, and was not reloaded.
     await expect(face).toContainText("🦊");
-    await expect(face).toHaveCSS("background-color", "rgb(47, 158, 122)");
+    // An emoji sits on a dark tint of the colour, inside a ring of it.
+    await expect(face).toHaveCSS("background-color", "rgb(27, 57, 51)");
+    await expect(face).toHaveCSS("box-shadow", "rgb(47, 158, 122) 0px 0px 0px 1px inset");
     await expect(face.getByTestId("agent-badge")).toHaveText("◆");
 
     await page.reload();

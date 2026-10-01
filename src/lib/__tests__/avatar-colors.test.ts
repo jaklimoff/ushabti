@@ -28,7 +28,9 @@ vi.mock("@/lib/auth", async (importOriginal) => ({
 
 import { PATCH } from "@/app/api/auth/me/route";
 import { Avatar } from "@/components/ui/Avatar";
-import { AVATAR_COLORS, PALETTE, ink, pickAvatarColor } from "@/lib/colors";
+import { Chip } from "@/components/board/Chip";
+import { FaceSwatches } from "@/components/ui/Form";
+import { AVATAR_COLORS, PALETTE, emojiGround, ink, pickAvatarColor } from "@/lib/colors";
 
 const GREY = "#8b8f98";
 
@@ -96,11 +98,21 @@ describe("PATCH /api/auth/me", () => {
 describe("the initials on an avatar", () => {
   const colourOf = (html: string) => /(?<!-)color:\s*([^;"]+)/.exec(html)?.[1];
 
-  it("take the ink that reads on the light colours", () => {
-    for (const color of ["#d1913a", "#3fb0c8", "#2f9e7a", "#7a8a2f"]) {
-      expect(ink(color)).toBe("#14161a");
+  /* #d1913a is a near tie (Lc 50.9 dark, 52.3 light). The PO chose pure APCA
+     over a tie-break on 2026-10-01, so it takes light ink with the rest. */
+  it("take dark ink on cyan alone and light ink on the other eleven", () => {
+    for (const color of PALETTE) {
+      expect(ink(color), color).toBe(color === "#3fb0c8" ? "#14161a" : "#f6f8fa");
     }
-    expect(ink("#6d5bd0")).toBe("#f6f8fa");
+  });
+
+  it("answer any colour, long or short", () => {
+    expect(ink("#ffffff")).toBe("#14161a");
+    expect(ink("#fff")).toBe("#14161a");
+    expect(ink("#000000")).toBe("#f6f8fa");
+    expect(ink("#000")).toBe("#f6f8fa");
+    expect(ink("#ffee00")).toBe("#14161a");
+    expect(ink("#123456")).toBe("#f6f8fa");
   });
 
   it("wear ink() on every colour, for a person and for an agent's mark", () => {
@@ -118,5 +130,82 @@ describe("the initials on an avatar", () => {
     const html = renderToStaticMarkup(createElement(Avatar, { name: "Ada", color: "#123456" }));
     expect(html).toContain("background:#123456");
     expect(colourOf(html)).toBe(ink("#123456"));
+  });
+});
+
+describe("an emoji on an avatar", () => {
+  const draw = (props: Parameters<typeof Avatar>[0]) =>
+    renderToStaticMarkup(createElement(Avatar, props));
+  const faceOf = (html: string) => /<span[^>]*style="([^"]*)"/.exec(html)?.[1] ?? "";
+
+  it("sits on a dark tint of the colour, inside a ring of the full colour", () => {
+    for (const color of AVATAR_COLORS) {
+      const face = faceOf(draw({ name: "Ada", color, emoji: "🐸" }));
+      expect(face).toContain(`background:${emojiGround(color)}`);
+      expect(face).toContain(`box-shadow:inset 0 0 0 1px ${color}`);
+    }
+  });
+
+  it("leaves the initials and the ◆ on the full colour, with no ring", () => {
+    for (const kind of ["human", "agent"] as const) {
+      const face = faceOf(draw({ name: "Ada Lovelace", color: "#4f8a5b", kind }));
+      expect(face).toContain("background:#4f8a5b");
+      expect(face).not.toContain("box-shadow");
+    }
+  });
+
+  it("keeps the agent badge on the full colour", () => {
+    const html = draw({ name: "Builder", color: "#e0574d", emoji: "🔥", kind: "agent" });
+    expect(html).toMatch(/data-testid="agent-badge"[^>]*background:#e0574d;color:#f6f8fa/);
+  });
+});
+
+describe("the face swatches", () => {
+  const styleOf = (html: string, label: string) =>
+    new RegExp(`aria-label="${label}"[^>]*style="([^"]*)"`).exec(html)?.[1] ??
+    new RegExp(`style="([^"]*)"[^>]*aria-label="${label}"`).exec(html)?.[1];
+  const faceOf = (html: string) => /<span[^>]*style="([^"]*)"/.exec(html)?.[1] ?? "";
+  const paint = (style = "") =>
+    style
+      .split(";")
+      .map((rule) => rule.replace(/^background-color:/, "background:"))
+      .filter((rule) => /^(background|color|box-shadow):/.test(rule))
+      .sort();
+
+  it("paint each face as the avatar it would make", () => {
+    for (const color of ["#4f8a5b", "#c2557a", "#d1913a"]) {
+      const html = renderToStaticMarkup(
+        createElement(FaceSwatches, { name: "Ada Lovelace", color, value: null, onPick: () => {} }),
+      );
+      const avatar = (emoji: string | null) =>
+        paint(faceOf(renderToStaticMarkup(createElement(Avatar, { name: "Ada", color, emoji }))));
+      expect(paint(styleOf(html, "Face 🐸"))).toEqual(avatar("🐸"));
+      expect(paint(styleOf(html, "Initials"))).toEqual(avatar(null));
+    }
+  });
+});
+
+describe("a filled chip", () => {
+  it("writes its words in the ink of its colour", () => {
+    for (const fill of ["#c2557a", "#3fb0c8"]) {
+      const html = renderToStaticMarkup(
+        createElement(Chip, {
+          chip: {
+            key: "p",
+            tip: "Priority: High",
+            swatch: null,
+            fill,
+            person: null,
+            text: "High",
+            boxed: false,
+            mono: false,
+            bar: null,
+            bubble: false,
+          },
+        }),
+      );
+      expect(html).toContain(`background:${fill};color:${ink(fill)}`);
+    }
+    expect(ink("#c2557a")).toBe("#f6f8fa");
   });
 });

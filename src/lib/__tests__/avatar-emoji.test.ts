@@ -124,13 +124,14 @@ describe("PATCH /api/auth/me with an emoji", () => {
 });
 
 describe("an avatar with an emoji", () => {
-  it("draws the emoji on the colour, and keeps the name as the title", () => {
+  it("draws the emoji on a tint of the colour, and keeps the name as the title", () => {
     const html = renderToStaticMarkup(
       createElement(Avatar, { name: "Ada Lovelace", color: "#6d5bd0", emoji: "🦊" }),
     );
     expect(html).toContain("🦊");
     expect(html).not.toContain(">AL<");
-    expect(html).toContain("background:#6d5bd0");
+    expect(html).toContain("background:#2a2848");
+    expect(html).toContain("box-shadow:inset 0 0 0 1px #6d5bd0");
     expect(html).toContain('title="Ada Lovelace"');
   });
 
