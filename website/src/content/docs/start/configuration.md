@@ -146,9 +146,12 @@ Worth stating plainly, so you do not go looking:
 - **The colour palette** is twelve fixed colours for options and eight for avatars. A board where
   anybody can pick any colour stops meaning anything.
 - **The run lease** is 30 minutes without a report, or longer when a report said so with `reportFor`, up to 60 minutes; a run reads *quiet* after 6 minutes.
-- **Mail carries three things and nothing else**: an invite to an email with no account, a reset
-  link to the member it was made for, and a reset link a person asked for with **Forgot password?**
-  — and only with [`SMTP_URL`](#smtp_url-and-mail_from) set, and for the last one
-  [`USHABTI_URL`](#ushabti_url) as well. There are no notifications. See [A forgotten
-  password](/ushabti/guides/people/#a-forgotten-password).
+- **Mail carries four things and nothing else**: an invite to an email with no account, a reset
+  link to the member it was made for, a reset link a person asked for with **Forgot password?**,
+  and one email about a question an agent asked that nobody answered for 15 minutes — and only
+  with [`SMTP_URL`](#smtp_url-and-mail_from) set, and for the last two
+  [`USHABTI_URL`](#ushabti_url) as well. A question is emailed once, never again, to the person
+  the task is assigned to, else the last person who changed it, else the owners and admins. Anybody
+  can turn those emails off on their account page. There are no other notifications. See [A
+  forgotten password](/ushabti/guides/people/#a-forgotten-password).
 - **The life of a reset link** is 24 hours and one use.

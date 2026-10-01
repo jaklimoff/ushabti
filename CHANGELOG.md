@@ -17,6 +17,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **The project switcher says where an agent waits.** Beside each project with a question open, the
   switcher and the All projects page show "N waiting", by the rule of the top bar. The number also
   comes with `GET /api/projects` and with the project of `GET /api/agent/me`.
+- **A question nobody answered is emailed once.** When an agent has waited 15 minutes on a question
+  and nobody has answered, the board sends one email with the project, the task, the agent, the
+  question and a link that opens the task. It goes to the person the task is assigned to — the
+  first person property in the Settings order — else the last person who changed the task, else
+  the owners and admins. It never sends a second one. It needs mail and `USHABTI_URL`, as
+  **Forgot password?** does, and anybody can turn it off on `/account`. The task carries a
+  migration.
 
 ## 0.14.0 — 2026-10-01
 

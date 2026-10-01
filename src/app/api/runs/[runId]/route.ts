@@ -117,6 +117,13 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       throw new HttpError(400, "A hand-over says who has the task now. Send it as step.");
     }
     patch.status = status;
+    /* A run that begins to wait has asked a new question, and the clock of
+       its one email starts here. A second `waiting` report while it waits
+       is the same question, so it moves nothing. */
+    if (status === "waiting" && context.status !== "waiting") {
+      patch.askedAt = new Date();
+      patch.askMailedAt = null;
+    }
   }
 
   // The agent obeyed, so the request from the board is spent.

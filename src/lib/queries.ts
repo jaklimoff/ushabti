@@ -31,6 +31,7 @@ import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
+import { kickAskMail } from "./ask-sender";
 import { kickSender } from "./webhooks";
 import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
 import type {
@@ -555,6 +556,8 @@ export async function loadBoard(
      a retry a minute old should go out without a job this project would then
      have to run, watch and ship. It is started, never awaited. */
   kickSender();
+  // An ask that waited long enough is emailed on the same road.
+  kickAskMail();
 
   const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
