@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { AVATAR_COLORS, facePaint, initials } from "@/lib/colors";
-import { FACE_EMOJI } from "@/lib/emoji";
+import { FACE_EMOJI, isOneEmoji } from "@/lib/emoji";
 import styles from "./ui.module.css";
 
 /**
@@ -131,7 +132,8 @@ export function ColorSwatches({
 /**
  * Initials, or one emoji from a fixed grid, each on the person's own colour.
  * The route takes any one emoji, so a face set elsewhere joins the grid and
- * shows as picked rather than leaving nothing picked.
+ * shows as picked rather than leaving nothing picked. The box after the grid
+ * is how a person reaches that emoji without the API.
  */
 export function FaceSwatches({
   name,
@@ -151,35 +153,59 @@ export function FaceSwatches({
 }) {
   const faces = value && !FACE_EMOJI.includes(value) ? [...FACE_EMOJI, value] : FACE_EMOJI;
   const plain = kind === "agent" ? "No emoji" : "Initials";
+  const [typed, setTyped] = useState("");
+  const wrong = typed.trim() !== "";
   return (
-    <div className={styles.swatches} role="radiogroup" aria-label={label}>
-      <button
-        type="button"
-        role="radio"
-        aria-checked={value === null}
-        aria-label={plain}
-        title={plain}
-        className={`${styles.swatch} ${value === null ? styles.swatchOn : ""}`}
-        style={swatchPaint(color, false)}
-        onClick={() => onPick(null)}
-      >
-        {plainMark(name, kind)}
-      </button>
-      {faces.map((face) => (
+    <div className={styles.faces}>
+      <div className={styles.swatches} role="radiogroup" aria-label={label}>
         <button
-          key={face}
           type="button"
           role="radio"
-          aria-checked={face === value}
-          aria-label={`Face ${face}`}
-          title={face}
-          className={`${styles.swatch} ${styles.swatchFace} ${face === value ? styles.swatchOn : ""}`}
-          style={swatchPaint(color, true)}
-          onClick={() => onPick(face)}
+          aria-checked={value === null}
+          aria-label={plain}
+          title={plain}
+          className={`${styles.swatch} ${value === null ? styles.swatchOn : ""}`}
+          style={swatchPaint(color, false)}
+          onClick={() => onPick(null)}
         >
-          {face}
+          {plainMark(name, kind)}
         </button>
-      ))}
+        {faces.map((face) => (
+          <button
+            key={face}
+            type="button"
+            role="radio"
+            aria-checked={face === value}
+            aria-label={`Face ${face}`}
+            title={face}
+            className={`${styles.swatch} ${styles.swatchFace} ${face === value ? styles.swatchOn : ""}`}
+            style={swatchPaint(color, true)}
+            onClick={() => onPick(face)}
+          >
+            {face}
+          </button>
+        ))}
+      </div>
+      {/* It saves on input and then empties, so it never holds words that a
+          closed tab could lose, and it needs no useSaveOnLeave. */}
+      <Input
+        className={styles.faceBox}
+        invalid={wrong}
+        placeholder="Or type any emoji"
+        aria-label="Or type any emoji"
+        value={typed}
+        onChange={(event) => {
+          const text = event.target.value;
+          if (!isOneEmoji(text.trim())) return setTyped(text);
+          setTyped("");
+          onPick(text.trim());
+        }}
+      />
+      {wrong && (
+        <span className={styles.fieldError} role="alert">
+          One emoji only.
+        </span>
+      )}
     </div>
   );
 }

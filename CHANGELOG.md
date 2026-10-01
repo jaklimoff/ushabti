@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **Any emoji can be a face.** After the grid on `/account` and on an agent in **Settings →
+  People**, a small box takes any one emoji, from the keyboard or the system picker. It saves as
+  soon as it holds exactly one emoji. Other text saves nothing and says "One emoji only."
+
 ### Fixed
 
 - **A face and a chip read on every colour.** Initials, the ◆ and the words on a filled chip now
