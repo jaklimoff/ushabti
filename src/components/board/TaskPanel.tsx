@@ -76,11 +76,18 @@ export function TaskPanel({
   taskId,
   onClose,
   onOpenTask,
+  answer = 0,
 }: {
   taskId: string;
   onClose: () => void;
   /** The board's own way to open a task, which search uses too. */
   onOpenTask: (task: { id: string; key: string }) => void;
+  /**
+   * Above zero when the task was opened from the waiting list, to answer an
+   * agent. A new number is a new pick, and each pick asks for the comment
+   * box once.
+   */
+  answer?: number;
 }) {
   const {
     data,
@@ -131,6 +138,15 @@ export function TaskPanel({
   if (picked.taskId !== taskId) setPicked({ taskId, tab: openingTab(runOf(taskId)) });
   const tab = picked.taskId === taskId ? picked.tab : openingTab(runOf(taskId));
   const setTab = (next: PanelTab) => setPicked({ taskId, tab: next });
+  /* An answer is written in the comment box, so a pick from the waiting list
+     opens on Comments and owes that box the focus until it has it. */
+  const [answered, setAnswered] = useState(0);
+  const [owed, setOwed] = useState(false);
+  if (answer !== answered) {
+    setAnswered(answer);
+    setOwed(answer > 0);
+    if (answer > 0) setPicked({ taskId, tab: "comments" });
+  }
   /* The names the fields and the tabs point at. One stem for the panel, so an
      id never has to be made inside a loop. */
   const ids = useId();
@@ -659,6 +675,7 @@ export function TaskPanel({
           inField={inField}
           onCommit={(title, base) => patch({ title }, { title: base })}
           onLeave={onClose}
+          focusOnOpen={answer === 0}
         />
       </div>
 
@@ -780,6 +797,8 @@ export function TaskPanel({
                   reload={reload}
                   counted={direct}
                   onError={notify}
+                  focus={owed}
+                  onFocused={() => setOwed(false)}
                 />
               )}
 
@@ -1546,6 +1565,7 @@ function TitleField({
   inField,
   onCommit,
   onLeave,
+  focusOnOpen,
 }: {
   taskId: string;
   value: string;
@@ -1554,6 +1574,8 @@ function TitleField({
   inField: (field: string | null) => void;
   onCommit: (text: string, base: string) => Promise<Saved>;
   onLeave: () => void;
+  /** False when the panel was opened to answer, and the comment box takes it. */
+  focusOnOpen: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   /* The focus the opening put here, before anybody touched the box. Opening a
@@ -1581,11 +1603,12 @@ function TitleField({
      task it asked for and a screen reader reads its name. A phone is left
      alone: there the focus would push a keyboard up over the panel. */
   useEffect(() => {
+    if (!focusOnOpen) return;
     if (window.matchMedia?.("(pointer: coarse)").matches) return;
     opening.current = true;
     ref.current?.focus({ preventScroll: true });
     opening.current = false;
-  }, [taskId]);
+  }, [taskId, focusOnOpen]);
 
   function startTyping() {
     if (!typed) base.current = sending ?? value;
@@ -2135,6 +2158,8 @@ function Comments({
   reload,
   counted,
   onError,
+  focus,
+  onFocused,
 }: {
   taskId: string;
   detail: TaskDetailDTO;
@@ -2145,6 +2170,9 @@ function Comments({
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
+  /** The panel was opened to answer an agent, and the box is owed the focus. */
+  focus: boolean;
+  onFocused: () => void;
 }) {
   const { data } = useBoard();
   const mod = useModKey();
@@ -2156,6 +2184,13 @@ function Comments({
   /* A name picked from the list is typing, so it goes into the draft and
      survives a closed tab like the rest of the note. */
   const picker = useMentions(box, setDraft);
+  /* Unlike the title, this takes the focus on a phone too: somebody who
+     picked a question asked to write the answer. */
+  useEffect(() => {
+    if (!focus) return;
+    box.current?.focus({ preventScroll: false });
+    onFocused();
+  }, [focus, onFocused]);
   const agentAtWork = detail.run !== null;
   const waitingFor = detail.run?.status === "waiting" ? detail.run.agent.name : null;
 

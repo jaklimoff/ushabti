@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **The top bar shows how many tasks wait on a person.** When an agent asks a question, `N waiting`
+  appears beside the search box on every view, whatever filter is on. Press it for the list, the
+  oldest ask first, with the agent, the question and how long it has waited. Pick a row and the task
+  opens with the cursor in the answer box. The browser tab title starts with `(N)` too.
+
 ## 0.14.0 — 2026-10-01
 
 ### Added
