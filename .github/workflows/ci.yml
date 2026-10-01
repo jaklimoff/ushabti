@@ -2,7 +2,7 @@ name: CI
 
 # The pull request run is the gate. The `main` run stays because a squash
 # merge makes a commit that no run has seen before; it is the only cheap check
-# that the squashed tree still builds.
+# that the squashed tree still builds. Both runs have the same jobs.
 on:
   push:
     branches: [main]
@@ -13,28 +13,15 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
 jobs:
-  test:
+  # Everything that is not a browser, once. The shards wait for it, so a tree
+  # that fails a check never starts the end to end tests. The build needs no
+  # database: `src/db/url.ts` lets `next build` load with none.
+  gate:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: ushabti
-          POSTGRES_PASSWORD: ushabti
-          POSTGRES_DB: ushabti
-        ports:
-          - 5435:5432
-        options: >-
-          --health-cmd "pg_isready -U ushabti -d ushabti"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
-
-    env:
-      DATABASE_URL: postgres://ushabti:ushabti@localhost:5435/ushabti
-      NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
       - uses: actions/checkout@v7
@@ -55,6 +42,8 @@ jobs:
       - name: Types
         run: npm run typecheck
 
+      # `src/lib/__tests__/ci.test.ts` is here too. It fails, with both version
+      # numbers, when the image tag below differs from `@playwright/test`.
       - name: Unit tests
         run: npm test
 
@@ -63,41 +52,100 @@ jobs:
       - name: Production build
         run: npm run build
 
+      # Built once and handed on. The standalone server runs from any folder,
+      # and the shards see this workspace under another path. A tar, because
+      # the upload leaves out a hidden folder such as `.next`.
+      - name: Pack the build
+        run: tar -cf build.tar .next/standalone .next/static
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build
+          path: build.tar
+          retention-days: 1
+
+  # The specs share one database and were written to run one after another,
+  # so `workers: 1` stays inside a shard. Three shards each get their own
+  # Postgres and their own server, and no shard sees another's data.
+  e2e:
+    needs: gate
+    runs-on: ubuntu-latest
+
+    # The image carries the browser and every library it links against, so
+    # there is no apt step: the Ubuntu mirror once held a run for 9 minutes.
+    # The tag must be the installed `@playwright/test`, or the browser is not
+    # the one it looks for. The gate's unit tests check that.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+
+    strategy:
+      # A shard that fails leaves the others running, so one run shows every
+      # failure and not only the first.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    # Inside a container a service is reached by its name, not a mapped port.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: ushabti
+          POSTGRES_PASSWORD: ushabti
+          POSTGRES_DB: ushabti
+        options: >-
+          --health-cmd "pg_isready -U ushabti -d ushabti"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://ushabti:ushabti@postgres:5432/ushabti
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: build
+
+      - name: Unpack the build
+        run: tar -xf build.tar
+
       - name: Database schema
         run: npm run db:migrate
 
-      # The browser is 130 MB and never changes between runs of one Playwright
-      # version, so downloading it every time was 26 seconds of pure waste.
-      # The key holds that version, and a new version misses and downloads once.
-      - name: Which Playwright is this?
-        id: pw
-        run: |
-          echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Look for the browser
-        id: browser-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      - name: Install the browser
-        if: steps.browser-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      # The cache holds the browser but not the system libraries it links
-      # against, and those live outside ~/.cache. This adds them and nothing
-      # else, so a hit still saves the download.
-      - name: Install what the browser links against
-        if: steps.browser-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-
       - name: End to end tests
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
 
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: playwright-results
+          name: playwright-results-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
+
+  # The `main` ruleset requires one check named `test`. This is it, so the
+  # ruleset did not change when the work split into jobs. `always()` makes it
+  # run after a failure too; anything but success from every job fails it,
+  # which counts a cancelled or skipped shard as a failure.
+  test:
+    needs: [gate, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Every job passed
+        run: |
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.e2e.result }}" = success ]; then
+            exit 0
+          fi
+          echo "The gate ended ${{ needs.gate.result }} and the end to end shards ended ${{ needs.e2e.result }}."
+          exit 1
