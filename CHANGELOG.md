@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.15.0 — 2026-10-01
+
 ### Added
 
 - **The top bar shows how many tasks wait on a person.** When an agent asks a question, `N waiting`
