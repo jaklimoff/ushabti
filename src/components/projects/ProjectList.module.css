@@ -112,6 +112,11 @@
   color: var(--faint-2);
 }
 
+/* The colour of the top bar's count. */
+.waiting {
+  color: #c9925a;
+}
+
 .newCard {
   display: flex;
   flex-direction: column;

@@ -56,6 +56,15 @@ export function waitingRows(
   });
 }
 
+/**
+ * The top bar's number, for the switcher's row of the open project. That row
+ * reads this and not the list it fetched, which is as old as the menu, so two
+ * numbers for one project on one screen cannot differ.
+ */
+export function waitingCount(tasks: Searchable[], runs: AgentRunDTO[]): number {
+  return waitingRows(tasks, runs, new Set()).length;
+}
+
 /** The browser tab's title, with the count in front while there is one. */
 export function titleWithCount(title: string, count: number): string {
   const bare = title.replace(/^\(\d+\) /, "");

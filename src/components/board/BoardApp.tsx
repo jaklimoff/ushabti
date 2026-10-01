@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { taskByAddress } from "@/lib/board";
+import { waitingCount } from "@/lib/waiting";
 import type { BoardData } from "@/lib/types";
 
 /** What opening a task needs: which one, and the key its link carries. */
@@ -110,7 +111,11 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         <div className={styles.top} data-testid="top-bar">
           {/* The mark is inside the button, so a phone that hides the name
               still has something to press. */}
-          <ProjectSwitcher project={data.project} className={styles.switcher}>
+          <ProjectSwitcher
+            project={data.project}
+            waiting={waitingCount(data.tasks, data.runs)}
+            className={styles.switcher}
+          >
             <div className={styles.mark} data-testid="board-mark">
               {data.project.key.slice(0, 1)}
             </div>

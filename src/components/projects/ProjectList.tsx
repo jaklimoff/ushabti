@@ -19,6 +19,7 @@ export type ProjectRow = {
   role: string;
   taskCount: number;
   memberCount: number;
+  waiting: number;
 };
 
 export function ProjectList({
@@ -94,6 +95,14 @@ export function ProjectList({
                 <div className={styles.cardMeta}>
                   {project.taskCount} {project.taskCount === 1 ? "task" : "tasks"} ·{" "}
                   {project.memberCount} {project.memberCount === 1 ? "member" : "members"}
+                  {project.waiting > 0 && (
+                    <>
+                      {" · "}
+                      <span className={styles.waiting} data-testid="project-waiting">
+                        {project.waiting} waiting
+                      </span>
+                    </>
+                  )}
                 </div>
               </Link>
               <Link

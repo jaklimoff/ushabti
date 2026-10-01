@@ -17,14 +17,17 @@ Every project you are a member of, oldest first.
     {
       "id": "…", "name": "Ushabti roadmap", "key": "USH",
       "ownerId": "…", "role": "owner", "createdAt": "2026-08-01T09:00:00.000Z",
-      "taskCount": 40, "memberCount": 3
+      "taskCount": 40, "memberCount": 3, "waiting": 2
     }
   ]
 }
 ```
 
+`waiting` is how many live tasks of that project have an open run that waits for a person, as the
+top bar counts them. It is worked out for every project in the one query.
+
 An agent token cannot enumerate projects — it knows its one board from
-[`GET /api/agent/me`](/ushabti/api/auth/#get-apiagentme).
+[`GET /api/agent/me`](/ushabti/api/auth/#get-apiagentme), which carries the same `waiting` number.
 
 ---
 

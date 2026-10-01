@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AGENT_WAITING_KEY, applyFilters, waitingTasks } from "../filters";
 import type { AgentRunDTO, FilterRule, RunStatus, TaskDTO } from "../types";
-import { titleWithCount, waitingRows } from "../waiting";
+import { titleWithCount, waitingCount, waitingRows } from "../waiting";
 
 function task(over: Partial<TaskDTO> & { number: number }): TaskDTO {
   return {
@@ -94,6 +94,21 @@ describe("waitingRows", () => {
     const rows = waitingRows(tasks, runs, new Set(["t-1"]));
     expect(rows.find((r) => r.task.id === "t-1")?.note).toBeNull();
     expect(rows.find((r) => r.task.id === "t-2")?.note).toBe("not in this view");
+  });
+});
+
+describe("waitingCount", () => {
+  it("is the number of rows the top bar lists", () => {
+    const tasks = [1, 2, 3].map((number) => task({ number }));
+    const archived = { ...tasks[1], archivedAt: "2026-01-03T00:00:00.000Z" };
+    const runs = [
+      run("t-1", "waiting", "2026-01-02T12:00:00.000Z"),
+      run("t-2", "waiting", "2026-01-02T09:00:00.000Z"),
+      run("t-3", "handed_over", "2026-01-02T08:00:00.000Z"),
+    ];
+    expect(waitingCount(tasks, runs)).toBe(2);
+    expect(waitingCount([tasks[0], archived, tasks[2]], runs)).toBe(1);
+    expect(waitingCount(tasks, [])).toBe(0);
   });
 });
 
