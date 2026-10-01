@@ -131,6 +131,49 @@ test.describe("Your own account", () => {
     await expect(faces.locator('[aria-checked="true"]')).toHaveCount(1);
   });
 
+  test("any one emoji typed in the box becomes the face, and other text saves nothing", async ({
+    page,
+  }) => {
+    await register(page, "Typed Face");
+    await page.goto("/account");
+    const faces = page.getByRole("radiogroup", { name: "Your face" });
+    const box = page.getByRole("textbox", { name: "Or type any emoji" });
+    const sent: unknown[] = [];
+    page.on("request", (req) => {
+      if (req.url().endsWith("/api/auth/me") && req.method() === "PATCH") {
+        sent.push(req.postDataJSON().emoji);
+      }
+    });
+
+    for (const text of ["😀😀", "ab", "🏽"]) {
+      await box.fill(text);
+      await expect(page.getByText("One emoji only.")).toBeVisible();
+    }
+    await box.fill("");
+    await expect(page.getByText("One emoji only.")).toHaveCount(0);
+    expect(sent).toEqual([]);
+
+    const face = "🧑‍🚀";
+    const saved = page.waitForResponse(
+      (res) => res.url().endsWith("/api/auth/me") && res.request().method() === "PATCH",
+    );
+    await box.fill(face);
+    expect((await saved).status()).toBe(200);
+    await expect(box).toHaveValue("");
+    await expect(faces.getByRole("radio", { name: `Face ${face}` })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(page.getByText("One emoji only.")).toHaveCount(0);
+    expect(sent).toEqual([face]);
+
+    await page.reload();
+    await expect(faces.getByRole("radio", { name: `Face ${face}` })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
   test("the password needs the old one, and says so when it is wrong", async ({ page }) => {
     await register(page, "Careful Person");
 
