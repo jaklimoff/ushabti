@@ -1,6 +1,6 @@
 "use client";
 
-import { AVATAR_COLORS, ink, initials } from "@/lib/colors";
+import { AVATAR_COLORS, facePaint, initials } from "@/lib/colors";
 import { FACE_EMOJI } from "@/lib/emoji";
 import styles from "./ui.module.css";
 
@@ -118,7 +118,7 @@ export function ColorSwatches({
           aria-label={`Colour ${color}`}
           title={color}
           className={`${styles.swatch} ${emoji ? styles.swatchFace : ""} ${color === value ? styles.swatchOn : ""}`}
-          style={{ background: color, color: ink(color) }}
+          style={swatchPaint(color, Boolean(emoji))}
           onClick={() => onPick(color)}
         >
           {mark}
@@ -150,7 +150,6 @@ export function FaceSwatches({
   onPick: (emoji: string | null) => void;
 }) {
   const faces = value && !FACE_EMOJI.includes(value) ? [...FACE_EMOJI, value] : FACE_EMOJI;
-  const swatch = { background: color, color: ink(color) };
   const plain = kind === "agent" ? "No emoji" : "Initials";
   return (
     <div className={styles.swatches} role="radiogroup" aria-label={label}>
@@ -161,7 +160,7 @@ export function FaceSwatches({
         aria-label={plain}
         title={plain}
         className={`${styles.swatch} ${value === null ? styles.swatchOn : ""}`}
-        style={swatch}
+        style={swatchPaint(color, false)}
         onClick={() => onPick(null)}
       >
         {plainMark(name, kind)}
@@ -175,7 +174,7 @@ export function FaceSwatches({
           aria-label={`Face ${face}`}
           title={face}
           className={`${styles.swatch} ${styles.swatchFace} ${face === value ? styles.swatchOn : ""}`}
-          style={swatch}
+          style={swatchPaint(color, true)}
           onClick={() => onPick(face)}
         >
           {face}
@@ -183,6 +182,16 @@ export function FaceSwatches({
       ))}
     </div>
   );
+}
+
+/**
+ * The avatar's paint on a swatch. The colour goes in as `backgroundColor`
+ * because the `background` shorthand would undo the swatch's clip, and the
+ * ring would sit inside the border instead of on the edge.
+ */
+function swatchPaint(color: string, wearsEmoji: boolean) {
+  const { background, ...rest } = facePaint(color, wearsEmoji);
+  return { ...rest, backgroundColor: background };
 }
 
 function plainMark(name: string, kind: "human" | "agent") {
