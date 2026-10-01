@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.14.0 — 2026-10-01
+
 ### Added
 
 - **Any emoji can be a face.** After the grid on `/account` and on an agent in **Settings →
