@@ -29,6 +29,11 @@ export const users = pgTable(
     color: text("color").notNull().default("#6d5bd0"),
     /** One emoji drawn on the colour in place of the initials. Null is the initials. */
     avatarEmoji: text("avatar_emoji"),
+    /**
+     * Whether a question an agent asked, and nobody answered, may reach this
+     * person by email. On until they turn it off on the account page.
+     */
+    askMail: boolean("ask_mail").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("users_email_key").on(t.email)],
@@ -493,9 +498,24 @@ export const agentRuns = pgTable(
      */
     reportDueAt: timestamp("report_due_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
+    /**
+     * When the run began to wait on its question. Only a report that moves a
+     * run into `waiting` writes it, so asking again after an answer is a new
+     * ask with a new moment. Null for a run that never asked.
+     */
+    askedAt: timestamp("asked_at", { withTimezone: true }),
+    /**
+     * When the ask was taken for its one email. Set before the send, so a
+     * second read can never take the same ask again.
+     */
+    askMailedAt: timestamp("ask_mailed_at", { withTimezone: true }),
   },
   (t) => [
     index("agent_runs_task_idx").on(t.taskId),
+    // The read path asks for the asks that may be due on every board read.
+    index("agent_runs_ask_due_idx")
+      .on(t.askedAt)
+      .where(sql`${t.endedAt} is null and ${t.status} = 'waiting' and ${t.askMailedAt} is null`),
     index("agent_runs_project_idx").on(t.projectId),
     // One task holds one open run. A second start has to wait or take over.
     uniqueIndex("agent_runs_open_task_key")

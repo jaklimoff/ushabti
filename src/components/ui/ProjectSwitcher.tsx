@@ -17,7 +17,9 @@ import { walkKeys } from "@/components/board/Ask";
 import { useDismiss } from "./useDismiss";
 import styles from "./ProjectSwitcher.module.css";
 
-type Project = { id: string; key: string; name: string };
+/* `waiting` comes only with the list: the bar hands in the open project
+   without it, and its own count instead. */
+type Project = { id: string; key: string; name: string; waiting?: number };
 
 /* A project row carries its key, which draws its mark; an action row carries
    a glyph in the same place, so the two read apart and the words still line
@@ -29,6 +31,7 @@ type Row = {
   current?: boolean;
   projectKey?: string;
   glyph?: string;
+  waiting?: number;
 };
 
 /** Past this many projects the list is long enough to want a box. */
@@ -46,10 +49,17 @@ const MANY = 8;
  */
 export function ProjectSwitcher({
   project,
+  waiting,
   className,
   children,
 }: {
   project: Project;
+  /**
+   * The board's own count of the open project, live. The list was read when
+   * the menu opened, so the open row reads this one and agrees with the top
+   * bar. A bar without a count hands in nothing and the list answers.
+   */
+  waiting?: number;
   /** Lets a bar hide the whole switcher at a width of its own choosing. */
   className?: string;
   children: ReactNode;
@@ -104,6 +114,7 @@ export function ProjectSwitcher({
       href: `/p/${p.id}`,
       current: p.id === project.id,
       projectKey: p.key,
+      waiting: p.id === project.id && waiting !== undefined ? waiting : p.waiting,
     })),
     { key: "_new", label: "New project", href: "/projects?new", glyph: "+" },
     { key: "_all", label: "All projects", href: "/projects", glyph: "→" },
@@ -241,6 +252,15 @@ export function ProjectSwitcher({
                   <span className={styles.label}>{row.label}</span>
                   {isProject && (
                     <>
+                      {!!row.waiting && (
+                        <span
+                          className={styles.waiting}
+                          title="Tasks where an agent asked a question"
+                          data-testid="project-switcher-waiting"
+                        >
+                          {row.waiting} waiting
+                        </span>
+                      )}
                       <span className={styles.key} aria-hidden>
                         {row.projectKey}
                       </span>

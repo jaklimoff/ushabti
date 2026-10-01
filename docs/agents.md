@@ -46,12 +46,13 @@ curl -s $USHABTI/api/agent/me -H "Authorization: Bearer $TOKEN"
 ```json
 {
   "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" },
-  "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member" }
+  "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member", "waiting": 2 }
 }
 ```
 
 `/api/agent/me` is the only call that needs no project id: everything an agent
-needs to start is in the token.
+needs to start is in the token. `project.waiting` is how many live tasks have
+an open run that waits for a person, as the top bar counts them.
 
 ## Read and write the board
 

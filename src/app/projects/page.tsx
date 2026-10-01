@@ -29,6 +29,7 @@ export default async function ProjectsPage({
         role: r.role,
         taskCount: r.taskCount,
         memberCount: r.memberCount,
+        waiting: r.waiting,
       }))}
     />
   );

@@ -65,6 +65,12 @@ export const BLOCKED_KEY = "_blocked";
 export const AGENT_WAITING_KEY = "_agent_waiting";
 
 /**
+ * The one status that means an agent waits for a person. The project list
+ * counts it in SQL, so both answers name it from here.
+ */
+export const WAITS = "waiting";
+
+/**
  * The tasks whose open run waits for a person, by id.
  *
  * The board carries the open runs beside the tasks rather than on them, so the
@@ -72,7 +78,7 @@ export const AGENT_WAITING_KEY = "_agent_waiting";
  * board, worked out once.
  */
 export function waitingTasks(runs: Pick<AgentRunRowDTO, "taskId" | "status">[]): Set<string> {
-  return new Set(runs.filter((run) => run.status === "waiting").map((run) => run.taskId));
+  return new Set(runs.filter((run) => run.status === WAITS).map((run) => run.taskId));
 }
 
 /**

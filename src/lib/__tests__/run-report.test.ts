@@ -9,9 +9,17 @@ import { describe, expect, it, vi } from "vitest";
  * that run stopped on purpose.
  */
 const fake = vi.hoisted(() => {
-  const chain = { set: () => chain, where: () => Promise.resolve([]) };
+  const sets: Record<string, unknown>[] = [];
+  const chain = {
+    set: (values: Record<string, unknown>) => {
+      sets.push(values);
+      return chain;
+    },
+    where: () => Promise.resolve([]),
+  };
   let status = "running";
   return {
+    sets,
     db: { update: () => chain },
     runs: (next: string) => {
       status = next;
@@ -97,5 +105,31 @@ describe("a lost report", () => {
     fake.runs("waiting");
     expect((await report({ status: "running", step: "Writing the tests" })).status).toBe(200);
     expect((await report({ status: "done", log: "opened PR #124" })).status).toBe(200);
+  });
+});
+
+describe("the moment a run begins to wait", () => {
+  it("is written when the run asks, and the ask is not emailed yet", async () => {
+    fake.runs("running");
+    fake.sets.length = 0;
+    await report({ status: "waiting", step: "Which queue?" });
+    expect(fake.sets[0].askedAt).toBeInstanceOf(Date);
+    expect(fake.sets[0]).toHaveProperty("askMailedAt", null);
+  });
+
+  it("stays where it was when a waiting run says waiting again", async () => {
+    // The same question, so its one email keeps its clock and its mark.
+    fake.runs("waiting");
+    fake.sets.length = 0;
+    await report({ status: "waiting", step: "Which queue?" });
+    expect(fake.sets[0]).not.toHaveProperty("askedAt");
+    expect(fake.sets[0]).not.toHaveProperty("askMailedAt");
+  });
+
+  it("is not written by a report that does not wait", async () => {
+    fake.runs("waiting");
+    fake.sets.length = 0;
+    await report({ status: "running", step: "Reading the answer" });
+    expect(fake.sets[0]).not.toHaveProperty("askedAt");
   });
 });

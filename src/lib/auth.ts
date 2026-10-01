@@ -71,6 +71,8 @@ export type CurrentUser = {
   name: string;
   color: string;
   emoji: string | null;
+  /** Whether an unanswered ask may reach this person by email. */
+  askMail: boolean;
 };
 
 export { signupIsOpen } from "./signup";
@@ -104,6 +106,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       name: users.name,
       color: users.color,
       emoji: users.avatarEmoji,
+      askMail: users.askMail,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))

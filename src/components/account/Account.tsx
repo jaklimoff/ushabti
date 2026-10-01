@@ -14,7 +14,16 @@ import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import styles from "./account.module.css";
 
-export function Account({ user, version }: { user: SessionUser; version: string }) {
+export function Account({
+  user,
+  version,
+  askMailOn,
+}: {
+  user: SessionUser & { askMail: boolean };
+  version: string;
+  /** Whether this server emails an unanswered ask at all. */
+  askMailOn: boolean;
+}) {
   const router = useRouter();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seq = useRef(0);
@@ -152,6 +161,8 @@ export function Account({ user, version }: { user: SessionUser; version: string 
           </Row>
         </Card>
 
+        {askMailOn && <AskMailSection on={user.askMail} notify={notify} />}
+
         <PasswordSection notify={notify} />
 
         <span className={styles.version}>Ushabti {version}</span>
@@ -159,6 +170,55 @@ export function Account({ user, version }: { user: SessionUser; version: string 
 
       <Toasts toasts={toasts} />
     </div>
+  );
+}
+
+/**
+ * The one email an unanswered question from an agent sends. It is a press,
+ * so it saves at once, and a press while the save is out is ignored.
+ */
+function AskMailSection({
+  on: saved,
+  notify,
+}: {
+  on: boolean;
+  notify: (text: string, kind?: Toast["kind"]) => void;
+}) {
+  const [on, setOn] = useState(saved);
+  const [busy, setBusy] = useState(false);
+
+  async function flip() {
+    if (busy) return;
+    const next = !on;
+    setBusy(true);
+    try {
+      await api.patch("/api/auth/me", { askMail: next });
+      setOn(next);
+      notify(next ? "You get these emails again." : "You get no more of these emails.", "info");
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not save.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <Row className={styles.stack}>
+        <Field
+          label="Questions from agents"
+          note={
+            on
+              ? "When an agent asks you a question and nobody answers it for 15 minutes, you get one email about it."
+              : "You get no email when an agent asks you a question. The board still shows it."
+          }
+        >
+          <Button variant="ghost" disabled={busy} onClick={() => void flip()}>
+            {on ? "Turn off these emails" : "Turn on these emails"}
+          </Button>
+        </Field>
+      </Row>
+    </Card>
   );
 }
 

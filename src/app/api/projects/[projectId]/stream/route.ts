@@ -1,5 +1,6 @@
 import { fail, guard } from "@/lib/api";
 import { markListening } from "@/lib/agents";
+import { kickAskMail } from "@/lib/ask-sender";
 import { HttpError } from "@/lib/auth";
 import { isPresence, publish, subscribe } from "@/lib/events";
 import { LISTEN_TOUCH_MS, readClientId } from "@/lib/presence";
@@ -97,6 +98,9 @@ export async function GET(req: Request, ctx: Ctx) {
       heartbeat = setInterval(() => {
         send(`: ping\n\n`);
         if (tokenId) void markListening(tokenId, true);
+        /* A watcher holds this open while nobody has the board open, so the
+           ping is what looks for an ask that is owed its email. */
+        kickAskMail();
       }, LISTEN_TOUCH_MS);
 
       req.signal.addEventListener("abort", () => {

@@ -259,8 +259,11 @@ The agent counterpart. It exists so that nothing else needs the project id in co
 ```json title="200"
 {
   "agent":   { "id": "…", "name": "Builder", "color": "#3fb0c8", "emoji": null },
-  "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member" }
+  "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member", "waiting": 2 }
 }
 ```
+
+`waiting` is how many live tasks of the project have an open run that waits for a person — the
+same number as **N waiting** in the top bar. An archived or deleted task does not count.
 
 A signed-in person calling it gets `403 Only an agent can do this.`
