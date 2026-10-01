@@ -132,6 +132,15 @@
   line-height: 1;
 }
 
+/* The colour of the top bar's count, so the two read as one thing. */
+.waiting {
+  flex: 0 0 auto;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  color: #c9925a;
+  white-space: nowrap;
+}
+
 /* Two projects can start with the same letter; the key tells them apart. */
 .key {
   flex: 0 0 auto;

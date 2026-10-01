@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "dri
 import { db } from "@/db";
 import {
   activity,
+  agentRuns,
   agentTokens,
   checklistItems,
   comments,
@@ -24,7 +25,7 @@ import { HttpError } from "./auth";
 import { mainBoardGroupById, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
-import { readFilters } from "./filters";
+import { readFilters, WAITS } from "./filters";
 import { readTimeZone, todayIn } from "./day";
 import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readLensSort, readSort } from "./sort";
@@ -123,6 +124,26 @@ export async function rankOnTheEnd(
 /* Projects                                                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The top bar's count, `waitingTasks()`, over the tasks a board loads: an open
+ * run that waits, on a task neither archived nor deleted. One task holds one
+ * open run, so a plain count is a count of tasks. It is a subquery on the
+ * project row, so a list of projects is still one query.
+ */
+function waitingIn() {
+  return sql<number>`(select count(*)::int from ${agentRuns} r join ${tasks} t on t.id = r.task_id where r.project_id = ${projects}.id and r.ended_at is null and r.status = ${WAITS} and t.archived_at is null and t.deleted_at is null)`;
+}
+
+/** The one project an agent token opens, with the same waiting number. */
+export async function agentProject(projectId: string) {
+  const [project] = await db
+    .select({ id: projects.id, name: projects.name, key: projects.key, waiting: waitingIn() })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  return project;
+}
+
 export async function listProjects(userId: string) {
   return db
     .select({
@@ -134,6 +155,7 @@ export async function listProjects(userId: string) {
       createdAt: projects.createdAt,
       taskCount: sql<number>`(select count(*)::int from ${tasks} t where t.project_id = ${projects}.id)`,
       memberCount: sql<number>`(select count(*)::int from ${projectMembers} pm where pm.project_id = ${projects}.id)`,
+      waiting: waitingIn(),
     })
     .from(projectMembers)
     .innerJoin(projects, eq(projects.id, projectMembers.projectId))

@@ -14,6 +14,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   appears beside the search box on every view, whatever filter is on. Press it for the list, the
   oldest ask first, with the agent, the question and how long it has waited. Pick a row and the task
   opens with the cursor in the answer box. The browser tab title starts with `(N)` too.
+- **The project switcher says where an agent waits.** Beside each project with a question open, the
+  switcher and the All projects page show "N waiting", by the rule of the top bar. The number also
+  comes with `GET /api/projects` and with the project of `GET /api/agent/me`.
 
 ## 0.14.0 — 2026-10-01
 
