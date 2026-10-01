@@ -11,7 +11,7 @@ import board from '../../../assets/board.png'
 
 The board is the product. Everything else — settings, the panel, the API — exists to keep it honest.
 
-<Image src={board} alt="An Ushabti board with four columns, coloured tags on the cards, and an agent working on one of them." class="shot" />
+<Image src={board} alt="An Ushabti board with five columns and coloured tags on the cards. An agent works on one card and waits for an answer on another, and the top bar reads 1 waiting." class="shot" />
 
 ## Moving a card
 
@@ -326,6 +326,15 @@ has no strip, and a row keeps its columns.
     Archive. The arrow keys walk it, <kbd>Enter</kbd> opens the highlighted row and <kbd>Escape</kbd>
     puts it away. Past eight projects a box above the list narrows it. On a phone the name is hidden
     and the letter beside it is the button.
+  </Card>
+  <Card title="N waiting" icon="warning">
+    Shown only while an agent waits for a person: `2 waiting` means two tasks where an agent asked a
+    question and stopped. It counts the whole project, so no filter, lens, folded column or list
+    hides a question. Press it for the list, the oldest ask first — the key, the title, the agent,
+    the first line of the question and how long it has waited. A row this view does not draw says
+    *not in this view*, as a search does. Pick a row and the task opens with the cursor in the
+    answer box. The row goes when the agent goes back to work. The browser tab says `(2)` in front
+    of its title, so a tab in the background shows it too.
   </Card>
   <Card title="The live dot" icon="rocket">
     On: *"Live: changes from others arrive by themselves."* Off: *"Not live right now."* It is the
