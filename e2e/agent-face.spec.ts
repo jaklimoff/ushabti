@@ -125,4 +125,47 @@ test.describe("The face of an agent", () => {
 
     await memberContext.close();
   });
+
+  test("an owner types any one emoji for an agent, and other text saves nothing", async ({
+    page,
+  }) => {
+    await register(page, "Olga Owner");
+    const projectId = await createProject(page, unique("Agent emoji box"));
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Typist");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Typist" });
+    await agentBox.getByRole("button", { name: "Face of Typist" }).click();
+    const emojis = agentBox.getByRole("radiogroup", { name: "Emoji of Typist" });
+    const box = agentBox.getByRole("textbox", { name: "Or type any emoji" });
+    let patches = 0;
+    page.on("request", (req) => {
+      if (/\/agents\/[0-9a-f-]{36}$/.test(req.url()) && req.method() === "PATCH") patches += 1;
+    });
+
+    for (const text of ["🦊🦊", "ok", "🏿"]) {
+      await box.fill(text);
+      await expect(agentBox.getByText("One emoji only.")).toBeVisible();
+    }
+    expect(patches).toBe(0);
+
+    const answer = page.waitForResponse(
+      (res) => /\/agents\/[0-9a-f-]{36}$/.test(res.url()) && res.request().method() === "PATCH",
+    );
+    await box.fill("🤖");
+    expect((await answer).status()).toBe(200);
+    await expect(box).toHaveValue("");
+    await expect(agentBox.getByText("One emoji only.")).toHaveCount(0);
+    await expect(emojis.getByRole("radio", { name: "Face 🤖" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await page.reload();
+    await agentBox.getByRole("button", { name: "Face of Typist" }).click();
+    await expect(emojis.getByRole("radio", { name: "Face 🤖" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
 });

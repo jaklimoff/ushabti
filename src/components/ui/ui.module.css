@@ -446,6 +446,17 @@
   line-height: 1;
 }
 
+.faces {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.faceBox {
+  width: 160px;
+  max-width: 100%;
+}
+
 /* ---- toasts -------------------------------------------------------- */
 
 .toasts {
