@@ -1,6 +1,6 @@
 "use client";
 
-import { ink, initials } from "@/lib/colors";
+import { facePaint, ink, initials } from "@/lib/colors";
 
 const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
 
@@ -15,7 +15,7 @@ export function Avatar({
 }: {
   name: string;
   color: string;
-  /** Worn instead of the initials, on the same colour. Null is the initials. */
+  /** Worn instead of the initials, on a dark tint of the colour. Null is the initials. */
   emoji?: string | null;
   size?: number;
   /** Null draws no title, for a caller that names the face in its own way. */
@@ -32,8 +32,7 @@ export function Avatar({
         height: size,
         flex: `0 0 ${size}px`,
         borderRadius: "50%",
-        background: color,
-        color: ink(color),
+        ...facePaint(color, Boolean(emoji)),
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",

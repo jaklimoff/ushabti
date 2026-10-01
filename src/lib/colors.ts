@@ -35,8 +35,7 @@ export function nextPaletteColor(used: string[]): string {
   return free ?? PALETTE[used.length % PALETTE.length];
 }
 
-/** Translates #rrggbb into an rgba() string with the given alpha. */
-export function tint(hex: string, alpha: number): string {
+function channels(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
   const full =
     clean.length === 3
@@ -45,35 +44,74 @@ export function tint(hex: string, alpha: number): string {
           .map((c) => c + c)
           .join("")
       : clean;
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
+  return [0, 2, 4].map((at) => parseInt(full.slice(at, at + 2), 16)) as [number, number, number];
+}
+
+/** Translates #rrggbb into an rgba() string with the given alpha. */
+export function tint(hex: string, alpha: number): string {
+  const [r, g, b] = channels(hex);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+const DARK_INK = "#14161a";
+const LIGHT_INK = "#f6f8fa";
+
+/** The card the faces sit on. The app has one theme, so this is `--bg-card`. */
+const CARD = "#14171b";
+
+/** The lightness APCA reads, with its soft clamp for near black. */
+function apcaY(hex: string): number {
+  const [r, g, b] = channels(hex).map((c) => (c / 255) ** 2.4);
+  const y = 0.2126729 * r + 0.7151522 * g + 0.072175 * b;
+  return y < 0.022 ? y + (0.022 - y) ** 1.414 : y;
+}
+
+/** APCA's lightness contrast (Lc) of text on a ground, without its sign. */
+function contrast(text: string, ground: string): number {
+  const t = apcaY(text);
+  const g = apcaY(ground);
+  const s = g > t ? (g ** 0.56 - t ** 0.57) * 1.14 : (g ** 0.65 - t ** 0.62) * 1.14;
+  return Math.abs(s) < 0.1 ? 0 : (Math.abs(s) - 0.027) * 100;
+}
+
 /**
- * The ink that reads on a colour. A filled chip paints the option's own colour
- * behind its name, and the palette runs from a deep violet to a bright cyan, so
- * neither one ink nor the other is right for all of them. This asks which of
- * the two the colour carries further, the same sum the eye does.
+ * The ink that reads on a colour: avatars, the agent badge, the swatches and
+ * filled chips all ask this one rule. The palette is mid-tone, and WCAG 2's
+ * luminance sum picks dark ink on nearly all of it, which reads badly on pink
+ * and violet. APCA weighs light text on a mid ground as the eye does.
  */
 export function ink(hex: string): string {
-  const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : clean;
-  const channel = (at: number) => {
-    const c = parseInt(full.slice(at, at + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
-  const onWhite = 1.05 / (luminance + 0.05);
-  const onBlack = (luminance + 0.05) / 0.05;
-  return onBlack >= onWhite ? "#14161a" : "#f6f8fa";
+  return contrast(DARK_INK, hex) > contrast(LIGHT_INK, hex) ? DARK_INK : LIGHT_INK;
+}
+
+/**
+ * The ground an emoji face sits on: a quarter of its colour over the card. An
+ * emoji carries its own colours, and on the full fill a frog on green or fire
+ * on red disappears.
+ */
+export function emojiGround(hex: string): string {
+  const over = channels(CARD);
+  return `#${channels(hex)
+    .map((c, i) =>
+      Math.round(c * 0.25 + over[i] * 0.75)
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+/**
+ * How a face is painted. Initials and the ◆ take the full colour; an emoji
+ * takes the dark ground with a thin ring of the colour, so the face still says
+ * whose it is. The avatar and the swatches both ask this.
+ */
+export function facePaint(
+  color: string,
+  wearsEmoji: boolean,
+): { background: string; color: string; boxShadow?: string } {
+  if (!wearsEmoji) return { background: color, color: ink(color) };
+  const ground = emojiGround(color);
+  return { background: ground, color: ink(ground), boxShadow: `inset 0 0 0 1px ${color}` };
 }
 
 export function initials(name: string): string {

@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A face and a chip read on every colour.** Initials, the ◆ and the words on a filled chip now
+  take the ink that APCA says reads better, which is light ink on most of the palette. Dark initials
+  on pink are gone. An emoji face sits on a dark tint of its colour with a thin ring of the full
+  colour, so a frog on green or fire on red reads. The swatches on `/account` and in **Settings →
+  People** show the face as the board will draw it.
+
 ## 0.13.0 — 2026-09-30
 
 ### Added

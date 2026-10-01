@@ -422,6 +422,9 @@
   display: grid;
   place-items: center;
   border: 2px solid transparent;
+  /* The fill stops inside the border, so an emoji's ring sits on its edge as
+     it does on the avatar, and the picked border frames the face. */
+  background-clip: padding-box;
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   font-size: 9px;
   font-weight: 600;
