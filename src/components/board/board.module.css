@@ -2454,9 +2454,94 @@ button.listHeadCell:focus-visible {
   text-overflow: ellipsis;
 }
 
+/*
+ * "N waiting", beside the box. It exists only while an agent waits for a
+ * person, so a quiet board gives it no room at all. It never shrinks: a count
+ * cut short is a wrong count. The warm colour is the one the card strip wears
+ * for "waiting 2h", so the two read as one thing.
+ */
+.waitAnchor {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.waitButton {
+  height: 26px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--bg-hover);
+  color: #c9925a;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.waitButton:focus-visible {
+  outline: 1px solid #c9925a;
+}
+
+.waitDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c9925a;
+}
+
+.waitPop {
+  width: 360px;
+}
+
+.waitList:focus {
+  outline: 0;
+}
+
+/* Who asked, the first line of what, and how long it has waited. */
+.waitAsk {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  font-size: 10.5px;
+}
+
+.waitWho {
+  flex: 0 0 auto;
+  color: var(--text-4);
+}
+
+.waitQuestion {
+  min-width: 0;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waitSince {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: #c9925a;
+}
+
 @media (max-width: 900px) {
   .searchAnchor {
     flex: 0 12 132px;
+  }
+
+  .waitPop {
+    width: 300px;
+  }
+
+  .top:has(.pickBar) .waitAnchor {
+    display: none;
   }
 
   .searchPop {
@@ -2470,6 +2555,16 @@ button.listHeadCell:focus-visible {
   .searchAnchor {
     flex-shrink: 1;
     min-width: 0;
+  }
+
+  /* The anchor is in the middle of a narrow bar, so the list hangs from the
+     screen and not from the button. */
+  .waitPop {
+    position: fixed;
+    top: 50px;
+    left: 16px;
+    right: 16px;
+    width: auto;
   }
 }
 

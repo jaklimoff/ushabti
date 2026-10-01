@@ -16,6 +16,7 @@ import { ListCanvas } from "./ListCanvas";
 import { Listening } from "./Listening";
 import { Search } from "./Search";
 import { Selection } from "./Selection";
+import { Waiting } from "./Waiting";
 import { BoardProvider, useBoard } from "./store";
 import { TaskPanel } from "./TaskPanel";
 import { ViewStrip } from "./ViewStrip";
@@ -61,12 +62,24 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
+  /* A task opened from the waiting list opens to be answered, so the focus
+     goes to the comment box and not the title. The count tells one pick from
+     the next, so picking the same task again asks for the focus again. */
+  const [answering, setAnswering] = useState<{ taskId: string; n: number } | null>(null);
+
   /* The task itself arrives, not its id, because the query carries the key a
      person reads on the card and only the task knows it. An archived task is
      carried light, so this asks for the two parts every one of them has. */
   const open = useCallback((task: Openable | null) => {
     setSelected(task?.id ?? null);
+    setAnswering(null);
     writeAddress(task?.key ?? null);
+  }, []);
+
+  const answer = useCallback((task: Openable) => {
+    setSelected(task.id);
+    setAnswering((was) => ({ taskId: task.id, n: (was?.n ?? 0) + 1 }));
+    writeAddress(task.key);
   }, []);
 
   // TaskPanel builds its loader from this, so a new function on every render
@@ -113,6 +126,9 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
               is picked. It is told whether a task is open, because Escape puts
               away one thing and the open task is the nearer one. */}
           <Selection taskOpen={openTask !== null} />
+          {/* The questions are the project's too, so the count stands beside
+              the box and not in the strip. It is drawn only while one waits. */}
+          <Waiting onAnswer={answer} />
           {/* The box searches the project, so it sits above the view strip
               rather than in it, beside the things that belong to no view. */}
           <Search onOpenTask={open} />
@@ -201,7 +217,14 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         )}
       </div>
 
-      {openTask && <TaskPanel taskId={openTask} onClose={closePanel} onOpenTask={open} />}
+      {openTask && (
+        <TaskPanel
+          taskId={openTask}
+          onClose={closePanel}
+          onOpenTask={open}
+          answer={answering?.taskId === openTask ? answering.n : 0}
+        />
+      )}
 
       <Toasts toasts={toasts} />
     </div>
