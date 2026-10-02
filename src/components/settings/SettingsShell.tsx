@@ -60,7 +60,8 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
         <nav className={styles.rail} aria-label="Settings sections">
           {items.map((item) => {
             const href = `${base}/${item.slug}`;
-            const on = pathname === href;
+            /* A view's card view sits under its view, and lights Views. */
+            const on = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 key={item.slug}
