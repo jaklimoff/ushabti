@@ -253,7 +253,7 @@ These are consequences of the design, not defects. Read them before you build on
   to another column, because that writes a value and not a rank. There is one
   order in a project and this is the price of it.
 - **A list draws every row it shows.** Like the board, and for the same reason: above a few thousand tasks it needs paging. A row is cheaper than a card, so the ceiling is higher, not different.
-- **A list shows what a card shows.** Its columns are the project's card view, so the property a board groups by is missing from a list until somebody puts it back on the card in Settings → Card view — the default leaves it off because a board's columns already say it. The alternative was worse: a rule that restored it would make the column vanish the day somebody edited an unrelated row.
+- **A list shows what a card shows.** Its columns are its card view, which is the project's until somebody changes it, so the property a board groups by is missing from a new list — the default leaves it off because a board's columns already say it. **Card view…** in Settings → Views gives one view a copy of its own, and puts it back there. The alternative was worse: a rule that restored it would make the column vanish the day somebody edited an unrelated row.
 - **A board loads all its tasks at once.** Fine for a few thousand. It needs paging above that.
 - **A deleted row waits for somebody to look.** The sweep that takes a task
   past its thirty days runs on a delete in that project and on a read of the

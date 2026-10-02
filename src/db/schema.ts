@@ -373,6 +373,13 @@ export const views = pgTable(
      * `{ filters: { rules: FilterRule[] } }` - which tasks it shows.
      */
     config: jsonb("config").notNull().default({}),
+    /**
+     * This view's own card view, or null to draw the project's. It is a copy,
+     * not a set of changes: once somebody arranges it, the project's card view
+     * no longer reaches this view. Read through `readCardView`, as the
+     * project's is.
+     */
+    cardView: jsonb("card_view"),
   },
   (t) => [index("views_project_idx").on(t.projectId)],
 );

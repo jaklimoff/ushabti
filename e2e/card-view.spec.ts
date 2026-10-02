@@ -3,9 +3,12 @@ import {
   addListView,
   addTask,
   card,
+  confirmDelete,
   createProject,
   dragOnto,
   gotoSettings,
+  listHead,
+  listRow,
   register,
   saved,
   unique,
@@ -269,5 +272,60 @@ test.describe("Card view", () => {
       page.getByRole("button", { name: "Put Due in the footer left" }).click(),
     );
     await expect(row(page, "Due")).toHaveAttribute("data-place", "footerL");
+  });
+
+  test("a view's menu arranges a card view for that view only", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Own"));
+    await addTask(page, "Backlog", "Seen twice");
+    await addListView(page, "Dense");
+    // The board's columns are Status, so the project's card leaves it off.
+    await expect(listHead(page, "Status")).toHaveCount(0);
+
+    await gotoSettings(page, projectId, "views");
+    // Nobody has changed a view yet, so no view has a copy to throw away.
+    await expect(page.getByRole("button", { name: /^Use the default card view/ })).toHaveCount(0);
+    await page.getByRole("link", { name: "Card view of Dense" }).click();
+    await expect(page.getByRole("heading", { name: "Card view of Dense" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Use the default" })).toHaveCount(0);
+
+    // A copy must say where its rows sit; a body without them is refused.
+    const viewId = page.url().split("/views/")[1].split("/")[0];
+    const empty = await page.request.patch(`/api/views/${viewId}/card-view`, {
+      data: { cardView: {} },
+    });
+    expect(empty.status()).toBe(400);
+
+    await row(page, "Status")
+      .getByRole("button", { name: /^Status on the card/ })
+      .click();
+    await saved(page, () =>
+      page.getByRole("button", { name: "Put Status in the footer left" }).click(),
+    );
+    await expect(row(page, "Status")).toHaveAttribute("data-place", "footerL");
+    await expect(page.getByRole("button", { name: "Use the default" })).toBeVisible();
+
+    // The project's card view is untouched, and so is the board that draws it.
+    await gotoSettings(page, projectId, "card");
+    await expect(row(page, "Status")).toHaveAttribute("data-place", "off");
+
+    // The list draws its copy: the grouping property is a column now.
+    await page.goto(`/p/${projectId}`);
+    await page.getByTestId("view-pill").filter({ hasText: "Dense" }).click();
+    await expect(listHead(page, "Status")).toHaveCount(1);
+    await expect(listRow(page, "Seen twice")).toContainText("Backlog");
+
+    // Only the view with a copy offers the way back, and it asks first.
+    await gotoSettings(page, projectId, "views");
+    const back = page.getByRole("button", { name: /^Use the default card view/ });
+    await expect(back).toHaveCount(1);
+    await expect(back).toHaveAccessibleName("Use the default card view for Dense");
+    await back.click();
+    await saved(page, () => confirmDelete(page));
+    await expect(back).toHaveCount(0);
+
+    await page.goto(`/p/${projectId}`);
+    await page.getByTestId("view-pill").filter({ hasText: "Dense" }).click();
+    await expect(listHead(page, "Status")).toHaveCount(0);
   });
 });

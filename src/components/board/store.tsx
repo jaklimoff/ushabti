@@ -110,12 +110,23 @@ type Store = {
   setSort: (sort: ViewSort | null) => Promise<void>;
   /** Writes the order of the view, for everybody. */
   setViewSort: (sort: ViewSort | null) => Promise<void>;
-  /** Every row of the card, in order, with the property behind it. */
+  /** Every row of the card this view draws, in order, with its property. */
   cardItems: CardItem[];
-  /** Arranges the card. It saves as you click; there is no Save button. */
-  setCardView: (view: CardView) => Promise<void>;
-  /** Back to the card the board draws when nobody has arranged one. */
-  resetCardView: () => Promise<void>;
+  /**
+   * The rows one view draws, or the project's for null. Settings asks this,
+   * because the view it edits need not be the one the board has open.
+   */
+  cardItemsOf: (viewId: string | null) => CardItem[];
+  /**
+   * Arranges the card. It saves as you click; there is no Save button. With a
+   * view it writes that view's own copy; without, the project's.
+   */
+  setCardView: (view: CardView, viewId?: string | null) => Promise<void>;
+  /**
+   * Back to the default. For the project that is the card nobody arranged;
+   * for a view it throws the copy away, and the view draws the project's.
+   */
+  resetCardView: (viewId?: string | null) => Promise<void>;
   /** The open run of a task, or null. One task holds one run at a time. */
   runOf: (taskId: string) => AgentRunDTO | null;
   /** Pause, resume or stop is a request. Take over ends the run at once. */
@@ -675,12 +686,30 @@ export function BoardProvider({
   const defaultGroupById =
     (data.views.find((v) => v.isDefault) ?? data.views[0])?.groupById ?? null;
 
-  const cardView = useMemo(
+  const projectCardView = useMemo(
     () => readCardView(data.cardView, data.properties, defaultGroupById),
     [data.cardView, data.properties, defaultGroupById],
   );
 
+  /* A view with a copy of its own draws it; one without draws the project's,
+     and so moves when the project's moves. */
+  const cardView = useMemo(
+    () => readCardView(view?.cardView, data.properties, defaultGroupById, projectCardView),
+    [view?.cardView, data.properties, defaultGroupById, projectCardView],
+  );
+
   const items = useMemo(() => cardItems(cardView, data.properties), [cardView, data.properties]);
+
+  const cardItemsOf = useCallback<Store["cardItemsOf"]>(
+    (viewId) => {
+      const own = viewId ? data.views.find((v) => v.id === viewId)?.cardView : null;
+      return cardItems(
+        readCardView(own, data.properties, defaultGroupById, projectCardView),
+        data.properties,
+      );
+    },
+    [data.views, data.properties, defaultGroupById, projectCardView],
+  );
 
   /* The day comes off the board answer and never off this browser's clock,
      so a relative date rule draws the same cards here as it did on the
@@ -1286,25 +1315,45 @@ export function BoardProvider({
   );
 
   /* --- the card ------------------------------------------------------- */
+  /* A view's copy is written by its own route, beside the project's. The
+     answer is not read back: the board read the stream rings for brings it. */
+  const putViewCardView = useCallback(
+    async (viewId: string, next: CardView | null) => {
+      setData((current) => ({
+        ...current,
+        views: current.views.map((v) => (v.id === viewId ? { ...v, cardView: next } : v)),
+      }));
+      await guarded(async () => {
+        await tracked.patch(`/api/views/${viewId}/card-view`, { cardView: next });
+      });
+    },
+    [guarded, tracked],
+  );
+
   const setCardView = useCallback<Store["setCardView"]>(
-    async (next) => {
+    async (next, viewId) => {
+      if (viewId) return putViewCardView(viewId, next);
       setData((current) => ({ ...current, cardView: next }));
       await guarded(async () => {
         await tracked.patch(`/api/projects/${projectId}/card-view`, { cardView: next });
       });
     },
-    [guarded, projectId, tracked],
+    [guarded, projectId, putViewCardView, tracked],
   );
 
-  const resetCardView = useCallback<Store["resetCardView"]>(async () => {
-    setData((current) => ({
-      ...current,
-      cardView: defaultCardView(current.properties, mainBoardGroupById(current.views)),
-    }));
-    await guarded(async () => {
-      await tracked.patch(`/api/projects/${projectId}/card-view`, { cardView: null });
-    });
-  }, [guarded, projectId, tracked]);
+  const resetCardView = useCallback<Store["resetCardView"]>(
+    async (viewId) => {
+      if (viewId) return putViewCardView(viewId, null);
+      setData((current) => ({
+        ...current,
+        cardView: defaultCardView(current.properties, mainBoardGroupById(current.views)),
+      }));
+      await guarded(async () => {
+        await tracked.patch(`/api/projects/${projectId}/card-view`, { cardView: null });
+      });
+    },
+    [guarded, projectId, putViewCardView, tracked],
+  );
 
   const deleteView = useCallback<Store["deleteView"]>(
     async (id) => {
@@ -1501,6 +1550,7 @@ export function BoardProvider({
     setSort,
     setViewSort,
     cardItems: items,
+    cardItemsOf,
     setCardView,
     resetCardView,
     runOf,

@@ -395,6 +395,12 @@ export type ViewDTO = {
    * so an agent — which has no lens — always reads null here.
    */
   lensSort: ViewSort | null;
+  /**
+   * This view's own card view, read afresh, or null when it draws the
+   * project's. A list's columns are its card view, so a list keeps one here
+   * too.
+   */
+  cardView: CardView | null;
 };
 
 export type ChecklistItemDTO = {

@@ -2,7 +2,7 @@
 
 import { forwardRef, useMemo } from "react";
 import type { AgentRunDTO, TaskDTO } from "@/lib/types";
-import { buildCard, type CardChip } from "@/lib/card-view";
+import { buildCard, type CardChip, type CardItem } from "@/lib/card-view";
 import { isOpen, lifeOf, runClock, runIsStill, runLine } from "@/lib/run-state";
 import { useNow } from "@/components/ui/useElapsed";
 import { Chip } from "./Chip";
@@ -26,6 +26,11 @@ type Props = {
   onPick?: (event: React.MouseEvent) => void;
   style?: React.CSSProperties;
   dragProps?: Record<string, unknown>;
+  /**
+   * The rows to draw, when they are not the open view's: the settings preview
+   * draws the card view it is editing, which may belong to another view.
+   */
+  items?: CardItem[];
 };
 
 /**
@@ -34,10 +39,11 @@ type Props = {
  * which the settings page arranges; this file only knows how to draw a chip.
  */
 export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
-  { task, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps },
+  { task, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps, items },
   ref,
 ) {
-  const { cardItems, data, isPicked, picked, runOf } = useBoard();
+  const { cardItems: viewItems, data, isPicked, picked, runOf } = useBoard();
+  const cardItems = items ?? viewItems;
   const run = runOf(task.id);
 
   /* The card wears a border and nothing more. The check stays on the whole

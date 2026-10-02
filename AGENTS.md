@@ -166,6 +166,14 @@ and what is easy to get wrong.
   An `order` saved by an older release is dropped in the same pass. Do not add a
   cleanup pass to the delete transaction; it would lose the same race the filter
   one would.
+- **A view may keep a copy of the card view, and nothing else of it.**
+  `views.card_view` is null until somebody changes that view's card, and a null
+  view draws the project's and follows it. `readCardView()` takes the view's
+  rows first and the project's second, so there is still one reader; the store
+  asks it once for the open view, and `cardAccent()` and `listColumns()` read
+  that answer. A copy is a whole card view, never a set of changes on top of
+  the project's: a diff would need its own rules for a row the project later
+  moved. It holds no order and no edge rule of its own, for the reasons above.
 - **Five rows of the card view are not properties.** `_key`, `_title`, `_desc`,
   `_checklist` and `_comments` are the task row the board already has, given
   rows so that somebody can take them off. They are not fields on a task and

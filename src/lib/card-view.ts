@@ -241,14 +241,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * never moves, only one row holds the edge, and a mode a kind does not offer
  * becomes the one it does. An `order` saved by an older release is not read,
  * and it is not written back: the order is the properties' own.
+ *
+ * A view may keep a copy of its own. It is passed first and the project's card
+ * view second, so one reader answers both: a view with no copy draws the
+ * project's, and moves when the project's moves.
  */
 export function readCardView(
   saved: unknown,
   properties: PropertyDTO[],
   groupById: string | null,
+  project?: unknown,
 ): CardView {
-  if (!isRecord(saved) || !isRecord(saved.rows)) {
-    return defaultCardView(properties, groupById);
+  if (!hasRows(saved)) {
+    return project === undefined
+      ? defaultCardView(properties, groupById)
+      : readCardView(project, properties, groupById);
   }
 
   const kinds = new Map<string, CardKind>();
@@ -294,6 +301,20 @@ export function readCardView(
   }
 
   return { rows };
+}
+
+function hasRows(saved: unknown): saved is { rows: Record<string, unknown> } {
+  return isRecord(saved) && isRecord(saved.rows);
+}
+
+/**
+ * A view's own copy, read as any card view is, or null when it has none. Null
+ * is the answer that matters: it is what tells a view to draw the project's.
+ * The grouping property is not asked, because a copy that exists says where
+ * every row sits and never falls back to the default.
+ */
+export function ownCardView(saved: unknown, properties: PropertyDTO[]): CardView | null {
+  return hasRows(saved) ? readCardView(saved, properties, null) : null;
 }
 
 /**

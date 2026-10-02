@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import {
   DndContext,
@@ -85,8 +86,11 @@ export function ViewsPanel() {
 }
 
 function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] }) {
-  const { data, updateView, deleteView, setMainView } = useBoard();
+  const { data, updateView, deleteView, setMainView, resetCardView } = useBoard();
   const confirm = useConfirm();
+  /* Throwing a copy away loses what somebody arranged, so it asks in place,
+     as deleting does. */
+  const unCopy = useConfirm();
   const box = useRef<HTMLInputElement>(null);
   /* The box holds a name that another tab can change under it, so only what
      this tab typed may be written back. */
@@ -135,6 +139,17 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         question={`Delete the view ${view.name}? The tasks stay; only this way of looking at them goes.`}
         onConfirm={() => confirm.confirm(() => void deleteView(view.id))}
         onCancel={confirm.cancel}
+      />
+    );
+  }
+
+  if (unCopy.asking) {
+    return (
+      <ConfirmRow
+        question={`Use the default card view for ${view.name}? Its own copy goes, and it draws the project's again.`}
+        confirmLabel="Yes, use the default"
+        onConfirm={() => unCopy.confirm(() => void resetCardView(view.id))}
+        onCancel={unCopy.cancel}
       />
     );
   }
@@ -239,6 +254,33 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
             </Select>
           </span>
         )}
+        {/* A list's columns are its card view, so a list is arranged here
+            too. The view keeps a copy only once somebody changes it. */}
+        <span className={styles.viewPair}>
+          <Link
+            className={styles.makeMain}
+            href={`/p/${data.project.id}/settings/views/${view.id}/card`}
+            aria-label={`Card view of ${view.name}`}
+            title={
+              view.cardView
+                ? "This view keeps a card view of its own."
+                : "This view draws the project's card view."
+            }
+          >
+            Card view…
+          </Link>
+          {view.cardView && (
+            <button
+              type="button"
+              className={styles.makeMain}
+              aria-label={`Use the default card view for ${view.name}`}
+              title="Throw this view's copy away and draw the project's card view again."
+              onClick={unCopy.ask}
+            >
+              Use the default
+            </button>
+          )}
+        </span>
       </div>
       {!view.isDefault && canEdit && (
         <IconButton

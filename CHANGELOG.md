@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A view can carry a card view of its own.** In Settings → Views, **Card view…** opens the card
+  view editor for that one view. The first change gives the view a copy; until then it draws the
+  project's card view and follows it. **Use the default** throws the copy away. A list's columns
+  are its card view, so a list can now show the property a board groups by without putting it on
+  every card.
+
 ## 0.15.0 — 2026-10-01
 
 ### Added

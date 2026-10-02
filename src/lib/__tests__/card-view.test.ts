@@ -7,12 +7,14 @@ import {
   cardOrder,
   defaultCardView,
   mainBoardGroupById,
+  ownCardView,
   previewTasks,
   readCardView,
   setCardMode,
   setCardPlace,
   viewOf,
 } from "../card-view";
+import { listColumns } from "../list-view";
 import type { MemberDTO, PropertyDTO, TaskDTO } from "../types";
 
 const STATUS: PropertyDTO = {
@@ -183,6 +185,38 @@ describe("reading a saved card view", () => {
       defaultCardView(PROPERTIES, "p-status"),
     );
     expect(readCardView({ order: "no" }, PROPERTIES, null).rows._title).toBeDefined();
+  });
+});
+
+describe("a view's own card view", () => {
+  const project = { rows: { "p-due": { place: "headerR", mode: "text" } } };
+
+  it("draws the project's while the view has none, and follows a change to it", () => {
+    expect(readCardView(null, PROPERTIES, "p-status", project).rows["p-due"].place).toBe("headerR");
+    const changed = { rows: { "p-due": { place: "off", mode: "text" } } };
+    expect(readCardView(null, PROPERTIES, "p-status", changed).rows["p-due"].place).toBe("off");
+  });
+
+  it("draws its copy once it has one, whatever the project says", () => {
+    const copy = { rows: { "p-due": { place: "footerR", mode: "text" } } };
+    expect(readCardView(copy, PROPERTIES, "p-status", project).rows["p-due"].place).toBe("footerR");
+  });
+
+  it("reads a copy that is not a card view as no copy at all", () => {
+    expect(readCardView({ order: [] }, PROPERTIES, "p-status", project).rows["p-due"].place).toBe(
+      "headerR",
+    );
+    expect(ownCardView({ order: [] }, PROPERTIES)).toBeNull();
+    expect(ownCardView(null, PROPERTIES)).toBeNull();
+  });
+
+  it("can put the grouping property on a list, because the copy says so", () => {
+    const copy = { rows: { "p-status": { place: "footerL", mode: "text" } } };
+    const view = ownCardView(copy, PROPERTIES)!;
+    expect(view.rows["p-status"].place).toBe("footerL");
+    expect(listColumns(cardItems(view, PROPERTIES)).map((c) => c.id)).toContain("p-status");
+    /* The project's default leaves it off, because the columns say it. */
+    expect(readCardView(null, PROPERTIES, "p-status").rows["p-status"].place).toBe("off");
   });
 });
 
