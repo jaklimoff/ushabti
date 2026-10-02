@@ -165,6 +165,7 @@ function fill(count: number) {
         filters: { rules: [{ id: "r1", propertyId: STATUS, op: "is", values: [DOING] }] },
         sort: { columnId: "_title", direction: "asc" },
       },
+      cardView: { rows: { [STATUS]: { place: "footerL", mode: "text" } } },
     },
   ]);
   const taskRows = Array.from({ length: count }, (_, i) => ({
@@ -236,6 +237,12 @@ describe("the export", () => {
     });
     expect(file.views[0].filters.rules).toHaveLength(1);
     expect(file.views[0]).not.toHaveProperty("lens");
+  });
+
+  it("holds a view's own card view, read as the board reads it", async () => {
+    const file = await loadExport(PROJECT, AT);
+    expect(file.views[0].cardView?.rows[STATUS]).toEqual({ place: "footerL", mode: "text" });
+    expect(file.views[0].cardView?.rows._title).toEqual({ place: "title", mode: "fixed" });
   });
 
   it("holds the members and the invites", async () => {

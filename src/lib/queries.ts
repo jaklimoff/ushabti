@@ -22,7 +22,7 @@ import {
 } from "@/db/schema";
 import { readId } from "./api";
 import { HttpError } from "./auth";
-import { mainBoardGroupById, readCardView } from "./card-view";
+import { mainBoardGroupById, ownCardView, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters, WAITS } from "./filters";
@@ -256,6 +256,7 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unkn
     lens: readFilters(lens, propertyList),
     sort: readSort((row.config as { sort?: unknown } | null)?.sort, propertyList),
     lensSort: readLensSort(lens, propertyList),
+    cardView: ownCardView(row.cardView, propertyList),
   };
 }
 

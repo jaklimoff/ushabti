@@ -15,7 +15,7 @@ import {
   users,
   views,
 } from "@/db/schema";
-import { mainBoardGroupById, readCardView } from "./card-view";
+import { mainBoardGroupById, ownCardView, readCardView } from "./card-view";
 import { readTimeZone, todayIn } from "./day";
 import { readFilters } from "./filters";
 import { HttpError } from "./auth";
@@ -64,6 +64,8 @@ export type ProjectExport = {
     isDefault: boolean;
     filters: ViewFilters;
     sort: ViewSort | null;
+    /** The view's own card view, or null where it draws the project's. */
+    cardView: CardView | null;
   }[];
   members: {
     id: string;
@@ -279,6 +281,7 @@ export async function loadExport(
         isDefault: v.isDefault,
         filters: readFilters(config.filters, propertyList),
         sort: readSort(config.sort, propertyList),
+        cardView: ownCardView(v.cardView, propertyList),
       };
     }),
     members: memberRows.map((m) => ({

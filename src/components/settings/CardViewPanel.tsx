@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useBoard } from "@/components/board/store";
 import { TaskCard } from "@/components/board/TaskCard";
@@ -28,10 +29,18 @@ import {
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
-export function CardViewPanel() {
-  const { data, cardItems, setCardView, resetCardView } = useBoard();
+/**
+ * The editor for the project's card view, or for one view's own copy when it
+ * is given a view. It is the same editor either way, so a view's card cannot
+ * be arranged in a way the project's cannot. The first change to a view that
+ * has no copy writes one, made from the card it was drawing.
+ */
+export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
+  const { data, cardItemsOf, setCardView, resetCardView } = useBoard();
   const [open, setOpen] = useState<string | null>(null);
   const confirm = useConfirm();
+  const target = viewId ? (data.views.find((v) => v.id === viewId) ?? null) : null;
+  const cardItems = useMemo(() => cardItemsOf(viewId), [cardItemsOf, viewId]);
 
   /* The card view is everybody's, so a reset names what it moves: the rows
      whose place or reading differ from the default. The default is the one the
@@ -54,12 +63,35 @@ export function CardViewPanel() {
   const shown = cardItems.filter((i) => i.place !== "off").length;
   const edge = cardItems.find((i) => i.place === "edge") ?? null;
 
+  if (viewId && !target) {
+    return (
+      <>
+        <PageHead title="Card view" note="This view is gone." />
+        <Link href={`/p/${data.project.id}/settings/views`}>Back to the views</Link>
+      </>
+    );
+  }
+
+  const own = target?.cardView != null;
+  const shape = target?.kind === "list" ? "row of this list" : "card of this board";
+
   return (
     <>
-      <PageHead
-        title="Card view"
-        note="What a card on the board carries. Open a row to say how it reads and where it sits. Rows sharing a place follow the order of the properties — drag them in Properties to change it."
-      />
+      {target ? (
+        <PageHead
+          title={`Card view of ${target.name}`}
+          note={
+            own
+              ? `What a ${shape} carries. This view keeps a copy of its own, so a change to the project's card view does not reach it.`
+              : `What a ${shape} carries. It draws the project's card view now; your first change here gives this view a copy of its own.`
+          }
+        />
+      ) : (
+        <PageHead
+          title="Card view"
+          note="What a card on the board carries. Open a row to say how it reads and where it sits. Rows sharing a place follow the order of the properties — drag them in Properties to change it."
+        />
+      )}
 
       <div className={styles.cardLayout}>
         <Card>
@@ -77,31 +109,49 @@ export function CardViewPanel() {
               open={open === item.id}
               onToggle={() => setOpen((current) => (current === item.id ? null : item.id))}
               onClose={() => setOpen(null)}
-              onPlace={(place) => void setCardView(setCardPlace(view, item.id, place))}
-              onMode={(mode) => void setCardView(setCardMode(view, item.id, mode))}
+              onPlace={(place) => void setCardView(setCardPlace(view, item.id, place), viewId)}
+              onMode={(mode) => void setCardView(setCardMode(view, item.id, mode), viewId)}
             />
           ))}
 
           {confirm.asking ? (
             <ConfirmRow
-              question={`Reset the card view for everyone? ${changed} ${changed === 1 ? "row goes" : "rows go"} back to the default.`}
-              confirmLabel="Yes, reset"
-              onConfirm={() => confirm.confirm(() => void resetCardView())}
+              question={
+                target
+                  ? `Use the default for ${target.name}? Its own card view goes, and it draws the project's again.`
+                  : `Reset the card view for everyone? ${changed} ${changed === 1 ? "row goes" : "rows go"} back to the default.`
+              }
+              confirmLabel={target ? "Yes, use the default" : "Yes, reset"}
+              onConfirm={() => confirm.confirm(() => void resetCardView(viewId))}
               onCancel={confirm.cancel}
             />
           ) : (
             <Foot>
-              <Button
-                variant="ghost"
-                disabled={changed === 0}
-                title={changed === 0 ? "The card view is already the default" : undefined}
-                onClick={() => {
-                  setOpen(null);
-                  confirm.ask();
-                }}
-              >
-                Reset to default
-              </Button>
+              {target ? (
+                own && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setOpen(null);
+                      confirm.ask();
+                    }}
+                  >
+                    Use the default
+                  </Button>
+                )
+              ) : (
+                <Button
+                  variant="ghost"
+                  disabled={changed === 0}
+                  title={changed === 0 ? "The card view is already the default" : undefined}
+                  onClick={() => {
+                    setOpen(null);
+                    confirm.ask();
+                  }}
+                >
+                  Reset to default
+                </Button>
+              )}
               <span style={{ flex: 1 }} />
               <Note>
                 {shown} of {cardItems.length} on the card
@@ -110,7 +160,7 @@ export function CardViewPanel() {
           )}
         </Card>
 
-        <Preview />
+        <Preview items={cardItems} />
       </div>
     </>
   );
@@ -303,7 +353,7 @@ function PlaceGrid({
  * reads. A preview that draws itself would drift from the board within a
  * release; this one cannot.
  */
-function Preview() {
+function Preview({ items }: { items: CardItem[] }) {
   const { data } = useBoard();
   const tasks = useMemo(
     () => previewTasks(data.tasks, data.properties, data.members, data.project.key),
@@ -318,7 +368,7 @@ function Preview() {
       </div>
       <div className={styles.previewCards}>
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} />
+          <TaskCard key={task.id} task={task} items={items} />
         ))}
       </div>
       <Note>
