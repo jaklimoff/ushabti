@@ -145,3 +145,22 @@ describe("the grid template", () => {
     expect(template.split(" ").filter((t) => t === "1fr")).toHaveLength(1);
   });
 });
+
+describe("a Link column", () => {
+  it("has a width of its own", () => {
+    const prs: PropertyDTO = {
+      id: "p-prs",
+      name: "Pull requests",
+      type: "link",
+      position: "z",
+      config: {},
+      options: [],
+    };
+    const items = cardItems(
+      readCardView({ rows: { "p-prs": { place: "footerL", mode: "text" } } }, [prs], null),
+      [prs],
+    );
+    const column = listColumns(items).find((c) => c.item.id === "p-prs");
+    expect(column?.width).toBe(168);
+  });
+});

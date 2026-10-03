@@ -1,4 +1,5 @@
 import { formatDate } from "./board";
+import { linkLabel, linksOf } from "./web-links";
 import {
   CARD_BUILTIN_NAME,
   CARD_BUILTINS,
@@ -40,6 +41,7 @@ export const KIND_OF_TYPE: Record<PropertyType, CardKind> = {
   checkbox: "flag",
   text: "text",
   number: "text",
+  link: "link",
 };
 
 export const KIND_OF_BUILTIN: Record<CardBuiltin, CardKind> = {
@@ -79,6 +81,10 @@ export const MODES_FOR_KIND: Record<CardKind, { id: CardMode; label: string }[]>
     { id: "boxed", label: "Boxed" },
   ],
   text: [
+    { id: "text", label: "Plain" },
+    { id: "boxed", label: "Boxed" },
+  ],
+  link: [
     { id: "text", label: "Plain" },
     { id: "boxed", label: "Boxed" },
   ],
@@ -134,6 +140,10 @@ export function fallbackRow(kind: CardKind): CardRow {
       return { place: "footerL", mode: "text" };
     case "person":
       return { place: "headerR", mode: "avatar" };
+    /* A link is something a person opens the task for. The card stays quiet
+       until somebody asks it to say one. */
+    case "link":
+      return { place: "off", mode: "text" };
     default:
       return { place: "footerL", mode: firstMode(kind) };
   }
@@ -570,6 +580,21 @@ function chipsFor(item: CardItem, task: TaskDTO, members: MemberDTO[]): CardChip
       return [chip(item, `${item.id}-${task.id}`, item.name, { text: item.name, boxed })];
     }
 
+    case "link": {
+      /* One chip and a count, never one chip per link: ten pull requests on a
+         card would be the whole card. The chip is words and not a link, so a
+         click on it still opens the task. */
+      const labels = linksOf(value).map(linkLabel);
+      if (!labels.length) return [];
+      const more = labels.length > 1 ? ` +${labels.length - 1}` : "";
+      return [
+        chip(item, `${item.id}-${task.id}`, labels.join(", "), {
+          text: `${labels[0]}${more}`,
+          boxed,
+        }),
+      ];
+    }
+
     default: {
       const text = String(value).slice(0, 40);
       return [chip(item, `${item.id}-${task.id}`, text, { text, boxed })];
@@ -744,6 +769,9 @@ export function sampleTask(properties: PropertyDTO[], members: MemberDTO[], key:
         break;
       case "checkbox":
         values[property.id] = true;
+        break;
+      case "link":
+        values[property.id] = ["https://github.com/acme/shop/pull/12"];
         break;
       default:
         values[property.id] = "Some text";

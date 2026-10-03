@@ -72,8 +72,8 @@ Board  ·  Phases  ·  By assignee            ← views you create
       ↑ columns are the options of the grouping property
 ```
 
-- **Custom properties.** Select, multi-select, person, text, number, date and
-  checkbox. Create, rename, recolour, reorder and delete any of them, including
+- **Custom properties.** Select, multi-select, person, text, number, date,
+  checkbox and link. Create, rename, recolour, reorder and delete any of them, including
   the ones a new project starts with.
 - **Views.** Each view is a board grouped by one select, person or checkbox
   property. Add as many as you like.

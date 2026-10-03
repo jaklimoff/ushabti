@@ -6,6 +6,7 @@ export const PROPERTY_TYPES = [
   "number",
   "date",
   "checkbox",
+  "link",
 ] as const;
 
 export type PropertyType = (typeof PROPERTY_TYPES)[number];
@@ -18,6 +19,7 @@ export const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
   number: "Number",
   date: "Date",
   checkbox: "Checkbox",
+  link: "Link",
 };
 
 export const PROPERTY_TYPE_HINT: Record<PropertyType, string> = {
@@ -28,6 +30,7 @@ export const PROPERTY_TYPE_HINT: Record<PropertyType, string> = {
   number: "A number.",
   date: "A calendar date.",
   checkbox: "On or off.",
+  link: "Web addresses, such as a pull request.",
 };
 
 /** Only these types can become the columns of a board. */
@@ -243,6 +246,7 @@ export const CARD_KINDS = [
   "date",
   "flag",
   "text",
+  "link",
 ] as const;
 
 export type CardKind = (typeof CARD_KINDS)[number];

@@ -5,6 +5,7 @@ import { projectMembers, properties, propertyOptions, taskValues } from "@/db/sc
 import { readId } from "./api";
 import { HttpError } from "./auth";
 import type { PropertyType, TaskValue } from "./types";
+import { LinkError, readLinks } from "./web-links";
 
 export type PropertyRow = {
   id: string;
@@ -32,7 +33,7 @@ export async function loadProperty(propertyId: string): Promise<PropertyRow> {
 /** Checks a raw value against the property type and returns what to store. */
 export async function coerceValue(prop: PropertyRow, raw: unknown): Promise<TaskValue> {
   if (raw === null || raw === undefined || raw === "") {
-    return prop.type === "multi_select" ? [] : null;
+    return prop.type === "multi_select" || prop.type === "link" ? [] : null;
   }
 
   switch (prop.type) {
@@ -73,6 +74,14 @@ export async function coerceValue(prop: PropertyRow, raw: unknown): Promise<Task
     case "text": {
       if (typeof raw !== "string") throw new HttpError(400, `${prop.name} needs text.`);
       return raw.slice(0, 2000);
+    }
+    case "link": {
+      try {
+        return readLinks(raw);
+      } catch (error) {
+        if (error instanceof LinkError) throw new HttpError(400, `${prop.name} ${error.message}`);
+        throw error;
+      }
     }
     default:
       throw new HttpError(400, "Unknown property type.");
@@ -115,5 +124,11 @@ export async function describeValue(prop: PropertyRow, value: TaskValue): Promis
     return ids.map((id) => byId.get(id) ?? "?").join(", ");
   }
   if (prop.type === "checkbox") return value ? "on" : "off";
+  /* How many, never the addresses: the feed is read by everybody, and a list
+     of URLs in one line reads as noise. */
+  if (prop.type === "link") {
+    const count = Array.isArray(value) ? value.length : 1;
+    return count === 1 ? "1 link" : `${count} links`;
+  }
   return String(value);
 }

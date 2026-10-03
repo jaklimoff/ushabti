@@ -15,6 +15,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   project's card view and follows it. **Use the default** throws the copy away. A list's columns
   are its card view, so a list can now show the property a board groups by without putting it on
   every card.
+- **A task can hold links, such as its pull requests.** A new property type, **Link**, holds up to
+  20 web addresses. A pull request, an issue or a merge request reads as `owner/repo#N` on any
+  host. In the panel each link opens in a new tab; paste one into the box to add it. A filter finds
+  a link by its words, a sort orders by the first link, and a new Link property starts off the
+  card. An agent writes them with `board.mjs set` and adds one with `--add`.
 
 ## 0.15.0 — 2026-10-01
 

@@ -537,3 +537,65 @@ describe("mainBoardGroupById", () => {
     expect(mainBoardGroupById([])).toBeNull();
   });
 });
+
+describe("a Link property", () => {
+  const PRS: PropertyDTO = {
+    id: "p-prs",
+    name: "Pull requests",
+    type: "link",
+    position: "z",
+    config: {},
+    options: [],
+  };
+  const WITH = [...PROPERTIES, PRS];
+  const PR = "https://github.com/acme/shop/pull/12";
+  const linkItems = (saved: unknown) => cardItems(readCardView(saved, WITH, "p-status"), WITH);
+
+  it("starts off the card", () => {
+    expect(defaultCardView(WITH, "p-status").rows["p-prs"]).toEqual({ place: "off", mode: "text" });
+    /* A card arranged before the property came still leaves it off. */
+    const arranged = { rows: { _key: { place: "headerL", mode: "text" } } };
+    expect(readCardView(arranged, WITH, "p-status").rows["p-prs"].place).toBe("off");
+    const card = buildCard(linkItems(arranged), task({ "p-prs": [PR] }), [ADA]);
+    expect(card.footerL.concat(card.headerL, card.headerR, card.footerR)).toHaveLength(1);
+  });
+
+  it("offers Plain and Boxed", () => {
+    const saved = { rows: { "p-prs": { place: "footerR", mode: "colour" } } };
+    /* A mode the kind cannot read becomes the first one it can. */
+    expect(readCardView(saved, WITH, "p-status").rows["p-prs"]).toEqual({
+      place: "footerR",
+      mode: "text",
+    });
+    const boxed = { rows: { "p-prs": { place: "footerR", mode: "boxed" } } };
+    expect(readCardView(boxed, WITH, "p-status").rows["p-prs"].mode).toBe("boxed");
+  });
+
+  it("shows the first link and +N on the card, as words and not a link", () => {
+    const saved = { rows: { "p-prs": { place: "footerR", mode: "text" } } };
+    const one = buildCard(linkItems(saved), task({ "p-prs": [PR] }), [ADA]);
+    expect(one.footerR.map((c) => c.text)).toEqual(["acme/shop#12"]);
+
+    const three = buildCard(
+      linkItems(saved),
+      task({ "p-prs": [PR, "https://github.com/acme/shop/issues/3", "https://example.org/x"] }),
+      [ADA],
+    );
+    expect(three.footerR.map((c) => c.text)).toEqual(["acme/shop#12 +2"]);
+    expect(three.footerR[0].tip).toBe("Pull requests · acme/shop#12, acme/shop#3, example.org/x");
+  });
+
+  it("draws nothing for an empty list", () => {
+    const saved = { rows: { "p-prs": { place: "footerR", mode: "text" } } };
+    expect(buildCard(linkItems(saved), task({ "p-prs": [] }), [ADA]).footerR).toEqual([]);
+  });
+
+  it("reads in a list with the same words as on the card", () => {
+    const saved = { rows: { "p-prs": { place: "footerR", mode: "boxed" } } };
+    const value = { "p-prs": [PR, "https://example.org/x"] };
+    const row = buildRow(linkItems(saved), task(value), [ADA]);
+    const card = buildCard(linkItems(saved), task(value), [ADA]);
+    expect(row.cells["p-prs"].map((c) => c.text)).toEqual(["acme/shop#12 +1"]);
+    expect(row.cells["p-prs"]).toEqual(card.footerR);
+  });
+});

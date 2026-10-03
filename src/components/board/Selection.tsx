@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { canSetOnMany } from "@/lib/bulk";
 import type { TaskValue } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
@@ -75,6 +76,7 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
   const rows: Row[] = useMemo(() => {
     const wanted = query.trim().toLowerCase();
     return data.properties
+      .filter((p) => canSetOnMany(p.type))
       .filter((p) => !wanted || p.name.toLowerCase().includes(wanted))
       .map((p) => ({ id: p.id, name: p.name, color: propertyColor(p) }));
   }, [data.properties, query]);

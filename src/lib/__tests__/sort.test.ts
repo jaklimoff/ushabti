@@ -431,3 +431,41 @@ describe("what a sort does to a board", () => {
     expect(BOARD.map((t) => t.position)).toEqual(["a", "b", "c", "d", "e"]);
   });
 });
+
+describe("a sort by a Link property", () => {
+  const PRS: PropertyDTO = {
+    id: "p-prs",
+    name: "Pull requests",
+    type: "link",
+    position: "z",
+    config: {},
+    options: [],
+  };
+  const WITH = [...PROPERTIES, PRS];
+  const LINK_ITEMS = cardItems(
+    readCardView({ rows: { "p-prs": { place: "footerL", mode: "text" } } }, WITH, null),
+    WITH,
+  );
+  const by = (tasks: TaskDTO[], direction: "asc" | "desc") =>
+    sortTasks(tasks, { columnId: "p-prs", direction }, LINK_ITEMS, MEMBERS).map((t) => t.id);
+
+  it("uses the words of the first link, and puts empty last both ways", () => {
+    const tasks = [
+      task("a", { "p-prs": ["https://github.com/zeta/app/pull/1"] }),
+      task("b", { "p-prs": [] }),
+      task("c", {
+        "p-prs": ["https://github.com/acme/shop/pull/9", "https://github.com/zeta/app/pull/2"],
+      }),
+      task("d"),
+      task("e", { "p-prs": ["https://example.org/notes"] }),
+    ];
+    expect(by(tasks, "asc")).toEqual(["c", "e", "a", "b", "d"]);
+    expect(by(tasks, "desc")).toEqual(["a", "e", "c", "b", "d"]);
+  });
+
+  it("names its order as words do", () => {
+    const item = LINK_ITEMS.find((i) => i.id === "p-prs")!;
+    expect(sortWay(item, "asc")).toBe("A→Z");
+    expect(canSort(item)).toBe(true);
+  });
+});

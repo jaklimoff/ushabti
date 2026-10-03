@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canSetOnMany,
   BULK_LIMIT,
   onBoardSaid,
   readArchiveAsk,
@@ -193,5 +194,22 @@ describe("readArchiveAsk", () => {
       said: `That is more than ${BULK_LIMIT} tasks at once. Name fewer.`,
     });
     expect(readArchiveAsk({ taskIds: many(BULK_LIMIT) }).ok).toBe(true);
+  });
+});
+
+describe("canSetOnMany", () => {
+  it("leaves a Link out of Set…, so one link never replaces every list picked", () => {
+    expect(canSetOnMany("link")).toBe(false);
+    for (const type of [
+      "select",
+      "multi_select",
+      "person",
+      "text",
+      "number",
+      "date",
+      "checkbox",
+    ] as const) {
+      expect(canSetOnMany(type)).toBe(true);
+    }
   });
 });

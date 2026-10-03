@@ -22,11 +22,11 @@ import { Aside, Badge } from '@astrojs/starlight/components'
 | Field | Rules |
 | --- | --- |
 | `name` | required, ≤ 40 characters |
-| `type` | required — `select`, `multi_select`, `person`, `text`, `number`, `date`, `checkbox` |
+| `type` | required — `select`, `multi_select`, `person`, `text`, `number`, `date`, `checkbox`, `link` |
 | `options` | only read for `select` and `multi_select`; blanks dropped, then capped at 40. Two names that differ only in letter case or spaces answer `400 Environment already has an option named local.` and make nothing |
 
 Option colours cycle through the palette. The property is appended last, and joins every card in the
-footer, where its type belongs.
+footer, where its type belongs — except a `link`, which starts off the card.
 
 ```json title="201"
 { "property": { "id": "…", "projectId": "…", "name": "Environment", "type": "select",
@@ -34,7 +34,7 @@ footer, where its type belongs.
                 "options": [{ "id": "…", "name": "local", "color": "#e0574d", "position": "V" }] } }
 ```
 
-`400 That property type does not exist.` for anything outside the seven.
+`400 That property type does not exist.` for anything outside the eight.
 
 ### `PATCH /api/properties/{propertyId}`
 
@@ -256,7 +256,7 @@ without anybody writing it, which is why this door says it again and writes noth
 The one validator, shared by the values `PUT`, the task-create `values` bag and the move `values` bag.
 
 **Clearing comes first and applies to every type.** `null`, an omitted key, or `""` stores `null` —
-or `[]` for a multi-select.
+or `[]` for a multi-select and a link.
 
 | Type | Send | Stored as | Refused with |
 | --- | --- | --- | --- |
@@ -267,6 +267,7 @@ or `[]` for a multi-select.
 | `number` | a number, or anything `Number()` can make finite — `"42"` works | a number | `Estimate needs a number.` |
 | `date` | `YYYY-MM-DD`, no time and no timezone | the string | `Due needs a date like 2026-08-21.` |
 | `checkbox` | `true`, or the string `"true"` | `true` / `false` — **never refused** | — |
+| `link` | an array of `http` / `https` URLs, ≤ 20, each ≤ 2000 characters; one string is a list of one | the array as given, blanks dropped; a URL that differs from an earlier one only by its `#fragment` or a trailing `/` is dropped | `PRs takes only http and https links.` · `PRs holds at most 20 links.` · `PRs takes links of at most 2000 characters.` · `PRs needs a list of links.` |
 
 <Aside type="note" title="The date is not calendar-checked">
 It is matched against the pattern and stored. `2026-13-45` passes. Comparisons everywhere are plain
@@ -295,6 +296,7 @@ A rule never carries both `values` and `text`.
 | `select` · `multi_select` · `person` | `is` · `is_not` |
 | `checkbox` | `is` |
 | `text` | `contains` · `not_contains` · `empty` · `not_empty` |
+| `link` | `contains` · `not_contains` · `empty` · `not_empty` — `contains` matches any URL of the list |
 | `number` | `eq` · `gt` · `lt` · `empty` · `not_empty` |
 | `date` | `on` · `before` · `after` · `empty` · `not_empty` |
 
