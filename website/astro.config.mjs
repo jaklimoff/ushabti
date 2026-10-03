@@ -119,6 +119,7 @@ export default defineConfig({
             { label: "Pause, stop, take over", link: "/agents/control/" },
             { label: "A worked example", link: "/agents/example/" },
             { label: "The Claude Code skill", link: "/agents/skill/" },
+            { label: "Pull requests from GitHub", link: "/agents/github/" },
           ],
         },
         {

@@ -1,0 +1,141 @@
+---
+title: Pull requests from GitHub
+description: One GitHub Actions workflow puts the link of a pull request on each task it names. No GitHub code runs in Ushabti.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components'
+
+A pull request that names a task in its title or its branch puts its link on that task. You copy
+one workflow into your repository. It runs on GitHub, and it writes through the API with an agent
+token, as any agent does. The activity of the task names that agent as the one who added the link.
+
+## What it needs
+
+- **A board that the GitHub runner can reach.** The runner calls your board over the internet.
+  A board behind a firewall or on `localhost` does not work with GitHub's hosted runners. Use a
+  self-hosted runner inside your network for such a board.
+- **An agent token.** In **Settings → People → Agents**, add an agent, for example `GitHub`, and
+  press **Connect**. The token opens this one project.
+- **A Link property on the board**, called `Pull requests`. Another name works: set it in the
+  variable `USHABTI_LINK_PROPERTY`.
+
+## Set it up
+
+<Steps>
+
+1. In your repository on GitHub, open **Settings → Secrets and variables → Actions**.
+
+2. On the **Secrets** tab, add `USHABTI_TOKEN` with the agent token.
+
+3. On the **Variables** tab, add `USHABTI_URL`, the address of your board, such as
+   `https://board.example.com`, and `USHABTI_PROJECT_KEY`, the key in front of your task
+   numbers, such as `USH`.
+
+4. Copy the workflow below to `.github/workflows/ushabti-links.yml` and push it.
+
+</Steps>
+
+## The workflow
+
+```yaml title=".github/workflows/ushabti-links.yml"
+# Puts the link of a pull request on the Ushabti tasks it names.
+# Copy this file to .github/workflows/ushabti-links.yml in your repository.
+#
+# Repository variables: USHABTI_URL, the address of the board, and
+# USHABTI_PROJECT_KEY, such as USH. USHABTI_LINK_PROPERTY only if your Link
+# property is not called "Pull requests".
+# Repository secret: USHABTI_TOKEN, an agent token from Settings -> People.
+name: Ushabti links
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+permissions: {}
+
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add the pull request to its tasks
+        env:
+          USHABTI_URL: ${{ vars.USHABTI_URL }}
+          USHABTI_TOKEN: ${{ secrets.USHABTI_TOKEN }}
+          PROJECT_KEY: ${{ vars.USHABTI_PROJECT_KEY }}
+          LINK_PROPERTY: ${{ vars.USHABTI_LINK_PROPERTY || 'Pull requests' }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          # A fixed commit, so a change upstream never changes this step.
+          BOARD_MJS: https://raw.githubusercontent.com/jaklimoff/ushabti/519fef8ed92490560f1fb7e3c2560676ce39ef7a/examples/skill/ushabti/board.mjs
+        run: |
+          if [ -z "$USHABTI_TOKEN" ]; then
+            echo "No USHABTI_TOKEN secret. A pull request from a fork gets none. Nothing written."
+            exit 0
+          fi
+          if [ -z "$USHABTI_URL" ] || [ -z "$PROJECT_KEY" ]; then
+            echo "Set the repository variables USHABTI_URL and USHABTI_PROJECT_KEY."
+            exit 1
+          fi
+          curl -fsSL "$BOARD_MJS" -o board.mjs
+          # A board that does not answer, or a token it refuses, fails the job.
+          # Otherwise the links stop and nothing says so.
+          if ! node board.mjs me; then
+            echo "The board at $USHABTI_URL did not take the token. Nothing written."
+            exit 1
+          fi
+          # The title and the branch only: a body says "see USH-12" as often as "does USH-12".
+          # A key is a word of its own, so USH-123 is never USH-12. A branch joins its
+          # words with "-", so feature-ush-12-cart names USH-12.
+          keys=$(node -e '
+            const pattern = new RegExp(`(?<!\\w)${process.env.PROJECT_KEY}-\\d+(?!\\w)`, "gi");
+            const text = `${process.env.PR_TITLE}\n${process.env.PR_BRANCH}`;
+            const found = (text.match(pattern) ?? []).map((key) => key.toUpperCase());
+            console.log([...new Set(found)].join("\n"));
+          ')
+          if [ -z "$keys" ]; then
+            echo "No $PROJECT_KEY key in the title or the branch. Nothing written."
+            exit 0
+          fi
+          # A key with no task, an archived task, or a board with no Link property, is a line in the log.
+          # Anything else the board answers fails the job, after every key is tried.
+          failed=""
+          for key in $keys; do
+            if out=$(node board.mjs set "$key" "$LINK_PROPERTY" --add "$PR_URL" 2>&1); then
+              echo "$out"
+              continue
+            fi
+            echo "$out"
+            case "$out" in
+              "No task "* | *" is archived. "* | "No property called "* | "--add is for a Link property."*)
+                echo "$key: the link was not added. The line above says why." ;;
+              *)
+                echo "$key: the board did not take the link."
+                failed=1 ;;
+            esac
+          done
+          [ -z "$failed" ]
+```
+
+## What it does
+
+- It runs when a pull request is opened, reopened, or edited. Change the title to name another
+  task, and the link goes on that task too. The link stays on the task the title named before.
+- It finds keys in the **title** and the **branch name** only, in any letter case. It does not read
+  the body, because "see USH-12" is not "does USH-12".
+- A key is a word of its own: `USH-123` is never `USH-12`, and `xUSH-12` is no key. A branch
+  joins its words with `-`, so `feature-ush-12-cart` names USH-12.
+- For each key it runs `board.mjs set KEY "Pull requests" --add <url>`. The board keeps a link one
+  time, so the same pull request sent again changes nothing.
+- A key that names no task or an archived task, or a board with no Link property of that name, writes one line in the
+  job log. The job does not fail, and the next key is still written.
+- A board that does not answer, a token it refuses, a write it refuses, or a variable that is not
+  set fails the job, so links never stop with no sign. The other keys are still written first.
+- `board.mjs` comes from a fixed commit of Ushabti, so a change upstream never changes your step.
+
+<Aside type="caution" title="A pull request from a fork">
+  GitHub gives no secrets to a workflow that a fork's pull request starts. The step then writes a
+  line and does nothing. Paste the link of such a pull request on the task by hand.
+</Aside>

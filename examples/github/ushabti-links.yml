@@ -1,0 +1,77 @@
+# Puts the link of a pull request on the Ushabti tasks it names.
+# Copy this file to .github/workflows/ushabti-links.yml in your repository.
+#
+# Repository variables: USHABTI_URL, the address of the board, and
+# USHABTI_PROJECT_KEY, such as USH. USHABTI_LINK_PROPERTY only if your Link
+# property is not called "Pull requests".
+# Repository secret: USHABTI_TOKEN, an agent token from Settings -> People.
+name: Ushabti links
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+permissions: {}
+
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add the pull request to its tasks
+        env:
+          USHABTI_URL: ${{ vars.USHABTI_URL }}
+          USHABTI_TOKEN: ${{ secrets.USHABTI_TOKEN }}
+          PROJECT_KEY: ${{ vars.USHABTI_PROJECT_KEY }}
+          LINK_PROPERTY: ${{ vars.USHABTI_LINK_PROPERTY || 'Pull requests' }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          # A fixed commit, so a change upstream never changes this step.
+          BOARD_MJS: https://raw.githubusercontent.com/jaklimoff/ushabti/519fef8ed92490560f1fb7e3c2560676ce39ef7a/examples/skill/ushabti/board.mjs
+        run: |
+          if [ -z "$USHABTI_TOKEN" ]; then
+            echo "No USHABTI_TOKEN secret. A pull request from a fork gets none. Nothing written."
+            exit 0
+          fi
+          if [ -z "$USHABTI_URL" ] || [ -z "$PROJECT_KEY" ]; then
+            echo "Set the repository variables USHABTI_URL and USHABTI_PROJECT_KEY."
+            exit 1
+          fi
+          curl -fsSL "$BOARD_MJS" -o board.mjs
+          # A board that does not answer, or a token it refuses, fails the job.
+          # Otherwise the links stop and nothing says so.
+          if ! node board.mjs me; then
+            echo "The board at $USHABTI_URL did not take the token. Nothing written."
+            exit 1
+          fi
+          # The title and the branch only: a body says "see USH-12" as often as "does USH-12".
+          # A key is a word of its own, so USH-123 is never USH-12. A branch joins its
+          # words with "-", so feature-ush-12-cart names USH-12.
+          keys=$(node -e '
+            const pattern = new RegExp(`(?<!\\w)${process.env.PROJECT_KEY}-\\d+(?!\\w)`, "gi");
+            const text = `${process.env.PR_TITLE}\n${process.env.PR_BRANCH}`;
+            const found = (text.match(pattern) ?? []).map((key) => key.toUpperCase());
+            console.log([...new Set(found)].join("\n"));
+          ')
+          if [ -z "$keys" ]; then
+            echo "No $PROJECT_KEY key in the title or the branch. Nothing written."
+            exit 0
+          fi
+          # A key with no task, an archived task, or a board with no Link property, is a line in the log.
+          # Anything else the board answers fails the job, after every key is tried.
+          failed=""
+          for key in $keys; do
+            if out=$(node board.mjs set "$key" "$LINK_PROPERTY" --add "$PR_URL" 2>&1); then
+              echo "$out"
+              continue
+            fi
+            echo "$out"
+            case "$out" in
+              "No task "* | *" is archived. "* | "No property called "* | "--add is for a Link property."*)
+                echo "$key: the link was not added. The line above says why." ;;
+              *)
+                echo "$key: the board did not take the link."
+                failed=1 ;;
+            esac
+          done
+          [ -z "$failed" ]
