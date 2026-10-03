@@ -283,7 +283,10 @@ type Store = {
   moveOption: (optionId: string, overId: string) => Promise<void>;
   deleteOption: (optionId: string) => Promise<void>;
   addProperty: (name: string, type: PropertyType, options?: string[]) => Promise<void>;
-  patchProperty: (propertyId: string, patch: { name?: string; dated?: boolean }) => Promise<void>;
+  patchProperty: (
+    propertyId: string,
+    patch: { name?: string; dated?: boolean; cadence?: { length?: number; ahead?: number } },
+  ) => Promise<void>;
   /**
    * Puts one property where another one sits. A drag names the property it
    * landed on, not a rank, and the neighbour is worked out by the same
@@ -1515,6 +1518,9 @@ export function BoardProvider({
                 ...(patch.name ? { name: patch.name } : {}),
                 ...(patch.dated !== undefined
                   ? { config: { ...p.config, dated: patch.dated } }
+                  : {}),
+                ...(patch.cadence
+                  ? { config: { ...p.config, cadence: { ...p.config.cadence, ...patch.cadence } } }
                   : {}),
               }
             : p,

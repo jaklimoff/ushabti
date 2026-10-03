@@ -21,6 +21,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   them behind one row that says how many, where Unship still works. A shipped version of a dated
   select stays where it is.
 
+- **An iteration has a cadence that makes the next sprint.** **Set up sprints** asks for the
+  length in days and the first day, and makes Sprint 1 and Sprint 2. When a sprint ships, the next
+  one is made, named and dated after the last, so **Move to the next option** always has
+  somewhere to go. Settings shows the length and how many sprints wait ahead. You can still make,
+  rename, date and delete a sprint by hand.
+
 - **A roadmap bar opens its tasks.** Press a bar, or focus it and press Enter or Space, and the
   panel shows the option's name, its dates, its note and its tasks in board order, through the
   view's filters. A shipped option lists its archived tasks too, marked **Archived**. Each row opens

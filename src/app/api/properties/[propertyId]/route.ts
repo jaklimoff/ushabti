@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { projects, properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { GROUPED_KINDS } from "@/lib/types";
+import { readCadenceInput } from "@/lib/cadence";
 import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
 import { fallbackRow, KIND_OF_TYPE, readCardView, setCardPlace } from "@/lib/card-view";
 import {
@@ -26,6 +27,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     name?: string;
     showOnCard?: boolean;
     dated?: boolean;
+    cadence?: { length?: unknown; ahead?: unknown };
     afterId?: string | null;
   }>(req);
   const patch: Record<string, unknown> = {};
@@ -47,6 +49,25 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       throw new HttpError(400, "Only the options of a select can carry dates.");
     }
     patch.config = sql`${properties.config} || ${JSON.stringify({ dated: input.dated })}::jsonb`;
+  }
+
+  /* The cadence is the shape of an iteration, so it is an admin's too. Each
+     half is merged into what is saved, so a blur on the length keeps the
+     ahead another tab wrote. */
+  if (input.cadence !== undefined) {
+    adminOnly(user, membership, "change the cadence");
+    if (!input.cadence || typeof input.cadence !== "object") {
+      throw new HttpError(400, "The cadence must be an object with length and ahead.");
+    }
+    const read = readCadenceInput(input.cadence);
+    if ("error" in read) throw new HttpError(400, read.error);
+    const [row] = await db
+      .select({ type: properties.type })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+    if (row?.type !== "iteration") throw new HttpError(400, "Only an iteration has a cadence.");
+    patch.config = sql`${properties.config} || jsonb_build_object('cadence',
+      coalesce(${properties.config} -> 'cadence', '{}'::jsonb) || ${JSON.stringify(read.patch)}::jsonb)`;
   }
 
   /* Where a property sits on a card belongs to the card view, so this writes
