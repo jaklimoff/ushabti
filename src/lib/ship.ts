@@ -1,4 +1,5 @@
 import { isOver, type DoneWhen, type OverTask } from "./links";
+import { isOpenOption } from "./option-dates";
 
 /**
  * Shipping one column: the tasks that are over leave the board, the rest go
@@ -40,6 +41,19 @@ export function readShipRest(input: { rest?: unknown }): { rest: ShipRest } | { 
 export function nextOptionOf<T extends { id: string }>(options: T[], optionId: string): T | null {
   const at = options.findIndex((o) => o.id === optionId);
   return at >= 0 ? (options[at + 1] ?? null) : null;
+}
+
+/**
+ * Where Move sends the rest: the next option that is still open. A shipped
+ * sprint has no column, so work moved into it would leave the board.
+ */
+export function nextOpenOption<T extends { id: string; shippedAt: string | null }>(
+  property: { type: string },
+  options: T[],
+  optionId: string,
+): T | null {
+  const open = options.filter((o) => o.id === optionId || isOpenOption(property, o));
+  return nextOptionOf(open, optionId);
 }
 
 /** The answers a column can offer: "next" only when there is a next option. */

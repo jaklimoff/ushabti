@@ -26,6 +26,40 @@ export function carriesDates(property: {
   return property.type === "select" && property.config?.dated === true;
 }
 
+/**
+ * True when an option is offered on a screen: a column, a row of a picker, a
+ * row of Settings. A shipped iteration is not, because fifty old sprints must
+ * not stand between a team and this week's. A version that shipped stays: there
+ * are few, and people pick old ones on purpose. The value stays on the task, so
+ * a card and the roadmap still read every option.
+ */
+export function isOpenOption(
+  property: { type: string },
+  option: { shippedAt: string | null },
+): boolean {
+  return !(property.type === "iteration" && option.shippedAt);
+}
+
+/** The options a picker offers: the open ones, and the one the value holds. */
+export function pickableOptions<O extends { id: string; shippedAt: string | null }>(
+  property: { type: string; options: O[] },
+  value: unknown,
+): O[] {
+  const held = Array.isArray(value) ? value : [value];
+  return property.options.filter((o) => isOpenOption(property, o) || held.includes(o.id));
+}
+
+/** The open options and the shipped ones a fold keeps, each in their order. */
+export function splitShipped<O extends { shippedAt: string | null }>(property: {
+  type: string;
+  options: O[];
+}): { open: O[]; shipped: O[] } {
+  const open: O[] = [];
+  const shipped: O[] = [];
+  for (const o of property.options) (isOpenOption(property, o) ? open : shipped).push(o);
+  return { open, shipped };
+}
+
 const DATE_FIELDS = [
   ["startAt", "The start date"],
   ["targetAt", "The target date"],

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  nextOpenOption,
   nextOptionOf,
   readShipRest,
   shipDay,
@@ -42,6 +43,23 @@ describe("the next option", () => {
     expect(nextOptionOf(options, "v3")).toBeNull();
     expect(shipRestsFor(false)).toEqual(["leave", "clear"]);
     expect(shipRestsFor(true)).toEqual(["next", "leave", "clear"]);
+  });
+});
+
+describe("the next open option", () => {
+  const options = [
+    { id: "s1", shippedAt: null },
+    { id: "s2", shippedAt: "2026-09-01" },
+    { id: "s3", shippedAt: null },
+  ];
+
+  it("steps over a shipped sprint, which has no column to move into", () => {
+    expect(nextOpenOption({ type: "iteration" }, options, "s1")?.id).toBe("s3");
+    expect(nextOpenOption({ type: "iteration" }, options, "s3")).toBeNull();
+  });
+
+  it("keeps the next version of a dated select, shipped or not", () => {
+    expect(nextOpenOption({ type: "select" }, options, "s1")?.id).toBe("s2");
   });
 });
 
