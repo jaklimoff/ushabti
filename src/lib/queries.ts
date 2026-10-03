@@ -35,6 +35,7 @@ import { kickAskMail } from "./ask-sender";
 import { kickSender } from "./webhooks";
 import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
 import type {
+  PropertyOptionDTO,
   ActivityDTO,
   ActivityFeedEntryDTO,
   ArchivedTaskDTO,
@@ -278,6 +279,19 @@ export async function defaultGroupById(projectId: string, tx?: Tx): Promise<stri
   return mainBoardGroupById(rows);
 }
 
+/** What every read of an option selects, so the DTO is the same wherever it is sent. */
+export const optionColumns = {
+  id: propertyOptions.id,
+  propertyId: propertyOptions.propertyId,
+  name: propertyOptions.name,
+  color: propertyOptions.color,
+  position: propertyOptions.position,
+  startAt: propertyOptions.startAt,
+  targetAt: propertyOptions.targetAt,
+  shippedAt: propertyOptions.shippedAt,
+  note: propertyOptions.note,
+};
+
 /**
  * The properties of a project, with their options.
  *
@@ -295,13 +309,7 @@ export async function loadProperties(projectId: string, tx?: Tx): Promise<Proper
       .where(eq(properties.projectId, projectId))
       .orderBy(byPos(properties.position)),
     handle
-      .select({
-        id: propertyOptions.id,
-        propertyId: propertyOptions.propertyId,
-        name: propertyOptions.name,
-        color: propertyOptions.color,
-        position: propertyOptions.position,
-      })
+      .select(optionColumns)
       .from(propertyOptions)
       .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
       .where(eq(properties.projectId, projectId))
@@ -311,13 +319,26 @@ export async function loadProperties(projectId: string, tx?: Tx): Promise<Proper
 }
 
 type PropRow = typeof properties.$inferSelect;
-type OptRow = { id: string; propertyId: string; name: string; color: string; position: string };
+type OptRow = PropertyOptionDTO & { propertyId: string };
+
+export function toOptionDTO(o: Omit<OptRow, "propertyId">): PropertyOptionDTO {
+  return {
+    id: o.id,
+    name: o.name,
+    color: o.color,
+    position: o.position,
+    startAt: o.startAt,
+    targetAt: o.targetAt,
+    shippedAt: o.shippedAt,
+    note: o.note,
+  };
+}
 
 function withOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
   const optionsByProp = new Map<string, PropertyDTO["options"]>();
   for (const o of optRows) {
     const list = optionsByProp.get(o.propertyId) ?? [];
-    list.push({ id: o.id, name: o.name, color: o.color, position: o.position });
+    list.push(toOptionDTO(o));
     optionsByProp.set(o.propertyId, list);
   }
   return propRows.map((p) => ({
@@ -594,13 +615,7 @@ export async function loadBoard(
         .where(eq(properties.projectId, projectId))
         .orderBy(byPos(properties.position)),
       db
-        .select({
-          id: propertyOptions.id,
-          propertyId: propertyOptions.propertyId,
-          name: propertyOptions.name,
-          color: propertyOptions.color,
-          position: propertyOptions.position,
-        })
+        .select(optionColumns)
         .from(propertyOptions)
         .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
         .where(eq(properties.projectId, projectId))

@@ -7,6 +7,7 @@ import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from 
 import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
+import { datesClash, namesOptionDates, ONLY_SELECT, readOptionDates } from "@/lib/option-dates";
 
 type Ctx = { params: Promise<{ optionId: string }> };
 
@@ -16,8 +17,11 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   if (!owner) throw new HttpError(404, "Option not found.");
   await guard(owner.projectId);
 
-  const input = await body<{ name?: string; color?: string; afterId?: string | null }>(req);
+  const input = await body<Record<string, unknown> & { afterId?: string | null }>(req);
   const patch: Record<string, unknown> = {};
+  const dates = readOptionDates(input);
+  if ("error" in dates) throw new HttpError(400, dates.error);
+  Object.assign(patch, dates.patch);
 
   if (input.name !== undefined) patch.name = str(input.name, "Option name", { max: 40 });
   if (input.color !== undefined) {
@@ -42,6 +46,27 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
         and(eq(propertyOptions.propertyId, owner.propertyId), ne(propertyOptions.id, optionId)),
       )
       .orderBy(byPos(propertyOptions.position));
+
+    if (namesOptionDates(input)) {
+      const [own] = await tx
+        .select({
+          type: properties.type,
+          startAt: propertyOptions.startAt,
+          targetAt: propertyOptions.targetAt,
+        })
+        .from(propertyOptions)
+        .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
+        .where(eq(propertyOptions.id, optionId))
+        .limit(1);
+      if (!own) throw new HttpError(404, "Option not found.");
+      if (own.type !== "select") throw new HttpError(400, ONLY_SELECT);
+      // A target moved alone is read against the start already saved.
+      const clash = datesClash({
+        startAt: dates.patch.startAt !== undefined ? dates.patch.startAt : own.startAt,
+        targetAt: dates.patch.targetAt !== undefined ? dates.patch.targetAt : own.targetAt,
+      });
+      if (clash) throw new HttpError(400, clash);
+    }
 
     if (typeof patch.name === "string") {
       const taken = takenBy(siblings, patch.name);

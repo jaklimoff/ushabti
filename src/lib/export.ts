@@ -22,6 +22,7 @@ import { HttpError } from "./auth";
 import { readDoneWhen, type DoneWhen } from "./links";
 import { byPos } from "./order";
 import { readSort } from "./sort";
+import { optionColumns, toOptionDTO } from "./queries";
 import { VIEW_KINDS } from "./types";
 import type {
   CardView,
@@ -156,13 +157,7 @@ export async function loadExport(
       .where(eq(properties.projectId, projectId))
       .orderBy(byPos(properties.position)),
     db
-      .select({
-        id: propertyOptions.id,
-        propertyId: propertyOptions.propertyId,
-        name: propertyOptions.name,
-        color: propertyOptions.color,
-        position: propertyOptions.position,
-      })
+      .select(optionColumns)
       .from(propertyOptions)
       .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
       .where(eq(properties.projectId, projectId))
@@ -229,9 +224,7 @@ export async function loadExport(
     type: p.type as PropertyType,
     position: p.position,
     config: (p.config ?? {}) as PropertyDTO["config"],
-    options: optRows
-      .filter((o) => o.propertyId === p.id)
-      .map((o) => ({ id: o.id, name: o.name, color: o.color, position: o.position })),
+    options: optRows.filter((o) => o.propertyId === p.id).map(toOptionDTO),
   }));
 
   const key = (n: number) => `${projectRow.key}-${n}`;

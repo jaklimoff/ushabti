@@ -1,6 +1,7 @@
 import { desc, sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -179,6 +180,11 @@ export const propertyOptions = pgTable(
     name: text("name").notNull(),
     color: text("color").notNull(),
     position: text("position").notNull(),
+    // Only a select option carries these: a Version or a Sprint is an option with dates.
+    startAt: date("start_at"),
+    targetAt: date("target_at"),
+    shippedAt: date("shipped_at"),
+    note: text("note"),
   },
   (t) => [index("property_options_property_idx").on(t.propertyId)],
 );

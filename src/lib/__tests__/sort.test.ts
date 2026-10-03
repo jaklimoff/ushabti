@@ -21,9 +21,36 @@ const PRIORITY: PropertyDTO = {
   position: "V",
   config: {},
   options: [
-    { id: "o-urgent", name: "Urgent", color: "#e0574d", position: "V" },
-    { id: "o-high", name: "High", color: "#d1913a", position: "k" },
-    { id: "o-low", name: "Low", color: "#8b8f98", position: "s" },
+    {
+      id: "o-urgent",
+      name: "Urgent",
+      color: "#e0574d",
+      position: "V",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+    {
+      id: "o-high",
+      name: "High",
+      color: "#d1913a",
+      position: "k",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+    {
+      id: "o-low",
+      name: "Low",
+      color: "#8b8f98",
+      position: "s",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
   ],
 };
 
@@ -34,8 +61,26 @@ const LABELS: PropertyDTO = {
   position: "k",
   config: {},
   options: [
-    { id: "o-bug", name: "bug", color: "#e0574d", position: "V" },
-    { id: "o-docs", name: "docs", color: "#7a8a2f", position: "k" },
+    {
+      id: "o-bug",
+      name: "bug",
+      color: "#e0574d",
+      position: "V",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+    {
+      id: "o-docs",
+      name: "docs",
+      color: "#7a8a2f",
+      position: "k",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
   ],
 };
 
@@ -389,8 +434,26 @@ describe("what a sort does to a board", () => {
     position: "A",
     config: {},
     options: [
-      { id: "o-todo", name: "Todo", color: "#d1913a", position: "V" },
-      { id: "o-doing", name: "Doing", color: "#3fb0c8", position: "k" },
+      {
+        id: "o-todo",
+        name: "Todo",
+        color: "#d1913a",
+        position: "V",
+        startAt: null,
+        targetAt: null,
+        shippedAt: null,
+        note: null,
+      },
+      {
+        id: "o-doing",
+        name: "Doing",
+        color: "#3fb0c8",
+        position: "k",
+        startAt: null,
+        targetAt: null,
+        shippedAt: null,
+        note: null,
+      },
     ],
   };
 

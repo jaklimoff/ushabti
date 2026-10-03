@@ -353,9 +353,12 @@ export async function savedLens(viewId: string): Promise<{ rules: unknown[] } | 
  * Drags one element onto another, then waits for the write to come back.
  *
  * dnd-kit listens to pointer events and needs real movement, so this walks
- * there in small steps, exactly as `dragCard` does.
+ * there in small steps, exactly as `dragCard` does. The mouse presses only what
+ * the window shows, and a box measured below the fold is pressed on nothing,
+ * so the handle is scrolled into view before either box is measured.
  */
 export async function dragOnto(page: Page, handle: Locator, target: Locator, wrote: RegExp) {
+  await handle.scrollIntoViewIfNeeded();
   const from = await handle.boundingBox();
   const to = await target.boundingBox();
   if (!from || !to) throw new Error("Nothing to drag, or nowhere to drop it.");

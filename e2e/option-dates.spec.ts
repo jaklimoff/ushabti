@@ -1,0 +1,270 @@
+import { expect, test } from "@playwright/test";
+import { createProject, gotoSettings, propertyBox, register, saved, unique } from "./helpers";
+
+type Page = import("@playwright/test").Page;
+
+type Option = {
+  id: string;
+  name: string;
+  startAt: string | null;
+  targetAt: string | null;
+  shippedAt: string | null;
+  note: string | null;
+};
+type Board = { properties: { id: string; name: string; type: string; options: Option[] }[] };
+
+async function propertyOf(page: Page, projectId: string, name: string) {
+  const board: Board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+  return board.properties.find((p) => p.name === name)!;
+}
+
+async function optionOf(page: Page, projectId: string, property: string, option: string) {
+  return (await propertyOf(page, projectId, property)).options.find((o) => o.name === option)!;
+}
+
+/*
+ * A Version, a Sprint or a Quarter is an option with dates. Nothing on a task
+ * changes, so an agent reads them from the board answer it already reads.
+ */
+test.describe("An option carries a plan", () => {
+  test("the option routes take the four, and the board answer carries them", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Plan"));
+    const status = await propertyOf(page, projectId, "Status");
+    const options = `/api/properties/${status.id}/options`;
+
+    const made = await page.request.post(options, {
+      data: { name: "Sprint 4", startAt: "2026-10-01", targetAt: "2026-10-14", note: "**API**" },
+    });
+    expect(made.status()).toBe(201);
+    let sprint = await optionOf(page, projectId, "Status", "Sprint 4");
+    expect(sprint).toMatchObject({
+      startAt: "2026-10-01",
+      targetAt: "2026-10-14",
+      shippedAt: null,
+      note: "**API**",
+    });
+
+    /* An option made without them carries them as null. */
+    const todo = await optionOf(page, projectId, "Status", "Todo");
+    expect(todo).toMatchObject({ startAt: null, targetAt: null, shippedAt: null, note: null });
+
+    const bad = await page.request.patch(`/api/options/${sprint.id}`, {
+      data: { targetAt: "soon" },
+    });
+    expect(bad.status()).toBe(400);
+    expect((await bad.json()).error).toBe("The target date must be a date like 2026-10-03.");
+
+    /* A target moved alone is read against the start already saved. */
+    const early = await page.request.patch(`/api/options/${sprint.id}`, {
+      data: { targetAt: "2026-09-30" },
+    });
+    expect(early.status()).toBe(400);
+    expect((await early.json()).error).toBe("The target date cannot be before the start date.");
+
+    const backwards = await page.request.post(options, {
+      data: { name: "Sprint 5", startAt: "2026-10-15", targetAt: "2026-10-01" },
+    });
+    expect(backwards.status()).toBe(400);
+
+    const shipped = await page.request.patch(`/api/options/${sprint.id}`, {
+      data: { shippedAt: "2026-10-13", note: null },
+    });
+    expect(shipped.status()).toBe(200);
+    sprint = await optionOf(page, projectId, "Status", "Sprint 4");
+    expect(sprint).toMatchObject({ targetAt: "2026-10-14", shippedAt: "2026-10-13", note: null });
+
+    /* The property route and the export send the same option. */
+    const property = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Quarter", type: "select", options: ["Q4"] },
+    });
+    expect((await property.json()).property.options[0]).toMatchObject({
+      name: "Q4",
+      startAt: null,
+      note: null,
+    });
+    const exported = await (await page.request.get(`/api/projects/${projectId}/export`)).json();
+    const out = JSON.stringify(exported);
+    expect(out).toContain('"shippedAt":"2026-10-13"');
+  });
+
+  test("a multi-select option does not get them", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Labels"));
+    const labels = await propertyOf(page, projectId, "Labels");
+    expect(labels.type).toBe("multi_select");
+
+    const made = await page.request.post(`/api/properties/${labels.id}/options`, {
+      data: { name: "urgent", targetAt: "2026-10-14" },
+    });
+    expect(made.status()).toBe(400);
+    expect((await made.json()).error).toBe(
+      "Only an option of a single select carries dates and a note.",
+    );
+
+    const [first] = labels.options;
+    const patched = await page.request.patch(`/api/options/${first.id}`, {
+      data: { note: "no" },
+    });
+    expect(patched.status()).toBe(400);
+
+    await gotoSettings(page, projectId);
+    await expect(propertyBox(page, "Labels").getByLabel(/^Start of /)).toHaveCount(0);
+    await expect(
+      propertyBox(page, "Status")
+        .getByLabel(/^Start of /)
+        .first(),
+    ).toBeVisible();
+  });
+
+  test("Settings saves the start, the target and the note on blur", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Settings plan"));
+    await gotoSettings(page, projectId);
+    const box = propertyBox(page, "Status");
+
+    for (const [label, day] of [
+      ["Start of Todo", "2026-10-01"],
+      ["Target of Todo", "2026-10-14"],
+    ]) {
+      await box.getByLabel(label).fill(day);
+      await saved(page, () => box.getByLabel(label).blur());
+    }
+    const note = box.getByLabel("Note of Todo");
+    await note.fill("Ships the API");
+    await saved(page, () => note.blur());
+
+    expect(await optionOf(page, projectId, "Status", "Todo")).toMatchObject({
+      startAt: "2026-10-01",
+      targetAt: "2026-10-14",
+      note: "Ships the API",
+    });
+
+    /* A target before the start is refused, and the box goes back. */
+    await box.getByLabel("Target of Todo").fill("2026-09-01");
+    await box.getByLabel("Target of Todo").blur();
+    await expect(page.getByTestId("toast")).toContainText("cannot be before the start date");
+    await expect(box.getByLabel("Target of Todo")).toHaveValue("2026-10-14");
+
+    /* Emptied, the note is taken away. */
+    await note.fill("");
+    await saved(page, () => note.blur());
+    expect((await optionOf(page, projectId, "Status", "Todo")).note).toBeNull();
+
+    await page.reload();
+    await expect(box.getByLabel("Start of Todo")).toHaveValue("2026-10-01");
+  });
+
+  test("a date box with one part cleared keeps the saved date", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Half date"));
+    const todo = await optionOf(page, projectId, "Status", "Todo");
+    await page.request.patch(`/api/options/${todo.id}`, { data: { startAt: "2026-10-01" } });
+
+    await gotoSettings(page, projectId);
+    const start = propertyBox(page, "Status").getByLabel("Start of Todo");
+    await expect(start).toHaveValue("2026-10-01");
+    await expect
+      .poll(() => start.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactFiber"))))
+      .toBe(true);
+
+    /* One part cleared: the box answers "" although the day is only half
+       gone. That is not an empty box, so nothing is written. */
+    const writes: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "PATCH") writes.push(r.url());
+    });
+    await start.focus();
+    await page.keyboard.press("Backspace");
+    expect(await start.evaluate((el: HTMLInputElement) => el.validity.badInput)).toBe(true);
+    await start.blur();
+    await expect(start).toHaveValue("2026-10-01");
+
+    /* Nor when the tab goes with the box half cleared. */
+    await start.focus();
+    await page.keyboard.press("Backspace");
+    await page.goto("about:blank");
+    expect(writes).toEqual([]);
+    expect((await optionOf(page, projectId, "Status", "Todo")).startAt).toBe("2026-10-01");
+  });
+
+  test("a note of many lines keeps its lines through a focus and a blur", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Note lines"));
+    const todo = await optionOf(page, projectId, "Status", "Todo");
+    const words = "Scope:\n- API\n- UI";
+    await page.request.patch(`/api/options/${todo.id}`, { data: { note: words } });
+
+    await gotoSettings(page, projectId);
+    const note = propertyBox(page, "Status").getByLabel("Note of Todo");
+    await expect(note).toHaveValue(words);
+    await expect
+      .poll(() => note.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactFiber"))))
+      .toBe(true);
+    await note.focus();
+    await note.blur();
+    /* Shift+Enter makes a line, so a person can write one too. */
+    await note.focus();
+    await note.evaluate((el: HTMLTextAreaElement) =>
+      el.setSelectionRange(el.value.length, el.value.length),
+    );
+    await page.keyboard.press("Shift+Enter");
+    await page.keyboard.type("- Docs");
+    await saved(page, () => note.blur());
+    expect((await optionOf(page, projectId, "Status", "Todo")).note).toBe(`${words}\n- Docs`);
+  });
+
+  for (const [label, field, words] of [
+    ["Start", "startAt", "2026-10-01"],
+    ["Target", "targetAt", "2026-10-14"],
+    ["Note", "note", "Half typed"],
+  ] as const) {
+    test(`a ${label.toLowerCase()} still in its box is sent when the tab goes`, async ({
+      page,
+    }) => {
+      await register(page);
+      const projectId = await createProject(page, unique("Leave plan"));
+      await gotoSettings(page, projectId);
+
+      const box = propertyBox(page, "Status").getByLabel(`${label} of In Progress`);
+      /* A fill before React owns the box reaches no handler, so nothing was
+         typed in this tab and the leave rightly sends nothing. */
+      await expect
+        .poll(() => box.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactFiber"))))
+        .toBe(true);
+      await box.fill(words);
+      await expect(box).toBeFocused();
+      await page.goto("about:blank");
+
+      await expect
+        .poll(async () => (await optionOf(page, projectId, "Status", "In Progress"))[field])
+        .toBe(words);
+    });
+  }
+
+  test("the shipped date is read only, with one Unship", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Unship"));
+    const ready = await optionOf(page, projectId, "Status", "Ready");
+    await page.request.patch(`/api/options/${ready.id}`, { data: { shippedAt: "2026-10-02" } });
+
+    await gotoSettings(page, projectId);
+    const box = propertyBox(page, "Status");
+    await expect(box.getByText("Shipped 2026-10-02")).toBeVisible();
+    await expect(box.getByRole("button", { name: /^Unship / })).toHaveCount(1);
+    /* Shown, never typed into: there is no box for it. */
+    await expect(box.getByLabel(/^Shipped of /)).toHaveCount(0);
+
+    /* The day it shipped cannot be typed back, so the row asks first. */
+    await box.getByRole("button", { name: "Unship Ready" }).click();
+    await expect(box.getByRole("alertdialog")).toContainText("Unship Ready?");
+    await box.getByRole("button", { name: "Cancel" }).click();
+    await expect(box.getByText("Shipped 2026-10-02")).toBeVisible();
+
+    await box.getByRole("button", { name: "Unship Ready" }).click();
+    await saved(page, () => box.getByRole("button", { name: "Yes, unship" }).click());
+    await expect(box.getByText("Shipped 2026-10-02")).toHaveCount(0);
+    await expect(box.getByRole("button", { name: /^Unship / })).toHaveCount(0);
+    expect((await optionOf(page, projectId, "Status", "Ready")).shippedAt).toBeNull();
+  });
+});

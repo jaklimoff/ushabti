@@ -24,8 +24,26 @@ function property(over: Partial<PropertyDTO> = {}): PropertyDTO {
     position: "V",
     config: { showOnCard: true },
     options: [
-      { id: "o-todo", name: "Todo", color: "#9aa0aa", position: "V" },
-      { id: "o-done", name: "Done", color: "#4f8a5b", position: "k" },
+      {
+        id: "o-todo",
+        name: "Todo",
+        color: "#9aa0aa",
+        position: "V",
+        startAt: null,
+        targetAt: null,
+        shippedAt: null,
+        note: null,
+      },
+      {
+        id: "o-done",
+        name: "Done",
+        color: "#4f8a5b",
+        position: "k",
+        startAt: null,
+        targetAt: null,
+        shippedAt: null,
+        note: null,
+      },
     ],
     ...over,
   };
@@ -238,9 +256,36 @@ describe("the column a phone shows", () => {
     columns[2].value = "o-done";
     const status = property({
       options: [
-        { id: "o-todo", name: "Todo", color: "#9aa0aa", position: "V" },
-        { id: "o-doing", name: "Doing", color: "#9aa0aa", position: "c" },
-        { id: "o-done", name: "Done", color: "#4f8a5b", position: "k" },
+        {
+          id: "o-todo",
+          name: "Todo",
+          color: "#9aa0aa",
+          position: "V",
+          startAt: null,
+          targetAt: null,
+          shippedAt: null,
+          note: null,
+        },
+        {
+          id: "o-doing",
+          name: "Doing",
+          color: "#9aa0aa",
+          position: "c",
+          startAt: null,
+          targetAt: null,
+          shippedAt: null,
+          note: null,
+        },
+        {
+          id: "o-done",
+          name: "Done",
+          color: "#4f8a5b",
+          position: "k",
+          startAt: null,
+          targetAt: null,
+          shippedAt: null,
+          note: null,
+        },
       ],
     });
     const kept = allowedColumns(
