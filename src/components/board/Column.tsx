@@ -9,8 +9,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { BoardColumn } from "@/lib/board";
-import type { TaskDTO } from "@/lib/types";
+import { formatDate, type BoardColumn } from "@/lib/board";
+import type { DoneWhen } from "@/lib/links";
+import { progressOf } from "@/lib/progress";
+import type { PropertyOptionDTO, TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { MentionList, useMentions } from "./Mentions";
 import { TaskCard } from "./TaskCard";
@@ -70,6 +72,37 @@ export type ComposerPlace = "top" | "bottom";
  */
 const HELD: SortingStrategy = () => null;
 
+/** How this project measures a column: its done rule and its unit. */
+export type ProgressRule = {
+  doneWhen: DoneWhen | null;
+  /** The number property the bar sums, or null to count tasks. */
+  countBy: { id: string; name: string } | null;
+};
+
+/** The dates of the option a column stands for, when it has one to show. */
+export type ColumnDates = Pick<PropertyOptionDTO, "targetAt" | "shippedAt">;
+
+/**
+ * What the header of a dated column says: the day, and how far it has come.
+ *
+ * A shipped date takes the target's place, because once it shipped the plan
+ * is history. The progress reads the cards in the column, which are the cards
+ * the view's filters left, so the bar agrees with what is on the screen.
+ */
+function releaseOf(dates: ColumnDates | null, tasks: TaskDTO[], rule: ProgressRule) {
+  const day = dates?.shippedAt ?? dates?.targetAt;
+  if (!dates || !day) return null;
+  const { done, total } = progressOf(tasks, rule.doneWhen, rule.countBy?.id ?? null);
+  return {
+    shipped: !!dates.shippedAt,
+    day,
+    done,
+    total,
+    share: total > 0 ? Math.min(1, Math.max(0, done / total)) : 0,
+    said: `${done} of ${total} ${rule.countBy ? rule.countBy.name : total === 1 ? "task" : "tasks"} done`,
+  };
+}
+
 export function Column({
   column,
   selectedTaskId,
@@ -84,6 +117,8 @@ export function Column({
   onAddTask,
   onArchiveAll,
   onFold,
+  dates,
+  rule,
 }: {
   column: BoardColumn;
   selectedTaskId: string | null;
@@ -110,10 +145,14 @@ export function Column({
   onArchiveAll: (() => void) | null;
   /** Folds this column to a strip, or opens it again. This browser only. */
   onFold: (folded: boolean) => void;
+  /** The dates of the option this column stands for, or null for none. */
+  dates: ColumnDates | null;
+  rule: ProgressRule;
 }) {
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const sweep = useConfirm();
+  const release = releaseOf(dates, column.tasks, rule);
 
   const sortable = useSortable({
     id: COLUMN_PREFIX + column.id,
@@ -248,6 +287,21 @@ export function Column({
           <span className={styles.colCount} data-testid="column-count">
             {column.tasks.length}
           </span>
+          {release && (
+            <span
+              className={`${styles.colDate} ${release.shipped ? styles.colShipped : ""}`}
+              data-testid="column-date"
+              title={`${release.shipped ? "Shipped" : "Target"} ${release.day}`}
+            >
+              {release.shipped && "✓ "}
+              {formatDate(release.day)}
+            </span>
+          )}
+          {release && rule.countBy && (
+            <span className={styles.colSum} data-testid="column-sum" title={release.said}>
+              {release.done} of {release.total}
+            </span>
+          )}
           <span style={{ flex: 1 }} />
           <button
             className={styles.colAdd}
@@ -281,6 +335,21 @@ export function Column({
           >
             «
           </button>
+        </div>
+      )}
+
+      {release && (
+        <div
+          className={styles.colProgress}
+          role="progressbar"
+          data-testid="column-progress"
+          aria-label={release.said}
+          aria-valuemin={0}
+          aria-valuemax={release.total}
+          aria-valuenow={release.done}
+          title={release.said}
+        >
+          <span style={{ width: `${release.share * 100}%`, background: column.color }} />
         </div>
       )}
 

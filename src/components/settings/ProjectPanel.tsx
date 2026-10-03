@@ -53,6 +53,9 @@ export function ProjectPanel() {
    */
   const [pickedId, setPickedId] = useState<string | null>(null);
   const doneProperty = selects.find((p) => p.id === (pickedId ?? doneWhen?.propertyId)) ?? null;
+  /* What a column's bar sums. The board cannot know what a point is, so the
+     owner names a number property, and none means each task counts one. */
+  const numbers = data.properties.filter((p) => p.type === "number");
 
   /*
    * What each box still owes. A blur saves it; a closed tab sends no blur, so
@@ -70,6 +73,7 @@ export function ProjectPanel() {
     name?: string;
     key?: string;
     doneWhen?: DoneWhen | null;
+    progressBy?: string | null;
     timeZone?: string;
   }) {
     try {
@@ -265,6 +269,27 @@ export function ProjectPanel() {
             <Note>This board has no select property with options, so archived is the answer.</Note>
           </Row>
         )}
+        <Row>
+          <Field label="Count progress by" inline>
+            <Select
+              aria-label="Count progress by"
+              value={data.project.progressBy ?? ""}
+              disabled={!canEdit || numbers.length === 0}
+              onChange={(e) => void save({ progressBy: e.target.value || null })}
+            >
+              <option value="">Tasks</option>
+              {numbers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+            <Note>
+              A column with a target date shows how much of it is done. A task with no value counts
+              zero.
+            </Note>
+          </Field>
+        </Row>
         {!canEdit && (
           <Row>
             <Note>Only the owner or an admin can change what this project calls done.</Note>

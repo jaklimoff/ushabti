@@ -20,6 +20,7 @@ import { readTimeZone, todayIn } from "./day";
 import { readFilters } from "./filters";
 import { HttpError } from "./auth";
 import { readDoneWhen, type DoneWhen } from "./links";
+import { readProgressBy } from "./progress";
 import { byPos } from "./order";
 import { readSort } from "./sort";
 import { optionColumns, toOptionDTO } from "./queries";
@@ -54,6 +55,7 @@ export type ProjectExport = {
     timeZone: string;
     cardView: CardView;
     doneWhen: DoneWhen | null;
+    progressBy: string | null;
   };
   properties: PropertyDTO[];
   views: {
@@ -260,6 +262,7 @@ export async function loadExport(
       timeZone: readTimeZone(projectRow.timeZone),
       cardView: readCardView(projectRow.cardView, propertyList, mainBoardGroupById(viewRows)),
       doneWhen: readDoneWhen(projectRow.doneWhen, propertyList),
+      progressBy: readProgressBy(projectRow.progressBy, propertyList),
     },
     properties: propertyList,
     /* The team's rules and order only. A lens is one person's, and stays. */
