@@ -294,6 +294,19 @@ export const optionColumns = {
 };
 
 /**
+ * The day in the project's zone, as the board reads it. A route that decides
+ * by "current" asks this, so it answers for the same day the screen draws.
+ */
+export async function projectToday(projectId: string): Promise<string> {
+  const [row] = await db
+    .select({ timeZone: projects.timeZone })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1);
+  return todayIn(readTimeZone(row?.timeZone));
+}
+
+/**
  * The properties of a project, with their options.
  *
  * It takes a transaction for the one caller that has to read the board inside

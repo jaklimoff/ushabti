@@ -12,7 +12,9 @@ import {
   clashOf,
   clashSaid,
   CURRENT_KEY,
+  currentOption,
   describeRule,
+  groupsAnew,
   hasAnswer,
   matches,
   OPS_FOR_TYPE,
@@ -22,6 +24,7 @@ import {
   readFilters,
   seedNote,
   seedValues,
+  startsOnCurrent,
   waitingTasks,
 } from "../filters";
 import {
@@ -1405,5 +1408,89 @@ describe("a rule that says a dated option is current", () => {
     expect(
       seedNote(seedValues({ rules: [current] }, [sprints], null, null, TODAY), [sprints], members),
     ).toBe("sets Sprint Sprint 2");
+  });
+
+  describe("on an iteration", () => {
+    const iteration: PropertyDTO = { ...sprints, type: "iteration", config: {} };
+
+    it("names the one option that holds today, and nothing when none or two do", () => {
+      expect(currentOption(iteration, TODAY)).toBe("o-s2");
+      expect(currentOption(iteration, "2027-01-01")).toBeNull();
+      const overlap = {
+        ...iteration,
+        options: [...iteration.options, sprint("o-x", "X", null, "2026-09-30")],
+      };
+      expect(currentOption(overlap, TODAY)).toBeNull();
+      expect(currentOption(labels, TODAY)).toBeNull();
+    });
+
+    it("seeds the current option under 'is current' when no column decides it", () => {
+      const rule: FilterRule = { ...current, propertyId: iteration.id };
+      expect(seedValues({ rules: [rule] }, [iteration], null, null, TODAY)).toEqual({
+        "p-sprint": "o-s2",
+      });
+      expect(seedValues({ rules: [rule] }, [iteration], iteration.id, null, TODAY)).toEqual({});
+      expect(seedValues({ rules: [rule] }, [iteration], null, null, "2027-01-01")).toEqual({});
+    });
+
+    it("starts a board grouped by it on 'is current'", () => {
+      expect(startsOnCurrent({ rules: [] }, iteration, TODAY)).toEqual({ rules: [current] });
+      const other: FilterRule = { propertyId: status.id, op: "is", values: ["o-todo"] };
+      expect(startsOnCurrent({ rules: [other] }, iteration, TODAY)).toEqual({
+        rules: [other, current],
+      });
+      // The rule survives the reading every board does, so its chip is drawn.
+      expect(readFilters(startsOnCurrent({ rules: [] }, iteration, TODAY), [iteration])).toEqual({
+        rules: [current],
+      });
+    });
+
+    it("writes nothing when no option that still has a column holds today", () => {
+      // No option holds the day: the rule would take every column away.
+      expect(startsOnCurrent({ rules: [] }, iteration, "2027-01-01")).toEqual({ rules: [] });
+      // The one that holds it has shipped, so it has no column either.
+      const shipped = {
+        ...iteration,
+        options: iteration.options.map((o) =>
+          o.id === "o-s2" ? { ...o, shippedAt: "2026-09-20T10:00:00.000Z" } : o,
+        ),
+      };
+      expect(startsOnCurrent({ rules: [] }, shipped, TODAY)).toEqual({ rules: [] });
+    });
+
+    it("leaves a view that already asks about it, and a dated select, alone", () => {
+      const kept: FilterRule = { propertyId: iteration.id, op: "is", values: ["o-s1"] };
+      expect(startsOnCurrent({ rules: [kept] }, iteration, TODAY)).toEqual({ rules: [kept] });
+      expect(startsOnCurrent({ rules: [] }, sprints, TODAY)).toEqual({ rules: [] });
+      expect(startsOnCurrent({ rules: [] }, status, TODAY)).toEqual({ rules: [] });
+    });
+
+    it("counts a write as grouping only when the property changes and the view is a board", () => {
+      const board = { kind: "board", groupById: "p-status" };
+      expect(groupsAnew(board, { kind: "board", groupById: "p-sprint" })).toBe(true);
+      expect(groupsAnew(board, board)).toBe(false);
+      expect(groupsAnew(board, { kind: "list", groupById: "p-sprint" })).toBe(false);
+      expect(groupsAnew(board, { kind: "roadmap", groupById: "p-sprint" })).toBe(false);
+      expect(
+        groupsAnew({ kind: "list", groupById: null }, { kind: "board", groupById: "p-sprint" }),
+      ).toBe(true);
+    });
+
+    it("does not come back when a list or a roadmap becomes the same board again", () => {
+      const after = { kind: "board", groupById: "p-sprint" };
+      expect(groupsAnew({ kind: "list", groupById: "p-sprint" }, after)).toBe(false);
+      expect(groupsAnew({ kind: "roadmap", groupById: "p-sprint" }, after)).toBe(false);
+    });
+
+    it("adds nothing when the writer's own lens already asks about it", () => {
+      const mine: FilterRule = { propertyId: iteration.id, op: "is", values: ["o-s3"] };
+      expect(startsOnCurrent({ rules: [] }, iteration, TODAY, { rules: [mine] })).toEqual({
+        rules: [],
+      });
+      const other: FilterRule = { propertyId: status.id, op: "is", values: ["o-todo"] };
+      expect(startsOnCurrent({ rules: [] }, iteration, TODAY, { rules: [other] })).toEqual({
+        rules: [current],
+      });
+    });
   });
 });

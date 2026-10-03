@@ -1,6 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { views } from "@/db/schema";
+import { viewLenses, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import {
   body,
@@ -13,9 +13,15 @@ import {
   route,
   str,
 } from "@/lib/api";
-import { readFilters } from "@/lib/filters";
+import { groupsAnew, readFilters, startsOnCurrent } from "@/lib/filters";
 import { byPos } from "@/lib/order";
-import { groupPropertyId, loadProperties, viewProjectId, withProjectLock } from "@/lib/queries";
+import {
+  groupPropertyId,
+  loadProperties,
+  projectToday,
+  viewProjectId,
+  withProjectLock,
+} from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { readSort } from "@/lib/sort";
 import { VIEW_KINDS, type ViewKind } from "@/lib/types";
@@ -72,9 +78,15 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     if (!("groupById" in patch)) await groupPropertyId(projectId, groupById, kind);
   }
 
-  if (input.filters !== undefined || input.sort !== undefined) {
+  /* A board that a person has just grouped by an iteration opens on the
+     sprint that is on now, in this same write, so no second request can show
+     every sprint first. An agent does not write filters, so it does not get
+     this one either. */
+  const grouped = user.kind === "human" && groupsAnew(current, { kind, groupById });
+
+  if (input.filters !== undefined || input.sort !== undefined || grouped) {
     const properties = await loadProperties(projectId);
-    let config = { ...((current.config ?? {}) as object) };
+    let config = { ...((current.config ?? {}) as { filters?: unknown; sort?: unknown }) };
 
     if (input.filters !== undefined) {
       // A filter says what everybody on this board can see. An agent writes
@@ -92,6 +104,24 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
          filters. The same reading the board does, so a column that is gone
          cannot be saved as an order. */
       config = { ...config, sort: readSort(input.sort, properties) };
+    }
+
+    const group = grouped ? properties.find((p) => p.id === groupById) : undefined;
+    if (group) {
+      const [lens] = await db
+        .select({ filters: viewLenses.filters })
+        .from(viewLenses)
+        .where(and(eq(viewLenses.userId, user.id), eq(viewLenses.viewId, viewId)))
+        .limit(1);
+      config = {
+        ...config,
+        filters: startsOnCurrent(
+          readFilters(config.filters, properties),
+          group,
+          await projectToday(projectId),
+          readFilters(lens?.filters, properties),
+        ),
+      };
     }
 
     patch.config = config;

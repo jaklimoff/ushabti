@@ -21,7 +21,9 @@ import {
   clashOf,
   clashSaid,
   EMPTY_FILTERS,
+  groupsAnew,
   mergeFilters,
+  startsOnCurrent,
   waitingTasks,
 } from "@/lib/filters";
 import {
@@ -1243,7 +1245,19 @@ export function BoardProvider({
     async (id, patch) => {
       setData((current) => ({
         ...current,
-        views: current.views.map((v) => (v.id === id ? { ...v, ...patch } : v)),
+        views: current.views.map((v) => {
+          if (v.id !== id) return v;
+          const next = { ...v, ...patch };
+          /* The route adds "is current" in the same write, and the stream
+             does not ring for the tab that wrote, so the chip is drawn here
+             by the same rule. */
+          const group = groupsAnew(v, next)
+            ? current.properties.find((p) => p.id === next.groupById)
+            : undefined;
+          return group
+            ? { ...next, filters: startsOnCurrent(next.filters, group, current.today, next.lens) }
+            : next;
+        }),
       }));
       await guarded(async () => {
         await tracked.patch(`/api/views/${id}`, patch);

@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The sprint picker opens on the current sprint.** In the task panel and in the bulk edit, the
+  menu of an iteration marks the sprint that holds today with the word "current" and opens with
+  it highlighted. A board you group by an iteration starts with the filter "Sprint is current"
+  when a sprint holds today, and you can remove that chip as any other. With no sprint on today,
+  no filter is added, so the board keeps its columns.
+
 - **Iteration, a property type for sprints.** Its options always carry dates, so it has no
   switch, and it works everywhere a dated select does: board columns with the date, Ship, the
   filter "is current", the roadmap and the changelog. **Set up sprints** now makes an iteration,
