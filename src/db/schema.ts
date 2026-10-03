@@ -56,52 +56,66 @@ export const sessions = pgTable(
 /* Projects and membership                                             */
 /* ------------------------------------------------------------------ */
 
-export const projects = pgTable("projects", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  /** Short prefix for task keys, e.g. "USH" gives USH-14. */
-  key: text("key").notNull(),
-  ownerId: uuid("owner_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  /** Monotonic counter that produces the number part of a task key. */
-  taskCounter: integer("task_counter").notNull().default(0),
-  /**
-   * What every card on this board carries: `{ order, rows }`. Null until
-   * somebody arranges one, and read through `readCardView`, which throws away a
-   * row naming a property that is gone.
-   */
-  cardView: jsonb("card_view"),
-  /**
-   * What this project calls done: `{ propertyId, optionId }`, or null.
-   *
-   * A blocker stops blocking when it is over, and no status is hardcoded, so
-   * the project says which option means it. Null falls back to archived, and
-   * so does a row naming a property or an option that is gone: it is read
-   * afresh through `readDoneWhen`, never cleaned up, exactly as a filter is.
-   */
-  doneWhen: jsonb("done_when"),
-  /**
-   * The number property this project counts progress by, or null for tasks.
-   *
-   * A column bar sums it over the tasks that are over. No foreign key, on
-   * purpose: it is read afresh through `readProgressBy`, exactly as the done
-   * rule is, so a property that is gone or changed type counts tasks again.
-   */
-  progressBy: text("progress_by"),
-  /**
-   * The zone this project's day is worked out in, as an IANA name.
-   *
-   * A filter can say "due this week", and a shared filter has to mean one
-   * week for the whole team: a day taken from each reader's browser shows two
-   * people different cards through one view, and an agent has no browser at
-   * all. So the day is the project's, the server makes it, and it travels on
-   * the board answer. Read it through `readTimeZone`, which falls back to UTC
-   * for a name this runtime does not know.
-   */
-  timeZone: text("time_zone").notNull().default("UTC"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const projects = pgTable(
+  "projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    /** Short prefix for task keys, e.g. "USH" gives USH-14. */
+    key: text("key").notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Monotonic counter that produces the number part of a task key. */
+    taskCounter: integer("task_counter").notNull().default(0),
+    /**
+     * What every card on this board carries: `{ order, rows }`. Null until
+     * somebody arranges one, and read through `readCardView`, which throws away a
+     * row naming a property that is gone.
+     */
+    cardView: jsonb("card_view"),
+    /**
+     * What this project calls done: `{ propertyId, optionId }`, or null.
+     *
+     * A blocker stops blocking when it is over, and no status is hardcoded, so
+     * the project says which option means it. Null falls back to archived, and
+     * so does a row naming a property or an option that is gone: it is read
+     * afresh through `readDoneWhen`, never cleaned up, exactly as a filter is.
+     */
+    doneWhen: jsonb("done_when"),
+    /**
+     * The number property this project counts progress by, or null for tasks.
+     *
+     * A column bar sums it over the tasks that are over. No foreign key, on
+     * purpose: it is read afresh through `readProgressBy`, exactly as the done
+     * rule is, so a property that is gone or changed type counts tasks again.
+     */
+    progressBy: text("progress_by"),
+    /**
+     * The zone this project's day is worked out in, as an IANA name.
+     *
+     * A filter can say "due this week", and a shared filter has to mean one
+     * week for the whole team: a day taken from each reader's browser shows two
+     * people different cards through one view, and an agent has no browser at
+     * all. So the day is the project's, the server makes it, and it travels on
+     * the board answer. Read it through `readTimeZone`, which falls back to UTC
+     * for a name this runtime does not know.
+     */
+    timeZone: text("time_zone").notNull().default("UTC"),
+    /**
+     * Whether `/changelog/{key in lower case}` answers without a session. Off
+     * until somebody turns it on. A key is not unique, so the index below lets
+     * only one project per key turn it on: one address, one project.
+     */
+    publicChangelog: boolean("public_changelog").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("projects_public_changelog_key")
+      .on(sql`lower(${t.key})`)
+      .where(sql`${t.publicChangelog}`),
+  ],
+);
 
 export const projectMembers = pgTable(
   "project_members",

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import type { DoneWhen } from "@/lib/links";
@@ -36,6 +37,9 @@ export function ProjectPanel() {
   /* A press waits for its answer, so a second press cannot ask again. */
   const [settingUp, setSettingUp] = useState(false);
   const hasSprints = sprintsSetUp(data.properties);
+  /* A press waits for its answer before it counts again: a second press on a
+     switch that has not answered yet would flip it back. */
+  const [flipping, setFlipping] = useState(false);
 
   /* Every task of the project, archived ones too: a rename renames their keys
      as well, and a delete takes them with it. */
@@ -79,6 +83,7 @@ export function ProjectPanel() {
     doneWhen?: DoneWhen | null;
     progressBy?: string | null;
     timeZone?: string;
+    publicChangelog?: boolean;
   }) {
     try {
       await send.patch(url, patch);
@@ -104,6 +109,16 @@ export function ProjectPanel() {
       notify(err instanceof Error ? err.message : "Could not set up sprints.");
     } finally {
       setSettingUp(false);
+    }
+  }
+
+  async function flipPublic() {
+    if (flipping) return;
+    setFlipping(true);
+    try {
+      await save({ publicChangelog: !data.project.publicChangelog });
+    } finally {
+      setFlipping(false);
     }
   }
 
@@ -342,6 +357,52 @@ export function ProjectPanel() {
           </Row>
         </Card>
       )}
+
+      {/*
+       * The changelog, for people with no account. Off until somebody turns
+       * it on, because it shows the titles of the shipped tasks to anyone
+       * who has the address. The address is the key, so a project whose key
+       * another public project already has is refused, with that sentence.
+       */}
+      <Card>
+        <Row>
+          <Field
+            label="Public changelog"
+            note={
+              data.project.publicChangelog ? (
+                <>
+                  Anyone with the address reads the shipped options and the titles of their tasks,
+                  with no keys and no people:{" "}
+                  <a
+                    href={`/changelog/${changelogSlug(data.project.key)}`}
+                    data-testid="public-changelog-link"
+                  >
+                    /changelog/{changelogSlug(data.project.key)}
+                  </a>
+                </>
+              ) : (
+                "Only the members of this project read its changelog."
+              )
+            }
+          >
+            <Button
+              variant="ghost"
+              disabled={!canEdit || flipping}
+              onClick={() => void flipPublic()}
+            >
+              {data.project.publicChangelog ? "Make it private" : "Make it public"}
+            </Button>
+          </Field>
+        </Row>
+        <Row>
+          <a href={`/p/${data.project.id}/changelog`}>Changelog</a>
+        </Row>
+        {!canEdit && (
+          <Row>
+            <Note>Only the owner or an admin can make the changelog public.</Note>
+          </Row>
+        )}
+      </Card>
 
       {/*
        * The file holds every member's email, so it is an admin's, as the

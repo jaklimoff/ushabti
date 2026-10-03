@@ -31,6 +31,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     doneWhen?: unknown;
     progressBy?: unknown;
     timeZone?: string;
+    publicChangelog?: unknown;
   }>(req);
   const patch: Record<string, unknown> = {};
   if (input.name !== undefined) patch.name = str(input.name, "Project name", { max: 80 });
@@ -79,12 +80,40 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     if (!isTimeZone(zone)) throw new HttpError(400, zoneRefused(zone));
     patch.timeZone = zone;
   }
+  /* Whether the changelog answers strangers. `adminOnly` above already keeps
+     it a person's, which it must be: it hands out a read of the project. */
+  if (input.publicChangelog !== undefined) {
+    if (typeof input.publicChangelog !== "boolean") {
+      throw new HttpError(400, "Public changelog is on or off.");
+    }
+    patch.publicChangelog = input.publicChangelog;
+  }
   if (Object.keys(patch).length === 0) return json({ ok: true });
 
-  await db.update(projects).set(patch).where(eq(projects.id, projectId));
+  try {
+    await db.update(projects).set(patch).where(eq(projects.id, projectId));
+  } catch (err) {
+    /* One address, one project: the index lets one project per key be
+       public, and a turn-on or a rename that would make two is refused. */
+    if (!isPublicKeyTaken(err)) throw err;
+    const [row] = await db
+      .select({ key: projects.key })
+      .from(projects)
+      .where(eq(projects.id, projectId));
+    const key = (patch.key as string | undefined) ?? row?.key ?? "";
+    throw new HttpError(409, `Another project with the key ${key} already has a public changelog.`);
+  }
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
   return json({ ok: true });
 });
+
+function isPublicKeyTaken(err: unknown): boolean {
+  for (let e = err as { code?: string; constraint?: string; cause?: unknown } | undefined; e;) {
+    if (e.code === "23505" && e.constraint === "projects_public_changelog_key") return true;
+    e = e.cause as typeof e;
+  }
+  return false;
+}
 
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;

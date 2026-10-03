@@ -1,0 +1,2 @@
+ALTER TABLE "projects" ADD COLUMN "public_changelog" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "projects_public_changelog_key" ON "projects" USING btree (lower("key")) WHERE "projects"."public_changelog";

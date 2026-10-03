@@ -31,6 +31,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   bar fills by the same progress the column header shows, under the view's filters. A shipped
   option's bar is full, ends on its shipped day and sits below the open ones. A line marks today,
   and the roadmap opens with today in view. The view's `kind` is `roadmap`.
+- **A changelog page lists the shipped options and their tasks.** **Changelog** in the top bar,
+  beside **Archived**, opens `/p/{id}/changelog`; on a phone the link is in Settings → Project. It lists every shipped option of every select property,
+  newest first, with its shipped date, its note as markdown and the tasks that carry it in board
+  order, archived ones included. **Public changelog** in Settings → Project is off by default; when
+  an owner or an admin turns it on, `/changelog/{key in lower case}` answers without a session, with
+  no keys, no people and no links into the board. Only one project per key can be public; a second
+  one gets 409. `GET /api/projects/{id}/changelog` answers the same data to a token.
 - **A dated column can ship.** On a board grouped by a select property, an owner or an admin sees
   **✓ Ship** in the header of a column whose option has a target date. The header asks the question
   in numbers: how many tasks are over and how many are not. It offers **Move to the next option**,
