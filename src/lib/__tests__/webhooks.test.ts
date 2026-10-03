@@ -416,4 +416,80 @@ describe("an import rings once", () => {
     // Archiving a column is still one ring per card: nothing folds it.
     expect(fake.writes.find((w) => w.table === webhookDeliveries)!.values).toHaveLength(2);
   });
+
+  /* A ship archives some cards and moves the rest, and it is one press. */
+  it("folds a ship the same way, archives and moves alike", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const shipId = "ship-1";
+
+    await logActivityAll([
+      {
+        projectId: "project-1",
+        taskId: "task-1",
+        actorId: "person-1",
+        kind: "archive",
+        data: { shipId },
+      },
+      {
+        projectId: "project-1",
+        taskId: "task-2",
+        actorId: "person-1",
+        kind: "value",
+        data: { shipId },
+      },
+      {
+        projectId: "project-1",
+        taskId: null,
+        actorId: "person-1",
+        kind: "archive",
+        data: { shipId },
+      },
+    ]);
+
+    expect(fake.writes.find((w) => w.table === activity)!.values).toHaveLength(3);
+    const queued = fake.writes.find((w) => w.table === webhookDeliveries)!.values;
+    expect(queued).toHaveLength(1);
+    expect((queued[0].body as { taskId: string | null }).taskId).toBeNull();
+  });
+
+  it("still rings once for a webhook that hears only the moves of a ship", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    fake.answers(webhooks, [{ id: "hook-1", kinds: ["value"], projectKey: "USH" }]);
+    const shipId = "ship-1";
+
+    await logActivityAll([
+      {
+        projectId: "project-1",
+        taskId: "task-1",
+        actorId: "person-1",
+        kind: "archive",
+        data: { shipId },
+      },
+      {
+        projectId: "project-1",
+        taskId: "task-2",
+        actorId: "person-1",
+        kind: "value",
+        data: { shipId },
+      },
+      {
+        projectId: "project-1",
+        taskId: "task-3",
+        actorId: "person-1",
+        kind: "value",
+        data: { shipId },
+      },
+      {
+        projectId: "project-1",
+        taskId: null,
+        actorId: "person-1",
+        kind: "archive",
+        data: { shipId },
+      },
+    ]);
+
+    const queued = fake.writes.find((w) => w.table === webhookDeliveries)!.values;
+    expect(queued).toHaveLength(1);
+    expect((queued[0].body as { kind: string }).kind).toBe("value");
+  });
 });

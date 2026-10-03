@@ -41,6 +41,8 @@ import {
 import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
+import { canManage } from "@/lib/roles";
+import { nextOptionOf, shipSaid } from "@/lib/ship";
 import { sortTasks } from "@/lib/sort";
 import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
@@ -50,6 +52,7 @@ import {
   Column,
   type ComposerPlace,
   type ProgressRule,
+  type ShipOffer,
 } from "./Column";
 import { ColumnStrip } from "./ColumnStrip";
 import { useCursorBack, useShortcut } from "./keys";
@@ -243,6 +246,7 @@ export function BoardCanvas({
     togglePick,
     pickTo,
     archiveColumn,
+    shipOption,
     patchOption,
     runOf,
     controlRun,
@@ -367,6 +371,28 @@ export function BoardCanvas({
    * would not be the count that went.
    */
   const sweepable = !!groupProperty && filters.rules.length === 0;
+
+  /*
+   * A dated column may ship only where it may be swept, and only for the
+   * people the route lets through: a ship is a sweep and more, and a button
+   * the route would refuse is a button that lies. The fold is this browser's,
+   * so it happens here, once the server has said yes.
+   */
+  const canShip = sweepable && canManage(data.project.role);
+  const shipOffer = (column: BoardColumn): ShipOffer | null => {
+    if (!canShip || groupProperty?.type !== "select") return null;
+    const next = nextOptionOf(groupProperty.options, column.id);
+    return {
+      nextName: next?.name ?? null,
+      onShip: async (rest) => {
+        const done = await shipOption(column.id, rest);
+        if (!done) return false;
+        fold(column.id, true);
+        notify(shipSaid(column.name, done, next?.name ?? null), "info");
+        return true;
+      },
+    };
+  };
 
   /* Only a select option carries dates, so only a select board shows them.
      The unit is a number property the owner named, read afresh on the
@@ -774,6 +800,7 @@ export function BoardCanvas({
                 onFold={(on) => fold(column.id, on)}
                 dates={datedOptions.find((o) => o.id === column.id) ?? null}
                 rule={rule}
+                ship={shipOffer(column)}
               />
             ))}
           </SortableContext>
