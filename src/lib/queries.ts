@@ -391,8 +391,9 @@ function liveTaskRows(projectId: string) {
 
 /**
  * The archived tasks under each option with a target date, summed in the
- * database: the oldest day and the count, never the tasks. Shipping a release
- * archives its work, and the roadmap still has to say when it began.
+ * database: the oldest day, the count and the ids, never the tasks. Shipping a
+ * release archives its work, and the roadmap still has to say when it began
+ * and what it held.
  */
 function archivedUnderRows(projectId: string) {
   return db
@@ -400,6 +401,10 @@ function archivedUnderRows(projectId: string) {
       optionId: propertyOptions.id,
       firstAt: sql<Date | string>`min(${tasks.createdAt})`,
       count: sql<number>`count(*)::int`,
+      /* In board order, so the panel a bar opens lists them as the board would. */
+      taskIds: sql<
+        string[]
+      >`array_agg(${tasks.id} order by ${byPos(tasks.position)}, ${tasks.number})`,
     })
     .from(taskValues)
     .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
@@ -806,7 +811,11 @@ export async function loadBoard(
     archivedUnder: Object.fromEntries(
       underRows.map((r) => [
         r.optionId,
-        { firstAt: new Date(r.firstAt).toISOString(), count: Number(r.count) },
+        {
+          firstAt: new Date(r.firstAt).toISOString(),
+          count: Number(r.count),
+          taskIds: r.taskIds,
+        },
       ]),
     ),
     runs,

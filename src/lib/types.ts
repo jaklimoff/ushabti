@@ -395,6 +395,8 @@ export type ArchivedUnder = {
   /** When the oldest of them was made, as an ISO moment. */
   firstAt: string;
   count: number;
+  /** Their ids in board order. The tasks themselves are in `archived`. */
+  taskIds: string[];
 };
 
 export type ViewDTO = {

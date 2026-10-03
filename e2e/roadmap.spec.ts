@@ -174,4 +174,124 @@ test.describe("A roadmap", () => {
     const name = await page.getByTestId("roadmap-row").first().locator("div").first().boundingBox();
     expect(name!.width).toBeLessThan(130);
   });
+
+  test("a bar opens its tasks in the panel, through the view's filters", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Roadmap"));
+    const { version } = await versions(page, projectId);
+    const id = (name: string) => version.options.find((o) => o.name === name)!.id;
+    expect(
+      (
+        await page.request.patch(`/api/options/${id("Beta")}`, {
+          data: { note: "Ship it **fast**" },
+        })
+      ).status(),
+    ).toBe(200);
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Team", type: "select", options: ["Red", "Blue"] },
+    });
+    expect(made.status()).toBe(201);
+    const team = (await boardOf(page, projectId)).properties.find((p) => p.name === "Team")!;
+    const teamId = (name: string) => team.options.find((o) => o.name === name)!.id;
+
+    async function task(title: string, values: Record<string, string>) {
+      const res = await page.request.post(`/api/projects/${projectId}/tasks`, {
+        data: { title, values },
+      });
+      expect(res.status()).toBe(201);
+      return ((await res.json()) as { task: { id: string } }).task.id;
+    }
+    await task("One", { [version.id]: id("Beta"), [team.id]: teamId("Red") });
+    await task("Two", { [version.id]: id("Beta"), [team.id]: teamId("Blue") });
+    await task("Three", { [version.id]: id("Beta"), [team.id]: teamId("Red") });
+    const over = await task("Old work", { [version.id]: id("Alpha"), [team.id]: teamId("Blue") });
+    expect((await page.request.post(`/api/tasks/${over}/archive`)).ok()).toBeTruthy();
+
+    await addRoadmap(page, projectId);
+    const viewId = (
+      (await (await page.request.get(`/api/projects/${projectId}/board`)).json()) as {
+        views: { id: string; name: string }[];
+      }
+    ).views.find((v) => v.name === "Plan")!.id;
+    const ruled = await page.request.patch(`/api/views/${viewId}`, {
+      data: { filters: { rules: [{ propertyId: team.id, op: "is", values: [teamId("Red")] }] } },
+    });
+    expect(ruled.status()).toBe(200);
+    await page.reload();
+
+    /* A click opens the name, the dates, the note and the tasks the bar fills from. */
+    const beta = page.getByTestId("roadmap-bar").first();
+    await beta.click();
+    const panel = page.getByTestId("roadmap-panel");
+    await expect(panel.getByRole("heading", { name: "Beta" })).toBeVisible();
+    await expect(page.getByTestId("roadmap-panel-dates")).toContainText("–");
+    await expect(page.getByTestId("roadmap-panel-note").locator("strong")).toHaveText("fast");
+    await expect(page.getByTestId("roadmap-panel-task")).toHaveText([/One/, /Three/]);
+
+    /* A row opens its task as the list does, and closing the task brings the list back. */
+    await page.getByTestId("roadmap-panel-task").filter({ hasText: "Three" }).click();
+    await expect(page.getByTestId("task-panel")).toBeVisible();
+    await expect(panel).toBeHidden();
+    await page.getByRole("button", { name: "Close task" }).click();
+    await expect(panel).toBeVisible();
+
+    /* Escape closes it, and the cursor is on the bar again. */
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(beta).toBeFocused();
+
+    /* Enter opens it, and the ✕ closes it the same way. */
+    await page.keyboard.press("Enter");
+    await expect(panel).toBeVisible();
+    await panel.getByRole("button", { name: "Close Beta" }).click();
+    await expect(panel).toBeHidden();
+    await expect(beta).toBeFocused();
+
+    /* Space too. A shipped option lists its archived work, marked. */
+    await page.keyboard.press(" ");
+    await expect(panel).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByTestId("roadmap-bar").nth(1).click();
+    await expect(panel.getByRole("heading", { name: "Alpha" })).toBeVisible();
+    await expect(page.getByTestId("roadmap-panel-dates")).toContainText("Shipped");
+    const archived = page.getByTestId("roadmap-panel-task");
+    await expect(archived).toHaveCount(1);
+    await expect(archived).toContainText("Old work");
+    await expect(archived).toContainText("Archived");
+
+    /* A filter that takes the row away takes the panel for good: lifting the
+       filter brings the row back, and not the panel. */
+    const rule = (values: string[]) =>
+      page.request.patch(`/api/views/${viewId}`, {
+        data: { filters: { rules: [{ propertyId: version.id, op: "is", values }] } },
+      });
+    expect((await rule([id("Beta")])).status()).toBe(200);
+    await expect(page.getByTestId("roadmap-bar")).toHaveCount(1);
+    await expect(panel).toBeHidden();
+    expect((await rule([id("Beta"), id("Alpha")])).status()).toBe(200);
+    await expect(page.getByTestId("roadmap-bar")).toHaveCount(2);
+    await expect(panel).toBeHidden();
+  });
+
+  test("at phone width a bar's panel lies over the roadmap", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await register(page);
+    const projectId = await createProject(page, unique("Roadmap"));
+    await versions(page, projectId);
+    await addRoadmap(page, projectId);
+
+    await page.getByTestId("roadmap-bar").first().click();
+    const panel = page.getByTestId("roadmap-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("No task is under Beta.");
+    const box = (await panel.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    const wide = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(wide).toBe(0);
+    await panel.getByRole("button", { name: "Close Beta" }).click();
+    await expect(panel).toBeHidden();
+  });
 });

@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A roadmap bar opens its tasks.** Press a bar, or focus it and press Enter or Space, and the
+  panel shows the option's name, its dates, its note and its tasks in board order, through the
+  view's filters. A shipped option lists its archived tasks too, marked **Archived**. Each row opens
+  its task; Escape or ✕ closes the panel and puts the focus back on the bar.
 - **A select says whether its options carry dates.** Settings → Properties has a checkbox **Options
   carry dates** beside the name of each select, off by default. Only then do its options show Start,
   Target, Note and Unship, and only then does a filter on it offer **current**. Turning it off hides

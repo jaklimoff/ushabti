@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
 import { formatDate } from "@/lib/board";
 import { allowedColumns } from "@/lib/filters";
-import { daysIn, roadmapAxis, roadmapRows } from "@/lib/roadmap";
+import { daysIn, roadmapAxis, roadmapRows, type RoadmapRow } from "@/lib/roadmap";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 
@@ -12,17 +12,11 @@ import styles from "./board.module.css";
 const DAY_PX = 10;
 
 /**
- * The roadmap.
- *
- * One row per option of a select that has a target date, and one bar on a
- * line of weeks. It draws and decides nothing else: nothing here drags, and
- * the dates are edited in Settings, where the option lives. A bar is a button
- * so that pressing one can open its tasks later.
+ * The rows a roadmap draws, through the view's filters. The canvas and the
+ * panel a bar opens both ask this, so the two cannot disagree on a row.
  */
-export function RoadmapCanvas() {
-  const { data, view, visibleTasks, groupProperty, filters, user } = useBoard();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const todayRef = useRef<HTMLDivElement>(null);
+export function useRoadmap() {
+  const { data, visibleTasks, groupProperty, filters, user } = useBoard();
 
   /* The same rule the column header reads, so a release reads one way. */
   const countBy = data.properties.find((p) => p.id === data.project.progressBy) ?? null;
@@ -53,6 +47,43 @@ export function RoadmapCanvas() {
       ),
     [rows, filters, groupProperty, data.today, user.id],
   );
+  return { rows, drawn, countBy };
+}
+
+/** The last day of a bar, in words: the day it shipped, or its target. */
+export function endOf(row: RoadmapRow): string {
+  return row.shippedAt ? `Shipped ${formatDate(row.shippedAt)}` : formatDate(row.end);
+}
+
+/** Where the cursor goes back to when the panel a bar opened closes. */
+export function focusBar(optionId: string) {
+  document
+    .querySelector<HTMLElement>(
+      `[data-testid="roadmap-bar"][data-option="${CSS.escape(optionId)}"]`,
+    )
+    ?.focus();
+}
+
+/**
+ * The roadmap.
+ *
+ * One row per option of a select that has a target date, and one bar on a
+ * line of weeks. Nothing here drags, and the dates are edited in Settings,
+ * where the option lives. A bar is a button: pressing it opens the option's
+ * tasks in the panel, which the board shell draws beside the view.
+ */
+export function RoadmapCanvas({
+  openOptionId,
+  onOpenOption,
+}: {
+  openOptionId: string | null;
+  onOpenOption: (optionId: string) => void;
+}) {
+  const { data, view, groupProperty } = useBoard();
+  const { rows, drawn, countBy } = useRoadmap();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const todayRef = useRef<HTMLDivElement>(null);
+
   const axis = useMemo(() => roadmapAxis(drawn, data.today), [drawn, data.today]);
 
   /* Open with today in view, a third of the way in, so what is coming has
@@ -119,9 +150,7 @@ export function RoadmapCanvas() {
               .join(" · ");
             const left = at(row.start);
             const width = at(row.end) - left + DAY_PX;
-            const end = row.shippedAt
-              ? `Shipped ${formatDate(row.shippedAt)}`
-              : formatDate(row.end);
+            const end = endOf(row);
             return (
               <div
                 key={row.id}
@@ -144,7 +173,10 @@ export function RoadmapCanvas() {
                     style={{ left, width, borderColor: row.color }}
                     aria-label={`${row.name}: ${formatDate(row.start)} to ${end}, ${said}`}
                     title={`${formatDate(row.start)} – ${end}`}
+                    aria-expanded={openOptionId === row.id}
                     data-testid="roadmap-bar"
+                    data-option={row.id}
+                    onClick={() => onOpenOption(row.id)}
                   >
                     <span
                       className={styles.roadmapFill}
