@@ -347,7 +347,7 @@ test.describe("Agents that wait for work", () => {
     await expect(card(page, "Ship the docs").first().getByTestId("card-run")).toBeHidden();
   });
 
-  test("a comment becomes the description, and asks before it replaces one", async ({
+  test("a comment stays a comment, and offers no way to become the description", async ({
     page,
     request,
   }) => {
@@ -359,28 +359,13 @@ test.describe("Agents that wait for work", () => {
     const api = agentApi(request, token);
     const { task } = await taskByTitle(page.request, projectId, "Offline queue");
 
-    await api.post(`/api/tasks/${task.id}/comments`, { body: "Queue **writes** offline." });
+    await api.post(`/api/tasks/${task.id}/comments`, { body: "Queue writes offline." });
 
     await page.goto(`/p/${projectId}?task=${task.key}`);
     const comment = page.getByTestId("comment").filter({ hasText: "Queue writes offline." });
-
-    // Nothing is there to lose, so nothing is asked.
     await comment.hover();
-    await comment.getByRole("button", { name: "Use as description" }).click();
-    await expect(page.getByTestId("markdown").locator("strong")).toHaveText("writes");
-    await expect(comment.getByRole("button", { name: "Use as description" })).toBeHidden();
-
-    await api.post(`/api/tasks/${task.id}/comments`, { body: "Queue retries five times." });
-    await page.reload();
-    const second = page.getByTestId("comment").filter({ hasText: "Queue retries five times." });
-    await second.hover();
-    await second.getByRole("button", { name: "Use as description" }).click();
-
-    // Three words are there, and the question counts them.
-    const question = second.getByRole("alertdialog");
-    await expect(question).toContainText("Its 3 words go.");
-    await question.getByRole("button", { name: "Yes, replace" }).click();
-    await expect(page.getByTestId("markdown").first()).toHaveText("Queue retries five times.");
+    await expect(comment).toBeVisible();
+    await expect(comment.getByRole("button", { name: "Use as description" })).toHaveCount(0);
   });
 
   test("the watcher claims an assigned task and runs the harness for it", async ({ page }) => {

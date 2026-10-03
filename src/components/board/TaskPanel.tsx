@@ -39,7 +39,6 @@ import type {
 } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
-import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -797,8 +796,6 @@ export function TaskPanel({
                   taskId={taskId}
                   detail={detail}
                   me={user}
-                  description={shown.description}
-                  onUseAsDescription={(description) => patch({ description })}
                   links={links}
                   reload={reload}
                   counted={direct}
@@ -2158,8 +2155,6 @@ function Comments({
   taskId,
   detail,
   me,
-  description,
-  onUseAsDescription,
   links,
   reload,
   counted,
@@ -2170,8 +2165,6 @@ function Comments({
   taskId: string;
   detail: TaskDetailDTO;
   me: { id: string; name: string; color: string; emoji: string | null };
-  description: string;
-  onUseAsDescription: (body: string) => Promise<unknown>;
   links: TaskKeyLinks;
   reload: () => Promise<void>;
   counted: Counted;
@@ -2222,8 +2215,6 @@ function Comments({
           key={comment.id}
           comment={comment}
           mine={comment.author?.id === me.id}
-          description={description}
-          onUseAsDescription={onUseAsDescription}
           links={links}
           reload={reload}
           counted={counted}
@@ -2287,11 +2278,8 @@ function Comments({
 }
 
 /**
- * One comment. An agent that refines a task a person already described posts
- * its draft here rather than writing over their words, so the comment is
- * where a draft becomes the description, in one press. Replacing words that
- * are there asks first, and says how many are lost; filling an empty
- * description asks nothing, because nothing is lost.
+ * One comment. A comment is a comment: the description is edited in its own
+ * box, so nothing here writes it.
  *
  * Its author can edit it in place, as the description is edited: blur and
  * Mod + Enter save, Escape puts the old words back. Only the author, because
@@ -2300,8 +2288,6 @@ function Comments({
 function CommentItem({
   comment,
   mine,
-  description,
-  onUseAsDescription,
   links,
   reload,
   counted,
@@ -2309,19 +2295,11 @@ function CommentItem({
 }: {
   comment: TaskDetailDTO["comments"][number];
   mine: boolean;
-  description: string;
-  onUseAsDescription: (body: string) => Promise<unknown>;
   links: TaskKeyLinks;
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
 }) {
-  const confirm = useConfirm();
-  const already = comment.body.trim() === description.trim();
-  const words = description.trim() ? description.trim().split(/\s+/).length : 0;
-
-  const use = () => void onUseAsDescription(comment.body);
-
   const mod = useModKey();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
@@ -2401,15 +2379,6 @@ function CommentItem({
             </span>
           )}
           <span style={{ flex: 1 }} />
-          {!already && !confirm.asking && (
-            <button
-              className={styles.commentUse}
-              title="Make this comment the description"
-              onClick={words ? confirm.ask : use}
-            >
-              Use as description
-            </button>
-          )}
           {mine && !editing && refused === null && (
             <button className={styles.commentUse} title="Edit this comment" onClick={open}>
               Edit
@@ -2433,16 +2402,6 @@ function CommentItem({
             </button>
           )}
         </div>
-        {confirm.asking && (
-          <ConfirmRow
-            question={`Replace the description with this comment? Its ${words} ${
-              words === 1 ? "word goes" : "words go"
-            }.`}
-            confirmLabel="Yes, replace"
-            onConfirm={() => confirm.confirm(use)}
-            onCancel={confirm.cancel}
-          />
-        )}
         {refused !== null ? (
           <ChangedWhileTyping
             theirs={comment.body}
