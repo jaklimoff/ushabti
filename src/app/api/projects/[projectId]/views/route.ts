@@ -3,7 +3,14 @@ import { byPos } from "@/lib/order";
 import { views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
-import { groupPropertyId, toViewDTO, withProjectLock } from "@/lib/queries";
+import { startsOnCurrent } from "@/lib/filters";
+import {
+  groupPropertyId,
+  loadProperties,
+  projectToday,
+  toViewDTO,
+  withProjectLock,
+} from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
 import { GROUPED_KINDS, VIEW_KINDS, type ViewKind } from "@/lib/types";
 
@@ -11,7 +18,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
-  await guard(projectId);
+  const { user } = await guard(projectId);
 
   const input = await body<{ name?: string; kind?: string; groupById?: string | null }>(req);
   const name = str(input.name, "View name", { max: 40 });
@@ -34,6 +41,15 @@ export const POST = route<Ctx>(async (req, ctx) => {
     groupById = await groupPropertyId(projectId, input.groupById);
   }
 
+  /* A new board grouped by an iteration starts on the sprint that is on now,
+     as a board grouped by one later does. An agent writes no filters. */
+  const properties = await loadProperties(projectId);
+  const group = properties.find((p) => p.id === groupById);
+  const filters =
+    kind === "board" && group && user.kind === "human"
+      ? startsOnCurrent({ rules: [] }, group, await projectToday(projectId))
+      : null;
+
   const view = await withProjectLock(projectId, async (tx) => {
     const siblings = await tx
       .select({ position: views.position })
@@ -50,14 +66,12 @@ export const POST = route<Ctx>(async (req, ctx) => {
         groupById,
         position: rankAfter(siblings.at(-1)?.position ?? null),
         isDefault: siblings.length === 0,
-        config: {},
+        config: filters && filters.rules.length ? { filters } : {},
       })
       .returning();
     return row;
   });
 
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
-  // A new view has no filters, so the property list it is read against can be
-  // empty: `readFilters` has nothing to check.
-  return json({ view: toViewDTO(view, []) }, 201);
+  return json({ view: toViewDTO(view, properties) }, 201);
 });

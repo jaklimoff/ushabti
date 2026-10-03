@@ -89,6 +89,8 @@ test("a board grouped by an iteration dates its header, filters 'is current', sh
     data: { groupById: sprint.id },
   });
   expect(grouped.ok()).toBeTruthy();
+  // Grouping starts it on "is current"; this walk wants every sprint.
+  await page.request.patch(`/api/views/${main.id}`, { data: { filters: { rules: [] } } });
 
   /* ---- the header carries the date and Ship ------------------------- */
 
@@ -139,4 +141,97 @@ test("a board grouped by an iteration dates its header, filters 'is current', sh
   await page.goto(`/p/${projectId}`);
   await page.getByTestId("view-pill").filter({ hasText: "Plan" }).click();
   await expect(page.getByTestId("roadmap-row")).toHaveCount(2);
+});
+
+test("a picker opens on the current sprint, and grouping by one starts on 'is current'", async ({
+  page,
+}) => {
+  await register(page);
+  const projectId = await createProject(page, unique("Current"));
+  const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+    data: { name: "Sprint", type: "iteration", options: ["Old", "Now", "Next"] },
+  });
+  expect(made.status()).toBe(201);
+  const sprint = (await board(page, projectId)).properties.find((p) => p.name === "Sprint")!;
+  const [old, now, next] = sprint.options;
+  for (const [option, start, target] of [
+    [old, day(-10), day(-4)],
+    [now, day(-3), day(3)],
+    [next, day(4), day(10)],
+  ] as const) {
+    const res = await page.request.patch(`/api/options/${option.id}`, {
+      data: { startAt: start, targetAt: target },
+    });
+    expect(res.ok()).toBeTruthy();
+  }
+  for (const [title, option] of [
+    ["Alpha", old],
+    ["Bravo", now],
+  ] as const) {
+    const res = await page.request.post(`/api/projects/${projectId}/tasks`, {
+      data: { title, values: { [sprint.id]: option.id } },
+    });
+    expect(res.ok()).toBeTruthy();
+  }
+
+  /* ---- the picker marks the current sprint and opens on it ---------- */
+
+  await page.goto(`/p/${projectId}`);
+  await card(page, "Alpha").click();
+  const field = page.getByTestId("task-panel").locator('[data-property="Sprint"]');
+  await field.getByRole("button", { name: /Old/ }).click();
+  await expect(field.getByRole("option", { name: /Now/ })).toContainText("current");
+  await expect(field.getByRole("option", { name: /Next/ })).not.toContainText("current");
+  await expect(field.locator('[data-at="true"]')).toHaveText(/Now/);
+  await page.keyboard.press("Escape");
+
+  /* ---- grouping by it adds "is current" in the same write ----------- */
+
+  await gotoSettings(page, projectId, "views");
+  const write = page.waitForResponse(
+    (r) => /\/api\/views\/[0-9a-f-]+$/.test(r.url()) && r.request().method() === "PATCH",
+  );
+  await page.getByLabel("Grouping property of the view Board").selectOption({ label: "Sprint" });
+  expect((await write).ok()).toBeTruthy();
+  const view = (
+    (await (await page.request.get(`/api/projects/${projectId}/board`)).json()) as {
+      views: {
+        isDefault: boolean;
+        filters: { rules: { propertyId: string; values: string[] }[] };
+      }[];
+    }
+  ).views.find((v) => v.isDefault)!;
+  expect(view.filters.rules).toEqual([
+    expect.objectContaining({ propertyId: sprint.id, values: ["__current__"] }),
+  ]);
+
+  await page.goto(`/p/${projectId}`);
+  await expect(
+    page.getByTestId("filter-chip").filter({ hasText: "Sprint is current" }),
+  ).toBeVisible();
+  await expect(card(page, "Bravo")).toBeVisible();
+  await expect(card(page, "Alpha")).toHaveCount(0);
+
+  /* ---- a person whose own filter already asks about it gets no second rule */
+
+  const views = (await board(page, projectId)).views;
+  const main = views.find((v) => v.isDefault)!;
+  const status = (await board(page, projectId)).properties.find((p) => p.name === "Status")!;
+  await page.request.patch(`/api/views/${main.id}`, {
+    data: { groupById: status.id, filters: { rules: [] } },
+  });
+  const lens = await page.request.put(`/api/views/${main.id}/lens`, {
+    data: { filters: { rules: [{ propertyId: sprint.id, op: "is", values: [next.id] }] } },
+  });
+  expect(lens.ok()).toBeTruthy();
+  const regrouped = await page.request.patch(`/api/views/${main.id}`, {
+    data: { groupById: sprint.id },
+  });
+  expect(regrouped.ok()).toBeTruthy();
+  const after = (
+    (await (await page.request.get(`/api/projects/${projectId}/board`)).json()) as {
+      views: { isDefault: boolean; filters: { rules: unknown[] } }[];
+    }
+  ).views.find((v) => v.isDefault)!;
+  expect(after.filters.rules).toEqual([]);
 });

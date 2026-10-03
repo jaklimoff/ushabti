@@ -145,6 +145,17 @@ function currentOptions(property: PropertyDTO, today: string): string[] {
 }
 
 /**
+ * The one option that holds `today`, or null when none does or two overlap.
+ * A picker opens on it and the composer seeds it, so both mean the sprint a
+ * filter "is current" means, and neither works a date out of its own.
+ */
+export function currentOption(property: PropertyDTO, today: string): string | null {
+  if (!isSelect(property.type)) return null;
+  const now = currentOptions(property, today);
+  return now.length === 1 ? now[0] : null;
+}
+
+/**
  * The rule's stand-in property. A checkbox is what it reads like, so it is
  * one: the menu, the chip and the matching all follow from the type.
  */
@@ -512,6 +523,45 @@ export function asksAbout(filters: ViewFilters, propertyId: string): boolean {
 }
 
 /**
+ * True when a write makes a board grouped by a property the view was not
+ * grouped by before. A list or a roadmap that becomes a board again keeps the
+ * property it had, so it is not a new grouping: a rule somebody took off
+ * there must not come back.
+ */
+export function groupsAnew(
+  before: { kind: string; groupById: string | null },
+  after: { kind: string; groupById: string | null },
+): boolean {
+  return after.kind === "board" && after.groupById !== null && before.groupById !== after.groupById;
+}
+
+/**
+ * The view's rules once it is grouped by `property`. A board grouped by an
+ * iteration starts on the sprint that is on now, because that is the one a
+ * person means nine times out of ten. It is an ordinary rule, so its chip
+ * comes off as any rule does. A view that already asks about the property
+ * keeps what it asks: somebody chose that. So does a view whose writer's own
+ * lens asks about it, because a second rule there is the clash `clashOf`
+ * refuses at every other door. And so does a property with no open option on
+ * `today`: the rule would take every column away, and a shipped sprint has no
+ * column to leave.
+ */
+export function startsOnCurrent(
+  filters: ViewFilters,
+  property: PropertyDTO,
+  today: string,
+  lens: ViewFilters = EMPTY_FILTERS,
+): ViewFilters {
+  if (property.type !== "iteration") return filters;
+  if (asksAbout(filters, property.id) || asksAbout(lens, property.id)) return filters;
+  const now = new Set(currentOptions(property, today));
+  if (!property.options.some((o) => now.has(o.id) && o.shippedAt === null)) return filters;
+  return {
+    rules: [...filters.rules, { propertyId: property.id, op: "is", values: [CURRENT_KEY] }],
+  };
+}
+
+/**
  * The property a person's rules and the view's rules both name, or null.
  *
  * One property, one rule, whoever asked. A lens may only narrow, so a second
@@ -668,8 +718,8 @@ export function seedValues(
       continue;
     }
     if (keys[0] === CURRENT_KEY) {
-      const now = isSelect(property.type) ? currentOptions(property, today) : [];
-      if (now.length === 1) seed[property.id] = now[0];
+      const now = currentOption(property, today);
+      if (now) seed[property.id] = now;
       continue;
     }
 

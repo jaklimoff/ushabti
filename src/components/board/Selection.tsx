@@ -170,6 +170,7 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
                     property={property}
                     value={draft}
                     members={data.members}
+                    today={data.today}
                     onChange={(value: TaskValue) => {
                       setDraft(value);
                       void setPickedValue(property.id, value);

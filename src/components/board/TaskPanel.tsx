@@ -714,6 +714,7 @@ export function TaskPanel({
                       property={property}
                       value={shown.values[property.id] ?? null}
                       members={data.members}
+                      today={data.today}
                       labelId={`${ids}-field-${property.id}`}
                       onChange={(value: TaskValue) => void writeValue(property.id, value)}
                       onAddOption={
