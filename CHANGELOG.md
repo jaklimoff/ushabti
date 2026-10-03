@@ -49,6 +49,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   **Pull requests** property with an agent token. A key with no task writes a line in the job log
   and does not fail the job. The docs page **Pull requests from GitHub** says how to set it up.
 
+### Fixed
+
+- **Only an admin, and only a person, can ship or unship an option.** A write of an option's
+  shipped date from a member or from an agent token is now refused with 403. A member and an agent
+  still write the name, the colour, the start, the target and the note.
+
 ## 0.15.0 — 2026-10-01
 
 ### Added

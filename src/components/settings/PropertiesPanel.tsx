@@ -497,7 +497,7 @@ function OptionChip({
         </span>
       )}
       <OptionName option={option} />
-      {dated && <OptionPlan option={option} />}
+      {dated && <OptionPlan option={option} canEdit={canEdit} />}
       {canEdit && (
         <button
           type="button"
@@ -557,7 +557,13 @@ function OptionName({ option }: { option: PropertyDTO["options"][number] }) {
  * The start, the target and the note of a select's option. The shipped date
  * is written by shipping, so here it is only read, with the one way back.
  */
-function OptionPlan({ option }: { option: PropertyDTO["options"][number] }) {
+function OptionPlan({
+  option,
+  canEdit,
+}: {
+  option: PropertyDTO["options"][number];
+  canEdit: boolean;
+}) {
   const { patchOption } = useBoard();
   /* The day it shipped cannot be typed back, so Unship asks first. */
   const unship = useConfirm();
@@ -584,14 +590,17 @@ function OptionPlan({ option }: { option: PropertyDTO["options"][number] }) {
       {option.shippedAt && (
         <span className={styles.optionShipped}>
           Shipped {option.shippedAt}
-          <button
-            type="button"
-            className={styles.optionUnship}
-            aria-label={`Unship ${option.name}`}
-            onClick={unship.ask}
-          >
-            Unship
-          </button>
+          {/* Unship is an admin's, so a member reads the date and nothing more. */}
+          {canEdit && (
+            <button
+              type="button"
+              className={styles.optionUnship}
+              aria-label={`Unship ${option.name}`}
+              onClick={unship.ask}
+            >
+              Unship
+            </button>
+          )}
         </span>
       )}
     </span>

@@ -238,6 +238,11 @@ answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the
 counts.
 
+An agent cannot ship or unship. `shippedAt` closes a release or a sprint, so
+only the owner or an admin writes it, and only as a person: a write that
+carries `shippedAt` from a token is refused with `403`. An agent reads it, and
+writes the other three as before.
+
 Then write it:
 
 ```bash
