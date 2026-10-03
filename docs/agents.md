@@ -242,6 +242,18 @@ one sentence. A multi-select option is a label and carries none of them.
 `config.dated` on the property says whether its options carry dates: it
 decides what Settings shows and whether a filter offers "current", and only a
 person who is the owner or an admin writes it.
+An `iteration` property is a select whose options always carry dates, one
+per sprint. `config.cadence` on it is `{ "length": 14, "ahead": 1 }`: a
+sprint's length in days and how many open sprints wait after the one that
+ships. A property with no cadence saved reads as those two defaults. When an
+iteration option ships, the server makes what is missing ahead in the same
+transaction: each new sprint starts the day after the last option's target,
+lasts `length` days, and takes the last name with its trailing number plus
+one ("Sprint 14" to "Sprint 15"; a name with no number gets " 2"). Write it
+with `PATCH /api/properties/{id}` and `{"cadence":{"length":7}}`, either half
+alone, a whole number, `length` 1 to 365 and `ahead` 1 to 10; only a person
+who is the owner or an admin writes it. The cadence fills in and forbids
+nothing: an option made, renamed, dated or deleted by hand stays as it is.
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the

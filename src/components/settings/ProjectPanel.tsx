@@ -7,6 +7,7 @@ import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import type { DoneWhen } from "@/lib/links";
 import { sprintsSetUp } from "@/lib/sprints";
+import { CADENCE_DEFAULT } from "@/lib/cadence";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -38,6 +39,9 @@ export function ProjectPanel() {
   /* A press waits for its answer, so a second press cannot ask again. */
   const [settingUp, setSettingUp] = useState(false);
   const hasSprints = sprintsSetUp(data.properties);
+  /* What the cadence starts from. Nothing is saved until the press. */
+  const [sprintLength, setSprintLength] = useState(String(CADENCE_DEFAULT.length));
+  const [sprintStart, setSprintStart] = useState(data.today);
   /* A press waits for its answer before it counts again: a second press on a
      switch that has not answered yet would flip it back. */
   const [flipping, setFlipping] = useState(false);
@@ -104,7 +108,10 @@ export function ProjectPanel() {
     if (settingUp) return;
     setSettingUp(true);
     try {
-      await send.post(`/api/projects/${data.project.id}/sprints`);
+      await send.post(`/api/projects/${data.project.id}/sprints`, {
+        length: Number(sprintLength.trim()),
+        startAt: sprintStart,
+      });
       await refresh();
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not set up sprints.");
@@ -343,13 +350,30 @@ export function ProjectPanel() {
                 <Note>Sprints are set up.</Note>
               ) : (
                 <>
+                  <label className={styles.cadenceBox}>
+                    <Input
+                      aria-label="Sprint length in days"
+                      inputMode="numeric"
+                      className={styles.cadenceInput}
+                      value={sprintLength}
+                      onChange={(e) => setSprintLength(e.target.value)}
+                    />
+                    days, from
+                  </label>
+                  <Input
+                    aria-label="First day of the first sprint"
+                    type="date"
+                    value={sprintStart}
+                    onChange={(e) => setSprintStart(e.target.value)}
+                  />
                   <Button variant="ghost" disabled={settingUp} onClick={() => void setUpSprints()}>
                     Set up sprints
                   </Button>
                   <Note>
-                    Adds an iteration property <b>Sprint</b>, a board <b>Sprint</b> that shows the
-                    current sprint, and a list <b>Backlog</b> of the tasks in no sprint. A sprint is
-                    current while its dates hold today. You can rename or delete each one
+                    Adds an iteration property <b>Sprint</b> with Sprint 1 from that day and Sprint
+                    2 after it, a board <b>Sprint</b> that shows the current sprint, and a list{" "}
+                    <b>Backlog</b> of the tasks in no sprint. A sprint is current while its dates
+                    hold today. Each ship makes the next sprint. You can rename or delete each one
                     afterwards.
                   </Note>
                 </>

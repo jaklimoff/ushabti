@@ -43,6 +43,7 @@ import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/li
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
 import { canManage } from "@/lib/roles";
 import { nextOpenOption, shipSaid } from "@/lib/ship";
+import { readCadence, sprintsAhead } from "@/lib/cadence";
 import { sortTasks } from "@/lib/sort";
 import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
@@ -382,14 +383,25 @@ export function BoardCanvas({
   const canShip = sweepable && canManage(data.project.role);
   const shipOffer = (column: BoardColumn): ShipOffer | null => {
     if (!canShip || !isSelect(groupProperty?.type ?? "")) return null;
-    const next = nextOpenOption(groupProperty, groupProperty.options, column.id);
+    /* An iteration's ship makes the next sprint when there is none, so the
+       question names the one it will make. */
+    const nextName =
+      nextOpenOption(groupProperty, groupProperty.options, column.id)?.name ??
+      (groupProperty.type === "iteration"
+        ? (sprintsAhead(
+            groupProperty.options,
+            column.id,
+            readCadence(groupProperty.config),
+            data.today,
+          )[0]?.name ?? null)
+        : null);
     return {
-      nextName: next?.name ?? null,
+      nextName,
       onShip: async (rest) => {
         const done = await shipOption(column.id, rest);
         if (!done) return false;
         fold(column.id, true);
-        notify(shipSaid(column.name, done, next?.name ?? null), "info");
+        notify(shipSaid(column.name, done, nextName), "info");
         return true;
       },
     };
