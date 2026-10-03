@@ -421,7 +421,7 @@ export function BoardCanvas({
   }, [activeTaskId, activeColumnId]);
 
   const addNote = seedNote(
-    seedValues(filters, data.properties, groupProperty?.id ?? null, user.id),
+    seedValues(filters, data.properties, groupProperty?.id ?? null, user.id, data.today),
     data.properties,
     data.members,
   );
@@ -588,6 +588,7 @@ export function BoardCanvas({
       data.properties,
       groupProperty?.id ?? null,
       user.id,
+      data.today,
     );
     if (groupProperty && !column.isNone) values[groupProperty.id] = column.value;
     const neighbour = atTop ? null : (column.tasks.at(-1)?.id ?? null);
