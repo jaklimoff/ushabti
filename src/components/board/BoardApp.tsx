@@ -14,7 +14,8 @@ import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
 import { FilterChips } from "./Filters";
 import { ListCanvas } from "./ListCanvas";
-import { RoadmapCanvas } from "./RoadmapCanvas";
+import { focusBar, RoadmapCanvas } from "./RoadmapCanvas";
+import { RoadmapPanel } from "./RoadmapPanel";
 import { Listening } from "./Listening";
 import { Search } from "./Search";
 import { Selection } from "./Selection";
@@ -83,6 +84,34 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
     setAnswering((was) => ({ taskId: task.id, n: (was?.n ?? 0) + 1 }));
     writeAddress(task.key);
   }, []);
+
+  /* The bar whose tasks are open, on the view it was pressed on, and the task
+     it opened last. Another view drops it without an effect to clear it. */
+  const [bar, setBar] = useState<{ viewId: string; optionId: string; task: string | null } | null>(
+    null,
+  );
+  const openBar = view?.kind === "roadmap" && bar?.viewId === view.id ? bar : null;
+  const pressBar = useCallback(
+    (optionId: string) => {
+      if (!view) return;
+      setBar({ viewId: view.id, optionId, task: null });
+      open(null);
+    },
+    [view, open],
+  );
+  const closeBar = useCallback(() => {
+    const optionId = bar?.optionId;
+    setBar(null);
+    if (optionId) focusBar(optionId);
+  }, [bar?.optionId]);
+  const dropBar = useCallback(() => setBar(null), []);
+  const openFromBar = useCallback(
+    (task: Openable) => {
+      setBar((was) => (was ? { ...was, task: task.id } : was));
+      open(task);
+    },
+    [open],
+  );
 
   // TaskPanel builds its loader from this, so a new function on every render
   // would make the panel reload — and reset — every time the board re-renders.
@@ -177,7 +206,7 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
         {view?.kind === "list" ? (
           <ListCanvas selectedTaskId={openTask} onOpenTask={open} />
         ) : view?.kind === "roadmap" ? (
-          <RoadmapCanvas />
+          <RoadmapCanvas openOptionId={openBar?.optionId ?? null} onOpenOption={pressBar} />
         ) : (
           <BoardCanvas selectedTaskId={openTask} onOpenTask={open} />
         )}
@@ -232,6 +261,18 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           onClose={closePanel}
           onOpenTask={open}
           answer={answering?.taskId === openTask ? answering.n : 0}
+        />
+      )}
+
+      {/* A task opened from a bar takes the panel's place; closing it brings
+          the bar's list back. */}
+      {openBar && !openTask && (
+        <RoadmapPanel
+          optionId={openBar.optionId}
+          backTo={openBar.task}
+          onClose={closeBar}
+          onGone={dropBar}
+          onOpenTask={openFromBar}
         />
       )}
 

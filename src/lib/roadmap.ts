@@ -133,3 +133,28 @@ function monday(day: number): number {
 export function daysIn(axis: RoadmapAxis, day: string): number {
   return dayNumber(day) - axis.first;
 }
+
+/**
+ * What a bar holds, for the panel it opens.
+ *
+ * The live tasks come in the order the board draws them, already through the
+ * view's filters, so the list agrees with the bar's fill. The archived ones
+ * carry no values on the board, so no filter can reach them; they are listed
+ * whole, in the order the server summed them in.
+ */
+export function optionTasks<
+  T extends { values: Record<string, unknown> },
+  A extends { id: string },
+>(
+  propertyId: string,
+  optionId: string,
+  ordered: T[],
+  archived: A[],
+  under: ArchivedUnder | undefined,
+): { live: T[]; archived: A[] } {
+  const byId = new Map(archived.map((t) => [t.id, t]));
+  return {
+    live: ordered.filter((t) => t.values[propertyId] === optionId),
+    archived: (under?.taskIds ?? []).flatMap((id) => byId.get(id) ?? []),
+  };
+}

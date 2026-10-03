@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysIn, roadmapAxis, roadmapRows, type RoadmapTask } from "../roadmap";
+import { daysIn, optionTasks, roadmapAxis, roadmapRows, type RoadmapTask } from "../roadmap";
 import type { PropertyDTO, PropertyOptionDTO } from "../types";
 
 function option(id: string, dates: Partial<PropertyOptionDTO> = {}): PropertyOptionDTO {
@@ -106,7 +106,7 @@ describe("a shipped option, whose work the ship archived", () => {
     option("v1", { targetAt: "2026-09-30", shippedAt: "2026-09-29" }),
     option("v2", { targetAt: "2026-10-31" }),
   ]);
-  const archived = { v1: { firstAt: "2026-09-02T10:00:00.000Z", count: 4 } };
+  const archived = { v1: { firstAt: "2026-09-02T10:00:00.000Z", count: 4, taskIds: [] } };
 
   it("starts at its oldest archived task, and says how many it took", () => {
     const [row] = roadmapRows(property, [], [], rule, "UTC", archived);
@@ -141,5 +141,38 @@ describe("roadmapAxis", () => {
   it("always holds today", () => {
     const axis = roadmapAxis([], "2026-10-03");
     expect(axis.weeks).toEqual(["2026-09-21", "2026-09-28", "2026-10-05"]);
+  });
+});
+
+describe("optionTasks", () => {
+  const live = [
+    { id: "t1", values: { "p-version": "v1" } },
+    { id: "t2", values: { "p-version": "v2" } },
+    { id: "t3", values: { "p-version": "v1" } },
+  ];
+  const archived = [
+    { id: "a1", key: "R-1" },
+    { id: "a2", key: "R-2" },
+  ];
+
+  it("keeps the live tasks under the option, in the order it is given", () => {
+    const [first, , third] = live;
+    expect(optionTasks("p-version", "v1", [third, ...live], [], undefined).live).toEqual([
+      third,
+      first,
+      third,
+    ]);
+  });
+
+  it("lists the archived ones in the order the board sent, skipping any it lost", () => {
+    const under = { firstAt: "2026-09-01T00:00:00Z", count: 3, taskIds: ["a2", "gone", "a1"] };
+    expect(optionTasks("p-version", "v1", live, archived, under).archived).toEqual([
+      archived[1],
+      archived[0],
+    ]);
+  });
+
+  it("lists no archived task for an option that holds none", () => {
+    expect(optionTasks("p-version", "v2", live, archived, undefined).archived).toEqual([]);
   });
 });
