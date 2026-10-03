@@ -23,6 +23,7 @@ import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { carriesDates, NOTE_MAX, optionEdit, splitShipped } from "@/lib/option-dates";
+import { AHEAD_MAX, cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -338,6 +339,7 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
         </div>
       </div>
 
+      {property.type === "iteration" && <CadenceRow property={property} canEdit={canEdit} />}
       {hasOptions(property.type) && dropConfirm.asking && dropping && (
         <ConfirmRow
           question={
@@ -733,5 +735,91 @@ function OptionField({
       className={styles.optionDate}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
     />
+  );
+}
+
+/**
+ * An iteration's cadence: how long a sprint is, and how many open ones wait
+ * after the one that ships. Each box saves on blur, and on leave for a tab
+ * closed while it still has the focus.
+ */
+function CadenceRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
+  const cadence = readCadence(property.config);
+  return (
+    <div className={styles.cadence}>
+      <CadenceBox
+        property={property}
+        field="length"
+        saved={cadence.length}
+        max={LENGTH_MAX}
+        label="Sprint length in days"
+        unit="days a sprint"
+        canEdit={canEdit}
+      />
+      <CadenceBox
+        property={property}
+        field="ahead"
+        saved={cadence.ahead}
+        max={AHEAD_MAX}
+        label="Sprints kept ahead"
+        unit="open ahead"
+        canEdit={canEdit}
+      />
+      <Note>A ship makes the next sprint, named and dated after the last one.</Note>
+    </div>
+  );
+}
+
+function CadenceBox({
+  property,
+  field,
+  saved,
+  max,
+  label,
+  unit,
+  canEdit,
+}: {
+  property: PropertyDTO;
+  field: keyof Cadence;
+  saved: number;
+  max: number;
+  label: string;
+  unit: string;
+  canEdit: boolean;
+}) {
+  const { patchProperty } = useBoard();
+  const [draft, setDraft] = useState(String(saved));
+  /* Only what this tab typed may be written back, as for the name. */
+  const [typed, setTyped] = useState(false);
+  const edit = typed ? cadenceEdit(draft, saved, max) : null;
+  useSaveOnLeave(() =>
+    edit === null
+      ? null
+      : {
+          method: "PATCH",
+          url: `/api/properties/${property.id}`,
+          body: { cadence: { [field]: edit } },
+        },
+  );
+  return (
+    <label className={styles.cadenceBox}>
+      <Input
+        aria-label={`${label} of ${property.name}`}
+        inputMode="numeric"
+        className={styles.cadenceInput}
+        value={typed ? draft : String(saved)}
+        disabled={!canEdit}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setTyped(true);
+        }}
+        onBlur={() => {
+          setTyped(false);
+          if (edit !== null) void patchProperty(property.id, { cadence: { [field]: edit } });
+          setDraft(String(edit ?? saved));
+        }}
+      />
+      {unit}
+    </label>
   );
 }

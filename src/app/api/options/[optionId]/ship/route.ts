@@ -5,7 +5,11 @@ import { projects, properties, propertyOptions, tasks, taskValues } from "@/db/s
 import { HttpError } from "@/lib/auth";
 import { logActivityIn, type ActivityEntry, type Ring } from "@/lib/activity";
 import { adminOnly, body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
+import { readCadence, sprintsAhead } from "@/lib/cadence";
+import { nextPaletteColor } from "@/lib/colors";
+import { todayIn } from "@/lib/day";
 import { readDoneWhen } from "@/lib/links";
+import { rankAfter } from "@/lib/rank";
 import { loadProperties, optionPropertyId, withProjectLock } from "@/lib/queries";
 import { nextOpenOption, readShipRest, shipDay, splitShip } from "@/lib/ship";
 import type { TaskValue } from "@/lib/types";
@@ -46,6 +50,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         targetAt: propertyOptions.targetAt,
         shippedAt: propertyOptions.shippedAt,
         type: properties.type,
+        config: properties.config,
         property: properties.name,
       })
       .from(propertyOptions)
@@ -62,15 +67,47 @@ export const POST = route<Ctx>(async (req, ctx) => {
       throw new HttpError(409, `${option.name} already shipped on ${option.shippedAt}.`);
     }
 
-    const siblings = await tx
-      .select({
-        id: propertyOptions.id,
-        name: propertyOptions.name,
-        shippedAt: propertyOptions.shippedAt,
-      })
-      .from(propertyOptions)
-      .where(eq(propertyOptions.propertyId, propertyId))
-      .orderBy(byPos(propertyOptions.position));
+    const options = () =>
+      tx
+        .select({
+          id: propertyOptions.id,
+          name: propertyOptions.name,
+          color: propertyOptions.color,
+          position: propertyOptions.position,
+          startAt: propertyOptions.startAt,
+          targetAt: propertyOptions.targetAt,
+          shippedAt: propertyOptions.shippedAt,
+        })
+        .from(propertyOptions)
+        .where(eq(propertyOptions.propertyId, propertyId))
+        .orderBy(byPos(propertyOptions.position));
+    let siblings = await options();
+
+    /* An iteration keeps its cadence's sprints open ahead, so the next one is
+       made here, under the lock that also refuses a second ship: two presses
+       cannot make two of it. The names and dates follow the last option. */
+    const [project] = await tx
+      .select({ doneWhen: projects.doneWhen, timeZone: projects.timeZone })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (option.type === "iteration") {
+      const made = sprintsAhead(
+        siblings,
+        optionId,
+        readCadence(option.config as { cadence?: unknown }),
+        todayIn(project?.timeZone ?? "UTC"),
+      );
+      let rank = siblings.at(-1)?.position ?? null;
+      const colors = siblings.map((o) => o.color);
+      for (const sprint of made) {
+        rank = rankAfter(rank);
+        const color = nextPaletteColor(colors);
+        colors.push(color);
+        await tx.insert(propertyOptions).values({ propertyId, ...sprint, color, position: rank });
+      }
+      if (made.length) siblings = await options();
+    }
     const next = nextOpenOption(option, siblings, optionId);
     if (rest === "next" && !next) {
       throw new HttpError(
@@ -97,11 +134,6 @@ export const POST = route<Ctx>(async (req, ctx) => {
     const ids = column.map((t) => t.id);
 
     /* Over is the project's rule, read afresh as every other reader does. */
-    const [project] = await tx
-      .select({ doneWhen: projects.doneWhen })
-      .from(projects)
-      .where(eq(projects.id, projectId))
-      .limit(1);
     const doneWhen = readDoneWhen(project?.doneWhen, await loadProperties(projectId, tx));
     const held = new Map<string, TaskValue>();
     if (doneWhen && ids.length) {

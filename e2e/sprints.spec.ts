@@ -78,7 +78,7 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
   await gotoSettings(page, projectId, "project");
   const press = page.getByRole("button", { name: "Set up sprints" });
   await expect(press).toBeVisible();
-  await expect(page.getByText(/an iteration property Sprint, a board Sprint/)).toBeVisible();
+  await expect(page.getByText(/an iteration property Sprint with Sprint 1/)).toBeVisible();
   await expect(page.getByText(/a list Backlog of the tasks in no sprint/)).toBeVisible();
 
   const answer = page.waitForResponse((res) => res.url().endsWith("/sprints"));
@@ -90,7 +90,9 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
   const after = await board(page, projectId);
   const sprint = after.properties.find((p) => p.name === "Sprint")!;
   /* A sprint is an iteration, whose options always carry dates. */
-  expect(sprint).toMatchObject({ type: "iteration", options: [] });
+  expect(sprint).toMatchObject({ type: "iteration" });
+  /* The cadence makes the first sprint and one ahead. */
+  expect(sprint.options).toHaveLength(2);
   const added = after.views.filter((v) => !before.views.some((b) => b.id === v.id));
   expect(added.map((v) => [v.name, v.kind])).toEqual([
     ["Sprint", "board"],

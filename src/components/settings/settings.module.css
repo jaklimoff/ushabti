@@ -198,6 +198,26 @@
   min-width: 0;
 }
 
+.cadence {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+}
+
+.cadenceBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-small);
+  color: var(--text-3);
+}
+
+.cadenceInput {
+  width: 4.5em;
+}
+
 .datedSwitch {
   display: inline-flex;
   align-items: center;
