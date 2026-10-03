@@ -612,6 +612,12 @@ export type ProjectDTO = {
    */
   doneWhen: { propertyId: string; optionId: string } | null;
   /**
+   * The number property a column's progress bar sums, or null to count
+   * tasks. Read afresh: a property that is gone, or is not a number, arrives
+   * here as null.
+   */
+  progressBy: string | null;
+  /**
    * The zone this project's day is worked out in, as an IANA name. UTC until
    * the owner says otherwise, and read afresh: a name this runtime does not
    * know arrives here as UTC.

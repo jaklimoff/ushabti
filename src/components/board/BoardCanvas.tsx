@@ -44,7 +44,13 @@ import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
 import { sortTasks } from "@/lib/sort";
 import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
-import { COLUMN_PREFIX, CONTAINER_PREFIX, Column, type ComposerPlace } from "./Column";
+import {
+  COLUMN_PREFIX,
+  CONTAINER_PREFIX,
+  Column,
+  type ComposerPlace,
+  type ProgressRule,
+} from "./Column";
 import { ColumnStrip } from "./ColumnStrip";
 import { useCursorBack, useShortcut } from "./keys";
 import { TaskCard } from "./TaskCard";
@@ -361,6 +367,19 @@ export function BoardCanvas({
    * would not be the count that went.
    */
   const sweepable = !!groupProperty && filters.rules.length === 0;
+
+  /* Only a select option carries dates, so only a select board shows them.
+     The unit is a number property the owner named, read afresh on the
+     server; the name comes from here so a rename shows at once. */
+  const datedOptions = groupProperty?.type === "select" ? groupProperty.options : [];
+  const countBy = data.properties.find((p) => p.id === data.project.progressBy) ?? null;
+  const rule: ProgressRule = useMemo(
+    () => ({
+      doneWhen: data.project.doneWhen,
+      countBy: countBy ? { id: countBy.id, name: countBy.name } : null,
+    }),
+    [data.project.doneWhen, countBy],
+  );
 
   /* One card at a time carries the cursor, and that card is the board's only
      tab stop: Tab reaches the board once instead of once for every card, and
@@ -752,6 +771,8 @@ export function BoardCanvas({
                   sweepable ? () => void sweepColumn(groupProperty?.id ?? null, column.value) : null
                 }
                 onFold={(on) => fold(column.id, on)}
+                dates={datedOptions.find((o) => o.id === column.id) ?? null}
+                rule={rule}
               />
             ))}
           </SortableContext>
