@@ -79,45 +79,50 @@ export type Rung = {
   kind: string;
   at: Date;
   /**
-   * The import these lines belong to, or null.
+   * The one change these lines belong to, or null: an import, or a ship.
    *
-   * An import writes one line on the project and one on every task it made.
-   * That is one change, so it is one doorbell: the lines that share this are
-   * folded below and ring once. Without it a board of two thousand cards
-   * would post two thousand and one deliveries to every receiver, which is
-   * a denial of service dressed as an event.
+   * An import writes one line on the project and one on every task it made,
+   * and a ship one on every task it archived or moved. That is one change, so
+   * it is one doorbell: the lines that share this are folded below and ring
+   * once. Without it a board of two thousand cards would post two thousand
+   * and one deliveries to every receiver, which is a denial of service
+   * dressed as an event.
    */
-  importId?: string | null;
+  batchId?: string | null;
 };
 
 /**
- * One line per import, and every other line as it came.
+ * One line per import or ship, and every other line as it came.
  *
  * The line kept is the one about the project, because that is the one that
  * carries the counts in the feed; a receiver reads `/activity` after it, as
  * it does for every other ring. The doorbell says what changed and where,
  * never what, so one ring for one import loses nothing.
+ *
+ * It folds what one webhook rings for, after its kinds are applied. A ship
+ * writes archive lines and value lines, and a webhook that listens only to
+ * `value` must still hear the one ring the ship owes it.
  */
-export function foldImports(rung: Rung[]): Rung[] {
+export function foldBatches(rung: Rung[]): Rung[] {
   const kept = new Map<string, Rung>();
   for (const line of rung) {
-    if (!line.importId) continue;
-    const held = kept.get(line.importId);
+    if (!line.batchId) continue;
+    const held = kept.get(line.batchId);
     /* The line about the project wins; the first line of the batch stands in
        until it arrives, so a fold never answers nothing. */
-    if (!held || (held.taskId !== null && line.taskId === null)) kept.set(line.importId, line);
+    if (!held || (held.taskId !== null && line.taskId === null)) kept.set(line.batchId, line);
   }
 
   const done = new Set<string>();
   const out: Rung[] = [];
   for (const line of rung) {
-    if (!line.importId) {
+    if (!line.batchId) {
       out.push(line);
       continue;
     }
-    if (done.has(line.importId)) continue;
-    done.add(line.importId);
-    out.push(kept.get(line.importId) ?? line);
+    if (done.has(line.batchId)) continue;
+    done.add(line.batchId);
+    out.push(kept.get(line.batchId) ?? line);
   }
   return out;
 }
@@ -132,7 +137,7 @@ export function foldImports(rung: Rung[]): Rung[] {
  */
 export async function queueWebhooks(rung: Rung[]): Promise<void> {
   const byProject = new Map<string, Rung[]>();
-  for (const line of foldImports(rung)) {
+  for (const line of rung) {
     const list = byProject.get(line.projectId) ?? [];
     list.push(line);
     byProject.set(line.projectId, list);
@@ -170,8 +175,7 @@ async function queueForProject(projectId: string, rung: Rung[]): Promise<void> {
 
   for (const hook of hooks) {
     const kinds = readKinds(hook.kinds);
-    for (const line of rung) {
-      if (!rings(kinds, line.kind)) continue;
+    for (const line of foldBatches(rung.filter((l) => rings(kinds, l.kind)))) {
       const number = line.taskId === null ? undefined : numbers.get(line.taskId);
       const id = randomUUID();
       const payload: WebhookPayload = {
