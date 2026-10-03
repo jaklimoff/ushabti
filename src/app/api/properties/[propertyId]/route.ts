@@ -1,8 +1,9 @@
-import { eq, ne, and } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { projects, properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
+import { GROUPED_KINDS } from "@/lib/types";
 import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
 import { fallbackRow, KIND_OF_TYPE, readCardView, setCardPlace } from "@/lib/card-view";
 import {
@@ -101,15 +102,20 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   // A board is meaningless without its grouping property, so deleting the
   // property would take the view with it. Say so instead of doing it quietly.
   //
-  // Only a board is counted. A list remembers a property so that turning it
-  // back into a board restores the same columns, but it never reads one — and
-  // a remembered word must not pin a property nobody is grouping by. The
-  // foreign key clears it if the property does go.
+  // Only a board and a roadmap are counted, because only they read it. A list
+  // remembers a property so that turning it back into a board restores the
+  // same columns, but it never reads one — and a remembered word must not pin
+  // a property nobody is grouping by. The foreign key clears it if the
+  // property does go.
   const used = await db
     .select({ name: views.name })
     .from(views)
     .where(
-      and(eq(views.projectId, projectId), eq(views.groupById, propertyId), eq(views.kind, "board")),
+      and(
+        eq(views.projectId, projectId),
+        eq(views.groupById, propertyId),
+        inArray(views.kind, [...GROUPED_KINDS]),
+      ),
     );
   if (used.length) {
     const names = used.map((v) => `"${v.name}"`).join(", ");

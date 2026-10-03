@@ -95,6 +95,12 @@ base is the last write and wins, as it always did.
 The board answer carries the live tasks in `tasks` and the archived ones in
 `archived`. A live task carries `archivedAt`, null while it is live.
 
+A view's `kind` says how it draws the tasks: `board` in columns of its
+`groupById` property, `list` one task on each line, and `roadmap` one bar for
+each option of its `groupById` select that has a target date. A roadmap's
+`groupById` is always a select, and its property cannot be deleted while the
+view names it, as with a board.
+
 A view's `filters` is the whole team's, and it is the only filter you read: the
 rules a person adds to their own screen are theirs, never yours, and never
 reach `filters` until that person puts them on the view.

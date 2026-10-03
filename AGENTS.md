@@ -55,15 +55,24 @@ and what is easy to get wrong.
   and does not write it back, so no migration was needed. Do not give the card
   view an order again, and do not let a task row move among the properties.
 - **A view has a kind, and a list is the same tasks lying down.** `views.kind`
-  is `board` or `list`, and nothing else about a view changes with it: one
+  is `board`, `list` or `roadmap`, and nothing else about a view changes with it: one
   filter set, one card view, one card order. A list groups by nothing on
   purpose — sections would need a second drop model, where a drag writes a
   property value, which is what a board already is. It keeps `groupById`
   unread, so turning it back into a board restores the same columns; that is
-  also why the property delete route counts only `kind = 'board'`, and why
-  `defaultGroupById()` asks only a board. Let a list answer either one and a
-  remembered word starts pinning a property nobody is grouping by, or a
+  also why the property delete route counts only the kinds in `GROUPED_KINDS`,
+  and why `defaultGroupById()` asks only those. Let a list answer either one
+  and a remembered word starts pinning a property nobody is grouping by, or a
   property comes back onto every card in the project.
+- **A roadmap is a row per dated option, and reads its property as a board
+  does.** Its `groupById` is always a select, because only a select option
+  carries dates. `roadmapRows()` in `src/lib/roadmap.ts` is the one place that
+  says which rows there are and where a bar starts and ends; the fill is
+  `progressOf`, the column header's own. A filter on the roadmap's property
+  takes rows away through `allowedColumns`, exactly as it takes columns. An
+  archived task carries no values on the board, so the board sends what a
+  roadmap needs of them in `archivedUnder`: the oldest day and the count per
+  dated option. Nothing on a roadmap drags; the dates are edited in Settings.
 - **A row draws the card view and decides nothing**, exactly as a card does.
   `listColumns()` in `src/lib/list-view.ts` is the one place that says which
   columns a list has: a row that is off the card is off the list, the edge is

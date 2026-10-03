@@ -2729,3 +2729,208 @@ button.listHeadCell:focus-visible {
   letter-spacing: 0.05em;
   color: var(--faint-3);
 }
+
+/* ---- the roadmap ----------------------------------------------------- */
+
+/*
+ * One row per dated option. The names are held at the left while the weeks
+ * scroll under them, so a phone narrows the names and keeps the axis.
+ */
+
+.roadmap {
+  --rm-name: 200px;
+  --rm-row-h: 40px;
+  --rm-head-h: 26px;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.roadmapScroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding-bottom: 40px;
+}
+
+.roadmapGrid {
+  position: relative;
+  width: calc(var(--rm-name) + var(--rm-track));
+}
+
+.roadmapHead,
+.roadmapRow {
+  display: flex;
+}
+
+.roadmapHead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: var(--rm-head-h);
+  background: var(--bg-sub);
+  border-bottom: 1px solid var(--line);
+}
+
+.roadmapRow {
+  height: var(--rm-row-h);
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.roadmapCorner,
+.roadmapName {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex: 0 0 var(--rm-name);
+  width: var(--rm-name);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px 0 14px;
+  border-right: 1px solid var(--line);
+}
+
+.roadmapCorner {
+  background: var(--bg-sub);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.roadmapName {
+  background: var(--bg);
+}
+
+.roadmapSwatch {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.roadmapWords {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.roadmapTitle {
+  font-size: var(--t-body);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roadmapCount {
+  font-size: var(--t-micro);
+  color: var(--muted-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roadmapTrack {
+  position: relative;
+  flex: 0 0 var(--rm-track);
+  width: var(--rm-track);
+}
+
+.roadmapWeek {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 6px;
+  border-left: 1px solid var(--line-faint);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.roadmapWeekMonth {
+  color: var(--text-4);
+  border-left-color: var(--line);
+}
+
+.roadmapBar {
+  position: absolute;
+  top: 11px;
+  height: 18px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  cursor: default;
+}
+
+.roadmapBar:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.roadmapFill {
+  display: block;
+  height: 100%;
+  opacity: 0.55;
+}
+
+.roadmapEnd {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  font-size: var(--t-micro);
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+/* Shipped is history: full, quieter, and below what is still open. */
+.roadmapShipped .roadmapFill {
+  opacity: 0.3;
+}
+
+.roadmapShipped .roadmapTitle {
+  color: var(--muted);
+}
+
+.roadmapToday {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--rm-name) + var(--rm-x));
+  z-index: 1;
+  width: 0;
+  border-left: 1px solid var(--accent);
+  pointer-events: none;
+}
+
+.roadmapBlank {
+  padding: 24px 14px;
+  font-size: var(--t-body);
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .roadmap {
+    --rm-name: 112px;
+  }
+
+  .roadmapName,
+  .roadmapCorner {
+    padding: 0 8px 0 10px;
+  }
+}
