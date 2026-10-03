@@ -226,6 +226,95 @@
   position: relative;
 }
 
+/* A single select's options carry a plan, so each one takes a line of its own. */
+.optionsRows {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.optionsRows .option {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 24px;
+}
+
+.optionPlan {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.optionArrow {
+  color: var(--faint-3);
+}
+
+.optionDate,
+.optionNote {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  height: 22px;
+}
+
+.optionDate {
+  width: 118px;
+}
+
+/* The note keeps its lines, so it grows with them instead of hiding them. */
+.optionNote {
+  flex: 1;
+  min-width: 120px;
+  height: auto;
+  min-height: 22px;
+  padding: 0;
+  line-height: 22px;
+  resize: none;
+  field-sizing: content;
+}
+
+.optionDate:focus-visible,
+.optionNote:focus-visible {
+  box-shadow: inset 0 -1px 0 var(--line-dash);
+}
+
+/* A phone has no room beside the name, so the plan takes the line under it
+   and the ✕ stays at the end of the name's line. */
+@media (max-width: 620px) {
+  .optionsRows .option {
+    padding-bottom: 4px;
+  }
+  .optionsRows .optionInput {
+    flex: 1;
+  }
+  .optionsRows .optionRemove {
+    order: 1;
+  }
+  .optionsRows .optionPlan {
+    order: 2;
+    flex-basis: 100%;
+    padding: 0 6px;
+  }
+}
+
+.optionShipped {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.optionUnship {
+  color: var(--text-3);
+  text-decoration: underline;
+  font-size: inherit;
+}
+
 .swatchBtn {
   width: 11px;
   height: 11px;

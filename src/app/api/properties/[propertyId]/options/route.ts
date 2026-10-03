@@ -8,6 +8,7 @@ import { propertyProjectId, withProjectLock } from "@/lib/queries";
 import { nextPaletteColor } from "@/lib/colors";
 import { rankAfter } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
+import { datesClash, namesOptionDates, ONLY_SELECT, readOptionDates } from "@/lib/option-dates";
 
 type Ctx = { params: Promise<{ propertyId: string }> };
 
@@ -26,8 +27,16 @@ export const POST = route<Ctx>(async (req, ctx) => {
     throw new HttpError(400, "Only select properties have options.");
   }
 
-  const input = await body<{ name?: string; color?: string }>(req);
+  const input = await body<Record<string, unknown>>(req);
   const name = str(input.name, "Option name", { max: 40 });
+  const dates = readOptionDates(input);
+  if ("error" in dates) throw new HttpError(400, dates.error);
+  if (namesOptionDates(input) && prop.type !== "select") throw new HttpError(400, ONLY_SELECT);
+  const clash = datesClash({
+    startAt: dates.patch.startAt ?? null,
+    targetAt: dates.patch.targetAt ?? null,
+  });
+  if (clash) throw new HttpError(400, clash);
 
   const option = await withProjectLock(projectId, async (tx) => {
     const siblings = await tx
@@ -56,6 +65,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         name,
         color,
         position: rankAfter(siblings.at(-1)?.position ?? null),
+        ...dates.patch,
       })
       .returning();
     return row;

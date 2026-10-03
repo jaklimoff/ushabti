@@ -4,9 +4,9 @@ import { db } from "@/db";
 import { properties, propertyOptions } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
-import { withProjectLock } from "@/lib/queries";
+import { optionColumns, toOptionDTO, withProjectLock } from "@/lib/queries";
 import { rankAfter, rankSequence } from "@/lib/rank";
-import { PROPERTY_TYPES, type PropertyType } from "@/lib/types";
+import { PROPERTY_TYPES, type PropertyOptionDTO, type PropertyType } from "@/lib/types";
 import { PALETTE } from "@/lib/colors";
 import { takenBy, takenSaid } from "@/lib/option-name";
 
@@ -58,7 +58,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     return row;
   });
 
-  let options: { id: string; name: string; color: string; position: string }[] = [];
+  let options: PropertyOptionDTO[] = [];
   if (names.length) {
     const ranks = rankSequence(names.length);
     options = await db
@@ -71,12 +71,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
           position: ranks[i],
         })),
       )
-      .returning({
-        id: propertyOptions.id,
-        name: propertyOptions.name,
-        color: propertyOptions.color,
-        position: propertyOptions.position,
-      });
+      .returning(optionColumns)
+      .then((rows) => rows.map(toOptionDTO));
   }
 
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });

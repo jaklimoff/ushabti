@@ -50,6 +50,12 @@ export type PropertyOptionDTO = {
   name: string;
   color: string;
   position: string;
+  /** Days as `YYYY-MM-DD`. Only a select option carries them; elsewhere null. */
+  startAt: string | null;
+  targetAt: string | null;
+  shippedAt: string | null;
+  /** Markdown. */
+  note: string | null;
 };
 
 export type PropertyDTO = {

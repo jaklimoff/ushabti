@@ -20,6 +20,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   host. In the panel each link opens in a new tab; paste one into the box to add it. A filter finds
   a link by its words, a sort orders by the first link, and a new Link property starts off the
   card. An agent writes them with `board.mjs set` and adds one with `--add`.
+- **An option of a select can carry a start, a target, a shipped date and a note.** A Version, a
+  Sprint or a Quarter is an option with dates. Settings → Properties shows the start, the target and
+  the note on each option of a single select, and the shipped date with an **Unship** when it is
+  set. The option routes take `startAt`, `targetAt`, `shippedAt` and `note`, the board answer and
+  the export carry them, and the skill's `props` prints them. **This carries a migration**
+  (`0019_option_dates`: four nullable columns on `property_options`).
 
 ## 0.15.0 — 2026-10-01
 

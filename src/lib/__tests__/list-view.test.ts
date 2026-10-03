@@ -9,7 +9,18 @@ const STATUS: PropertyDTO = {
   type: "select",
   position: "V",
   config: {},
-  options: [{ id: "o-todo", name: "Todo", color: "#9aa0aa", position: "V" }],
+  options: [
+    {
+      id: "o-todo",
+      name: "Todo",
+      color: "#9aa0aa",
+      position: "V",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+  ],
 };
 
 const PRIORITY: PropertyDTO = {
@@ -18,7 +29,18 @@ const PRIORITY: PropertyDTO = {
   type: "select",
   position: "k",
   config: {},
-  options: [{ id: "o-urgent", name: "Urgent", color: "#e0574d", position: "V" }],
+  options: [
+    {
+      id: "o-urgent",
+      name: "Urgent",
+      color: "#e0574d",
+      position: "V",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+  ],
 };
 
 const ASSIGNEE: PropertyDTO = {

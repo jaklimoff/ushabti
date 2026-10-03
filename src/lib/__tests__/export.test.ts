@@ -149,8 +149,28 @@ function fill(count: number) {
     },
   ]);
   fake.rows.set(propertyOptions, [
-    { id: DOING, propertyId: STATUS, name: "Doing", color: "#f00", position: "a0" },
-    { id: DONE, propertyId: STATUS, name: "Done", color: "#0f0", position: "a1" },
+    {
+      id: DOING,
+      propertyId: STATUS,
+      name: "Doing",
+      color: "#f00",
+      position: "a0",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+    {
+      id: DONE,
+      propertyId: STATUS,
+      name: "Done",
+      color: "#0f0",
+      position: "a1",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
   ]);
   fake.rows.set(views, [
     {

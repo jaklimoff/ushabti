@@ -51,6 +51,7 @@ import type {
   ViewKind,
   ViewSort,
 } from "@/lib/types";
+import type { OptionDates } from "@/lib/option-dates";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 
@@ -266,7 +267,7 @@ type Store = {
   addOption: (propertyId: string, name: string) => Promise<string | null>;
   patchOption: (
     optionId: string,
-    patch: { name?: string; color?: string; afterId?: string | null },
+    patch: { name?: string; color?: string; afterId?: string | null } & Partial<OptionDates>,
   ) => Promise<void>;
   /**
    * Puts one option where another one of the same property sits. Settings
@@ -1423,20 +1424,13 @@ export function BoardProvider({
 
   const patchOption = useCallback<Store["patchOption"]>(
     async (optionId, patch) => {
-      if (patch.name !== undefined || patch.color !== undefined) {
+      const { afterId: _afterId, ...shown } = patch;
+      if (Object.keys(shown).length) {
         setData((current) => ({
           ...current,
           properties: current.properties.map((p) => ({
             ...p,
-            options: p.options.map((o) =>
-              o.id === optionId
-                ? {
-                    ...o,
-                    ...(patch.name ? { name: patch.name } : {}),
-                    ...(patch.color ? { color: patch.color } : {}),
-                  }
-                : o,
-            ),
+            options: p.options.map((o) => (o.id === optionId ? { ...o, ...shown } : o)),
           })),
         }));
       }

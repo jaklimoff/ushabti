@@ -222,10 +222,11 @@ test.describe("Custom properties", () => {
     const status = propertyBox(page, "Status");
     await status.getByRole("button", { name: "Move the option Backlog" }).focus();
 
-    // Space lifts the chip, the arrows move it, Space puts it down.
+    /* Space lifts the option, the arrows move it, Space puts it down. A
+       select's options carry dates, so each takes a line and moves down. */
     await page.keyboard.press("Space");
     await page.waitForTimeout(120);
-    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowDown");
     await page.waitForTimeout(120);
     await page.keyboard.press("Space");
 

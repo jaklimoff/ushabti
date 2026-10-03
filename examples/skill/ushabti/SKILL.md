@@ -182,6 +182,10 @@ two writers at the same moment can lose one link. `task` prints each link.
   has, and use the names. `set` refuses an unknown one and lists the real
   choices. Status, Priority and the rest belong to the board's owner, who may
   rename or delete any of them — that is the point of the product.
+- **An option can carry dates.** `props` prints an option of a select that has
+  a start, a target, a shipped date or a note on a line of its own:
+  `Sprint 4 · 2026-10-01 → 2026-10-14 · shipped 2026-10-13 · the note`. That is
+  how a board says which Sprint or Version is which.
 - **Do not create properties or delete tasks.** You may create tasks, edit
   them, comment and move them.
 - **Do not write over a person's description.** Propose yours in a comment.
