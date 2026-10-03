@@ -2287,9 +2287,10 @@ function Comments({
  * One comment. A comment is a comment: the description is edited in its own
  * box, so nothing here writes it.
  *
- * Its author can edit it in place, as the description is edited: blur and
- * Mod + Enter save, Escape puts the old words back. Only the author, because
- * an admin may take a comment down but never put words in it.
+ * Its author can edit it in place. Update and Mod + Enter save, Cancel and
+ * Escape put the old words back, and a blur saves nothing: a comment is a
+ * sentence somebody signed, and a misclick must not rewrite it. Only the
+ * author, because an admin may take a comment down but never put words in it.
  */
 function CommentItem({
   comment,
@@ -2312,8 +2313,6 @@ function CommentItem({
   const mod = useModKey();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
-  /* Only what this tab typed may be written back, as everywhere else. */
-  const [typed, setTyped] = useState(false);
   /* The words the box opened with. The box holds its own words and does not
      follow a change that lands while it is open, as a checklist item does. */
   const base = useRef(comment.body);
@@ -2323,26 +2322,27 @@ function CommentItem({
   const [refused, setRefused] = useState<string | null>(null);
   const shown = sending ?? comment.body;
   const edit = draft.trim();
-  const owes = editing && typed && edit !== base.current && edit !== comment.body;
-
-  /* A closed tab sends no blur. The base goes too; a refusal nobody is left
-     to see keeps the words that were saved first. */
-  useSaveOnLeave(() =>
-    owes
-      ? {
-          method: "PATCH",
-          url: `/api/comments/${comment.id}`,
-          body: { body: edit, baseBody: base.current },
-        }
-      : null,
-  );
+  /* An empty comment is refused by the server; it is deleted instead. */
+  const changed = edit !== "" && edit !== base.current && edit !== comment.body;
 
   function open() {
     base.current = comment.body;
     setDraft(comment.body);
-    setTyped(false);
     setRefused(null);
     setEditing(true);
+  }
+
+  function cancel() {
+    setDraft(comment.body);
+    setEditing(false);
+  }
+
+  /* Closing on the same words loses nothing; closing on an empty box would
+     throw away what was typed, so the box stays open, as the composer does. */
+  function update() {
+    if (edit === "") return;
+    setEditing(false);
+    if (changed) void save(edit, base.current);
   }
 
   async function save(words: string, from: string) {
@@ -2430,30 +2430,29 @@ function CommentItem({
               aria-label="Edit comment"
               autoFocus
               value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                setTyped(true);
-              }}
-              onBlur={() => {
-                setEditing(false);
-                setTyped(false);
-                if (owes) void save(edit, base.current);
-              }}
+              onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
-                  (e.target as HTMLTextAreaElement).blur();
+                  update();
                 }
-                if (e.key === "Escape") {
-                  // No blur() here: closing the box unmounts it, and a removed
-                  // element raises no blur, so nothing is saved.
-                  setDraft(comment.body);
-                  setTyped(false);
-                  setEditing(false);
-                }
+                if (e.key === "Escape") cancel();
               }}
             />
-            <span className={styles.hint}>{`${mod ?? "Ctrl"} + Enter saves · Esc cancels`}</span>
+            <div className={styles.editFoot}>
+              <span className={styles.hint}>{`${mod ?? "Ctrl"} + Enter saves · Esc cancels`}</span>
+              <span style={{ flex: 1 }} />
+              <button className={styles.editCancel} onClick={cancel}>
+                Cancel
+              </button>
+              <button
+                className={`${styles.send} ${changed ? styles.sendOn : styles.sendOff}`}
+                onClick={update}
+                disabled={!changed}
+              >
+                Update
+              </button>
+            </div>
           </>
         ) : (
           <div className={styles.commentText}>

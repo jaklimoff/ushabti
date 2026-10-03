@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An edited comment is saved with an Update button.** Under the edit box of your comment, **Update**
+  saves the new words and **Cancel** puts the old ones back. A click away from the box no longer
+  saves the comment, and leaves the box open with your words in it. Ctrl + Enter (⌘ + Enter on a
+  Mac) still saves, and Esc still cancels.
+
 - **The sprint picker opens on the current sprint.** In the task panel and in the bulk edit, the
   menu of an iteration marks the sprint that holds today with the word "current" and opens with
   it highlighted. A board you group by an iteration starts with the filter "Sprint is current"

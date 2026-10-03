@@ -80,7 +80,7 @@ async function savedComment(projectId: string) {
 }
 
 test.describe("The author of a comment can edit it", () => {
-  test("the author edits in place, it saves on blur, reads edited, and reaches the other panel", async ({
+  test("the author edits in place, Update saves it, it reads edited, and reaches the other panel", async ({
     browser,
   }) => {
     const { anna, ben, projectId, close } = await oneComment(browser);
@@ -94,8 +94,12 @@ test.describe("The author of a comment can edit it", () => {
     await anna.getByRole("button", { name: "Edit", exact: true }).click();
     const editor = anna.getByTestId("comment-editor");
     await expect(editor).toHaveValue("The tests are gren");
+    const update = anna.getByRole("button", { name: "Update", exact: true });
+    // Nothing changed yet, so there is nothing to update.
+    await expect(update).toBeDisabled();
     await editor.fill("The tests are green");
-    expect(await statusOf(anna, () => editor.blur())).toBe(200);
+    await expect(update).toBeEnabled();
+    expect(await statusOf(anna, () => update.click())).toBe(200);
 
     await expect(editor).toHaveCount(0);
     await expect(anna.getByTestId("comment-markdown")).toHaveText("The tests are green");
@@ -138,6 +142,11 @@ test.describe("The author of a comment can edit it", () => {
 
     await anna.getByTestId("comment").hover();
     await anna.getByRole("button", { name: "Edit", exact: true }).click();
+    // An empty box is not a save: Mod + Enter leaves it open.
+    await anna.getByTestId("comment-editor").fill("");
+    await anna.getByTestId("comment-editor").press("ControlOrMeta+Enter");
+    await expect(anna.getByTestId("comment-editor")).toBeVisible();
+    await anna.getByTestId("comment-editor").fill("The tests are gren");
     await anna.getByTestId("comment-editor").press("ControlOrMeta+Enter");
     await expect(anna.getByTestId("comment-editor")).toHaveCount(0);
 
@@ -149,20 +158,72 @@ test.describe("The author of a comment can edit it", () => {
     await close();
   });
 
-  /* A closed tab sends no blur, so the words go out on the way off the page. */
-  test("words typed and left in a closed tab are saved", async ({ browser }) => {
+  /* A comment is a sentence somebody signed: a misclick must not rewrite it. */
+  test("a click away from the box writes nothing and leaves the words in it", async ({
+    browser,
+  }) => {
+    const { anna, projectId, close } = await oneComment(browser);
+    let sent = 0;
+    anna.on("request", (r) => {
+      if (/\/api\/comments\/[0-9a-f-]+$/.test(r.url()) && r.method() === "PATCH") sent++;
+    });
+
+    await anna.getByTestId("comment").hover();
+    await anna.getByRole("button", { name: "Edit", exact: true }).click();
+    const editor = anna.getByTestId("comment-editor");
+    await editor.fill("Not yet");
+    await anna.getByTestId("comment-box").click();
+    await expect(editor).not.toBeFocused();
+    await expect(editor).toHaveValue("Not yet");
+    await expect(anna.getByRole("button", { name: "Update", exact: true })).toBeEnabled();
+    expect(sent).toBe(0);
+    expect((await savedComment(projectId))[0].body).toBe("The tests are gren");
+
+    // Mod + Enter saves, as it posts in the composer.
+    expect(await statusOf(anna, () => editor.press("ControlOrMeta+Enter"))).toBe(200);
+    await expect(editor).toHaveCount(0);
+    await expect(anna.getByTestId("comment-markdown")).toHaveText("Not yet");
+    expect(sent).toBe(1);
+
+    await close();
+  });
+
+  test("Cancel puts the old words back and writes nothing", async ({ browser }) => {
     const { anna, projectId, close } = await oneComment(browser);
 
     await anna.getByTestId("comment").hover();
     await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    // Typed and left there: no blur, no key.
+    await anna.getByTestId("comment-editor").fill("Thrown away");
+    await anna.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(anna.getByTestId("comment-editor")).toHaveCount(0);
+    await expect(anna.getByTestId("comment-markdown")).toHaveText("The tests are gren");
+
+    // Opened again, it holds the saved words, not the thrown away ones.
+    await anna.getByTestId("comment").hover();
+    await anna.getByRole("button", { name: "Edit", exact: true }).click();
+    await expect(anna.getByTestId("comment-editor")).toHaveValue("The tests are gren");
+
+    const [row] = await savedComment(projectId);
+    expect(row.body).toBe("The tests are gren");
+    expect(row.edited_at).toBeNull();
+
+    await close();
+  });
+
+  /* A save is a press now, so a closed tab has nothing to send. */
+  test("words typed and left in a closed tab are not saved", async ({ browser }) => {
+    const { anna, projectId, close } = await oneComment(browser);
+
+    await anna.getByTestId("comment").hover();
+    await anna.getByRole("button", { name: "Edit", exact: true }).click();
     await anna.getByTestId("comment-editor").fill("Left in a closed tab");
     await anna.close();
 
-    await expect
-      .poll(async () => (await savedComment(projectId))[0].body, { timeout: 20_000 })
-      .toBe("Left in a closed tab");
-    expect((await savedComment(projectId))[0].edited_at).not.toBeNull();
+    // Long enough for a keepalive request to have landed, if one went.
+    await new Promise((r) => setTimeout(r, 2_000));
+    const [row] = await savedComment(projectId);
+    expect(row.body).toBe("The tests are gren");
+    expect(row.edited_at).toBeNull();
 
     await close();
   });

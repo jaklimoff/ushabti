@@ -821,6 +821,23 @@
   cursor: default;
 }
 
+.editFoot {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 6px;
+}
+
+.editCancel {
+  padding: 5px 8px;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.editCancel:hover {
+  color: var(--text);
+}
+
 .activityRow {
   display: flex;
   align-items: baseline;
