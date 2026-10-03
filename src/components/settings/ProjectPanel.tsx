@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import type { DoneWhen } from "@/lib/links";
+import { sprintsSetUp } from "@/lib/sprints";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -32,6 +33,9 @@ export function ProjectPanel() {
   const [typedZone, setTypedZone] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [confirming, setConfirming] = useState(false);
+  /* A press waits for its answer, so a second press cannot ask again. */
+  const [settingUp, setSettingUp] = useState(false);
+  const hasSprints = sprintsSetUp(data.properties);
 
   /* Every task of the project, archived ones too: a rename renames their keys
      as well, and a delete takes them with it. */
@@ -87,6 +91,19 @@ export function ProjectPanel() {
       setName(data.project.name);
       setKey(data.project.key);
       setZone(data.project.timeZone);
+    }
+  }
+
+  async function setUpSprints() {
+    if (settingUp) return;
+    setSettingUp(true);
+    try {
+      await send.post(`/api/projects/${data.project.id}/sprints`);
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not set up sprints.");
+    } finally {
+      setSettingUp(false);
     }
   }
 
@@ -296,6 +313,35 @@ export function ProjectPanel() {
           </Row>
         )}
       </Card>
+
+      {/*
+       * Sprints are a property and two views, nothing more, so the row says
+       * which ones before it makes them. Once a property named Sprint exists
+       * there is nothing left to do, whoever made it.
+       */}
+      {canEdit && (
+        <Card>
+          <Row>
+            <Field label="Sprints" inline>
+              {hasSprints ? (
+                <Note>Sprints are set up.</Note>
+              ) : (
+                <>
+                  <Button variant="ghost" disabled={settingUp} onClick={() => void setUpSprints()}>
+                    Set up sprints
+                  </Button>
+                  <Note>
+                    Adds a select property <b>Sprint</b>, a board <b>Sprint</b> that shows the
+                    current sprint, and a list <b>Backlog</b> of the tasks in no sprint. A sprint is
+                    current while its dates hold today. You can rename or delete each one
+                    afterwards.
+                  </Note>
+                </>
+              )}
+            </Field>
+          </Row>
+        </Card>
+      )}
 
       {/*
        * The file holds every member's email, so it is an admin's, as the
