@@ -22,7 +22,7 @@ import { useBoard } from "@/components/board/store";
 import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
-import { carriesDates, NOTE_MAX, optionEdit } from "@/lib/option-dates";
+import { carriesDates, NOTE_MAX, optionEdit, splitShipped } from "@/lib/option-dates";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -150,6 +150,10 @@ export function PropertiesPanel() {
 function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
   const { patchProperty, deleteProperty, addOption, deleteOption, moveOption, notify } = useBoard();
   const dated = carriesDates(property);
+  /* Fifty old sprints must not stand before this week's, so the shipped ones
+     wait behind one row. A dated select has none: its versions stay. */
+  const { open: openOptions, shipped } = splitShipped(property);
+  const [unfolded, setUnfolded] = useState(false);
   const optionSensors = useGripSensors();
   const {
     attributes,
@@ -370,10 +374,10 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
             }}
           >
             <SortableContext
-              items={property.options.map((o) => o.id)}
+              items={openOptions.map((o) => o.id)}
               strategy={dated ? verticalListSortingStrategy : rectSortingStrategy}
             >
-              {property.options.map((option) => (
+              {openOptions.map((option) => (
                 <OptionChip
                   key={option.id}
                   option={option}
@@ -383,6 +387,33 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
                 />
               ))}
             </SortableContext>
+            {shipped.length > 0 && (
+              <button
+                type="button"
+                className={styles.optionFold}
+                aria-expanded={unfolded}
+                onClick={() => setUnfolded((u) => !u)}
+              >
+                <span aria-hidden>{unfolded ? "▾" : "▸"}</span>
+                {shipped.length} shipped
+              </button>
+            )}
+            {unfolded && (
+              <SortableContext
+                items={shipped.map((o) => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {shipped.map((option) => (
+                  <OptionChip
+                    key={option.id}
+                    option={option}
+                    dated={dated}
+                    canEdit={canEdit}
+                    onDelete={() => void askOption(option)}
+                  />
+                ))}
+              </SortableContext>
+            )}
           </DndContext>
           {adding ? (
             <Input

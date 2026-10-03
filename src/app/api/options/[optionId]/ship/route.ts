@@ -7,7 +7,7 @@ import { logActivityIn, type ActivityEntry, type Ring } from "@/lib/activity";
 import { adminOnly, body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { readDoneWhen } from "@/lib/links";
 import { loadProperties, optionPropertyId, withProjectLock } from "@/lib/queries";
-import { nextOptionOf, readShipRest, shipDay, splitShip } from "@/lib/ship";
+import { nextOpenOption, readShipRest, shipDay, splitShip } from "@/lib/ship";
 import type { TaskValue } from "@/lib/types";
 import { isSelect } from "@/lib/types";
 
@@ -63,11 +63,15 @@ export const POST = route<Ctx>(async (req, ctx) => {
     }
 
     const siblings = await tx
-      .select({ id: propertyOptions.id, name: propertyOptions.name })
+      .select({
+        id: propertyOptions.id,
+        name: propertyOptions.name,
+        shippedAt: propertyOptions.shippedAt,
+      })
       .from(propertyOptions)
       .where(eq(propertyOptions.propertyId, propertyId))
       .orderBy(byPos(propertyOptions.position));
-    const next = nextOptionOf(siblings, optionId);
+    const next = nextOpenOption(option, siblings, optionId);
     if (rest === "next" && !next) {
       throw new HttpError(
         400,

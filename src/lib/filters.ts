@@ -22,7 +22,7 @@ import {
   type ViewFilters,
 } from "./types";
 import { linksOf } from "./web-links";
-import { carriesDates } from "./option-dates";
+import { carriesDates, splitShipped } from "./option-dates";
 
 /**
  * A filter is a rule about one property. Nothing here names Status, Priority or
@@ -602,10 +602,17 @@ export function allowedColumns<T extends { value: TaskValue }>(
   const rules = filters.rules.filter((r) => r.propertyId === groupProperty.id);
   if (rules.length === 0) return columns;
 
+  /* A shipped sprint has no column, so its cards live in the empty one. That
+     column then holds those values too, or "Sprint is Sprint 14" would take
+     away the one column its cards are in. */
+  const shipped = splitShipped(groupProperty).shipped.map((o) => o.id);
   return columns.filter((column) => {
-    const stand = { values: { [groupProperty.id]: column.value } } as TaskDTO;
+    const held = column.value === null ? [null, ...shipped] : [column.value];
     /* The rules here name a property, never a word, so no run is asked. */
-    return rules.every((rule) => matches(stand, rule, groupProperty, today, viewer, NO_RUNS));
+    return held.some((value) => {
+      const stand = { values: { [groupProperty.id]: value } } as TaskDTO;
+      return rules.every((rule) => matches(stand, rule, groupProperty, today, viewer, NO_RUNS));
+    });
   });
 }
 

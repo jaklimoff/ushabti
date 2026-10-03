@@ -766,6 +766,23 @@ describe("the columns a filtered board keeps", () => {
     ]);
   });
 
+  it("keeps the empty column for a shipped sprint, whose cards live in it", () => {
+    const sprint: PropertyDTO = {
+      ...status,
+      type: "iteration",
+      options: status.options.map((o) =>
+        o.id === "o-todo" ? { ...o, targetAt: "2026-09-01", shippedAt: "2026-09-02" } : o,
+      ),
+    };
+    const open = columns.filter((c) => c.id !== "o-todo");
+    const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
+    expect(allowedColumns(open, filters, sprint, TODAY, null).map((c) => c.id)).toEqual(["none"]);
+    /* A dated select draws its shipped column, so nothing changes for it. */
+    expect(allowedColumns(columns, filters, status, TODAY, null).map((c) => c.id)).toEqual([
+      "o-todo",
+    ]);
+  });
+
   it("keeps them all when the board groups by nothing", () => {
     const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
     expect(allowedColumns(columns, filters, null, TODAY, null)).toHaveLength(3);

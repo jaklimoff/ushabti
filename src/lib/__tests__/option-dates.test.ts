@@ -4,8 +4,11 @@ import {
   datesClash,
   isoDay,
   namesOptionDates,
+  isOpenOption,
   optionEdit,
+  pickableOptions,
   readOptionDates,
+  splitShipped,
 } from "../option-dates";
 
 describe("isoDay", () => {
@@ -91,5 +94,34 @@ describe("carriesDates", () => {
     expect(carriesDates({ type: "select", config: {} })).toBe(false);
     expect(carriesDates({ type: "select", config: { dated: true } })).toBe(true);
     expect(carriesDates({ type: "multi_select", config: { dated: true } })).toBe(false);
+  });
+});
+
+describe("isOpenOption", () => {
+  const shipped = { id: "s14", shippedAt: "2026-09-01" };
+  const open = { id: "s15", shippedAt: null };
+
+  it("closes a shipped option of an iteration, and nothing else", () => {
+    expect(isOpenOption({ type: "iteration" }, shipped)).toBe(false);
+    expect(isOpenOption({ type: "iteration" }, open)).toBe(true);
+    // A version that shipped stays where it is: people pick old ones on purpose.
+    expect(isOpenOption({ type: "select" }, shipped)).toBe(true);
+  });
+
+  it("offers the open options, plus the one a value already holds", () => {
+    const sprint = { type: "iteration", options: [shipped, open] };
+    expect(pickableOptions(sprint, null).map((o) => o.id)).toEqual(["s15"]);
+    expect(pickableOptions(sprint, "s14").map((o) => o.id)).toEqual(["s14", "s15"]);
+    const version = { type: "select", options: [shipped, open] };
+    expect(pickableOptions(version, null).map((o) => o.id)).toEqual(["s14", "s15"]);
+  });
+
+  it("splits the shipped ones off for a fold, in their order", () => {
+    const old = { id: "s13", shippedAt: "2026-08-01" };
+    const sprint = { type: "iteration", options: [old, shipped, open] };
+    const split = splitShipped(sprint);
+    expect(split.open.map((o) => o.id)).toEqual(["s15"]);
+    expect(split.shipped.map((o) => o.id)).toEqual(["s13", "s14"]);
+    expect(splitShipped({ type: "select", options: [shipped, open] }).shipped).toEqual([]);
   });
 });

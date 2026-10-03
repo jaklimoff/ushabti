@@ -20,6 +20,7 @@ import {
   OP_LABEL,
 } from "@/lib/filters";
 import { DATE_WINDOWS, DATE_WINDOW_NAME } from "@/lib/day";
+import { pickableOptions, splitShipped } from "@/lib/option-dates";
 import { canSort, pressSort, sortLabel, sortWay } from "@/lib/sort";
 import { listColumns } from "@/lib/list-view";
 import type { CardItem } from "@/lib/card-view";
@@ -56,12 +57,19 @@ function keysFor(property: PropertyDTO, members: MemberDTO[], chosen: string[]):
      means whoever reads the view, not the person who picked it. */
   if (property.type === "person") return [ME_KEY, ...members.map((m) => m.id), NO_VALUE_KEY];
   if (property.type === "checkbox") return ["true", "false"];
+  /* A shipped sprint waits behind the fold unless the rule already names it. */
+  const options = pickableOptions(property, chosen).map((o) => o.id);
   /* Current sits beside Nothing yet, so "current, or nothing yet" is one rule. */
-  if (offersCurrent(property, chosen)) {
-    return [...property.options.map((o) => o.id), CURRENT_KEY, NO_VALUE_KEY];
-  }
-  return [...property.options.map((o) => o.id), NO_VALUE_KEY];
+  if (offersCurrent(property, chosen)) return [...options, CURRENT_KEY, NO_VALUE_KEY];
+  return [...options, NO_VALUE_KEY];
 }
+
+/**
+ * The row that opens the shipped sprints. It is not a value, so it carries no
+ * tick. A report asks for an old sprint, so the list keeps them, but behind
+ * one row, so fifty old ones do not stand before this week's.
+ */
+const SHIPPED_FOLD = "__shipped__";
 
 /**
  * A new rule carries the question and no answer. It used to arrive with the
@@ -149,6 +157,7 @@ function Ask({
   const win = isWindowOp(rule.op);
   const [query, setQuery] = useState(bare || set || win ? "" : (rule.text ?? ""));
   const [at, setAt] = useState(0);
+  const [unfolded, setUnfolded] = useState(false);
   /* Whether somebody typed in the box since its last save. The box is filled
      in once and goes stale the moment another tab changes the rule, so a box
      nobody typed in has nothing to save and would put the old words back. */
@@ -167,16 +176,29 @@ function Ask({
       })).filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
     }
     if (!set) return [];
-    return keysFor(property, members, chosen)
-      .map((key) => ({
-        id: key,
-        /* The chip reads "Sprint is current"; a row of the menu opens a line. */
-        name: key === CURRENT_KEY ? "Current" : keyName(key, property, members),
-        color: keyColor(key, property, members),
-        on: chosen.includes(key),
-      }))
-      .filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
-  }, [chosen, members, property, query, rule.text, set, win]);
+    const toRow = (key: string): Row => ({
+      id: key,
+      /* The chip reads "Sprint is current"; a row of the menu opens a line. */
+      name: key === CURRENT_KEY ? "Current" : keyName(key, property, members),
+      color: keyColor(key, property, members),
+      on: chosen.includes(key),
+    });
+    const matches = (row: Row) => !wanted || row.name.toLowerCase().includes(wanted);
+    const open = keysFor(property, members, chosen).map(toRow).filter(matches);
+    const shipped = splitShipped(property)
+      .shipped.filter((o) => !chosen.includes(o.id))
+      .map((o) => toRow(o.id));
+    if (shipped.length === 0) return open;
+    // A search reaches behind the fold: somebody typing "Sprint 14" means it.
+    if (wanted) return [...open, ...shipped.filter(matches)];
+    const fold: Row = {
+      id: SHIPPED_FOLD,
+      name: "Shipped",
+      color: "#6b7280",
+      note: `${shipped.length} ${unfolded ? "▾" : "▸"}`,
+    };
+    return [...open, fold, ...(unfolded ? shipped : [])];
+  }, [chosen, members, property, query, rule.text, set, unfolded, win]);
 
   /* Changing the operator keeps the answer it can carry and drops what it
      cannot. It never invents one. */
@@ -205,6 +227,7 @@ function Ask({
   }
 
   function toggle(key: string) {
+    if (key === SHIPPED_FOLD) return setUnfolded((u) => !u);
     onChange({
       ...rule,
       values: chosen.includes(key) ? chosen.filter((k) => k !== key) : [...chosen, key],

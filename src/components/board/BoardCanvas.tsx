@@ -42,7 +42,7 @@ import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
 import { canManage } from "@/lib/roles";
-import { nextOptionOf, shipSaid } from "@/lib/ship";
+import { nextOpenOption, shipSaid } from "@/lib/ship";
 import { sortTasks } from "@/lib/sort";
 import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
@@ -382,7 +382,7 @@ export function BoardCanvas({
   const canShip = sweepable && canManage(data.project.role);
   const shipOffer = (column: BoardColumn): ShipOffer | null => {
     if (!canShip || !isSelect(groupProperty?.type ?? "")) return null;
-    const next = nextOptionOf(groupProperty.options, column.id);
+    const next = nextOpenOption(groupProperty, groupProperty.options, column.id);
     return {
       nextName: next?.name ?? null,
       onShip: async (rest) => {

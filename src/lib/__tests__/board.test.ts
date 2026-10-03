@@ -81,6 +81,34 @@ const members: MemberDTO[] = [
   },
 ];
 
+describe("buildColumns and a shipped option", () => {
+  const options = (type: PropertyDTO["type"]) =>
+    property({
+      type,
+      options: property().options.map((o) =>
+        o.id === "o-todo" ? { ...o, targetAt: "2026-09-01", shippedAt: "2026-09-02" } : o,
+      ),
+    });
+
+  it("draws no column for a shipped iteration option; its card falls to No value", () => {
+    const columns = buildColumns(options("iteration"), [task("a", { "p-status": "o-todo" })], []);
+    expect(columns.map((c) => c.id)).toEqual(["o-done", NO_VALUE]);
+    expect(columns[1].tasks.map((t) => t.id)).toEqual(["a"]);
+    /* Its chip still says the old sprint, so the column must not say none. */
+    expect(columns[1].name).toBe("No open status");
+  });
+
+  it("keeps the empty column's own name while nothing shipped sits in it", () => {
+    const columns = buildColumns(options("iteration"), [task("a")], []);
+    expect(columns.map((c) => c.name)).toEqual(["Done", "No status"]);
+  });
+
+  it("draws a shipped option of a dated select exactly as before", () => {
+    const columns = buildColumns(options("select"), [task("a", { "p-status": "o-todo" })], []);
+    expect(columns.map((c) => c.id)).toEqual(["o-todo", "o-done"]);
+  });
+});
+
 describe("board grouping", () => {
   it("puts a task in the column of its option", () => {
     const status = property();
