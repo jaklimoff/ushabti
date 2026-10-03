@@ -18,6 +18,7 @@ import {
   type TaskValue,
   type ViewFilters,
 } from "./types";
+import { linksOf } from "./web-links";
 
 /**
  * A filter is a rule about one property. Nothing here names Status, Priority or
@@ -155,6 +156,7 @@ export const OPS_FOR_TYPE: Record<PropertyType, FilterOp[]> = {
   text: ["contains", "not_contains", "empty", "not_empty"],
   number: ["eq", "gt", "lt", "empty", "not_empty"],
   date: ["on", "before", "after", "within", "empty", "not_empty"],
+  link: ["contains", "not_contains", "empty", "not_empty"],
 };
 
 /** True when the operator takes a set of values rather than one piece of text. */
@@ -297,8 +299,10 @@ export function matches(
     case "not_contains": {
       const needle = (rule.text ?? "").trim().toLowerCase();
       if (!needle) return true;
-      const hay = typeof value === "string" ? value.toLowerCase() : "";
-      const hit = hay.includes(needle);
+      /* A link value is a list, and a match in any one of its links is a
+         match. "Does not contain" then means no link holds it. */
+      const hay = type === "link" ? linksOf(value) : typeof value === "string" ? [value] : [];
+      const hit = hay.some((text) => text.toLowerCase().includes(needle));
       return rule.op === "contains" ? hit : !hit;
     }
 

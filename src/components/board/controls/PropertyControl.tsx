@@ -8,6 +8,7 @@ import { keyName } from "@/lib/filters";
 import { NO_VALUE_KEY } from "@/lib/types";
 import type { MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
 import { optionMenu } from "@/lib/option-menu";
+import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
 import { Avatar } from "@/components/ui/Avatar";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { walkKeys } from "../Ask";
@@ -77,6 +78,8 @@ export function PropertyControl(props: Props) {
       return <DateField {...props} />;
     case "number":
       return <ScalarField {...props} numeric />;
+    case "link":
+      return <LinkList {...props} />;
     default:
       return <ScalarField {...props} />;
   }
@@ -701,5 +704,90 @@ function ScalarField({
         }
       }}
     />
+  );
+}
+
+/**
+ * The links of a task, each a real link that opens in a new tab, and a box to
+ * paste one more into. The box adds on Enter or on blur, as every value box of
+ * the panel saves. A link the server would refuse stays in the box with the
+ * reason beside it, rather than vanish as if it were saved.
+ */
+function LinkList({ property, value, onChange, labelId }: Props) {
+  const links = linksOf(value);
+  const [draft, setDraft] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+
+  function add() {
+    const text = draft.trim();
+    if (!text) {
+      setProblem(null);
+      return;
+    }
+    let next: string[];
+    try {
+      next = readLinks([...links, text]);
+    } catch (error) {
+      if (!(error instanceof LinkError)) throw error;
+      setProblem(`${property.name} ${error.message}`);
+      return;
+    }
+    setDraft("");
+    setProblem(null);
+    if (next.length !== links.length) onChange(next);
+  }
+
+  return (
+    <div className={styles.wrap} style={{ display: "block" }}>
+      <div className={styles.links} role="group" {...named(labelId)}>
+        {links.map((link) => (
+          <span key={link} className={styles.link}>
+            <a
+              className={styles.linkText}
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={link}
+            >
+              {linkLabel(link)}
+            </a>
+            <button
+              className={styles.chipRemove}
+              title="Remove"
+              aria-label={`Remove ${linkLabel(link)}`}
+              onClick={() => onChange(links.filter((l) => l !== link))}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        <input
+          className={styles.textInput}
+          type="url"
+          aria-label={`Add a link to ${property.name}`}
+          aria-invalid={problem ? true : undefined}
+          value={draft}
+          placeholder="Paste a link…"
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setProblem(null);
+          }}
+          onBlur={add}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") add();
+            /* No blur here: the blur would add the words Escape just took back. */
+            if (e.key === "Escape") {
+              setDraft("");
+              setProblem(null);
+            }
+          }}
+        />
+        {problem && (
+          <span className={styles.linkProblem} role="alert">
+            {problem}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   describeRule,
   hasAnswer,
   matches,
+  OPS_FOR_TYPE,
   ME_KEY,
   mergeFilters,
   readFilters,
@@ -1161,5 +1162,46 @@ describe("a person rule that says Me", () => {
   it("clashes with a view rule about the same person property", () => {
     const ofView: FilterRule = { propertyId: assignee.id, op: "is", values: ["u-ada"] };
     expect(clashOf({ rules: [ofView] }, { rules: [me] }, properties)).toBe(assignee);
+  });
+});
+
+describe("a Link rule", () => {
+  const prs: PropertyDTO = {
+    id: "p-prs",
+    name: "Pull requests",
+    type: "link",
+    position: "c",
+    config: {},
+    options: [],
+  };
+  const value = {
+    "p-prs": ["https://github.com/acme/shop/pull/12", "https://example.org/Design"],
+  };
+
+  it("offers contains, does not contain, is empty and is not empty", () => {
+    expect(OPS_FOR_TYPE.link).toEqual(["contains", "not_contains", "empty", "not_empty"]);
+  });
+
+  it("contains finds a match in any link of the list", () => {
+    const rule = (text: string): FilterRule => ({ propertyId: prs.id, op: "contains", text });
+    expect(keep(rule("acme/shop"), value, prs)).toBe(true);
+    expect(keep(rule("design"), value, prs)).toBe(true);
+    expect(keep(rule("gitlab"), value, prs)).toBe(false);
+    expect(keep(rule("acme"), { "p-prs": [] }, prs)).toBe(false);
+  });
+
+  it("does not contain keeps a task only when no link holds the words", () => {
+    const rule: FilterRule = { propertyId: prs.id, op: "not_contains", text: "design" };
+    expect(keep(rule, value, prs)).toBe(false);
+    expect(keep(rule, { "p-prs": ["https://github.com/acme/shop/pull/1"] }, prs)).toBe(true);
+    expect(keep(rule, {}, prs)).toBe(true);
+  });
+
+  it("calls an empty list empty", () => {
+    const empty: FilterRule = { propertyId: prs.id, op: "empty" };
+    expect(keep(empty, { "p-prs": [] }, prs)).toBe(true);
+    expect(keep(empty, {}, prs)).toBe(true);
+    expect(keep(empty, value, prs)).toBe(false);
+    expect(keep({ propertyId: prs.id, op: "not_empty" }, value, prs)).toBe(true);
   });
 });

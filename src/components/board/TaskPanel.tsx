@@ -705,7 +705,11 @@ export function TaskPanel({
                     className={`${styles.propValue} ${index > 0 ? styles.rowLine : ""}`}
                     data-property={property.name}
                   >
+                    {/* A box holds what was typed and the line a refusal left,
+                        and both belong to one task: the key throws them away
+                        when another one opens. */}
                     <PropertyControl
+                      key={taskId}
                       property={property}
                       value={shown.values[property.id] ?? null}
                       members={data.members}

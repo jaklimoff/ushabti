@@ -80,7 +80,10 @@ async function setShownOnCard(projectId: string, propertyId: string, shown: bool
   }
 
   if (current.rows[propertyId]?.place !== "off") return;
-  const home = fallbackRow(KIND_OF_TYPE[property.type]);
+  const fallback = fallbackRow(KIND_OF_TYPE[property.type]);
+  /* A kind that starts off the card still has to land somewhere when asked
+     to show: the quiet end, where every newcomer goes. */
+  const home = fallback.place === "off" ? { ...fallback, place: "footerL" as const } : fallback;
   const next = {
     ...current,
     rows: { ...current.rows, [propertyId]: home },

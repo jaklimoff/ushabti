@@ -1,4 +1,5 @@
 import { isId } from "./ids";
+import type { PropertyType } from "./types";
 
 /**
  * The rules one bulk write obeys, apart from the database.
@@ -125,4 +126,14 @@ export function readArchiveAsk(input: {
     ok: true,
     ask: { kind: "column", propertyId: input.propertyId, value: input.value ?? null },
   };
+}
+
+/**
+ * Whether **Set…** offers a property for the picked tasks. A Link holds a list
+ * that each task has of its own, and one pasted link would replace every list
+ * picked. A multi-select is offered, because its options are the board's and
+ * one set of them on many tasks is what Set means.
+ */
+export function canSetOnMany(type: PropertyType): boolean {
+  return type !== "link";
 }

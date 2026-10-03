@@ -261,6 +261,40 @@ Status Ready` — so that a model never handles an id, and a bulk set is a list 
 definition. Ten `set` calls say the same thing in the words the skill is for; reach for this route
 when you are writing your own client and the ten calls are the cost.
 
+### Links, such as a pull request
+
+A **Link** property holds a list of web addresses. Its value is a JSON list, `[]` when empty:
+
+```bash
+curl -s -X PUT $USHABTI/api/tasks/$TASK/values/$LINK_PROPERTY \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"value":["https://github.com/acme/shop/pull/12"]}'
+```
+
+The write replaces the whole list. The server keeps only `http` and `https` links, at most 20,
+each at most 2000 characters, and answers `400` for anything else. It compares links without the
+`#fragment` and without a trailing `/`, so the same pull request sent two times is kept once. The
+answer is `{ "value": [...] }`, the list as it was stored. The server never fetches a link.
+
+With `board.mjs`:
+
+```bash
+node board.mjs set USH-14 "Pull requests" "https://github.com/acme/shop/pull/12"   # replace the list
+node board.mjs set USH-14 "Pull requests" --add "https://github.com/acme/shop/pull/13"  # add one
+node board.mjs task USH-14                                                       # prints each link
+```
+
+`set` takes several links separated by commas. **`--add` reads the list and then writes it.** The
+server holds no lock between the two, so two writers that add at the same moment can lose one link.
+Read the task again after an add if that matters.
+
+**Which property holds your pull request.** No setting names it. Use one rule:
+
+1. With **one** Link property on the board, use it.
+2. With **more than one**, use the one whose name says `PR` or `pull` (any case).
+3. With **none**, or with several and none of them named so, write nothing: say so in the run log
+   (`step --log "no Link property for the pull request"`) and put the link in a comment.
+
 ## A delete lasts thirty days
 
 Archiving is the everyday way to make a task go away. Delete is for a mistake,
