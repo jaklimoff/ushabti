@@ -148,6 +148,13 @@
       "when": 1791030359337,
       "tag": "0020_progress_by",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791034792300,
+      "tag": "0021_public_changelog",
+      "breakpoints": true
     }
   ]
 }
