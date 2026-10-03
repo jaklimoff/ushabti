@@ -52,6 +52,7 @@ import type {
   ViewSort,
 } from "@/lib/types";
 import type { OptionDates } from "@/lib/option-dates";
+import type { ShipDone, ShipRest } from "@/lib/ship";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 
@@ -177,6 +178,12 @@ type Store = {
   undeleteTask: (taskId: string) => Promise<boolean>;
   /** Archives every live task in one column. A person's act, so it asks first. */
   archiveColumn: (propertyId: string | null, value: TaskValue) => Promise<number>;
+  /**
+   * Ships the column of one dated option: archives what is over, puts the
+   * rest where `rest` says and writes the day. It answers the server's
+   * numbers, or null when the ship was refused.
+   */
+  shipOption: (optionId: string, rest: ShipRest) => Promise<ShipDone | null>;
   moveTask: (input: {
     taskId: string;
     beforeId: string | null;
@@ -1032,6 +1039,21 @@ export function BoardProvider({
     [notify, projectId, refresh, tracked],
   );
 
+  const shipOption = useCallback<Store["shipOption"]>(
+    async (optionId, rest) => {
+      try {
+        const res = await tracked.post<ShipDone>(`/api/options/${optionId}/ship`, { rest });
+        await refresh();
+        return res;
+      } catch (err) {
+        notify(err instanceof Error ? err.message : "The column did not ship.");
+        await refresh();
+        return null;
+      }
+    },
+    [notify, refresh, tracked],
+  );
+
   const moveTask = useCallback<Store["moveTask"]>(
     async ({ taskId, beforeId, afterId, values }) => {
       setData((current) => {
@@ -1564,6 +1586,7 @@ export function BoardProvider({
     restoreTask,
     undeleteTask,
     archiveColumn,
+    shipOption,
     moveTask,
     setValue,
     linkBlocker,

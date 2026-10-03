@@ -833,6 +833,10 @@
   font-size: 12px;
 }
 
+.colShip {
+  font-size: 12px;
+}
+
 /* ------------------------------------------- archiving a whole column */
 
 /* The question needs the room the name, the count and the two buttons took,
@@ -874,6 +878,12 @@
 
 .colConfirmNo {
   color: var(--muted);
+}
+
+/* A ship offers up to three answers. They sit in a row after the question
+   and wrap together, so none of them is pushed to the edge alone. */
+.colShipAnswer {
+  margin-left: 0;
 }
 
 .colConfirmNo:hover {

@@ -10,6 +10,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A dated column can ship.** On a board grouped by a select property, an owner or an admin sees
+  **✓ Ship** in the header of a column whose option has a target date. The header asks the question
+  in numbers: how many tasks are over and how many are not. It offers **Move to the next option**,
+  **Leave them** or **Clear the value** for the ones that are not over. One press archives the tasks
+  that are over, does what was picked with the rest, writes today as the option's shipped date and
+  folds the column. `POST /api/options/{id}/ship` takes `{ "rest": "next" | "leave" | "clear" }`; a
+  token gets 403. **Unship** in Settings clears the date and leaves the archived tasks archived.
 - **A column header shows the target date and the progress of its option.** On a board grouped by
   a select property, a column whose option has a target date shows it beside the count, and a thin
   bar under the header shows how much of the column is done by the project's **Done when** rule.

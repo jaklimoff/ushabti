@@ -86,15 +86,16 @@ async function writeActivity(entries: ActivityEntry[], tx?: Tx): Promise<Ring> {
     try {
       const rung: Rung[] = entries.map((entry) => {
         /* One import writes a line on the project and one on every task it
-           made. They are one change, so they ring one doorbell:
-           `queueWebhooks` folds the lines that share this. */
-        const importId = entry.data?.importId;
+           made, and a ship does the same for every task it touched. Each is
+           one change, so it rings one doorbell: `queueWebhooks` folds the
+           lines that share this. */
+        const batchId = entry.data?.importId ?? entry.data?.shipId;
         return {
           projectId: entry.projectId,
           taskId: entry.taskId ?? null,
           kind: entry.kind,
           at,
-          importId: typeof importId === "string" ? importId : null,
+          batchId: typeof batchId === "string" ? batchId : null,
         };
       });
       await queueWebhooks(rung);

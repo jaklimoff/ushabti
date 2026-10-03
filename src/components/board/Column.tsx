@@ -12,6 +12,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatDate, type BoardColumn } from "@/lib/board";
 import type { DoneWhen } from "@/lib/links";
 import { progressOf } from "@/lib/progress";
+import { SHIP_REST_LABEL, shipQuestion, shipRestsFor, splitShip, type ShipRest } from "@/lib/ship";
 import type { PropertyOptionDTO, TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { MentionList, useMentions } from "./Mentions";
@@ -103,6 +104,19 @@ function releaseOf(dates: ColumnDates | null, tasks: TaskDTO[], rule: ProgressRu
   };
 }
 
+/**
+ * How this column may ship, or null when it may not: it stands for no dated
+ * option, it already shipped, the person is not an admin, or a filter hides
+ * part of it — under a rule the numbers in the question would not be the
+ * numbers that go, exactly as a sweep.
+ */
+export type ShipOffer = {
+  /** The option after this one, or null when it is the last. */
+  nextName: string | null;
+  /** Settles once the ship is answered and the board read again. */
+  onShip: (rest: ShipRest) => Promise<boolean>;
+};
+
 export function Column({
   column,
   selectedTaskId,
@@ -119,6 +133,7 @@ export function Column({
   onFold,
   dates,
   rule,
+  ship,
 }: {
   column: BoardColumn;
   selectedTaskId: string | null;
@@ -148,10 +163,15 @@ export function Column({
   /** The dates of the option this column stands for, or null for none. */
   dates: ColumnDates | null;
   rule: ProgressRule;
+  ship: ShipOffer | null;
 }) {
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const sweep = useConfirm();
+  const shipAsk = useConfirm();
+  /* A ship is one press: while it is out, the button stays away. */
+  const [shipping, setShipping] = useState(false);
+  const canShip = !!ship && !!dates?.targetAt && !dates.shippedAt && !shipping;
   const release = releaseOf(dates, column.tasks, rule);
 
   const sortable = useSortable({
@@ -231,7 +251,23 @@ export function Column({
       {/* The board has no dialogs, so the header itself becomes the question
           and names in real numbers what it is about to do. The cards stay on
           screen behind it: they are what the number counts. */}
-      {sweep.asking ? (
+      {shipAsk.asking && ship ? (
+        <ShipQuestion
+          column={column}
+          rule={rule}
+          ship={ship}
+          onCancel={shipAsk.cancel}
+          onPick={(rest) =>
+            shipAsk.confirm(() => {
+              setShipping(true);
+              /* The board is read again before the answer comes, so a ship
+                 that went through already hides the button by its date. Let
+                 go either way, or an Unship would find it still held. */
+              void ship.onShip(rest).finally(() => setShipping(false));
+            })
+          }
+        />
+      ) : sweep.asking ? (
         <div
           className={`${styles.colHead} ${styles.colHeadAsking}`}
           role="alertdialog"
@@ -327,6 +363,17 @@ export function Column({
               ↓
             </button>
           )}
+          {canShip && (
+            <button
+              className={`${styles.colAdd} ${styles.colShip}`}
+              data-testid="column-ship"
+              aria-label={`Ship ${column.name}`}
+              title="Ship: archive what is over and close this option"
+              onClick={shipAsk.ask}
+            >
+              ✓
+            </button>
+          )}
           <button
             className={`${styles.colAdd} ${styles.colFold}`}
             aria-label={`Fold the column ${column.name}`}
@@ -407,6 +454,55 @@ export function Column({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The header become the question a ship asks. It names both numbers from the
+ * cards on screen, which are the whole column, and each answer about the rest
+ * is its own button, so one press both answers and confirms.
+ */
+function ShipQuestion({
+  column,
+  rule,
+  ship,
+  onPick,
+  onCancel,
+}: {
+  column: BoardColumn;
+  rule: ProgressRule;
+  ship: ShipOffer;
+  onPick: (rest: ShipRest) => void;
+  onCancel: () => void;
+}) {
+  const { over, rest } = splitShip(column.tasks, rule.doneWhen);
+  /* With nothing left over there is nothing to decide about it. */
+  const answers: ShipRest[] = rest.length ? shipRestsFor(ship.nextName !== null) : ["leave"];
+  return (
+    <div
+      className={`${styles.colHead} ${styles.colHeadAsking}`}
+      role="alertdialog"
+      aria-label={`Ship ${column.name}`}
+    >
+      <span className={styles.colConfirm} data-testid="ship-confirm">
+        {shipQuestion(column.name, over.length, rest.length)}
+        {rest.length > 0 && " What happens to them?"}
+      </span>
+      {answers.map((answer, i) => (
+        <button
+          key={answer}
+          className={`${styles.colConfirmYes} ${styles.colShipAnswer}`}
+          autoFocus={i === 0}
+          title={answer === "next" ? `Move them to ${ship.nextName}` : undefined}
+          onClick={() => onPick(answer)}
+        >
+          {rest.length ? SHIP_REST_LABEL[answer] : "Yes, ship"}
+        </button>
+      ))}
+      <button className={styles.colConfirmNo} onClick={onCancel}>
+        Cancel
+      </button>
     </div>
   );
 }
