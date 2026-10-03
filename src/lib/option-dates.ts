@@ -14,6 +14,14 @@ export type OptionDates = {
 
 export const NOTE_MAX = 2000;
 
+/** True when a property says its options carry dates. Only a select can. */
+export function carriesDates(property: {
+  type: string;
+  config: { dated?: boolean } | null;
+}): boolean {
+  return property.type === "select" && property.config?.dated === true;
+}
+
 const DATE_FIELDS = [
   ["startAt", "The start date"],
   ["targetAt", "The target date"],

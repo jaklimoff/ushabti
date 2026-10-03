@@ -37,7 +37,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
         name: SPRINT,
         type: "select",
         position: rankAfter(props.at(-1)?.position ?? null),
-        config: {},
+        // A sprint is an option with dates, so its boxes are there from the start.
+        config: { dated: true },
       })
       .returning({ id: properties.id });
 

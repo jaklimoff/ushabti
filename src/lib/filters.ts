@@ -20,6 +20,7 @@ import {
   type ViewFilters,
 } from "./types";
 import { linksOf } from "./web-links";
+import { carriesDates } from "./option-dates";
 
 /**
  * A filter is a rule about one property. Nothing here names Status, Priority or
@@ -113,15 +114,16 @@ function isDated(option: PropertyOptionDTO): boolean {
 }
 
 /**
- * True when a rule about this property may say "current". Only a select
- * option carries dates, and with none of them dated the word would name
- * nothing on any day. A rule that already holds the word is offered it
+ * True when a rule about this property may say "current". Only a select whose
+ * options carry dates is asked, and with none of them dated the word would
+ * name nothing on any day. A rule that already holds the word is offered it
  * anyway: `readFilters` keeps the word after the dates are gone, and the
  * menu has to show it so that somebody can take it off.
  */
 export function offersCurrent(property: PropertyDTO, chosen: readonly string[]): boolean {
   if (property.type !== "select") return false;
-  return chosen.includes(CURRENT_KEY) || property.options.some(isDated);
+  if (chosen.includes(CURRENT_KEY)) return true;
+  return carriesDates(property) && property.options.some(isDated);
 }
 
 /**

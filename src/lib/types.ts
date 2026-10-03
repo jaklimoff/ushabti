@@ -43,6 +43,14 @@ export type PropertyConfig = {
    * card view a project falls back to. Nothing writes it any more.
    */
   showOnCard?: boolean;
+  /**
+   * A select's options carry a start, a target and a note. Off unless somebody
+   * turns it on, so Status and Priority do not wear date boxes. Read it with
+   * `carriesDates()`. It gates the boxes in Settings and the filter's
+   * "current", and nothing else: a column header and Ship key off the option's
+   * own target, so a property switched off after it was dated still ships.
+   */
+  dated?: boolean;
 };
 
 export type PropertyOptionDTO = {

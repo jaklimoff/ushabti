@@ -1275,7 +1275,7 @@ describe("a rule that says a dated option is current", () => {
     name: "Sprint",
     type: "select",
     position: "Z",
-    config: {},
+    config: { dated: true },
     options: [
       sprint("o-s1", "Sprint 1", "2026-09-07", "2026-09-20"),
       sprint("o-s2", "Sprint 2", "2026-09-21", "2026-10-04"),
@@ -1295,6 +1295,14 @@ describe("a rule that says a dated option is current", () => {
       offersCurrent({ ...sprints, options: [sprint("o-x", "X", null, "2026-09-30")] }, []),
     ).toBe(true);
     expect(offersCurrent({ ...sprints, type: "multi_select" }, [])).toBe(false);
+  });
+
+  it("is offered only while the property says its options carry dates", () => {
+    expect(offersCurrent({ ...sprints, config: {} }, [])).toBe(false);
+    expect(offersCurrent({ ...sprints, config: { dated: false } }, [])).toBe(false);
+    expect(offersCurrent(sprints, [])).toBe(true);
+    /* A rule that already holds the word keeps it, so somebody can take it off. */
+    expect(offersCurrent({ ...sprints, config: {} }, [CURRENT_KEY])).toBe(true);
   });
 
   it("is not offered when no option carries a target", () => {

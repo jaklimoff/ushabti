@@ -48,6 +48,10 @@ async function releaseBoard(page: Page) {
   const backlog = status.options.find((o) => o.name === "Backlog")!;
   const version = board.properties.find((p) => p.name === "Version")!;
   const [v1, v2, v3] = version.options;
+  const dated = await page.request.patch(`/api/properties/${version.id}`, {
+    data: { dated: true },
+  });
+  expect(dated.ok()).toBeTruthy();
 
   for (const option of [v1, v3]) {
     const res = await page.request.patch(`/api/options/${option.id}`, {
