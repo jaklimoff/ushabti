@@ -579,6 +579,11 @@ describe("mainBoardGroupById", () => {
     expect(mainBoardGroupById([list("x", true), board("a"), board("b")])).toBe("a");
   });
 
+  it("takes a main roadmap, whose rows are the property's options", () => {
+    const roadmap = { kind: "roadmap", isDefault: true, groupById: "r" };
+    expect(mainBoardGroupById([board("a"), roadmap])).toBe("r");
+  });
+
   it("answers null when there is no board", () => {
     expect(mainBoardGroupById([list("x", true)])).toBeNull();
     expect(mainBoardGroupById([])).toBeNull();

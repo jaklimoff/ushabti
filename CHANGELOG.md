@@ -15,6 +15,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   board is, and a list **Backlog** on `Sprint is nothing yet`. Each one is an ordinary property or
   view afterwards. The row says **Sprints are set up** once a property named Sprint exists. Only the
   owner or an admin can press it.
+- **A roadmap view draws one bar per dated option.** Make it from **+** in the view strip, pick
+  **Roadmap** and a select property. Each option with a target date gets a row: its name, its
+  colour, and a bar on a line of weeks from its start date, or its oldest task, to its target. The
+  bar fills by the same progress the column header shows, under the view's filters. A shipped
+  option's bar is full, ends on its shipped day and sits below the open ones. A line marks today,
+  and the roadmap opens with today in view. The view's `kind` is `roadmap`.
 - **A dated column can ship.** On a board grouped by a select property, an owner or an admin sees
   **✓ Ship** in the header of a column whose option has a target date. The header asks the question
   in numbers: how many tasks are over and how many are not. It offers **Move to the next option**,

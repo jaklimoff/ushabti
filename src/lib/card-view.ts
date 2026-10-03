@@ -4,6 +4,7 @@ import {
   CARD_BUILTIN_NAME,
   CARD_BUILTINS,
   CARD_PLACES,
+  GROUPED_KINDS,
   type CardBuiltin,
   type CardKind,
   type CardMode,
@@ -171,15 +172,16 @@ export function cardOrder(properties: readonly { id: string }[]): string[] {
 
 /**
  * The property the columns of the main board are, which the default card
- * leaves off. Only a board answers: a list keeps a `groupById` it never reads,
- * so a main view that is a list hands the question to the first board. The
+ * leaves off. Only a board or a roadmap answers, because only those read it: a
+ * list keeps a `groupById` it never reads, so a main view that is a list hands
+ * the question to the first board. The
  * server and the browser both ask here, so a reset puts back the card the
  * server would draw. `views` must be in their order.
  */
 export function mainBoardGroupById(
   views: readonly { kind: string; isDefault: boolean; groupById: string | null }[],
 ): string | null {
-  const boards = views.filter((v) => v.kind === "board");
+  const boards = views.filter((v) => (GROUPED_KINDS as readonly string[]).includes(v.kind));
   return (boards.find((v) => v.isDefault) ?? boards[0])?.groupById ?? null;
 }
 

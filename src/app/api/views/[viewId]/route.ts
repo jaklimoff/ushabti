@@ -18,7 +18,7 @@ import { byPos } from "@/lib/order";
 import { groupPropertyId, loadProperties, viewProjectId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { readSort } from "@/lib/sort";
-import { VIEW_KINDS } from "@/lib/types";
+import { VIEW_KINDS, type ViewKind } from "@/lib/types";
 
 type Ctx = { params: Promise<{ viewId: string }> };
 
@@ -46,25 +46,31 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 
   if (input.kind !== undefined) {
     if (!(VIEW_KINDS as readonly string[]).includes(input.kind))
-      throw new HttpError(400, "A view is a board or a list.");
+      throw new HttpError(400, "A view is a board, a list or a roadmap.");
     patch.kind = input.kind;
   }
 
+  /* A board is its columns and a roadmap its rows. Turning a list into one
+     without a property to make them from would leave a screen with nothing on
+     it. */
+  const kind = "kind" in patch ? (patch.kind as ViewKind) : (current.kind as ViewKind);
   if (input.groupById !== undefined) {
     patch.groupById =
       input.groupById === null || input.groupById === ""
         ? null
-        : await groupPropertyId(projectId, input.groupById);
+        : await groupPropertyId(projectId, input.groupById, kind);
   }
 
-  /* A board is its columns. Turning a list into one without a property to make
-     them from would leave a screen with nothing on it. */
-  const kind = "kind" in patch ? (patch.kind as string) : current.kind;
   /* `??` cannot be used here: a list clearing its grouping writes null on
      purpose, and null is exactly what `??` reads as "nothing was said". */
   const groupById = "groupById" in patch ? (patch.groupById as string | null) : current.groupById;
   if (kind === "board" && !groupById)
     throw new HttpError(400, "A board needs a property to make its columns from.");
+  if (kind === "roadmap") {
+    if (!groupById) throw new HttpError(400, "A roadmap needs a select property to draw.");
+    // A board grouped by a person keeps its property; a roadmap cannot read one.
+    if (!("groupById" in patch)) await groupPropertyId(projectId, groupById, kind);
+  }
 
   if (input.filters !== undefined || input.sort !== undefined) {
     const properties = await loadProperties(projectId);
