@@ -28,6 +28,7 @@ import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters, WAITS } from "./filters";
 import { readTimeZone, todayIn } from "./day";
 import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
+import { readProgressBy } from "./progress";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
@@ -746,6 +747,7 @@ export async function loadBoard(
       ownerId: projectRow.ownerId,
       role,
       doneWhen,
+      progressBy: readProgressBy(projectRow.progressBy, propertyList),
       timeZone,
     },
     /* The one clock this board reads. Every relative date rule on every view

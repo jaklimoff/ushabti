@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A column header shows the target date and the progress of its option.** On a board grouped by
+  a select property, a column whose option has a target date shows it beside the count, and a thin
+  bar under the header shows how much of the column is done by the project's **Done when** rule.
+  The view's filters narrow the bar as they narrow the cards. A shipped date takes the target's
+  place. In Settings → Project, **Count progress by** picks one number property, such as Points;
+  then the bar sums it and the header reads `21 of 34`.
 - **A view can carry a card view of its own.** In Settings → Views, **Card view…** opens the card
   view editor for that one view. The first change gives the view a copy; until then it draws the
   project's card view and follows it. **Use the default** throws the copy away. A list's columns

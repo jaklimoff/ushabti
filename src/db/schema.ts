@@ -82,6 +82,14 @@ export const projects = pgTable("projects", {
    */
   doneWhen: jsonb("done_when"),
   /**
+   * The number property this project counts progress by, or null for tasks.
+   *
+   * A column bar sums it over the tasks that are over. No foreign key, on
+   * purpose: it is read afresh through `readProgressBy`, exactly as the done
+   * rule is, so a property that is gone or changed type counts tasks again.
+   */
+  progressBy: text("progress_by"),
+  /**
    * The zone this project's day is worked out in, as an IANA name.
    *
    * A filter can say "due this week", and a shared filter has to mean one

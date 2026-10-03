@@ -772,6 +772,41 @@
   color: #6b727d;
 }
 
+/* The day a dated column aims at, or shipped on. It never wraps and never
+   shrinks: the name gives up its letters first, because the date is the
+   reason the header grew. */
+.colDate,
+.colSum {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: #8a919c;
+  white-space: nowrap;
+}
+
+.colShipped {
+  color: #7fb38a;
+}
+
+.colSum {
+  color: #6b727d;
+}
+
+/* The bar lies on the header's own bottom line, so a dated column is no
+   taller than any other. */
+.colProgress {
+  flex: 0 0 auto;
+  height: 2px;
+  margin-top: -2px;
+  background: var(--line-soft);
+}
+
+.colProgress > span {
+  display: block;
+  height: 100%;
+  transition: width 200ms var(--ease);
+}
+
 .colAdd {
   width: 19px;
   height: 19px;

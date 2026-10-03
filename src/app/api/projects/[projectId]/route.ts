@@ -15,6 +15,7 @@ import {
 } from "@/lib/api";
 import { isTimeZone, zoneRefused } from "@/lib/day";
 import { readDoneWhen } from "@/lib/links";
+import { readProgressBy } from "@/lib/progress";
 import { loadProperties } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -28,6 +29,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     name?: string;
     key?: string;
     doneWhen?: unknown;
+    progressBy?: unknown;
     timeZone?: string;
   }>(req);
   const patch: Record<string, unknown> = {};
@@ -50,6 +52,20 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     patch.doneWhen = input.doneWhen
       ? readDoneWhen(input.doneWhen, await loadProperties(projectId))
       : null;
+  }
+  /*
+   * The number property a column's bar sums. A name that is not a number
+   * property of this project is refused rather than swallowed: a save that
+   * quietly became "count tasks" would move every bar and say nothing.
+   */
+  if (input.progressBy !== undefined) {
+    if (input.progressBy === null || input.progressBy === "") {
+      patch.progressBy = null;
+    } else {
+      const id = readProgressBy(input.progressBy, await loadProperties(projectId));
+      if (!id) throw new HttpError(400, "Progress can only be counted by a number property.");
+      patch.progressBy = id;
+    }
   }
   /*
    * The zone this project's day is worked out in, which is what a relative
