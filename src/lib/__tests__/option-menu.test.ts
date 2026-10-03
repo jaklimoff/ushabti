@@ -3,7 +3,16 @@ import { optionMenu } from "../option-menu";
 import type { PropertyOptionDTO } from "../types";
 
 function options(...names: string[]): PropertyOptionDTO[] {
-  return names.map((name, i) => ({ id: `o${i}`, name, color: "#fff", position: `${i}` }));
+  return names.map((name, i) => ({
+    id: `o${i}`,
+    name,
+    color: "#fff",
+    position: `${i}`,
+    startAt: null,
+    targetAt: null,
+    shippedAt: null,
+    note: null,
+  }));
 }
 
 const PRIORITY = options("Low", "Highest", "High", "Medium");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type FocusEvent, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -22,6 +22,7 @@ import { useBoard } from "@/components/board/store";
 import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
+import { NOTE_MAX, optionEdit } from "@/lib/option-dates";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -341,8 +342,11 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           />
         )}
       {(property.type === "select" || property.type === "multi_select") && !dropConfirm.asking && (
-        <div className={styles.options}>
-          {/* The chips wrap, so the strategy is a grid's and not a row's. The
+        <div
+          className={`${styles.options} ${property.type === "select" ? styles.optionsRows : ""}`}
+        >
+          {/* Labels wrap, so their strategy is a grid's; a select's options
+              take a line each, so theirs is a list's. The
               drag names the chip it landed on, and the store makes the same
               move a column drag makes: no rank leaves this page. */}
           <DndContext
@@ -356,12 +360,15 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           >
             <SortableContext
               items={property.options.map((o) => o.id)}
-              strategy={rectSortingStrategy}
+              strategy={
+                property.type === "select" ? verticalListSortingStrategy : rectSortingStrategy
+              }
             >
               {property.options.map((option) => (
                 <OptionChip
                   key={option.id}
                   option={option}
+                  dated={property.type === "select"}
                   canEdit={canEdit}
                   onDelete={() => void askOption(option)}
                 />
@@ -402,10 +409,13 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
 
 function OptionChip({
   option,
+  dated,
   canEdit,
   onDelete,
 }: {
   option: PropertyDTO["options"][number];
+  /** A single select's option is a Version or a Sprint; a label has no dates. */
+  dated: boolean;
   canEdit: boolean;
   /** Asks first. The row above owns the question. */
   onDelete: () => void;
@@ -487,6 +497,7 @@ function OptionChip({
         </span>
       )}
       <OptionName option={option} />
+      {dated && <OptionPlan option={option} />}
       {canEdit && (
         <button
           type="button"
@@ -538,6 +549,140 @@ function OptionName({ option }: { option: PropertyDTO["options"][number] }) {
         else e.target.value = option.name;
       }}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+    />
+  );
+}
+
+/**
+ * The start, the target and the note of a select's option. The shipped date
+ * is written by shipping, so here it is only read, with the one way back.
+ */
+function OptionPlan({ option }: { option: PropertyDTO["options"][number] }) {
+  const { patchOption } = useBoard();
+  /* The day it shipped cannot be typed back, so Unship asks first. */
+  const unship = useConfirm();
+  if (unship.asking) {
+    return (
+      <span className={styles.optionPlan}>
+        <ConfirmRow
+          question={`Unship ${option.name}? Shipped ${option.shippedAt} is lost.`}
+          confirmLabel="Yes, unship"
+          onConfirm={() => unship.confirm(() => void patchOption(option.id, { shippedAt: null }))}
+          onCancel={unship.cancel}
+        />
+      </span>
+    );
+  }
+  return (
+    <span className={styles.optionPlan}>
+      <OptionField option={option} field="startAt" label="Start" type="date" />
+      <span className={styles.optionArrow} aria-hidden>
+        →
+      </span>
+      <OptionField option={option} field="targetAt" label="Target" type="date" />
+      <OptionField option={option} field="note" label="Note" type="text" />
+      {option.shippedAt && (
+        <span className={styles.optionShipped}>
+          Shipped {option.shippedAt}
+          <button
+            type="button"
+            className={styles.optionUnship}
+            aria-label={`Unship ${option.name}`}
+            onClick={unship.ask}
+          >
+            Unship
+          </button>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * One box of the plan. It saves on blur and owes its edit to a closed tab, as
+ * every box of words does. The note is markdown, so it is a box that keeps
+ * its lines: an input would strip them.
+ */
+function OptionField({
+  option,
+  field,
+  label,
+  type,
+}: {
+  option: PropertyDTO["options"][number];
+  field: "startAt" | "targetAt" | "note";
+  label: string;
+  type: "date" | "text";
+}) {
+  const { patchOption } = useBoard();
+  const box = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const saved = option[field];
+  /* Only what this tab typed may be written back, as with the name. A ref
+     and not state: a tab closed straight after a keystroke goes before the
+     render that state would wait for. */
+  const typed = useRef(false);
+  /* A date box with one part cleared answers "" as an empty one does. Only
+     badInput tells them apart, and a half date is not a date taken away. */
+  const halfDate = () => type === "date" && box.current?.validity.badInput === true;
+
+  useSaveOnLeave(() => {
+    if (!typed.current || halfDate()) return null;
+    const edit = optionEdit(box.current?.value ?? "", saved);
+    return edit === undefined
+      ? null
+      : { method: "PATCH", url: `/api/options/${option.id}`, body: { [field]: edit } };
+  });
+
+  useEffect(() => {
+    if (box.current && document.activeElement !== box.current) box.current.value = saved ?? "";
+  }, [saved]);
+
+  const shared = {
+    ref: box,
+    "aria-label": `${label} of ${option.name}`,
+    title: label,
+    defaultValue: saved ?? "",
+    onChange: () => {
+      typed.current = true;
+    },
+    onBlur: (e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      /* A box nobody typed in writes nothing, so what it shows can never
+         replace what is saved. */
+      if (!typed.current) return;
+      typed.current = false;
+      if (halfDate()) {
+        e.target.value = saved ?? "";
+        return;
+      }
+      const edit = optionEdit(e.target.value, saved);
+      if (edit !== undefined) void patchOption(option.id, { [field]: edit });
+    },
+  };
+
+  if (type === "text") {
+    return (
+      <textarea
+        {...shared}
+        className={styles.optionNote}
+        rows={1}
+        placeholder="Note"
+        maxLength={NOTE_MAX}
+        /* Enter ends the edit, as in every other box; Shift+Enter makes a line. */
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+      />
+    );
+  }
+  return (
+    <input
+      {...shared}
+      type="date"
+      className={styles.optionDate}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
     />
   );
 }

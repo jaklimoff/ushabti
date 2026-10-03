@@ -225,6 +225,15 @@ curl -s $USHABTI/api/projects/$PROJECT/board -H "Authorization: Bearer $TOKEN" \
   | jq -r '.properties[] | select(.name=="Status") | .options[] | select(.name=="In Progress") | .id'
 ```
 
+An option of a single select may also carry a plan: `startAt`, `targetAt`
+and `shippedAt`, each a day as `YYYY-MM-DD` or null, and `note`, markdown or
+null. That is how a board says what a Version, a Sprint or a Quarter is — an
+option with dates — so read them from the same `options` rows; there is no
+other route. `POST /api/properties/{id}/options` and `PATCH
+/api/options/{id}` take the four, each optional, and null clears one. A date
+that does not parse, or a target before the start, is refused with `400` and
+one sentence. A multi-select option is a label and carries none of them.
+
 Then write it:
 
 ```bash

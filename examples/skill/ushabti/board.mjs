@@ -233,6 +233,18 @@ function findProperty(data, wanted) {
 
 const nameOf = (row) => row.name;
 
+/** True when an option carries a start, a target, a shipped date or a note. */
+const planned = (o) => Boolean(o.startAt || o.targetAt || o.shippedAt || o.note);
+
+/** `Sprint 4 · 2026-10-01 → 2026-10-14 · shipped 2026-10-13 · the first line of the note` */
+function optionLine(o) {
+  const parts = [o.name];
+  if (o.startAt || o.targetAt) parts.push([o.startAt, "→", o.targetAt].filter(Boolean).join(" "));
+  if (o.shippedAt) parts.push(`shipped ${o.shippedAt}`);
+  if (o.note) parts.push(o.note.split("\n")[0]);
+  return parts.join(" · ");
+}
+
 /**
  * Turns what a person would write into what the API stores. This is the reason
  * the file exists: the ids belong to the board, not to the agent.
@@ -417,7 +429,7 @@ const commands = {
     console.log(`Ushabti board — ${BASE}
 
   me                                  who am I, which board
-  props                               every property and its options
+  props                               every property and its options, with their dates
   list [--held] [--free]              the board, grouped by the main view
   task <key>                          one task in full
   new "<title>" [--set "Name=Value"]  create a task
@@ -461,6 +473,13 @@ http://localhost:3000.`);
   async props() {
     const data = await board();
     for (const p of data.properties) {
+      /* A select whose options carry dates is a Version or a Sprint: one option
+         a line, so the dates and the note have room. */
+      if (p.options.some(planned)) {
+        console.log(`${p.name} (${p.type})`);
+        for (const o of p.options) console.log(`  ${optionLine(o)}`);
+        continue;
+      }
       const options = p.options.length ? `: ${p.options.map(nameOf).join(" | ")}` : "";
       console.log(`${p.name} (${p.type})${options}`);
     }

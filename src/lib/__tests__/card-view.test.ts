@@ -24,8 +24,26 @@ const STATUS: PropertyDTO = {
   position: "V",
   config: {},
   options: [
-    { id: "o-todo", name: "Todo", color: "#9aa0aa", position: "V" },
-    { id: "o-done", name: "Done", color: "#4f8a5b", position: "k" },
+    {
+      id: "o-todo",
+      name: "Todo",
+      color: "#9aa0aa",
+      position: "V",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+    {
+      id: "o-done",
+      name: "Done",
+      color: "#4f8a5b",
+      position: "k",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
   ],
 };
 
@@ -35,7 +53,18 @@ const PRIORITY: PropertyDTO = {
   type: "select",
   position: "k",
   config: {},
-  options: [{ id: "o-urgent", name: "Urgent", color: "#e0574d", position: "V" }],
+  options: [
+    {
+      id: "o-urgent",
+      name: "Urgent",
+      color: "#e0574d",
+      position: "V",
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    },
+  ],
 };
 
 const ASSIGNEE: PropertyDTO = {
@@ -380,8 +409,26 @@ describe("drawing a card", () => {
       position: "z",
       config: {},
       options: [
-        { id: "l-bug", name: "bug", color: "#e0574d", position: "V" },
-        { id: "l-ux", name: "ux", color: "#c2557a", position: "k" },
+        {
+          id: "l-bug",
+          name: "bug",
+          color: "#e0574d",
+          position: "V",
+          startAt: null,
+          targetAt: null,
+          shippedAt: null,
+          note: null,
+        },
+        {
+          id: "l-ux",
+          name: "ux",
+          color: "#c2557a",
+          position: "k",
+          startAt: null,
+          targetAt: null,
+          shippedAt: null,
+          note: null,
+        },
       ],
     };
     const list = cardItems(
