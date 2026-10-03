@@ -11,12 +11,14 @@ import {
   asksAbout,
   clashOf,
   clashSaid,
+  CURRENT_KEY,
   describeRule,
   hasAnswer,
   matches,
   OPS_FOR_TYPE,
   ME_KEY,
   mergeFilters,
+  offersCurrent,
   readFilters,
   seedNote,
   seedValues,
@@ -664,6 +666,7 @@ describe("a task added to a filtered board", () => {
       properties,
       status.id,
       null,
+      TODAY,
     );
     expect(seed).toEqual({
       "p-assignee": "u-ada",
@@ -689,20 +692,21 @@ describe("a task added to a filtered board", () => {
       properties,
       null,
       null,
+      TODAY,
     );
     expect(seed).toEqual({});
   });
 
   it("never answers for the grouping property, which the column decides", () => {
     const rules = [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }];
-    expect(seedValues({ rules }, properties, status.id, null)).toEqual({});
+    expect(seedValues({ rules }, properties, status.id, null, TODAY)).toEqual({});
     /*
      * A list has no columns, so nothing else decides it and the filter has to
      * answer for it too. This is the whole difference between the two callers,
      * and without it a row added to a filtered list is written and hidden in
      * the same breath.
      */
-    expect(seedValues({ rules }, properties, null, null)).toEqual({ "p-status": "o-todo" });
+    expect(seedValues({ rules }, properties, null, null, TODAY)).toEqual({ "p-status": "o-todo" });
   });
 
   /*
@@ -712,8 +716,8 @@ describe("a task added to a filtered board", () => {
    */
   it("leaves a relative date rule alone, because it cannot answer it", () => {
     const rules = [{ propertyId: due.id, op: "within" as const, text: "this_week" }];
-    expect(seedValues({ rules }, properties, null, null)).toEqual({});
-    expect(seedValues({ rules }, properties, status.id, null)).toEqual({});
+    expect(seedValues({ rules }, properties, null, null, TODAY)).toEqual({});
+    expect(seedValues({ rules }, properties, status.id, null, TODAY)).toEqual({});
   });
 
   it("says out loud what it is about to write", () => {
@@ -876,6 +880,7 @@ describe("a view's rules and one person's", () => {
       properties,
       null,
       null,
+      TODAY,
     );
     expect(seed).toEqual({ "p-labels": ["o-bug"], "p-status": "o-todo" });
   });
@@ -1060,7 +1065,7 @@ describe("the blocked rule", () => {
   });
 
   it("is never seeded onto a new task", () => {
-    expect(seedValues({ rules: [blocked] }, [status], null, null)).toEqual({});
+    expect(seedValues({ rules: [blocked] }, [status], null, null, TODAY)).toEqual({});
   });
 
   it("reads as a checkbox on the chip", () => {
@@ -1117,7 +1122,7 @@ describe("the agent waiting rule", () => {
 
   it("survives readFilters, is never seeded, and reads on the chip", () => {
     expect(readFilters({ rules: [waits] }, []).rules).toEqual([waits]);
-    expect(seedValues({ rules: [waits] }, [status], null, null)).toEqual({});
+    expect(seedValues({ rules: [waits] }, [status], null, null, TODAY)).toEqual({});
     expect(describeRule(waits, AGENT_WAITING_PROPERTY, members)).toBe("Agent waiting");
     expect(describeRule(moving, AGENT_WAITING_PROPERTY, members)).toBe("No agent waiting");
   });
@@ -1171,11 +1176,11 @@ describe("a person rule that says Me", () => {
   });
 
   it("puts the viewer on a task added under it", () => {
-    expect(seedValues({ rules: [me] }, properties, null, "u-bot")).toEqual({
+    expect(seedValues({ rules: [me] }, properties, null, "u-bot", TODAY)).toEqual({
       "p-assignee": "u-bot",
     });
-    expect(seedValues({ rules: [me] }, properties, null, null)).toEqual({});
-    expect(seedValues({ rules: [me] }, properties, assignee.id, "u-bot")).toEqual({});
+    expect(seedValues({ rules: [me] }, properties, null, null, TODAY)).toEqual({});
+    expect(seedValues({ rules: [me] }, properties, assignee.id, "u-bot", TODAY)).toEqual({});
   });
 
   it("keeps only the viewer's column on a board grouped by that person", () => {
@@ -1239,5 +1244,134 @@ describe("a Link rule", () => {
     expect(keep(empty, {}, prs)).toBe(true);
     expect(keep(empty, value, prs)).toBe(false);
     expect(keep({ propertyId: prs.id, op: "not_empty" }, value, prs)).toBe(true);
+  });
+});
+
+/*
+ * "Sprint is current" names no option. It names whichever dated option holds
+ * the day the board was read on, so the board rolls over by itself.
+ */
+describe("a rule that says a dated option is current", () => {
+  function sprint(
+    id: string,
+    name: string,
+    startAt: string | null,
+    targetAt: string | null,
+  ): PropertyDTO["options"][number] {
+    return {
+      id,
+      name,
+      color: "#6d5bd0",
+      position: "V",
+      startAt,
+      targetAt,
+      shippedAt: null,
+      note: null,
+    };
+  }
+
+  const sprints: PropertyDTO = {
+    id: "p-sprint",
+    name: "Sprint",
+    type: "select",
+    position: "Z",
+    config: {},
+    options: [
+      sprint("o-s1", "Sprint 1", "2026-09-07", "2026-09-20"),
+      sprint("o-s2", "Sprint 2", "2026-09-21", "2026-10-04"),
+      sprint("o-s3", "Sprint 3", "2026-10-05", "2026-10-18"),
+      sprint("o-later", "Later", null, null),
+    ],
+  };
+  const current: FilterRule = { propertyId: sprints.id, op: "is", values: [CURRENT_KEY] };
+  const on = (day: string, value: string | null, property = sprints, rule = current) =>
+    matches(task("t", { "p-sprint": value }), rule, property, day, null, NONE);
+
+  it("is offered only for a select property with at least one dated option", () => {
+    expect(offersCurrent(sprints, [])).toBe(true);
+    expect(offersCurrent(status, [])).toBe(false);
+    expect(offersCurrent(labels, [])).toBe(false);
+    expect(
+      offersCurrent({ ...sprints, options: [sprint("o-x", "X", null, "2026-09-30")] }, []),
+    ).toBe(true);
+    expect(offersCurrent({ ...sprints, type: "multi_select" }, [])).toBe(false);
+  });
+
+  it("is not offered when no option carries a target", () => {
+    const begun = { ...sprints, options: [sprint("o-x", "X", "2026-09-01", null)] };
+    expect(offersCurrent(begun, [])).toBe(false);
+  });
+
+  it("stays offered to a rule that holds it after the dates are gone", () => {
+    expect(offersCurrent(status, [CURRENT_KEY])).toBe(true);
+    expect(offersCurrent(labels, [CURRENT_KEY])).toBe(false);
+  });
+
+  it("matches the option whose start and target hold today, both edges included", () => {
+    expect(on(TODAY, "o-s2")).toBe(true);
+    expect(on(TODAY, "o-s1")).toBe(false);
+    expect(on("2026-10-04", "o-s2")).toBe(true);
+    expect(on("2026-10-05", "o-s2")).toBe(false);
+    expect(on("2026-10-05", "o-s3")).toBe(true);
+    expect(on("2026-09-20", "o-s1")).toBe(true);
+    expect(on(TODAY, null)).toBe(false);
+    expect(on(TODAY, "o-later")).toBe(false);
+  });
+
+  it("calls an option with only a target current until that day", () => {
+    const open = { ...sprints, options: [sprint("o-x", "X", null, "2026-09-30")] };
+    expect(on("2020-01-01", "o-x", open)).toBe(true);
+    expect(on("2026-09-30", "o-x", open)).toBe(true);
+    expect(on("2026-10-01", "o-x", open)).toBe(false);
+  });
+
+  it("never calls an option with only a start current", () => {
+    const begun = { ...sprints, options: [sprint("o-x", "X", "2026-09-01", null)] };
+    expect(on(TODAY, "o-x", begun)).toBe(false);
+    expect(on("2026-09-01", "o-x", begun)).toBe(false);
+    expect(seedValues({ rules: [current] }, [begun], null, null, TODAY)).toEqual({});
+  });
+
+  it("matches nothing when no option is current", () => {
+    expect(on("2027-01-01", "o-s3")).toBe(false);
+    expect(on("2027-01-01", null)).toBe(false);
+    expect(on("2027-01-01", "o-later")).toBe(false);
+  });
+
+  it("sits in one rule beside nothing yet", () => {
+    const rule: FilterRule = { ...current, values: [CURRENT_KEY, NO_VALUE_KEY] };
+    expect(on(TODAY, "o-s2", sprints, rule)).toBe(true);
+    expect(on(TODAY, null, sprints, rule)).toBe(true);
+    expect(on(TODAY, "o-s1", sprints, rule)).toBe(false);
+  });
+
+  it("is not current keeps every task the current option does not hold", () => {
+    const rule: FilterRule = { ...current, op: "is_not" };
+    expect(on(TODAY, "o-s2", sprints, rule)).toBe(false);
+    expect(on(TODAY, "o-s1", sprints, rule)).toBe(true);
+    expect(on(TODAY, null, sprints, rule)).toBe(true);
+  });
+
+  it("reads 'Sprint is current' and survives a read", () => {
+    expect(describeRule(current, sprints, members)).toBe("Sprint is current");
+    expect(readFilters({ rules: [current] }, [sprints])).toEqual({ rules: [current] });
+  });
+
+  it("keeps the column of the current option on a board grouped by it", () => {
+    const columns = sprints.options.map((o) => ({ id: o.id, value: o.id }));
+    expect(
+      allowedColumns(columns, { rules: [current] }, sprints, TODAY, null).map((c) => c.id),
+    ).toEqual(["o-s2"]);
+  });
+
+  it("seeds a new task with the current option", () => {
+    expect(seedValues({ rules: [current] }, [sprints], null, null, TODAY)).toEqual({
+      "p-sprint": "o-s2",
+    });
+    expect(seedValues({ rules: [current] }, [sprints], null, null, "2027-01-01")).toEqual({});
+    expect(seedValues({ rules: [current] }, [sprints], sprints.id, null, TODAY)).toEqual({});
+    expect(
+      seedNote(seedValues({ rules: [current] }, [sprints], null, null, TODAY), [sprints], members),
+    ).toBe("sets Sprint Sprint 2");
   });
 });

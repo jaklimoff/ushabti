@@ -200,7 +200,7 @@ export function ListCanvas({
    * the filter has to answer for it too. Without the null the row is written
    * and hidden in the same breath, with nothing on screen to say why.
    */
-  const seed = seedValues(filters, data.properties, null, user.id);
+  const seed = seedValues(filters, data.properties, null, user.id, data.today);
   const addNote = seedNote(seed, data.properties, data.members);
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;
