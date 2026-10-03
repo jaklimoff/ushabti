@@ -33,6 +33,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   somewhere to go. Settings shows the length and how many sprints wait ahead. You can still make,
   rename, date and delete a sprint by hand.
 
+- **A sprint whose end has passed rolls by itself.** Nobody has to press Ship on Monday. The next
+  time somebody opens the board after a sprint's target day, the tasks that are over are archived
+  and the rest move to the next sprint. Each moved task gets a comment from the project: "Moved
+  from Sprint 14 to Sprint 15 when Sprint 14 ended." The changelog says **Ended** for that sprint
+  and **Shipped** for one somebody shipped. A version or any other dated select still waits for a
+  press.
+
 - **A roadmap bar opens its tasks.** Press a bar, or focus it and press Enter or Space, and the
   panel shows the option's name, its dates, its note and its tasks in board order, through the
   view's filters. A shipped option lists its archived tasks too, marked **Archived**. Each row opens

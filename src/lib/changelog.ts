@@ -23,6 +23,8 @@ export type ChangelogEntry = {
   name: string;
   /** YYYY-MM-DD. */
   shippedAt: string;
+  /** True when the sprint rolled by itself on its end, not by a press of Ship. */
+  ended: boolean;
   /** Markdown, or null when nobody wrote one. */
   note: string | null;
   /** In board order. */
@@ -41,7 +43,13 @@ export type Changelog = {
  */
 export type PublicChangelog = {
   project: { name: string };
-  entries: { name: string; shippedAt: string; note: string | null; tasks: { title: string }[] }[];
+  entries: {
+    name: string;
+    shippedAt: string;
+    ended: boolean;
+    note: string | null;
+    tasks: { title: string }[];
+  }[];
 };
 
 export type ChangelogInput = {
@@ -51,7 +59,14 @@ export type ChangelogInput = {
     id: string;
     name: string;
     type: string;
-    options: { id: string; name: string; shippedAt: string | null; note: string | null }[];
+    options: {
+      id: string;
+      name: string;
+      shippedAt: string | null;
+      /** Absent reads as pressed. */
+      rolled?: boolean;
+      note: string | null;
+    }[];
   }[];
   /** Live and archived alike; never a deleted one. */
   tasks: {
@@ -78,6 +93,7 @@ export function buildChangelog(input: ChangelogInput): Changelog {
         propertyName: prop.name,
         name: option.name,
         shippedAt: option.shippedAt,
+        ended: option.rolled === true,
         note: option.note?.trim() ? option.note : null,
         tasks: tasks
           .filter((t) => t.values[prop.id] === option.id)
@@ -97,6 +113,7 @@ export function publicChangelog(log: Changelog): PublicChangelog {
     entries: log.entries.map((e) => ({
       name: e.name,
       shippedAt: e.shippedAt,
+      ended: e.ended,
       note: e.note,
       tasks: e.tasks.map((t) => ({ title: t.title })),
     })),
@@ -122,6 +139,11 @@ const MONTHS = [
   "November",
   "December",
 ];
+
+/** How the changelog dates an entry: a pressed one shipped, a rolled one ended. */
+export function shippedSaid(entry: { shippedAt: string; ended: boolean }): string {
+  return `${entry.ended ? "Ended" : "Shipped"} ${shippedDay(entry.shippedAt)}`;
+}
 
 /**
  * The day an option shipped, in words. It is cut from the string and never

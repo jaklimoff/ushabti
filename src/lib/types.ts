@@ -474,6 +474,8 @@ export type CommentDTO = {
   createdAt: string;
   /** When an edit last changed the words; null for a comment never changed. */
   editedAt: string | null;
+  /** Written by the project itself, as a roll does. Its author is null and nobody was removed. */
+  byProject: boolean;
   author: {
     id: string;
     name: string;

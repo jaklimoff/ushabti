@@ -206,6 +206,10 @@ export const propertyOptions = pgTable(
     startAt: date("start_at"),
     targetAt: date("target_at"),
     shippedAt: date("shipped_at"),
+    // True when the read rolled an iteration whose end had passed, not a press of Ship.
+    rolled: boolean("rolled").notNull().default(false),
+    // True when a person unshipped it, so the roll leaves it open until its target moves.
+    keptOpen: boolean("kept_open").notNull().default(false),
     note: text("note"),
   },
   (t) => [index("property_options_property_idx").on(t.propertyId)],
@@ -342,6 +346,8 @@ export const comments = pgTable(
       .references(() => tasks.id, { onDelete: "cascade" }),
     authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
     body: text("body").notNull(),
+    // Written by the project itself, as a roll does, so a null author is not a removed user.
+    byProject: boolean("by_project").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // Set only when an edit changed the words, so "edited" never marks a save of the same text.
     editedAt: timestamp("edited_at", { withTimezone: true }),
