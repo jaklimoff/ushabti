@@ -796,6 +796,7 @@ export async function loadBoard(
       doneWhen,
       progressBy: readProgressBy(projectRow.progressBy, propertyList),
       timeZone,
+      publicChangelog: projectRow.publicChangelog,
     },
     /* The one clock this board reads. Every relative date rule on every view
        is measured against it, on the server now and in the browser after it

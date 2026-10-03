@@ -648,6 +648,8 @@ export type ProjectDTO = {
    * know arrives here as UTC.
    */
   timeZone: string;
+  /** Whether `/changelog/{key in lower case}` answers without a session. */
+  publicChangelog: boolean;
 };
 
 /** An email the owner added before it had an account. */

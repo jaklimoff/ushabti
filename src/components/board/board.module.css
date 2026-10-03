@@ -191,6 +191,12 @@
   .iconLink {
     padding: 0 4px;
   }
+
+  /* The bar was full with two links, and no gap pays for a third word.
+     Project settings links to the changelog instead. */
+  .changelogLink {
+    display: none;
+  }
 }
 
 /* --------------------------------------------------------- picked cards */
