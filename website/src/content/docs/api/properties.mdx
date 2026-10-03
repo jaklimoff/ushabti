@@ -39,7 +39,7 @@ footer, where its type belongs — except a `link`, which starts off the card.
 ### `PATCH /api/properties/{propertyId}`
 
 ```json title="request"
-{ "name": "Env", "showOnCard": false, "afterId": "<propertyId>" }
+{ "name": "Env", "showOnCard": false, "dated": true, "afterId": "<propertyId>" }
 ```
 
 All optional and applied independently.
@@ -48,6 +48,10 @@ All optional and applied independently.
   `off`, `true` puts it back where its type belongs. See
   [`PATCH /api/projects/{projectId}/card-view`](/ushabti/api/projects/#patch-apiprojectsprojectidcard-view)
   for the long form.
+- `dated` says whether the options of a select carry a start, a target and a note. It is kept in
+  `config.dated`, and is off until somebody turns it on. Only the owner or an admin writes it, and
+  only as a person: a token gets `403`, a member gets `403`, and any type but a select gets `400`.
+  A token reads it from `config` like the rest of the property.
 - `afterId` moves it. **`null` means the front**, and so does an id that names nothing. It is the
   presence of the key that triggers the move, not its value.
 

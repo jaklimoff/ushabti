@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { projects, properties, views } from "@/db/schema";
@@ -20,12 +20,33 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const { propertyId } = await ctx.params;
   const projectId = await propertyProjectId(propertyId);
   if (!projectId) throw new HttpError(404, "Property not found.");
-  await guard(projectId);
+  const { user, membership } = await guard(projectId);
 
-  const input = await body<{ name?: string; showOnCard?: boolean; afterId?: string | null }>(req);
+  const input = await body<{
+    name?: string;
+    showOnCard?: boolean;
+    dated?: boolean;
+    afterId?: string | null;
+  }>(req);
   const patch: Record<string, unknown> = {};
 
   if (input.name !== undefined) patch.name = str(input.name, "Property name", { max: 40 });
+
+  /* Whether the options carry dates is the shape of the property, so it is an
+     admin's, and a person's. It is merged into the config rather than put over
+     it, so nothing else the config holds is lost. */
+  if (input.dated !== undefined) {
+    adminOnly(user, membership, "say whether options carry dates");
+    if (typeof input.dated !== "boolean") throw new HttpError(400, "Dated must be true or false.");
+    const [row] = await db
+      .select({ type: properties.type })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+    if (row?.type !== "select") {
+      throw new HttpError(400, "Only the options of a select can carry dates.");
+    }
+    patch.config = sql`${properties.config} || ${JSON.stringify({ dated: input.dated })}::jsonb`;
+  }
 
   /* Where a property sits on a card belongs to the card view, so this writes
      there. It is the short way to say it: off the card, or back where its kind

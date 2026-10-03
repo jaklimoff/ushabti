@@ -11,7 +11,13 @@ import { createProject, gotoSettings, register, unique } from "./helpers";
  */
 
 type Board = {
-  properties: { id: string; name: string; type: string; options: unknown[] }[];
+  properties: {
+    id: string;
+    name: string;
+    type: string;
+    config: { dated?: boolean };
+    options: unknown[];
+  }[];
   views: {
     id: string;
     name: string;
@@ -82,7 +88,8 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
 
   const after = await board(page, projectId);
   const sprint = after.properties.find((p) => p.name === "Sprint")!;
-  expect(sprint).toMatchObject({ type: "select", options: [] });
+  /* A sprint is an option with dates, so the boxes are on from the start. */
+  expect(sprint).toMatchObject({ type: "select", config: { dated: true }, options: [] });
   const added = after.views.filter((v) => !before.views.some((b) => b.id === v.id));
   expect(added.map((v) => [v.name, v.kind])).toEqual([
     ["Sprint", "board"],
@@ -115,7 +122,10 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
   ).toBeTruthy();
   const renamed = await board(page, projectId);
   expect(renamed.views.find((v) => v.id === sprintBoard.id)?.name).toBe("This sprint");
-  expect(renamed.properties.find((p) => p.id === sprint.id)?.name).toBe("Iteration");
+  expect(renamed.properties.find((p) => p.id === sprint.id)).toMatchObject({
+    name: "Iteration",
+    config: { dated: true },
+  });
 
   expect((await as.delete(`/api/views/${sprintBoard.id}`)).ok()).toBeTruthy();
   expect((await as.delete(`/api/views/${backlog.id}`)).ok()).toBeTruthy();

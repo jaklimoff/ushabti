@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A select says whether its options carry dates.** Settings → Properties has a checkbox **Options
+  carry dates** beside the name of each select, off by default. Only then do its options show Start,
+  Target, Note and Unship, and only then does a filter on it offer **current**. Turning it off hides
+  the boxes and keeps the dates. **Set up sprints** turns it on for Sprint. Only the owner or an
+  admin can turn it.
+
 - **Sprints are set up in one step.** Settings → Project has a row, **Set up sprints**. One press
   adds a select property **Sprint**, a board **Sprint** on `Sprint is current`, grouped as the main
   board is, and a list **Backlog** on `Sprint is nothing yet`. Each one is an ordinary property or

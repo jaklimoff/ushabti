@@ -198,6 +198,20 @@
   min-width: 0;
 }
 
+.datedSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--t-small);
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.datedSwitch input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .propTools {
   display: flex;
   align-items: center;

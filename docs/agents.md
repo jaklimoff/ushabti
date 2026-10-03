@@ -239,6 +239,9 @@ other route. `POST /api/properties/{id}/options` and `PATCH
 /api/options/{id}` take the four, each optional, and null clears one. A date
 that does not parse, or a target before the start, is refused with `400` and
 one sentence. A multi-select option is a label and carries none of them.
+`config.dated` on the property says whether its options carry dates: it
+decides what Settings shows and whether a filter offers "current", and only a
+person who is the owner or an admin writes it.
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the

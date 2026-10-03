@@ -22,7 +22,7 @@ import { useBoard } from "@/components/board/store";
 import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
-import { NOTE_MAX, optionEdit } from "@/lib/option-dates";
+import { carriesDates, NOTE_MAX, optionEdit } from "@/lib/option-dates";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Input, NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -149,6 +149,7 @@ export function PropertiesPanel() {
 
 function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
   const { patchProperty, deleteProperty, addOption, deleteOption, moveOption, notify } = useBoard();
+  const dated = carriesDates(property);
   const optionSensors = useGripSensors();
   const {
     attributes,
@@ -304,6 +305,19 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           {GROUPABLE_TYPES.includes(property.type) && (
             <Tag title="A view can use this property for its columns">groupable</Tag>
           )}
+          {/* Off, a select's options read as they did before they had dates.
+              Off keeps the values: it hides the boxes and writes nothing. */}
+          {property.type === "select" && (
+            <label className={styles.datedSwitch}>
+              <input
+                type="checkbox"
+                checked={dated}
+                disabled={!canEdit}
+                onChange={(e) => void patchProperty(property.id, { dated: e.target.checked })}
+              />
+              Options carry dates
+            </label>
+          )}
         </div>
         <div className={styles.propTools}>
           {canEdit && (
@@ -342,11 +356,9 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           />
         )}
       {(property.type === "select" || property.type === "multi_select") && !dropConfirm.asking && (
-        <div
-          className={`${styles.options} ${property.type === "select" ? styles.optionsRows : ""}`}
-        >
+        <div className={`${styles.options} ${dated ? styles.optionsRows : ""}`}>
           {/* Labels wrap, so their strategy is a grid's; a select's options
-              take a line each, so theirs is a list's. The
+              take a line each while they carry dates, so theirs is a list's. The
               drag names the chip it landed on, and the store makes the same
               move a column drag makes: no rank leaves this page. */}
           <DndContext
@@ -360,15 +372,13 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           >
             <SortableContext
               items={property.options.map((o) => o.id)}
-              strategy={
-                property.type === "select" ? verticalListSortingStrategy : rectSortingStrategy
-              }
+              strategy={dated ? verticalListSortingStrategy : rectSortingStrategy}
             >
               {property.options.map((option) => (
                 <OptionChip
                   key={option.id}
                   option={option}
-                  dated={property.type === "select"}
+                  dated={dated}
                   canEdit={canEdit}
                   onDelete={() => void askOption(option)}
                 />
@@ -414,7 +424,7 @@ function OptionChip({
   onDelete,
 }: {
   option: PropertyDTO["options"][number];
-  /** A single select's option is a Version or a Sprint; a label has no dates. */
+  /** A Version or a Sprint has dates; a label and a Status do not. */
   dated: boolean;
   canEdit: boolean;
   /** Asks first. The row above owns the question. */
