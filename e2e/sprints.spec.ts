@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createProject, gotoSettings, register, unique } from "./helpers";
+import { readFileSync } from "node:fs";
+import { createProject, gotoSettings, inDatabase, register, unique } from "./helpers";
 
 /**
  * Sprints in one step, from Settings → Project.
@@ -77,7 +78,7 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
   await gotoSettings(page, projectId, "project");
   const press = page.getByRole("button", { name: "Set up sprints" });
   await expect(press).toBeVisible();
-  await expect(page.getByText(/a select property Sprint, a board Sprint/)).toBeVisible();
+  await expect(page.getByText(/an iteration property Sprint, a board Sprint/)).toBeVisible();
   await expect(page.getByText(/a list Backlog of the tasks in no sprint/)).toBeVisible();
 
   const answer = page.waitForResponse((res) => res.url().endsWith("/sprints"));
@@ -88,8 +89,8 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
 
   const after = await board(page, projectId);
   const sprint = after.properties.find((p) => p.name === "Sprint")!;
-  /* A sprint is an option with dates, so the boxes are on from the start. */
-  expect(sprint).toMatchObject({ type: "select", config: { dated: true }, options: [] });
+  /* A sprint is an iteration, whose options always carry dates. */
+  expect(sprint).toMatchObject({ type: "iteration", options: [] });
   const added = after.views.filter((v) => !before.views.some((b) => b.id === v.id));
   expect(added.map((v) => [v.name, v.kind])).toEqual([
     ["Sprint", "board"],
@@ -124,7 +125,7 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
   expect(renamed.views.find((v) => v.id === sprintBoard.id)?.name).toBe("This sprint");
   expect(renamed.properties.find((p) => p.id === sprint.id)).toMatchObject({
     name: "Iteration",
-    config: { dated: true },
+    type: "iteration",
   });
 
   expect((await as.delete(`/api/views/${sprintBoard.id}`)).ok()).toBeTruthy();
@@ -139,4 +140,44 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
   await expect(page.getByRole("button", { name: "Set up sprints" })).toBeVisible();
 
   await memberContext.close();
+});
+
+/*
+ * The migration that made an old Sprint an iteration. It runs once on a real
+ * database, so the test runs its own SQL again over rows made the old way:
+ * the dated Sprint turns, and a Sprint with no dates and a dated Version stay.
+ */
+test("the migration turns a dated Sprint select into an iteration and nothing else", async ({
+  page,
+}) => {
+  await register(page, "Olga Owner");
+  const projectId = await createProject(page, unique("Old sprints"));
+  const otherId = await createProject(page, unique("Plain sprints"));
+  const make = async (name: string, dated: boolean, project = projectId) => {
+    const res = await page.request.post(`/api/projects/${project}/properties`, {
+      data: { name, type: "select" },
+    });
+    const id = ((await res.json()) as { property: { id: string } }).property.id;
+    /* Off is what a new select already is, so the write changes nothing then. */
+    const said = await page.request.patch(`/api/properties/${id}`, { data: { dated } });
+    expect(said.ok()).toBe(true);
+    return id;
+  };
+  const sprint = await make("Sprint", true);
+  const version = await make("Version", true);
+  const plain = await make("Sprint", false, otherId);
+
+  const sql = readFileSync("drizzle/0022_sprint_iteration.sql", "utf8");
+  await inDatabase((db) => db.query(sql));
+
+  const types = await inDatabase(async (db) => {
+    const { rows } = await db.query<{ id: string; type: string }>(
+      "SELECT id, type FROM properties WHERE project_id = ANY($1)",
+      [[projectId, otherId]],
+    );
+    return Object.fromEntries(rows.map((r) => [r.id, r.type]));
+  });
+  expect(types[sprint]).toBe("iteration");
+  expect(types[version]).toBe("select");
+  expect(types[plain]).toBe("select");
 });

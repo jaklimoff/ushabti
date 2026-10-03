@@ -10,6 +10,7 @@ import { PropertyControl } from "./controls/PropertyControl";
 import { useShortcut } from "./keys";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
+import { hasOptions } from "@/lib/types";
 
 /**
  * What is picked, and the one thing you can do to all of it.
@@ -174,9 +175,7 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
                       void setPickedValue(property.id, value);
                     }}
                     onAddOption={
-                      property.type === "select" || property.type === "multi_select"
-                        ? (name) => addOption(property.id, name)
-                        : undefined
+                      hasOptions(property.type) ? (name) => addOption(property.id, name) : undefined
                     }
                   />
                 </div>

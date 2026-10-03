@@ -9,6 +9,7 @@ import { readDoneWhen } from "@/lib/links";
 import { loadProperties, optionPropertyId, withProjectLock } from "@/lib/queries";
 import { nextOptionOf, readShipRest, shipDay, splitShip } from "@/lib/ship";
 import type { TaskValue } from "@/lib/types";
+import { isSelect } from "@/lib/types";
 
 type Ctx = { params: Promise<{ optionId: string }> };
 
@@ -52,7 +53,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .where(eq(propertyOptions.id, optionId))
       .limit(1);
     if (!option) throw new HttpError(404, "Option not found.");
-    if (option.type !== "select" || !option.targetAt) {
+    if (!isSelect(option.type) || !option.targetAt) {
       throw new HttpError(400, "Only an option with a target date can ship.");
     }
     /* A second press, or a second tab, must not archive what the first one

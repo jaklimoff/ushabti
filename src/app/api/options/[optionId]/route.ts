@@ -8,6 +8,7 @@ import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
 import { datesClash, namesOptionDates, ONLY_SELECT, readOptionDates } from "@/lib/option-dates";
+import { isSelect } from "@/lib/types";
 
 type Ctx = { params: Promise<{ optionId: string }> };
 
@@ -62,7 +63,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
         .where(eq(propertyOptions.id, optionId))
         .limit(1);
       if (!own) throw new HttpError(404, "Option not found.");
-      if (own.type !== "select") throw new HttpError(400, ONLY_SELECT);
+      if (!isSelect(own.type)) throw new HttpError(400, ONLY_SELECT);
       // A target moved alone is read against the start already saved.
       const clash = datesClash({
         startAt: dates.patch.startAt !== undefined ? dates.patch.startAt : own.startAt,

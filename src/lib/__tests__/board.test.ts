@@ -89,6 +89,12 @@ describe("board grouping", () => {
     expect(columns.find((c) => c.id === "o-todo")!.tasks).toHaveLength(0);
   });
 
+  it("draws an iteration's options as columns, as a select's", () => {
+    const sprint: PropertyDTO = { ...property(), type: "iteration" };
+    const columns = buildColumns(sprint, [task("a", { "p-status": "o-done" })], members);
+    expect(columns.find((c) => c.id === "o-done")!.tasks).toHaveLength(1);
+  });
+
   it("collects tasks without a value in their own column", () => {
     const status = property();
     const columns = buildColumns(status, [task("a"), task("b", { "p-status": "o-todo" })], members);
