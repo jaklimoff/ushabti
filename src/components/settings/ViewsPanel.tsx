@@ -27,6 +27,7 @@ import { Card, Row, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import {
   GROUPABLE_TYPES,
+  GROUPED_KINDS,
   VIEW_KINDS,
   VIEW_KIND_LABEL,
   type PropertyDTO,
@@ -117,8 +118,11 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
    * board with no columns, which is a screen that says nothing.
    */
   function setKind(next: ViewKind) {
-    if (next === "board" && !view.groupById) {
-      const first = groupable[0]?.id;
+    /* A roadmap reads a select alone, so a board grouped by a person is
+       given the first select instead. */
+    const fits = propertiesFor(next, groupable);
+    if (GROUPED_KINDS.includes(next) && !fits.some((p) => p.id === view.groupById)) {
+      const first = fits[0]?.id;
       if (!first) return;
       void updateView(view.id, { kind: next, groupById: first });
       return;
@@ -231,22 +235,24 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
               <option
                 key={option}
                 value={option}
-                disabled={option === "board" && !view.groupById && !groupable.length}
+                disabled={
+                  GROUPED_KINDS.includes(option) && !propertiesFor(option, groupable).length
+                }
               >
                 {VIEW_KIND_LABEL[option]}
               </option>
             ))}
           </Select>
         </span>
-        {view.kind === "board" && (
+        {GROUPED_KINDS.includes(view.kind) && (
           <span className={styles.viewPair}>
-            <span className="label">Columns by</span>
+            <span className="label">{view.kind === "roadmap" ? "Rows from" : "Columns by"}</span>
             <Select
               aria-label={`Grouping property of the view ${view.name}`}
               value={view.groupById ?? ""}
               onChange={(e) => void updateView(view.id, { groupById: e.target.value })}
             >
-              {groupable.map((p) => (
+              {propertiesFor(view.kind, groupable).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -255,32 +261,35 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
           </span>
         )}
         {/* A list's columns are its card view, so a list is arranged here
-            too. The view keeps a copy only once somebody changes it. */}
-        <span className={styles.viewPair}>
-          <Link
-            className={styles.makeMain}
-            href={`/p/${data.project.id}/settings/views/${view.id}/card`}
-            aria-label={`Card view of ${view.name}`}
-            title={
-              view.cardView
-                ? "This view keeps a card view of its own."
-                : "This view draws the project's card view."
-            }
-          >
-            Card view…
-          </Link>
-          {view.cardView && (
-            <button
-              type="button"
+            too. The view keeps a copy only once somebody changes it. A
+            roadmap draws no card, so it has nothing to arrange. */}
+        {view.kind !== "roadmap" && (
+          <span className={styles.viewPair}>
+            <Link
               className={styles.makeMain}
-              aria-label={`Use the default card view for ${view.name}`}
-              title="Throw this view's copy away and draw the project's card view again."
-              onClick={unCopy.ask}
+              href={`/p/${data.project.id}/settings/views/${view.id}/card`}
+              aria-label={`Card view of ${view.name}`}
+              title={
+                view.cardView
+                  ? "This view keeps a card view of its own."
+                  : "This view draws the project's card view."
+              }
             >
-              Use the default
-            </button>
-          )}
-        </span>
+              Card view…
+            </Link>
+            {view.cardView && (
+              <button
+                type="button"
+                className={styles.makeMain}
+                aria-label={`Use the default card view for ${view.name}`}
+                title="Throw this view's copy away and draw the project's card view again."
+                onClick={unCopy.ask}
+              >
+                Use the default
+              </button>
+            )}
+          </span>
+        )}
       </div>
       {!view.isDefault && canEdit && (
         <IconButton
@@ -295,4 +304,9 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
       )}
     </Row>
   );
+}
+
+/* A roadmap draws the dated options of a select, so a select is all it offers. */
+function propertiesFor(kind: ViewKind, groupable: PropertyDTO[]): PropertyDTO[] {
+  return kind === "roadmap" ? groupable.filter((p) => p.type === "select") : groupable;
 }

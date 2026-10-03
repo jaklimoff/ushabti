@@ -14,6 +14,7 @@ import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dn
 import { CSS } from "@dnd-kit/utilities";
 import {
   GROUPABLE_TYPES,
+  GROUPED_KINDS,
   VIEW_KINDS,
   VIEW_KIND_LABEL,
   type ViewDTO,
@@ -51,8 +52,12 @@ export function ViewStrip({
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [kind, setKind] = useState<ViewKind>("board");
-  const groupable = data.properties.filter((p) => GROUPABLE_TYPES.includes(p.type));
-  const [groupById, setGroupById] = useState(groupable[0]?.id ?? "");
+  /* A roadmap draws the dated options of a select, so it offers selects alone. */
+  const groupable = data.properties.filter((p) =>
+    kind === "roadmap" ? p.type === "select" : GROUPABLE_TYPES.includes(p.type),
+  );
+  const [picked, setGroupById] = useState(groupable[0]?.id ?? "");
+  const groupById = groupable.some((p) => p.id === picked) ? picked : (groupable[0]?.id ?? "");
   const ref = useDismiss<HTMLDivElement>(() => setAdding(false), adding);
 
   const plusRef = useRef<HTMLButtonElement>(null);
@@ -76,10 +81,10 @@ export function ViewStrip({
   }, [adding, ref]);
 
   /* Three pills all reading "List" is a mess that costs four lines to stop. */
-  function untakenListName(): string {
+  function untakenName(word: string): string {
     const taken = new Set(data.views.map((v) => v.name.toLowerCase()));
-    if (!taken.has("list")) return "List";
-    for (let n = 2; ; n += 1) if (!taken.has(`list ${n}`)) return `List ${n}`;
+    if (!taken.has(word.toLowerCase())) return word;
+    for (let n = 2; ; n += 1) if (!taken.has(`${word.toLowerCase()} ${n}`)) return `${word} ${n}`;
   }
 
   async function submit() {
@@ -87,14 +92,19 @@ export function ViewStrip({
     /* A board is its columns and cannot be made without one. A list groups
        nothing, so it can be made on a project that has no such property —
        which used to make the whole + a dead end. */
-    if (kind === "board" && !chosen) return;
+    const grouped = GROUPED_KINDS.includes(kind);
+    if (grouped && !chosen) return;
     const property = data.properties.find((p) => p.id === chosen);
     const fallback =
-      kind === "list" ? untakenListName() : `By ${property?.name.toLowerCase() ?? "property"}`;
+      kind === "list"
+        ? untakenName("List")
+        : kind === "roadmap"
+          ? untakenName("Roadmap")
+          : `By ${property?.name.toLowerCase() ?? "property"}`;
     const title = name.trim() || fallback;
     setName("");
     setAdding(false);
-    await createView(title, kind, kind === "board" ? chosen : null);
+    await createView(title, kind, grouped ? chosen : null);
   }
 
   /* A pill is a button first: it only becomes a drag once the pointer has
@@ -154,7 +164,7 @@ export function ViewStrip({
       <div style={{ flex: 1 }} />
       {/* A list is ordered by its headings, which it has and a board has not.
           So the button is here only where there is nothing else to press. */}
-      {view?.kind !== "list" && <SortButton open={sortOpen} setOpen={setSortOpen} />}
+      {view?.kind === "board" && <SortButton open={sortOpen} setOpen={setSortOpen} />}
       <FilterButton open={filterOpen} setOpen={setFilterOpen} />
       {/* A filtered board says how much of itself it is showing. "12 tasks"
           alone cannot tell you whether the other 28 exist. */}
@@ -197,10 +207,10 @@ export function ViewStrip({
             </div>
           </div>
 
-          {kind === "board" ? (
+          {GROUPED_KINDS.includes(kind) ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span className="label" id="new-view-columns">
-                Columns by
+                {kind === "roadmap" ? "Rows from" : "Columns by"}
               </span>
               <div className={styles.chipRow} role="group" aria-labelledby="new-view-columns">
                 {groupable.map((property) => (
@@ -223,7 +233,14 @@ export function ViewStrip({
               </div>
               {groupable.length === 0 && (
                 <span style={{ fontSize: 11.5, color: "var(--muted)" }}>
-                  Create a select, person or checkbox property first.
+                  {kind === "roadmap"
+                    ? "Create a select property first."
+                    : "Create a select, person or checkbox property first."}
+                </span>
+              )}
+              {kind === "roadmap" && groupable.length > 0 && (
+                <span style={{ fontSize: 11.5, color: "var(--muted)" }}>
+                  One bar for each option with a target date.
                 </span>
               )}
             </div>
@@ -306,8 +323,8 @@ function ViewPill({
     >
       {/* The one place the two kinds sit side by side, so the mark earns its
           pixels. */}
-      {view.kind === "list" ? (
-        <ViewKindMark kind="list" on={active} color={color} />
+      {view.kind !== "board" ? (
+        <ViewKindMark kind={view.kind} on={active} color={color} />
       ) : (
         <span className={styles.pillDot} style={{ background: color }} />
       )}
@@ -317,7 +334,8 @@ function ViewPill({
 }
 
 /**
- * What a kind looks like: a dot for a board, three lines for a list. Drawn
+ * What a kind looks like: a dot for a board, three lines for a list, three
+ * staggered bars for a roadmap. Drawn
  * here rather than taken from an icon set, like the comment bubble on a card.
  */
 function ViewKindMark({
@@ -342,7 +360,7 @@ function ViewKindMark({
       style={{ flex: "0 0 8px", opacity: on ? 1 : 0.45 }}
     >
       <path
-        d="M0.5 1.5h7M0.5 4h7M0.5 6.5h7"
+        d={kind === "roadmap" ? "M0.5 1.5h3.5M2.5 4h4M4 6.5h3.5" : "M0.5 1.5h7M0.5 4h7M0.5 6.5h7"}
         stroke={color}
         strokeWidth="1.2"
         strokeLinecap="round"

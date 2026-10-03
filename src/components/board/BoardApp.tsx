@@ -14,6 +14,7 @@ import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
 import { FilterChips } from "./Filters";
 import { ListCanvas } from "./ListCanvas";
+import { RoadmapCanvas } from "./RoadmapCanvas";
 import { Listening } from "./Listening";
 import { Search } from "./Search";
 import { Selection } from "./Selection";
@@ -171,10 +172,12 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           setSortOpen={setSortOpen}
         />
         <FilterChips panelOpen={filterOpen || sortOpen} />
-        {/* The same tasks, drawn two ways. Everything above and below this line
+        {/* The same tasks, drawn three ways. Everything above and below this line
             is the view's, whichever shape it takes. */}
         {view?.kind === "list" ? (
           <ListCanvas selectedTaskId={openTask} onOpenTask={open} />
+        ) : view?.kind === "roadmap" ? (
+          <RoadmapCanvas />
         ) : (
           <BoardCanvas selectedTaskId={openTask} onOpenTask={open} />
         )}
@@ -199,7 +202,8 @@ function BoardShell({ initialTask }: { initialTask: string | null }) {
           </div>
         )}
 
-        {data.tasks.length === 0 && (
+        {/* A roadmap says what it needs in its own blank. */}
+        {data.tasks.length === 0 && view?.kind !== "roadmap" && (
           <div className={styles.firstHint}>
             <div className={styles.firstHintInner}>
               {view?.kind === "list" ? (

@@ -5,7 +5,7 @@ import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
 import { groupPropertyId, toViewDTO, withProjectLock } from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
-import { VIEW_KINDS, type ViewKind } from "@/lib/types";
+import { GROUPED_KINDS, VIEW_KINDS, type ViewKind } from "@/lib/types";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -20,16 +20,16 @@ export const POST = route<Ctx>(async (req, ctx) => {
   // every view was before there was more than one.
   const wanted = input.kind ?? "board";
   if (!(VIEW_KINDS as readonly string[]).includes(wanted))
-    throw new HttpError(400, "A view is a board or a list.");
+    throw new HttpError(400, "A view is a board, a list or a roadmap.");
   const kind = wanted as ViewKind;
 
-  // A board is its columns, so it cannot be made without one. A list groups
-  // nothing, and asks for nothing.
+  // A board is its columns and a roadmap its rows, so neither can be made
+  // without a property. A list groups nothing, and asks for nothing.
   let groupById: string | null = null;
-  if (kind === "board") {
+  if (GROUPED_KINDS.includes(kind)) {
     if (typeof input.groupById !== "string")
       throw new HttpError(400, "Choose a property to group by.");
-    groupById = await groupPropertyId(projectId, input.groupById);
+    groupById = await groupPropertyId(projectId, input.groupById, kind);
   } else if (typeof input.groupById === "string" && input.groupById) {
     groupById = await groupPropertyId(projectId, input.groupById);
   }

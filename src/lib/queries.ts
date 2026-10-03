@@ -390,6 +390,38 @@ function liveTaskRows(projectId: string) {
 }
 
 /**
+ * The archived tasks under each option with a target date, summed in the
+ * database: the oldest day and the count, never the tasks. Shipping a release
+ * archives its work, and the roadmap still has to say when it began.
+ */
+function archivedUnderRows(projectId: string) {
+  return db
+    .select({
+      optionId: propertyOptions.id,
+      firstAt: sql<Date | string>`min(${tasks.createdAt})`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(taskValues)
+    .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
+    .innerJoin(
+      propertyOptions,
+      and(
+        eq(propertyOptions.propertyId, taskValues.propertyId),
+        sql`${taskValues.value} = to_jsonb(${propertyOptions.id}::text)`,
+      ),
+    )
+    .where(
+      and(
+        eq(tasks.projectId, projectId),
+        isNotNull(tasks.archivedAt),
+        isNull(tasks.deletedAt),
+        isNotNull(propertyOptions.targetAt),
+      ),
+    )
+    .groupBy(propertyOptions.id);
+}
+
+/**
  * The archived tasks, in the few columns a search and a link need. No values
  * and no counts: nothing draws an archived task, and its panel asks for the
  * rest itself.
@@ -584,48 +616,58 @@ export async function loadBoard(
 
   const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
-  const [memberRows, inviteRows, propRows, optRows, viewRows, taskRows, archivedRows, lenses] =
-    await Promise.all([
-      db
-        .select({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          color: users.color,
-          emoji: users.avatarEmoji,
-          kind: users.kind,
-          role: projectMembers.role,
-          /* The newest moment any live token of this agent held the stream.
+  const [
+    memberRows,
+    inviteRows,
+    propRows,
+    optRows,
+    viewRows,
+    taskRows,
+    archivedRows,
+    lenses,
+    underRows,
+  ] = await Promise.all([
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        color: users.color,
+        emoji: users.avatarEmoji,
+        kind: users.kind,
+        role: projectMembers.role,
+        /* The newest moment any live token of this agent held the stream.
            Two watchers on one agent are one agent listening. */
-          listeningAt: sql<
-            Date | string | null
-          >`(select max(${agentTokens.listeningAt}) from ${agentTokens} where ${agentTokens.agentId} = ${users}.id and ${agentTokens.projectId} = ${projectId} and ${agentTokens.revokedAt} is null)`,
-        })
-        .from(projectMembers)
-        .innerJoin(users, eq(users.id, projectMembers.userId))
-        .where(eq(projectMembers.projectId, projectId))
-        .orderBy(asc(users.name)),
-      db
-        .select({ email: projectInvites.email, createdAt: projectInvites.createdAt })
-        .from(projectInvites)
-        .where(eq(projectInvites.projectId, projectId))
-        .orderBy(asc(projectInvites.createdAt)),
-      db
-        .select()
-        .from(properties)
-        .where(eq(properties.projectId, projectId))
-        .orderBy(byPos(properties.position)),
-      db
-        .select(optionColumns)
-        .from(propertyOptions)
-        .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
-        .where(eq(properties.projectId, projectId))
-        .orderBy(byPos(propertyOptions.position)),
-      db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
-      liveTaskRows(projectId),
-      archivedTaskRows(projectId),
-      loadLenses(projectId, viewerId),
-    ]);
+        listeningAt: sql<
+          Date | string | null
+        >`(select max(${agentTokens.listeningAt}) from ${agentTokens} where ${agentTokens.agentId} = ${users}.id and ${agentTokens.projectId} = ${projectId} and ${agentTokens.revokedAt} is null)`,
+      })
+      .from(projectMembers)
+      .innerJoin(users, eq(users.id, projectMembers.userId))
+      .where(eq(projectMembers.projectId, projectId))
+      .orderBy(asc(users.name)),
+    db
+      .select({ email: projectInvites.email, createdAt: projectInvites.createdAt })
+      .from(projectInvites)
+      .where(eq(projectInvites.projectId, projectId))
+      .orderBy(asc(projectInvites.createdAt)),
+    db
+      .select()
+      .from(properties)
+      .where(eq(properties.projectId, projectId))
+      .orderBy(byPos(properties.position)),
+    db
+      .select(optionColumns)
+      .from(propertyOptions)
+      .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
+      .where(eq(properties.projectId, projectId))
+      .orderBy(byPos(propertyOptions.position)),
+    db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
+    liveTaskRows(projectId),
+    archivedTaskRows(projectId),
+    loadLenses(projectId, viewerId),
+    archivedUnderRows(projectId),
+  ]);
 
   /* Only the live ones. Nothing draws an archived task, so its values are
      fetched when its panel asks for them and not before. */
@@ -761,6 +803,12 @@ export async function loadBoard(
     cardView,
     tasks: taskList,
     archived: archivedList,
+    archivedUnder: Object.fromEntries(
+      underRows.map((r) => [
+        r.optionId,
+        { firstAt: new Date(r.firstAt).toISOString(), count: Number(r.count) },
+      ]),
+    ),
     runs,
   };
 }
@@ -1124,7 +1172,15 @@ export async function optionPropertyId(optionId: string) {
  * the same question, and a board that groups by a text property has no columns
  * at all, so the answer is a refusal rather than an empty board.
  */
-export async function groupPropertyId(projectId: string, propertyId: string): Promise<string> {
+/**
+ * The property a view may group by, checked. A roadmap draws a row per dated
+ * option, and only a select option carries dates, so it takes a select alone.
+ */
+export async function groupPropertyId(
+  projectId: string,
+  propertyId: string,
+  kind: ViewKind = "board",
+): Promise<string> {
   readId(propertyId, "property");
   const [prop] = await db
     .select({ id: properties.id, type: properties.type, projectId: properties.projectId })
@@ -1136,6 +1192,8 @@ export async function groupPropertyId(projectId: string, propertyId: string): Pr
   if (!GROUPABLE_TYPES.includes(prop.type as PropertyType)) {
     throw new HttpError(400, "A view can only group by a select, person or checkbox property.");
   }
+  if (kind === "roadmap" && prop.type !== "select")
+    throw new HttpError(400, "A roadmap draws the options of a select property.");
   return prop.id;
 }
 

@@ -370,8 +370,8 @@ export const views = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     /**
-     * board | list. What shape the same tasks are drawn in: columns, or one
-     * dense list. Nothing else about a view changes with it, which is why it
+     * board | list | roadmap. What shape the same tasks are drawn in: columns,
+     * one dense list, or a bar per dated option. Nothing else about a view changes with it, which is why it
      * is one word and not a second table.
      */
     kind: text("kind").notNull().default("board"),
