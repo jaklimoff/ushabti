@@ -15,9 +15,12 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const { optionId } = await ctx.params;
   const owner = await optionPropertyId(optionId);
   if (!owner) throw new HttpError(404, "Option not found.");
-  await guard(owner.projectId);
+  const { user, membership } = await guard(owner.projectId);
 
   const input = await body<Record<string, unknown> & { afterId?: string | null }>(req);
+  // Shipping closes a release or a sprint, and Unship opens it again. That is
+  // structure, so it is an admin's, and an agent never does it.
+  if (input.shippedAt !== undefined) adminOnly(user, membership, "ship or unship an option");
   const patch: Record<string, unknown> = {};
   const dates = readOptionDates(input);
   if ("error" in dates) throw new HttpError(400, dates.error);

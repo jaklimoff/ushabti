@@ -3,7 +3,7 @@ import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { properties, propertyOptions } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
+import { adminOnly, body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
 import { propertyProjectId, withProjectLock } from "@/lib/queries";
 import { nextPaletteColor } from "@/lib/colors";
 import { rankAfter } from "@/lib/rank";
@@ -16,7 +16,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { propertyId } = await ctx.params;
   const projectId = await propertyProjectId(propertyId);
   if (!projectId) throw new HttpError(404, "Property not found.");
-  await guard(projectId);
+  const { user, membership } = await guard(projectId);
 
   const [prop] = await db
     .select({ name: properties.name, type: properties.type })
@@ -28,6 +28,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
   }
 
   const input = await body<Record<string, unknown>>(req);
+  // An option born shipped is a ship, so it is an admin's, as on the PATCH.
+  if (input.shippedAt !== undefined) adminOnly(user, membership, "ship or unship an option");
   const name = str(input.name, "Option name", { max: 40 });
   const dates = readOptionDates(input);
   if ("error" in dates) throw new HttpError(400, dates.error);

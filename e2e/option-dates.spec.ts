@@ -267,4 +267,117 @@ test.describe("An option carries a plan", () => {
     await expect(box.getByRole("button", { name: /^Unship / })).toHaveCount(0);
     expect((await optionOf(page, projectId, "Status", "Ready")).shippedAt).toBeNull();
   });
+
+  test("only an admin, and only a person, writes the shipped date", async ({ page, browser }) => {
+    const adminPage = await (await browser.newContext()).newPage();
+    const admin = await register(adminPage, "Ada Admin");
+    const memberPage = await (await browser.newContext()).newPage();
+    const member = await register(memberPage, "Bob Member");
+    await register(page, "Olga Owner");
+    const projectId = await createProject(page, unique("Ship rights"));
+    const as = page.request;
+    for (const email of [admin.email, member.email]) {
+      expect(
+        (await as.post(`/api/projects/${projectId}/members`, { data: { email } })).ok(),
+      ).toBeTruthy();
+    }
+    const board = await (await as.get(`/api/projects/${projectId}/board`)).json();
+    const adaId = (board.members as { id: string; name: string }[]).find(
+      (m) => m.name === "Ada Admin",
+    )!.id;
+    expect(
+      (
+        await as.patch(`/api/projects/${projectId}/members/${adaId}`, { data: { role: "admin" } })
+      ).ok(),
+    ).toBeTruthy();
+    const made = await as.post(`/api/projects/${projectId}/agents`, { data: { name: "Helper" } });
+    const agentId = ((await made.json()) as { agent: { id: string } }).agent.id;
+    const issued = await as.post(`/api/projects/${projectId}/agents/${agentId}/tokens`, {
+      data: { name: "ship" },
+    });
+    const secret = ((await issued.json()) as { secret: string }).secret;
+    const asAgent = { Authorization: `Bearer ${secret}` };
+
+    const ready = await optionOf(page, projectId, "Status", "Ready");
+    const url = `/api/options/${ready.id}`;
+
+    /* A member and a token are refused, with a sentence, and nothing is written. */
+    const byMember = await memberPage.request.patch(url, { data: { shippedAt: "2026-10-02" } });
+    expect(byMember.status()).toBe(403);
+    expect((await byMember.json()).error).toMatch(/owner or an admin/);
+    const byAgent = await page.request.patch(url, {
+      headers: asAgent,
+      data: { shippedAt: "2026-10-02" },
+    });
+    expect(byAgent.status()).toBe(403);
+    expect((await byAgent.json()).error).toMatch(/\.$/);
+    expect((await optionOf(page, projectId, "Status", "Ready")).shippedAt).toBeNull();
+
+    /* The owner and an admin ship, and Unship is null. */
+    expect((await as.patch(url, { data: { shippedAt: "2026-10-02" } })).ok()).toBeTruthy();
+    expect((await optionOf(page, projectId, "Status", "Ready")).shippedAt).toBe("2026-10-02");
+    const unshipByMember = await memberPage.request.patch(url, { data: { shippedAt: null } });
+    expect(unshipByMember.status()).toBe(403);
+    const unshipByAgent = await page.request.patch(url, {
+      headers: asAgent,
+      data: { shippedAt: null },
+    });
+    expect(unshipByAgent.status()).toBe(403);
+    expect((await optionOf(page, projectId, "Status", "Ready")).shippedAt).toBe("2026-10-02");
+    expect((await adminPage.request.patch(url, { data: { shippedAt: null } })).ok()).toBeTruthy();
+    expect((await optionOf(page, projectId, "Status", "Ready")).shippedAt).toBeNull();
+    expect(
+      (await adminPage.request.patch(url, { data: { shippedAt: "2026-10-03" } })).ok(),
+    ).toBeTruthy();
+    expect((await optionOf(page, projectId, "Status", "Ready")).shippedAt).toBe("2026-10-03");
+
+    /* Without the shipped date, a member and a token write the rest as before. */
+    expect(
+      (
+        await memberPage.request.patch(url, { data: { targetAt: "2026-10-20", note: "Soon" } })
+      ).ok(),
+    ).toBeTruthy();
+    expect(
+      (
+        await page.request.patch(url, {
+          headers: asAgent,
+          data: { startAt: "2026-10-01", color: "#3fb0c8" },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    expect(
+      (await adminPage.request.patch(url, { data: { name: "Ready to go" } })).ok(),
+    ).toBeTruthy();
+    expect(await optionOf(page, projectId, "Status", "Ready to go")).toMatchObject({
+      startAt: "2026-10-01",
+      targetAt: "2026-10-20",
+      shippedAt: "2026-10-03",
+      note: "Soon",
+    });
+
+    /* An option born shipped is a ship too, on the route that adds one. */
+    const status = await propertyOf(page, projectId, "Status");
+    const add = `/api/properties/${status.id}/options`;
+    const born = { name: "Born shipped", shippedAt: "2026-10-01" };
+    expect((await memberPage.request.post(add, { data: born })).status()).toBe(403);
+    expect((await page.request.post(add, { headers: asAgent, data: born })).status()).toBe(403);
+    expect((await memberPage.request.post(add, { data: { name: "Plain" } })).ok()).toBeTruthy();
+    expect((await as.post(add, { data: born })).ok()).toBeTruthy();
+    expect((await optionOf(page, projectId, "Status", "Born shipped")).shippedAt).toBe(
+      "2026-10-01",
+    );
+
+    /* Settings shows a member the shipped date, and no Unship it would be refused. */
+    await gotoSettings(memberPage, projectId);
+    const memberBox = propertyBox(memberPage, "Status");
+    await expect(memberBox.getByText("Shipped 2026-10-03")).toBeVisible();
+    await expect(memberBox.getByRole("button", { name: /^Unship / })).toHaveCount(0);
+    await gotoSettings(adminPage, projectId);
+    await expect(
+      propertyBox(adminPage, "Status").getByRole("button", { name: "Unship Ready to go" }),
+    ).toHaveCount(1);
+
+    await adminPage.context().close();
+    await memberPage.context().close();
+  });
 });
