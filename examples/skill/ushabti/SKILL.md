@@ -121,7 +121,7 @@ agent can start without asking anything.
    what is wanted, why, what is out of scope, and where in the code it lives if
    you can find out. If a person already wrote one, do not write over it —
    `describe` refuses anyway. Post your version with `comment --file`, and the
-   person can make it the description with one press.
+   person can copy what they want into the description.
 6. **If you cannot go on without an answer, `ask`**, and stop. One question,
    the one that matters, answerable in a sentence. Do not ask what you could
    find out by reading the code.

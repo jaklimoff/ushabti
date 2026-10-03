@@ -100,6 +100,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   **Pull requests** property with an agent token. A key with no task writes a line in the job log
   and does not fail the job. The docs page **Pull requests from GitHub** says how to set it up.
 
+### Removed
+
+- **A comment has no "Use as description" press.** A comment is a comment, and the description
+  is edited in its own box. The author of a comment still has Edit and Delete on it.
+
 ### Fixed
 
 - **Only an admin, and only a person, can ship or unship an option.** A write of an option's

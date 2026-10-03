@@ -772,7 +772,7 @@ http://localhost:3000.`);
   /**
    * The description is the one field an agent may not write over. A person
    * who wrote one meant it; an agent that disagrees posts a comment, and the
-   * person makes it the description with one press. What the agent wrote
+   * person takes from it what they want. What the agent wrote
    * itself, it may write again.
    */
   async describe() {
