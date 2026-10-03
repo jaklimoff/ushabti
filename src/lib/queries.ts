@@ -34,7 +34,7 @@ import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
 import { kickAskMail } from "./ask-sender";
 import { kickSender } from "./webhooks";
-import { GROUPABLE_TYPES, VIEW_KINDS } from "./types";
+import { GROUPABLE_TYPES, isSelect, VIEW_KINDS } from "./types";
 import type {
   PropertyOptionDTO,
   ActivityDTO,
@@ -1202,7 +1202,7 @@ export async function groupPropertyId(
   if (!GROUPABLE_TYPES.includes(prop.type as PropertyType)) {
     throw new HttpError(400, "A view can only group by a select, person or checkbox property.");
   }
-  if (kind === "roadmap" && prop.type !== "select")
+  if (kind === "roadmap" && !isSelect(prop.type))
     throw new HttpError(400, "A roadmap draws the options of a select property.");
   return prop.id;
 }

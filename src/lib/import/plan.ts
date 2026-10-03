@@ -1,4 +1,4 @@
-import type { ImportPreviewDTO, ImportRowDTO } from "@/lib/types";
+import { isSelect, type ImportPreviewDTO, type ImportRowDTO } from "@/lib/types";
 import { SOURCE, type Dropped, type SourceBoard, type SourceCard } from "./trello";
 
 /**
@@ -132,7 +132,7 @@ function found(property: ShapeProperty | null, name: string): PlanProperty {
  * owner can rename the moment the import is over.
  */
 function groupProperty(shape: ProjectShape, ask: MappingAsk): PlanProperty {
-  const selects = shape.properties.filter((p) => p.type === "select");
+  const selects = shape.properties.filter((p) => isSelect(p.type));
   const asked = ask.groupPropertyId
     ? (selects.find((p) => p.id === ask.groupPropertyId) ?? null)
     : null;

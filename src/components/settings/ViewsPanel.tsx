@@ -28,9 +28,10 @@ import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import {
   GROUPABLE_TYPES,
   GROUPED_KINDS,
-  VIEW_KINDS,
-  VIEW_KIND_LABEL,
+  isSelect,
   type PropertyDTO,
+  VIEW_KIND_LABEL,
+  VIEW_KINDS,
   type ViewDTO,
   type ViewKind,
 } from "@/lib/types";
@@ -308,5 +309,5 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
 
 /* A roadmap draws the dated options of a select, so a select is all it offers. */
 function propertiesFor(kind: ViewKind, groupable: PropertyDTO[]): PropertyDTO[] {
-  return kind === "roadmap" ? groupable.filter((p) => p.type === "select") : groupable;
+  return kind === "roadmap" ? groupable.filter((p) => isSelect(p.type)) : groupable;
 }

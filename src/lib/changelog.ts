@@ -1,4 +1,5 @@
 import { sortByPosition } from "./board";
+import { isSelect } from "./types";
 
 /**
  * The changelog: every shipped option of every select property, newest first,
@@ -68,7 +69,7 @@ export function buildChangelog(input: ChangelogInput): Changelog {
   for (const prop of input.properties) {
     /* Only a select option carries a ship. A multi-select has none, and an
        option dated by some older write on another type is not a release. */
-    if (prop.type !== "select") continue;
+    if (!isSelect(prop.type)) continue;
     for (const option of prop.options) {
       if (!option.shippedAt) continue;
       entries.push({

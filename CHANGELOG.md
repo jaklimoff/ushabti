@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Iteration, a property type for sprints.** Its options always carry dates, so it has no
+  switch, and it works everywhere a dated select does: board columns with the date, Ship, the
+  filter "is current", the roadmap and the changelog. **Set up sprints** now makes an iteration,
+  and an existing Sprint select that carries dates becomes one.
+
 - **A roadmap bar opens its tasks.** Press a bar, or focus it and press Enter or Space, and the
   panel shows the option's name, its dates, its note and its tasks in board order, through the
   view's filters. A shipped option lists its archived tasks too, marked **Archived**. Each row opens

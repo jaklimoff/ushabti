@@ -4,13 +4,14 @@ import {
   CARD_BUILTIN_NAME,
   CARD_BUILTINS,
   CARD_PLACES,
-  GROUPED_KINDS,
   type CardBuiltin,
   type CardKind,
   type CardMode,
   type CardPlace,
   type CardRow,
   type CardView,
+  GROUPED_KINDS,
+  isSelect,
   type MemberDTO,
   type PropertyDTO,
   type PropertyType,
@@ -43,6 +44,7 @@ export const KIND_OF_TYPE: Record<PropertyType, CardKind> = {
   text: "text",
   number: "text",
   link: "link",
+  iteration: "select",
 };
 
 export const KIND_OF_BUILTIN: Record<CardBuiltin, CardKind> = {
@@ -209,7 +211,7 @@ export function defaultCardView(properties: PropertyDTO[], groupById: string | n
      select, in the order of the properties, that is not the columns of the
      default view. */
   const lead = properties.find(
-    (p) => p.type === "select" && p.id !== groupById && p.config.showOnCard !== false,
+    (p) => isSelect(p.type) && p.id !== groupById && p.config.showOnCard !== false,
   );
 
   for (const property of properties) {
@@ -754,6 +756,7 @@ export function sampleTask(properties: PropertyDTO[], members: MemberDTO[], key:
   const values: TaskDTO["values"] = {};
   for (const property of properties) {
     switch (property.type) {
+      case "iteration":
       case "select":
         if (property.options[0]) values[property.id] = property.options[0].id;
         break;

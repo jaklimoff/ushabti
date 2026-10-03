@@ -1,4 +1,5 @@
 import type { PropertyDTO, TaskValue } from "./types";
+import { isSelect } from "./types";
 
 /**
  * What a task waits on.
@@ -34,7 +35,7 @@ export function readDoneWhen(raw: unknown, properties: PropertyDTO[]): DoneWhen 
   const { propertyId, optionId } = raw as { propertyId?: unknown; optionId?: unknown };
   if (typeof propertyId !== "string" || typeof optionId !== "string") return null;
   const property = properties.find((p) => p.id === propertyId);
-  if (!property || property.type !== "select") return null;
+  if (!property || !isSelect(property.type)) return null;
   if (!property.options.some((o) => o.id === optionId)) return null;
   return { propertyId, optionId };
 }

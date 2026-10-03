@@ -6,15 +6,17 @@ import {
   type DateWindow,
 } from "./day";
 import {
+  type AgentRunRowDTO,
   FILTER_OPS,
-  NO_VALUE_KEY,
   type FilterOp,
   type FilterRule,
+  hasOptions,
+  isSelect,
   type MemberDTO,
+  NO_VALUE_KEY,
   type PropertyDTO,
   type PropertyOptionDTO,
   type PropertyType,
-  type AgentRunRowDTO,
   type TaskDTO,
   type TaskValue,
   type ViewFilters,
@@ -121,7 +123,7 @@ function isDated(option: PropertyOptionDTO): boolean {
  * menu has to show it so that somebody can take it off.
  */
 export function offersCurrent(property: PropertyDTO, chosen: readonly string[]): boolean {
-  if (property.type !== "select") return false;
+  if (!isSelect(property.type)) return false;
   if (chosen.includes(CURRENT_KEY)) return true;
   return carriesDates(property) && property.options.some(isDated);
 }
@@ -206,6 +208,7 @@ export const OPS_FOR_TYPE: Record<PropertyType, FilterOp[]> = {
   number: ["eq", "gt", "lt", "empty", "not_empty"],
   date: ["on", "before", "after", "within", "empty", "not_empty"],
   link: ["contains", "not_contains", "empty", "not_empty"],
+  iteration: ["is", "is_not"],
 };
 
 /** True when the operator takes a set of values rather than one piece of text. */
@@ -341,7 +344,7 @@ export function matches(
           ? [viewer]
           : /* With no option current, the word stays as it is, and no task
                holds it, so it matches nothing. */
-            key === CURRENT_KEY && property.type === "select"
+            key === CURRENT_KEY && isSelect(property.type)
             ? [key, ...currentOptions(property, today)]
             : [key],
       );
@@ -475,10 +478,10 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
  * has a list, and the word is not on it.
  */
 function liveKeys(property: PropertyDTO): Set<string> | null {
-  if (property.type === "select" || property.type === "multi_select") {
+  if (hasOptions(property.type)) {
     /* "Current" is kept even when no option is dated any more: it is a word
        and cannot be deleted, and its chip still says what it hides. */
-    const words = property.type === "select" ? [NO_VALUE_KEY, CURRENT_KEY] : [NO_VALUE_KEY];
+    const words = isSelect(property.type) ? [NO_VALUE_KEY, CURRENT_KEY] : [NO_VALUE_KEY];
     return new Set([...property.options.map((o) => o.id), ...words]);
   }
   if (property.type === "checkbox") return new Set(["true", "false"]);
@@ -658,7 +661,7 @@ export function seedValues(
       continue;
     }
     if (keys[0] === CURRENT_KEY) {
-      const now = property.type === "select" ? currentOptions(property, today) : [];
+      const now = isSelect(property.type) ? currentOptions(property, today) : [];
       if (now.length === 1) seed[property.id] = now[0];
       continue;
     }
@@ -670,6 +673,7 @@ export function seedValues(
       case "checkbox":
         seed[property.id] = keys[0] === "true";
         break;
+      case "iteration":
       case "select":
       case "person":
         seed[property.id] = keys[0];

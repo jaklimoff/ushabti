@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { datesClash, isoDay, namesOptionDates, optionEdit, readOptionDates } from "../option-dates";
+import {
+  carriesDates,
+  datesClash,
+  isoDay,
+  namesOptionDates,
+  optionEdit,
+  readOptionDates,
+} from "../option-dates";
 
 describe("isoDay", () => {
   it("reads a day and the day of a date-time", () => {
@@ -74,5 +81,15 @@ describe("optionEdit", () => {
     expect(optionEdit("2026-10-04", "2026-10-03")).toBe("2026-10-04");
     expect(optionEdit("", "2026-10-03")).toBeNull();
     expect(optionEdit("first", null)).toBe("first");
+  });
+});
+
+describe("carriesDates", () => {
+  it("is true for an iteration with no switch, and for a select only when switched on", () => {
+    expect(carriesDates({ type: "iteration", config: {} })).toBe(true);
+    expect(carriesDates({ type: "iteration", config: null })).toBe(true);
+    expect(carriesDates({ type: "select", config: {} })).toBe(false);
+    expect(carriesDates({ type: "select", config: { dated: true } })).toBe(true);
+    expect(carriesDates({ type: "multi_select", config: { dated: true } })).toBe(false);
   });
 });

@@ -58,6 +58,7 @@ import { ColumnStrip } from "./ColumnStrip";
 import { useCursorBack, useShortcut } from "./keys";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
+import { isSelect } from "@/lib/types";
 
 const dropAnimation: DropAnimation = {
   duration: 210,
@@ -355,7 +356,7 @@ export function BoardCanvas({
   const partial = !!groupProperty && filters.rules.some((r) => r.propertyId === groupProperty.id);
   /* And a phone drags no column either: one column is on screen, so there is
      nothing to drag it past. */
-  const columnsDraggable = groupProperty?.type === "select" && !partial && !phone;
+  const columnsDraggable = isSelect(groupProperty?.type ?? "") && !partial && !phone;
 
   /* How many cards went is the server's number, so the board says it rather
      than the one the question named a moment ago. */
@@ -380,7 +381,7 @@ export function BoardCanvas({
    */
   const canShip = sweepable && canManage(data.project.role);
   const shipOffer = (column: BoardColumn): ShipOffer | null => {
-    if (!canShip || groupProperty?.type !== "select") return null;
+    if (!canShip || !isSelect(groupProperty?.type ?? "")) return null;
     const next = nextOptionOf(groupProperty.options, column.id);
     return {
       nextName: next?.name ?? null,
@@ -397,7 +398,7 @@ export function BoardCanvas({
   /* Only a select option carries dates, so only a select board shows them.
      The unit is a number property the owner named, read afresh on the
      server; the name comes from here so a rename shows at once. */
-  const datedOptions = groupProperty?.type === "select" ? groupProperty.options : [];
+  const datedOptions = groupProperty && isSelect(groupProperty.type) ? groupProperty.options : [];
   const countBy = data.properties.find((p) => p.id === data.project.progressBy) ?? null;
   const rule: ProgressRule = useMemo(
     () => ({
@@ -832,7 +833,7 @@ function AddColumn() {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
-  if (!groupProperty || groupProperty.type !== "select") return null;
+  if (!groupProperty || !isSelect(groupProperty.type)) return null;
 
   async function commit() {
     const trimmed = name.trim();
