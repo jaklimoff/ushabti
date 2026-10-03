@@ -8,6 +8,7 @@ import { keyName } from "@/lib/filters";
 import { NO_VALUE_KEY } from "@/lib/types";
 import type { MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
 import { optionMenu } from "@/lib/option-menu";
+import { pickableOptions } from "@/lib/option-dates";
 import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
 import { Avatar } from "@/components/ui/Avatar";
 import { useDismiss } from "@/components/ui/useDismiss";
@@ -23,6 +24,8 @@ type Props = {
   /** The label beside the field, which names it. A selection draws the
       property's name as a button of its own, so it has none to point at. */
   labelId?: string;
+  /** Every option the property has, where `property` lists fewer. */
+  taken?: PropertyOptionDTO[];
 };
 
 /**
@@ -63,12 +66,20 @@ function fitsSegmented(property: PropertyDTO): boolean {
 export function PropertyControl(props: Props) {
   switch (props.property.type) {
     case "iteration":
-    case "select":
-      return fitsSegmented(props.property) ? (
-        <SelectSegmented {...props} />
+    case "select": {
+      // A shipped sprint leaves the picker, but a task that still holds one
+      // keeps it, so the field never reads empty.
+      const picked = {
+        ...props,
+        property: { ...props.property, options: pickableOptions(props.property, props.value) },
+        taken: props.property.options,
+      };
+      return fitsSegmented(picked.property) ? (
+        <SelectSegmented {...picked} />
       ) : (
-        <SelectMenu {...props} />
+        <SelectMenu {...picked} />
       );
+    }
     case "multi_select":
       return <MultiSelect {...props} />;
     case "person":
@@ -274,7 +285,7 @@ function EntryRow({
   );
 }
 
-function SelectMenu({ property, value, onChange, onAddOption, labelId }: Props) {
+function SelectMenu({ property, value, onChange, onAddOption, labelId, taken }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [rawAt, setAt] = useState(0);
@@ -287,7 +298,7 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId }: Props) 
   const once = useOneAtATime();
   const current = property.options.find((o) => o.id === value);
 
-  const { matches, add } = optionMenu(property.options, draft);
+  const { matches, add } = optionMenu(property.options, draft, taken);
   // A search shows what matches, so the empty row steps aside while somebody types.
   const entries: Entry[] = [
     ...(draft.trim() ? [] : [{ kind: "empty" } as const]),

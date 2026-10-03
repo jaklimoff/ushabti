@@ -15,6 +15,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   filter "is current", the roadmap and the changelog. **Set up sprints** now makes an iteration,
   and an existing Sprint select that carries dates becomes one.
 
+- **A shipped sprint steps out of the way.** A board grouped by an iteration draws no column for
+  a shipped sprint, and the panel and the bulk edit offer only the open ones, plus the one a task
+  already holds. The filter keeps the shipped ones behind one **Shipped** row, and Settings folds
+  them behind one row that says how many, where Unship still works. A shipped version of a dated
+  select stays where it is.
+
 - **A roadmap bar opens its tasks.** Press a bar, or focus it and press Enter or Space, and the
   panel shows the option's name, its dates, its note and its tasks in board order, through the
   view's filters. A shipped option lists its archived tasks too, marked **Archived**. Each row opens

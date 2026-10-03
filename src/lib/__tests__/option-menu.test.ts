@@ -33,6 +33,11 @@ describe("optionMenu", () => {
     expect(names("hi")).toEqual({ matches: ["Highest", "High"], add: "hi" });
   });
 
+  it("never offers Add for a name the menu does not list but the property has", () => {
+    const shown = PRIORITY.slice(1);
+    expect(optionMenu(shown, "low", PRIORITY)).toEqual({ matches: [], add: null });
+  });
+
   it("never offers Add for a name that is there, in any case", () => {
     expect(names("high").add).toBeNull();
     expect(names(" HIGH ").add).toBeNull();

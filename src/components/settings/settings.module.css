@@ -442,6 +442,21 @@
   color: var(--accent-soft);
 }
 
+/* The row the shipped sprints wait behind. It reads as a line, not a chip. */
+.optionFold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 4px;
+  color: var(--muted-2);
+  font-size: var(--t-small);
+}
+
+.optionFold:hover {
+  color: var(--accent-soft);
+}
+
 /* ---- people --------------------------------------------------------- */
 
 .memberName {

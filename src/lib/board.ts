@@ -1,5 +1,6 @@
 import type { MemberDTO, PropertyDTO, TaskDTO, TaskValue } from "./types";
 import { isSelect } from "./types";
+import { isOpenOption } from "./option-dates";
 
 export const NO_VALUE = "__none__";
 
@@ -70,6 +71,9 @@ export function buildColumns(
     });
   } else if (isSelect(property.type)) {
     for (const option of property.options) {
+      /* A card on a shipped sprint falls to "No sprint", the one column that
+         says it is in no open sprint. Its chip still names the old one. */
+      if (!isOpenOption(property, option)) continue;
       columns.push({
         id: option.id,
         name: option.name,
@@ -131,6 +135,16 @@ export function buildColumns(
   for (const task of tasks) {
     const column = byId.get(columnIdForTask(task, property)) ?? fallback;
     column?.tasks.push(task);
+  }
+
+  /* A card on a shipped sprint is in no open sprint, and the empty column says
+     that rather than "No sprint", which its chip would contradict. */
+  const none = byId.get(NO_VALUE);
+  if (
+    property?.type === "iteration" &&
+    none?.tasks.some((t) => columnIdForTask(t, property) !== NO_VALUE)
+  ) {
+    none.name = `No open ${property.name.toLowerCase()}`;
   }
 
   // A column for "no value" only earns its place when something sits in it, or
