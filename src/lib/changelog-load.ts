@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { projects, taskValues, tasks } from "@/db/schema";
+import { projects, properties, propertyOptions, taskValues, tasks } from "@/db/schema";
 import { buildChangelog, publicChangelog, type Changelog, type PublicChangelog } from "./changelog";
 import { loadProperties } from "./queries";
 
@@ -17,8 +17,15 @@ export async function loadChangelog(projectId: string): Promise<Changelog | null
     .where(eq(projects.id, projectId));
   if (!project) return null;
 
-  const [props, taskRows, valueRows] = await Promise.all([
+  const [props, rolledRows, taskRows, valueRows] = await Promise.all([
     loadProperties(projectId),
+    /* Which options rolled is the changelog's question alone, so it is read
+       here and not carried on every option of the board. */
+    db
+      .select({ id: propertyOptions.id })
+      .from(propertyOptions)
+      .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
+      .where(and(eq(properties.projectId, projectId), eq(propertyOptions.rolled, true))),
     db
       .select({
         id: tasks.id,
@@ -45,9 +52,13 @@ export async function loadChangelog(projectId: string): Promise<Changelog | null
     row[v.propertyId] = v.value;
     values.set(v.taskId, row);
   }
+  const rolled = new Set(rolledRows.map((r) => r.id));
   return buildChangelog({
     project,
-    properties: props,
+    properties: props.map((p) => ({
+      ...p,
+      options: p.options.map((o) => ({ ...o, rolled: rolled.has(o.id) })),
+    })),
     tasks: taskRows.map((t) => ({ ...t, values: values.get(t.id) ?? {} })),
   });
 }

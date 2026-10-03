@@ -16,7 +16,8 @@ import { kickSender, queueWebhooks, type Rung } from "./webhooks";
 export type ActivityEntry = {
   projectId: string;
   taskId?: string | null;
-  actorId: string;
+  /** Null when the project itself acted, as a roll of an ended sprint does. */
+  actorId: string | null;
   kind: string;
   data?: Record<string, unknown>;
 };

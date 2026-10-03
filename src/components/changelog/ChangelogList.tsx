@@ -1,14 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { shippedDay } from "@/lib/changelog";
+import { shippedSaid } from "@/lib/changelog";
 import { Markdown } from "@/components/board/Markdown";
 import styles from "./changelog.module.css";
 
 /** A task under a shipped option. The key is there only for a member. */
 type Shown = { title: string; key?: string };
 
-type Entry = { name: string; shippedAt: string; note: string | null; tasks: Shown[] };
+type Entry = {
+  name: string;
+  shippedAt: string;
+  ended: boolean;
+  note: string | null;
+  tasks: Shown[];
+};
 
 /**
  * The record, drawn once for both readers. A member's rows open the task; a
@@ -29,7 +35,9 @@ export function ChangelogList({
         <section key={`${entry.name}-${i}`} className={styles.entry} data-testid="changelog-entry">
           <div className={styles.entryHead}>
             <h2 className={styles.name}>{entry.name}</h2>
-            <span className={styles.day}>{shippedDay(entry.shippedAt)}</span>
+            <span className={styles.day} data-testid="changelog-day">
+              {shippedSaid(entry)}
+            </span>
           </div>
           {entry.note && <Markdown text={entry.note} testId="changelog-note" />}
           {entry.tasks.length > 0 && (

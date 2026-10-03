@@ -154,13 +154,14 @@ test("a picker opens on the current sprint, and grouping by one starts on 'is cu
   expect(made.status()).toBe(201);
   const sprint = (await board(page, projectId)).properties.find((p) => p.name === "Sprint")!;
   const [old, now, next] = sprint.options;
-  for (const [option, start, target] of [
-    [old, day(-10), day(-4)],
-    [now, day(-3), day(3)],
-    [next, day(4), day(10)],
+  // An ended sprint that never shipped rolls on the first read, so Old starts shipped.
+  for (const [option, start, target, shippedAt] of [
+    [old, day(-10), day(-4), day(-4)],
+    [now, day(-3), day(3), undefined],
+    [next, day(4), day(10), undefined],
   ] as const) {
     const res = await page.request.patch(`/api/options/${option.id}`, {
-      data: { startAt: start, targetAt: target },
+      data: { startAt: start, targetAt: target, shippedAt },
     });
     expect(res.ok()).toBeTruthy();
   }

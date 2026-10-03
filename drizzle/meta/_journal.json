@@ -162,6 +162,13 @@
       "when": 1791046556200,
       "tag": "0022_sprint_iteration",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791052778239,
+      "tag": "0023_pale_thena",
+      "breakpoints": true
     }
   ]
 }

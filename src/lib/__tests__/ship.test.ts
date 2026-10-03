@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  keptOpenByUnship,
+  movedWhenEnded,
   nextOpenOption,
   nextOptionOf,
   readShipRest,
@@ -106,5 +108,25 @@ describe("what the board says after", () => {
     expect(shipSaid("v1", { ...done, archived: 1, moved: 0, rest: "leave" }, null)).toBe(
       "Shipped v1: archived 1 task.",
     );
+  });
+});
+
+describe("the comment a roll leaves", () => {
+  it("names both sprints and why, in plain words", () => {
+    expect(movedWhenEnded("Sprint 14", "Sprint 15")).toBe(
+      "Moved from Sprint 14 to Sprint 15 when Sprint 14 ended.",
+    );
+  });
+});
+
+describe("an unship", () => {
+  it("keeps a sprint open only when its end has passed", () => {
+    expect(keptOpenByUnship("2026-10-02", "2026-10-03")).toBe(true);
+  });
+
+  it("leaves a sprint that has not ended free to roll when it does", () => {
+    expect(keptOpenByUnship("2026-10-03", "2026-10-03")).toBe(false);
+    expect(keptOpenByUnship("2026-10-10", "2026-10-03")).toBe(false);
+    expect(keptOpenByUnship(null, "2026-10-03")).toBe(false);
   });
 });

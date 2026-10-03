@@ -84,6 +84,21 @@ export function shipDay(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 
+/** The comment a roll leaves on each task it moved on. */
+export function movedWhenEnded(from: string, to: string): string {
+  return `Moved from ${from} to ${to} when ${from} ended.`;
+}
+
+/**
+ * Whether an unship holds the roll back. A person who reopens an ended sprint
+ * says it is not over, so the next read must not roll it again. A sprint
+ * shipped early and reopened before its end has said nothing about that end,
+ * so it rolls when the end comes.
+ */
+export function keptOpenByUnship(targetAt: string | null, today: string): boolean {
+  return targetAt !== null && targetAt < today;
+}
+
 /** What the board says once a ship went through, in the server's numbers. */
 export function shipSaid(name: string, done: ShipDone, nextName: string | null): string {
   const tasks = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;

@@ -4,6 +4,7 @@ import {
   changelogSlug,
   publicChangelog,
   shippedDay,
+  shippedSaid,
   type ChangelogInput,
 } from "../changelog";
 
@@ -119,16 +120,57 @@ describe("the changelog", () => {
   });
 });
 
+describe("a sprint that ended", () => {
+  const rolled = () =>
+    buildChangelog(
+      input({
+        properties: [
+          {
+            id: "sprint",
+            name: "Sprint",
+            type: "iteration",
+            options: [
+              { id: "s14", name: "Sprint 14", shippedAt: "2026-09-27", rolled: true, note: null },
+              { id: "s15", name: "Sprint 15", shippedAt: "2026-10-02", note: null },
+            ],
+          },
+        ],
+      }),
+    );
+
+  it("says ended for a roll and shipped for a press", () => {
+    const log = rolled();
+    expect(log.entries.map((e) => [e.name, e.ended, shippedSaid(e)])).toEqual([
+      ["Sprint 15", false, "Shipped October 2, 2026"],
+      ["Sprint 14", true, "Ended September 27, 2026"],
+    ]);
+  });
+
+  it("says the same to a stranger", () => {
+    expect(publicChangelog(rolled()).entries.map((e) => shippedSaid(e))).toEqual([
+      "Shipped October 2, 2026",
+      "Ended September 27, 2026",
+    ]);
+  });
+});
+
 describe("the public changelog", () => {
   it("carries no key, no id and no person", () => {
     const shown = publicChangelog(buildChangelog(input()));
     expect(shown).toEqual({
       project: { name: "Ushabti" },
       entries: [
-        { name: "0.2", shippedAt: "2026-10-01", note: null, tasks: [{ title: "Third" }] },
+        {
+          name: "0.2",
+          shippedAt: "2026-10-01",
+          ended: false,
+          note: null,
+          tasks: [{ title: "Third" }],
+        },
         {
           name: "0.1",
           shippedAt: "2026-09-01",
+          ended: false,
           note: "First **one**.",
           tasks: [{ title: "First" }, { title: "Second" }],
         },

@@ -56,7 +56,7 @@ test("Set up sprints asks for the length and the first day, and makes two sprint
 
   await expect(page.getByLabel("Sprint length in days")).toHaveValue("14");
   await page.getByLabel("Sprint length in days").fill("7");
-  await page.getByLabel("First day of the first sprint").fill("2026-11-02");
+  await page.getByLabel("First day of the first sprint").fill("2036-11-02");
   const answer = page.waitForResponse((res) => res.url().endsWith("/sprints"));
   await page.getByRole("button", { name: "Set up sprints" }).click();
   expect((await answer).status()).toBe(201);
@@ -65,8 +65,8 @@ test("Set up sprints asks for the length and the first day, and makes two sprint
   const sprint = await sprintOf(page, projectId);
   expect(sprint.config.cadence).toEqual({ length: 7, ahead: 1 });
   expect(sprint.options.map(dates)).toEqual([
-    ["Sprint 1", "2026-11-02", "2026-11-08"],
-    ["Sprint 2", "2026-11-09", "2026-11-15"],
+    ["Sprint 1", "2036-11-02", "2036-11-08"],
+    ["Sprint 2", "2036-11-09", "2036-11-15"],
   ]);
 
   /* With nothing asked, the route takes 14 days from the project's today. */
@@ -87,7 +87,7 @@ test("Set up sprints asks for the length and the first day, and makes two sprint
 test("shipping the last sprint makes the next one, and Move takes the rest there", async ({
   page,
 }) => {
-  const projectId = await sprintsFrom(page, "2026-10-05");
+  const projectId = await sprintsFrom(page, "2036-10-05");
   let read = await board(page, projectId);
   const sprint = read.properties.find((p) => p.name === "Sprint")!;
   const status = read.properties.find((p) => p.name === "Status")!;
@@ -117,7 +117,7 @@ test("shipping the last sprint makes the next one, and Move takes the rest there
   read = await board(page, projectId);
   const after = read.properties.find((p) => p.id === sprint.id)!;
   const third = after.options.find((o) => o.name === "Sprint 3")!;
-  expect(dates(third)).toEqual(["Sprint 3", "2026-11-02", "2026-11-15"]);
+  expect(dates(third)).toEqual(["Sprint 3", "2036-11-02", "2036-11-15"]);
   expect(read.tasks.find((t) => t.title === "Alpha")!.values[sprint.id]).toBe(third.id);
 
   /* Two presses at once: one ships, the other is refused, and one Sprint 4. */
@@ -132,14 +132,14 @@ test("shipping the last sprint makes the next one, and Move takes the rest there
 });
 
 test("the cadence fills in after what an admin did by hand", async ({ page }) => {
-  const projectId = await sprintsFrom(page, "2026-10-05");
+  const projectId = await sprintsFrom(page, "2036-10-05");
   const [first, second] = (await sprintOf(page, projectId)).options;
 
   expect((await page.request.delete(`/api/options/${second.id}`)).ok()).toBeTruthy();
   expect(
     (
       await page.request.patch(`/api/options/${first.id}`, {
-        data: { name: "Kickoff", targetAt: "2026-10-10" },
+        data: { name: "Kickoff", targetAt: "2036-10-10" },
       })
     ).ok(),
   ).toBeTruthy();
@@ -149,13 +149,13 @@ test("the cadence fills in after what an admin did by hand", async ({ page }) =>
   expect(shipped.ok()).toBeTruthy();
 
   expect((await sprintOf(page, projectId)).options.map(dates)).toEqual([
-    ["Kickoff", "2026-10-05", "2026-10-10"],
-    ["Kickoff 2", "2026-10-11", "2026-10-24"],
+    ["Kickoff", "2036-10-05", "2036-10-10"],
+    ["Kickoff 2", "2036-10-11", "2036-10-24"],
   ]);
 });
 
 test("Settings shows the cadence, saved on blur and on leave", async ({ page, browser }) => {
-  const projectId = await sprintsFrom(page, "2026-10-05");
+  const projectId = await sprintsFrom(page, "2036-10-05");
   await gotoSettings(page, projectId);
 
   const box = propertyBox(page, "Sprint");

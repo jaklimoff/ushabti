@@ -816,7 +816,9 @@ export function TaskPanel({
                   {detail.activity.map((entry) => (
                     <div key={entry.id} className={styles.activityRow}>
                       <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
-                      <span className={styles.activityText}>{describeActivity(entry)}</span>
+                      <span className={styles.activityText}>
+                        {describeActivity(entry, data.project.name)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1116,12 +1118,16 @@ function Links({
   );
 }
 
-function describeActivity(entry: {
-  kind: string;
-  data: Record<string, unknown>;
-  actor: { name: string } | null;
-}): string {
-  const who = entry.actor?.name ?? "Someone";
+function describeActivity(
+  entry: {
+    kind: string;
+    data: Record<string, unknown>;
+    actor: { name: string } | null;
+  },
+  projectName: string,
+): string {
+  // A roll has no person behind it: the project moved the task.
+  const who = entry.actor?.name ?? (entry.data.rolled ? projectName : "Someone");
   const d = entry.data as {
     property?: string;
     value?: string;
@@ -2300,6 +2306,9 @@ function CommentItem({
   counted: Counted;
   onError: (message: string) => void;
 }) {
+  const { data } = useBoard();
+  // A comment the project wrote names the project; a null author otherwise left.
+  const author = comment.byProject ? data.project.name : (comment.author?.name ?? "Removed user");
   const mod = useModKey();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
@@ -2353,7 +2362,7 @@ function CommentItem({
   return (
     <div className={styles.comment} data-testid="comment">
       <Avatar
-        name={comment.author?.name ?? "?"}
+        name={comment.byProject ? author : (comment.author?.name ?? "?")}
         color={comment.author?.color ?? "#3f4650"}
         emoji={comment.author?.emoji}
         kind={comment.author?.kind}
@@ -2361,7 +2370,7 @@ function CommentItem({
       />
       <div className={styles.commentBody}>
         <div className={styles.commentHead}>
-          <span className={styles.commentName}>{comment.author?.name ?? "Removed user"}</span>
+          <span className={styles.commentName}>{author}</span>
           <span className={styles.commentTime}>{relativeTime(comment.createdAt)}</span>
           {comment.editedAt && (
             /* A mark that can be reached by the keyboard, so the time it
