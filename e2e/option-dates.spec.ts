@@ -18,6 +18,13 @@ async function propertyOf(page: Page, projectId: string, name: string) {
   return board.properties.find((p) => p.name === name)!;
 }
 
+/* Settings draws the boxes only on a property that says its options carry dates. */
+async function datesOn(page: Page, projectId: string, name: string) {
+  const property = await propertyOf(page, projectId, name);
+  const res = await page.request.patch(`/api/properties/${property.id}`, { data: { dated: true } });
+  expect(res.ok()).toBeTruthy();
+}
+
 async function optionOf(page: Page, projectId: string, property: string, option: string) {
   return (await propertyOf(page, projectId, property)).options.find((o) => o.name === option)!;
 }
@@ -91,6 +98,7 @@ test.describe("An option carries a plan", () => {
   test("a multi-select option does not get them", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Labels"));
+    await datesOn(page, projectId, "Status");
     const labels = await propertyOf(page, projectId, "Labels");
     expect(labels.type).toBe("multi_select");
 
@@ -120,6 +128,7 @@ test.describe("An option carries a plan", () => {
   test("Settings saves the start, the target and the note on blur", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Settings plan"));
+    await datesOn(page, projectId, "Status");
     await gotoSettings(page, projectId);
     const box = propertyBox(page, "Status");
 
@@ -158,6 +167,7 @@ test.describe("An option carries a plan", () => {
   test("a date box with one part cleared keeps the saved date", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Half date"));
+    await datesOn(page, projectId, "Status");
     const todo = await optionOf(page, projectId, "Status", "Todo");
     await page.request.patch(`/api/options/${todo.id}`, { data: { startAt: "2026-10-01" } });
 
@@ -191,6 +201,7 @@ test.describe("An option carries a plan", () => {
   test("a note of many lines keeps its lines through a focus and a blur", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Note lines"));
+    await datesOn(page, projectId, "Status");
     const todo = await optionOf(page, projectId, "Status", "Todo");
     const words = "Scope:\n- API\n- UI";
     await page.request.patch(`/api/options/${todo.id}`, { data: { note: words } });
@@ -224,6 +235,7 @@ test.describe("An option carries a plan", () => {
     }) => {
       await register(page);
       const projectId = await createProject(page, unique("Leave plan"));
+      await datesOn(page, projectId, "Status");
       await gotoSettings(page, projectId);
 
       const box = propertyBox(page, "Status").getByLabel(`${label} of In Progress`);
@@ -245,6 +257,7 @@ test.describe("An option carries a plan", () => {
   test("the shipped date is read only, with one Unship", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Unship"));
+    await datesOn(page, projectId, "Status");
     const ready = await optionOf(page, projectId, "Status", "Ready");
     await page.request.patch(`/api/options/${ready.id}`, { data: { shippedAt: "2026-10-02" } });
 
@@ -275,6 +288,7 @@ test.describe("An option carries a plan", () => {
     const member = await register(memberPage, "Bob Member");
     await register(page, "Olga Owner");
     const projectId = await createProject(page, unique("Ship rights"));
+    await datesOn(page, projectId, "Status");
     const as = page.request;
     for (const email of [admin.email, member.email]) {
       expect(
@@ -378,6 +392,109 @@ test.describe("An option carries a plan", () => {
     ).toHaveCount(1);
 
     await adminPage.context().close();
+    await memberPage.context().close();
+  });
+});
+
+/*
+ * Status and Priority are selects nobody dates, so the boxes wait for the
+ * property to say its options carry dates. Off hides them and keeps what
+ * they hold.
+ */
+test.describe("A select says whether its options carry dates", () => {
+  test("the switch shows the boxes, and off hides them and keeps the values", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Dated switch"));
+    const todo = await optionOf(page, projectId, "Status", "Todo");
+    await page.request.patch(`/api/options/${todo.id}`, {
+      data: { startAt: "2026-10-01", shippedAt: "2026-10-02" },
+    });
+
+    await gotoSettings(page, projectId);
+    const box = propertyBox(page, "Status");
+    const toggle = box.getByLabel("Options carry dates");
+    /* Off by default, and only a select has it. */
+    await expect(toggle).not.toBeChecked();
+    await expect(propertyBox(page, "Labels").getByLabel("Options carry dates")).toHaveCount(0);
+    await expect(box.getByLabel(/^Start of /)).toHaveCount(0);
+    await expect(box.getByLabel(/^Note of /)).toHaveCount(0);
+    await expect(box.getByRole("button", { name: /^Unship / })).toHaveCount(0);
+
+    await saved(page, () => toggle.check());
+    await expect(box.getByLabel("Start of Todo")).toHaveValue("2026-10-01");
+    await expect(box.getByLabel("Target of Todo")).toBeVisible();
+    await expect(box.getByLabel("Note of Todo")).toBeVisible();
+    await expect(box.getByRole("button", { name: "Unship Todo" })).toBeVisible();
+    expect(
+      ((await propertyOf(page, projectId, "Status")) as { config?: { dated?: boolean } }).config,
+    ).toMatchObject({ dated: true });
+
+    await saved(page, () => toggle.uncheck());
+    await expect(box.getByLabel(/^Start of /)).toHaveCount(0);
+    await page.reload();
+    await expect(box.getByLabel("Options carry dates")).not.toBeChecked();
+    await expect(box.getByLabel(/^Start of /)).toHaveCount(0);
+    expect(await optionOf(page, projectId, "Status", "Todo")).toMatchObject({
+      startAt: "2026-10-01",
+      shippedAt: "2026-10-02",
+    });
+
+    await saved(page, () => box.getByLabel("Options carry dates").check());
+    await expect(box.getByLabel("Start of Todo")).toHaveValue("2026-10-01");
+  });
+
+  test("only an admin, and only a person, turns it", async ({ page, browser }) => {
+    const memberPage = await (await browser.newContext()).newPage();
+    const member = await register(memberPage, "Bob Member");
+    await register(page, "Olga Owner");
+    const projectId = await createProject(page, unique("Dated rights"));
+    const as = page.request;
+    expect(
+      (await as.post(`/api/projects/${projectId}/members`, { data: { email: member.email } })).ok(),
+    ).toBeTruthy();
+    const made = await as.post(`/api/projects/${projectId}/agents`, { data: { name: "Helper" } });
+    const agentId = ((await made.json()) as { agent: { id: string } }).agent.id;
+    const issued = await as.post(`/api/projects/${projectId}/agents/${agentId}/tokens`, {
+      data: { name: "dated" },
+    });
+    const secret = ((await issued.json()) as { secret: string }).secret;
+    const asAgent = { Authorization: `Bearer ${secret}` };
+
+    const status = await propertyOf(page, projectId, "Status");
+    const url = `/api/properties/${status.id}`;
+    const dated = async () =>
+      ((await propertyOf(page, projectId, "Status")) as { config?: { dated?: boolean } }).config
+        ?.dated;
+
+    const byAgent = await as.patch(url, { headers: asAgent, data: { dated: true } });
+    expect(byAgent.status()).toBe(403);
+    const byMember = await memberPage.request.patch(url, { data: { dated: true } });
+    expect(byMember.status()).toBe(403);
+    expect((await byMember.json()).error).toMatch(/owner or an admin/);
+    expect(await dated()).toBeUndefined();
+
+    const labels = await propertyOf(page, projectId, "Labels");
+    expect(
+      (await as.patch(`/api/properties/${labels.id}`, { data: { dated: true } })).status(),
+    ).toBe(400);
+    expect((await as.patch(url, { data: { dated: "yes" } })).status()).toBe(400);
+
+    expect((await as.patch(url, { data: { dated: true } })).ok()).toBeTruthy();
+    expect(await dated()).toBe(true);
+    /* A token still reads it, as it reads the rest of a property. */
+    const read: Board = await (
+      await as.get(`/api/projects/${projectId}/board`, { headers: asAgent })
+    ).json();
+    expect(read.properties.find((p) => p.id === status.id)).toMatchObject({
+      config: { dated: true },
+    });
+    /* A rename leaves the switch where it was. */
+    expect((await as.patch(url, { data: { name: "State" } })).ok()).toBeTruthy();
+    const renamed = (await propertyOf(page, projectId, "State")) as {
+      config?: { dated?: boolean };
+    };
+    expect(renamed.config?.dated).toBe(true);
+
     await memberPage.context().close();
   });
 });

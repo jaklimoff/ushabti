@@ -107,6 +107,18 @@ no option has and the last row offers `Add "staging"`, which creates the option 
 go. Only that row makes an option: Enter picks the highlighted row, and the arrow keys move it.
 </Aside>
 
+### Give the options dates <Badge text="owner and admins" variant="caution" size="small" />
+
+A select whose options are a Version, a Sprint or a Quarter needs dates on them. Tick **Options carry
+dates** beside the property's name. Each option then takes a line of its own, with a **Start**, a
+**Target** and a **Note**, and **Unship** once it has shipped. A filter on that property can then
+say **current**: the option whose start and target hold today.
+
+It is off by default, so Status and Priority carry no date boxes. Turning it off hides the boxes and
+keeps what they hold; turn it on again and the dates are back. A column header and **Ship** read the
+option's own target, so a property turned off after it was dated still ships. **Set up sprints**
+turns it on for the Sprint property it makes.
+
 ### Reorder properties
 
 Drag a row by the **grip** on its left. That order is the order of the fields in the task panel, of
