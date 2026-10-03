@@ -304,6 +304,105 @@ Read the task again after an add if that matters.
 3. With **none**, or with several and none of them named so, write nothing: say so in the run log
    (`step --log "no Link property for the pull request"`) and put the link in a comment.
 
+### A pull request from GitHub, with no step by hand
+
+[`examples/github/ushabti-links.yml`](../examples/github/ushabti-links.yml) is a GitHub Actions
+workflow. Copy it as it is to `.github/workflows/` in your repository. When a pull request is
+opened, edited or reopened, it finds the task keys in the **title** and the **branch name**, and
+for each key it runs `board.mjs set KEY "Pull requests" --add <url>`. It does not read the body:
+"see USH-12" is not "does USH-12". A key is a word of its own, so `USH-123` is never `USH-12`; a
+`-` may stand on either side, because a branch such as `feature-ush-12-cart` joins its words so.
+
+It needs a board that the GitHub runner can reach, and an agent token from **Settings → People**.
+Put the token in the repository secret `USHABTI_TOKEN`, the board address in the variable
+`USHABTI_URL` and the project key in `USHABTI_PROJECT_KEY`. Set `USHABTI_LINK_PROPERTY` only when
+the Link property is not called `Pull requests`. A key that names no task or an archived task, or a board without that
+property, writes one line in the job log and does not fail the job. A board that does not answer, a token
+it refuses, a write it refuses, or a variable that is not set fails the job, after the other keys
+are written, so links never stop with no sign. `board.mjs` comes from a fixed
+commit, so a change upstream never changes the step. A pull request from a fork gets no secrets, so
+the step writes a line and does nothing.
+
+```yaml
+# Puts the link of a pull request on the Ushabti tasks it names.
+# Copy this file to .github/workflows/ushabti-links.yml in your repository.
+#
+# Repository variables: USHABTI_URL, the address of the board, and
+# USHABTI_PROJECT_KEY, such as USH. USHABTI_LINK_PROPERTY only if your Link
+# property is not called "Pull requests".
+# Repository secret: USHABTI_TOKEN, an agent token from Settings -> People.
+name: Ushabti links
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+permissions: {}
+
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add the pull request to its tasks
+        env:
+          USHABTI_URL: ${{ vars.USHABTI_URL }}
+          USHABTI_TOKEN: ${{ secrets.USHABTI_TOKEN }}
+          PROJECT_KEY: ${{ vars.USHABTI_PROJECT_KEY }}
+          LINK_PROPERTY: ${{ vars.USHABTI_LINK_PROPERTY || 'Pull requests' }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          # A fixed commit, so a change upstream never changes this step.
+          BOARD_MJS: https://raw.githubusercontent.com/jaklimoff/ushabti/519fef8ed92490560f1fb7e3c2560676ce39ef7a/examples/skill/ushabti/board.mjs
+        run: |
+          if [ -z "$USHABTI_TOKEN" ]; then
+            echo "No USHABTI_TOKEN secret. A pull request from a fork gets none. Nothing written."
+            exit 0
+          fi
+          if [ -z "$USHABTI_URL" ] || [ -z "$PROJECT_KEY" ]; then
+            echo "Set the repository variables USHABTI_URL and USHABTI_PROJECT_KEY."
+            exit 1
+          fi
+          curl -fsSL "$BOARD_MJS" -o board.mjs
+          # A board that does not answer, or a token it refuses, fails the job.
+          # Otherwise the links stop and nothing says so.
+          if ! node board.mjs me; then
+            echo "The board at $USHABTI_URL did not take the token. Nothing written."
+            exit 1
+          fi
+          # The title and the branch only: a body says "see USH-12" as often as "does USH-12".
+          # A key is a word of its own, so USH-123 is never USH-12. A branch joins its
+          # words with "-", so feature-ush-12-cart names USH-12.
+          keys=$(node -e '
+            const pattern = new RegExp(`(?<!\\w)${process.env.PROJECT_KEY}-\\d+(?!\\w)`, "gi");
+            const text = `${process.env.PR_TITLE}\n${process.env.PR_BRANCH}`;
+            const found = (text.match(pattern) ?? []).map((key) => key.toUpperCase());
+            console.log([...new Set(found)].join("\n"));
+          ')
+          if [ -z "$keys" ]; then
+            echo "No $PROJECT_KEY key in the title or the branch. Nothing written."
+            exit 0
+          fi
+          # A key with no task, an archived task, or a board with no Link property, is a line in the log.
+          # Anything else the board answers fails the job, after every key is tried.
+          failed=""
+          for key in $keys; do
+            if out=$(node board.mjs set "$key" "$LINK_PROPERTY" --add "$PR_URL" 2>&1); then
+              echo "$out"
+              continue
+            fi
+            echo "$out"
+            case "$out" in
+              "No task "* | *" is archived. "* | "No property called "* | "--add is for a Link property."*)
+                echo "$key: the link was not added. The line above says why." ;;
+              *)
+                echo "$key: the board did not take the link."
+                failed=1 ;;
+            esac
+          done
+          [ -z "$failed" ]
+```
+
 ## A delete lasts thirty days
 
 Archiving is the everyday way to make a task go away. Delete is for a mistake,

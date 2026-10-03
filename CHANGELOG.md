@@ -26,6 +26,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   set. The option routes take `startAt`, `targetAt`, `shippedAt` and `note`, the board answer and
   the export carry them, and the skill's `props` prints them. **This carries a migration**
   (`0019_option_dates`: four nullable columns on `property_options`).
+- **A pull request puts its link on its task, from GitHub Actions.** Copy
+  `examples/github/ushabti-links.yml` into `.github/workflows/`. It finds the task keys in the
+  title and the branch name of a pull request, never in the body, and adds the link to the task's
+  **Pull requests** property with an agent token. A key with no task writes a line in the job log
+  and does not fail the job. The docs page **Pull requests from GitHub** says how to set it up.
 
 ## 0.15.0 — 2026-10-01
 
