@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Sprints are set up in one step.** Settings → Project has a row, **Set up sprints**. One press
+  adds a select property **Sprint**, a board **Sprint** on `Sprint is current`, grouped as the main
+  board is, and a list **Backlog** on `Sprint is nothing yet`. Each one is an ordinary property or
+  view afterwards. The row says **Sprints are set up** once a property named Sprint exists. Only the
+  owner or an admin can press it.
 - **A dated column can ship.** On a board grouped by a select property, an owner or an admin sees
   **✓ Ship** in the header of a column whose option has a target date. The header asks the question
   in numbers: how many tasks are over and how many are not. It offers **Move to the next option**,
