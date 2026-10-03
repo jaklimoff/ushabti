@@ -16,6 +16,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   The view's filters narrow the bar as they narrow the cards. A shipped date takes the target's
   place. In Settings → Project, **Count progress by** picks one number property, such as Points;
   then the bar sums it and the header reads `21 of 34`.
+- **A filter can say that a sprint is current.** A rule on a select property whose options carry
+  dates offers **Current**, beside **Nothing yet**. It means the option whose start and target hold
+  today, so a sprint board rolls over by itself on the day. A task added under the rule goes into
+  the current sprint.
 - **A view can carry a card view of its own.** In Settings → Views, **Card view…** opens the card
   view editor for that one view. The first change gives the view a copy; until then it draws the
   project's card view and follows it. **Use the default** throws the copy away. A list's columns

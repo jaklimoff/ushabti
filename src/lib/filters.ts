@@ -12,6 +12,7 @@ import {
   type FilterRule,
   type MemberDTO,
   type PropertyDTO,
+  type PropertyOptionDTO,
   type PropertyType,
   type AgentRunRowDTO,
   type TaskDTO,
@@ -92,6 +93,52 @@ export function waitingTasks(runs: Pick<AgentRunRowDTO, "taskId" | "status">[]):
  * An agent reads it as itself. With nobody to read it as, it matches nobody.
  */
 export const ME_KEY = "__me__";
+
+/**
+ * The member of a select rule's set that stands for the option that is on now.
+ *
+ * It is a value, as ME_KEY is, so "Sprint is current, or nothing yet" is one
+ * rule. The stored rule keeps the word, and `matches` reads it against `today`
+ * and the options, so a sprint board rolls over on the day and nobody edits
+ * it. Every screen reads the same day, so it means one sprint for the team.
+ */
+export const CURRENT_KEY = "__current__";
+
+/**
+ * True when the option can be current on some day. That takes a target: an
+ * option with only a start is never current, so it does not count as dated.
+ */
+function isDated(option: PropertyOptionDTO): boolean {
+  return option.targetAt !== null;
+}
+
+/**
+ * True when a rule about this property may say "current". Only a select
+ * option carries dates, and with none of them dated the word would name
+ * nothing on any day. A rule that already holds the word is offered it
+ * anyway: `readFilters` keeps the word after the dates are gone, and the
+ * menu has to show it so that somebody can take it off.
+ */
+export function offersCurrent(property: PropertyDTO, chosen: readonly string[]): boolean {
+  if (property.type !== "select") return false;
+  return chosen.includes(CURRENT_KEY) || property.options.some(isDated);
+}
+
+/**
+ * The ids of the options that hold `today`, with both edges included, as
+ * `is within` has them. A missing start is open, so an option with only a
+ * target is current until that day. A missing target is not: an option with
+ * only a start never ends, and every sprint that forgot its target would stay
+ * current for ever. Days are `YYYY-MM-DD`, so text order is date order.
+ */
+function currentOptions(property: PropertyDTO, today: string): string[] {
+  return property.options
+    .filter(
+      (o) =>
+        o.targetAt !== null && (o.startAt === null || o.startAt <= today) && today <= o.targetAt,
+    )
+    .map((o) => o.id);
+}
 
 /**
  * The rule's stand-in property. A checkbox is what it reads like, so it is
@@ -287,7 +334,15 @@ export function matches(
     case "is_not": {
       /* Me is read here and only here. Without a viewer the word stays as it
          is, and no task holds it, so it matches nobody. */
-      const wanted = (rule.values ?? []).map((key) => (key === ME_KEY && viewer ? viewer : key));
+      const wanted = (rule.values ?? []).flatMap((key) =>
+        key === ME_KEY && viewer
+          ? [viewer]
+          : /* With no option current, the word stays as it is, and no task
+               holds it, so it matches nothing. */
+            key === CURRENT_KEY && property.type === "select"
+            ? [key, ...currentOptions(property, today)]
+            : [key],
+      );
       // A set with nothing chosen asks nothing, so it hides nothing.
       if (wanted.length === 0) return true;
       const held = keysOf(value, type);
@@ -419,7 +474,10 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
  */
 function liveKeys(property: PropertyDTO): Set<string> | null {
   if (property.type === "select" || property.type === "multi_select") {
-    return new Set([...property.options.map((o) => o.id), NO_VALUE_KEY]);
+    /* "Current" is kept even when no option is dated any more: it is a word
+       and cannot be deleted, and its chip still says what it hides. */
+    const words = property.type === "select" ? [NO_VALUE_KEY, CURRENT_KEY] : [NO_VALUE_KEY];
+    return new Set([...property.options.map((o) => o.id), ...words]);
   }
   if (property.type === "checkbox") return new Set(["true", "false"]);
   return null;
@@ -564,12 +622,16 @@ export function allowedColumns<T extends { value: TaskValue }>(
  *
  * "Assignee is Me" has one answer, and it is `viewer`: the task goes to
  * whoever added it. With no viewer it has none, and it is left alone.
+ *
+ * "Sprint is current" has one answer when one option holds `today`, and the
+ * task goes into it. With none, or with two that overlap, it is left alone.
  */
 export function seedValues(
   filters: ViewFilters,
   properties: PropertyDTO[],
   groupPropertyId: string | null,
   viewer: string | null,
+  today: string,
 ): Record<string, TaskValue> {
   const byId = new Map(properties.map((p) => [p.id, p]));
   const seed: Record<string, TaskValue> = {};
@@ -591,6 +653,11 @@ export function seedValues(
     if (!property) continue;
     if (keys[0] === ME_KEY) {
       if (property.type === "person" && viewer) seed[property.id] = viewer;
+      continue;
+    }
+    if (keys[0] === CURRENT_KEY) {
+      const now = property.type === "select" ? currentOptions(property, today) : [];
+      if (now.length === 1) seed[property.id] = now[0];
       continue;
     }
 
@@ -651,6 +718,7 @@ export function keyName(key: string, property: PropertyDTO, members: MemberDTO[]
     return property.type === "person" ? "Unassigned" : `No ${property.name.toLowerCase()}`;
   }
   if (key === ME_KEY) return "Me";
+  if (key === CURRENT_KEY) return "current";
   if (property.type === "checkbox") {
     if (key === "true") return property.name;
     /* "Not agent waiting" reads as broken English; the word names a thing. */
@@ -679,6 +747,8 @@ export function keyColor(key: string, property: PropertyDTO, members: MemberDTO[
   if (key === NO_VALUE_KEY) return "#3f4650";
   /* Me is a different person on every screen, so it wears no one's colour. */
   if (key === ME_KEY) return "#6b7280";
+  /* Current is a different option every sprint, so it wears none's colour. */
+  if (key === CURRENT_KEY) return "#6b7280";
   if (property.type === "checkbox") return key === "true" ? "#4f8a5b" : "#6b7280";
   if (property.type === "person") return members.find((m) => m.id === key)?.color ?? "#3f4650";
   return property.options.find((o) => o.id === key)?.color ?? "#3f4650";

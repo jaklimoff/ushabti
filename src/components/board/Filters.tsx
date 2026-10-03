@@ -14,6 +14,8 @@ import {
   keyColor,
   keyName,
   ME_KEY,
+  CURRENT_KEY,
+  offersCurrent,
   OPS_FOR_TYPE,
   OP_LABEL,
 } from "@/lib/filters";
@@ -49,11 +51,15 @@ import styles from "./board.module.css";
  * "Todo, or nothing yet" is one question, and two rules cannot ask it: every
  * rule has to pass.
  */
-function keysFor(property: PropertyDTO, members: MemberDTO[]): string[] {
+function keysFor(property: PropertyDTO, members: MemberDTO[], chosen: string[]): string[] {
   /* Me comes first: it is the one a shared "My tasks" view is made of, and it
      means whoever reads the view, not the person who picked it. */
   if (property.type === "person") return [ME_KEY, ...members.map((m) => m.id), NO_VALUE_KEY];
   if (property.type === "checkbox") return ["true", "false"];
+  /* Current sits beside Nothing yet, so "current, or nothing yet" is one rule. */
+  if (offersCurrent(property, chosen)) {
+    return [...property.options.map((o) => o.id), CURRENT_KEY, NO_VALUE_KEY];
+  }
   return [...property.options.map((o) => o.id), NO_VALUE_KEY];
 }
 
@@ -160,10 +166,11 @@ function Ask({
       })).filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
     }
     if (!set) return [];
-    return keysFor(property, members)
+    return keysFor(property, members, chosen)
       .map((key) => ({
         id: key,
-        name: keyName(key, property, members),
+        /* The chip reads "Sprint is current"; a row of the menu opens a line. */
+        name: key === CURRENT_KEY ? "Current" : keyName(key, property, members),
         color: keyColor(key, property, members),
         on: chosen.includes(key),
       }))
