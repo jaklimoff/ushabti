@@ -2,6 +2,7 @@ import { todayIn } from "./day";
 import type { DoneWhen, OverTask } from "./links";
 import { progressOf } from "./progress";
 import type { ArchivedUnder, PropertyDTO } from "./types";
+import { isSelect } from "./types";
 
 /**
  * The roadmap: one row per option of a select that carries a target date.
@@ -49,7 +50,7 @@ export function roadmapRows(
   timeZone: string,
   archived: Record<string, ArchivedUnder> = {},
 ): RoadmapRow[] {
-  if (property.type !== "select") return [];
+  if (!isSelect(property.type)) return [];
   const under = (tasks: RoadmapTask[], id: string) =>
     tasks.filter((t) => t.values[property.id] === id);
 

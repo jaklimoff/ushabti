@@ -70,6 +70,22 @@ describe("the changelog", () => {
     expect(log.entries.map((e) => e.name)).toEqual(["One", "Two"]);
   });
 
+  it("reads an iteration as a select", () => {
+    const log = buildChangelog(
+      input({
+        properties: [
+          {
+            id: "sprint",
+            name: "Sprint",
+            type: "iteration",
+            options: [{ id: "s1", name: "Sprint 1", shippedAt: "2026-10-01", note: null }],
+          },
+        ],
+      }),
+    );
+    expect(log.entries.map((e) => e.name)).toEqual(["Sprint 1"]);
+  });
+
   it("reads only a select property", () => {
     const log = buildChangelog(
       input({

@@ -42,6 +42,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .select({ type: properties.type })
       .from(properties)
       .where(eq(properties.id, propertyId));
+    // An iteration always carries dates, so the switch is a plain select's alone.
     if (row?.type !== "select") {
       throw new HttpError(400, "Only the options of a select can carry dates.");
     }

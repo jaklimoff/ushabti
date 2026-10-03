@@ -73,6 +73,16 @@ and what is easy to get wrong.
   archived task carries no values on the board, so the board sends what a
   roadmap needs of them in `archivedUnder`: the oldest day and the count per
   dated option. Nothing on a roadmap drags; the dates are edited in Settings.
+- **An iteration is a select whose options always carry dates.** It shares
+  everything with a dated select: the option ids, the columns, the header date,
+  Ship, "is current", the roadmap, the changelog and the option drag. So a
+  check that means "a select" asks `isSelect()` or `hasOptions()` in
+  `types.ts`, and `carriesDates()` answers true for an iteration with no
+  switch. The one place that still compares `type === "select"` is the
+  "Options carry dates" switch, which only a plain select has. It is its
+  own type because a sprint is not a version: many, short, made by a cadence
+  and gone when shipped. Those differences hang off the type, never off the
+  name Sprint. A version or an epic stays a plain dated select.
 - **A row draws the card view and decides nothing**, exactly as a card does.
   `listColumns()` in `src/lib/list-view.ts` is the one place that says which
   columns a list has: a row that is off the card is off the list, the edge is

@@ -62,6 +62,7 @@ function fitsSegmented(property: PropertyDTO): boolean {
 
 export function PropertyControl(props: Props) {
   switch (props.property.type) {
+    case "iteration":
     case "select":
       return fitsSegmented(props.property) ? (
         <SelectSegmented {...props} />

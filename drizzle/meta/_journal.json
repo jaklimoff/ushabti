@@ -155,6 +155,13 @@
       "when": 1791034792300,
       "tag": "0021_public_changelog",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791046556200,
+      "tag": "0022_sprint_iteration",
+      "breakpoints": true
     }
   ]
 }

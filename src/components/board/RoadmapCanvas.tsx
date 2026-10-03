@@ -7,6 +7,7 @@ import { allowedColumns } from "@/lib/filters";
 import { daysIn, roadmapAxis, roadmapRows, type RoadmapRow } from "@/lib/roadmap";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
+import { isSelect } from "@/lib/types";
 
 /** The width of one day on the axis. A week is seven of them. */
 const DAY_PX = 10;
@@ -100,7 +101,7 @@ export function RoadmapCanvas({
   }, [view?.id]);
 
   const settings = `/p/${data.project.id}/settings/properties`;
-  if (!groupProperty || groupProperty.type !== "select") {
+  if (!groupProperty || !isSelect(groupProperty.type)) {
     return (
       <div className={styles.roadmapBlank} data-testid="roadmap-view">
         A roadmap draws the options of a select property. Pick one for this view in{" "}

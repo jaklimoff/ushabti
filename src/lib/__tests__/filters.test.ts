@@ -1297,6 +1297,13 @@ describe("a rule that says a dated option is current", () => {
     expect(offersCurrent({ ...sprints, type: "multi_select" }, [])).toBe(false);
   });
 
+  it("is offered for an iteration with no switch, and matches as for a select", () => {
+    const iteration: PropertyDTO = { ...sprints, type: "iteration", config: {} };
+    expect(offersCurrent(iteration, [])).toBe(true);
+    expect(on(TODAY, "o-s2", iteration)).toBe(true);
+    expect(on(TODAY, "o-s1", iteration)).toBe(false);
+  });
+
   it("is offered only while the property says its options carry dates", () => {
     expect(offersCurrent({ ...sprints, config: {} }, [])).toBe(false);
     expect(offersCurrent({ ...sprints, config: { dated: false } }, [])).toBe(false);

@@ -256,6 +256,8 @@ function coerce(data, property, raw) {
   }
 
   switch (property.type) {
+    /* An iteration is a select whose options always carry dates. */
+    case "iteration":
     case "select":
       return optionId(property, text);
     case "multi_select":
@@ -308,7 +310,8 @@ function valueText(data, property, value) {
     (Array.isArray(value) && !value.length)
   )
     return "";
-  if (property.type === "select") return property.options.find((o) => o.id === value)?.name ?? "?";
+  if (property.type === "select" || property.type === "iteration")
+    return property.options.find((o) => o.id === value)?.name ?? "?";
   if (property.type === "multi_select")
     return value.map((id) => property.options.find((o) => o.id === id)?.name ?? "?").join(",");
   if (property.type === "person") return data.members.find((m) => m.id === value)?.name ?? "?";

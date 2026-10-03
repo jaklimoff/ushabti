@@ -1,4 +1,5 @@
 import type { MemberDTO, PropertyDTO, TaskDTO, TaskValue } from "./types";
+import { isSelect } from "./types";
 
 export const NO_VALUE = "__none__";
 
@@ -67,7 +68,7 @@ export function buildColumns(
       isNone: true,
       tasks: [],
     });
-  } else if (property.type === "select") {
+  } else if (isSelect(property.type)) {
     for (const option of property.options) {
       columns.push({
         id: option.id,

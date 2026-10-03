@@ -15,8 +15,9 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   GROUPABLE_TYPES,
   GROUPED_KINDS,
-  VIEW_KINDS,
+  isSelect,
   VIEW_KIND_LABEL,
+  VIEW_KINDS,
   type ViewDTO,
   type ViewKind,
 } from "@/lib/types";
@@ -54,7 +55,7 @@ export function ViewStrip({
   const [kind, setKind] = useState<ViewKind>("board");
   /* A roadmap draws the dated options of a select, so it offers selects alone. */
   const groupable = data.properties.filter((p) =>
-    kind === "roadmap" ? p.type === "select" : GROUPABLE_TYPES.includes(p.type),
+    kind === "roadmap" ? isSelect(p.type) : GROUPABLE_TYPES.includes(p.type),
   );
   const [picked, setGroupById] = useState(groupable[0]?.id ?? "");
   const groupById = groupable.some((p) => p.id === picked) ? picked : (groupable[0]?.id ?? "");

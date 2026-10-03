@@ -176,3 +176,13 @@ describe("optionTasks", () => {
     expect(optionTasks("p-version", "v2", live, archived, undefined).archived).toEqual([]);
   });
 });
+
+describe("an iteration on a roadmap", () => {
+  it("draws its options as a dated select's", () => {
+    const sprints: PropertyDTO = {
+      ...release([option("s1", { startAt: "2026-09-01", targetAt: "2026-09-14" }), option("s2")]),
+      type: "iteration",
+    };
+    expect(roadmapRows(sprints, [], [], rule, "UTC").map((r) => r.id)).toEqual(["s1"]);
+  });
+});

@@ -14,11 +14,15 @@ export type OptionDates = {
 
 export const NOTE_MAX = 2000;
 
-/** True when a property says its options carry dates. Only a select can. */
+/**
+ * True when a property's options carry dates. An iteration always does; a
+ * select only when somebody switched it on.
+ */
 export function carriesDates(property: {
   type: string;
   config: { dated?: boolean } | null;
 }): boolean {
+  if (property.type === "iteration") return true;
   return property.type === "select" && property.config?.dated === true;
 }
 

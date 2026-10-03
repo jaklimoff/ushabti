@@ -9,6 +9,7 @@ import { nextPaletteColor } from "@/lib/colors";
 import { rankAfter } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
 import { datesClash, namesOptionDates, ONLY_SELECT, readOptionDates } from "@/lib/option-dates";
+import { isSelect, hasOptions } from "@/lib/types";
 
 type Ctx = { params: Promise<{ propertyId: string }> };
 
@@ -23,7 +24,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     .from(properties)
     .where(eq(properties.id, propertyId))
     .limit(1);
-  if (prop.type !== "select" && prop.type !== "multi_select") {
+  if (!hasOptions(prop.type)) {
     throw new HttpError(400, "Only select properties have options.");
   }
 
@@ -33,7 +34,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const name = str(input.name, "Option name", { max: 40 });
   const dates = readOptionDates(input);
   if ("error" in dates) throw new HttpError(400, dates.error);
-  if (namesOptionDates(input) && prop.type !== "select") throw new HttpError(400, ONLY_SELECT);
+  if (namesOptionDates(input) && !isSelect(prop.type)) throw new HttpError(400, ONLY_SELECT);
   const clash = datesClash({
     startAt: dates.patch.startAt ?? null,
     targetAt: dates.patch.targetAt ?? null,

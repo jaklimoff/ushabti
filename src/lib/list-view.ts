@@ -63,6 +63,7 @@ const WIDTH_OF_TYPE: Record<PropertyType, number> = {
   text: 168,
   number: 76,
   link: 168,
+  iteration: 112,
 };
 
 /**

@@ -1,6 +1,7 @@
 export const PROPERTY_TYPES = [
   "select",
   "multi_select",
+  "iteration",
   "person",
   "text",
   "number",
@@ -20,6 +21,7 @@ export const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
   date: "Date",
   checkbox: "Checkbox",
   link: "Link",
+  iteration: "Iteration",
 };
 
 export const PROPERTY_TYPE_HINT: Record<PropertyType, string> = {
@@ -31,10 +33,25 @@ export const PROPERTY_TYPE_HINT: Record<PropertyType, string> = {
   date: "A calendar date.",
   checkbox: "On or off.",
   link: "Web addresses, such as a pull request.",
+  iteration: "Sprints: one option each, always with dates. Can group the board.",
 };
 
 /** Only these types can become the columns of a board. */
-export const GROUPABLE_TYPES: PropertyType[] = ["select", "person", "checkbox"];
+export const GROUPABLE_TYPES: PropertyType[] = ["select", "iteration", "person", "checkbox"];
+
+/**
+ * True for a select, and for an iteration, which is a select whose options
+ * always carry dates. Ask this, never `type === "select"`, so an iteration
+ * works everywhere a select does with no second code path.
+ */
+export function isSelect(type: string): boolean {
+  return type === "select" || type === "iteration";
+}
+
+/** True for every type whose values are options from a list somebody defined. */
+export function hasOptions(type: string): boolean {
+  return isSelect(type) || type === "multi_select";
+}
 
 export type PropertyConfig = {
   /**

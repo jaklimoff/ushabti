@@ -14,6 +14,7 @@ import { Field, Input, Select } from "@/components/ui/Form";
 import { Card, Note, Row, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
+import { isSelect } from "@/lib/types";
 
 export function ProjectPanel() {
   const { data, notify, refresh, send } = useBoard();
@@ -52,7 +53,7 @@ export function ProjectPanel() {
    * select can answer: a date or a number has no option to point at.
    */
   const doneWhen = data.project.doneWhen;
-  const selects = data.properties.filter((p) => p.type === "select" && p.options.length > 0);
+  const selects = data.properties.filter((p) => isSelect(p.type) && p.options.length > 0);
   /*
    * Picking a property asks the question; the option answers it, exactly as a
    * filter does. So the property lives here until the option is chosen —
@@ -346,7 +347,7 @@ export function ProjectPanel() {
                     Set up sprints
                   </Button>
                   <Note>
-                    Adds a select property <b>Sprint</b>, a board <b>Sprint</b> that shows the
+                    Adds an iteration property <b>Sprint</b>, a board <b>Sprint</b> that shows the
                     current sprint, and a list <b>Backlog</b> of the tasks in no sprint. A sprint is
                     current while its dates hold today. You can rename or delete each one
                     afterwards.

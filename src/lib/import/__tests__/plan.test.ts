@@ -53,6 +53,16 @@ describe("planImport", () => {
     expect(plan.lists.map((l) => l.name)).toEqual(["To do", "in progress", "Done"]);
   });
 
+  it("takes an iteration the main view groups by, as it takes a select", () => {
+    const sprint = { id: "prop-sprint", name: "Sprint", type: "iteration", options: [] };
+    const shape = board();
+    const plan = planImport(
+      fixture(),
+      board({ properties: [...shape.properties, sprint], groupPropertyId: sprint.id }),
+    );
+    expect(plan.group).toEqual({ id: sprint.id, name: "Sprint", making: false });
+  });
+
   it("proposes an option whose name matches, ignoring case", () => {
     const plan = planImport(fixture(), board());
     const doing = plan.lists.find((l) => l.name === "in progress");

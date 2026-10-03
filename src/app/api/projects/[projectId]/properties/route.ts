@@ -6,7 +6,7 @@ import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
 import { optionColumns, toOptionDTO, withProjectLock } from "@/lib/queries";
 import { rankAfter, rankSequence } from "@/lib/rank";
-import { PROPERTY_TYPES, type PropertyOptionDTO, type PropertyType } from "@/lib/types";
+import { hasOptions, PROPERTY_TYPES, type PropertyOptionDTO, type PropertyType } from "@/lib/types";
 import { PALETTE } from "@/lib/colors";
 import { takenBy, takenSaid } from "@/lib/option-name";
 
@@ -23,7 +23,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     throw new HttpError(400, "That property type does not exist.");
 
   const names =
-    (type === "select" || type === "multi_select") && Array.isArray(input.options)
+    hasOptions(type) && Array.isArray(input.options)
       ? input.options
           .map((o) => (typeof o === "string" ? o.trim() : ""))
           .filter(Boolean)

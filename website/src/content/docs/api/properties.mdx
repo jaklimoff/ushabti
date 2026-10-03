@@ -22,8 +22,8 @@ import { Aside, Badge } from '@astrojs/starlight/components'
 | Field | Rules |
 | --- | --- |
 | `name` | required, ≤ 40 characters |
-| `type` | required — `select`, `multi_select`, `person`, `text`, `number`, `date`, `checkbox`, `link` |
-| `options` | only read for `select` and `multi_select`; blanks dropped, then capped at 40. Two names that differ only in letter case or spaces answer `400 Environment already has an option named local.` and make nothing |
+| `type` | required — `select`, `multi_select`, `iteration`, `person`, `text`, `number`, `date`, `checkbox`, `link` |
+| `options` | only read for `select`, `iteration` and `multi_select`; blanks dropped, then capped at 40. Two names that differ only in letter case or spaces answer `400 Environment already has an option named local.` and make nothing |
 
 Option colours cycle through the palette. The property is appended last, and joins every card in the
 footer, where its type belongs — except a `link`, which starts off the card.
@@ -297,7 +297,7 @@ A rule never carries both `values` and `text`.
 
 | Property type | Operators, in menu order |
 | --- | --- |
-| `select` · `multi_select` · `person` | `is` · `is_not` |
+| `select` · `iteration` · `multi_select` · `person` | `is` · `is_not` |
 | `checkbox` | `is` |
 | `text` | `contains` · `not_contains` · `empty` · `not_empty` |
 | `link` | `contains` · `not_contains` · `empty` · `not_empty` — `contains` matches any URL of the list |

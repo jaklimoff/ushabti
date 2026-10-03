@@ -6,6 +6,7 @@ import { readId } from "./api";
 import { HttpError } from "./auth";
 import type { PropertyType, TaskValue } from "./types";
 import { LinkError, readLinks } from "./web-links";
+import { hasOptions } from "./types";
 
 export type PropertyRow = {
   id: string;
@@ -37,6 +38,7 @@ export async function coerceValue(prop: PropertyRow, raw: unknown): Promise<Task
   }
 
   switch (prop.type) {
+    case "iteration":
     case "select": {
       if (typeof raw !== "string") throw new HttpError(400, `${prop.name} needs one option.`);
       await assertOptions(prop.id, [raw]);
@@ -114,7 +116,7 @@ export async function describeValue(prop: PropertyRow, value: TaskValue): Promis
   if (value === null || value === undefined || (Array.isArray(value) && value.length === 0)) {
     return "empty";
   }
-  if (prop.type === "select" || prop.type === "multi_select") {
+  if (hasOptions(prop.type)) {
     const ids = Array.isArray(value) ? value : [String(value)];
     const rows = await db
       .select({ id: propertyOptions.id, name: propertyOptions.name })

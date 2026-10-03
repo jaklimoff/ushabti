@@ -32,9 +32,10 @@ import { useDismiss } from "@/components/ui/useDismiss";
 import { PALETTE } from "@/lib/colors";
 import {
   GROUPABLE_TYPES,
-  PROPERTY_TYPES,
+  hasOptions,
   PROPERTY_TYPE_HINT,
   PROPERTY_TYPE_LABEL,
+  PROPERTY_TYPES,
   type PropertyDTO,
   type PropertyType,
 } from "@/lib/types";
@@ -72,13 +73,12 @@ export function PropertiesPanel() {
   async function create() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const list =
-      type === "select" || type === "multi_select"
-        ? options
-            .split(",")
-            .map((o) => o.trim())
-            .filter(Boolean)
-        : undefined;
+    const list = hasOptions(type)
+      ? options
+          .split(",")
+          .map((o) => o.trim())
+          .filter(Boolean)
+      : undefined;
     setName("");
     setOptions("");
     await addProperty(trimmed, type, list);
@@ -129,7 +129,7 @@ export function PropertiesPanel() {
               </option>
             ))}
           </Select>
-          {(type === "select" || type === "multi_select") && (
+          {hasOptions(type) && (
             <Input
               style={{ flex: 1, minWidth: 160 }}
               value={options}
@@ -306,7 +306,8 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
             <Tag title="A view can use this property for its columns">groupable</Tag>
           )}
           {/* Off, a select's options read as they did before they had dates.
-              Off keeps the values: it hides the boxes and writes nothing. */}
+              Off keeps the values: it hides the boxes and writes nothing.
+              An iteration always carries them, so it has no switch. */}
           {property.type === "select" && (
             <label className={styles.datedSwitch}>
               <input
@@ -333,29 +334,27 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
         </div>
       </div>
 
-      {(property.type === "select" || property.type === "multi_select") &&
-        dropConfirm.asking &&
-        dropping && (
-          <ConfirmRow
-            question={
-              holders === null
-                ? `Delete ${dropping.name}? Counting the tasks that hold it…`
-                : holders === 0
-                  ? `Delete ${dropping.name}? No task holds it.`
-                  : `Delete ${dropping.name}? ${holders} ${holders === 1 ? "task loses" : "tasks lose"} it.`
-            }
-            pending={holders === null}
-            onConfirm={() => {
-              dropAnswered();
-              dropConfirm.confirm(() => void deleteOption(dropping.id));
-            }}
-            onCancel={() => {
-              dropAnswered();
-              dropConfirm.cancel();
-            }}
-          />
-        )}
-      {(property.type === "select" || property.type === "multi_select") && !dropConfirm.asking && (
+      {hasOptions(property.type) && dropConfirm.asking && dropping && (
+        <ConfirmRow
+          question={
+            holders === null
+              ? `Delete ${dropping.name}? Counting the tasks that hold it…`
+              : holders === 0
+                ? `Delete ${dropping.name}? No task holds it.`
+                : `Delete ${dropping.name}? ${holders} ${holders === 1 ? "task loses" : "tasks lose"} it.`
+          }
+          pending={holders === null}
+          onConfirm={() => {
+            dropAnswered();
+            dropConfirm.confirm(() => void deleteOption(dropping.id));
+          }}
+          onCancel={() => {
+            dropAnswered();
+            dropConfirm.cancel();
+          }}
+        />
+      )}
+      {hasOptions(property.type) && !dropConfirm.asking && (
         <div className={`${styles.options} ${dated ? styles.optionsRows : ""}`}>
           {/* Labels wrap, so their strategy is a grid's; a select's options
               take a line each while they carry dates, so theirs is a list's. The

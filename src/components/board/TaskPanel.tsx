@@ -53,6 +53,7 @@ import { MentionList, useMentions } from "./Mentions";
 import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
 import styles from "./panel.module.css";
+import { hasOptions } from "@/lib/types";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -716,7 +717,7 @@ export function TaskPanel({
                       labelId={`${ids}-field-${property.id}`}
                       onChange={(value: TaskValue) => void writeValue(property.id, value)}
                       onAddOption={
-                        property.type === "select" || property.type === "multi_select"
+                        hasOptions(property.type)
                           ? (name) => makeOption(property.id, name)
                           : undefined
                       }

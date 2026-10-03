@@ -10,7 +10,13 @@ import { useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
-import type { ImportMadeDTO, ImportPreviewDTO, ImportRowDTO, PropertyDTO } from "@/lib/types";
+import {
+  isSelect,
+  type ImportMadeDTO,
+  type ImportPreviewDTO,
+  type ImportRowDTO,
+  type PropertyDTO,
+} from "@/lib/types";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
@@ -243,7 +249,7 @@ function Preview({
   onImport: () => void;
   onAgain: () => void;
 }) {
-  const selects = properties.filter((p) => p.type === "select");
+  const selects = properties.filter((p) => isSelect(p.type));
   const group = properties.find((p) => p.id === preview.group.propertyId) ?? null;
   const labels = properties.find(
     (p) => p.type === "multi_select" && p.name.toLowerCase() === "labels",
