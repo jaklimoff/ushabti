@@ -341,6 +341,11 @@ and what is easy to get wrong.
 - **A field saves on blur. A destructive action confirms in place. Nothing
   else has a Save button.** Settings used to hold six different save models on
   one page, and the one field a new person edits first was the odd one out.
+  Two boxes are outside the rule, and both are comments: the composer posts
+  with **Comment**, and the edit of a comment saves with **Update**, with
+  Mod + Enter for both. A comment is a sentence somebody signed, so a misclick
+  must not rewrite it: its edit box saves nothing on a blur and nothing on a
+  closed tab.
   `ConfirmRow` is the answer to "the board has no dialogs": the row becomes the
   question, and the question names the cost in real numbers. **A closed tab
   sends no blur**, so every such field also says what it owes to
