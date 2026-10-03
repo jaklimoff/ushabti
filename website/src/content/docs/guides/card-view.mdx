@@ -76,10 +76,13 @@ The edge is also what the **task panel** takes its band colour from.
 | Select, multi-select       | **Both** (dot and name) · **Colour** (a square) · **Text** |
 | Person                     | **Avatar** · **Name** · **Both**        |
 | Task ID, date, text, number, checkbox | **Plain** · **Boxed**        |
+| Link                       | **Plain** · **Boxed**                   |
 | Description                | **2 lines** · **1 line**                |
 | Checklist                  | **Bar** · **Count**                     |
 
-A multi-select draws one part per value, so three labels are three squares.
+A multi-select draws one part per value, so three labels are three squares. A Link draws one part
+for all its links: the first one, and `+N` for the rest — `acme/shop#12 +2`. It is words, not a
+link, so a click on it opens the task. A new Link property starts in *Not shown*.
 
 Asking an edge row for words moves it into the header, because a stripe has nowhere to put them.
 

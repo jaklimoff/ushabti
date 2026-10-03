@@ -82,6 +82,7 @@ const ASK: Record<PropertyType, string> = {
   text: "What words?",
   number: "What number?",
   date: "Which date?",
+  link: "What part of a link?",
 };
 
 /*

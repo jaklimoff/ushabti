@@ -1,6 +1,6 @@
 ---
 title: Properties
-description: The seven property types in Ushabti, how to create, rename, recolour, reorder and delete them, and what "show on card" decides.
+description: The eight property types in Ushabti, how to create, rename, recolour, reorder and delete them, and what "show on card" decides.
 sidebar:
   order: 1
 ---
@@ -15,7 +15,7 @@ Under the surface a property is a row in `properties`, and a value is a row in `
 by task **and** property. That is why adding a property costs nothing and deleting one takes its
 values with it.
 
-## The seven types
+## The eight types
 
 | Type             | Holds                              | Can group a view                     | In the panel it is                       |
 | ---------------- | ---------------------------------- | ------------------------------------ | ---------------------------------------- |
@@ -26,6 +26,7 @@ values with it.
 | **Number**       | a number                           | no                                   | an input, numeric keypad on a phone       |
 | **Date**         | a calendar date, `YYYY-MM-DD`      | no                                   | a native date picker, shown as `Aug 28`   |
 | **Checkbox**     | on or off                          | <Badge text="yes" variant="tip" />   | a switch                                 |
+| **Link**         | up to 20 web addresses             | no                                   | links that open in a new tab, and a box to paste one more |
 
 Only **select, person and checkbox** can be a view's grouping property, because a task must sit in
 exactly one column. A multi-select would put one card in three places at once.
@@ -36,6 +37,30 @@ five options or fewer, every name is at most eight characters, and the names add
 characters or less. Otherwise it is a dropdown. `XS S M L XL` gets a compact style with no dots.
 Clicking the option already chosen clears it.
 </Aside>
+
+## Link
+
+A Link holds web addresses, such as the pull requests that carry a task's code. The description
+already makes a URL clickable. A Link gives you what a description cannot: a filter, a sort, a chip
+on the card, and a value an agent can read back.
+
+- **Only `http` and `https`.** At most 20 links, each at most 2000 characters.
+- **No link two times.** The board compares links without the `#fragment` and without a trailing
+  `/`, so the same pull request pasted two times is kept once.
+- **How a link reads.** A path that ends in `/pull/N`, `/pulls/N`, `/issues/N` or
+  `/merge_requests/N` reads as `owner/repo#N`, on any host — GitHub, GitLab, Gitea. Any other link
+  reads as its host and path, made shorter.
+- **In the panel** each link is a real link that opens in a new tab. Paste a link into the box and
+  press Enter (or leave the box) to add it. Press its ✕ to remove it.
+- **On the card** a new Link property starts off the card. Put it on the card in
+  [Card view](/ushabti/guides/card-view/) and the chip shows the first link and `+N` when there are
+  more. The chip is words and not a link: a click on the card still opens the task.
+- **A filter** asks *contains*, *does not contain*, *is empty* and *is not empty*. *Contains* finds
+  a match in any link of the list.
+- **A sort** uses the words of the first link. A task with no link sorts last.
+- **The activity** says how many links the value holds — "2 links" — and not the addresses.
+
+The board never opens a link itself: no preview, no page title, no state of a pull request.
 
 ## Everything you do to a property
 
@@ -53,7 +78,7 @@ Type:    Select
 Options: local, staging, production
 ```
 
-New properties are appended last and start on the card. Up to forty options at
+New properties are appended last and start on the card, except a Link, which starts off it. Up to forty options at
 creation; their colours cycle through the palette. Any member can add a property.
 
 ### Rename it

@@ -240,7 +240,7 @@ const nameOf = (row) => row.name;
 function coerce(data, property, raw) {
   const text = String(raw ?? "").trim();
   if (text === "" || text.toLowerCase() === "none") {
-    return property.type === "multi_select" ? [] : null;
+    return property.type === "multi_select" || property.type === "link" ? [] : null;
   }
 
   switch (property.type) {
@@ -248,6 +248,12 @@ function coerce(data, property, raw) {
       return optionId(property, text);
     case "multi_select":
       return text.split(",").map((part) => optionId(property, part.trim()));
+    /* The server checks each link and drops one it already holds. */
+    case "link":
+      return text
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
     case "person": {
       const member = data.members.find(
         (m) => m.name.toLowerCase() === text.toLowerCase() || m.id === text,
@@ -295,6 +301,7 @@ function valueText(data, property, value) {
     return value.map((id) => property.options.find((o) => o.id === id)?.name ?? "?").join(",");
   if (property.type === "person") return data.members.find((m) => m.id === value)?.name ?? "?";
   if (property.type === "checkbox") return value ? property.name : "";
+  if (property.type === "link") return value.join(" ");
   return String(value);
 }
 
@@ -342,7 +349,7 @@ async function linkWork(method) {
 function taskLine(data, task) {
   const run = data.runs.find((r) => r.taskId === task.id);
   const bits = data.properties
-    .filter((p) => p.type !== "text")
+    .filter((p) => p.type !== "text" && p.type !== "link")
     .map((p) => valueText(data, p, task.values[p.id]))
     .filter(Boolean);
   const held = run ? `  <- ${run.agent.name}: ${run.step || run.goal || "working"}` : "";
@@ -415,6 +422,8 @@ const commands = {
   task <key>                          one task in full
   new "<title>" [--set "Name=Value"]  create a task
   set <key> "<Property>" "<Value>"    set one property (names, not ids)
+  set <key> "<Link>" "<url>[,<url>]"  replace the links of a Link property
+  set <key> "<Link>" --add "<url>"    add one link and keep the others
   comment <key> "<text>"              leave a note
   archive <key>                       take it off the board, keep its history
   restore <key>                       put an archived task back
@@ -496,6 +505,13 @@ http://localhost:3000.`);
       console.log(`  ARCHIVED — off every board and list. Put it back: restore ${task.key}`);
     }
     for (const p of data.properties) {
+      /* One link to a line, whole, so an agent can read a pull request back. */
+      if (p.type === "link") {
+        const links = detail.values[p.id] ?? [];
+        if (links.length) console.log(`  ${p.name}:`);
+        for (const link of links) console.log(`    ${link}`);
+        continue;
+      }
       const text = valueText(data, p, detail.values[p.id]);
       if (text) console.log(`  ${p.name}: ${text}`);
     }
@@ -557,9 +573,21 @@ http://localhost:3000.`);
     const data = await board();
     const task = findTask(data, positional[0]);
     const property = findProperty(data, positional[1]);
-    const value = coerce(data, property, positional[2]);
-    await call("PUT", `/api/tasks/${task.id}/values/${property.id}`, { value });
-    console.log(`${task.key}: ${property.name} = ${valueText(data, property, value) || "empty"}`);
+    let value = coerce(data, property, positional[2]);
+    /*
+     * --add keeps the links already there. It reads and then writes, and the
+     * server holds no lock between the two, so two writers at the same moment
+     * can lose one link.
+     */
+    if (flags.add !== undefined) {
+      if (property.type !== "link")
+        fail(`--add is for a Link property. ${property.name} is not one.`);
+      const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
+      value = [...(detail.values[property.id] ?? []), ...coerce(data, property, flags.add)];
+    }
+    const saved = await call("PUT", `/api/tasks/${task.id}/values/${property.id}`, { value });
+    const stored = saved?.value ?? value;
+    console.log(`${task.key}: ${property.name} = ${valueText(data, property, stored) || "empty"}`);
   },
 
   async comment() {

@@ -1,5 +1,6 @@
 import type { CardItem } from "./card-view";
 import { KIND_OF_BUILTIN, KIND_OF_TYPE } from "./card-view";
+import { linkLabel, linksOf } from "./web-links";
 import {
   CARD_BUILTINS,
   SORT_DIRECTIONS,
@@ -180,6 +181,12 @@ function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[]): SortKey {
     case "date":
       /* An ISO date compares as words and comes out chronological. */
       return String(value);
+    case "link": {
+      /* The words the chip shows, so the order reads off the screen. A list
+         with no link in it is empty, as an empty multi-select is. */
+      const first = linksOf(value)[0];
+      return first ? linkLabel(first) : null;
+    }
     default:
       /* A number is a number. Everything else with words is words — the two
          share a card kind, and here they must not. */
@@ -260,6 +267,7 @@ const WAYS_OF_KIND: Record<CardKind, Record<SortDirection, string>> = {
   date: { asc: "Earliest first", desc: "Latest first" },
   flag: { asc: "Ticked first", desc: "Not ticked first" },
   text: { asc: "A→Z", desc: "Z→A" },
+  link: { asc: "A→Z", desc: "Z→A" },
 };
 
 /** A number shares the text kind on a card, and here it must not. */

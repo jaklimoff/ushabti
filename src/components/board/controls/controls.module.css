@@ -280,3 +280,37 @@
   transform: translateX(15px);
   background: var(--accent-soft);
 }
+
+.links {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 22px;
+  font-size: 12px;
+}
+
+.linkText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--accent-soft);
+  text-decoration: none;
+}
+
+.linkText:hover {
+  text-decoration: underline;
+}
+
+.linkProblem {
+  font-size: 11px;
+  color: var(--danger-text);
+}

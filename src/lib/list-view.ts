@@ -62,6 +62,7 @@ const WIDTH_OF_TYPE: Record<PropertyType, number> = {
   checkbox: 96,
   text: 168,
   number: 76,
+  link: 168,
 };
 
 /**

@@ -279,6 +279,30 @@ describe("the export", () => {
     expect(second).toMatchObject({ key: "USH-2", archivedAt: AT.toISOString(), blockedBy: [] });
   });
 
+  it("carries a Link value as it is stored", async () => {
+    const PRS = "00000000-0000-4000-8000-0000000000f1";
+    const links = ["https://github.com/acme/shop/pull/12#top", "https://example.org/x"];
+    fake.rows.set(properties, [
+      ...(fake.rows.get(properties) ?? []),
+      {
+        id: PRS,
+        projectId: PROJECT,
+        name: "Pull requests",
+        type: "link",
+        position: "a1",
+        config: {},
+        createdAt: AT,
+      },
+    ]);
+    fake.rows.set(taskValues, [
+      ...(fake.rows.get(taskValues) ?? []),
+      { taskId: taskId(1), propertyId: PRS, value: links },
+    ]);
+    const file = await loadExport(PROJECT, AT);
+    expect(file.properties.find((p) => p.id === PRS)?.type).toBe("link");
+    expect(file.tasks[0].values[PRS]).toEqual(links);
+  });
+
   /* The ids a value or an author names are the ids the file lists. */
   it("names only ids it also lists", async () => {
     const file = await loadExport(PROJECT, AT);

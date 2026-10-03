@@ -130,6 +130,25 @@ agent can start without asking anything.
 
 Keep it short. A refined task is one a person reads in a minute.
 
+## The link to your pull request
+
+When you open a pull request for a task, put its link on the task. A **Link**
+property holds web addresses. Find the right one by this rule, and by no other:
+
+1. One Link property on the board (`props` lists the types): use it.
+2. More than one: use the one whose name says PR or pull.
+3. None, or several and none named so: write nothing, and say so in the run
+   log — `step <key> --log "no Link property for the pull request"`. Put the
+   link in your comment instead.
+
+```bash
+node board.mjs set USH-14 "Pull requests" --add "https://github.com/acme/shop/pull/12"
+```
+
+`--add` keeps the links already there; `set` with a value replaces them all
+(several links: separate them with commas). `--add` reads and then writes, so
+two writers at the same moment can lose one link. `task` prints each link.
+
 ## Rules
 
 - **Report before each part of the work, not after all of it.** A card that
