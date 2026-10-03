@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { optionMenu } from "../option-menu";
+import { openingAt, optionMenu } from "../option-menu";
 import type { PropertyOptionDTO } from "../types";
 
 function options(...names: string[]): PropertyOptionDTO[] {
@@ -49,5 +49,19 @@ describe("optionMenu", () => {
 
   it("offers only Add when nothing matches", () => {
     expect(names("  Blocker ")).toEqual({ matches: [], add: "Blocker" });
+  });
+});
+
+describe("openingAt", () => {
+  const SPRINTS = options("Sprint 1", "Sprint 2", "Sprint 3");
+
+  it("opens on the current option, past the empty row, whatever the field holds", () => {
+    expect(openingAt(SPRINTS, null, "o1")).toBe(2);
+    expect(openingAt(SPRINTS, "o0", "o1")).toBe(2);
+  });
+
+  it("opens on the value with no current option, and on the empty row with neither", () => {
+    expect(openingAt(SPRINTS, "o2", null)).toBe(3);
+    expect(openingAt(SPRINTS, null, null)).toBe(0);
   });
 });

@@ -91,15 +91,19 @@ test("a shipped sprint leaves the board, the picker and the filter list, and sta
 
   /* ---- the picker offers the open ones, plus the one a task holds ----- */
 
+  /* An iteration's picker is a menu, so it can open on the current sprint. */
+  const offered = (page: Page) =>
+    field(page, "Sprint").getByRole("option").filter({ hasText: /^S\d/ });
   await card(page, "Old work").click();
-  await expect(field(page, "Sprint").getByRole("button")).toHaveText(["S1", "S2", "S3"]);
-  await expect(field(page, "Sprint").getByRole("button", { name: "S1" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await field(page, "Sprint").getByRole("button", { name: /S1/ }).click();
+  await expect(offered(page)).toHaveText([/^S1/, /^S2/, /^S3/]);
+  await expect(offered(page).filter({ hasText: /^S1/ })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await card(page, "New work").click();
-  await expect(field(page, "Sprint").getByRole("button")).toHaveText(["S2", "S3"]);
+  await field(page, "Sprint").getByRole("button").click();
+  await expect(offered(page)).toHaveText([/^S2/, /^S3/]);
+  await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
 
   /* ---- the filter keeps it behind one fold ---------------------------- */

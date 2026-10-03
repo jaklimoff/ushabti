@@ -25,3 +25,16 @@ export function optionMenu(
   const partial = options.filter((o) => !same(o) && o.name.toLowerCase().includes(typed));
   return { matches: [...exact, ...partial], add: taken.some(same) ? null : name };
 }
+
+/**
+ * Where the highlight sits when the menu opens, in a menu whose first row is
+ * the empty one. It is the current option when there is one, because that is
+ * the answer a sprint picker is asked for; otherwise the value the field holds.
+ */
+export function openingAt(
+  options: PropertyOptionDTO[],
+  value: string | null,
+  current: string | null,
+): number {
+  return options.findIndex((o) => o.id === (current ?? value)) + 1;
+}

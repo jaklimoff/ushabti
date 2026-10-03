@@ -4,10 +4,10 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { tint } from "@/lib/colors";
 import { formatDate } from "@/lib/board";
-import { keyName } from "@/lib/filters";
+import { currentOption, keyName } from "@/lib/filters";
 import { NO_VALUE_KEY } from "@/lib/types";
 import type { MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
-import { optionMenu } from "@/lib/option-menu";
+import { openingAt, optionMenu } from "@/lib/option-menu";
 import { pickableOptions } from "@/lib/option-dates";
 import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
 import { Avatar } from "@/components/ui/Avatar";
@@ -21,6 +21,8 @@ type Props = {
   members: MemberDTO[];
   onChange: (value: TaskValue) => void;
   onAddOption?: (name: string) => Promise<string | null>;
+  /** The board's day, which an iteration's picker reads "current" against. */
+  today: string;
   /** The label beside the field, which names it. A selection draws the
       property's name as a button of its own, so it has none to point at. */
   labelId?: string;
@@ -56,8 +58,13 @@ function noneName(property: PropertyDTO): string {
   return keyName(NO_VALUE_KEY, property, []);
 }
 
-/** A row of options fits as a segmented control only when it stays narrow. */
+/**
+ * A row of options fits as a segmented control only when it stays narrow. An
+ * iteration never does: a row of buttons has no place to open on, and the
+ * current sprint is what its picker opens on.
+ */
 function fitsSegmented(property: PropertyDTO): boolean {
+  if (property.type === "iteration") return false;
   if (property.options.length === 0 || property.options.length > 5) return false;
   const width = property.options.reduce((sum, o) => sum + o.name.length, 0);
   return width <= 26 && property.options.every((o) => o.name.length <= 8);
@@ -180,6 +187,7 @@ function OptionMenu({
   canAdd,
   isOn,
   pick,
+  current = null,
 }: {
   property: PropertyDTO;
   entries: Entry[];
@@ -190,6 +198,8 @@ function OptionMenu({
   canAdd: boolean;
   isOn: (entry: Entry) => boolean;
   pick: (entry: Entry) => void;
+  /** The option that holds today, which its row names. */
+  current?: string | null;
 }) {
   const listId = useId();
   const name = property.name.toLowerCase();
@@ -220,6 +230,7 @@ function OptionMenu({
             entry={entry}
             at={i === at}
             on={isOn(entry)}
+            current={entry.kind === "option" && entry.option.id === current}
             onPick={() => pick(entry)}
           />
         ))}
@@ -235,6 +246,7 @@ function EntryRow({
   entry,
   at,
   on,
+  current,
   onPick,
 }: {
   id: string;
@@ -242,6 +254,7 @@ function EntryRow({
   entry: Entry;
   at: boolean;
   on: boolean;
+  current: boolean;
   onPick: () => void;
 }) {
   const color =
@@ -269,6 +282,7 @@ function EntryRow({
         : entry.kind === "add"
           ? `Add “${entry.name}”`
           : none}
+      {current && <span className={styles.current}>current</span>}
       {entry.kind !== "add" && (
         <>
           <span style={{ flex: 1 }} />
@@ -285,7 +299,7 @@ function EntryRow({
   );
 }
 
-function SelectMenu({ property, value, onChange, onAddOption, labelId, taken }: Props) {
+function SelectMenu({ property, value, onChange, onAddOption, labelId, taken, today }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [rawAt, setAt] = useState(0);
@@ -297,6 +311,8 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId, taken }: 
   }, open);
   const once = useOneAtATime();
   const current = property.options.find((o) => o.id === value);
+  // A dated select is not asked: "current" there is the filter's word only.
+  const now = property.type === "iteration" ? currentOption(property, today) : null;
 
   const { matches, add } = optionMenu(property.options, draft, taken);
   // A search shows what matches, so the empty row steps aside while somebody types.
@@ -329,8 +345,8 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId, taken }: 
 
   function toggleOpen() {
     if (!open) {
-      const here = property.options.findIndex((o) => o.id === value);
-      setAt(draft.trim() ? 0 : here + 1);
+      const here = openingAt(property.options, typeof value === "string" ? value : null, now);
+      setAt(draft.trim() ? 0 : here);
     }
     setOpen((v) => !v);
   }
@@ -368,6 +384,7 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId, taken }: 
               entry.kind === "option" ? value === entry.option.id : entry.kind === "empty" && !value
             }
             pick={pick}
+            current={now}
           />
         </div>
       )}
