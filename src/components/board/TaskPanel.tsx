@@ -33,6 +33,7 @@ import type {
   ChecklistItemDTO,
   RunControl,
   TaskDTO,
+  AttachmentDTO,
   TaskDetailDTO,
   TaskLinkDTO,
   TaskValue,
@@ -48,6 +49,9 @@ import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
 import { Markdown, type TaskKeyLinks } from "./Markdown";
+import { FilesStrip } from "./FilesStrip";
+import { MarkdownBox } from "./MarkdownBox";
+import { withoutUploadLines } from "@/lib/uploads";
 import { MentionList, useMentions } from "./Mentions";
 import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
@@ -749,7 +753,18 @@ export function TaskPanel({
                 sign={editingSaid(editing("description"), "the description")}
                 inField={inField}
                 links={links}
+                counted={counted}
+                files={detail?.attachments ?? []}
+                reload={reload}
                 onCommit={(description, base) => patch({ description }, { description: base })}
+              />
+
+              <FilesStrip
+                files={detail?.attachments ?? []}
+                meId={user.id}
+                send={counted}
+                reload={reload}
+                onError={notify}
               />
 
               <Checklist
@@ -1766,6 +1781,9 @@ function Description({
   sign,
   inField,
   links,
+  counted,
+  files,
+  reload,
   onCommit,
 }: {
   taskId: string;
@@ -1774,6 +1792,9 @@ function Description({
   sign: string | null;
   inField: (field: string | null) => void;
   links: TaskKeyLinks;
+  counted: Counted;
+  files: AttachmentDTO[];
+  reload: () => Promise<void>;
   onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1800,11 +1821,18 @@ function Description({
     setTyped(true);
   }
 
-  /* A name picked from the list is typing, as it is in the title. */
-  const picker = useMentions(ref, (text) => {
+  /* A name picked from the list is typing, as it is in the title, and so is
+     the line an upload writes. */
+  function typing(text: string) {
     setDraft(text);
     startTyping();
-  });
+  }
+
+  /* Files still on their way, and a blur that came while they were. The
+     words hold an upload line until the file is ready, so the save waits for
+     it rather than writing the line into the description. */
+  const [uploading, setUploading] = useState(0);
+  const held = useRef(false);
 
   /* The editor shows what the task says until somebody types, so a
      description another person wrote is on screen at once. */
@@ -1822,16 +1850,34 @@ function Description({
   }
 
   /* The same missing blur as the title, with the same base, and the same
-     refusal nobody is left to see. */
+     refusal nobody is left to see. An upload dies with the tab, so its line
+     is not part of what is saved. */
+  const leaving = withoutUploadLines(draft);
   useSaveOnLeave(() =>
-    owes
+    typed && leaving !== value && leaving !== base.current
       ? {
           method: "PATCH",
           url: `/api/tasks/${taskId}`,
-          body: { description: draft, baseDescription: base.current },
+          body: { description: leaving, baseDescription: base.current },
         }
       : null,
   );
+
+  function close(words = draft) {
+    setEditing(false);
+    setTyped(false);
+    if (words !== value && words !== base.current) void save(words, base.current);
+  }
+
+  /* The last file is in. The box hands over its words as they are now,
+     because this render's draft still holds the upload line. */
+  function uploaded(count: number, words?: string) {
+    setUploading(count);
+    if (count > 0 || !held.current) return;
+    held.current = false;
+    // Somebody who came back into the box is still writing.
+    if (words !== undefined && document.activeElement !== ref.current) close(words);
+  }
 
   /* Nothing reads the draft until the editor opens, so the click that opens it
      is what fills it in. */
@@ -1865,28 +1911,35 @@ function Description({
         />
       ) : editing ? (
         <>
-          <textarea
-            ref={ref}
+          <MarkdownBox
+            boxRef={ref}
+            taskId={taskId}
+            send={counted}
             className={styles.descEditor}
             autoFocus
             value={text}
             placeholder="Write in markdown…"
-            onChange={(e) => {
-              setDraft(e.target.value);
-              startTyping();
-              picker.sync();
+            onChange={typing}
+            onUploading={uploaded}
+            onUploaded={() => void reload()}
+            onFocus={() => {
+              held.current = false;
             }}
-            onSelect={picker.sync}
             onBlur={() => {
-              picker.close();
-              setEditing(false);
-              setTyped(false);
-              if (owes) void save(draft, base.current);
+              if (uploading > 0) {
+                /* The editor stays open for the line, but what was typed is
+                   saved now: a panel closed before the file lands raises no
+                   second blur. The file's line follows when it is ready. */
+                held.current = true;
+                if (typed && leaving !== value && leaving !== base.current) {
+                  const from = base.current;
+                  base.current = leaving;
+                  void save(leaving, from);
+                }
+              } else if (owes) close();
+              else close(value);
             }}
             onKeyDown={(e) => {
-              /* The list has the keys while it is open, so Escape closes it
-                 and leaves the editor and the words alone. */
-              if (picker.onKeyDown(e)) return;
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 (e.target as HTMLTextAreaElement).blur();
@@ -1901,7 +1954,6 @@ function Description({
               }
             }}
           />
-          <MentionList picker={picker} />
         </>
       ) : (
         <div
@@ -1911,7 +1963,11 @@ function Description({
           tabIndex={0}
           onKeyDown={(e) => e.key === "Enter" && edit()}
         >
-          {shown.trim() ? <Markdown text={shown} links={links} /> : "Add a description…"}
+          {shown.trim() ? (
+            <Markdown text={shown} links={links} files={files} />
+          ) : (
+            "Add a description…"
+          )}
         </div>
       )}
       <EditingSign said={sign} />
@@ -2191,9 +2247,12 @@ function Comments({
   const [draft, setDraft] = useDraft(commentDraftKey(data.project.id, taskId));
   const [busy, setBusy] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
-  /* A name picked from the list is typing, so it goes into the draft and
-     survives a closed tab like the rest of the note. */
-  const picker = useMentions(box, setDraft);
+  /* Files still on their way. The draft holds a line for each until it is
+     ready, and a note sent with that line would point at nothing. */
+  const [uploading, setUploading] = useState(0);
+  /* A line nothing is uploading for any more — the tab went to Activity, or
+     the panel closed, while a file was on its way — is not shown again. */
+  const note = uploading > 0 ? draft : withoutUploadLines(draft);
   /* Unlike the title, this takes the focus on a phone too: somebody who
      picked a question asked to write the answer. */
   useEffect(() => {
@@ -2205,8 +2264,8 @@ function Comments({
   const waitingFor = detail.run?.status === "waiting" ? detail.run.agent.name : null;
 
   async function send() {
-    const text = draft.trim();
-    if (!text || busy) return;
+    const text = note.trim();
+    if (!text || busy || uploading > 0) return;
     setBusy(true);
     try {
       await counted(() => api.post(`/api/tasks/${taskId}/comments`, { body: text }));
@@ -2224,9 +2283,11 @@ function Comments({
       {detail.comments.map((comment) => (
         <CommentItem
           key={comment.id}
+          taskId={taskId}
           comment={comment}
           mine={comment.author?.id === me.id}
           links={links}
+          files={detail.attachments}
           reload={reload}
           counted={counted}
           onError={onError}
@@ -2236,11 +2297,17 @@ function Comments({
       <div className={styles.composer}>
         <Avatar name={me.name} color={me.color} emoji={me.emoji} size={24} />
         <div className={styles.composerBox}>
-          <textarea
-            ref={box}
+          {/* A name picked from the list and an upload line are typing, so
+              they go into the draft and survive a closed tab like the rest. */}
+          <MarkdownBox
+            boxRef={box}
+            taskId={taskId}
+            send={counted}
+            onUploading={setUploading}
+            onUploaded={() => void reload()}
             className={styles.composerInput}
             data-testid="comment-box"
-            value={draft}
+            value={note}
             placeholder={
               waitingFor
                 ? `Answer ${waitingFor}…`
@@ -2249,23 +2316,16 @@ function Comments({
                   : "Leave a note…"
             }
             rows={3}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              picker.sync();
-            }}
-            onSelect={picker.sync}
-            onBlur={picker.close}
+            onChange={setDraft}
             onKeyDown={(e) => {
               /* The list has the keys while it is open, so Enter picks a
                  name. ⌘ or Ctrl + Enter still sends, which is how a note ends. */
-              if (picker.onKeyDown(e)) return;
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 void send();
               }
             }}
           />
-          <MentionList picker={picker} />
           <div className={styles.composerFoot}>
             <span style={{ fontSize: 10.5, color: "var(--faint-3)" }}>
               Markdown
@@ -2274,12 +2334,14 @@ function Comments({
               {mod && ` · ${mod} + Enter to send`}
             </span>
             <span style={{ flex: 1 }} />
+            {/* It says why it waits, rather than waiting in silence. */}
             <button
-              className={`${styles.send} ${draft.trim() ? styles.sendOn : styles.sendOff}`}
+              className={`${styles.send} ${note.trim() && !uploading ? styles.sendOn : styles.sendOff}`}
               onClick={() => void send()}
-              disabled={!draft.trim() || busy}
+              disabled={!note.trim() || busy || uploading > 0}
+              title={uploading > 0 ? "A file is still uploading" : undefined}
             >
-              Comment
+              {uploading > 0 ? "Uploading…" : "Comment"}
             </button>
           </div>
         </div>
@@ -2298,16 +2360,20 @@ function Comments({
  * author, because an admin may take a comment down but never put words in it.
  */
 function CommentItem({
+  taskId,
   comment,
   mine,
   links,
+  files,
   reload,
   counted,
   onError,
 }: {
+  taskId: string;
   comment: TaskDetailDTO["comments"][number];
   mine: boolean;
   links: TaskKeyLinks;
+  files: AttachmentDTO[];
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
@@ -2329,6 +2395,8 @@ function CommentItem({
   const edit = draft.trim();
   /* An empty comment is refused by the server; it is deleted instead. */
   const changed = edit !== "" && edit !== base.current && edit !== comment.body;
+  /* Files still on their way: Update waits for them, as the composer does. */
+  const [uploading, setUploading] = useState(0);
 
   function open() {
     base.current = comment.body;
@@ -2345,7 +2413,7 @@ function CommentItem({
   /* Closing on the same words loses nothing; closing on an empty box would
      throw away what was typed, so the box stays open, as the composer does. */
   function update() {
-    if (edit === "") return;
+    if (edit === "" || uploading > 0) return;
     setEditing(false);
     if (changed) void save(edit, base.current);
   }
@@ -2429,13 +2497,17 @@ function CommentItem({
           />
         ) : editing ? (
           <>
-            <textarea
+            <MarkdownBox
+              taskId={taskId}
+              send={counted}
+              onUploading={setUploading}
+              onUploaded={() => void reload()}
               className={styles.descEditor}
               data-testid="comment-editor"
               aria-label="Edit comment"
               autoFocus
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
@@ -2451,17 +2523,18 @@ function CommentItem({
                 Cancel
               </button>
               <button
-                className={`${styles.send} ${changed ? styles.sendOn : styles.sendOff}`}
+                className={`${styles.send} ${changed && !uploading ? styles.sendOn : styles.sendOff}`}
                 onClick={update}
-                disabled={!changed}
+                disabled={!changed || uploading > 0}
+                title={uploading > 0 ? "A file is still uploading" : undefined}
               >
-                Update
+                {uploading > 0 ? "Uploading…" : "Update"}
               </button>
             </div>
           </>
         ) : (
           <div className={styles.commentText}>
-            <Markdown text={shown} testId="comment-markdown" links={links} />
+            <Markdown text={shown} testId="comment-markdown" links={links} files={files} />
           </div>
         )}
       </div>

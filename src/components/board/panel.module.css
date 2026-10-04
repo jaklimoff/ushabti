@@ -650,6 +650,8 @@
   gap: 3px;
   min-width: 0;
   flex: 1;
+  /* The `@` list of a comment being edited is measured from here. */
+  position: relative;
 }
 
 .commentHead {
@@ -1232,6 +1234,12 @@
   color: var(--text);
 }
 
+/* The sentence a refused upload came back with, under the box. */
+.boxRefused {
+  font-size: 11.5px;
+  color: var(--faint-2);
+}
+
 .linkRefused {
   font-size: 11.5px;
   color: var(--faint-2);
@@ -1300,4 +1308,75 @@
 .optionTask:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
+}
+
+/* The Files strip under the description: one row per file, newest first. */
+.files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.file:hover .linkRemove {
+  opacity: 1;
+}
+
+.fileAsk {
+  display: block;
+}
+
+.fileOpen {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.fileOpen:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.fileThumb {
+  flex: none;
+  width: 40px;
+  height: 30px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--bg-input);
+}
+
+.fileKind {
+  display: grid;
+  place-items: center;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  color: var(--faint-2);
+}
+
+.fileName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  flex: none;
+  color: var(--faint-3);
+  font-size: 11px;
 }
