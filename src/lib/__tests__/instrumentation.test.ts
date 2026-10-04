@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CreateBucketCommand, S3Client } from "@aws-sdk/client-s3";
 import { register } from "@/instrumentation";
+
+vi.mock("server-only", () => ({}));
 
 /** The server's one word about mail, said once as it starts. */
 describe("register", () => {
@@ -49,6 +52,18 @@ describe("register", () => {
     });
     await on.done;
     expect(on.warn).not.toHaveBeenCalled();
+  });
+
+  it("makes the bucket when attachments are on, and not when they are off", async () => {
+    const send = vi.spyOn(S3Client.prototype, "send").mockResolvedValue({} as never);
+    const off = start({});
+    await off.done;
+    await vi.waitFor(() => expect(send).not.toHaveBeenCalled());
+
+    const on = start({ S3_BUCKET: "ushabti", S3_ACCESS_KEY: "k", S3_SECRET_KEY: "s" });
+    await on.done;
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    expect(send.mock.calls[0][0]).toBeInstanceOf(CreateBucketCommand);
   });
 
   it("logs one line that says the forgot page is off when mail is on and USHABTI_URL is not", async () => {
