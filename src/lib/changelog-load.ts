@@ -1,7 +1,8 @@
 import "server-only";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { projects, properties, propertyOptions, taskValues, tasks } from "@/db/schema";
+import { projects, properties, propertyOptions } from "@/db/schema";
+import { readShipped, shippedTasks } from "./changelog-read";
 import { buildChangelog, publicChangelog, type Changelog, type PublicChangelog } from "./changelog";
 import { loadProperties } from "./queries";
 
@@ -17,7 +18,7 @@ export async function loadChangelog(projectId: string): Promise<Changelog | null
     .where(eq(projects.id, projectId));
   if (!project) return null;
 
-  const [props, rolledRows, taskRows, valueRows] = await Promise.all([
+  const [props, rolledRows, shippedRows] = await Promise.all([
     loadProperties(projectId),
     /* Which options rolled is the changelog's question alone, so it is read
        here and not carried on every option of the board. */
@@ -26,32 +27,9 @@ export async function loadChangelog(projectId: string): Promise<Changelog | null
       .from(propertyOptions)
       .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
       .where(and(eq(properties.projectId, projectId), eq(propertyOptions.rolled, true))),
-    db
-      .select({
-        id: tasks.id,
-        number: tasks.number,
-        title: tasks.title,
-        position: tasks.position,
-      })
-      .from(tasks)
-      .where(and(eq(tasks.projectId, projectId), isNull(tasks.deletedAt))),
-    db
-      .select({
-        taskId: taskValues.taskId,
-        propertyId: taskValues.propertyId,
-        value: taskValues.value,
-      })
-      .from(taskValues)
-      .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
-      .where(and(eq(tasks.projectId, projectId), isNull(tasks.deletedAt))),
+    readShipped(db, projectId),
   ]);
 
-  const values = new Map<string, Record<string, unknown>>();
-  for (const v of valueRows) {
-    const row = values.get(v.taskId) ?? {};
-    row[v.propertyId] = v.value;
-    values.set(v.taskId, row);
-  }
   const rolled = new Set(rolledRows.map((r) => r.id));
   return buildChangelog({
     project,
@@ -59,7 +37,7 @@ export async function loadChangelog(projectId: string): Promise<Changelog | null
       ...p,
       options: p.options.map((o) => ({ ...o, rolled: rolled.has(o.id) })),
     })),
-    tasks: taskRows.map((t) => ({ ...t, values: values.get(t.id) ?? {} })),
+    tasks: shippedTasks(shippedRows),
   });
 }
 
