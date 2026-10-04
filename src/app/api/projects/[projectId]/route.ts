@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { projects } from "@/db/schema";
+import { attachments, projects } from "@/db/schema";
+import { removeObjects } from "@/lib/attachment-rows";
 import { HttpError } from "@/lib/auth";
 import {
   body,
@@ -119,6 +120,16 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
   ownerOnly(user, membership, "delete the project");
-  await db.delete(projects).where(eq(projects.id, projectId));
+  /* The cascade would take the file rows and leave their objects behind, so
+     the rows go first, in the same transaction, and the bucket after it. */
+  const keys = await db.transaction(async (tx) => {
+    const files = await tx
+      .delete(attachments)
+      .where(eq(attachments.projectId, projectId))
+      .returning({ key: attachments.key });
+    await tx.delete(projects).where(eq(projects.id, projectId));
+    return files.map((f) => f.key);
+  });
+  removeObjects(keys);
   return json({ ok: true });
 });

@@ -1139,6 +1139,7 @@ function describeActivity(
     to?: string;
     blockerKey?: string;
     source?: string;
+    name?: string;
   };
   switch (entry.kind) {
     case "created":
@@ -1153,6 +1154,10 @@ function describeActivity(
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;
     case "comment":
       return d.action === "edited" ? `${who} edited a comment` : `${who} left a comment`;
+    case "attachment":
+      return d.action === "removed"
+        ? `${who} removed the file “${d.name ?? ""}”`
+        : `${who} attached “${d.name ?? ""}”`;
     case "archive":
       return d.action === "restored" ? `${who} put the task back` : `${who} archived the task`;
     case "import":

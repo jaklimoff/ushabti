@@ -16,6 +16,7 @@ import {
 import { db } from "@/db";
 import { agentRunLog, agentRunSteps, agentRuns, tasks, users } from "@/db/schema";
 import { logActivity } from "./activity";
+import { sweepUnready } from "./attachment-rows";
 import { readId } from "./api";
 import { HttpError } from "./auth";
 import { publish } from "./events";
@@ -241,7 +242,8 @@ export const ON_A_TASK_YOU_CAN_SEE = sql`exists (select 1 from ${tasks} where ${
 
 /** Every open run of a project, for the board. */
 export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
-  await sweepLost(eq(agentRuns.projectId, projectId));
+  // Unconfirmed uploads are swept on the same read, for the same reason.
+  await Promise.all([sweepLost(eq(agentRuns.projectId, projectId)), sweepUnready({ projectId })]);
 
   const rows = await db
     .select(runColumns)
@@ -275,7 +277,7 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
 export async function loadTaskRuns(
   taskId: string,
 ): Promise<{ run: AgentRunDetailDTO | null; pastRuns: AgentRunRowDTO[] }> {
-  await sweepLost(eq(agentRuns.taskId, taskId));
+  await Promise.all([sweepLost(eq(agentRuns.taskId, taskId)), sweepUnready({ taskId })]);
 
   const rows = await db
     .select(runColumns)

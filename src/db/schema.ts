@@ -355,6 +355,38 @@ export const comments = pgTable(
   (t) => [index("comments_task_idx").on(t.taskId)],
 );
 
+/**
+ * A file on a task. The bytes live in the bucket under `key`; this row is the
+ * only way to reach them, because a file is read through the board, which
+ * checks who asks. A row with no `readyAt` is an upload nobody confirmed yet.
+ */
+export const attachments = pgTable(
+  "attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    uploaderId: uuid("uploader_id").references(() => users.id, { onDelete: "set null" }),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    // Null unless the file is an image.
+    width: integer("width"),
+    height: integer("height"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("attachments_task_idx").on(t.taskId),
+    index("attachments_project_idx").on(t.projectId),
+  ],
+);
+
 export const activity = pgTable(
   "activity",
   {

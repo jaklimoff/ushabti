@@ -37,6 +37,16 @@ services:
       # Optional. The board's public address. With mail on as well, the
       # sign-in page offers "Forgot password?"; see .env.example.
       USHABTI_URL: ${USHABTI_URL:-}
+      # Optional. The bucket a task's files live in. Unset, attachments are
+      # off; see .env.example.
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
+      ATTACHMENT_MAX_BYTES: ${ATTACHMENT_MAX_BYTES:-}
+      ATTACHMENT_MIMES: ${ATTACHMENT_MIMES:-}
       # Compose hands the server only what is named here, so each setting
       # .env.example offers is named, empty when unset. Empty reads as unset.
       USHABTI_SIGNUP: ${USHABTI_SIGNUP:-}

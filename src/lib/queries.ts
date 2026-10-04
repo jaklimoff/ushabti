@@ -5,6 +5,7 @@ import { db } from "@/db";
 import {
   activity,
   agentRuns,
+  attachments,
   agentTokens,
   checklistItems,
   comments,
@@ -21,6 +22,7 @@ import {
   views,
 } from "@/db/schema";
 import { readId } from "./api";
+import { removeObjects } from "./attachment-rows";
 import { HttpError } from "./auth";
 import { mainBoardGroupById, ownCardView, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
@@ -1025,16 +1027,23 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
  * and the activity with it.
  */
 export async function sweepDeleted(projectId: string, now = new Date()): Promise<number> {
-  const gone = await db
-    .delete(tasks)
-    .where(
-      and(
-        eq(tasks.projectId, projectId),
-        isNotNull(tasks.deletedAt),
-        lt(tasks.deletedAt, sweepCutoff(now.getTime())),
-      ),
-    )
-    .returning({ id: tasks.id });
+  /* The cascade would take the file rows and leave their objects in the
+     bucket with nothing pointing at them, so the rows are taken first, in the
+     same transaction, and their keys handed to the bucket after it. */
+  const { gone, keys } = await db.transaction(async (tx) => {
+    const expired = and(
+      eq(tasks.projectId, projectId),
+      isNotNull(tasks.deletedAt),
+      lt(tasks.deletedAt, sweepCutoff(now.getTime())),
+    );
+    const files = await tx
+      .delete(attachments)
+      .where(inArray(attachments.taskId, tx.select({ id: tasks.id }).from(tasks).where(expired)))
+      .returning({ key: attachments.key });
+    const gone = await tx.delete(tasks).where(expired).returning({ id: tasks.id });
+    return { gone, keys: files.map((f) => f.key) };
+  });
+  removeObjects(keys);
   return gone.length;
 }
 

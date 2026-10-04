@@ -433,6 +433,59 @@ jobs:
           [ -z "$failed" ]
 ```
 
+## Files
+
+A task holds files: screenshots, recordings, anything the board's list of
+types takes. The bytes go to a bucket and never through the board, so an
+upload is two calls around one `PUT`.
+
+```http
+POST /api/tasks/{taskId}/attachments
+{ "name": "login.png", "mime": "image/png", "size": 48213 }
+
+→ 201 { "id": "…", "uploadUrl": "https://…", "headers": { "Content-Type": "image/png" } }
+```
+
+`PUT` the bytes to `uploadUrl` within ten minutes, with `headers` and nothing
+else: no `Authorization`, the URL is signed. The bucket takes exactly that
+type and exactly that many bytes. Then say they are there:
+
+```http
+POST /api/attachments/{id}/ready
+→ 200 { "attachment": { "id": "…", "name": "login.png", "mime": "image/png",
+        "size": 48213, "width": 1280, "height": 800, "url": "/api/attachments/…" } }
+```
+
+The board checks the object before it believes you: the size, the type, and
+for an image that its bytes are that image. An upload not confirmed within the
+hour is removed. Only the uploader may confirm.
+
+To show the file, put its board link in a description or a comment:
+
+```markdown
+![login.png](/api/attachments/{id})
+```
+
+`GET /api/attachments/{id}` checks that the caller is on the project and
+answers `302` to a link that lasts five minutes, so the board's link is the one
+to keep and to paste. An image or a video opens in place; SVG and anything
+else downloads. `GET /api/tasks/{taskId}/attachments` lists a task's files,
+newest first. `DELETE /api/attachments/{id}` removes one: the uploader's own,
+or anybody's for the owner or an admin. An upload and a delete each write a
+line of kind `attachment` to the feed, with `action` `added` or `removed`.
+
+With no bucket on the server, every one of these answers `503`.
+
+`board.mjs` does the three steps in one:
+
+```bash
+node board.mjs attach USH-14 login.png
+![login.png](/api/attachments/5f0c…)
+```
+
+It reads the type from the name; name it with `--mime video/mp4` when it
+cannot.
+
 ## A delete lasts thirty days
 
 Archiving is the everyday way to make a task go away. Delete is for a mistake,
