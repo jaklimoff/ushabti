@@ -9,7 +9,15 @@ import { useEffect, useRef } from "react";
 export function isTyping(target: EventTarget | null): boolean {
   const element = target as HTMLElement | null;
   if (!element) return false;
-  return element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.isContentEditable;
+  /* A box that a key just closed is already off the page when the key reaches
+     the window, and WebKit then calls it not editable. CodeMirror's box is
+     still inside its editor, so that is asked too. */
+  return (
+    element.tagName === "INPUT" ||
+    element.tagName === "TEXTAREA" ||
+    element.isContentEditable ||
+    !!element.closest?.(".cm-editor")
+  );
 }
 
 /**

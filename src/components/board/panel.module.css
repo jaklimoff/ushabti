@@ -389,8 +389,11 @@
 .descEditor :global(.cm-editor.cm-focused) {
   outline: none;
 }
-.descEditor :global(.cm-content) {
+.descEditor :global(.cm-scroller) {
   font-family: inherit;
+  line-height: inherit;
+}
+.descEditor :global(.cm-content) {
   caret-color: var(--text);
   /* A phone zooms into a box whose words are under 16px; this one asks it not
      to, the textarea's own answer. */
