@@ -129,7 +129,10 @@ export function useMentions(
     if (!el || !found) return setWord(null);
     /* What the list is measured from is the element it is placed against:
        the ancestor carrying `position: relative`, which is the anchor. */
-    const anchor = (el.offsetParent ?? el) as HTMLElement;
+    /* A box that is not drawn has no offsetParent, and the live editor's box
+       is no element to fall back on, so there is nothing to place a list at. */
+    const anchor = el.offsetParent ?? (el instanceof HTMLElement ? el : null);
+    if (!(anchor instanceof HTMLElement)) return setWord(null);
     const edges = anchor.getBoundingClientRect();
     const room = roomAround(anchor);
     const rows = mentionsFor(data.members, found.query, Date.now()).length;

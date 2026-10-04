@@ -16,7 +16,7 @@ import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemir
  * The parser is Lezer's markdown with GFM, which is what marked reads with
  * `gfm`. It is built here and not taken from `@codemirror/lang-markdown`,
  * which brings HTML, CSS and JavaScript highlighting and autocomplete along:
- * 130 KB gzipped that a description never uses.
+ * 77 KB gzipped that a description never uses.
  * `breaks` changes nothing here, because a line of source is a line on the
  * screen either way. Tables stay plain on purpose.
  *
