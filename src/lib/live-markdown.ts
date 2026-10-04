@@ -1,5 +1,11 @@
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import {
+  defineLanguageFacet,
+  ensureSyntaxTree,
+  Language,
+  LanguageSupport,
+  syntaxTree,
+} from "@codemirror/language";
+import { GFM, parser } from "@lezer/markdown";
 import { EditorState, RangeSetBuilder, StateField, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemirror/view";
 
@@ -7,7 +13,10 @@ import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemir
  * Obsidian's Live Preview, on our own: the source is always the markdown, and
  * the marks hide on every line but the ones the cursor is on.
  *
- * The parser is lang-markdown's GFM, which is what marked reads with `gfm`.
+ * The parser is Lezer's markdown with GFM, which is what marked reads with
+ * `gfm`. It is built here and not taken from `@codemirror/lang-markdown`,
+ * which brings HTML, CSS and JavaScript highlighting and autocomplete along:
+ * 130 KB gzipped that a description never uses.
  * `breaks` changes nothing here, because a line of source is a line on the
  * screen either way. Tables stay plain on purpose.
  *
@@ -213,7 +222,9 @@ const preview = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+const markdown = new Language(defineLanguageFacet(), parser.configure(GFM), [], "markdown");
+
 /** The language and the preview, which is all a box needs to read as rendered. */
 export function livePreview(): Extension {
-  return [markdown({ base: markdownLanguage }), preview];
+  return [new LanguageSupport(markdown), preview];
 }
