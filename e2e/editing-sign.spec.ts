@@ -1,5 +1,13 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { addTask, card, createProject, gotoSettings, register, unique } from "./helpers";
+import {
+  addTask,
+  card,
+  createProject,
+  gotoSettings,
+  register,
+  unique,
+  descriptionBox,
+} from "./helpers";
 
 /*
  * A field says who else is typing in it, and blocks nobody. It rides on the
@@ -79,7 +87,7 @@ test.describe("A field shows who is editing it", () => {
     await expect(sign(ben.page)).toHaveText("Anna Person is editing the description", {
       timeout: 2_000,
     });
-    await anna.page.getByPlaceholder("Write in markdown…").press("Escape");
+    await descriptionBox(anna.page).press("Escape");
     await expect(sign(ben.page)).toHaveCount(0, { timeout: 2_000 });
 
     // One checklist item, and only that item.

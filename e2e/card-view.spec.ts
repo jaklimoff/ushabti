@@ -12,6 +12,8 @@ import {
   register,
   saved,
   unique,
+  descriptionBox,
+  fillBox,
 } from "./helpers";
 
 /**
@@ -155,8 +157,8 @@ test.describe("Card view", () => {
     const projectId = await createProject(page, unique("Desc"));
     await addTask(page, "Todo", "Has a description");
     await page.getByText("Add a description…").click();
-    const body = page.getByPlaceholder("Write in markdown…");
-    await body.fill("A longer account of it.");
+    const body = descriptionBox(page);
+    await fillBox(body, "A longer account of it.");
     await saved(page, () => body.blur());
     await page.getByRole("button", { name: "Close task" }).click();
 

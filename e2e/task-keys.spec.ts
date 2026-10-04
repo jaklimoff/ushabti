@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addTask, createProject, register, saved, unique } from "./helpers";
+import {
+  addTask,
+  createProject,
+  register,
+  saved,
+  unique,
+  descriptionBox,
+  fillBox,
+} from "./helpers";
 
 /**
  * A key written in a description or a comment is a link to that task. A plain
@@ -33,8 +41,8 @@ test("a key in a description and in a comment opens its task", async ({ page }) 
   // Written in lower case, beside an unknown key, another project's key and code.
   const written = blocker.toLowerCase();
   await page.getByText("Add a description…").click();
-  const editor = page.getByPlaceholder("Write in markdown…");
-  await editor.fill(`Waits on ${written}, not ${prefix}-999 or ZZZ-1 or \`${blocker}\`.`);
+  const editor = descriptionBox(page);
+  await fillBox(editor, `Waits on ${written}, not ${prefix}-999 or ZZZ-1 or \`${blocker}\`.`);
   await saved(page, () => editor.blur());
   /* The board is read afresh, so the links are drawn from what was saved.
      A board read after a description save shows the old text until a reload

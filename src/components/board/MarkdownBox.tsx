@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  lazy,
+  Suspense,
   useEffect,
   useRef,
   useState,
   type ClipboardEvent,
   type DragEvent,
+  type KeyboardEvent,
   type RefObject,
   type TextareaHTMLAttributes,
 } from "react";
@@ -13,12 +16,23 @@ import { flushSync } from "react-dom";
 import { markdownLine } from "@/lib/attachments";
 import { uploadFile } from "@/lib/upload-client";
 import { insertLines, replaceFirst, uploadingLine } from "@/lib/uploads";
-import { MentionList, useMentions } from "./Mentions";
+import type { PreviewContext } from "@/lib/live-markdown";
+import { MentionList, useMentions, type TextBox } from "./Mentions";
 import styles from "./panel.module.css";
 
 type Send = <T>(write: () => Promise<T>) => Promise<T>;
 
+/* The native key event, handed to handlers typed for React's. They read only
+   the key, the modifiers, the target and the two stops, which both have. */
+type KeyboardEventLike = KeyboardEvent<HTMLTextAreaElement>;
+
 type BoxProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange" | "ref">;
+
+/* CodeMirror comes in its own chunk, so the board itself does not carry it.
+   The panel asks for it as it opens, so a click on the description does not
+   wait for the download. */
+export const loadLiveEditor = () => import("./LiveEditor");
+const LiveEditor = lazy(loadLiveEditor);
 
 /**
  * The one box a person writes markdown in: the description, the edit of a
@@ -28,7 +42,8 @@ type BoxProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onC
  *
  * It decides nothing about saving, as `PropertyControl` does not. Each place
  * keeps its own save and asks `onUploading` whether a file is still on its
- * way. The live-preview editor will land inside this box.
+ * way. With `live`, the box is a CodeMirror editor that shows every line
+ * rendered but the cursor's; only the description passes it so far.
  */
 export function MarkdownBox({
   taskId,
@@ -38,6 +53,8 @@ export function MarkdownBox({
   onUploading,
   onUploaded,
   boxRef,
+  live = false,
+  preview,
   onKeyDown,
   onSelect,
   onBlur,
@@ -56,9 +73,13 @@ export function MarkdownBox({
   onUploading?: (count: number, words?: string) => void;
   /** A file is ready, so the task's file list has one more. */
   onUploaded?: () => void;
-  boxRef?: RefObject<HTMLTextAreaElement | null>;
+  boxRef?: RefObject<TextBox | null>;
+  /** A CodeMirror box whose lines read as rendered markdown, but the cursor's. */
+  live?: boolean;
+  /** What a live box draws files and keys by, as the page does. */
+  preview?: PreviewContext;
 }) {
-  const own = useRef<HTMLTextAreaElement>(null);
+  const own = useRef<TextBox>(null);
   const ref = boxRef ?? own;
   const [refused, setRefused] = useState<{ taskId: string; said: string } | null>(null);
 
@@ -165,11 +186,47 @@ export function MarkdownBox({
     take(files);
   }
 
+  if (live)
+    return (
+      <>
+        <Suspense fallback={<div className={rest.className} />}>
+          <LiveEditor
+            boxRef={ref}
+            value={value}
+            className={rest.className}
+            placeholder={rest.placeholder}
+            autoFocus={rest.autoFocus}
+            preview={preview}
+            onChange={(text) => write(text)}
+            onSelect={() => picker.sync()}
+            onKeyDown={(e) => {
+              const key = e as unknown as KeyboardEventLike;
+              if (picker.onKeyDown(key)) return true;
+              onKeyDown?.(key);
+              return e.defaultPrevented;
+            }}
+            onFocus={() => rest.onFocus?.(undefined as never)}
+            onBlur={() => {
+              picker.close();
+              onBlur?.(undefined as never);
+            }}
+            onFiles={take}
+          />
+        </Suspense>
+        <MentionList picker={picker} />
+        {refused?.taskId === taskId && (
+          <span className={styles.boxRefused} role="status" data-testid="upload-refused">
+            {refused.said}
+          </span>
+        )}
+      </>
+    );
+
   return (
     <>
       <textarea
         {...rest}
-        ref={ref}
+        ref={ref as RefObject<HTMLTextAreaElement | null>}
         value={value}
         onChange={(e) => {
           write(e.target.value);

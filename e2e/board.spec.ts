@@ -20,6 +20,8 @@ import {
   sortBoard,
   unique,
   viewOrder,
+  descriptionBox,
+  fillBox,
 } from "./helpers";
 
 type Page = import("@playwright/test").Page;
@@ -96,8 +98,8 @@ test.describe("Ushabti board", () => {
 
     // description with markdown
     await page.getByText("Add a description…").click();
-    const editor = page.getByPlaceholder("Write in markdown…");
-    await editor.fill("Ships **offline** first.\n\n- one\n- two");
+    const editor = descriptionBox(page);
+    await fillBox(editor, "Ships **offline** first.\n\n- one\n- two");
     await editor.blur();
     await expect(page.getByTestId("markdown").locator("strong")).toHaveText("offline");
     await expect(page.getByTestId("markdown").locator("li")).toHaveCount(2);
@@ -134,8 +136,8 @@ test.describe("Ushabti board", () => {
 
     // Something worth losing: a description that is already saved.
     await page.getByText("Add a description…").click();
-    const editor = page.getByPlaceholder("Write in markdown…");
-    await editor.fill("The words that were saved.");
+    const editor = descriptionBox(page);
+    await fillBox(editor, "The words that were saved.");
     await settles(page, /\/api\/tasks\/[0-9a-f-]+$/, () => editor.blur());
     await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
 
@@ -152,7 +154,7 @@ test.describe("Ushabti board", () => {
     });
 
     await page.getByTestId("markdown").click();
-    await editor.fill("Words nobody asked to keep.");
+    await fillBox(editor, "Words nobody asked to keep.");
     await editor.press("Escape");
     await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
 

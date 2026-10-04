@@ -21,6 +21,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   in place, a video plays, and any other file is a link with its size. A comment waits to send
   until its files are in. The task panel lists the files under the description, newest first, and
   the uploader or an admin can remove one.
+- **The description reads as it will look while you write it.** Every line shows rendered
+  Markdown but the line under the cursor, which shows its marks: headings, bold and italic,
+  strikethrough with one tilde or two, code, links, task keys, images and video of the task, and
+  task items whose box ticks. Tables stay as written. What is saved is still plain Markdown, so an
+  agent reads exactly what you typed. Comments keep their plain box for now.
 
 ### Fixed
 

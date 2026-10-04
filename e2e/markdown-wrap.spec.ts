@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { addTask, createProject, register, unique } from "./helpers";
+import { addTask, createProject, register, unique, descriptionBox, fillBox } from "./helpers";
 
 /**
  * A description is read far more often than it is edited. The editor wraps a
@@ -45,8 +45,8 @@ for (const { name, viewport } of WIDTHS) {
       await expect(page.getByTestId("task-panel")).toBeVisible();
 
       await page.getByText("Add a description…").click();
-      const editor = page.getByPlaceholder("Write in markdown…");
-      await editor.fill(TEXT);
+      const editor = descriptionBox(page);
+      await fillBox(editor, TEXT);
       await editor.blur();
 
       const description = page.getByTestId("markdown");

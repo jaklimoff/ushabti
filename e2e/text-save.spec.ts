@@ -7,6 +7,9 @@ import {
   inDatabase,
   register,
   unique,
+  descriptionBox,
+  fillBox,
+  expectBoxValue,
 } from "./helpers";
 
 /**
@@ -78,14 +81,14 @@ test.describe("A text save does not overwrite a change it did not see", () => {
     const { anna, ben, projectId, close } = await twoPeople(browser);
 
     await ben.getByText("Add a description…").click();
-    await ben.getByPlaceholder("Write in markdown…").fill("Ben wrote this.");
+    await fillBox(descriptionBox(ben), "Ben wrote this.");
 
     await anna.getByText("Add a description…").click();
-    const annaEditor = anna.getByPlaceholder("Write in markdown…");
-    await annaEditor.fill("Anna wrote this.");
+    const annaEditor = descriptionBox(anna);
+    await fillBox(annaEditor, "Anna wrote this.");
     expect(await statusOf(anna, TASK, () => annaEditor.press("ControlOrMeta+Enter"))).toBe(200);
 
-    const benEditor = ben.getByPlaceholder("Write in markdown…");
+    const benEditor = descriptionBox(ben);
     expect(await statusOf(ben, TASK, () => benEditor.press("ControlOrMeta+Enter"))).toBe(409);
     expect((await saved(projectId)).description).toBe("Anna wrote this.");
 
@@ -176,7 +179,7 @@ test.describe("A text save does not overwrite a change it did not see", () => {
     await expect(ben.getByText("Tick me")).toBeVisible({ timeout: 15_000 });
 
     await ben.getByText("Add a description…").click();
-    await ben.getByPlaceholder("Write in markdown…").fill("Words after a tick.");
+    await fillBox(descriptionBox(ben), "Words after a tick.");
 
     const ids = await inDatabase(async (client) => {
       const { rows } = await client.query<{ task: string; property: string; option: string }>(
@@ -197,10 +200,38 @@ test.describe("A text save does not overwrite a change it did not see", () => {
     await anna.getByRole("button", { name: "Mark as done" }).click();
     await expect(anna.getByText("1 / 1")).toBeVisible();
 
-    const editor = ben.getByPlaceholder("Write in markdown…");
+    const editor = descriptionBox(ben);
     expect(await statusOf(ben, TASK, () => editor.press("ControlOrMeta+Enter"))).toBe(200);
     await expect(ben.getByTestId("changed-while-typing")).toHaveCount(0);
     expect((await saved(projectId)).description).toBe("Words after a tick.");
+
+    await close();
+  });
+
+  test("an open box nobody typed in follows every save, and is not typing", async ({ browser }) => {
+    const { anna, ben, projectId, close } = await twoPeople(browser);
+    await anna.getByText("Add a description…").click();
+    const annaBox = descriptionBox(anna);
+    await expect(annaBox).toBeFocused();
+
+    // Ben saves twice while Anna's box is open and untouched.
+    for (const words of ["Ben's first words.", "Ben's second words."]) {
+      await ben
+        .getByTestId("task-panel")
+        .getByText(/Add a description…|Ben's/)
+        .click();
+      const benBox = descriptionBox(ben);
+      await fillBox(benBox, words);
+      expect(await statusOf(ben, TASK, () => benBox.press("ControlOrMeta+Enter"))).toBe(200);
+      await expectBoxValue(annaBox, words);
+    }
+
+    // Her own words start from Ben's second save, so the server takes them.
+    await annaBox.press("ControlOrMeta+End");
+    await annaBox.pressSequentially(" Anna agrees.");
+    expect(await statusOf(anna, TASK, () => annaBox.press("ControlOrMeta+Enter"))).toBe(200);
+    await expect(anna.getByTestId("changed-while-typing")).toHaveCount(0);
+    expect((await saved(projectId)).description).toBe("Ben's second words. Anna agrees.");
 
     await close();
   });

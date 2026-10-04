@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { addFilter, addTask, createProject, register, saved, unique } from "./helpers";
+import {
+  addFilter,
+  addTask,
+  createProject,
+  register,
+  saved,
+  unique,
+  descriptionBox,
+  fillBox,
+} from "./helpers";
 
 type Page = import("@playwright/test").Page;
 
@@ -86,8 +95,8 @@ test.describe("Finding a task", () => {
 
     await addTask(page, "Todo", "Nothing in the title");
     await page.getByText("Add a description…").click();
-    const body = page.getByPlaceholder("Write in markdown…");
-    await body.fill("The queue survives a reload.");
+    const body = descriptionBox(page);
+    await fillBox(body, "The queue survives a reload.");
     await saved(page, () => body.blur());
     await page.getByRole("button", { name: "Close task" }).click();
 
