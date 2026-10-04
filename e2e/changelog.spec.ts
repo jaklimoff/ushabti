@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { createProject, gotoSettings, register, unique } from "./helpers";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { buildChangelog } from "../src/lib/changelog";
+import { readShipped, shippedTasks } from "../src/lib/changelog-read";
+import { createProject, gotoSettings, inDatabase, register, unique } from "./helpers";
 
 type Page = import("@playwright/test").Page;
 
@@ -156,6 +159,136 @@ test.describe("The changelog", () => {
     await expect(page.getByTestId("public-changelog-link")).toHaveCount(0);
     expect((await outside.goto(address))!.status()).toBe(404);
     await stranger.close();
+  });
+
+  test("reads only the shipped tasks, and builds the same changelog as a read of every task", async ({
+    page,
+  }) => {
+    const { projectId } = await shippedProject(page);
+    const board: Board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const version = board.properties.find((p) => p.name === "Version")!;
+    const [v1, v2] = version.options;
+
+    /* A deleted task of a shipped option stays out, and a text value that
+       spells an option id is not a pick of that option. */
+    const gone = await page.request.post(`/api/projects/${projectId}/tasks`, {
+      data: { title: "Echo was a mistake", values: { [version.id]: v2.id } },
+    });
+    const goneId = ((await gone.json()) as { task: { id: string } }).task.id;
+    expect((await page.request.delete(`/api/tasks/${goneId}`)).ok()).toBeTruthy();
+    const note = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Note", type: "text" },
+    });
+    const noteId = ((await note.json()) as { property: { id: string } }).property.id;
+    const plain = await page.request.post(`/api/projects/${projectId}/tasks`, {
+      data: { title: "Foxtrot names a version", values: { [noteId]: v1.id } },
+    });
+    expect(plain.ok()).toBeTruthy();
+
+    /* An iteration ships as a select does. Golf carries two shipped options,
+       one on each property; Hotel sits in a sprint that is still open. */
+    const madeSprint = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Sprint", type: "iteration", options: ["Old", "Now"] },
+    });
+    const sprint = ((await madeSprint.json()) as { property: Board["properties"][number] })
+      .property;
+    const [old, now] = sprint.options;
+    for (const [option, data] of [
+      [old, { startAt: "2026-08-01", targetAt: "2026-08-14", shippedAt: "2026-08-14" }],
+      [now, { startAt: "2099-01-01", targetAt: "2099-01-14" }],
+    ] as const) {
+      expect((await page.request.patch(`/api/options/${option.id}`, { data })).ok()).toBeTruthy();
+    }
+    for (const [title, values] of [
+      ["Golf ships twice", { [version.id]: v2.id, [sprint.id]: old.id }],
+      ["Hotel waits in a sprint", { [sprint.id]: now.id }],
+    ] as const) {
+      const res = await page.request.post(`/api/projects/${projectId}/tasks`, {
+        data: { title, values },
+      });
+      expect(res.ok()).toBeTruthy();
+    }
+
+    await inDatabase(async (client) => {
+      const props = await client.query<{ id: string; name: string; type: string }>(
+        `select id, name, type from properties where project_id = $1 order by position`,
+        [projectId],
+      );
+      const opts = await client.query<{
+        id: string;
+        property_id: string;
+        name: string;
+        shipped_at: string | null;
+        rolled: boolean;
+        note: string | null;
+      }>(
+        `select o.id, o.property_id, o.name, to_char(o.shipped_at, 'YYYY-MM-DD') as shipped_at,
+                o.rolled, o.note
+           from property_options o join properties p on p.id = o.property_id
+          where p.project_id = $1 order by o.position`,
+        [projectId],
+      );
+      const properties = props.rows.map((p) => ({
+        ...p,
+        options: opts.rows
+          .filter((o) => o.property_id === p.id)
+          .map((o) => ({
+            id: o.id,
+            name: o.name,
+            shippedAt: o.shipped_at,
+            rolled: o.rolled,
+            note: o.note,
+          })),
+      }));
+      const project = { id: projectId, name: "Changes", key: "C" };
+
+      /* The read the loader made before: every task, every value. */
+      const all = await client.query<{
+        id: string;
+        number: number;
+        title: string;
+        position: string;
+      }>(
+        `select id, number, title, position from tasks where project_id = $1 and deleted_at is null`,
+        [projectId],
+      );
+      const allValues = await client.query<{
+        task_id: string;
+        property_id: string;
+        value: unknown;
+      }>(
+        `select v.task_id, v.property_id, v.value from task_values v join tasks t on t.id = v.task_id
+          where t.project_id = $1 and t.deleted_at is null`,
+        [projectId],
+      );
+      const before = buildChangelog({
+        project,
+        properties,
+        tasks: all.rows.map((t) => ({
+          ...t,
+          values: Object.fromEntries(
+            allValues.rows.filter((v) => v.task_id === t.id).map((v) => [v.property_id, v.value]),
+          ),
+        })),
+      });
+
+      const rows = await readShipped(drizzle(client), projectId);
+      expect(rows.map((r) => r.title).sort()).toEqual([
+        "Alpha lands",
+        "Bravo lands",
+        "Charlie lands",
+        "Golf ships twice",
+        "Golf ships twice",
+      ]);
+      const after = buildChangelog({ project, properties, tasks: shippedTasks(rows) });
+
+      expect(after).toEqual(before);
+      expect(after.entries.map((e) => e.tasks.map((t) => t.title))).toEqual([
+        ["Charlie lands", "Golf ships twice"],
+        ["Alpha lands", "Bravo lands"],
+        ["Golf ships twice"],
+      ]);
+    });
   });
 
   test("lets one project per key be public", async ({ page }) => {
