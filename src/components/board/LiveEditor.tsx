@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap, placeholder as hint } from "@codemirror/view";
@@ -36,7 +36,9 @@ export default function LiveEditor(props: LiveEditorProps) {
   const latest = useRef(props);
   latest.current = props;
 
-  useEffect(() => {
+  /* A layout effect, so its cleanup runs before React takes the node off the
+     page: a focused node that goes sends a blur on its way out. */
+  useLayoutEffect(() => {
     const p = latest.current;
     let gone = false;
     const v = new EditorView({

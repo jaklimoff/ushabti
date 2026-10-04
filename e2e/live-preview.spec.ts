@@ -76,4 +76,13 @@ test.describe("The live description", () => {
     await editor.blur();
     await expect(page.getByTestId("markdown")).toContainText(`Over to @${AGENT} today`);
   });
+
+  test("Escape throws the edit away and leaves the panel open", async ({ page }) => {
+    const editor = await openDescription(page);
+    await editor.pressSequentially("not kept");
+    await editor.press("Escape");
+    await expect(editor).toBeHidden();
+    await expect(page.getByTestId("task-title")).toBeVisible();
+    await expect(page.getByText("Add a description…")).toBeVisible();
+  });
 });
