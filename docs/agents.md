@@ -470,7 +470,9 @@ To show the file, put its board link in a description or a comment:
 answers `302` to a link that lasts five minutes, so the board's link is the one
 to keep and to paste. An image or a video opens in place; SVG and anything
 else downloads. `GET /api/tasks/{taskId}/attachments` lists a task's files,
-newest first. `DELETE /api/attachments/{id}` removes one: the uploader's own,
+newest first, and `GET /api/tasks/{taskId}` carries the same list as
+`attachments`. The board draws the line by the file's mime from that list: an
+image in place, a video as a player, anything else as a link with its size. `DELETE /api/attachments/{id}` removes one: the uploader's own,
 or anybody's for the owner or an admin. An upload and a delete each write a
 line of kind `attachment` to the feed, with `action` `added` or `removed`.
 

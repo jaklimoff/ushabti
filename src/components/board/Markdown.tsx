@@ -5,6 +5,7 @@ import { useMemo, useSyncExternalStore, type KeyboardEvent, type MouseEvent } fr
 import { taskByAddress } from "@/lib/board";
 import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { renderMarkdown } from "@/lib/task-keys";
+import { allowedVideoSrc, type FileFacts } from "@/lib/uploads";
 import styles from "./panel.module.css";
 
 /** A task a key can open: which one, and the key its link carries. */
@@ -19,6 +20,34 @@ export type TaskKeyLinks = {
   open: (task: Openable) => void;
 };
 
+/*
+ * A `<video>` passes on purpose, and only for a file of this board: anywhere
+ * else a description could make every reader's browser fetch a stranger's
+ * address. `<source>` and `<track>` would name an address the check never
+ * reads, and `poster` is one more, so none of them pass. Nor does `<audio>`,
+ * which nothing on the board writes. The hook goes on once, the first time a browser
+ * sanitises.
+ */
+let hooked = false;
+function sanitise(html: string): string {
+  if (!hooked) {
+    DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+      if (data.tagName !== "video") return;
+      const el = node as Element;
+      if (!allowedVideoSrc(el.getAttribute("src"))) el.parentNode?.removeChild(el);
+      else el.removeAttribute("poster");
+    });
+    hooked = true;
+  }
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    ADD_TAGS: ["video"],
+    ADD_ATTR: ["controls", "preload"],
+    FORBID_TAGS: ["source", "track", "audio"],
+    FORBID_ATTR: ["poster"],
+  });
+}
+
 /**
  * DOMPurify needs a real DOM, and Next renders client components on the server
  * too. Until the component is mounted in a browser we show the plain text,
@@ -29,10 +58,13 @@ export function Markdown({
   text,
   testId = "markdown",
   links = null,
+  files = null,
 }: {
   text: string;
   testId?: string;
   links?: TaskKeyLinks | null;
+  /** The task's own files, which say how a file the text names is drawn. */
+  files?: FileFacts[] | null;
 }) {
   const mounted = useSyncExternalStore(tellNobody, inBrowser, onServer);
   const projectId = links?.projectId;
@@ -41,14 +73,32 @@ export function Markdown({
      change, so the text is parsed again only when they do. */
   const keys = useMemo(() => links?.tasks.map((t) => t.key).join(" ") ?? null, [links?.tasks]);
 
+  /* The same for the files: a read brings a new list, and what a file looks
+     like changes only when one comes or goes. */
+  const shown = useMemo(
+    () =>
+      files
+        ? JSON.stringify(files.map(({ id, name, mime, size }) => [id, name, mime, size]))
+        : null,
+    [files],
+  );
+
   const html = useMemo(() => {
     if (!mounted) return null;
     const known =
       projectId && projectKey && keys !== null
         ? { projectId, projectKey, keys: keys ? keys.split(" ") : [] }
         : null;
-    return DOMPurify.sanitize(renderMarkdown(text, known), { USE_PROFILES: { html: true } });
-  }, [mounted, text, projectId, projectKey, keys]);
+    const list = shown
+      ? (JSON.parse(shown) as [string, string, string, number][]).map(([id, name, mime, size]) => ({
+          id,
+          name,
+          mime,
+          size,
+        }))
+      : null;
+    return sanitise(renderMarkdown(text, known, list));
+  }, [mounted, text, projectId, projectKey, keys, shown]);
 
   /* A plain click opens the task in the panel, as search does, with no page
      load. A click with a key held, or a middle click, is the browser's: the

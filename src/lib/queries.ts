@@ -22,7 +22,8 @@ import {
   views,
 } from "@/db/schema";
 import { readId } from "./api";
-import { removeObjects } from "./attachment-rows";
+import { listReady, removeObjects, toAttachmentDTO } from "./attachment-rows";
+import { attachmentsOn } from "./attachments";
 import { HttpError } from "./auth";
 import { mainBoardGroupById, ownCardView, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
@@ -869,51 +870,53 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 
   if (!row) return null;
 
-  const [valueRows, checkRows, commentRows, activityRows, runs, waits, holds] = await Promise.all([
-    db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
-    db
-      .select()
-      .from(checklistItems)
-      .where(eq(checklistItems.taskId, taskId))
-      .orderBy(byPos(checklistItems.position)),
-    db
-      .select({
-        id: comments.id,
-        body: comments.body,
-        createdAt: comments.createdAt,
-        editedAt: comments.editedAt,
-        byProject: comments.byProject,
-        authorId: users.id,
-        authorName: users.name,
-        authorColor: users.color,
-        authorEmoji: users.avatarEmoji,
-        authorKind: users.kind,
-      })
-      .from(comments)
-      .leftJoin(users, eq(users.id, comments.authorId))
-      .where(eq(comments.taskId, taskId))
-      .orderBy(asc(comments.createdAt)),
-    db
-      .select({
-        id: activity.id,
-        kind: activity.kind,
-        data: activity.data,
-        createdAt: activity.createdAt,
-        actorId: users.id,
-        actorName: users.name,
-        actorColor: users.color,
-        actorEmoji: users.avatarEmoji,
-        actorKind: users.kind,
-      })
-      .from(activity)
-      .leftJoin(users, eq(users.id, activity.actorId))
-      .where(eq(activity.taskId, taskId))
-      .orderBy(desc(activity.createdAt))
-      .limit(60),
-    loadTaskRuns(taskId),
-    linkedTasks(taskId, "blockedBy"),
-    linkedTasks(taskId, "blocks"),
-  ]);
+  const [valueRows, checkRows, commentRows, activityRows, runs, waits, holds, files] =
+    await Promise.all([
+      db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
+      db
+        .select()
+        .from(checklistItems)
+        .where(eq(checklistItems.taskId, taskId))
+        .orderBy(byPos(checklistItems.position)),
+      db
+        .select({
+          id: comments.id,
+          body: comments.body,
+          createdAt: comments.createdAt,
+          editedAt: comments.editedAt,
+          byProject: comments.byProject,
+          authorId: users.id,
+          authorName: users.name,
+          authorColor: users.color,
+          authorEmoji: users.avatarEmoji,
+          authorKind: users.kind,
+        })
+        .from(comments)
+        .leftJoin(users, eq(users.id, comments.authorId))
+        .where(eq(comments.taskId, taskId))
+        .orderBy(asc(comments.createdAt)),
+      db
+        .select({
+          id: activity.id,
+          kind: activity.kind,
+          data: activity.data,
+          createdAt: activity.createdAt,
+          actorId: users.id,
+          actorName: users.name,
+          actorColor: users.color,
+          actorEmoji: users.avatarEmoji,
+          actorKind: users.kind,
+        })
+        .from(activity)
+        .leftJoin(users, eq(users.id, activity.actorId))
+        .where(eq(activity.taskId, taskId))
+        .orderBy(desc(activity.createdAt))
+        .limit(60),
+      loadTaskRuns(taskId),
+      linkedTasks(taskId, "blockedBy"),
+      linkedTasks(taskId, "blocks"),
+      attachmentsOn() ? listReady(taskId) : Promise.resolve([]),
+    ]);
 
   /* Over is the project's word, read afresh: a property or an option that is
      gone falls back to archived. One read answers for both lists. */
@@ -1002,6 +1005,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     activity: activityList,
     run: runs.run,
     pastRuns: runs.pastRuns,
+    attachments: files.map(toAttachmentDTO),
   };
 }
 

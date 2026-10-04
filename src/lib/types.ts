@@ -526,6 +526,22 @@ export type TaskDetailDTO = TaskDTO & {
    * full is `GET /api/runs/{id}`.
    */
   pastRuns: AgentRunRowDTO[];
+  /** The task's ready files, newest first. Empty while files are off. */
+  attachments: AttachmentDTO[];
+};
+
+/** A file on a task. It is read only through `url`, which checks the project. */
+export type AttachmentDTO = {
+  id: string;
+  taskId: string;
+  uploaderId: string | null;
+  name: string;
+  mime: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
+  url: string;
 };
 
 /* ------------------------------------------------------------------ */
