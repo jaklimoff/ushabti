@@ -38,7 +38,8 @@ import {
   type BoardColumn,
   type CursorStep,
 } from "@/lib/board";
-import { allowedColumns, seedNote, seedValues } from "@/lib/filters";
+import { allowedColumns, seedNote, seedValues, takesCards } from "@/lib/filters";
+import { isOpenOption } from "@/lib/option-dates";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
 import { canManage } from "@/lib/roles";
@@ -177,10 +178,17 @@ function findColumn(columns: BoardColumn[], taskId: string) {
  * A drop across columns writes exactly this one value, and a drop back into
  * the column the card came from writes nothing. Asked in one place, so the
  * sorted board and the board in its own order cannot answer it differently.
+ *
+ * A shipped sprint has no column, so its card sits in the empty one and is
+ * already there: moving it inside that column must not take its sprint away.
  */
 function landed(task: TaskDTO, property: PropertyDTO, column: BoardColumn): boolean {
   const current = task.values[property.id] ?? null;
   const wanted = column.value;
+  if (column.isNone && current !== null) {
+    const option = property.options.find((o) => o.id === current);
+    if (option && !isOpenOption(property, option)) return true;
+  }
   return property.type === "checkbox"
     ? (current === true) === (wanted === true)
     : (current ?? null) === (wanted ?? null);
@@ -459,6 +467,11 @@ export function BoardCanvas({
     return () => document.body.classList.remove("ushabti-dragging");
   }, [activeTaskId, activeColumnId]);
 
+  /* A column kept for the cards in it, but a card written into it would fail
+     the filter: it takes no drop from another column and no new task. */
+  const takes = (column: BoardColumn) =>
+    takesCards(column, filters, groupProperty, data.today, user.id);
+
   const addNote = seedNote(
     seedValues(filters, data.properties, groupProperty?.id ?? null, user.id, data.today),
     data.properties,
@@ -492,6 +505,9 @@ export function BoardCanvas({
 
       const task = from.tasks.find((t) => t.id === activeId);
       if (!task) return current;
+      /* A card that would vanish where it landed is not let in. The preview
+         is what the drop reads, so it keeps the card where it was. */
+      if (groupProperty && !landed(task, groupProperty, to) && !takes(to)) return current;
 
       const overIndex = to.tasks.findIndex((t) => t.id === overId);
       let insertAt = to.tasks.length;
@@ -575,7 +591,7 @@ export function BoardCanvas({
     }
 
     let ordered = target.tasks;
-    if (overId.startsWith(CONTAINER_PREFIX)) {
+    if (overId === CONTAINER_PREFIX + target.id) {
       // Dropped on the free space under the cards. If the card comes from
       // another column it is already last, but a card from this same column
       // has not moved yet, so send it to the end.
@@ -657,11 +673,12 @@ export function BoardCanvas({
   });
 
   /* `n` makes a task where the cursor is: the top of its column, which is
-     where the header's own button puts one. With no cursor, the first column. */
+     where the header's own button puts one. With no cursor, or in a column
+     that takes no new task, the first column that does. */
   useShortcut("n", () => {
     if (activeTaskId || activeColumnId) return;
-    const column =
-      drawn.find((c) => c.tasks.some((t) => t.id === cursorTaskId)) ?? drawn.find((c) => !c.folded);
+    const here = drawn.find((c) => c.tasks.some((t) => t.id === cursorTaskId));
+    const column = here && takes(here) ? here : drawn.find((c) => !c.folded && takes(c));
     if (column) setComposing({ columnId: column.id, place: "top" });
   });
 
@@ -806,7 +823,7 @@ export function BoardCanvas({
                     column.tasks.map((t) => t.id),
                   )
                 }
-                onAddTask={addTask}
+                onAddTask={takes(column) ? addTask : null}
                 onArchiveAll={
                   sweepable ? () => void sweepColumn(groupProperty?.id ?? null, column.value) : null
                 }

@@ -32,6 +32,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **`docker compose up` works again.** The local object store is now RustFS, because the MinIO
   images can no longer be pulled. The server makes its bucket itself as it starts, so no helper
   container runs. Production is unchanged: any S3-compatible store still works.
+- **A card of a shipped sprint keeps its sprint when you drag it inside "No open sprint".** The
+  drag used to clear the sprint. Under a filter that a task with no sprint fails, that column now
+  shows its cards but takes no card from another column and offers no "Add a task", because the
+  new card would vanish where it landed.
 
 ## 0.16.0 — 2026-10-04
 

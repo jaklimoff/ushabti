@@ -658,12 +658,42 @@ export function allowedColumns<T extends { value: TaskValue }>(
   const shipped = splitShipped(groupProperty).shipped.map((o) => o.id);
   return columns.filter((column) => {
     const held = column.value === null ? [null, ...shipped] : [column.value];
-    /* The rules here name a property, never a word, so no run is asked. */
-    return held.some((value) => {
-      const stand = { values: { [groupProperty.id]: value } } as TaskDTO;
-      return rules.every((rule) => matches(stand, rule, groupProperty, today, viewer, NO_RUNS));
-    });
+    return held.some((value) => survives(value, rules, groupProperty, today, viewer));
   });
+}
+
+/**
+ * Whether a card written into this column survives the filter: the one rule
+ * the board's drop and its composer both ask.
+ *
+ * `allowedColumns()` keeps the empty column of a shipped sprint for the cards
+ * already in it, but a card dropped or added there is written no value at all.
+ * Under "Sprint is Sprint 14" that card would vanish where it landed. So the
+ * column stays to be read, and takes no drop from another column and no new
+ * task.
+ */
+export function takesCards(
+  column: { value: TaskValue },
+  filters: ViewFilters,
+  groupProperty: PropertyDTO | null,
+  today: string,
+  viewer: string | null,
+): boolean {
+  if (!groupProperty) return true;
+  const rules = filters.rules.filter((r) => r.propertyId === groupProperty.id);
+  return survives(column.value, rules, groupProperty, today, viewer);
+}
+
+function survives(
+  value: TaskValue,
+  rules: FilterRule[],
+  property: PropertyDTO,
+  today: string,
+  viewer: string | null,
+): boolean {
+  const stand = { values: { [property.id]: value } } as TaskDTO;
+  /* The rules here name a property, never a word, so no run is asked. */
+  return rules.every((rule) => matches(stand, rule, property, today, viewer, NO_RUNS));
 }
 
 /* ------------------------------------------------------------------ */
