@@ -1,0 +1,2 @@
+# False positive: a test stubbed the environment variable by name, not a key.
+b6809c474e4e24c12bbdbf23ea36bbaf08d6f79b:src/lib/__tests__/instrumentation.test.ts:generic-api-key:18

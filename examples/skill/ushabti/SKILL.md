@@ -38,6 +38,8 @@ node board.mjs step USH-14 --index 1 --say "Writing the tests" \
 
 node board.mjs check USH-14 "Retries stop after five tries" --done
 node board.mjs comment USH-14 "Tests pass. PR #124."
+# a screenshot: prints the Markdown line to paste into a comment
+node board.mjs attach USH-14 after.png
 node board.mjs set USH-14 Status Ready
 node board.mjs finish USH-14
 

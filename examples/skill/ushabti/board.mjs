@@ -10,7 +10,7 @@
 
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { basename, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const BASE = (process.env.USHABTI_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -154,6 +154,25 @@ for (let i = 1; i < argv.length; i += 1) {
   } else {
     positional.push(arg);
   }
+}
+
+/* The types the board takes by default, by the name a file ends in. Anything
+   else is named with --mime, and the board says whether it takes it. */
+const MIMES = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".svg": "image/svg+xml",
+  ".pdf": "application/pdf",
+  ".txt": "text/plain",
+};
+
+function mimeOf(name) {
+  return MIMES[extname(name).toLowerCase()] ?? null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -440,6 +459,7 @@ const commands = {
   set <key> "<Link>" "<url>[,<url>]"  replace the links of a Link property
   set <key> "<Link>" --add "<url>"    add one link and keep the others
   comment <key> "<text>"              leave a note
+  attach <key> <file> [--mime <type>] upload a file and print its Markdown line
   archive <key>                       take it off the board, keep its history
   restore <key>                       put an archived task back
   link <key> --blocked-by <key>       say what a task waits on
@@ -619,6 +639,43 @@ http://localhost:3000.`);
     if (!body) fail('Give the text: comment USH-14 "the tests pass"');
     await call("POST", `/api/tasks/${task.id}/comments`, { body });
     console.log(`${task.key}: comment left`);
+  },
+
+  /**
+   * A file is two calls: the board writes a row and hands back a URL that
+   * the bucket takes this one file at, and once the bytes are there the board
+   * is told so and checks. What it prints is the line to paste into a
+   * description or a comment; the link is the board's, so it keeps working.
+   */
+  async attach() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const file = positional[1];
+    if (!file) fail("Give the file: attach USH-14 shot.png");
+    let bytes;
+    try {
+      bytes = readFileSync(file);
+    } catch (err) {
+      fail(`Cannot read ${file}: ${err.message}`);
+    }
+    const name = basename(file);
+    const mime = typeof flags.mime === "string" ? flags.mime : mimeOf(name);
+    if (!mime) fail(`Cannot tell the type of ${name}. Name it: --mime image/png`);
+
+    const upload = await call("POST", `/api/tasks/${task.id}/attachments`, {
+      name,
+      mime,
+      size: bytes.length,
+    });
+    let put;
+    try {
+      put = await fetch(upload.uploadUrl, { method: "PUT", headers: upload.headers, body: bytes });
+    } catch (err) {
+      fail(`The bucket did not answer: ${err.message}`);
+    }
+    if (!put.ok) fail(`The bucket refused the file: ${put.status} ${await put.text()}`);
+    const { attachment } = await call("POST", `/api/attachments/${upload.id}/ready`, {});
+    console.log(`![${attachment.name.replace(/[[\]]/g, "")}](/api/attachments/${attachment.id})`);
   },
 
   /**

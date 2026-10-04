@@ -16,8 +16,10 @@ import { Card, Note, Row, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 import { isSelect } from "@/lib/types";
+import { FILES_OFF_NOTE } from "@/lib/attachments";
 
-export function ProjectPanel() {
+/** `files` is whether the server has a bucket for attachments; off, the page says what to set. */
+export function ProjectPanel({ files }: { files: boolean }) {
   const { data, notify, refresh, send } = useBoard();
   const router = useRouter();
   const canEdit = canManage(data.project.role);
@@ -245,6 +247,14 @@ export function ProjectPanel() {
           </Row>
         )}
       </Card>
+
+      {!files && (
+        <Card>
+          <Row>
+            <Note>{FILES_OFF_NOTE}</Note>
+          </Row>
+        </Card>
+      )}
 
       {/*
        * The two boxes are one answer, so they sit on one row. Picking a

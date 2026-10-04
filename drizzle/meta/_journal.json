@@ -169,6 +169,13 @@
       "when": 1791052778239,
       "tag": "0023_pale_thena",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791106865542,
+      "tag": "0024_chilly_elektra",
+      "breakpoints": true
     }
   ]
 }

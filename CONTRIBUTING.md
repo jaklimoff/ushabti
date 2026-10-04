@@ -24,6 +24,14 @@ docker compose exec app npm run db:seed   # demo data, in a second terminal
 
 The app is then at <http://localhost:3050>.
 
+`docker compose up` also starts MinIO, the bucket a task's files go to, and
+makes the bucket `ushabti` in it. MinIO shares the network of `app`, so it is
+at <http://localhost:9050> both inside the container and on your machine: a
+signed URL names the host it was signed for, and the server and the browser
+must reach the bucket by the same one. `app` gets the `S3_*` values for it.
+Unset `S3_BUCKET` in a `docker-compose.override.yml` to work with attachments
+off. The variables are in [README.md](README.md#files-on-a-task).
+
 To stop a secret before it leaves your machine, install
 [gitleaks](https://github.com/gitleaks/gitleaks) and turn on the hook once per
 clone:
