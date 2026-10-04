@@ -1,6 +1,13 @@
 /* eslint-disable playwright/no-skipped-test -- a server with no bucket cannot run these, and says so. */
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addTask, createProject, register, unique } from "./helpers";
+import {
+  addTask,
+  createProject,
+  register,
+  unique,
+  descriptionBox,
+  expectBoxValue,
+} from "./helpers";
 
 /**
  * A file dropped on the markdown box uploads, says how far it got where the
@@ -133,9 +140,9 @@ test("the description takes a dropped file in the same box", async ({ page }) =>
   await addTask(page, "Todo", "Described with a picture");
 
   await page.getByText("Add a description…").click();
-  const editor = page.getByPlaceholder("Write in markdown…");
+  const editor = descriptionBox(page);
   await drop(page, editor, [{ name: "pixel.png", mime: "image/png", base64: PNG }]);
-  await expect(editor).toHaveValue(LINE);
+  await expectBoxValue(editor, LINE);
   await editor.blur();
   await expect(page.getByTestId("markdown").locator("img")).toHaveAttribute(
     "src",

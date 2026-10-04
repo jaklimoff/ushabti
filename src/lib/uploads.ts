@@ -35,18 +35,28 @@ export function allowedVideoSrc(src: string | null): boolean {
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** How a file is drawn: as an image, as a player, or as its name and size. */
+export type FileLook =
+  { kind: "image" } | { kind: "video"; name: string } | { kind: "download"; words: string };
+
+/** The page and the live box both draw a file by this, so it reads one way. */
+export function lookOf(file: FileFacts): FileLook {
+  if (isImage(file.mime)) return { kind: "image" };
+  if (isInline(file.mime)) return { kind: "video", name: file.name };
+  return { kind: "download", words: `${file.name} (${formatBytes(file.size)})` };
+}
+
 /**
  * The HTML that draws a file, or null when the image marked draws is right.
  * The caller sanitises it, as it does all markdown.
  */
 export function fileHtml(file: FileFacts): string | null {
-  if (isImage(file.mime)) return null;
+  const look = lookOf(file);
   const src = `/api/attachments/${file.id}`;
-  const name = escapeHtml(file.name);
-  if (isInline(file.mime)) {
-    return `<video controls preload="metadata" src="${src}" title="${name}"></video>`;
-  }
-  return `<a href="${src}">${name} (${formatBytes(file.size)})</a>`;
+  if (look.kind === "image") return null;
+  if (look.kind === "video")
+    return `<video controls preload="metadata" src="${src}" title="${escapeHtml(look.name)}"></video>`;
+  return `<a href="${src}">${escapeHtml(look.words)}</a>`;
 }
 
 /** The line that stands where a file will go while it uploads. */

@@ -50,9 +50,10 @@ import { PropertyControl } from "./controls/PropertyControl";
 import { isTyping } from "./keys";
 import { Markdown, type TaskKeyLinks } from "./Markdown";
 import { FilesStrip } from "./FilesStrip";
-import { MarkdownBox } from "./MarkdownBox";
+import { loadLiveEditor, MarkdownBox } from "./MarkdownBox";
 import { withoutUploadLines } from "@/lib/uploads";
-import { MentionList, useMentions } from "./Mentions";
+import { previewContextFor } from "@/lib/live-context";
+import { MentionList, useMentions, type TextBox } from "./Mentions";
 import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
 import styles from "./panel.module.css";
@@ -1813,8 +1814,22 @@ function Description({
   const [sending, setSending] = useState<string | null>(null);
   /* Words the server refused because the description changed under them. */
   const [mine, setMine] = useState<string | null>(null);
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const ref = useRef<TextBox>(null);
   const shown = sending ?? value;
+
+  /* The editor is a chunk of its own. Asking for it as the panel opens means
+     the first click on the description does not wait for the download. */
+  useEffect(() => {
+    void loadLiveEditor();
+  }, []);
+
+  /* The page draws files and keys from these, so the box does too. Both
+     lists change with a board read, not with a key pressed in the box. */
+  const { projectId, projectKey, tasks } = links;
+  const preview = useMemo(
+    () => previewContextFor(files, { projectId, projectKey, keys: tasks.map((t) => t.key) }),
+    [files, projectId, projectKey, tasks],
+  );
 
   function startTyping() {
     if (!typed) base.current = shown;
@@ -1876,7 +1891,7 @@ function Description({
     if (count > 0 || !held.current) return;
     held.current = false;
     // Somebody who came back into the box is still writing.
-    if (words !== undefined && document.activeElement !== ref.current) close(words);
+    if (words !== undefined && !ref.current?.owns?.(document.activeElement)) close(words);
   }
 
   /* Nothing reads the draft until the editor opens, so the click that opens it
@@ -1913,6 +1928,8 @@ function Description({
         <>
           <MarkdownBox
             boxRef={ref}
+            live
+            preview={preview}
             taskId={taskId}
             send={counted}
             className={styles.descEditor}

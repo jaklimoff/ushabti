@@ -171,22 +171,35 @@ function split(
 ): Array<Tokens.Text | TaskKeyToken> | null {
   const pieces: Array<Tokens.Text | TaskKeyToken> = [];
   let from = 0;
-  for (const match of taskKeysIn(text, links.projectKey)) {
-    const key = known.get(match.key);
-    if (!key) continue;
-    if (match.index > from) pieces.push(plainText(text.slice(from, match.index), escaped));
-    pieces.push({
-      type: "taskKey",
-      raw: match.written,
-      text: match.written,
-      key,
-      href: `/p/${encodeURIComponent(links.projectId)}?task=${encodeURIComponent(key)}`,
-    });
-    from = match.index + match.written.length;
+  for (const { index, written, key, href } of keyLinksIn(text, links, known)) {
+    if (index > from) pieces.push(plainText(text.slice(from, index), escaped));
+    pieces.push({ type: "taskKey", raw: written, text: written, key, href });
+    from = index + written.length;
   }
   if (pieces.length === 0) return null;
   if (from < text.length) pieces.push(plainText(text.slice(from), escaped));
   return pieces;
+}
+
+/** A key that names a task, and the address its link opens. */
+export type KeyLink = KeyMatch & { href: string };
+
+/**
+ * The keys in the text that name a task the board knows, with their links.
+ * The page and the live box both ask this, so a key is a link in both or in
+ * neither. `known` maps an upper-case key to the key as the board writes it.
+ */
+export function keyLinksIn(
+  text: string,
+  links: TaskLinks,
+  known = new Map([...links.keys].map((k) => [k.toUpperCase(), k])),
+): KeyLink[] {
+  return taskKeysIn(text, links.projectKey).flatMap((match) => {
+    const key = known.get(match.key);
+    if (!key) return [];
+    const href = `/p/${encodeURIComponent(links.projectId)}?task=${encodeURIComponent(key)}`;
+    return [{ ...match, key, href }];
+  });
 }
 
 const plainText = (text: string, escaped: boolean): Tokens.Text => ({
