@@ -150,7 +150,9 @@ export function Column({
   onOpenTask: (task: TaskDTO) => void;
   /** Picks one card of this column, or puts it back. Shift asks for the run. */
   onPickTask: (taskId: string, event: React.MouseEvent) => void;
-  onAddTask: (column: BoardColumn, title: string, atTop: boolean) => void;
+  /** Adds a task here, or null when a task added here would fail the filter:
+      the column is drawn for the cards in it and offers no composer. */
+  onAddTask: ((column: BoardColumn, title: string, atTop: boolean) => void) | null;
   /**
    * Archives every task in this column, or null when the column cannot be
    * swept: with no grouping property there is no column to name, and under a
@@ -191,7 +193,7 @@ export function Column({
 
   function commit() {
     const title = draft.trim();
-    if (title) onAddTask(column, title, composing === "top");
+    if (title) onAddTask?.(column, title, composing === "top");
     setDraft("");
     onCompose(null);
   }
@@ -339,17 +341,19 @@ export function Column({
             </span>
           )}
           <span style={{ flex: 1 }} />
-          <button
-            className={styles.colAdd}
-            aria-label={`Add a task to the top of ${column.name}`}
-            title="Add a task to the top of this column"
-            onClick={() => {
-              onCompose("top");
-              setDraft("");
-            }}
-          >
-            +
-          </button>
+          {onAddTask && (
+            <button
+              className={styles.colAdd}
+              aria-label={`Add a task to the top of ${column.name}`}
+              title="Add a task to the top of this column"
+              onClick={() => {
+                onCompose("top");
+                setDraft("");
+              }}
+            >
+              +
+            </button>
+          )}
           {/* Archive is how a column that has done its job is emptied. It is
             offered only when the whole column is on screen. */}
           {onArchiveAll && column.tasks.length > 0 && (
@@ -401,7 +405,7 @@ export function Column({
       )}
 
       <div className={styles.colBody} ref={setDropRef} data-testid="column-body">
-        {composing === "top" && (
+        {onAddTask && composing === "top" && (
           <Composer
             ref={inputRef}
             draft={draft}
@@ -429,7 +433,7 @@ export function Column({
           ))}
         </SortableContext>
 
-        {composing === "bottom" && (
+        {onAddTask && composing === "bottom" && (
           <Composer
             ref={inputRef}
             draft={draft}
@@ -440,7 +444,7 @@ export function Column({
           />
         )}
 
-        {composing === null && (
+        {onAddTask && composing === null && (
           <button
             className={styles.emptyDrop}
             onClick={() => {
