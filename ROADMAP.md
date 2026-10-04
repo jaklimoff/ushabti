@@ -278,7 +278,10 @@ These are consequences of the design, not defects. Read them before you build on
   the keystroke and asks the server nothing. It follows the line above: the day
   a board pages, search has to become a query. It looks at the key, the title
   and the description, and at nothing else — a comment or a checklist item is
-  not searched.
+  not searched. A key match comes before a title match, and a title match
+  before a description match. Two hits that match equally well put the live
+  task first, then the one changed most recently — an archived task by when it
+  was archived — and equal times keep the board's order.
 - **The activity log has no limit.** The panel reads the last 60 entries, but the table only grows.
 - **The webhook sender is one process deep**, like the rate limit. One drain
   runs at a time inside a process; a second process would drain the same queue
