@@ -11,7 +11,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 ### Added
 
 - **A task can hold files.** Images and video go to an S3-compatible bucket — DigitalOcean
-  Spaces, AWS S3 or MinIO — set with `S3_BUCKET` and its keys. A file is read only through the
+  Spaces, AWS S3 or RustFS — set with `S3_BUCKET` and its keys. A file is read only through the
   board, which checks that you are on the project. SVG and anything that is not an image or a
   video always downloads. An agent uploads with `board.mjs attach USH-14 shot.png`, which prints
   the Markdown line to paste. With no bucket set, **Settings → Project** says what to set. The
@@ -21,6 +21,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   in place, a video plays, and any other file is a link with its size. A comment waits to send
   until its files are in. The task panel lists the files under the description, newest first, and
   the uploader or an admin can remove one.
+
+### Fixed
+
+- **`docker compose up` works again.** The local object store is now RustFS, because the MinIO
+  images can no longer be pulled. The server makes its bucket itself as it starts, so no helper
+  container runs. Production is unchanged: any S3-compatible store still works.
 
 ## 0.16.0 — 2026-10-04
 

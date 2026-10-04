@@ -1,5 +1,6 @@
 import "server-only";
 import {
+  CreateBucketCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -57,6 +58,51 @@ function on(): On {
   const config = attachmentConfig();
   if (!config.on) throw new Error("Attachments are off.");
   return config;
+}
+
+/* What a store answers when the bucket is there. "Exists" can mean somebody
+   else's, but then every PUT fails anyway, and says so better. */
+const BUCKET_THERE = new Set(["BucketAlreadyOwnedByYou", "BucketAlreadyExists"]);
+
+/**
+ * Makes the bucket, once, as the server starts. A local store starts empty,
+ * and a helper container that made the bucket was one more image to pull. A
+ * store that does not answer yet, or answers 5xx while it starts, is asked
+ * again for about a minute: in Docker it may start after the app. AccessDenied
+ * is quiet, because a production key is often scoped to a bucket somebody else
+ * made. Any other refusal is logged, a wrong key among them, and the routes still say what is wrong
+ * when somebody uploads.
+ */
+export async function ensureBucket({
+  tries = 30,
+  waitMs = 2000,
+}: { tries?: number; waitMs?: number } = {}): Promise<void> {
+  const config = on();
+  const input = {
+    Bucket: config.bucket,
+    // us-east-1 is the one region S3 refuses to be named in.
+    ...(config.region === "us-east-1"
+      ? {}
+      : { CreateBucketConfiguration: { LocationConstraint: config.region as never } }),
+  };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await client(config).send(new CreateBucketCommand(input));
+      return;
+    } catch (err) {
+      const name = (err as { name?: string }).name ?? "";
+      if (BUCKET_THERE.has(name)) return;
+      // Only AccessDenied: a wrong key answers 403 too, and must be said.
+      if (name === "AccessDenied") return;
+      const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+      const final = status !== undefined && status < 500;
+      if (final || attempt >= tries) {
+        console.warn(`Could not make the bucket ${config.bucket}: ${(err as Error).message}`);
+        return;
+      }
+      await new Promise((done) => setTimeout(done, waitMs));
+    }
+  }
 }
 
 /** A PUT good for ten minutes, bound to the object, its mime and its length. */

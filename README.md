@@ -204,7 +204,8 @@ know about managed clusters:
 #### Files on a task
 
 A task holds files, images and video first, in an S3-compatible bucket:
-DigitalOcean Spaces, AWS S3 or MinIO. The bucket stays private. A file is read
+DigitalOcean Spaces, AWS S3, RustFS or any other S3-compatible store. The
+bucket stays private. A file is read
 only through `/api/attachments/{id}`, which checks that the reader is on the
 project and redirects to a link that lasts five minutes. Set these:
 
@@ -215,7 +216,7 @@ project and redirects to a link that lasts five minutes. Set these:
 | `S3_BUCKET`            | The bucket. Without it, attachments are off.                       |
 | `S3_ACCESS_KEY`        | The key that may put, read and delete in the bucket.               |
 | `S3_SECRET_KEY`        | Its secret.                                                        |
-| `S3_FORCE_PATH_STYLE`  | `true` for MinIO.                                                  |
+| `S3_FORCE_PATH_STYLE`  | `true` for RustFS.                                                 |
 | `ATTACHMENT_MAX_BYTES` | The largest file. Default 50 MiB.                                  |
 | `ATTACHMENT_MIMES`     | The types a task takes, comma separated. Default images and video. |
 

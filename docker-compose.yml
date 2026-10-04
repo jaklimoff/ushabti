@@ -33,10 +33,10 @@ services:
       USHABTI_WEBHOOK_PRIVATE: "1"
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
-      # Files go to the minio service below. A signed URL names the host it
-      # was signed for, so the server and the browser must reach MinIO at
-      # the same address: minio shares this container's network, and
-      # localhost:9050 means MinIO both in here and on the host.
+      # Files go to the rustfs service below. A signed URL names the host it
+      # was signed for, so the server and the browser must reach RustFS at
+      # the same address: rustfs shares this container's network, and
+      # localhost:9050 means RustFS both in here and on the host.
       S3_ENDPOINT: http://localhost:9050
       S3_REGION: us-east-1
       S3_BUCKET: ushabti
@@ -47,7 +47,7 @@ services:
       # 3000 is a busy port on a development machine. The dev server keeps
       # 3050 for itself; the shipped image still listens on 3000.
       - "3050:3050"
-      # MinIO, which listens inside this container's network.
+      # RustFS, which listens inside this container's network.
       - "127.0.0.1:9050:9050"
     volumes:
       - .:/workspace
@@ -57,30 +57,27 @@ services:
       db:
         condition: service_healthy
 
-  minio:
-    image: minio/minio:latest
+  # The bucket is made by the app as it starts, so no helper runs here. It is
+  # never public: a file is read only through the board.
+  rustfs:
+    image: rustfs/rustfs:1.0.1
     restart: unless-stopped
-    command: server /data --address :9050 --console-address :9051
     network_mode: "service:app"
     environment:
-      MINIO_ROOT_USER: ushabti
-      MINIO_ROOT_PASSWORD: ushabti-secret
+      RUSTFS_ADDRESS: ":9050"
+      RUSTFS_CONSOLE_ADDRESS: ":9051"
+      RUSTFS_ACCESS_KEY: ushabti
+      RUSTFS_SECRET_KEY: ushabti-secret
+      # The browser PUTs a file straight to the store. MinIO allowed every
+      # origin by itself; RustFS answers a preflight only for these.
+      RUSTFS_CORS_ALLOWED_ORIGINS: http://localhost:3050
+      # Logs go to `docker compose logs`, not to a folder in the container.
+      RUSTFS_OBS_LOG_DIRECTORY: ""
     volumes:
-      - minio-data:/data
-
-  # Makes the bucket once MinIO answers, then stops. It never makes the
-  # bucket public: a file is read only through the board.
-  minio-bucket:
-    image: minio/mc:latest
-    network_mode: "service:app"
-    entrypoint: >
-      sh -c "until mc alias set local http://localhost:9050 ushabti ushabti-secret >/dev/null 2>&1;
-             do sleep 1; done; mc mb --ignore-existing local/ushabti"
-    depends_on:
-      - minio
+      - rustfs-data:/data
 
 volumes:
   db-data:
-  minio-data:
+  rustfs-data:
   node-modules:
   next-cache:
