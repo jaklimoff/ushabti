@@ -25,6 +25,7 @@ import {
   seedNote,
   seedValues,
   startsOnCurrent,
+  takesCards,
   waitingTasks,
 } from "../filters";
 import {
@@ -789,6 +790,49 @@ describe("the columns a filtered board keeps", () => {
   it("keeps them all when the board groups by nothing", () => {
     const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
     expect(allowedColumns(columns, filters, null, TODAY, null)).toHaveLength(3);
+  });
+});
+
+describe("a column that takes a card", () => {
+  const none = { value: null };
+  const todo = { value: "o-todo" };
+  const sprint: PropertyDTO = {
+    ...status,
+    type: "iteration",
+    options: status.options.map((o) =>
+      o.id === "o-todo" ? { ...o, targetAt: "2026-09-01", shippedAt: "2026-09-02" } : o,
+    ),
+  };
+
+  it("takes every card with no rule on the grouping property", () => {
+    const filters = { rules: [{ propertyId: labels.id, op: "is" as const, values: ["o-bug"] }] };
+    expect(takesCards(none, filters, sprint, TODAY, null)).toBe(true);
+    expect(takesCards(none, { rules: [] }, sprint, TODAY, null)).toBe(true);
+  });
+
+  /* The empty column stays for the shipped sprint's cards, but a card written
+     into it gets no value and fails the rule. */
+  it("refuses the empty column under a rule that no value fails", () => {
+    const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
+    expect(allowedColumns([none], filters, sprint, TODAY, null)).toHaveLength(1);
+    expect(takesCards(none, filters, sprint, TODAY, null)).toBe(false);
+  });
+
+  it("takes the empty column when the rule names Empty", () => {
+    const filters = {
+      rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo", NO_VALUE_KEY] }],
+    };
+    expect(takesCards(none, filters, sprint, TODAY, null)).toBe(true);
+  });
+
+  it("takes a column whose own value passes", () => {
+    const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
+    expect(takesCards(todo, filters, status, TODAY, null)).toBe(true);
+  });
+
+  it("takes every card when the board groups by nothing", () => {
+    const filters = { rules: [{ propertyId: status.id, op: "is" as const, values: ["o-todo"] }] };
+    expect(takesCards(none, filters, null, TODAY, null)).toBe(true);
   });
 });
 
