@@ -13,6 +13,9 @@ describe("register", () => {
     vi.stubEnv("SMTP_URL", env.SMTP_URL ?? "");
     vi.stubEnv("MAIL_FROM", env.MAIL_FROM ?? "");
     vi.stubEnv("USHABTI_URL", env.USHABTI_URL ?? "");
+    for (const name of ["S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"]) {
+      vi.stubEnv(name, env[name] ?? "");
+    }
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     return { warn, done: register() };
   }
@@ -22,6 +25,15 @@ describe("register", () => {
     await done;
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith("Mail is off: SMTP_URL is set, but MAIL_FROM is not.");
+  });
+
+  it("logs one line that says why when S3_BUCKET has no keys", async () => {
+    const { warn, done } = start({ S3_BUCKET: "ushabti" });
+    await done;
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "Attachments are off: S3_BUCKET is set, but S3_ACCESS_KEY or S3_SECRET_KEY is not.",
+    );
   });
 
   it("says nothing with neither, and nothing with both", async () => {

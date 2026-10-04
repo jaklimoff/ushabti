@@ -33,10 +33,22 @@ services:
       USHABTI_WEBHOOK_PRIVATE: "1"
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
+      # Files go to the minio service below. A signed URL names the host it
+      # was signed for, so the server and the browser must reach MinIO at
+      # the same address: minio shares this container's network, and
+      # localhost:9050 means MinIO both in here and on the host.
+      S3_ENDPOINT: http://localhost:9050
+      S3_REGION: us-east-1
+      S3_BUCKET: ushabti
+      S3_ACCESS_KEY: ushabti
+      S3_SECRET_KEY: ushabti-secret
+      S3_FORCE_PATH_STYLE: "true"
     ports:
       # 3000 is a busy port on a development machine. The dev server keeps
       # 3050 for itself; the shipped image still listens on 3000.
       - "3050:3050"
+      # MinIO, which listens inside this container's network.
+      - "127.0.0.1:9050:9050"
     volumes:
       - .:/workspace
       - node-modules:/workspace/node_modules
@@ -45,7 +57,30 @@ services:
       db:
         condition: service_healthy
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --address :9050 --console-address :9051
+    network_mode: "service:app"
+    environment:
+      MINIO_ROOT_USER: ushabti
+      MINIO_ROOT_PASSWORD: ushabti-secret
+    volumes:
+      - minio-data:/data
+
+  # Makes the bucket once MinIO answers, then stops. It never makes the
+  # bucket public: a file is read only through the board.
+  minio-bucket:
+    image: minio/mc:latest
+    network_mode: "service:app"
+    entrypoint: >
+      sh -c "until mc alias set local http://localhost:9050 ushabti ushabti-secret >/dev/null 2>&1;
+             do sleep 1; done; mc mb --ignore-existing local/ushabti"
+    depends_on:
+      - minio
+
 volumes:
   db-data:
+  minio-data:
   node-modules:
   next-cache:

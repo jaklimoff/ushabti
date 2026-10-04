@@ -747,6 +747,7 @@ export const WEBHOOK_KINDS = [
   "deleted",
   "reset",
   "import",
+  "attachment",
 ] as const;
 
 export type WebhookKind = (typeof WEBHOOK_KINDS)[number];
@@ -765,6 +766,7 @@ export const WEBHOOK_KIND_LABEL: Record<WebhookKind, string> = {
   deleted: "Deleted",
   reset: "Reset link",
   import: "A board brought in",
+  attachment: "A file",
 };
 
 /**

@@ -201,6 +201,29 @@ know about managed clusters:
 - Set `DATABASE_POOL_MAX` below the share of connections you can spare. One
   process otherwise holds up to twelve, and takes one more for live updates.
 
+#### Files on a task
+
+A task holds files, images and video first, in an S3-compatible bucket:
+DigitalOcean Spaces, AWS S3 or MinIO. The bucket stays private. A file is read
+only through `/api/attachments/{id}`, which checks that the reader is on the
+project and redirects to a link that lasts five minutes. Set these:
+
+| Variable               | Meaning                                                            |
+| ---------------------- | ------------------------------------------------------------------ |
+| `S3_ENDPOINT`          | The bucket's server. Empty for AWS.                                |
+| `S3_REGION`            | The region. Default `us-east-1`.                                   |
+| `S3_BUCKET`            | The bucket. Without it, attachments are off.                       |
+| `S3_ACCESS_KEY`        | The key that may put, read and delete in the bucket.               |
+| `S3_SECRET_KEY`        | Its secret.                                                        |
+| `S3_FORCE_PATH_STYLE`  | `true` for MinIO.                                                  |
+| `ATTACHMENT_MAX_BYTES` | The largest file. Default 50 MiB.                                  |
+| `ATTACHMENT_MIMES`     | The types a task takes, comma separated. Default images and video. |
+
+A browser uploads straight to the bucket, so give the bucket a CORS rule that
+allows `PUT` from the board's address. SVG and anything that is not an image or
+a video always downloads, because SVG carries script. With no bucket, every
+attachment route answers 503, and **Settings → Project** says what to set.
+
 ### Without Docker
 
 Point `DATABASE_URL` at any PostgreSQL 14 or later, then:
