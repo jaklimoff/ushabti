@@ -109,6 +109,61 @@ test.describe("What a task waits on", () => {
     await expect(page.getByTestId("task-links")).toHaveCount(0);
   });
 
+  test("a row opens the task it names, and the ✕ only unlinks", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Open links"));
+
+    const shipKey = await addAndKey(page, "Ship the thing");
+    const wireKey = await addAndKey(page, "Wire the queue");
+
+    await card(page, "Ship the thing").click();
+    await sayItWaitsOn(page, wireKey);
+
+    /* A Blocked by row opens the task it waits on, as a key in the words does. */
+    await page
+      .getByTestId("links-blockedBy")
+      .getByRole("button", { name: `Open ${wireKey} Wire the queue` })
+      .click();
+    await expect(page.getByTestId("task-key")).toHaveText(wireKey);
+
+    /* A Blocks row opens the task that waits, and the keyboard reaches it. */
+    const back = page
+      .getByTestId("links-blocks")
+      .getByRole("button", { name: `Open ${shipKey} Ship the thing` });
+    await back.focus();
+    await back.press("Enter");
+    await expect(page.getByTestId("task-key")).toHaveText(shipKey);
+
+    /* A task that is over still has a panel, so its row opens it too. */
+    await page.getByRole("button", { name: "Close task" }).click();
+    await card(page, "Wire the queue").click();
+    await page.getByRole("button", { name: "Task menu" }).click();
+    await page.getByTestId("archive-task").click();
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await card(page, "Ship the thing").click();
+    const over = page
+      .getByTestId("links-blockedBy")
+      .getByRole("button", { name: `Open ${wireKey} Wire the queue` });
+    await over.focus();
+    await over.press("Space");
+    await expect(page.getByTestId("task-key")).toHaveText(wireKey);
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+
+    /* The ✕ takes the link away and opens nothing. */
+    await page
+      .getByTestId("links-blocks")
+      .getByRole("button", { name: `Open ${shipKey} Ship the thing` })
+      .click();
+    await expect(page.getByTestId("task-key")).toHaveText(shipKey);
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+\/blockers\//, () =>
+      page.getByRole("button", { name: `Unlink ${wireKey}` }).click(),
+    );
+    await expect(page.getByTestId("task-links")).toHaveCount(0);
+    await expect(page.getByTestId("task-key")).toHaveText(shipKey);
+  });
+
   test.describe("on a phone", () => {
     test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
 

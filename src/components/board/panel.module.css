@@ -1268,6 +1268,26 @@
   min-height: 22px;
 }
 
+.linkOpen {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -4px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.linkOpen:hover {
+  background: var(--bg-hover);
+}
+
 .linkKey {
   flex: none;
   font-size: 11px;
