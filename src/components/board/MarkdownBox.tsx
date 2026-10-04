@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  lazy,
+  Suspense,
   useEffect,
   useRef,
   useState,
   type ClipboardEvent,
   type DragEvent,
+  type KeyboardEvent,
   type RefObject,
   type TextareaHTMLAttributes,
 } from "react";
@@ -13,12 +16,20 @@ import { flushSync } from "react-dom";
 import { markdownLine } from "@/lib/attachments";
 import { uploadFile } from "@/lib/upload-client";
 import { insertLines, replaceFirst, uploadingLine } from "@/lib/uploads";
-import { MentionList, useMentions } from "./Mentions";
+import { MentionList, useMentions, type TextBox } from "./Mentions";
 import styles from "./panel.module.css";
 
 type Send = <T>(write: () => Promise<T>) => Promise<T>;
 
+/* The native key event, handed to handlers typed for React's. They read only
+   the key, the modifiers, the target and the two stops, which both have. */
+type KeyboardEventLike = KeyboardEvent<HTMLTextAreaElement>;
+
 type BoxProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange" | "ref">;
+
+/* CodeMirror comes in its own chunk, the first time a live box opens, so the
+   board itself does not carry it. */
+const LiveEditor = lazy(() => import("./LiveEditor"));
 
 /**
  * The one box a person writes markdown in: the description, the edit of a
@@ -38,6 +49,7 @@ export function MarkdownBox({
   onUploading,
   onUploaded,
   boxRef,
+  live = false,
   onKeyDown,
   onSelect,
   onBlur,
@@ -56,9 +68,11 @@ export function MarkdownBox({
   onUploading?: (count: number, words?: string) => void;
   /** A file is ready, so the task's file list has one more. */
   onUploaded?: () => void;
-  boxRef?: RefObject<HTMLTextAreaElement | null>;
+  boxRef?: RefObject<TextBox | null>;
+  /** The spike of USH-178: a CodeMirror box whose lines read as rendered markdown. */
+  live?: boolean;
 }) {
-  const own = useRef<HTMLTextAreaElement>(null);
+  const own = useRef<TextBox>(null);
   const ref = boxRef ?? own;
   const [refused, setRefused] = useState<{ taskId: string; said: string } | null>(null);
 
@@ -165,11 +179,46 @@ export function MarkdownBox({
     take(files);
   }
 
+  if (live)
+    return (
+      <>
+        <Suspense fallback={<div className={rest.className} />}>
+          <LiveEditor
+            boxRef={ref}
+            value={value}
+            className={rest.className}
+            placeholder={rest.placeholder}
+            autoFocus={rest.autoFocus}
+            onChange={(text) => write(text)}
+            onSelect={() => picker.sync()}
+            onKeyDown={(e) => {
+              const key = e as unknown as KeyboardEventLike;
+              if (picker.onKeyDown(key)) return true;
+              onKeyDown?.(key);
+              return e.defaultPrevented;
+            }}
+            onFocus={() => rest.onFocus?.(undefined as never)}
+            onBlur={() => {
+              picker.close();
+              onBlur?.(undefined as never);
+            }}
+            onFiles={take}
+          />
+        </Suspense>
+        <MentionList picker={picker} />
+        {refused?.taskId === taskId && (
+          <span className={styles.boxRefused} role="status" data-testid="upload-refused">
+            {refused.said}
+          </span>
+        )}
+      </>
+    );
+
   return (
     <>
       <textarea
         {...rest}
-        ref={ref}
+        ref={ref as RefObject<HTMLTextAreaElement | null>}
         value={value}
         onChange={(e) => {
           write(e.target.value);

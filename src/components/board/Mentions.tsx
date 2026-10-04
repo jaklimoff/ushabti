@@ -46,6 +46,19 @@ export type MentionPicker = {
   pick: (mention: Mention) => void;
 };
 
+/**
+ * What the list needs of a box: a textarea has it, and so does the live
+ * editor. `owns` is for a box whose focus sits on an element inside it.
+ */
+export type TextBox = {
+  readonly value: string;
+  readonly selectionStart: number;
+  readonly offsetParent: Element | null;
+  focus: () => void;
+  setSelectionRange: (from: number, to: number) => void;
+  owns?: (el: Element | null) => boolean;
+};
+
 /** The open list: the letters it answers, and where it was put. */
 type Word = { query: string; up: boolean; room: number };
 
@@ -76,7 +89,7 @@ function roomAround(el: HTMLElement): Edges {
  * the closed tab, saves it like any other edit.
  */
 export function useMentions(
-  box: RefObject<HTMLTextAreaElement | null>,
+  box: RefObject<TextBox | null>,
   write: (text: string) => void,
 ): MentionPicker {
   const { data } = useBoard();
@@ -116,7 +129,7 @@ export function useMentions(
     if (!el || !found) return setWord(null);
     /* What the list is measured from is the element it is placed against:
        the ancestor carrying `position: relative`, which is the anchor. */
-    const anchor = (el.offsetParent as HTMLElement | null) ?? el;
+    const anchor = (el.offsetParent ?? el) as HTMLElement;
     const edges = anchor.getBoundingClientRect();
     const room = roomAround(anchor);
     const rows = mentionsFor(data.members, found.query, Date.now()).length;
