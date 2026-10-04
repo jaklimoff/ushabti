@@ -99,8 +99,31 @@ jobs:
           --health-timeout 3s
           --health-retries 20
 
+      # The object store a task's files go to. The server makes the bucket as
+      # it starts, and `e2e/attachments.spec.ts` puts a real PNG in it. The
+      # server and the browser both live in this container, so both reach
+      # the store by its name, which is the host a signed URL names. It has no
+      # health check on purpose: a store that never answers skips the upload
+      # spec with a sentence, where a failed check would stop every shard.
+      rustfs:
+        image: rustfs/rustfs:1.0.1
+        env:
+          RUSTFS_ACCESS_KEY: ushabti
+          RUSTFS_SECRET_KEY: ushabti-secret
+          # The browser PUTs a file straight to the store, and RustFS answers
+          # a preflight only for these origins. Node sends no preflight, so
+          # without it only the specs that upload from a page fail.
+          RUSTFS_CORS_ALLOWED_ORIGINS: http://localhost:3000
+          RUSTFS_OBS_LOG_DIRECTORY: ""
+
     env:
       DATABASE_URL: postgres://ushabti:ushabti@postgres:5432/ushabti
+      S3_ENDPOINT: http://rustfs:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: ushabti
+      S3_ACCESS_KEY: ushabti
+      S3_SECRET_KEY: ushabti-secret
+      S3_FORCE_PATH_STYLE: "true"
 
     steps:
       - uses: actions/checkout@v7
