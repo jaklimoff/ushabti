@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addTask, createProject, gotoSettings, register, unique } from "./helpers";
+import {
+  addTask,
+  createProject,
+  gotoSettings,
+  register,
+  unique,
+  descriptionBox,
+  expectBoxValue,
+} from "./helpers";
 
 /**
  * The `@` picker.
@@ -108,11 +116,11 @@ test.describe("Who an @ can name", () => {
     await expect(page.getByTestId("card").first()).toContainText(`@${AGENT}`);
 
     await page.getByText("Add a description…").click();
-    const editor = page.getByPlaceholder("Write in markdown…");
+    const editor = descriptionBox(page);
     await editor.pressSequentially("Over to @nig");
     await expect(page.getByTestId("mention-list")).toBeVisible();
     await editor.press("Enter");
-    await expect(editor).toHaveValue(`Over to @${AGENT} `);
+    await expectBoxValue(editor, `Over to @${AGENT} `);
     await editor.blur();
     await expect(page.getByTestId("markdown")).toContainText(`Over to @${AGENT}`);
   });

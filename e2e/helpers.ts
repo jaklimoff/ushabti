@@ -462,3 +462,42 @@ export async function forAFinger(targets: Locator, count: number) {
     expect(box!.height, `${label} is ${box!.height} px tall`).toBeGreaterThanOrEqual(24);
   }
 }
+
+/**
+ * The description's box. It is the live editor now, and a textarea before
+ * it; the specs ask for it here, so they read the same either way.
+ */
+export function descriptionBox(page: Page): Locator {
+  return page.getByTestId("live-editor").or(page.getByPlaceholder("Write in markdown…"));
+}
+
+/** Puts these words in a box in place of what it held, as `fill` does for a textarea. */
+export async function fillBox(box: Locator, text: string) {
+  if ((await box.evaluate((el) => el.tagName)) === "TEXTAREA") return box.fill(text);
+  await box.focus();
+  await box.press("ControlOrMeta+a");
+  if (text === "") await box.press("Backspace");
+  else await box.page().keyboard.insertText(text);
+  await expect.poll(() => boxValue(box)).toBe(text);
+}
+
+/**
+ * The words a box holds, as they will be saved. A live box draws them
+ * rendered, so its text on screen is not its value; the editor's own state
+ * is, reached through the node CodeMirror ties it to.
+ */
+export async function boxValue(box: Locator): Promise<string> {
+  return box.evaluate((el) => {
+    if (el instanceof HTMLTextAreaElement) return el.value;
+    const tile = (el as unknown as { cmTile?: { root?: { view?: unknown } } }).cmTile;
+    const view = tile?.root?.view as { state: { doc: { toString(): string } } } | undefined;
+    if (!view) throw new Error("This box is neither a textarea nor a CodeMirror editor.");
+    return view.state.doc.toString();
+  });
+}
+
+/** Waits until a box holds these words, as `toHaveValue` does for a textarea. */
+export async function expectBoxValue(box: Locator, want: string | RegExp) {
+  if (typeof want === "string") await expect.poll(() => boxValue(box)).toBe(want);
+  else await expect.poll(() => boxValue(box)).toMatch(want);
+}

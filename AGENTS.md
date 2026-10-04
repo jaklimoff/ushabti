@@ -364,6 +364,17 @@ and what is easy to get wrong.
   task and for a whole selection, so it holds no address of its own, and
   handing it one for the sake of a leave would put a decision back in a control
   that decides nothing.
+- **The box is Markdown, and shows it rendered.** The description is a
+  CodeMirror editor that draws every line but the cursor's as the page would,
+  and it never stores another format: the agents read and write Markdown, and
+  a block editor's own format round-trips Markdown with loss. `pieces()` in
+  `src/lib/live-markdown.ts` decides what a line draws; the files and the task
+  keys come from the page's own rules through `previewContextFor()`, so a
+  file or a key cannot read one way in the box and another on the page. The
+  parser is Lezer's GFM plus the single tilde marked strikes, and
+  `live-markdown-parity.test.ts` holds it to marked. The editor is a lazy chunk
+  that imports none of those rules: imported from there, they move into one
+  more chunk the board page has to fetch.
 - **Off the board, geometry comes from `components/ui/`.** A button, an input,
   a tag and a card are declared once. They used to be declared three times
   each, at three different heights. The board keeps its own CSS on purpose.
