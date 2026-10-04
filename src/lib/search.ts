@@ -3,12 +3,14 @@ import type { TaskDTO } from "./types";
 /**
  * What a search reads of a task. A live task answers it and so does an
  * archived one, which the board carries in a lighter shape — the words, the
- * key, the rank it is tied in, and whether it is archived.
+ * key, the rank it is tied in, and whether it is archived. The archived shape
+ * carries no `updatedAt`, because its `archivedAt` is the last thing that
+ * happened to it.
  */
 export type Searchable = Pick<
   TaskDTO,
   "id" | "number" | "key" | "title" | "description" | "position"
-> & { archivedAt?: string | null };
+> & { archivedAt?: string | null; updatedAt?: string };
 
 /**
  * Finding one task by its key, its title or its words.
@@ -63,6 +65,16 @@ function rankOf(task: Searchable, whole: string, words: string[]): number {
   return 4;
 }
 
+/**
+ * When a task last changed, as a number to compare. A time is read with
+ * `Date.parse`, never as words, because a search runs on the server and in the
+ * browser and the two do not share a locale.
+ */
+function lastChanged(task: Searchable): number {
+  const when = task.archivedAt ?? task.updatedAt;
+  return when ? Date.parse(when) : 0;
+}
+
 /** The first line of the description that carries one of the words. */
 function lineWith(description: string, words: string[]): string | null {
   for (const line of description.split("\n")) {
@@ -112,8 +124,16 @@ export function searchTasks(
   return found
     .sort((a, b) => {
       if (a.rank !== b.rank) return a.rank - b.rank;
-      /* Two equally good hits come back in the one order every view shares,
-         so the same words always answer in the same order. */
+      /* Two equally good hits put the live task first and then the newest:
+         an old task must not push the one changed this week out of the box.
+         Recency is the only signal, because no Status is hardcoded. The cut
+         to the limit comes after this, so the order also decides what shows. */
+      const gone = Number(Boolean(a.hit.task.archivedAt)) - Number(Boolean(b.hit.task.archivedAt));
+      if (gone !== 0) return gone;
+      const newer = lastChanged(b.hit.task) - lastChanged(a.hit.task);
+      if (newer !== 0) return newer;
+      /* Equal times come back in the one order every view shares, so the
+         same words on the same board always answer in the same order. */
       const one = a.hit.task.position;
       const other = b.hit.task.position;
       return one < other ? -1 : one > other ? 1 : 0;

@@ -27,6 +27,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   task items whose box ticks. Tables stay as written. What is saved is still plain Markdown, so an
   agent reads exactly what you typed. Comments keep their plain box for now.
 
+### Changed
+
+- **A search shows the most recent task first when two hits match equally well.** A key match
+  still comes first, then the title, then the description. Inside each, a live task comes
+  before an archived one, and the task changed last comes first, so an old task no longer
+  pushes this week's work out of the twelve hits.
+
 ### Fixed
 
 - **`docker compose up` works again.** The local object store is now RustFS, because the MinIO
