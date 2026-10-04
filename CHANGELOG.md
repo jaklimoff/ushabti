@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A Blocked by or Blocks row opens its task.** Press the key or the title, or reach it with
+  Tab and press Enter, and the panel shows that task — an archived one too. The ✕ still only
+  unlinks.
 - **A task can hold files.** Images and video go to an S3-compatible bucket — DigitalOcean
   Spaces, AWS S3 or RustFS — set with `S3_BUCKET` and its keys. A file is read only through the
   board, which checks that you are on the project. SVG and anything that is not an image or a
