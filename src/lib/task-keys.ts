@@ -13,6 +13,7 @@
  */
 
 import { Marked, type Token, type Tokens } from "marked";
+import { attachmentIdOf, fileHtml, type FileFacts } from "./uploads";
 
 /** A key found in a piece of text, where it sits, and how it was written. */
 export type KeyMatch = { index: number; written: string; key: string };
@@ -77,8 +78,15 @@ const CLOSES = /^<\/(a|code|pre)\s*>/i;
  * A key inside inline code, a code block or a link stays as it was written,
  * because a link inside a link is two answers to one click, and code is
  * quoted words.
+ *
+ * `files` is the task's own file list. A file the markdown names is drawn by
+ * its mime from there, never by its address; see `uploads.ts`.
  */
-export function renderMarkdown(text: string, links?: TaskLinks | null): string {
+export function renderMarkdown(
+  text: string,
+  links?: TaskLinks | null,
+  files?: Iterable<FileFacts> | null,
+): string {
   const tokens = markdown.lexer(text ?? "");
   if (links) {
     const known = new Map<string, string>();
@@ -128,7 +136,31 @@ export function renderMarkdown(text: string, links?: TaskLinks | null): string {
        cannot quiet the keys of the rest of the text. */
     link(tokens, true);
   }
+  /* After the keys: the link a file becomes is raw html, and the pass above
+     would read it as a link left open and quiet every key after it. */
+  if (files) drawFiles(tokens, files);
   return markdown.parser(tokens);
+}
+
+function drawFiles(tokens: Token[], files: Iterable<FileFacts>) {
+  const byId = new Map<string, FileFacts>();
+  for (const f of files) byId.set(f.id.toLowerCase(), f);
+  markdown.walkTokens(tokens, (token) => {
+    if (token.type !== "image") return;
+    const id = attachmentIdOf((token as Tokens.Image).href);
+    const file = id ? byId.get(id.toLowerCase()) : undefined;
+    const html = file ? fileHtml(file) : null;
+    if (html === null) return;
+    const drawn: Tokens.HTML = {
+      type: "html",
+      raw: token.raw,
+      text: html,
+      pre: false,
+      block: false,
+    };
+    for (const key of Object.keys(token)) delete (token as unknown as Record<string, unknown>)[key];
+    Object.assign(token, drawn);
+  });
 }
 
 function split(

@@ -4,21 +4,11 @@ import { db } from "@/db";
 import { attachments, tasks } from "@/db/schema";
 import { attachmentsOn, UNREADY_TTL_MS } from "./attachments";
 import { readId } from "./api";
+import type { AttachmentDTO } from "./types";
+
+export type { AttachmentDTO };
 
 export type AttachmentRow = typeof attachments.$inferSelect;
-
-export type AttachmentDTO = {
-  id: string;
-  taskId: string;
-  uploaderId: string | null;
-  name: string;
-  mime: string;
-  size: number;
-  width: number | null;
-  height: number | null;
-  createdAt: string;
-  url: string;
-};
 
 export function toAttachmentDTO(row: AttachmentRow): AttachmentDTO {
   return {
