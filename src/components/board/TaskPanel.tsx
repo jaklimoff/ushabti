@@ -745,6 +745,7 @@ export function TaskPanel({
                 reload={reload}
                 counted={counted}
                 onError={notify}
+                onOpenTask={onOpenTask}
               />
 
               <Description
@@ -975,6 +976,7 @@ function Links({
   reload,
   counted,
   onError,
+  onOpenTask,
 }: {
   taskId: string;
   links: { blockedBy: TaskLinkDTO[]; blocks: TaskLinkDTO[] } | null;
@@ -983,6 +985,7 @@ function Links({
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
+  onOpenTask: (task: { id: string; key: string }) => void;
 }) {
   const { data, linkBlocker } = useBoard();
   const [query, setQuery] = useState("");
@@ -1078,12 +1081,21 @@ function Links({
 
             {list.map((row) => (
               <div key={row.id} className={styles.linkRow} data-testid="link-row">
-                <span className={`${styles.linkKey} mono`}>{row.key}</span>
-                {/* A blocker that is over blocks nothing any more, and it is
-                    still here: struck through says both at once. */}
-                <span className={`${styles.linkTitle} ${row.over ? styles.linkOver : ""}`}>
-                  {row.title}
-                </span>
+                {/* The row opens its task by the one way the panel opens
+                    another, as a key in the words does. An over task still
+                    has a panel, so it opens too. */}
+                <button
+                  className={styles.linkOpen}
+                  aria-label={`Open ${row.key} ${row.title}`}
+                  onClick={() => onOpenTask({ id: row.id, key: row.key })}
+                >
+                  <span className={`${styles.linkKey} mono`}>{row.key}</span>
+                  {/* A blocker that is over blocks nothing any more, and it is
+                      still here: struck through says both at once. */}
+                  <span className={`${styles.linkTitle} ${row.over ? styles.linkOver : ""}`}>
+                    {row.title}
+                  </span>
+                </button>
                 <button
                   className={styles.linkRemove}
                   aria-label={`Unlink ${row.key}`}
