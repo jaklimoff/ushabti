@@ -79,12 +79,64 @@ describe("searchTasks", () => {
     expect(keys("login image")).toEqual([]);
   });
 
-  it("keeps the order every view shares when two hits are equally good", () => {
+  it("puts the task changed most recently first when two hits are equally good", () => {
+    const same = [
+      task({ number: 8, title: "Same words here", updatedAt: "2026-01-02T00:00:00.000Z" }),
+      task({ number: 9, title: "Same words here", updatedAt: "2026-03-01T00:00:00.000Z" }),
+    ];
+    expect(keys("same words", same)).toEqual(["DP-9", "DP-8"]);
+  });
+
+  it("puts a live hit above an archived one, and the newest archived first", () => {
+    const same = [
+      task({ number: 7, title: "Same words here", archivedAt: "2026-01-05T00:00:00.000Z" }),
+      task({ number: 8, title: "Same words here", archivedAt: "2026-09-05T00:00:00.000Z" }),
+      task({ number: 9, title: "Same words here", updatedAt: "2025-01-01T00:00:00.000Z" }),
+    ];
+    expect(keys("same words", same)).toEqual(["DP-9", "DP-8", "DP-7"]);
+  });
+
+  it("orders an archived task by when it was archived, with no updatedAt", () => {
+    const shape = (number: number, archivedAt: string) => ({
+      id: `t-${number}`,
+      number,
+      key: `DP-${number}`,
+      title: "Same words here",
+      description: "",
+      position: String(number).padStart(3, "0"),
+      archivedAt,
+    });
+    const hits = searchTasks(
+      [shape(1, "2026-01-01T00:00:00.000Z"), shape(2, "2026-05-01T00:00:00.000Z")],
+      "same words",
+    );
+    expect(hits.map((hit) => hit.task.key)).toEqual(["DP-2", "DP-1"]);
+  });
+
+  it("still puts a key match above a newer title match", () => {
+    const both = [
+      task({ number: 3, title: "Old one", updatedAt: "2025-01-01T00:00:00.000Z" }),
+      task({ number: 5, title: "Says dp-3 here", updatedAt: "2026-09-01T00:00:00.000Z" }),
+    ];
+    expect(keys("dp-3", both)).toEqual(["DP-3", "DP-5"]);
+  });
+
+  it("keeps the order every view shares when two hits are equally good and equally new", () => {
     const same = [
       task({ number: 9, title: "Same words here", position: "s" }),
       task({ number: 8, title: "Same words here", position: "V" }),
+      task({ number: 7, title: "Same words here", position: "a", archivedAt: WHEN }),
+      task({ number: 6, title: "Same words here", position: "Z", archivedAt: WHEN }),
     ];
-    expect(keys("same words", same)).toEqual(["DP-8", "DP-9"]);
+    expect(keys("same words", same)).toEqual(["DP-8", "DP-9", "DP-6", "DP-7"]);
+  });
+
+  it("orders before it cuts to the limit", () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      task({ number: i + 1, title: "Same words here" }),
+    );
+    many.push(task({ number: 99, title: "Same words here", updatedAt: WHEN }));
+    expect(keys("same words", many)[0]).toBe("DP-99");
   });
 
   it("draws no more than it was asked for", () => {
