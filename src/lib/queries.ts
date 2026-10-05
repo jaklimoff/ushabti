@@ -32,6 +32,7 @@ import { readFilters, WAITS } from "./filters";
 import { readTimeZone, todayIn } from "./day";
 import { BLOCKS, isOver, PARENT, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readProgressBy } from "./progress";
+import { readWhens } from "./when";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
@@ -359,14 +360,18 @@ function withOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
     list.push(toOptionDTO(o));
     optionsByProp.set(o.propertyId, list);
   }
-  return propRows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    type: p.type as PropertyType,
-    position: p.position,
-    config: (p.config ?? {}) as PropertyDTO["config"],
-    options: optionsByProp.get(p.id) ?? [],
-  }));
+  /* Each rule is read afresh against the rest, so the board never carries a
+     raw one. */
+  return readWhens(
+    propRows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: p.type as PropertyType,
+      position: p.position,
+      config: (p.config ?? {}) as PropertyDTO["config"],
+      options: optionsByProp.get(p.id) ?? [],
+    })),
+  );
 }
 
 /* ------------------------------------------------------------------ */

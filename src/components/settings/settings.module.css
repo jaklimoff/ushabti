@@ -198,6 +198,38 @@
   min-width: 0;
 }
 
+.whenAdd {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--t-small);
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.whenAdd:hover {
+  color: var(--text-2);
+}
+
+.when {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+  font-size: var(--t-small);
+  color: var(--text-3);
+}
+
+.whenSaid {
+  color: var(--text-2);
+}
+
+.whenPick {
+  width: auto;
+}
+
 .cadence {
   display: flex;
   align-items: center;

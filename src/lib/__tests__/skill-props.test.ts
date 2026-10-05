@@ -27,6 +27,22 @@ const BOARD = {
       ],
     },
     { name: "Labels", type: "multi_select", options: [{ name: "bug", ...plain }] },
+    {
+      id: "p-type",
+      name: "Type",
+      type: "select",
+      options: [
+        { id: "o-bug", name: "Bug", ...plain },
+        { id: "o-story", name: "Story", ...plain },
+      ],
+    },
+    {
+      id: "p-sev",
+      name: "Severity",
+      type: "text",
+      config: { when: { propertyId: "p-type", optionIds: ["o-bug", "__none__"] } },
+      options: [],
+    },
   ],
   members: [{ name: "Ada" }],
   tasks: [],
@@ -75,5 +91,12 @@ describe("board.mjs props", () => {
     );
     expect(out).toContain("Sprint 5 · → 2026-10-28");
     expect(out).toContain("Labels (multi_select): bug");
+  });
+
+  it("says when a property shows", async () => {
+    const { code, out } = await run("props");
+    expect(code).toBe(0);
+    expect(out).toContain("Severity (text) · shown when Type is Bug or No type");
+    expect(out).toContain("Type (select): Bug | Story\n");
   });
 });
