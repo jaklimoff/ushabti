@@ -1,10 +1,11 @@
 import { asc, eq, sql } from "drizzle-orm";
-import { projects, tasks } from "@/db/schema";
+import { projects, tasks, taskValues } from "@/db/schema";
+import { dropHidden } from "@/lib/hidden";
 import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
-import { logActivity, rankOnTheEnd, withProjectLock } from "@/lib/queries";
+import { rankOnTheEnd, withProjectLock } from "@/lib/queries";
 import { byPos } from "@/lib/order";
 import { rankBefore, rankBetween } from "@/lib/rank";
-import { coerceValue, loadProperty, putValue } from "@/lib/values";
+import { coerceValue, loadProperty } from "@/lib/values";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -26,7 +27,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   // The counter bump and the rank both have to see the same snapshot, so the
   // whole thing runs under the project lock.
-  const { task, rewrote } = await withProjectLock(projectId, async (tx) => {
+  const { task, rewrote, ring } = await withProjectLock(projectId, async (tx) => {
     const [project] = await tx
       .update(projects)
       .set({ taskCounter: sql`${projects.taskCounter} + 1` })
@@ -64,24 +65,34 @@ export const POST = route<Ctx>(async (req, ctx) => {
         createdBy: user.id,
       })
       .returning();
-    return { task: { ...row, key: `${project.key}-${row.number}` }, rewrote };
-  });
+    const task = { ...row, key: `${project.key}-${row.number}` };
 
-  if (input.values && typeof input.values === "object") {
-    for (const [propertyId, raw] of Object.entries(input.values)) {
+    /* The seeds are written under the lock that wrote the task, as a rule in
+       Settings is: a rule written beside this create either sees the task or
+       is seen by the drop. A seed can hide another one, so the drop follows. */
+    const values = input.values && typeof input.values === "object" ? input.values : {};
+    for (const [propertyId, raw] of Object.entries(values)) {
       const prop = await loadProperty(propertyId);
       if (prop.projectId !== projectId) continue;
-      await putValue(task.id, propertyId, await coerceValue(prop, raw));
+      const value = await coerceValue(prop, raw);
+      await tx
+        .insert(taskValues)
+        .values({ taskId: task.id, propertyId, value })
+        .onConflictDoUpdate({
+          target: [taskValues.taskId, taskValues.propertyId],
+          set: { value },
+        });
     }
-  }
-
-  await logActivity({
-    projectId,
-    taskId: task.id,
-    actorId: user.id,
-    kind: "created",
-    data: { title },
+    const { ring } = await dropHidden(tx, {
+      projectId,
+      taskIds: Object.keys(values).length ? [task.id] : [],
+      actorId: user.id,
+      before: [{ projectId, taskId: task.id, actorId: user.id, kind: "created", data: { title } }],
+    });
+    return { task, rewrote, ring };
   });
+
+  await ring();
   /* A rewrite moved rows this tab did not ask about, so it hears the bell too. */
   await broadcast({ projectId, scope: "board", clientId: rewrote ? undefined : clientIdOf(req) });
   return json({ task }, 201);

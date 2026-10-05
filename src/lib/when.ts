@@ -101,3 +101,184 @@ export function withWhen(property: PropertyDTO, when: When | null): PropertyDTO[
   delete config.when;
   return when ? { ...config, when } : config;
 }
+
+/* ------------------------------------------------------------------ */
+/* Values a task does not show                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A hidden value must never act. A Done that nobody can see would still close
+ * a blocker, pass a filter and leave in the export, so a value goes the moment
+ * its property stops showing. Everything below asks `isShown`, so the server
+ * that drops and the question that asks first cannot disagree.
+ */
+
+/** True when a value holds something a person would miss. */
+export function carriesValue(value: TaskValue | undefined): boolean {
+  if (value === null || value === undefined || value === "") return false;
+  return !Array.isArray(value) || value.length > 0;
+}
+
+/** The properties that hold a value on this task and that it does not show. */
+export function hiddenOf(
+  values: Record<string, TaskValue>,
+  properties: PropertyDTO[],
+): PropertyDTO[] {
+  return properties.filter((p) => carriesValue(values[p.id]) && !isShown(p, values, properties));
+}
+
+/** The values with every one that does not show taken away, empty or not. */
+export function withoutHidden(
+  values: Record<string, TaskValue>,
+  properties: PropertyDTO[],
+): Record<string, TaskValue> {
+  const kept: Record<string, TaskValue> = {};
+  for (const [id, value] of Object.entries(values)) {
+    const property = properties.find((p) => p.id === id);
+    if (!property || isShown(property, values, properties)) kept[id] = value;
+  }
+  return kept;
+}
+
+/** What setting one value would take away from a task. */
+export function droppedBy(
+  values: Record<string, TaskValue>,
+  properties: PropertyDTO[],
+  propertyId: string,
+  value: TaskValue,
+): PropertyDTO[] {
+  return hiddenOf({ ...values, [propertyId]: value }, properties);
+}
+
+/**
+ * The option that hid these, by name, for the line in the activity.
+ *
+ * Each property's rules are walked to the first one its task fails, which is
+ * the select whose value hid it; in a chain that can be a select further up.
+ * A name is given only when one option hid them all: two causes, or a select
+ * left empty, have no one name, and the line then says what went alone.
+ */
+export function hidBy(
+  values: Record<string, TaskValue>,
+  properties: PropertyDTO[],
+  hidden: PropertyDTO[],
+): string | null {
+  const causes = new Set(hidden.map((p) => causeOf(p, values, properties)));
+  if (causes.size !== 1) return null;
+  return [...causes][0];
+}
+
+function causeOf(
+  property: PropertyDTO,
+  values: Record<string, TaskValue>,
+  properties: PropertyDTO[],
+): string | null {
+  let at: PropertyDTO | undefined = property;
+  for (let step = 0; at?.config.when && step <= properties.length; step++) {
+    const when: When = at.config.when;
+    const value = values[when.propertyId];
+    const key = typeof value === "string" && value !== "" ? value : NO_VALUE_KEY;
+    const named = properties.find((p) => p.id === when.propertyId);
+    if (!when.optionIds.includes(key)) {
+      return named?.options.find((o) => o.id === key)?.name ?? null;
+    }
+    at = named;
+  }
+  return null;
+}
+
+/** "Severity", "Severity and Repro", "Severity, Repro and Steps". */
+export function namesSaid(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+/** A value as the question names it: the option, or "nothing". */
+export function valueSaid(property: PropertyDTO, value: TaskValue): string {
+  if (!carriesValue(value)) return "nothing";
+  if (typeof value === "string") {
+    const option = property.options.find((o) => o.id === value);
+    if (option) return option.name;
+  }
+  return Array.isArray(value) ? value.join(", ") : String(value);
+}
+
+/** The panel's question: "Change Type to Story? Severity and Repro lose their values." */
+export function changeAsked(property: PropertyDTO, value: TaskValue, lost: PropertyDTO[]): string {
+  const names = namesSaid(lost.map((p) => p.name));
+  const tail = lost.length === 1 ? "loses its value" : "lose their values";
+  return `Change ${property.name} to ${valueSaid(property, value)}? ${names} ${tail}.`;
+}
+
+/** What a bulk set takes away: how many values, and of which properties. */
+export function pickedDrops(
+  tasks: { values: Record<string, TaskValue> }[],
+  properties: PropertyDTO[],
+  propertyId: string,
+  value: TaskValue,
+): { values: number; names: string[] } {
+  let count = 0;
+  const names: string[] = [];
+  for (const task of tasks) {
+    for (const p of droppedBy(task.values, properties, propertyId, value)) {
+      count += 1;
+      if (!names.includes(p.name)) names.push(p.name);
+    }
+  }
+  return { values: count, names };
+}
+
+/** The pick bar's question: "Set Type to Story on 4 tasks? 3 values go (Severity, Repro)." */
+export function pickedAsked(
+  property: PropertyDTO,
+  value: TaskValue,
+  tasks: number,
+  drops: { values: number; names: string[] },
+): string {
+  const on = tasks === 1 ? "1 task" : `${tasks} tasks`;
+  const go = drops.values === 1 ? "1 value goes" : `${drops.values} values go`;
+  return `Set ${property.name} to ${valueSaid(property, value)} on ${on}? ${go} (${drops.names.join(", ")}).`;
+}
+
+/**
+ * What a new rule on one property takes away: how many tasks lose a value,
+ * and of which properties. A rule can hide a select that other rules name,
+ * so the names can be more than the one property.
+ */
+export function ruleDrops(
+  tasks: { values: Record<string, TaskValue> }[],
+  properties: PropertyDTO[],
+  propertyId: string,
+  when: When | null,
+): { tasks: number; names: string[] } {
+  const after = readWhens(
+    properties.map((p) => (p.id === propertyId ? { ...p, config: withWhen(p, when) } : p)),
+  );
+  let count = 0;
+  const names: string[] = [];
+  for (const task of tasks) {
+    const lost = hiddenOf(task.values, after);
+    if (!lost.length) continue;
+    count += 1;
+    for (const p of lost) if (!names.includes(p.name)) names.push(p.name);
+  }
+  return { tasks: count, names };
+}
+
+/** The settings question: "12 tasks lose their Severity". */
+export function ruleAsked(drops: { tasks: number; names: string[] }): string {
+  const names = namesSaid(drops.names);
+  return drops.tasks === 1
+    ? `1 task loses its ${names}`
+    : `${drops.tasks} tasks lose their ${names}`;
+}
+
+/** The line in a task's activity: "Story hid Severity and Repro, and their values were dropped". */
+export function droppedSaid(by: string | null, names: string[]): string {
+  const said = namesSaid(names);
+  const one = names.length === 1;
+  const tail = one ? "its value was dropped" : "their values were dropped";
+  return by
+    ? `${by} hid ${said}, and ${tail}`
+    : `${said} ${one ? "was" : "were"} hidden, and ${tail}`;
+}

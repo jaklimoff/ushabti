@@ -4,6 +4,7 @@ import { projects, taskLinks, tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { deletedLine } from "@/lib/deleted";
+import { dropHidden, lockTasks } from "@/lib/hidden";
 import { brokenParts, PARENT } from "@/lib/links";
 import {
   logActivity,
@@ -46,13 +47,14 @@ export const POST = route<Ctx>(async (req, ctx) => {
   /* Under the project lock, because a parent row of the task may have to go
      with it: while it was deleted its rows refused nothing, so its parent may
      have become a part, or one of its parts may have got parts. */
-  const { row, dropped } = await withProjectLock(projectId, async (tx) => {
+  const { row, dropped, ring } = await withProjectLock(projectId, async (tx) => {
+    await lockTasks(tx, [taskId]);
     const [row] = await tx
       .update(tasks)
       .set({ deletedAt: null })
       .where(and(eq(tasks.id, taskId), isNotNull(tasks.deletedAt)))
       .returning({ title: tasks.title, number: tasks.number });
-    if (!row) return { row, dropped: [] };
+    if (!row) return { row, dropped: [], ring: async () => {} };
 
     const edges = await projectLinks(projectId, tx, PARENT);
     const cards = await taskCards([...new Set(edges.flatMap((e) => [e.fromId, e.toId]))], tx);
@@ -69,9 +71,13 @@ export const POST = route<Ctx>(async (req, ctx) => {
           ),
         );
     }
+    /* A rule written while the task was deleted skipped it, so the values
+       it no longer shows go as it comes back. */
+    const hidden = await dropHidden(tx, { projectId, taskIds: [taskId], actorId: user.id });
     return {
       row,
       dropped: dropped.map((e) => ({ taskId: e.toId, parentKey: cards.get(e.fromId)?.key ?? "" })),
+      ring: hidden.ring,
     };
   });
 
@@ -103,6 +109,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         data: { action: "unparented", parentKey: part.parentKey },
       });
     }
+    await ring();
     await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
   }
 

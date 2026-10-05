@@ -1,10 +1,10 @@
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks, taskValues } from "@/db/schema";
-import { logActivityAll } from "@/lib/activity";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { HttpError } from "@/lib/auth";
 import { readTaskIds, rowsSaid } from "@/lib/bulk";
+import { dropHidden, lockTasks } from "@/lib/hidden";
 import { coerceValue, describeValue, loadProperty } from "@/lib/values";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -63,7 +63,9 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const said = rowsSaid(ids, rows);
   if (said) throw new HttpError(400, said);
 
-  await db.transaction(async (tx) => {
+  const described = await describeValue(property, value);
+  const { dropped, ring } = await db.transaction(async (tx) => {
+    await lockTasks(tx, ids);
     await tx
       .insert(taskValues)
       .values(ids.map((taskId) => ({ taskId, propertyId: property.id, value })))
@@ -72,23 +74,26 @@ export const POST = route<Ctx>(async (req, ctx) => {
         set: { value: sql`excluded.value` },
       });
     await tx.update(tasks).set({ updatedAt: new Date() }).where(inArray(tasks.id, ids));
-  });
-
-  /* One line on each task, the same kind and the same shape the task route
-     writes, because the history of a task says what happened to it however it
-     happened. Through the funnel, so the webhook rings for each one. */
-  const described = await describeValue(property, value);
-  await logActivityAll(
-    ids.map((taskId) => ({
+    /* One line on each task, the same kind and the same shape the task route
+       writes, because the history of a task says what happened to it however
+       it happened. Through the funnel, so the webhook rings for each one, and
+       before the lines of what it hid, which are its effect. */
+    return dropHidden(tx, {
       projectId,
-      taskId,
+      taskIds: ids,
       actorId: user.id,
-      kind: "value",
-      // The name is for people; the id is for an agent, since a name can change.
-      data: { property: property.name, propertyId: property.id, value: described },
-    })),
-  );
+      before: ids.map((taskId) => ({
+        projectId,
+        taskId,
+        actorId: user.id,
+        kind: "value",
+        // The name is for people; the id is for an agent, since a name can change.
+        data: { property: property.name, propertyId: property.id, value: described },
+      })),
+    });
+  });
+  await ring();
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
 
-  return json({ set: ids.length, value });
+  return json({ set: ids.length, value, dropped });
 });

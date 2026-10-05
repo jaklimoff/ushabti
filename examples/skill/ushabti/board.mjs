@@ -671,6 +671,9 @@ http://localhost:3000.`);
     const saved = await call("PUT", `/api/tasks/${task.id}/values/${property.id}`, { value });
     const stored = saved?.value ?? value;
     console.log(`${task.key}: ${property.name} = ${valueText(data, property, stored) || "empty"}`);
+    // A value can hide others, and the server drops what it hides.
+    const dropped = (saved?.dropped ?? []).map((d) => d.name);
+    if (dropped.length) console.log(`${task.key}: dropped ${dropped.join(", ")} (no longer shown)`);
   },
 
   async comment() {
