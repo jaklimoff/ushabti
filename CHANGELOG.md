@@ -14,6 +14,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   blank line takes the page's gap between paragraphs, and a heading has the same space above
   and below. Put the cursor on a blank line and it is a full line again.
 
+### Fixed
+
+- **The description opens at once.** A click on it used to wait about 300 ms for the editor,
+  however short the text. Now the editor shows in the same frame once the panel has loaded it.
+
 ## 0.17.0 — 2026-10-05
 
 ### Added
