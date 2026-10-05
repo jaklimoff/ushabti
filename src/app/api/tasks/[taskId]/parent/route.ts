@@ -45,7 +45,7 @@ export const PUT = route<Ctx>(async (req, ctx) => {
     const cards = await taskCards([...ends], tx);
     const mine = cards.get(taskId);
     const parent = cards.get(parentId);
-    if (!mine || !parent || parent.gone || parent.projectId !== projectId) {
+    if (!mine || mine.gone || !parent || parent.gone || parent.projectId !== projectId) {
       throw new HttpError(404, "That task is not on this board.");
     }
 
