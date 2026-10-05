@@ -207,6 +207,14 @@ type Store = {
   linkBlocker: (waitsId: string, blockerId: string, on: boolean) => Promise<void>;
 
   /**
+   * Makes `childId` part of `parentId`, or takes it out of the parent it has.
+   * It throws for the same reason as `linkBlocker`: a refused level is
+   * answered in the row. It answers the key of the parent the child left,
+   * or null.
+   */
+  linkParent: (childId: string, parentId: string | null) => Promise<string | null>;
+
+  /**
    * The tasks picked for one change to all of them.
    *
    * It is `picked` and not `selected`, because "selected" already means the
@@ -1133,6 +1141,22 @@ export function BoardProvider({
     [refresh, tracked],
   );
 
+  /* Counted like every write, though the board draws no parent yet: the
+     panel reads its lists afresh after it. */
+  const linkParent = useCallback<Store["linkParent"]>(
+    async (childId, parentId) => {
+      if (!parentId) {
+        await tracked.del(`/api/tasks/${childId}/parent`);
+        return null;
+      }
+      const res = await tracked.put<{ left?: string | null }>(`/api/tasks/${childId}/parent`, {
+        parentId,
+      });
+      return res.left ?? null;
+    },
+    [tracked],
+  );
+
   /*
    * One call, not one for each card. Ten calls coerce the value ten times,
    * ring the doorbell ten times, and can stop halfway with nothing on screen
@@ -1618,6 +1642,7 @@ export function BoardProvider({
     moveTask,
     setValue,
     linkBlocker,
+    linkParent,
     picked: pickedHere,
     isPicked,
     togglePick,

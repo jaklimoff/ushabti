@@ -50,7 +50,9 @@ line per task behind it.
 `link` rings both ways, as `deleted` does: a task was made to wait on another, or stopped waiting.
 `taskKey` is the task that gained or lost the blocker; the blocker's own key is on the feed line, in
 `data.blockerKey`, beside `data.action`, which is `linked` or `unlinked`. A blocker becoming over
-rings nothing, because nothing happened to that task.
+rings nothing, because nothing happened to that task. `link` also rings when a task is made part of
+another or taken out of it: `taskKey` is the part, and the feed line carries `data.action`
+`parented` or `unparented` with the parent's key in `data.parentKey`.
 
 `comment` rings for a new comment and for an edit of one. The feed line tells them apart: an edit
 carries `data.action: "edited"` beside `data.commentId`.

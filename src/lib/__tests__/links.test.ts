@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { circleSaid, isOver, readDoneWhen, wouldCircle, type LinkEdge } from "../links";
+import {
+  circleSaid,
+  isOver,
+  brokenParts,
+  parentRefusal,
+  readDoneWhen,
+  SELF_PARENT_SAID,
+  wouldCircle,
+  type LinkEdge,
+} from "../links";
 import type { PropertyDTO } from "../types";
 
 const status: PropertyDTO = {
@@ -147,5 +156,75 @@ describe("the circle check", () => {
     expect(circleSaid("USH-12", "USH-71")).toBe(
       "USH-12 already waits on USH-71, so this would be a circle.",
     );
+  });
+});
+
+describe("one level of parts", () => {
+  /* `fromId` is the parent, `toId` the child: epic owns a and b. */
+  const parts: LinkEdge[] = [
+    { fromId: "epic", toId: "a" },
+    { fromId: "epic", toId: "b" },
+  ];
+  const keyOf = (id: string) => `K-${id}`;
+
+  it("lets a task with no parts become part of a task with no parent", () => {
+    expect(parentRefusal(parts, "epic", "c", keyOf)).toBeNull();
+    expect(parentRefusal([], "x", "y", keyOf)).toBeNull();
+  });
+
+  it("lets a child move to another parent, which replaces the one it had", () => {
+    expect(parentRefusal(parts, "other", "a", keyOf)).toBeNull();
+  });
+
+  it("refuses a task as its own parent", () => {
+    expect(parentRefusal(parts, "c", "c", keyOf)).toBe(SELF_PARENT_SAID);
+  });
+
+  it("refuses a parent that is itself a part, which would be a second level", () => {
+    expect(parentRefusal(parts, "a", "c", keyOf)).toBe(
+      "K-a is part of K-epic, so it cannot have parts of its own.",
+    );
+  });
+
+  it("refuses a parent for a task that has parts", () => {
+    expect(parentRefusal(parts, "c", "epic", keyOf)).toBe(
+      "K-epic has parts of its own, so it cannot be part of another task.",
+    );
+  });
+
+  it("refuses a child as the parent of its own parent", () => {
+    expect(parentRefusal(parts, "a", "epic", keyOf)).not.toBeNull();
+  });
+});
+
+describe("a part put back", () => {
+  it("leaves rows alone that still keep one level", () => {
+    const edges: LinkEdge[] = [{ fromId: "epic", toId: "r" }];
+    expect(brokenParts(edges, "r")).toEqual([]);
+  });
+
+  it("drops its parent when that parent became a part meanwhile", () => {
+    const edges: LinkEdge[] = [
+      { fromId: "p", toId: "r" },
+      { fromId: "g", toId: "p" },
+    ];
+    expect(brokenParts(edges, "r")).toEqual([{ fromId: "p", toId: "r" }]);
+  });
+
+  it("drops a part that got parts of its own meanwhile", () => {
+    const edges: LinkEdge[] = [
+      { fromId: "r", toId: "c" },
+      { fromId: "r", toId: "ok" },
+      { fromId: "c", toId: "d" },
+    ];
+    expect(brokenParts(edges, "r")).toEqual([{ fromId: "r", toId: "c" }]);
+  });
+
+  it("drops the parent first, so its parts can stay", () => {
+    const edges: LinkEdge[] = [
+      { fromId: "p", toId: "r" },
+      { fromId: "r", toId: "c" },
+    ];
+    expect(brokenParts(edges, "r")).toEqual([{ fromId: "p", toId: "r" }]);
   });
 });

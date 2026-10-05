@@ -1,7 +1,7 @@
 import { taskLinks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, readId, route } from "@/lib/api";
-import { circleSaid, SELF_LINK_SAID, wouldCircle } from "@/lib/links";
+import { BLOCKS, circleSaid, SELF_LINK_SAID, wouldCircle } from "@/lib/links";
 import {
   logActivity,
   projectLinks,
@@ -58,7 +58,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
     const landed = await tx
       .insert(taskLinks)
-      .values({ fromId: blockerId, toId: taskId })
+      .values({ fromId: blockerId, toId: taskId, kind: BLOCKS })
       .onConflictDoNothing()
       .returning({ toId: taskLinks.toId });
 

@@ -30,7 +30,7 @@ import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters, WAITS } from "./filters";
 import { readTimeZone, todayIn } from "./day";
-import { isOver, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
+import { BLOCKS, isOver, PARENT, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readProgressBy } from "./progress";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
@@ -474,18 +474,34 @@ function archivedTaskRows(projectId: string) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Every blocked-by link of one project, as the pairs of ids they are.
+ * Every link of one kind in one project, as the pairs of ids they are.
+ * Blocked-by unless the caller asks for the parent rows.
  *
  * Both ends of a link are always in one project — the write refuses anything
  * else — so joining on one end names the whole set. The circle check walks
  * these, under the project lock, in the transaction that writes the new one.
  */
-export async function projectLinks(projectId: string, tx: Tx): Promise<LinkEdge[]> {
+export async function projectLinks(
+  projectId: string,
+  tx: Tx,
+  kind: typeof BLOCKS | typeof PARENT = BLOCKS,
+): Promise<LinkEdge[]> {
   return tx
     .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
     .from(taskLinks)
     .innerJoin(tasks, eq(tasks.id, taskLinks.toId))
-    .where(eq(tasks.projectId, projectId));
+    .where(and(eq(tasks.projectId, projectId), eq(taskLinks.kind, kind)));
+}
+
+/**
+ * What these tasks wait on: the blocker rows that point at them, and never a
+ * parent row, which would put a chain on a card that waits on nothing.
+ */
+export function waitingLinks(taskIds: string[]): Promise<LinkEdge[]> {
+  return db
+    .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
+    .from(taskLinks)
+    .where(and(inArray(taskLinks.toId, taskIds), eq(taskLinks.kind, BLOCKS)));
 }
 
 /** A task as a link route needs it: the key it wears and the board it is on. */
@@ -533,9 +549,12 @@ export async function taskCards(ids: string[], tx?: Tx): Promise<Map<string, Tas
  * nobody can see is a link nobody can remove. A deleted one is not, because a
  * deleted task is off every board, list, search and count.
  */
-async function linkedTasks(taskId: string, way: "blockedBy" | "blocks") {
-  const mine = way === "blockedBy" ? taskLinks.toId : taskLinks.fromId;
-  const other = way === "blockedBy" ? taskLinks.fromId : taskLinks.toId;
+async function linkedTasks(taskId: string, way: "blockedBy" | "blocks" | "parent" | "children") {
+  /* The far end of a row names this task as `to` when it waits or is a part. */
+  const isTo = way === "blockedBy" || way === "parent";
+  const mine = isTo ? taskLinks.toId : taskLinks.fromId;
+  const other = isTo ? taskLinks.fromId : taskLinks.toId;
+  const kind = way === "blockedBy" || way === "blocks" ? BLOCKS : PARENT;
   return db
     .select({
       id: tasks.id,
@@ -545,8 +564,10 @@ async function linkedTasks(taskId: string, way: "blockedBy" | "blocks") {
     })
     .from(taskLinks)
     .innerJoin(tasks, eq(tasks.id, other))
-    .where(and(eq(mine, taskId), isNull(tasks.deletedAt)))
-    .orderBy(asc(tasks.number));
+    .where(and(eq(mine, taskId), eq(taskLinks.kind, kind), isNull(tasks.deletedAt)))
+    .orderBy(
+      ...(way === "children" ? [byPos(tasks.position), asc(tasks.number)] : [asc(tasks.number)]),
+    );
 }
 
 /** What these tasks hold for the one property the project calls done. */
@@ -705,12 +726,7 @@ export async function loadBoard(
     loadOpenRuns(projectId),
     /* Only what the cards on this board wait on. What they block is the
        panel's half of the chain, and the panel asks for it itself. */
-    taskIds.length
-      ? db
-          .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
-          .from(taskLinks)
-          .where(inArray(taskLinks.toId, taskIds))
-      : Promise.resolve([]),
+    taskIds.length ? waitingLinks(taskIds) : Promise.resolve([]),
   ]);
 
   const valuesByTask = new Map<string, Record<string, TaskValue>>();
@@ -870,7 +886,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 
   if (!row) return null;
 
-  const [valueRows, checkRows, commentRows, activityRows, runs, waits, holds, files] =
+  const [valueRows, checkRows, commentRows, activityRows, runs, waits, holds, above, parts, files] =
     await Promise.all([
       db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
       db
@@ -915,6 +931,8 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       loadTaskRuns(taskId),
       linkedTasks(taskId, "blockedBy"),
       linkedTasks(taskId, "blocks"),
+      linkedTasks(taskId, "parent"),
+      linkedTasks(taskId, "children"),
       attachmentsOn() ? listReady(taskId) : Promise.resolve([]),
     ]);
 
@@ -922,7 +940,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
      gone falls back to archived. One read answers for both lists. */
   const doneWhen = readDoneWhen(row.doneWhen, await loadProperties(row.projectId));
   const heldValues = await doneValues(
-    [...waits, ...holds].map((t) => t.id),
+    [...waits, ...holds, ...above, ...parts].map((t) => t.id),
     doneWhen,
   );
   const asLink = (t: (typeof waits)[number]): TaskLinkDTO => ({
@@ -938,6 +956,9 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     ),
   });
   const links = { blockedBy: waits.map(asLink), blocks: holds.map(asLink) };
+  /* One parent at most: the write replaces it, so a second row is never there. */
+  const parent = above.length ? asLink(above[0]) : null;
+  const children = parts.map(asLink);
 
   const values: Record<string, TaskValue> = {};
   for (const v of valueRows) values[v.propertyId] = v.value as TaskValue;
@@ -1000,6 +1021,8 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     commentCount: commentList.length,
     blockedBy: links.blockedBy.filter((t) => !t.over).map((t) => t.key),
     links,
+    parent,
+    children,
     checklist,
     comments: commentList,
     activity: activityList,
