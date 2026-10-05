@@ -406,7 +406,7 @@
 .descEditor :global(.cm-lp-h4),
 .descEditor :global(.cm-lp-h5),
 .descEditor :global(.cm-lp-h6) {
-  font-size: 13.5px;
+  font-size: var(--md-h-size, 12.5px);
   font-weight: 600;
   color: var(--text);
   padding-top: var(--md-above-heading);
@@ -478,6 +478,27 @@
   --md-gap: 8px;
   --md-above-heading: 10px;
   --md-below-heading: 5px;
+  /* Body text is 12.5px, so a heading has to be clearly bigger or it reads as bold text. */
+  --md-h1: 18px;
+  --md-h2: 15.5px;
+  --md-h3: 14px;
+  --md-h4: 12.5px;
+}
+.markdown h1,
+.descEditor :global(.cm-lp-h1) {
+  --md-h-size: var(--md-h1);
+}
+.markdown h2,
+.descEditor :global(.cm-lp-h2) {
+  --md-h-size: var(--md-h2);
+}
+.markdown h3,
+.descEditor :global(.cm-lp-h3) {
+  --md-h-size: var(--md-h3);
+}
+.markdown :is(h4, h5, h6),
+.descEditor :global(:is(.cm-lp-h4, .cm-lp-h5, .cm-lp-h6)) {
+  --md-h-size: var(--md-h4);
 }
 .markdown code,
 .descEditor :global(.cm-lp-code:not(.cm-line)) {
@@ -502,8 +523,11 @@
 }
 .markdown h1,
 .markdown h2,
-.markdown h3 {
-  font-size: 13.5px;
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-size: var(--md-h-size, 12.5px);
   font-weight: 600;
   color: var(--text);
   margin: var(--md-above-heading) 0 var(--md-below-heading);
