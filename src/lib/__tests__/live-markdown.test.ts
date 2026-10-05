@@ -90,6 +90,7 @@ describe("live preview", () => {
       "fence",
       "code",
       "fence",
+      "gap",
     ]);
   });
 
@@ -148,6 +149,59 @@ describe("live preview", () => {
       "fence",
       "code",
       "code",
+      "gap",
     ]);
+  });
+
+  const lines = (all: Piece[]) => all.flatMap((p) => (p.kind === "line" ? [[p.at, p.style]] : []));
+
+  it("draws a blank line between two blocks as the page's gap, not a full line", () => {
+    const doc = "one\n\ntwo\n\nthree";
+    expect(lines(drawn(doc, 0).all)).toEqual([
+      [4, "gap"],
+      [9, "gap"],
+    ]);
+  });
+
+  it("folds a run of blank lines into the one gap the page draws", () => {
+    const doc = "one\n\n\n\ntwo";
+    expect(lines(drawn(doc, 0).all)).toEqual([
+      [4, "gap"],
+      [5, "folded"],
+      [6, "folded"],
+    ]);
+    // The cursor's blank line is whole, and the run starts again under it.
+    expect(lines(drawn(doc, 5).all)).toEqual([
+      [4, "gap"],
+      [6, "gap"],
+    ]);
+  });
+
+  it("leaves a blank line inside an indented code block as code", () => {
+    expect(lines(drawn("x\n\n    a\n\n    b", 0).all)).toEqual([[2, "gap"]]);
+  });
+
+  it("gives a blank line its full height back while the cursor is on it", () => {
+    const doc = "one\n\ntwo";
+    expect(lines(drawn(doc, 4).all)).toEqual([]);
+  });
+
+  it("leaves a blank line inside a code block as code", () => {
+    const { all } = drawn("x\n```\na\n\nb\n```", 0);
+    expect(lines(all)).toEqual([
+      [2, "fence"],
+      [6, "code"],
+      [8, "code"],
+      [9, "code"],
+      [11, "fence"],
+    ]);
+  });
+
+  it("styles the code between the backticks, so the marks sit beside its box", () => {
+    const doc = "see `c` now";
+    const style = (all: Piece[]) => all.find((p) => p.kind === "style");
+    expect(style(drawn(doc, 0).all)).toEqual({ kind: "style", from: 5, to: 6, style: "code" });
+    expect(drawn(doc, 0).text).toBe("see `c` now");
+    expect(style(away(doc).all)).toEqual({ kind: "style", from: 5, to: 6, style: "code" });
   });
 });

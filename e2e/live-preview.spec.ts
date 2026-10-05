@@ -80,6 +80,35 @@ async function hand(page: Page, editor: Locator, how: "drop" | "paste") {
     }, files);
 }
 
+/** Where an element's words sit, without the padding or the gap of its line. */
+async function words(el: Locator) {
+  return el.evaluate((node) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const { top, bottom } = range.getBoundingClientRect();
+    return { top, bottom };
+  });
+}
+
+const CODE_LOOK = [
+  "background-color",
+  "border-top-width",
+  "border-top-style",
+  "border-top-color",
+  "border-radius",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
+];
+
+async function look(el: Locator, names: string[]) {
+  return el.evaluate((node, names) => {
+    const style = getComputedStyle(node);
+    return names.map((name) => `${name}: ${style.getPropertyValue(name)}`);
+  }, names);
+}
+
 test.describe("The live description", () => {
   test("hides the marks on every line but the cursor's", async ({ page }) => {
     const editor = await openDescription(page);
@@ -114,6 +143,77 @@ test.describe("The live description", () => {
     await expect(page.getByTestId("markdown")).toContainText("bold and gone and code");
     await expect(page.getByTestId("markdown").locator("del")).toHaveText("gone");
     await expect(page.getByTestId("markdown").locator("input[type=checkbox]")).toBeChecked();
+  });
+
+  test("inline code wears the page's box, and its backticks stand beside it", async ({ page }) => {
+    const editor = await openDescription(page, false);
+    await fillBox(editor, "see `code` here\n");
+    const inBox = await look(editor.locator(".cm-lp-code"), CODE_LOOK);
+    await editor.press("ControlOrMeta+Enter");
+    const onPage = await look(page.getByTestId("markdown").locator("code"), CODE_LOOK);
+    expect(inBox).toEqual(onPage);
+
+    await page.getByTestId("markdown").getByText("here").click();
+    await editor.press("ControlOrMeta+Home");
+    await expect(editor.locator(".cm-line").first()).toHaveText("see `code` here");
+    await expect(editor.locator(".cm-lp-code")).toHaveText("code");
+  });
+
+  test("paragraphs and a heading keep the page's spaces in the box", async ({ page }) => {
+    const editor = await openDescription(page, false);
+    await fillBox(editor, "intro\n\n## Plan\n\n## Steps\n\nfirst\n\n\n\nsecond\n");
+    const line = (text: string) => editor.locator(".cm-line", { hasText: text });
+    const box = {
+      intro: await words(line("intro")),
+      plan: await words(line("Plan")),
+      steps: await words(line("Steps")),
+      first: await words(line("first")),
+      second: await words(line("second")),
+    };
+    await editor.press("ControlOrMeta+Enter");
+    const markdown = page.getByTestId("markdown");
+    const onPage = {
+      intro: await words(markdown.locator("p", { hasText: "intro" })),
+      plan: await words(markdown.locator("h2", { hasText: "Plan" })),
+      steps: await words(markdown.locator("h2", { hasText: "Steps" })),
+      first: await words(markdown.locator("p", { hasText: "first" })),
+      second: await words(markdown.locator("p", { hasText: "second" })),
+    };
+    const spaces = (v: typeof box) => ({
+      aboveHeading: v.plan.top - v.intro.bottom,
+      betweenHeadings: v.steps.top - v.plan.bottom,
+      belowHeading: v.first.top - v.steps.bottom,
+      paragraphs: v.second.top - v.first.bottom,
+    });
+    const inBox = spaces(box);
+    const wanted = spaces(onPage);
+    for (const key of Object.keys(wanted) as Array<keyof typeof wanted>)
+      expect(Math.abs(inBox[key] - wanted[key]), key).toBeLessThanOrEqual(2);
+  });
+
+  test("a blank line under the cursor is a full line and takes typing", async ({ page }) => {
+    const editor = await openDescription(page, false);
+    await fillBox(editor, "one\n\ntwo");
+    const lines = editor.locator(".cm-line");
+    const full = (await lines.nth(0).boundingBox())!.height;
+    // Away from it, it is the gap; on it, it is a line again.
+    await editor.press("ControlOrMeta+End");
+    expect((await lines.nth(1).boundingBox())!.height).toBeLessThan(full / 2);
+    await editor.press("ControlOrMeta+Home");
+    await editor.press("ArrowDown");
+    await expect.poll(async () => (await lines.nth(1).boundingBox())!.height).toBe(full);
+    await editor.pressSequentially("between");
+    await expectBoxValue(editor, "one\nbetween\ntwo");
+  });
+
+  test("a code block keeps the mono font in the box", async ({ page }) => {
+    const editor = await openDescription(page, false);
+    await fillBox(editor, "```\nconst a = 1;\n```\n\nafter");
+    const code = editor.locator(".cm-line.cm-lp-code");
+    const font = ["font-family", "font-size"];
+    const inBox = await look(code, font);
+    await editor.press("ControlOrMeta+Enter");
+    expect(inBox).toEqual(await look(page.getByTestId("markdown").locator("pre code"), font));
   });
 
   test("a selection across lines shows the marks of every line in it", async ({ page }) => {

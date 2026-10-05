@@ -409,6 +409,22 @@
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
+  padding-top: var(--md-above-heading);
+  padding-bottom: var(--md-below-heading);
+}
+/* The page lets a heading's margin and the paragraph gap overlap, so the
+   larger one wins. A gap line beside a heading does the same here. */
+.descEditor :global(:is(.cm-lp-gap, .cm-lp-folded) + [class*="cm-lp-h"]) {
+  padding-top: calc(var(--md-above-heading) - var(--md-gap));
+}
+.descEditor :global([class*="cm-lp-h"]:has(+ .cm-lp-gap)) {
+  padding-bottom: 0;
+}
+.descEditor :global([class*="cm-lp-h"] + .cm-lp-gap) {
+  line-height: var(--md-below-heading);
+}
+.descEditor :global([class*="cm-lp-h"] + .cm-lp-gap + [class*="cm-lp-h"]) {
+  padding-top: calc(var(--md-above-heading) - var(--md-below-heading));
 }
 .descEditor :global(.cm-lp-strong) {
   color: var(--text);
@@ -421,15 +437,20 @@
 .descEditor :global(.cm-lp-strike) {
   text-decoration: line-through;
 }
-.descEditor :global(.cm-lp-code) {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--accent-soft);
+.descEditor :global(.cm-lp-gap) {
+  line-height: var(--md-gap);
+}
+.descEditor :global(.cm-lp-folded) {
+  line-height: 0;
 }
 .descEditor :global(.cm-line.cm-lp-code),
 .descEditor :global(.cm-line.cm-lp-fence) {
   background: #14171b;
   color: #c3c8cf;
+}
+.descEditor :global(.cm-line.cm-lp-code) {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
 }
 .descEditor :global(.cm-line.cm-lp-fence) {
   line-height: 0.6;
@@ -451,12 +472,30 @@
   vertical-align: -2px;
 }
 
+/* The page and the box share these, so one change moves both. */
+.markdown,
+.descEditor {
+  --md-gap: 8px;
+  --md-above-heading: 10px;
+  --md-below-heading: 5px;
+}
+.markdown code,
+.descEditor :global(.cm-lp-code:not(.cm-line)) {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #14171b;
+  border: 1px solid var(--line-dash);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--accent-soft);
+}
+
 .markdown {
   /* A description is read more than it is edited, so it wraps as the editor does. */
   overflow-wrap: anywhere;
 }
 .markdown p {
-  margin: 0 0 8px;
+  margin: 0 0 var(--md-gap);
 }
 .markdown p:last-child {
   margin-bottom: 0;
@@ -467,7 +506,7 @@
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
-  margin: 10px 0 5px;
+  margin: var(--md-above-heading) 0 var(--md-below-heading);
   letter-spacing: -0.005em;
 }
 .markdown ul,
@@ -484,15 +523,6 @@
 }
 .markdown em {
   color: var(--text-3);
-}
-.markdown code {
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #14171b;
-  border: 1px solid var(--line-dash);
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--accent-soft);
 }
 .markdown pre {
   padding: 10px 12px;
