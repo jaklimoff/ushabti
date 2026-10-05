@@ -58,6 +58,7 @@ import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
 import styles from "./panel.module.css";
 import { hasOptions } from "@/lib/types";
+import { isShown } from "@/lib/when";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -718,40 +719,44 @@ export function TaskPanel({
         ) : (
           <>
             <div className={styles.props}>
-              {data.properties.map((property, index) => (
-                <div key={property.id} style={{ display: "contents" }}>
-                  <div
-                    className={`${styles.propLabel} ${index > 0 ? styles.rowLine : ""}`}
-                    id={`${ids}-field-${property.id}`}
-                  >
-                    {property.name}
-                  </div>
-                  {/* The row is a grid of two cells, so the value carries the
+              {/* A property this task does not carry, by its own rule, is left
+                  out, exactly as its chip is left off the card. */}
+              {data.properties
+                .filter((property) => isShown(property, shown.values, data.properties))
+                .map((property, index) => (
+                  <div key={property.id} style={{ display: "contents" }}>
+                    <div
+                      className={`${styles.propLabel} ${index > 0 ? styles.rowLine : ""}`}
+                      id={`${ids}-field-${property.id}`}
+                    >
+                      {property.name}
+                    </div>
+                    {/* The row is a grid of two cells, so the value carries the
                   name a test needs to reach it by. */}
-                  <div
-                    className={`${styles.propValue} ${index > 0 ? styles.rowLine : ""}`}
-                    data-property={property.name}
-                  >
-                    {/* A box holds what was typed and the line a refusal left,
+                    <div
+                      className={`${styles.propValue} ${index > 0 ? styles.rowLine : ""}`}
+                      data-property={property.name}
+                    >
+                      {/* A box holds what was typed and the line a refusal left,
                         and both belong to one task: the key throws them away
                         when another one opens. */}
-                    <PropertyControl
-                      key={taskId}
-                      property={property}
-                      value={shown.values[property.id] ?? null}
-                      members={data.members}
-                      today={data.today}
-                      labelId={`${ids}-field-${property.id}`}
-                      onChange={(value: TaskValue) => void writeValue(property.id, value)}
-                      onAddOption={
-                        hasOptions(property.type)
-                          ? (name) => makeOption(property.id, name)
-                          : undefined
-                      }
-                    />
+                      <PropertyControl
+                        key={taskId}
+                        property={property}
+                        value={shown.values[property.id] ?? null}
+                        members={data.members}
+                        today={data.today}
+                        labelId={`${ids}-field-${property.id}`}
+                        onChange={(value: TaskValue) => void writeValue(property.id, value)}
+                        onAddOption={
+                          hasOptions(property.type)
+                            ? (name) => makeOption(property.id, name)
+                            : undefined
+                        }
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
 
             <div className={styles.section}>

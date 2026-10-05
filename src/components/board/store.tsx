@@ -52,7 +52,9 @@ import type {
   ViewFilters,
   ViewKind,
   ViewSort,
+  When,
 } from "@/lib/types";
+import { withWhen } from "@/lib/when";
 import type { OptionDates } from "@/lib/option-dates";
 import type { ShipDone, ShipRest } from "@/lib/ship";
 import type { SessionUser } from "@/components/ui/UserMenu";
@@ -295,7 +297,13 @@ type Store = {
   addProperty: (name: string, type: PropertyType, options?: string[]) => Promise<void>;
   patchProperty: (
     propertyId: string,
-    patch: { name?: string; dated?: boolean; cadence?: { length?: number; ahead?: number } },
+    patch: {
+      name?: string;
+      dated?: boolean;
+      cadence?: { length?: number; ahead?: number };
+      /** Null clears the rule, so the property always shows. */
+      when?: When | null;
+    },
   ) => Promise<void>;
   /**
    * Puts one property where another one sits. A drag names the property it
@@ -1560,6 +1568,7 @@ export function BoardProvider({
                 ...(patch.cadence
                   ? { config: { ...p.config, cadence: { ...p.config.cadence, ...patch.cadence } } }
                   : {}),
+                ...(patch.when !== undefined ? { config: withWhen(p, patch.when) } : {}),
               }
             : p,
         ),

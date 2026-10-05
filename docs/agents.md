@@ -289,6 +289,22 @@ with `PATCH /api/properties/{id}` and `{"cadence":{"length":7}}`, either half
 alone, a whole number, `length` 1 to 365 and `ahead` 1 to 10; only a person
 who is the owner or an admin writes it. The cadence fills in and forbids
 nothing: an option made, renamed, dated or deleted by hand stays as it is.
+A property may say when it shows: `config.when` is `{ "propertyId",
+"optionIds" }`, one single select or iteration of the project and a set of
+its option ids, which may hold `"__none__"` for "nothing yet" as a filter's
+set does. "Severity, shown when Type is Bug" is a task type as a value. The
+property is drawn — in the panel, on the card, in the list — only for a task
+whose value of that select is in the set. The board answer and the export
+carry the rule already read: a select or an option that is gone drops out, and
+a rule left with nothing reads as always shown, so a property with no `when`
+always shows. Write it with `PATCH /api/properties/{id}` and `{"when":{...}}`,
+or `{"when":null}` to clear it; a rule that names the property itself, a
+property that is not a single select, no option it can read, or a rule that
+closes a circle of properties hiding each other is a `400`; a circle that
+another writer closed anyway reads as always shown.
+Only a person who is the owner or an admin writes it. A value written to a
+property that is not shown for that task is still accepted. `board.mjs props`
+prints the rule after the property.
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the

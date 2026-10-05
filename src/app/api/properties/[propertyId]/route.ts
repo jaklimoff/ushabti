@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql, type SQL } from "drizzle-orm";
 import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { projects, properties, views } from "@/db/schema";
@@ -14,6 +14,7 @@ import {
   withProjectLock,
 } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
+import { readWhen, readWhens } from "@/lib/when";
 
 type Ctx = { params: Promise<{ propertyId: string }> };
 
@@ -28,9 +29,18 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     showOnCard?: boolean;
     dated?: boolean;
     cadence?: { length?: unknown; ahead?: unknown };
+    when?: unknown;
     afterId?: string | null;
   }>(req);
   const patch: Record<string, unknown> = {};
+  /* Each part of the config is merged onto what the part before it left, so a
+     request that carries two of them keeps both. */
+  let config: SQL = sql`${properties.config}`;
+  let configChanged = false;
+  const mergeConfig = (next: (current: SQL) => SQL) => {
+    config = next(config);
+    configChanged = true;
+  };
 
   if (input.name !== undefined) patch.name = str(input.name, "Property name", { max: 40 });
 
@@ -48,7 +58,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     if (row?.type !== "select") {
       throw new HttpError(400, "Only the options of a select can carry dates.");
     }
-    patch.config = sql`${properties.config} || ${JSON.stringify({ dated: input.dated })}::jsonb`;
+    mergeConfig((c) => sql`${c} || ${JSON.stringify({ dated: input.dated })}::jsonb`);
   }
 
   /* The cadence is the shape of an iteration, so it is an admin's too. Each
@@ -66,9 +76,43 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .from(properties)
       .where(eq(properties.id, propertyId));
     if (row?.type !== "iteration") throw new HttpError(400, "Only an iteration has a cadence.");
-    patch.config = sql`${properties.config} || jsonb_build_object('cadence',
-      coalesce(${properties.config} -> 'cadence', '{}'::jsonb) || ${JSON.stringify(read.patch)}::jsonb)`;
+    mergeConfig(
+      (c) => sql`${c} || jsonb_build_object('cadence',
+      coalesce(${properties.config} -> 'cadence', '{}'::jsonb) || ${JSON.stringify(read.patch)}::jsonb)`,
+    );
   }
+
+  /* When a property shows is the shape of the project, so it is an admin's.
+     It goes through the same reader the board does, so a rule that would read
+     as always shown is refused rather than kept to surprise somebody later,
+     and so is one that closes a circle of rules. Null clears it. */
+  if (input.when !== undefined) {
+    adminOnly(user, membership, "say when a property shows");
+    if (input.when === null) {
+      mergeConfig((c) => sql`(${c}) - 'when'`);
+    } else {
+      const all = await loadProperties(projectId);
+      const when = readWhen(input.when, all, propertyId);
+      if (!when) {
+        throw new HttpError(
+          400,
+          "Shown when must name another select of this project and some of its options.",
+        );
+      }
+      const after = readWhens(
+        all.map((p) => (p.id === propertyId ? { ...p, config: { ...p.config, when } } : p)),
+      );
+      if (!after.find((p) => p.id === propertyId)?.config.when) {
+        throw new HttpError(
+          400,
+          "That rule closes a circle: the properties in it would hide each other.",
+        );
+      }
+      mergeConfig((c) => sql`${c} || ${JSON.stringify({ when })}::jsonb`);
+    }
+  }
+
+  if (configChanged) patch.config = config;
 
   /* Where a property sits on a card belongs to the card view, so this writes
      there. It is the short way to say it: off the card, or back where its kind

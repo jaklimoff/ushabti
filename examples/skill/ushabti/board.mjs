@@ -255,6 +255,23 @@ const nameOf = (row) => row.name;
 /** True when an option carries a start, a target, a shipped date or a note. */
 const planned = (o) => Boolean(o.startAt || o.targetAt || o.shippedAt || o.note);
 
+/**
+ * ` · shown when Type is Bug or No type`, or nothing for a property that
+ * always shows. The board sends the rule already read, so a rule that names
+ * something gone has already been dropped.
+ */
+function whenSaid(p, all) {
+  const when = p.config?.when;
+  const by = when && all.find((q) => q.id === when.propertyId);
+  if (!by) return "";
+  const names = when.optionIds.map((id) =>
+    id === "__none__"
+      ? `No ${by.name.toLowerCase()}`
+      : (by.options.find((o) => o.id === id)?.name ?? "?"),
+  );
+  return ` · shown when ${by.name} is ${names.join(" or ")}`;
+}
+
 /** `Sprint 4 · 2026-10-01 → 2026-10-14 · shipped 2026-10-13 · the first line of the note` */
 function optionLine(o) {
   const parts = [o.name];
@@ -500,13 +517,14 @@ http://localhost:3000.`);
     for (const p of data.properties) {
       /* A select whose options carry dates is a Version or a Sprint: one option
          a line, so the dates and the note have room. */
+      const when = whenSaid(p, data.properties);
       if (p.options.some(planned)) {
-        console.log(`${p.name} (${p.type})`);
+        console.log(`${p.name} (${p.type})${when}`);
         for (const o of p.options) console.log(`  ${optionLine(o)}`);
         continue;
       }
       const options = p.options.length ? `: ${p.options.map(nameOf).join(" | ")}` : "";
-      console.log(`${p.name} (${p.type})${options}`);
+      console.log(`${p.name} (${p.type})${options}${when}`);
     }
     console.log(`Members: ${data.members.map(nameOf).join(", ")}`);
   },

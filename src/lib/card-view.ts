@@ -17,6 +17,7 @@ import {
   type PropertyType,
   type TaskDTO,
 } from "./types";
+import { isShown } from "./when";
 
 /**
  * What a card carries, and how.
@@ -498,7 +499,12 @@ function chipColour(chip: CardChip | undefined): string | null {
 }
 
 /** What a task holds for one row, as the parts the card draws. Empty is empty. */
-function chipsFor(item: CardItem, task: TaskDTO, members: MemberDTO[]): CardChip[] {
+function chipsFor(
+  item: CardItem,
+  task: TaskDTO,
+  members: MemberDTO[],
+  properties: PropertyDTO[],
+): CardChip[] {
   const boxed = item.mode === "boxed";
 
   switch (item.kind) {
@@ -535,6 +541,9 @@ function chipsFor(item: CardItem, task: TaskDTO, members: MemberDTO[]): CardChip
 
   const property = item.property;
   if (!property) return [];
+  /* A property a task does not carry, by its own rule, draws nothing, so the
+     card, the list cell and the stripe agree with the panel. */
+  if (!isShown(property, task.values, properties)) return [];
   const value = task.values[property.id];
   if (value === null || value === undefined || value === "") return [];
 
@@ -607,6 +616,14 @@ function chipsFor(item: CardItem, task: TaskDTO, members: MemberDTO[]): CardChip
 }
 
 /**
+ * The properties behind the items. Every property has an item, the ones off
+ * the card too, so this is the whole list a rule's chain is walked through.
+ */
+function propertiesOf(items: CardItem[]): PropertyDTO[] {
+  return items.flatMap((item) => (item.property ? [item.property] : []));
+}
+
+/**
  * A chip that carries a colour and no words: a square, or a face. It opens its
  * place, ahead of the key and of any chip that reads as words, so a card that
  * nobody rearranged still leads with its square of colour. The rule keys off
@@ -623,6 +640,7 @@ function wordless(item: CardItem): boolean {
  * one beside it and neither leaves a gap.
  */
 export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]): CardSlots {
+  const properties = propertiesOf(items);
   const slots: CardSlots = {
     edge: null,
     headerL: [],
@@ -640,7 +658,7 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
-      slots.edge = chipColour(chipsFor(item, task, members)[0]);
+      slots.edge = chipColour(chipsFor(item, task, members, properties)[0]);
       continue;
     }
 
@@ -650,7 +668,7 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
       continue;
     }
 
-    const chips = chipsFor(item, task, members);
+    const chips = chipsFor(item, task, members, properties);
     if (!chips.length) continue;
     if (item.place === "headerL") slots.headerL.push(...chips);
     else if (item.place === "headerR") slots.headerR.push(...chips);
@@ -678,13 +696,14 @@ export type RowSlots = {
 };
 
 export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[]): RowSlots {
+  const properties = propertiesOf(items);
   const slots: RowSlots = { edge: null, desc: null, cells: {} };
 
   for (const item of items) {
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
-      slots.edge = chipColour(chipsFor(item, task, members)[0]);
+      slots.edge = chipColour(chipsFor(item, task, members, properties)[0]);
       continue;
     }
 
@@ -703,7 +722,7 @@ export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[])
      * bare squares under PRIORITY says only that the task has one.
      */
     const named: CardItem = item.mode === "colour" ? { ...item, mode: "both" } : item;
-    slots.cells[item.id] = chipsFor(named, task, members);
+    slots.cells[item.id] = chipsFor(named, task, members, properties);
   }
 
   return slots;
@@ -721,7 +740,9 @@ export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[])
  * is why the answer is a colour and not a property.
  */
 export function cardAccent(items: CardItem[], task: TaskDTO, members: MemberDTO[]): string | null {
-  const colourOf = (item: CardItem): string | null => chipColour(chipsFor(item, task, members)[0]);
+  const properties = propertiesOf(items);
+  const colourOf = (item: CardItem): string | null =>
+    chipColour(chipsFor(item, task, members, properties)[0]);
 
   const edge = items.find((i) => i.place === "edge");
   if (edge) return colourOf(edge);
