@@ -499,7 +499,7 @@ export type ActivityDTO = {
   } | null;
 };
 
-/** One end of a blocked-by link, as the panel draws the row. */
+/** One end of a link — a blocker or a part — as the panel draws the row. */
 export type TaskLinkDTO = {
   id: string;
   key: string;
@@ -515,6 +515,10 @@ export type TaskDetailDTO = TaskDTO & {
    * because a link nobody can see is a link nobody can remove.
    */
   links: { blockedBy: TaskLinkDTO[]; blocks: TaskLinkDTO[] };
+  /** The task this one is part of, one level deep. */
+  parent: TaskLinkDTO | null;
+  /** The parts of this task, in board order. A part that is over is struck through. */
+  children: TaskLinkDTO[];
   checklist: ChecklistItemDTO[];
   comments: CommentDTO[];
   activity: ActivityDTO[];
@@ -778,7 +782,7 @@ export const WEBHOOK_KIND_LABEL: Record<WebhookKind, string> = {
   comment: "Comment",
   run: "Agent run",
   archive: "Archived",
-  link: "Blocked by",
+  link: "Blocked by and parent",
   deleted: "Deleted",
   reset: "Reset link",
   import: "A board brought in",

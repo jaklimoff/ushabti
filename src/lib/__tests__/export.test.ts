@@ -299,6 +299,18 @@ describe("the export", () => {
     expect(second).toMatchObject({ key: "USH-2", archivedAt: AT.toISOString(), blockedBy: [] });
   });
 
+  it("carries a parent as a key, and never as a blocker", async () => {
+    fake.rows.set(taskLinks, [
+      { fromId: taskId(2), toId: taskId(1), kind: "blocks" },
+      { fromId: taskId(3), toId: taskId(1), kind: "parent" },
+    ]);
+    const file = await loadExport(PROJECT, AT);
+    const [first, second, third] = file.tasks;
+    expect(first).toMatchObject({ blockedBy: ["USH-2"], parent: "USH-3" });
+    expect(second).toMatchObject({ blockedBy: [], parent: null });
+    expect(third).toMatchObject({ blockedBy: [], parent: null });
+  });
+
   it("carries a Link value as it is stored", async () => {
     const PRS = "00000000-0000-4000-8000-0000000000f1";
     const links = ["https://github.com/acme/shop/pull/12#top", "https://example.org/x"];

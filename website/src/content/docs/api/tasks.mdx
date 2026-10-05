@@ -69,6 +69,8 @@ The task in full — everything the panel shows.
       "blockedBy": [{ "id": "…", "key": "USH-12", "title": "…", "over": false }],
       "blocks":    [{ "id": "…", "key": "USH-30", "title": "…", "over": true }]
     },
+    "parent": { "id": "…", "key": "USH-9", "title": "…", "over": false },  // or null
+    "children": [],                     // its parts, in board order, the same rows
 
     "checklist": [
       { "id": "…", "text": "Cover the retry path", "done": true, "position": "V" }
@@ -268,6 +270,36 @@ they named one — read it as `project.doneWhen` on the board answer. So `blocke
 blockers that still hold it up, and an empty list means the task is free whatever links it holds.
 Nothing is hardcoded: there is no Done status in Ushabti, only the option somebody chose.
 </Aside>
+
+---
+
+## `PUT /api/tasks/{taskId}/parent`
+
+Makes this task part of another. The body names the parent by id.
+
+```json title="request"
+{ "parentId": "<taskId>" }
+```
+
+`200 {"ok": true, "left": null}`. One level deep: a task has one parent at most, so a task that has
+one moves to the new parent, and `left` names the key of the parent it left. The parent it already
+has answers `200` and writes nothing. Both tasks have to be on the same board, and a deleted one is
+refused with `404`, as for a blocker. Each of these is refused with `409` and one sentence:
+
+```json title="409"
+{ "error": "A task cannot be part of itself." }
+{ "error": "USH-12 is part of USH-9, so it cannot have parts of its own." }
+{ "error": "USH-9 has parts of its own, so it cannot be part of another task." }
+```
+
+## `DELETE /api/tasks/{taskId}/parent`
+
+Takes the task out of its parent. `200 {"ok": true}`, and a task with no parent writes nothing.
+
+Both are member calls, an agent's as much as a person's: splitting work is content. Both write a
+`link` entry on the part — `data.action` is `parented` or `unparented`, beside `data.parentKey` —
+and both ring the stream. A part is never a blocker: it is not in `blockedBy` and puts no chain on a
+card.
 
 ---
 

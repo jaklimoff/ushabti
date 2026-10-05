@@ -42,7 +42,10 @@ another, or stopped waiting. The ring names the task that gained or lost the
 blocker in `taskKey`, and nothing else — the blocker's own key is on the feed
 line, in `data.blockerKey`, beside `data.action`, which is `linked` or
 `unlinked`. A blocker becoming over writes no line and rings nothing: nothing
-happened to that task.
+happened to that task. `link` also rings when a task is made part of another
+or taken out of it: the ring names the part, and the feed line carries
+`data.action` `parented` or `unparented` with the parent's key in
+`data.parentKey`.
 
 **`deleted` rings both ways.** A delete can be undone for thirty days, so the
 word covers a task going and a task coming back. The doorbell says only that

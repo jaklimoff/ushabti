@@ -1,10 +1,17 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
-import { projects, tasks } from "@/db/schema";
+import { projects, taskLinks, tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { deletedLine } from "@/lib/deleted";
-import { logActivity, taskProjectIdEvenDeleted } from "@/lib/queries";
+import { brokenParts, PARENT } from "@/lib/links";
+import {
+  logActivity,
+  projectLinks,
+  taskCards,
+  taskProjectIdEvenDeleted,
+  withProjectLock,
+} from "@/lib/queries";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -36,11 +43,37 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   /* The task keeps its rank and its key, so it comes back where it was and
      as what it was. `taskCounter` was never touched. */
-  const [row] = await db
-    .update(tasks)
-    .set({ deletedAt: null })
-    .where(and(eq(tasks.id, taskId), isNotNull(tasks.deletedAt)))
-    .returning({ title: tasks.title, number: tasks.number });
+  /* Under the project lock, because a parent row of the task may have to go
+     with it: while it was deleted its rows refused nothing, so its parent may
+     have become a part, or one of its parts may have got parts. */
+  const { row, dropped } = await withProjectLock(projectId, async (tx) => {
+    const [row] = await tx
+      .update(tasks)
+      .set({ deletedAt: null })
+      .where(and(eq(tasks.id, taskId), isNotNull(tasks.deletedAt)))
+      .returning({ title: tasks.title, number: tasks.number });
+    if (!row) return { row, dropped: [] };
+
+    const edges = await projectLinks(projectId, tx, PARENT);
+    const cards = await taskCards([...new Set(edges.flatMap((e) => [e.fromId, e.toId]))], tx);
+    const live = edges.filter((e) => !cards.get(e.fromId)?.gone && !cards.get(e.toId)?.gone);
+    const dropped = brokenParts(live, taskId);
+    for (const e of dropped) {
+      await tx
+        .delete(taskLinks)
+        .where(
+          and(
+            eq(taskLinks.fromId, e.fromId),
+            eq(taskLinks.toId, e.toId),
+            eq(taskLinks.kind, PARENT),
+          ),
+        );
+    }
+    return {
+      row,
+      dropped: dropped.map((e) => ({ taskId: e.toId, parentKey: cards.get(e.fromId)?.key ?? "" })),
+    };
+  });
 
   if (row) {
     const [project] = await db
@@ -60,6 +93,16 @@ export const POST = route<Ctx>(async (req, ctx) => {
         goesAt: null,
       }),
     });
+    /* A part that left its parent says so on the part, as an unparent does. */
+    for (const part of dropped) {
+      await logActivity({
+        projectId,
+        taskId: part.taskId,
+        actorId: user.id,
+        kind: "link",
+        data: { action: "unparented", parentKey: part.parentKey },
+      });
+    }
     await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
   }
 

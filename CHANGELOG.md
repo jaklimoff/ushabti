@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A task can have a parent, one level deep.** Pick **Part of…** or **Add a part…** in the task
+  menu. The panel shows a **Parent** row and a **Children** list, and each row opens its task.
+  A part is never a blocker. Agents use `PUT` and `DELETE /api/tasks/{id}/parent`, or
+  `board.mjs parent` and `unparent`, and the export carries each task's parent.
+
 ## 0.17.0 — 2026-10-05
 
 ### Added

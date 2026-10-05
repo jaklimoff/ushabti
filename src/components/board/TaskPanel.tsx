@@ -640,6 +640,28 @@ export function TaskPanel({
                 <span className={styles.menuDot} />
                 Blocked by…
               </button>
+              <button
+                className={styles.menuItem}
+                data-testid="add-parent"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setLinking({ taskId, way: "parent" });
+                }}
+              >
+                <span className={styles.menuDot} />
+                Part of…
+              </button>
+              <button
+                className={styles.menuItem}
+                data-testid="add-child"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setLinking({ taskId, way: "children" });
+                }}
+              >
+                <span className={styles.menuDot} />
+                Add a part…
+              </button>
               {/* Archive is the everyday way to make a task go away: the
                   panel stays open on the row that puts it back. Delete is for
                   a mistake, and it is still the one that ends things. */}
@@ -739,12 +761,21 @@ export function TaskPanel({
               <Links
                 key={taskId}
                 taskId={taskId}
-                links={detail?.links ?? null}
+                links={
+                  detail
+                    ? {
+                        ...detail.links,
+                        parent: detail.parent ? [detail.parent] : [],
+                        children: detail.children,
+                      }
+                    : null
+                }
                 adding={addingLink}
                 setAdding={(way) => setLinking(way ? { taskId, way } : null)}
                 reload={reload}
                 counted={counted}
                 onError={notify}
+                onInfo={(message) => notify(message, "info")}
                 onOpenTask={onOpenTask}
               />
 
@@ -935,8 +966,11 @@ function PanelTabs({
 /* What a task waits on                                                 */
 /* ------------------------------------------------------------------ */
 
-/** The two ends of the chain. `blockedBy` is what this task waits on. */
-type LinkWay = "blockedBy" | "blocks";
+/**
+ * The two ends of the chain, and the two ends of a part. `blockedBy` is what
+ * this task waits on; `parent` is the one task it is part of.
+ */
+type LinkWay = "blockedBy" | "blocks" | "parent" | "children";
 
 const LINK_WORDS: Record<LinkWay, { head: string; add: string; ask: string; empty: string }> = {
   blockedBy: {
@@ -951,10 +985,31 @@ const LINK_WORDS: Record<LinkWay, { head: string; add: string; ask: string; empt
     ask: "Which task waits on this one?",
     empty: "No task by that name.",
   },
+  parent: {
+    head: "Parent",
+    add: "Make this task part of another",
+    ask: "Which task is this one part of?",
+    empty: "No task by that name.",
+  },
+  children: {
+    head: "Children",
+    add: "Add a part to this task",
+    ask: "Which task is part of this one?",
+    empty: "No task by that name.",
+  },
+};
+
+/** What the panel holds of a task's links: the chain and its parts. */
+type PanelLinks = {
+  blockedBy: TaskLinkDTO[];
+  blocks: TaskLinkDTO[];
+  parent: TaskLinkDTO[];
+  children: TaskLinkDTO[];
 };
 
 /**
- * The two short lists: what this task waits on, and what waits on it.
+ * The short lists: what this task waits on, what waits on it, the task it is
+ * part of, and its parts. A pick under Parent replaces the parent there is.
  *
  * A link is not a property and not a row of the card view, so it is not in the
  * grid above. It sits between the properties and the description because that
@@ -976,18 +1031,20 @@ function Links({
   reload,
   counted,
   onError,
+  onInfo,
   onOpenTask,
 }: {
   taskId: string;
-  links: { blockedBy: TaskLinkDTO[]; blocks: TaskLinkDTO[] } | null;
+  links: PanelLinks | null;
   adding: LinkWay | null;
   setAdding: (way: LinkWay | null) => void;
   reload: () => Promise<void>;
   counted: Counted;
   onError: (message: string) => void;
+  onInfo: (message: string) => void;
   onOpenTask: (task: { id: string; key: string }) => void;
 }) {
-  const { data, linkBlocker } = useBoard();
+  const { data, linkBlocker, linkParent } = useBoard();
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
   /** The sentence a refused link came back with — a circle, or itself. */
@@ -995,16 +1052,23 @@ function Links({
 
   /* Every task in the project, archived ones too, exactly as the search box
      reads them: a task off the board can still be what this one waits on. */
+  const searchable = useMemo(() => [...data.tasks, ...data.archived], [data]);
+
+  /* Only the links of the kind being added are taken: a part of this task
+     may also be what it waits on. */
   const taken = useMemo(() => {
     const ids = new Set<string>([taskId]);
-    for (const row of links?.blockedBy ?? []) ids.add(row.id);
-    for (const row of links?.blocks ?? []) ids.add(row.id);
+    const kin: LinkWay[] =
+      adding === "parent" || adding === "children"
+        ? ["parent", "children"]
+        : ["blockedBy", "blocks"];
+    for (const way of kin) for (const row of links?.[way] ?? []) ids.add(row.id);
     return ids;
-  }, [links, taskId]);
+  }, [adding, links, taskId]);
 
   const rows: Row[] = useMemo(() => {
     if (!adding) return [];
-    return searchTasks([...data.tasks, ...data.archived], query, data.project.doneWhen)
+    return searchTasks(searchable, query, data.project.doneWhen)
       .filter((hit) => !taken.has(hit.task.id))
       .map((hit) => ({
         id: hit.task.id,
@@ -1012,21 +1076,33 @@ function Links({
         color: "#6b7280",
         note: hit.task.archivedAt ? "archived" : undefined,
       }));
-  }, [adding, data.archived, data.project.doneWhen, data.tasks, query, taken]);
+  }, [adding, data.project.doneWhen, query, searchable, taken]);
 
-  /* One route writes both lists: which end of it this task is on is the only
-     difference between them. */
+  /* One route writes both lists of each kind: which end of it this task is
+     on is the only difference between them. */
   const ends = (way: LinkWay, other: string) =>
-    way === "blockedBy" ? { to: taskId, from: other } : { to: other, from: taskId };
+    way === "blockedBy" || way === "parent"
+      ? { to: taskId, from: other }
+      : { to: other, from: taskId };
+  const write = async (way: LinkWay, other: string, on: boolean) => {
+    const { to, from } = ends(way, other);
+    if (way !== "parent" && way !== "children") return linkBlocker(to, from, on);
+    const left = await linkParent(to, on ? from : null);
+    /* A part added here may have left another parent. Under Parent the row
+       that changed says so; under Children nothing on screen would. */
+    if (left && way === "children") {
+      const key = searchable.find((t) => t.id === other)?.key ?? "That task";
+      onInfo(`${key} left ${left} and is now part of this task.`);
+    }
+  };
 
   /* Both go through the store, which counts the write before it sends it: a
      read of the board that was already out would otherwise land on top of it
      and take the chain glyph off again. The card comes off the board and the
      lists off this read, so both are asked for. */
   async function add(way: LinkWay, other: string) {
-    const { to, from } = ends(way, other);
     try {
-      await counted(() => linkBlocker(to, from, true));
+      await counted(() => write(way, other, true));
       setQuery("");
       setRefused(null);
       setAdding(null);
@@ -1039,16 +1115,15 @@ function Links({
   }
 
   async function remove(way: LinkWay, other: string) {
-    const { to, from } = ends(way, other);
     try {
-      await counted(() => linkBlocker(to, from, false));
+      await counted(() => write(way, other, false));
       await reload();
     } catch (err) {
       onError(err instanceof Error ? err.message : "That link did not go.");
     }
   }
 
-  const lists: LinkWay[] = ["blockedBy", "blocks"];
+  const lists: LinkWay[] = ["blockedBy", "blocks", "parent", "children"];
   const anything = lists.some((way) => (links?.[way] ?? []).length > 0);
   if (!anything && !adding) return null;
 
@@ -1166,6 +1241,7 @@ function describeActivity(
     forName?: string;
     to?: string;
     blockerKey?: string;
+    parentKey?: string;
     source?: string;
     name?: string;
   };
@@ -1193,6 +1269,10 @@ function describeActivity(
          every task it made. Only a task's lines reach this panel. */
       return `${who} brought this in from ${d.source === "trello" ? "Trello" : "another board"}`;
     case "link":
+      if (d.action === "parented") return `${who} made it part of ${d.parentKey || "another task"}`;
+      if (d.action === "unparented") {
+        return `${who} took it out of ${d.parentKey || "another task"}`;
+      }
       return d.action === "unlinked"
         ? `${who} stopped it waiting on ${d.blockerKey || "another task"}`
         : `${who} made it wait on ${d.blockerKey || "another task"}`;

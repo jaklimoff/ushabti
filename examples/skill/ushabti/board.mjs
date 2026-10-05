@@ -465,6 +465,8 @@ const commands = {
   link <key> --blocked-by <key>       say what a task waits on
   link <key> --blocks <key>           say what waits on it
   unlink <key> --blocked-by <key>     take the link away again
+  parent <key> <key>                  make the first task part of the second
+  unparent <key>                      take a task out of its parent
   claim <key> --goal "<what>" [--plan "a|b|c"] [--step "<now>"]
   beat <key> [--every 120] [--for 60]  say "still here" until the session ends
   step <key> --say "<now>" [--index 2] [--log "<line>"] [--for 45]
@@ -562,6 +564,8 @@ http://localhost:3000.`);
        be over, so an agent can see the chain is clear. */
     linkLines("Blocked by", detail.links?.blockedBy);
     linkLines("Blocks", detail.links?.blocks);
+    linkLines("Parent", detail.parent ? [detail.parent] : []);
+    linkLines("Children", detail.children);
     if (detail.description.trim()) console.log(`\n${detail.description.trim()}\n`);
     for (const item of detail.checklist) console.log(itemLine(item));
     for (const c of detail.comments) console.log(`  ${c.author?.name ?? "?"}: ${c.body}`);
@@ -590,6 +594,25 @@ http://localhost:3000.`);
 
   async unlink() {
     await linkWork("DELETE");
+  },
+
+  /*
+   * One level of parts. The first key is the part, the second the whole; a
+   * task that has a parent moves to the new one.
+   */
+  async parent() {
+    const data = await board();
+    const task = findTask(data, positional[0], { archived: true });
+    const whole = findTask(data, positional[1], { archived: true });
+    await call("PUT", `/api/tasks/${task.id}/parent`, { parentId: whole.id });
+    console.log(`${task.key} is part of ${whole.key}`);
+  },
+
+  async unparent() {
+    const data = await board();
+    const task = findTask(data, positional[0], { archived: true });
+    await call("DELETE", `/api/tasks/${task.id}/parent`);
+    console.log(`${task.key} is part of no task now`);
   },
 
   async new() {

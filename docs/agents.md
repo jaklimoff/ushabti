@@ -73,6 +73,8 @@ so an agent sees exactly what a person sees and nothing more.
 | Put it back         | `DELETE /api/tasks/{taskId}/archive`                |
 | Say what it waits on| `POST /api/tasks/{taskId}/blockers`                 |
 | Take that back      | `DELETE /api/tasks/{taskId}/blockers/{blockerId}`   |
+| Make it part of one | `PUT /api/tasks/{taskId}/parent`                    |
+| Take it out again   | `DELETE /api/tasks/{taskId}/parent`                 |
 | Delete a task       | `DELETE /api/tasks/{taskId}`                        |
 | Undo that delete    | `POST /api/tasks/{taskId}/restore`                  |
 | What was deleted    | `GET /api/projects/{projectId}/deleted`             |
@@ -219,6 +221,39 @@ A row that is over is still in the list; it just holds nothing up.
 There is no `--on unblocked`. A task becomes free because somebody changed
 *another* task, so watch for `value` and `archive` lines in the feed and read
 `blockedBy` again.
+
+## What a task is part of
+
+A task can be split into parts: a part names one parent, and the parent
+lists its parts. It is one level deep. A part has no parts of its own, and a
+task that has parts is part of nothing.
+
+```bash
+# USH-71 is part of USH-12. The body names the parent by id.
+curl -s -X PUT $USHABTI/api/tasks/$USH71/parent \
+  -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" \
+  -d "{\"parentId\": \"$USH12\"}"
+
+# And take it out again.
+curl -s -X DELETE $USHABTI/api/tasks/$USH71/parent \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+`board.mjs parent USH-71 USH-12` is the short way, and `board.mjs unparent
+USH-71` takes it out. `board.mjs task` prints **Parent** and **Children**.
+
+Both calls take a token, as a blocker does: splitting work is content. A task
+has one parent at most, so a `PUT` on a task that has one moves it to the new
+parent, and the answer names the parent it left in `left` (null when it had
+none). The parent it already has answers `{"ok": true}` and writes nothing.
+Each of these is refused with `409` and one sentence: a task made part of
+itself, a parent that is itself a part, and a parent for a task that has parts.
+
+`GET /api/tasks/{taskId}` carries `parent`, one row `{ id, key, title, over }`
+or null, and `children`, the same rows in board order. A part is never a
+blocker: it puts no chain on a card and is not in `blockedBy`. The feed writes
+a `link` line on the part, with `action` `parented` or `unparented` and the
+`parentKey`. The export carries each task's `parent` as a key.
 
 The board answer carries `properties`, so an agent finds the property it wants
 by name and reads the option ids out of it. **Never hardcode a property or an
@@ -849,7 +884,10 @@ GET /api/projects/{projectId}/activity?after=2026-09-18T15:28:52.024Z
 
 A `link` line says one task was made to wait on another, or stopped waiting:
 `data: { "action": "linked" | "unlinked", "blockerKey": "USH-12" }`. It is
-written on the task that gained the blocker. A blocker going over writes no
+written on the task that gained the blocker. It also says a task was made part
+of another, or taken out of it:
+`data: { "action": "parented" | "unparented", "parentKey": "USH-12" }`, written
+on the part. Read `action` before you read a key. A blocker going over writes no
 line of its own — nothing happened to that task.
 
 `taskId` and `taskKey` are **null** on a line about the project rather than

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { taskLinks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, json, readId, route } from "@/lib/api";
+import { BLOCKS } from "@/lib/links";
 import { logActivity, taskCards, taskProjectId } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ taskId: string; blockerId: string }> };
@@ -24,7 +25,9 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
 
   const gone = await db
     .delete(taskLinks)
-    .where(and(eq(taskLinks.fromId, blockerId), eq(taskLinks.toId, taskId)))
+    .where(
+      and(eq(taskLinks.fromId, blockerId), eq(taskLinks.toId, taskId), eq(taskLinks.kind, BLOCKS)),
+    )
     .returning({ toId: taskLinks.toId });
 
   if (gone.length) {

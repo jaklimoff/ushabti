@@ -116,3 +116,68 @@ export function circleSaid(blockerKey: string, taskKey: string): string {
 
 /** The one sentence a task linked to itself is refused with. */
 export const SELF_LINK_SAID = "A task cannot wait on itself.";
+
+/* ------------------------------------------------------------------ */
+/* Parts                                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The words in the `kind` column. A parent is one row too: `fromId` is the
+ * parent and `toId` the child, and both sides are read from that one row.
+ * Every reader of the chain asks for `blocks`, so a part never waits on its
+ * parent and never takes part in the circle check.
+ */
+export const BLOCKS = "blocks";
+export const PARENT = "parent";
+
+/**
+ * Why `childId` cannot become part of `parentId`, or null when it can.
+ *
+ * One level, and no deeper: a part has no parts of its own. `edges` are the
+ * parent rows of the project, read under the lock that writes the new one. The
+ * parent the child has now is not a refusal, because the write replaces it.
+ * There is no walk: one level means the answer is in the edges that touch the
+ * two tasks.
+ */
+export function parentRefusal(
+  edges: LinkEdge[],
+  parentId: string,
+  childId: string,
+  keyOf: (id: string) => string,
+): string | null {
+  if (parentId === childId) return SELF_PARENT_SAID;
+  const above = edges.find((e) => e.toId === parentId);
+  if (above) {
+    return `${keyOf(parentId)} is part of ${keyOf(above.fromId)}, so it cannot have parts of its own.`;
+  }
+  if (edges.some((e) => e.fromId === childId)) {
+    return `${keyOf(childId)} has parts of its own, so it cannot be part of another task.`;
+  }
+  return null;
+}
+
+/** The one sentence a task made its own parent is refused with. */
+export const SELF_PARENT_SAID = "A task cannot be part of itself.";
+
+/**
+ * The parent rows of `id` that break one level, once it is back from a
+ * delete. A deleted task's rows refuse nothing, so while it was gone its
+ * parent may have become a part, or one of its parts may have got parts. Its
+ * own parent row goes first, which lets its parts stay. `edges` are the live
+ * parent rows of the project, `id`'s own included.
+ */
+export function brokenParts(edges: LinkEdge[], id: string): LinkEdge[] {
+  let kept = [...edges];
+  const dropped: LinkEdge[] = [];
+  const breaks = (e: LinkEdge) =>
+    kept.some((o) => o !== e && (o.toId === e.fromId || o.fromId === e.toId));
+  for (const e of [
+    ...edges.filter((e) => e.toId === id),
+    ...edges.filter((e) => e.fromId === id),
+  ]) {
+    if (!breaks(e)) continue;
+    kept = kept.filter((o) => o !== e);
+    dropped.push(e);
+  }
+  return dropped;
+}
