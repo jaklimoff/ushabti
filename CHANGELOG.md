@@ -22,6 +22,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A heading in the description is bigger than its text.** A `#` heading was the same size as
+  body text and read as bold words. Now `#`, `##` and `###` step up in size, and the box and the
+  page draw the same sizes.
+
 - **The description box reads as the description does.** Inline code wears the same box, a
   blank line takes the page's gap between paragraphs, and a heading has the same space above
   and below. Put the cursor on a blank line and it is a full line again.
