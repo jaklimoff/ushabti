@@ -371,10 +371,11 @@ One drag in one call: a new rank, and optionally the column value the card lande
 | *neither id* | the end of the board |
 
 ```json title="200"
-{ "position": "Vkm" }
+{ "position": "Vkm", "dropped": [] }
 ```
 
-The answer is the authoritative new rank.
+The answer is the authoritative new rank. `dropped` lists the values the column took away, as
+the value route below says.
 
 <Aside type="tip" title="The neighbour is the global neighbour">
 Ranks are computed against the project's whole task list, not against the target column — so
@@ -396,8 +397,16 @@ Writes one value. **This is the main agent write.**
 ```
 
 ```json title="200"
-{ "value": "<optionId>" }
+{ "value": "<optionId>", "dropped": [{ "taskId": "…", "propertyId": "…", "name": "Severity" }] }
 ```
+
+**A value can hide others.** A property with a `when` rule shows only while a select holds one of
+its options. When a write leaves a property not shown for its task, the task's value of it is
+deleted in the same transaction, and `dropped` names each one; it is `[]` when nothing went. A
+hidden value never stays behind to close a blocker or pass a filter. The task gets one `value` line
+in its activity whose `data` carries `dropped` (the names), `propertyIds` and `hidBy` (the option
+that hid them, or `null`). A write to a property the task does not show is accepted and dropped at
+once, so read `dropped`.
 
 Read the answer rather than assuming: values are normalised on the way in — a multi-select is
 deduplicated, `"42"` becomes the number `42`, and text is truncated at 2000 characters.
@@ -430,8 +439,11 @@ cards you selected.
 ```
 
 ```json title="200"
-{ "set": 3, "value": "<optionId>" }
+{ "set": 3, "value": "<optionId>", "dropped": [{ "taskId": "…", "propertyId": "…", "name": "Severity" }] }
 ```
+
+`dropped` lists the values the change hid and took away, as the
+value route above says.
 
 `value` takes exactly the shapes the single-value route takes, and is checked **once** for all of
 them — so the value that reaches one task is the value that reaches every task. One line of

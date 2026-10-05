@@ -58,7 +58,8 @@ import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
 import styles from "./panel.module.css";
 import { hasOptions } from "@/lib/types";
-import { isShown } from "@/lib/when";
+import { changeAsked, droppedBy, droppedSaid, isShown, withoutHidden } from "@/lib/when";
+import { ConfirmRow } from "@/components/ui/ConfirmRow";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -357,7 +358,13 @@ export function TaskPanel({
         current?.taskId === taskId && current.task
           ? {
               ...current,
-              task: { ...current.task, values: { ...current.task.values, [propertyId]: value } },
+              task: {
+                ...current.task,
+                values: withoutHidden(
+                  { ...current.task.values, [propertyId]: value },
+                  data.properties,
+                ),
+              },
             }
           : current,
       );
@@ -367,8 +374,18 @@ export function TaskPanel({
          value the person sees is the one that was thrown away. */
       if (!saved) await reload();
     },
-    [counted, reload, setValue, taskId],
+    [counted, data.properties, reload, setValue, taskId],
   );
+
+  /* A value that hides others asks first, in its own row, with the names.
+     It belongs to one task: another one opening throws it away. */
+  const [asking, setAsking] = useState<{
+    taskId: string;
+    propertyId: string;
+    value: TaskValue;
+    question: string;
+  } | null>(null);
+  const askingHere = asking?.taskId === taskId ? asking : null;
 
   useEffect(() => {
     void load();
@@ -747,7 +764,16 @@ export function TaskPanel({
                         members={data.members}
                         today={data.today}
                         labelId={`${ids}-field-${property.id}`}
-                        onChange={(value: TaskValue) => void writeValue(property.id, value)}
+                        onChange={(value: TaskValue) => {
+                          const lost = droppedBy(shown.values, data.properties, property.id, value);
+                          if (!lost.length) return void writeValue(property.id, value);
+                          setAsking({
+                            taskId,
+                            propertyId: property.id,
+                            value,
+                            question: changeAsked(property, value, lost),
+                          });
+                        }}
                         onAddOption={
                           hasOptions(property.type)
                             ? (name) => makeOption(property.id, name)
@@ -755,6 +781,19 @@ export function TaskPanel({
                         }
                       />
                     </div>
+                    {askingHere?.propertyId === property.id && (
+                      <div className={styles.propAsk} data-testid="value-confirm">
+                        <ConfirmRow
+                          question={askingHere.question}
+                          confirmLabel="Yes, change"
+                          onConfirm={() => {
+                            setAsking(null);
+                            void writeValue(askingHere.propertyId, askingHere.value);
+                          }}
+                          onCancel={() => setAsking(null)}
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
             </div>
@@ -1249,6 +1288,8 @@ function describeActivity(
     parentKey?: string;
     source?: string;
     name?: string;
+    dropped?: string[];
+    hidBy?: string | null;
   };
   switch (entry.kind) {
     case "created":
@@ -1258,6 +1299,9 @@ function describeActivity(
     case "description":
       return `${who} edited the description`;
     case "value":
+      /* A line about values a change hid names what went, and the change
+         that hid them has its own line beside it. */
+      if (d.dropped?.length) return droppedSaid(d.hidBy ?? null, d.dropped);
       return `${who} set ${d.property ?? "a property"} to ${d.value ?? "empty"}`;
     case "checklist":
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;

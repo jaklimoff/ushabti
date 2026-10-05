@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { tasks } from "@/db/schema";
+import { tasks, taskValues } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
-import { logActivity, taskProjectId } from "@/lib/queries";
-import { coerceValue, describeValue, loadProperty, putValue } from "@/lib/values";
+import { dropHidden, lockTasks } from "@/lib/hidden";
+import { taskProjectId } from "@/lib/queries";
+import { coerceValue, describeValue, loadProperty } from "@/lib/values";
 
 type Ctx = { params: Promise<{ taskId: string; propertyId: string }> };
 
@@ -20,21 +21,37 @@ export const PUT = route<Ctx>(async (req, ctx) => {
 
   const input = await body<{ value?: unknown }>(req);
   const value = await coerceValue(prop, input.value);
+  const described = await describeValue(prop, value);
 
-  await putValue(taskId, propertyId, value);
-  await db.update(tasks).set({ updatedAt: new Date() }).where(eq(tasks.id, taskId));
-  await logActivity({
-    projectId,
-    taskId,
-    actorId: user.id,
-    kind: "value",
-    // The name is for people; the id is for an agent, since a name can change.
-    data: {
-      property: prop.name,
-      propertyId,
-      value: await describeValue(prop, value),
-    },
+  /* The value and what it hides go together: a type changed in one
+     statement and its hidden Done left for the next would be read between. */
+  const { dropped, ring } = await db.transaction(async (tx) => {
+    await lockTasks(tx, [taskId]);
+    await tx
+      .insert(taskValues)
+      .values({ taskId, propertyId, value })
+      .onConflictDoUpdate({
+        target: [taskValues.taskId, taskValues.propertyId],
+        set: { value },
+      });
+    await tx.update(tasks).set({ updatedAt: new Date() }).where(eq(tasks.id, taskId));
+    return dropHidden(tx, {
+      projectId,
+      taskIds: [taskId],
+      actorId: user.id,
+      before: [
+        {
+          projectId,
+          taskId,
+          actorId: user.id,
+          kind: "value",
+          // The name is for people; the id is for an agent, since a name can change.
+          data: { property: prop.name, propertyId, value: described },
+        },
+      ],
+    });
   });
+  await ring();
   await broadcast({ projectId, scope: "board", taskId, clientId: clientIdOf(req) });
-  return json({ value });
+  return json({ value, dropped });
 });

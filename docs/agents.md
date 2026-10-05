@@ -302,9 +302,17 @@ or `{"when":null}` to clear it; a rule that names the property itself, a
 property that is not a single select, no option it can read, or a rule that
 closes a circle of properties hiding each other is a `400`; a circle that
 another writer closed anyway reads as always shown.
-Only a person who is the owner or an admin writes it. A value written to a
-property that is not shown for that task is still accepted. `board.mjs props`
-prints the rule after the property.
+Only a person who is the owner or an admin writes it. A hidden value never
+stays: when a write leaves a property not shown for a task — a type changed,
+a column moved, an option deleted, a sprint shipped, a rule written — the
+task's value of it is deleted in the same transaction, and the task gets one
+`value` line whose `data` carries `dropped` (the names), `propertyIds` and
+`hidBy` (the option that hid them, or `null`). A value written to a property
+that is not shown for that task is accepted and dropped at once. The value
+route, the bulk route and the move route answer with
+`dropped: [{ taskId, propertyId, name }]`, `[]` when nothing went, and
+`board.mjs set` prints it. `board.mjs props` prints the rule after the
+property.
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the
@@ -334,7 +342,7 @@ curl -s -X POST $USHABTI/api/projects/$PROJECT/tasks/values \
 ```
 
 ```json
-{ "set": 3, "value": "…" }
+{ "set": 3, "value": "…", "dropped": [] }
 ```
 
 `value` is the shape the single route takes, checked **once** for all of them, so the value that

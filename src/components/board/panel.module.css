@@ -238,6 +238,12 @@
   min-width: 0;
 }
 
+/* A value that hides others asks under its own row, across both cells. */
+.propAsk {
+  grid-column: 1 / -1;
+  padding: 4px 0 6px;
+}
+
 .rowLine {
   border-top: 1px solid var(--line-faint);
 }
