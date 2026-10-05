@@ -320,6 +320,15 @@ export async function projectToday(projectId: string): Promise<string> {
  * could answer from before the import that went first.
  */
 export async function loadProperties(projectId: string, tx?: Tx): Promise<PropertyDTO[]> {
+  return readWhens(await loadRawProperties(projectId, tx));
+}
+
+/**
+ * The properties with each rule as it was written. A rule a circle switches
+ * off reads as none, so a question about a rule that may break that circle
+ * has to start here, and read the rules again with its change in place.
+ */
+export async function loadRawProperties(projectId: string, tx?: Tx): Promise<PropertyDTO[]> {
   const handle = tx ?? db;
   const [propRows, optRows] = await Promise.all([
     handle
@@ -334,7 +343,7 @@ export async function loadProperties(projectId: string, tx?: Tx): Promise<Proper
       .where(eq(properties.projectId, projectId))
       .orderBy(byPos(propertyOptions.position)),
   ]);
-  return withOptions(propRows, optRows);
+  return rawWithOptions(propRows, optRows);
 }
 
 type PropRow = typeof properties.$inferSelect;
@@ -354,24 +363,26 @@ export function toOptionDTO(o: Omit<OptRow, "propertyId">): PropertyOptionDTO {
 }
 
 function withOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
+  /* Each rule is read afresh against the rest, so the board never carries a
+     raw one. */
+  return readWhens(rawWithOptions(propRows, optRows));
+}
+
+function rawWithOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
   const optionsByProp = new Map<string, PropertyDTO["options"]>();
   for (const o of optRows) {
     const list = optionsByProp.get(o.propertyId) ?? [];
     list.push(toOptionDTO(o));
     optionsByProp.set(o.propertyId, list);
   }
-  /* Each rule is read afresh against the rest, so the board never carries a
-     raw one. */
-  return readWhens(
-    propRows.map((p) => ({
-      id: p.id,
-      name: p.name,
-      type: p.type as PropertyType,
-      position: p.position,
-      config: (p.config ?? {}) as PropertyDTO["config"],
-      options: optionsByProp.get(p.id) ?? [],
-    })),
-  );
+  return propRows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    type: p.type as PropertyType,
+    position: p.position,
+    config: (p.config ?? {}) as PropertyDTO["config"],
+    options: optionsByProp.get(p.id) ?? [],
+  }));
 }
 
 /* ------------------------------------------------------------------ */

@@ -1,11 +1,14 @@
 import { and, asc, eq, ne } from "drizzle-orm";
-import { tasks } from "@/db/schema";
+import { db } from "@/db";
+import { tasks, taskValues } from "@/db/schema";
+import type { ActivityEntry } from "@/lib/activity";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { byPos } from "@/lib/order";
-import { logActivity, rankOnTheEnd, taskProjectId, withProjectLock } from "@/lib/queries";
+import { rankOnTheEnd, taskProjectId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
-import { coerceValue, describeValue, loadProperty, putValue } from "@/lib/values";
+import { dropHidden, lockTasks } from "@/lib/hidden";
+import { coerceValue, describeValue, loadProperty } from "@/lib/values";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -64,13 +67,23 @@ export const POST = route<Ctx>(async (req, ctx) => {
     return end;
   });
 
-  if (input.values && typeof input.values === "object") {
-    for (const [propertyId, raw] of Object.entries(input.values)) {
+  /* A column is a value, and a value can hide others: they go together. */
+  const values = input.values && typeof input.values === "object" ? input.values : {};
+  const { dropped, ring } = await db.transaction(async (tx) => {
+    const entries: ActivityEntry[] = [];
+    if (Object.keys(values).length) await lockTasks(tx, [taskId]);
+    for (const [propertyId, raw] of Object.entries(values)) {
       const prop = await loadProperty(propertyId);
       if (prop.projectId !== projectId) continue;
       const value = await coerceValue(prop, raw);
-      await putValue(taskId, propertyId, value);
-      await logActivity({
+      await tx
+        .insert(taskValues)
+        .values({ taskId, propertyId, value })
+        .onConflictDoUpdate({
+          target: [taskValues.taskId, taskValues.propertyId],
+          set: { value },
+        });
+      entries.push({
         projectId,
         taskId,
         actorId: user.id,
@@ -78,9 +91,12 @@ export const POST = route<Ctx>(async (req, ctx) => {
         data: { property: prop.name, propertyId, value: await describeValue(prop, value) },
       });
     }
-  }
+    const taskIds = entries.length ? [taskId] : [];
+    return dropHidden(tx, { projectId, taskIds, actorId: user.id, before: entries });
+  });
+  await ring();
 
   /* A rewrite moved rows this tab did not ask about, so it hears the bell too. */
   await broadcast({ projectId, scope: "board", clientId: rewrote ? undefined : clientIdOf(req) });
-  return json({ position });
+  return json({ position, dropped });
 });

@@ -222,6 +222,11 @@
   color: var(--text-3);
 }
 
+/* The question a hiding rule asks takes a line of its own. */
+.whenAsk {
+  flex-basis: 100%;
+}
+
 .whenSaid {
   color: var(--text-2);
 }

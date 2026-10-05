@@ -20,6 +20,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   panel, on the card and in the list — only while its value of the select is one of them. The
   ✕ clears the rule.
 
+- **A task that changes type drops the values its new type does not show.** A hidden value no
+  longer closes a blocker, passes a filter or leaves in the export. The panel, **Set…** and a
+  rule written in Settings ask first and name what goes; a drag, an agent, an option delete and
+  a ship drop at once. The task's history says what went. The value, bulk and move routes
+  answer with `dropped`, and `board.mjs set` prints it.
+
 ### Changed
 
 - **A heading in the description is bigger than its text.** A `#` heading was the same size as

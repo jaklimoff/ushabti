@@ -1,7 +1,7 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import { byPos } from "@/lib/order";
-import { db } from "@/db";
 import { properties, propertyOptions, taskValues } from "@/db/schema";
+import { dropHidden, lockTasks, projectTaskIds } from "@/lib/hidden";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
 import { optionPropertyId, projectToday, withProjectLock } from "@/lib/queries";
@@ -120,31 +120,44 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(owner.projectId);
   adminOnly(user, membership, "delete an option");
 
-  // Tasks that hold this option lose the value. Single-select clears, and
-  // multi-select drops the one entry.
-  await db
-    .update(taskValues)
-    .set({ value: null })
-    .where(
-      and(
-        eq(taskValues.propertyId, owner.propertyId),
-        sql`${taskValues.value} = ${JSON.stringify(optionId)}::jsonb`,
-      ),
-    );
-  await db
-    .update(taskValues)
-    .set({
-      value: sql`(select coalesce(jsonb_agg(elem), '[]'::jsonb) from jsonb_array_elements(${taskValues.value}) elem where elem <> ${JSON.stringify(optionId)}::jsonb)`,
-    })
-    .where(
-      and(
-        eq(taskValues.propertyId, owner.propertyId),
-        sql`jsonb_typeof(${taskValues.value}) = 'array'`,
-        sql`${taskValues.value} @> ${JSON.stringify([optionId])}::jsonb`,
-      ),
-    );
+  /* Tasks that hold this option lose the value. Single-select clears, and
+     multi-select drops the one entry. A select left empty can hide what its
+     option showed, and a rule that named only this option goes, which can
+     let another rule out of a circle to hide values on any task. So every
+     task of the project is checked in the same transaction, once the option
+     is gone and every rule reads without it. The project lock, as a rule
+     write takes it; every task is locked first, in the one order, so a
+     write to some of them queues rather than deadlocks. */
+  const ring = await withProjectLock(owner.projectId, async (tx) => {
+    const holding = sql`${taskValues.value} = ${JSON.stringify(optionId)}::jsonb`;
+    const taskIds = await projectTaskIds(tx, owner.projectId);
+    await lockTasks(tx, taskIds);
+    await tx
+      .update(taskValues)
+      .set({ value: null })
+      .where(and(eq(taskValues.propertyId, owner.propertyId), holding));
+    await tx
+      .update(taskValues)
+      .set({
+        value: sql`(select coalesce(jsonb_agg(elem), '[]'::jsonb) from jsonb_array_elements(${taskValues.value}) elem where elem <> ${JSON.stringify(optionId)}::jsonb)`,
+      })
+      .where(
+        and(
+          eq(taskValues.propertyId, owner.propertyId),
+          sql`jsonb_typeof(${taskValues.value}) = 'array'`,
+          sql`${taskValues.value} @> ${JSON.stringify([optionId])}::jsonb`,
+        ),
+      );
 
-  await db.delete(propertyOptions).where(eq(propertyOptions.id, optionId));
+    await tx.delete(propertyOptions).where(eq(propertyOptions.id, optionId));
+    const drop = await dropHidden(tx, {
+      projectId: owner.projectId,
+      taskIds,
+      actorId: user.id,
+    });
+    return drop.ring;
+  });
+  await ring();
   await broadcast({ projectId: owner.projectId, scope: "board", clientId: clientIdOf(req) });
   return json({ ok: true });
 });

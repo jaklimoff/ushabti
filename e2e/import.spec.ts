@@ -143,3 +143,41 @@ test("the import page reads on a phone", async ({ page }) => {
 
   expect(await overflow(page)).toBe(0);
 });
+
+test("an import brings no value its task does not show", async ({ page }) => {
+  await register(page, "Ada Lovelace");
+  const projectId = await createProject(page, unique("Import"));
+  type Board = {
+    properties: { id: string; name: string; options: { id: string; name: string }[] }[];
+    tasks: { title: string; values: Record<string, unknown> }[];
+  };
+  const read = async (): Promise<Board> =>
+    (await page.request.get(`/api/projects/${projectId}/board`)).json();
+
+  /* Due shows only on a task In Progress, so the due date of a card that
+     lands in Done must not arrive. */
+  const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+    data: { name: "Due", type: "date" },
+  });
+  expect(made.ok()).toBeTruthy();
+  const before = await read();
+  const due = before.properties.find((p) => p.name === "Due")!;
+  const status = before.properties.find((p) => p.name === "Status")!;
+  const doing = status.options.find((o) => o.name === "In Progress")!;
+  const rule = await page.request.patch(`/api/properties/${due.id}`, {
+    data: { when: { propertyId: status.id, optionIds: [doing.id] } },
+  });
+  expect(rule.ok()).toBeTruthy();
+
+  await openImport(page, projectId);
+  await pick(page);
+  await settles(page, /\/import$/, () =>
+    page.getByRole("button", { name: "Import 4 tasks" }).click(),
+  );
+
+  const after = await read();
+  const shipped = after.tasks.find((t) => t.title === "Ship the changelog")!;
+  expect(shipped.values[status.id]).toBeTruthy();
+  expect(shipped.values[status.id]).not.toBe(doing.id);
+  expect(shipped.values).not.toHaveProperty(due.id);
+});

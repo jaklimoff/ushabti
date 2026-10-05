@@ -11,6 +11,7 @@ import { useShortcut } from "./keys";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 import { hasOptions } from "@/lib/types";
+import { pickedAsked, pickedDrops } from "@/lib/when";
 
 /**
  * What is picked, and the one thing you can do to all of it.
@@ -38,6 +39,20 @@ export function Selection({ taskOpen }: { taskOpen: boolean }) {
 function PickBar({ taskOpen }: { taskOpen: boolean }) {
   const { data, picked, clearPicks, setPickedValue, archivePicked, notify, addOption } = useBoard();
   const sweep = useConfirm();
+  /* A set that hides values on the picked cards asks first, with the counts.
+     The bar is where it asks, as it is for Archive. */
+  const [asking, setAsking] = useState<{
+    propertyId: string;
+    value: TaskValue;
+    question: string;
+    /** The picks the question counted. */
+    picks: string;
+  } | null>(null);
+  /* Yes sets the picks of the moment it is pressed, so a question that
+     counted other picks goes: a card picked under it would lose values
+     nobody named. */
+  const picks = [...picked].sort().join(" ");
+  if (asking && asking.picks !== picks) setAsking(null);
   const [open, setOpen] = useState(false);
   const [propertyId, setPropertyId] = useState<string | null>(null);
   /* What was set, so the control says what the cards now carry. It starts
@@ -71,6 +86,7 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
   useShortcut("Escape", () => {
     if (taskOpen) return;
     if (sweep.asking) return sweep.cancel();
+    if (asking) return setAsking(null);
     if (picked.length) clearPicks();
   });
 
@@ -105,6 +121,40 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
    * so nobody needs telling what the number counts — and the top bar of a
    * phone has room for a question or for a sentence, not for both.
    */
+  if (asking) {
+    return (
+      <div
+        className={`${styles.pickBar} ${styles.pickAsking}`}
+        data-testid="pick-bar"
+        role="alertdialog"
+        aria-label={asking.question}
+      >
+        <span className={styles.pickCount} data-ask="" data-testid="pick-set-confirm">
+          {asking.question}
+        </span>
+        <button
+          className={styles.pickSet}
+          data-danger=""
+          data-testid="pick-set-yes"
+          autoFocus
+          onClick={() => {
+            setAsking(null);
+            void setPickedValue(asking.propertyId, asking.value);
+          }}
+        >
+          Yes, change
+        </button>
+        <button
+          className={styles.pickSet}
+          data-testid="pick-set-no"
+          onClick={() => setAsking(null)}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
   if (sweep.asking) {
     return (
       <div
@@ -172,6 +222,19 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
                     members={data.members}
                     today={data.today}
                     onChange={(value: TaskValue) => {
+                      const wanted = new Set(picked);
+                      const cards = data.tasks.filter((t) => wanted.has(t.id));
+                      const drops = pickedDrops(cards, data.properties, property.id, value);
+                      if (drops.values > 0) {
+                        close();
+                        setAsking({
+                          propertyId: property.id,
+                          value,
+                          question: pickedAsked(property, value, picked.length, drops),
+                          picks,
+                        });
+                        return;
+                      }
                       setDraft(value);
                       void setPickedValue(property.id, value);
                     }}

@@ -18,7 +18,8 @@ import { byPos } from "@/lib/order";
 import { nextPaletteColor } from "@/lib/colors";
 import { rankAfter, rankSpread } from "@/lib/rank";
 import { defaultGroupById, loadProperties, withProjectLock, type Tx } from "@/lib/queries";
-import { logActivityIn, type ActivityEntry } from "@/lib/activity";
+import type { ActivityEntry } from "@/lib/activity";
+import { dropHidden } from "@/lib/hidden";
 import type { ImportMadeDTO } from "@/lib/types";
 import { planImport, type MappingAsk, type PlanProperty, type ProjectShape } from "./plan";
 import { SOURCE, type SourceBoard } from "./trello";
@@ -363,7 +364,17 @@ export async function applyImport(input: {
 
     return {
       made: { importId, tasks: plan.tasks.length, options, already: plan.already },
-      ring: await logActivityIn(tx, entries),
+      /* A list can land on an option that hides what a label or a date
+         wrote, and a hidden value must not arrive at all. */
+      ring: (
+        await dropHidden(tx, {
+          projectId,
+          taskIds: rows.map((row) => row.id),
+          actorId,
+          extra: { importId },
+          before: entries,
+        })
+      ).ring,
     };
   });
 

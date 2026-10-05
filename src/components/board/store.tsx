@@ -54,7 +54,7 @@ import type {
   ViewSort,
   When,
 } from "@/lib/types";
-import { withWhen } from "@/lib/when";
+import { readWhens, withoutHidden, withWhen } from "@/lib/when";
 import type { OptionDates } from "@/lib/option-dates";
 import type { ShipDone, ShipRest } from "@/lib/ship";
 import type { SessionUser } from "@/components/ui/UserMenu";
@@ -1101,7 +1101,13 @@ export function BoardProvider({
         return {
           ...current,
           tasks: current.tasks.map((t) =>
-            t.id === taskId ? { ...t, position, values: { ...t.values, ...(values ?? {}) } } : t,
+            t.id === taskId
+              ? {
+                  ...t,
+                  position,
+                  values: withoutHidden({ ...t.values, ...(values ?? {}) }, current.properties),
+                }
+              : t,
           ),
         };
       });
@@ -1126,7 +1132,12 @@ export function BoardProvider({
       setData((current) => ({
         ...current,
         tasks: current.tasks.map((t) =>
-          t.id === taskId ? { ...t, values: { ...t.values, [propertyId]: value } } : t,
+          t.id === taskId
+            ? {
+                ...t,
+                values: withoutHidden({ ...t.values, [propertyId]: value }, current.properties),
+              }
+            : t,
         ),
       }));
       const saved = await guarded(async () => {
@@ -1182,7 +1193,12 @@ export function BoardProvider({
       setData((current) => ({
         ...current,
         tasks: current.tasks.map((t) =>
-          wanted.has(t.id) ? { ...t, values: { ...t.values, [propertyId]: value } } : t,
+          wanted.has(t.id)
+            ? {
+                ...t,
+                values: withoutHidden({ ...t.values, [propertyId]: value }, current.properties),
+              }
+            : t,
         ),
       }));
       await guarded(async () => {
@@ -1555,9 +1571,8 @@ export function BoardProvider({
 
   const patchProperty = useCallback<Store["patchProperty"]>(
     async (propertyId, patch) => {
-      setData((current) => ({
-        ...current,
-        properties: current.properties.map((p) =>
+      setData((current) => {
+        const properties = current.properties.map((p) =>
           p.id === propertyId
             ? {
                 ...p,
@@ -1571,8 +1586,16 @@ export function BoardProvider({
                 ...(patch.when !== undefined ? { config: withWhen(p, patch.when) } : {}),
               }
             : p,
-        ),
-      }));
+        );
+        if (patch.when === undefined) return { ...current, properties };
+        /* A rule takes away the values it hides, as the server does. */
+        const read = readWhens(properties);
+        return {
+          ...current,
+          properties: read,
+          tasks: current.tasks.map((t) => ({ ...t, values: withoutHidden(t.values, read) })),
+        };
+      });
       await guarded(async () => {
         await tracked.patch(`/api/properties/${propertyId}`, patch);
       });

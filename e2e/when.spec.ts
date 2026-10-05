@@ -103,7 +103,10 @@ test.describe("A property says when it shows", () => {
     await box.getByRole("button", { name: "Shown when…" }).click();
     /* Picking a select asks the question; it writes nothing yet. */
     await box.getByLabel("Shown when of Priority").selectOption({ label: "Type" });
-    await saved(page, () => box.getByLabel("Bug", { exact: true }).check());
+    /* A new rule counts what it hides before it writes, so the box ticks
+       once the write is out. */
+    await saved(page, () => box.getByLabel("Bug", { exact: true }).click());
+    await expect(box.getByLabel("Bug", { exact: true })).toBeChecked();
     await saved(page, () => box.getByLabel("Story", { exact: true }).check());
     await expect(box.getByTestId("when-said")).toHaveText("Shown when Type is Bug or Story");
 

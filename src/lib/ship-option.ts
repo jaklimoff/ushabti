@@ -4,7 +4,8 @@ import { and, asc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { comments, projects, properties, propertyOptions, tasks, taskValues } from "@/db/schema";
 import { byPos } from "@/lib/order";
-import { logActivityIn, type ActivityEntry, type Ring } from "./activity";
+import type { ActivityEntry, Ring } from "./activity";
+import { dropHidden, lockTasks } from "./hidden";
 import { HttpError } from "./auth";
 import { readCadence, sprintsAhead } from "./cadence";
 import { nextPaletteColor } from "./colors";
@@ -161,6 +162,10 @@ export async function shipOptionIn(
       and ${taskValues.propertyId} = ${propertyId}
       and ${inColumn})`;
   const now = new Date();
+  const asked = rest === "leave" ? [] : split.rest;
+  /* The tasks that move are locked before their values change, as every
+     write that drops what it hides does. */
+  await lockTasks(tx, asked);
   const archived = split.over.length
     ? (
         await tx
@@ -170,7 +175,6 @@ export async function shipOptionIn(
           .returning({ id: tasks.id })
       ).map((r) => r.id)
     : [];
-  const asked = rest === "leave" ? [] : split.rest;
   const to = rest === "next" ? next!.id : null;
   const moved = asked.length
     ? (
@@ -254,7 +258,15 @@ export async function shipOptionIn(
       },
     },
   ];
-  const ring: Ring = await logActivityIn(tx, entries);
+  /* A task moved to the next sprint, or to none, can stop showing what the
+     old one showed. Its lines go with the ship's, so one ship rings once. */
+  const { ring }: { ring: Ring } = await dropHidden(tx, {
+    projectId,
+    taskIds: moved,
+    actorId: a.actorId,
+    extra: { shipId, ...mark },
+    before: entries,
+  });
   return { answer: { archived: archived.length, moved: moved.length, rest, shippedAt }, ring };
 }
 

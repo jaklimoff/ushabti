@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { projectMembers, properties, propertyOptions, taskValues } from "@/db/schema";
+import { projectMembers, properties, propertyOptions } from "@/db/schema";
 import { readId } from "./api";
 import { HttpError } from "./auth";
 import type { PropertyType, TaskValue } from "./types";
@@ -98,17 +98,6 @@ async function assertOptions(propertyId: string, ids: string[]) {
   if (rows.length !== new Set(ids).size) {
     throw new HttpError(400, "One of the options does not exist any more.");
   }
-}
-
-/** Writes one value, replacing any earlier value for the same property. */
-export async function putValue(taskId: string, propertyId: string, value: TaskValue) {
-  await db
-    .insert(taskValues)
-    .values({ taskId, propertyId, value })
-    .onConflictDoUpdate({
-      target: [taskValues.taskId, taskValues.propertyId],
-      set: { value },
-    });
 }
 
 /** Human-readable text for one value. Used by the activity log. */

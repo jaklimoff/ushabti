@@ -12,7 +12,9 @@ import {
   loadProperties,
   propertyProjectId,
   withProjectLock,
+  type Tx,
 } from "@/lib/queries";
+import { dropHidden, lockTasks, projectTaskIds } from "@/lib/hidden";
 import { rankBetween } from "@/lib/rank";
 import { readWhen, readWhens } from "@/lib/when";
 
@@ -114,6 +116,16 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 
   if (configChanged) patch.config = config;
 
+  /* A rule that hides a property takes its values with it, in the same
+     transaction. Settings asked first, with the count. A rule taken away
+     usually shows more, but it can let a rule elsewhere out of a circle,
+     and that one then hides, so a clear is checked too. */
+  const dropForRule = async (tx: Tx) => {
+    if (input.when === undefined) return async () => {};
+    const taskIds = await projectTaskIds(tx, projectId);
+    return (await dropHidden(tx, { projectId, taskIds, actorId: user.id })).ring;
+  };
+
   /* Where a property sits on a card belongs to the card view, so this writes
      there. It is the short way to say it: off the card, or back where its kind
      belongs. The card view page says the rest. */
@@ -122,7 +134,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   }
 
   if (input.afterId !== undefined) {
-    await withProjectLock(projectId, async (tx) => {
+    const ring = await withProjectLock(projectId, async (tx) => {
       const siblings = await tx
         .select({ id: properties.id, position: properties.position })
         .from(properties)
@@ -135,13 +147,21 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
         .update(properties)
         .set({ ...patch, position: rankBetween(before, after) })
         .where(eq(properties.id, propertyId));
+      return dropForRule(tx);
     });
+    await ring();
     await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
     return json({ ok: true });
   }
 
   if (Object.keys(patch).length > 0) {
-    await db.update(properties).set(patch).where(eq(properties.id, propertyId));
+    /* The project lock, as a create and an import take it: a task written
+       beside a rule is either in the list the rule drops from, or reads it. */
+    const ring = await withProjectLock(projectId, async (tx) => {
+      await tx.update(properties).set(patch).where(eq(properties.id, propertyId));
+      return dropForRule(tx);
+    });
+    await ring();
   }
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
   return json({ ok: true });
@@ -214,7 +234,16 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
     );
   }
 
-  await db.delete(properties).where(eq(properties.id, propertyId));
+  /* A rule that named this property goes with it, which can let another rule
+     out of a circle to hide values on any task. So every task is checked in
+     the same transaction, under the lock a rule write takes. */
+  const ring = await withProjectLock(projectId, async (tx) => {
+    const taskIds = await projectTaskIds(tx, projectId);
+    await lockTasks(tx, taskIds);
+    await tx.delete(properties).where(eq(properties.id, propertyId));
+    return (await dropHidden(tx, { projectId, taskIds, actorId: user.id })).ring;
+  });
+  await ring();
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
   return json({ ok: true });
 });
