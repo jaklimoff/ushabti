@@ -33,8 +33,8 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
   /* The archived tasks join the live ones here and nowhere else on the board.
      A search is what makes an archived task reachable again. */
   const hits = useMemo(
-    () => searchTasks([...data.tasks, ...data.archived], query),
-    [data.archived, data.tasks, query],
+    () => searchTasks([...data.tasks, ...data.archived], query, data.project.doneWhen),
+    [data.archived, data.tasks, data.project.doneWhen, query],
   );
   /* Which hits the view is drawing. A search reaches past the filter, so it
      owes the person a word about the ones the board behind it is not showing. */

@@ -1004,7 +1004,7 @@ function Links({
 
   const rows: Row[] = useMemo(() => {
     if (!adding) return [];
-    return searchTasks([...data.tasks, ...data.archived], query)
+    return searchTasks([...data.tasks, ...data.archived], query, data.project.doneWhen)
       .filter((hit) => !taken.has(hit.task.id))
       .map((hit) => ({
         id: hit.task.id,
@@ -1012,7 +1012,7 @@ function Links({
         color: "#6b7280",
         note: hit.task.archivedAt ? "archived" : undefined,
       }));
-  }, [adding, data.archived, data.tasks, query, taken]);
+  }, [adding, data.archived, data.project.doneWhen, data.tasks, query, taken]);
 
   /* One route writes both lists: which end of it this task is on is the only
      difference between them. */

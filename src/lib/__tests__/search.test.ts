@@ -140,7 +140,66 @@ describe("searchTasks", () => {
   });
 
   it("draws no more than it was asked for", () => {
-    expect(searchTasks(TASKS, "dp", 2)).toHaveLength(2);
+    expect(searchTasks(TASKS, "dp", null, 2)).toHaveLength(2);
+  });
+
+  describe("with the project's Done when", () => {
+    const DONE = { propertyId: "status", optionId: "done" };
+    const doneTask = (over: Partial<TaskDTO> & { number: number }) =>
+      task({ values: { status: "done" }, ...over });
+    const doneKeys = (query: string, tasks: TaskDTO[]) =>
+      searchTasks(tasks, query, DONE).map((hit) => hit.task.key);
+
+    it("puts the open task before the done one, even when the done one is newer", () => {
+      const both = [
+        doneTask({ number: 2, title: "Same words here", updatedAt: "2026-09-01T00:00:00.000Z" }),
+        task({ number: 3, title: "Same words here", values: { status: "doing" } }),
+      ];
+      expect(doneKeys("same words", both)).toEqual(["DP-3", "DP-2"]);
+    });
+
+    it("still puts a key match on a done task above a title match on an open one", () => {
+      const both = [
+        doneTask({ number: 3, title: "Old one" }),
+        task({ number: 5, title: "Says dp-3 here", updatedAt: "2026-09-01T00:00:00.000Z" }),
+      ];
+      expect(doneKeys("dp-3", both)).toEqual(["DP-3", "DP-5"]);
+    });
+
+    it("puts a done live task before an archived one", () => {
+      const three = [
+        task({ number: 1, title: "Same words here", archivedAt: "2026-09-02T00:00:00.000Z" }),
+        doneTask({ number: 2, title: "Same words here" }),
+        task({ number: 3, title: "Same words here", updatedAt: "2025-01-01T00:00:00.000Z" }),
+      ];
+      expect(doneKeys("same words", three)).toEqual(["DP-3", "DP-2", "DP-1"]);
+    });
+
+    it("keeps newest first, then the shared order, inside the done tasks", () => {
+      const done = [
+        doneTask({ number: 7, title: "Same words here", position: "s" }),
+        doneTask({ number: 8, title: "Same words here", position: "V" }),
+        doneTask({ number: 9, title: "Same words here", updatedAt: WHEN }),
+      ];
+      expect(doneKeys("same words", done)).toEqual(["DP-9", "DP-8", "DP-7"]);
+    });
+
+    it("reads an archived task with no values as archived", () => {
+      const gone = {
+        id: "t-1",
+        number: 1,
+        key: "DP-1",
+        title: "Same words here",
+        description: "",
+        position: "001",
+        archivedAt: "2026-09-02T00:00:00.000Z",
+      };
+      const live = doneTask({ number: 2, title: "Same words here" });
+      expect(searchTasks([gone, live], "same words", DONE).map((h) => h.task.key)).toEqual([
+        "DP-2",
+        "DP-1",
+      ]);
+    });
   });
 
   it("finds an archived task, because nothing else can reach one", () => {
