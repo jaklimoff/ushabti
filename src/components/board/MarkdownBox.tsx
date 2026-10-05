@@ -31,8 +31,17 @@ type BoxProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onC
 /* CodeMirror comes in its own chunk, so the board itself does not carry it.
    The panel asks for it as it opens, so a click on the description does not
    wait for the download. */
-export const loadLiveEditor = () => import("./LiveEditor");
-const LiveEditor = lazy(loadLiveEditor);
+type LiveEditorModule = typeof import("./LiveEditor");
+let loaded: LiveEditorModule["default"] | null = null;
+export const loadLiveEditor = () =>
+  import("./LiveEditor").then((mod) => {
+    loaded = mod.default;
+    return mod;
+  });
+/* `lazy` suspends once even when the chunk is already here, and React holds
+   the reveal for up to 300 ms after a fallback. So a box opened after the
+   load draws the editor itself, and only a box opened before it waits. */
+const LazyLiveEditor = lazy(loadLiveEditor);
 
 /**
  * The one box a person writes markdown in: the description, the edit of a
@@ -82,6 +91,9 @@ export function MarkdownBox({
   const own = useRef<TextBox>(null);
   const ref = boxRef ?? own;
   const [refused, setRefused] = useState<{ taskId: string; said: string } | null>(null);
+  /* Picked once for the life of the box: the chunk that lands while a lazy
+     editor waits must not swap it for another, which would draw a new one. */
+  const [LiveEditor] = useState(() => loaded ?? LazyLiveEditor);
 
   /* An upload answers long after it started, so it asks for the words as
      they are then. A write sets them at once, before React renders them, so
@@ -189,7 +201,7 @@ export function MarkdownBox({
   if (live)
     return (
       <>
-        <Suspense fallback={<div className={rest.className} />}>
+        <Suspense fallback={<div className={rest.className} data-testid="live-editor-wait" />}>
           <LiveEditor
             boxRef={ref}
             value={value}
