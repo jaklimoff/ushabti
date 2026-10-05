@@ -39,7 +39,8 @@ export type Piece =
   | { kind: "task"; from: number; to: number; done: boolean };
 
 export type Style = "strong" | "em" | "strike" | "code" | "link";
-export type LineStyle = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "code" | "fence";
+export type LineStyle =
+  "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "code" | "fence" | "gap" | "folded";
 
 /**
  * What the page knows when it draws the same words: how a file looks, and
@@ -63,7 +64,6 @@ const INLINE: Record<string, Style> = {
   StrongEmphasis: "strong",
   Emphasis: "em",
   Strikethrough: "strike",
-  InlineCode: "code",
   Link: "link",
 };
 
@@ -137,6 +137,7 @@ export function pieces(state: EditorState): Piece[] {
     return true;
   };
   const noKeys: Array<[number, number]> = [];
+  const codeLines = new Set<number>();
   /* A description is short, so the whole tree is parsed at once. A long one
      falls back to what the background parse has. */
   const tree = ensureSyntaxTree(state, doc.length, 50) ?? syntaxTree(state);
@@ -165,6 +166,7 @@ export function pieces(state: EditorState): Piece[] {
         const closed = marks.length >= 2 && lineOf(marks[marks.length - 1].from) === lineOf(to);
         for (let n = lineOf(from); n <= lineOf(to); n++) {
           const line = doc.line(n);
+          codeLines.add(n);
           const edge = n === lineOf(from) || (closed && n === lineOf(to));
           out.push({ kind: "line", at: line.from, style: edge && open ? "fence" : "code" });
           if (edge && open && line.to > line.from)
@@ -174,6 +176,20 @@ export function pieces(state: EditorState): Piece[] {
         return false;
       }
       if (name === "Table") return false;
+      if (name === "CodeBlock") {
+        // An indented block keeps its blank lines as code, as the page does.
+        for (let n = lineOf(from); n <= lineOf(to); n++) codeLines.add(n);
+        return false;
+      }
+      if (name === "InlineCode") {
+        /* The box is the code alone, so the backticks of the cursor's line
+           stand beside it rather than inside it. */
+        const marks = node.node.getChildren("CodeMark");
+        const inner = marks.length >= 2 ? [marks[0].to, marks[marks.length - 1].from] : [from, to];
+        if (inner[1] > inner[0])
+          out.push({ kind: "style", from: inner[0], to: inner[1], style: "code" });
+        return;
+      }
       const style = INLINE[name];
       if (style) out.push({ kind: "style", from, to, style });
       if (name === "EmphasisMark" || name === "StrikethroughMark" || name === "CodeMark") {
@@ -218,6 +234,15 @@ export function pieces(state: EditorState): Piece[] {
       }
     },
   });
+  /* A blank line is the gap between two blocks on the page, so it draws as
+     that gap. The page draws one gap for a run of them, so the rest fold away.
+     The cursor's own blank line stays whole, to be typed into. */
+  const blank = (n: number) => !codeLines.has(n) && !doc.line(n).text.trim();
+  for (let n = 1; n <= doc.lines; n++) {
+    if (active.has(n) || !blank(n)) continue;
+    const folded = n > 1 && blank(n - 1) && !active.has(n - 1);
+    out.push({ kind: "line", at: doc.line(n).from, style: folded ? "folded" : "gap" });
+  }
   // A key in code or in a link stays words, as `renderMarkdown()` leaves it.
   for (const { index: from, written, key, href } of context.keysIn(doc.toString())) {
     const to = from + written.length;
