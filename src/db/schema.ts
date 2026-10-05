@@ -295,10 +295,12 @@ export const taskValues = pgTable(
 );
 
 /**
- * One task waiting on another. `from` blocks `to`.
+ * One task waiting on another — `from` blocks `to` — or one task part of
+ * another: a `parent` row's `from` is the parent and its `to` the child.
  *
- * The kind is a column with one word in it, `blocks`, and it is part of the
- * key: a second kind of link later costs a value, not a migration. Both ends
+ * The kind is part of the key, so the second kind cost a value and not a
+ * migration. Every reader names the kind it wants: a parent row read as a
+ * blocker would put a chain on a card that waits on nothing. Both ends
  * cascade, so a deleted task takes its links with it, and an archived one
  * keeps every row that points at it — archived is what "over" usually means,
  * and a blocker that is over still has to be nameable in the panel.
@@ -312,7 +314,7 @@ export const taskLinks = pgTable(
     toId: uuid("to_id")
       .notNull()
       .references(() => tasks.id, { onDelete: "cascade" }),
-    /** blocks. The only kind there is. */
+    /** `blocks` or `parent`. The words live in `src/lib/links.ts`. */
     kind: text("kind").notNull().default("blocks"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

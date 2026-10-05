@@ -19,7 +19,7 @@ import { mainBoardGroupById, ownCardView, readCardView } from "./card-view";
 import { readTimeZone, todayIn } from "./day";
 import { readFilters } from "./filters";
 import { HttpError } from "./auth";
-import { readDoneWhen, type DoneWhen } from "./links";
+import { BLOCKS, PARENT, readDoneWhen, type DoneWhen } from "./links";
 import { readProgressBy } from "./progress";
 import { byPos } from "./order";
 import { readSort } from "./sort";
@@ -99,6 +99,8 @@ export type ProjectExport = {
       editedAt: string | null;
     }[];
     blockedBy: string[];
+    /** The key of the task this one is part of. Its parts name it the same way. */
+    parent: string | null;
   }[];
 };
 
@@ -211,10 +213,11 @@ export async function loadExport(
       .innerJoin(tasks, eq(tasks.id, comments.taskId))
       .where(kept)
       .orderBy(asc(comments.createdAt)),
-    /* Joined on the task that waits. The blocker is checked below against
-       the tasks this file holds, so a deleted one is not named. */
+    /* Joined on the task that waits, or the part. The other end is checked
+       below against the tasks this file holds, so a deleted one is not
+       named. One read carries both kinds; the kind sorts them apart. */
     db
-      .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
+      .select({ fromId: taskLinks.fromId, toId: taskLinks.toId, kind: taskLinks.kind })
       .from(taskLinks)
       .innerJoin(tasks, eq(tasks.id, taskLinks.toId))
       .where(kept),
@@ -246,9 +249,15 @@ export async function loadExport(
     editedAt: c.editedAt ? c.editedAt.toISOString() : null,
   }));
   const blockersOf = new Map<string, number[]>();
+  const parentOf = new Map<string, number>();
   for (const link of linkRows) {
     const n = numberOf.get(link.fromId);
     if (n === undefined) continue;
+    if (link.kind === PARENT) {
+      parentOf.set(link.toId, n);
+      continue;
+    }
+    if (link.kind !== BLOCKS) continue;
     blockersOf.set(link.toId, [...(blockersOf.get(link.toId) ?? []), n]);
   }
 
@@ -304,6 +313,7 @@ export async function loadExport(
       checklist: checklistOf.get(t.id) ?? [],
       comments: commentsOf.get(t.id) ?? [],
       blockedBy: (blockersOf.get(t.id) ?? []).sort((a, b) => a - b).map(key),
+      parent: parentOf.has(t.id) ? key(parentOf.get(t.id)!) : null,
     })),
   };
 }
