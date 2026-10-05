@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.17.0 — 2026-10-05
+
 ### Added
 
 - **A Blocked by or Blocks row opens its task.** Press the key or the title, or reach it with
@@ -17,8 +19,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   Spaces, AWS S3 or RustFS — set with `S3_BUCKET` and its keys. A file is read only through the
   board, which checks that you are on the project. SVG and anything that is not an image or a
   video always downloads. An agent uploads with `board.mjs attach USH-14 shot.png`, which prints
-  the Markdown line to paste. With no bucket set, **Settings → Project** says what to set. The
-  box that uploads by drop and paste comes next.
+  the Markdown line to paste. With no bucket set, **Settings → Project** says what to set.
 - **Drop or paste a file into the description or a comment.** The upload starts at once, a line
   says how far it got, and the line becomes the file's Markdown when it is ready. An image shows
   in place, a video plays, and any other file is a link with its size. A comment waits to send
