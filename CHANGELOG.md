@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **The description box reads as the description does.** Inline code wears the same box, a
+  blank line takes the page's gap between paragraphs, and a heading has the same space above
+  and below. Put the cursor on a blank line and it is a full line again.
+
 ## 0.17.0 — 2026-10-05
 
 ### Added
