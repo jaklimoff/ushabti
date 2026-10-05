@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **The description box reads as the description does.** Inline code wears the same box, a
+  blank line takes the page's gap between paragraphs, and a heading has the same space above
+  and below. Put the cursor on a blank line and it is a full line again.
+
 ### Fixed
 
 - **The description opens at once.** A click on it used to wait about 300 ms for the editor,
