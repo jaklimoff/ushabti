@@ -36,6 +36,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   still comes first, then the title, then the description. Inside each, a live task comes
   before an archived one, and the task changed last comes first, so an old task no longer
   pushes this week's work out of the twelve hits.
+- **A search puts open work before done work that matches as well.** Inside one match, an open
+  task comes first, then a task that is done by **Settings → Project → Done when**, then an
+  archived one. A key typed in full still opens its task, done or not.
 
 ### Fixed
 
