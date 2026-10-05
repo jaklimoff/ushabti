@@ -1,6 +1,7 @@
 import type { CardItem } from "./card-view";
 import { KIND_OF_BUILTIN, KIND_OF_TYPE } from "./card-view";
 import { linkLabel, linksOf } from "./web-links";
+import { isShown } from "./when";
 import {
   CARD_BUILTINS,
   SORT_DIRECTIONS,
@@ -213,6 +214,10 @@ function compareKeys(a: SortKey, b: SortKey): number {
  *
  * Two tasks that compare the same keep the rank they already had, so the list
  * never shuffles under a person and always agrees with the board underneath.
+ *
+ * A property a task does not show, by its own rule, holds nothing for it: the
+ * cell is empty, so the row goes with the empties and not by a value nobody
+ * can see.
  */
 export function sortTasks(
   tasks: TaskDTO[],
@@ -226,7 +231,11 @@ export function sortTasks(
 
   const way = sort.direction === "asc" ? 1 : -1;
   const keys = new Map<string, SortKey>();
-  for (const task of tasks) keys.set(task.id, keyOf(item, task, members));
+  const properties = columns.flatMap((c) => (c.property ? [c.property] : []));
+  for (const task of tasks) {
+    const shown = !item.property || isShown(item.property, task.values, properties);
+    keys.set(task.id, shown ? keyOf(item, task, members) : null);
+  }
 
   return [...tasks].sort((a, b) => {
     const left = keys.get(a.id) ?? null;

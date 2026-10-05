@@ -74,7 +74,16 @@ export type PropertyConfig = {
    * fills in 14 and 1.
    */
   cadence?: { length?: number; ahead?: number };
+  /**
+   * When this property shows on a task: "Severity, shown when Type is Bug".
+   * Absent is always. Read it with `readWhen()`; the board and the export
+   * carry only what that read.
+   */
+  when?: When;
 };
+
+/** One select of the same project, and the options of it a task must carry. */
+export type When = { propertyId: string; optionIds: string[] };
 
 export type PropertyOptionDTO = {
   id: string;

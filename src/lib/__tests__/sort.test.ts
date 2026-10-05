@@ -416,6 +416,28 @@ describe("ordering by a checkbox", () => {
   });
 });
 
+describe("ordering by a property a task does not show", () => {
+  /* Points shows only while Priority is Urgent. */
+  const ruled = PROPERTIES.map((p) =>
+    p.id === "p-points"
+      ? { ...p, config: { when: { propertyId: "p-prio", optionIds: ["o-urgent"] } } }
+      : p,
+  );
+  const items = cardItems(readCardView(SAVED, ruled, null), ruled);
+
+  it("puts a task that hides it with the empties, both ways", () => {
+    const tasks = [
+      task("hidden", { "p-points": 1 }),
+      task("big", { "p-prio": "o-urgent", "p-points": 8 }),
+      task("small", { "p-prio": "o-urgent", "p-points": 2 }),
+    ];
+    const by = (direction: "asc" | "desc") =>
+      sortTasks(tasks, { columnId: "p-points", direction }, items, MEMBERS).map((t) => t.id);
+    expect(by("asc")).toEqual(["small", "big", "hidden"]);
+    expect(by("desc")).toEqual(["big", "small", "hidden"]);
+  });
+});
+
 describe("which headings can be pressed", () => {
   it("is every column a list draws", () => {
     expect(ITEMS.filter((i) => i.place !== "off").every(canSort)).toBe(true);

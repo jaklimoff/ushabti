@@ -31,9 +31,13 @@ import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PALETTE } from "@/lib/colors";
+import { keyName } from "@/lib/filters";
+import { whenSaid } from "@/lib/when";
 import {
   GROUPABLE_TYPES,
   hasOptions,
+  isSelect,
+  NO_VALUE_KEY,
   PROPERTY_TYPE_HINT,
   PROPERTY_TYPE_LABEL,
   PROPERTY_TYPES,
@@ -149,8 +153,11 @@ export function PropertiesPanel() {
 }
 
 function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
-  const { patchProperty, deleteProperty, addOption, deleteOption, moveOption, notify } = useBoard();
+  const { data, patchProperty, deleteProperty, addOption, deleteOption, moveOption, notify } =
+    useBoard();
   const dated = carriesDates(property);
+  /* The rule's row opens on a press, and stays while a rule is set. */
+  const [whenOpen, setWhenOpen] = useState(false);
   /* Fifty old sprints must not stand before this week's, so the shipped ones
      wait behind one row. A dated select has none: its versions stay. */
   const { open: openOptions, shipped } = splitShipped(property);
@@ -324,6 +331,14 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
               Options carry dates
             </label>
           )}
+          {!property.config.when &&
+            !whenOpen &&
+            canEdit &&
+            whenCandidates(property, data.properties).length > 0 && (
+              <button type="button" className={styles.whenAdd} onClick={() => setWhenOpen(true)}>
+                Shown when…
+              </button>
+            )}
         </div>
         <div className={styles.propTools}>
           {canEdit && (
@@ -340,6 +355,9 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
       </div>
 
       {property.type === "iteration" && <CadenceRow property={property} canEdit={canEdit} />}
+      {(property.config.when || whenOpen) && (
+        <WhenRow property={property} canEdit={canEdit} onClose={() => setWhenOpen(false)} />
+      )}
       {hasOptions(property.type) && dropConfirm.asking && dropping && (
         <ConfirmRow
           question={
@@ -735,6 +753,92 @@ function OptionField({
       className={styles.optionDate}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
     />
+  );
+}
+
+/** The selects a property may be shown by: any single select but itself. */
+function whenCandidates(property: PropertyDTO, all: PropertyDTO[]): PropertyDTO[] {
+  return all.filter((p) => p.id !== property.id && isSelect(p.type));
+}
+
+/**
+ * "Shown when Type is Bug or Story": a select, then its options. Each tick
+ * saves at once, as the dated switch does. Untick the last one and the rule
+ * goes, because an empty set would read as always shown anyway.
+ */
+function WhenRow({
+  property,
+  canEdit,
+  onClose,
+}: {
+  property: PropertyDTO;
+  canEdit: boolean;
+  onClose: () => void;
+}) {
+  const { data, patchProperty } = useBoard();
+  const rule = property.config.when ?? null;
+  const candidates = whenCandidates(property, data.properties);
+  /* A select picked and not yet answered writes nothing, as a new filter rule
+     does: the rule is the select and at least one option. */
+  const [picked, setPicked] = useState<string | null>(null);
+  const shownBy = candidates.find((p) => p.id === (picked ?? rule?.propertyId)) ?? null;
+  const ticked = rule && shownBy && rule.propertyId === shownBy.id ? rule.optionIds : [];
+
+  function toggle(id: string, on: boolean) {
+    if (!shownBy) return;
+    const next = on ? [...ticked, id] : ticked.filter((t) => t !== id);
+    void patchProperty(property.id, {
+      when: next.length ? { propertyId: shownBy.id, optionIds: next } : null,
+    });
+  }
+
+  function clear() {
+    setPicked(null);
+    onClose();
+    if (rule) void patchProperty(property.id, { when: null });
+  }
+
+  return (
+    <div className={styles.when}>
+      <span className={styles.whenSaid} data-testid="when-said">
+        {rule ? whenSaid(rule, data.properties) : "Shown when"}
+      </span>
+      {canEdit && (
+        <>
+          <Select
+            aria-label={`Shown when of ${property.name}`}
+            className={styles.whenPick}
+            value={shownBy?.id ?? ""}
+            onChange={(e) => setPicked(e.target.value || null)}
+          >
+            <option value="">Pick a select</option>
+            {candidates.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+          {shownBy &&
+            [...shownBy.options.map((o) => o.id), NO_VALUE_KEY].map((id) => (
+              <label key={id} className={styles.datedSwitch}>
+                <input
+                  type="checkbox"
+                  checked={ticked.includes(id)}
+                  onChange={(e) => toggle(id, e.target.checked)}
+                />
+                {keyName(id, shownBy, [])}
+              </label>
+            ))}
+          <IconButton
+            label={rule ? `Always show ${property.name}` : "Cancel"}
+            title={rule ? "Clear the rule: always show this property" : "Cancel"}
+            onClick={clear}
+          >
+            ✕
+          </IconButton>
+        </>
+      )}
+    </div>
   );
 }
 

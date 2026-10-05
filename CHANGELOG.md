@@ -15,6 +15,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   A part is never a blocker. Agents use `PUT` and `DELETE /api/tasks/{id}/parent`, or
   `board.mjs parent` and `unparent`, and the export carries each task's parent.
 
+- **A property can say when it shows.** In Settings → Properties, **Shown when…** picks a select
+  and its options: "Severity, shown when Type is Bug". A task then draws that property — in the
+  panel, on the card and in the list — only while its value of the select is one of them. The
+  ✕ clears the rule.
+
 ### Changed
 
 - **The description box reads as the description does.** Inline code wears the same box, a

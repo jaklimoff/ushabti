@@ -335,6 +335,29 @@ describe("the export", () => {
     expect(file.tasks[0].values[PRS]).toEqual(links);
   });
 
+  it("carries when a property shows as the board reads it, never raw", async () => {
+    const SEVERITY = "00000000-0000-4000-8000-0000000000f2";
+    const LOST = "00000000-0000-4000-8000-0000000000f3";
+    const raw = { propertyId: STATUS, optionIds: [LOST, DOING] };
+    fake.rows.set(properties, [
+      ...(fake.rows.get(properties) ?? []),
+      {
+        id: SEVERITY,
+        projectId: PROJECT,
+        name: "Severity",
+        type: "text",
+        position: "a1",
+        config: { when: raw },
+        createdAt: AT,
+      },
+    ]);
+    const file = await loadExport(PROJECT, AT);
+    /* The deleted option is gone from the set. */
+    expect(file.properties.find((p) => p.id === SEVERITY)?.config).toEqual({
+      when: { propertyId: STATUS, optionIds: [DOING] },
+    });
+  });
+
   /* The ids a value or an author names are the ids the file lists. */
   it("names only ids it also lists", async () => {
     const file = await loadExport(PROJECT, AT);

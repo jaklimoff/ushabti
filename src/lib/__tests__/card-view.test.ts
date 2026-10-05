@@ -567,6 +567,53 @@ describe("a task laid out as a row", () => {
   });
 });
 
+describe("a property shown only for some tasks", () => {
+  /* Priority shows only while Status is Todo. */
+  const ruled = PROPERTIES.map((p) =>
+    p.id === "p-prio"
+      ? { ...p, config: { when: { propertyId: "p-status", optionIds: ["o-todo"] } } }
+      : p,
+  );
+  const ruledItems = (saved: unknown) => cardItems(readCardView(saved, ruled, "p-status"), ruled);
+
+  it("draws its chip on a card and a row for a task it applies to", () => {
+    const todo = task({ "p-status": "o-todo", "p-prio": "o-urgent" });
+    expect(buildCard(ruledItems(null), todo, [ADA]).headerL.map((c) => c.tip)).toContain(
+      "Priority · Urgent",
+    );
+    expect(buildRow(ruledItems(null), todo, [ADA]).cells["p-prio"]).toHaveLength(1);
+  });
+
+  it("draws no chip, no cell and no stripe for a task it does not apply to", () => {
+    const done = task({ "p-status": "o-done", "p-prio": "o-urgent" });
+    expect(buildCard(ruledItems(null), done, [ADA]).headerL.map((c) => c.tip)).not.toContain(
+      "Priority · Urgent",
+    );
+    expect(buildRow(ruledItems(null), done, [ADA]).cells["p-prio"]).toEqual([]);
+    const edged = { rows: { "p-prio": { place: "edge", mode: "colour" } } };
+    expect(buildCard(ruledItems(edged), done, [ADA]).edge).toBeNull();
+    expect(cardAccent(ruledItems(null), done, [])).toBeNull();
+  });
+
+  it("draws nothing at the end of a chain whose middle is hidden", () => {
+    /* Who shows only while Priority is Urgent, and Priority only while Todo. */
+    const chained = ruled.map((p) =>
+      p.id === "p-who"
+        ? { ...p, config: { when: { propertyId: "p-prio", optionIds: ["o-urgent"] } } }
+        : p,
+    );
+    const list = cardItems(readCardView(null, chained, "p-status"), chained);
+    const values = { "p-prio": "o-urgent", "p-who": ADA.id };
+    expect(buildCard(list, task({ "p-status": "o-todo", ...values }), [ADA]).headerR).toHaveLength(
+      1,
+    );
+    expect(buildCard(list, task({ "p-status": "o-done", ...values }), [ADA]).headerR).toEqual([]);
+    expect(buildRow(list, task({ "p-status": "o-done", ...values }), [ADA]).cells["p-who"]).toEqual(
+      [],
+    );
+  });
+});
+
 describe("mainBoardGroupById", () => {
   const board = (groupById: string, isDefault = false) => ({ kind: "board", isDefault, groupById });
   const list = (groupById: string, isDefault = false) => ({ kind: "list", isDefault, groupById });
