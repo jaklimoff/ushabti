@@ -45,8 +45,11 @@ included, always wins. See [`defaults`](/ushabti/api/properties/#patch-apiproper
 ```json title="201"
 { "task": { "id": "…", "number": 14, "key": "USH-14", "title": "…", "description": "",
             "position": "Vk", "projectId": "…", "createdBy": "…", "createdAt": "…", "updatedAt": "…",
-            "archivedAt": null } }
+            "archivedAt": null, "values": { "<severityPropertyId>": "<minorOptionId>" } } }
 ```
+
+`values` is what the task holds once the create is done: what you sent, the type's defaults, and
+nothing a rule hides. It is the same as a read of the board would say, so you need not read it back.
 
 <Aside type="caution" title="A bad value in `values` still leaves you a task">
 The row is committed before the values are written, so a rejected value answers `400` on a task that

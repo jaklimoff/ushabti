@@ -892,6 +892,7 @@ export function BoardProvider({
             | "position"
             | "createdAt"
             | "updatedAt"
+            | "values"
           >;
         }>(`/api/projects/${projectId}/tasks`, {
           title: input.title,
@@ -899,12 +900,13 @@ export function BoardProvider({
           afterId: input.afterId ?? null,
           atTop: input.atTop ?? false,
         });
-        /* The route answers with the row it wrote and the key it wears, and
-           nothing that is counted or joined. A task a moment old has none of
-           those: no checklist, no comments, and nothing to wait on. */
+        /* The route answers with the row it wrote, the key it wears and the
+           values it stored, which hold the type's defaults the composer never
+           sent. Nothing that is counted or joined: a task a moment old has no
+           checklist, no comments, and nothing to wait on. */
         const complete: TaskDTO = {
           ...task,
-          values: input.values ?? {},
+          values: task.values ?? {},
           checklistTotal: 0,
           checklistDone: 0,
           commentCount: 0,

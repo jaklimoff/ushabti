@@ -90,7 +90,9 @@ starts with Severity Minor". It is in `config.defaults` of that property,
 keyed by the option id of the type. `POST /api/projects/{projectId}/tasks`
 reads the type from the `values` you send and writes the defaults of every
 property you did not send and that the type shows. A value you send always
-wins, even an empty one, so send `null` to start a property empty.
+wins, even an empty one, so send `null` to start a property empty. The
+answer carries `task.values`: what the task holds once the create is done,
+defaults included, so you need not read it back.
 
 **A text write may say what it started from.** Send `baseTitle` beside
 `title`, `baseDescription` beside `description`, or `baseText` beside a

@@ -58,8 +58,13 @@ async function created(page: Page, projectId: string, values: Record<string, unk
     data: { title: unique("Task"), values },
   });
   expect(res.status()).toBe(201);
-  const { task } = (await res.json()) as { task: { id: string } };
-  return (await board(page, projectId)).tasks.find((t) => t.id === task.id)!.values;
+  const { task } = (await res.json()) as {
+    task: { id: string; values: Record<string, unknown> };
+  };
+  const stored = (await board(page, projectId)).tasks.find((t) => t.id === task.id)!.values;
+  // The answer is all a caller has to draw the new task from.
+  expect(task.values).toEqual(stored);
+  return stored;
 }
 
 test.describe("What a new task of a type starts with", () => {
@@ -151,6 +156,9 @@ test.describe("What a new task of a type starts with", () => {
 
     await addTask(page, "Bug", "A crash");
     await expect(card(page, "A crash")).toBeVisible();
+    /* This tab hears no bell for its own create, so only the answer of the
+       create can put the default on the card it draws. */
+    await expect(card(page, "A crash")).toContainText("Minor");
     const task = (await board(page, projectId)).tasks.find((t) => t.title === "A crash")!;
     expect(task.values[severity.id]).toBe(minor);
   });

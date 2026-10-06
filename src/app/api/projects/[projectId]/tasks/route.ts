@@ -100,7 +100,16 @@ export const POST = route<Ctx>(async (req, ctx) => {
       actorId: user.id,
       before: [{ projectId, taskId: task.id, actorId: user.id, kind: "created", data: { title } }],
     });
-    return { task, rewrote, ring };
+    /* The tab that made the task hears no bell, so the answer carries what
+       was stored: the defaults, less what the drop took. Read back here, it
+       cannot say one thing while the board says another. */
+    const stored = await tx
+      .select({ propertyId: taskValues.propertyId, value: taskValues.value })
+      .from(taskValues)
+      .where(eq(taskValues.taskId, task.id));
+    const kept: Record<string, TaskValue> = {};
+    for (const row of stored) kept[row.propertyId] = row.value as TaskValue;
+    return { task: { ...task, values: kept }, rewrote, ring };
   });
 
   await ring();
