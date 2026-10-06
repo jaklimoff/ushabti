@@ -24,7 +24,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # The whole history: the GitHub step's tests read the board.mjs that
+      # `examples/github/ushabti-links.yml` pins with `git show`.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -126,7 +130,11 @@ jobs:
       S3_FORCE_PATH_STYLE: "true"
 
     steps:
+      # The whole history: the GitHub step's tests read the board.mjs that
+      # `examples/github/ushabti-links.yml` pins with `git show`.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:

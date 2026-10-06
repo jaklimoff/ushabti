@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { runStep } from "../src/lib/__tests__/workflow-step";
+import { pinnedBoardMjs, runStep } from "../src/lib/__tests__/workflow-step";
 import { createProject, gotoSettings, register, unique } from "./helpers";
 
 const PR = "https://github.com/acme/shop/pull/12";
@@ -78,6 +78,33 @@ test.describe("The GitHub Actions step", () => {
     });
     expect(again.code).toBe(0);
     expect(await valueOf(page, named.id, property.id)).toEqual([PR]);
+  });
+
+  test("works with the board.mjs that the workflow pins for teams", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pinned"));
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Pull requests", type: "link" },
+    });
+    expect(made.ok()).toBeTruthy();
+    const { property } = await made.json();
+    const task = await newTask(page, projectId, "Linked by the pinned script");
+    const token = await connectAgent(page, projectId, "GitHub");
+
+    /* A team runs the file at the pinned commit, not this checkout's copy. */
+    const result = await runStep({
+      url: boardUrl(),
+      token,
+      projectKey: task.key.split("-")[0],
+      title: task.key,
+      branch: "main",
+      prUrl: PR,
+      board: "pinned",
+    });
+    expect(result.boardMjs).toEqual(pinnedBoardMjs().toString("utf8"));
+    expect(result.output).not.toContain("did not take the token");
+    expect(result.code).toBe(0);
+    expect(await valueOf(page, task.id, property.id)).toEqual([PR]);
   });
 
   test("writes a line, and does not fail, on a board with no Link property", async ({ page }) => {
