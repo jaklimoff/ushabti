@@ -35,7 +35,6 @@ services:
       # way to reach whatever else is on that network.
       USHABTI_WEBHOOK_PRIVATE: "1"
       WATCHPACK_POLLING: "true"
-      CHOKIDAR_USEPOLLING: "true"
       # Files go to the rustfs service below. A signed URL names the host it
       # was signed for, so the server and the browser must reach RustFS at
       # the same address: rustfs shares this container's network, and
