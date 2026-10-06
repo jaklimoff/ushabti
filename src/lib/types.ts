@@ -731,6 +731,12 @@ export type ProjectDTO = {
   timeZone: string;
   /** Whether `/changelog/{key in lower case}` answers without a session. */
   publicChangelog: boolean;
+  /**
+   * How an agent works on this board, in Markdown. Null on a board an agent
+   * reads: it gets the rules once, on the answer to its claim, and not again
+   * on every read a run makes.
+   */
+  agentRules: string | null;
 };
 
 /** An email the owner added before it had an account. */
@@ -804,6 +810,7 @@ export const WEBHOOK_KINDS = [
   "reset",
   "import",
   "attachment",
+  "rules",
 ] as const;
 
 export type WebhookKind = (typeof WEBHOOK_KINDS)[number];
@@ -823,6 +830,7 @@ export const WEBHOOK_KIND_LABEL: Record<WebhookKind, string> = {
   reset: "Reset link",
   import: "A board brought in",
   attachment: "A file",
+  rules: "Agent rules",
 };
 
 /**

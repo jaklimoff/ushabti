@@ -514,6 +514,7 @@ test.describe("Settings on a laptop", () => {
     await expect(headings).toHaveText([
       "Name and key",
       "Dates and progress",
+      "Agents",
       "Sprints",
       "Sharing and export",
       "Danger zone",

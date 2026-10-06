@@ -646,6 +646,19 @@ POST /api/tasks/{taskId}/run
 }
 ```
 
+The answer is `{ "run": …, "rules": { "text": "…", "hash": "…" } }`.
+
+`rules` is how to work on this board: Markdown that the owner or an admin
+writes in **Settings → Project → Agent rules**. No field on a task is fixed, so
+only the project can say which option means review, when to ask a person, what
+an estimate means and what done means. **Obey it**, and read it before you set
+a property. `text` is empty when the project wrote none. `hash` names the
+version, and matches the `rules` line in the feed that wrote it. The claim is
+the only answer that carries it — not a report, not a beat, not the board — so
+keep it for the whole run. An agent cannot change it: the route answers `403`.
+This is not `AGENTS.md`, which says how to work on the code of one repository;
+one board can hold the work of many.
+
 `steps` is optional. With it the Agent tab shows the plan, ticking steps off as
 you report them; without it the tab shows the line and the log alone. The card is
 the same either way: one line, and the bar that says you are alive.
@@ -934,8 +947,10 @@ line of its own — nothing happened to that task.
 
 `taskId` and `taskKey` are **null** on a line about the project rather than
 about a task. `reset` — the owner made somebody a reset link, with
-`data: { "forUserId": "…", "forName": "Ada" }` — is one of those, so do not
-read a key off every entry.
+`data: { "forUserId": "…", "forName": "Ada" }` — is one of those, and so is
+`rules` — an admin changed the agent rules, with
+`data: { "hash": "…", "text": "…" }`, the whole text as it was saved — so do
+not read a key off every entry.
 
 An `import` line says the owner brought a board in from Trello. **An agent gets
 nothing new for it**: the route is the owner's, and the tasks arrive in the
@@ -978,7 +993,7 @@ shell, with these filled in, each quoted as one argument:
 
 | Placeholder | What it is                                                     |
 | ----------- | -------------------------------------------------------------- |
-| `{prompt}`  | What happened, the job, and the path of `SKILL.md` to read     |
+| `{prompt}`  | What happened, the job, the path of `SKILL.md` to read, and the board's rules from the claim |
 | `{key}`     | The task key, `USH-31`                                         |
 | `{id}`      | The task id                                                    |
 | `{event}`   | `created`, `assigned`, `mention` or `reply`                    |
@@ -1098,7 +1113,7 @@ commands are:
 ```bash
 node board.mjs list --free                 # what nobody is working on
 node board.mjs task USH-14                 # one task in full
-node board.mjs claim USH-14 --goal "…" --plan "a|b|c"
+node board.mjs claim USH-14 --goal "…" --plan "a|b|c"   # prints the board's rules
 node board.mjs step USH-14 --index 1 --say "Writing the tests" --log "…"
 node board.mjs step USH-14 --say "Running the suite" --for 45   # a long step
 node board.mjs set USH-14 Status Ready     # names, never ids

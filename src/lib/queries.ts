@@ -868,6 +868,7 @@ export async function loadBoard(
       typeBy: readTypeBy(projectRow.typeBy, propertyList),
       timeZone,
       publicChangelog: projectRow.publicChangelog,
+      agentRules: viewerId ? projectRow.agentRules : null,
     },
     /* The one clock this board reads. Every relative date rule on every view
        is measured against it, on the server now and in the browser after it

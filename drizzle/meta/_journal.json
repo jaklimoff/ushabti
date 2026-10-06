@@ -183,6 +183,13 @@
       "when": 1791270810171,
       "tag": "0025_type_by",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791328012044,
+      "tag": "0026_agent_rules",
+      "breakpoints": true
     }
   ]
 }

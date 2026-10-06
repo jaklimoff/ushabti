@@ -748,13 +748,15 @@ http://localhost:3000.`);
           .split("|")
           .map((s) => s.trim())
       : [];
-    const { run } = await call("POST", `/api/tasks/${task.id}/run`, {
+    const { run, rules } = await call("POST", `/api/tasks/${task.id}/run`, {
       goal: flags.goal ?? `Work on ${task.key}`,
       step: flags.step ?? steps[0] ?? "",
       steps,
     });
     console.log(`${task.key} claimed. run ${run.id}`);
     console.log(`Now start the heartbeat: node board.mjs beat ${task.key} &`);
+    const said = rulesText(rules);
+    if (said) console.log(`\n${said}`);
   },
 
   /**
@@ -1124,12 +1126,26 @@ const PROMPTS = {
     `Read the newest comments before anything else.`,
 };
 
-function promptFor(event, key, goal, place) {
+/**
+ * The project's rules for its agents, as the claim answered them, or "" when
+ * the project wrote none. Only a claim carries them, so a run reads them once.
+ */
+function rulesText(rules) {
+  if (!rules || !rules.text) return "";
+  return (
+    `The rules of this board (${rules.hash}). Obey them, and read them before you set a property:\n` +
+    rules.text
+  );
+}
+
+function promptFor(event, key, goal, place, rules) {
+  const said = rulesText(rules);
   return (
     `${PROMPTS[event](key, place)} Your job: ${goal}. ` +
     `Read ${SKILL_DIR}/SKILL.md first and follow it. ` +
     `The watcher already holds the run on ${key} and beats for it, ` +
-    `so do not claim the task and do not start a heartbeat.`
+    `so do not claim the task and do not start a heartbeat.` +
+    (said ? `\n\n${said}` : "")
   );
 }
 
@@ -1252,11 +1268,12 @@ commands.watch = async function watch() {
           step: "Reading the answer",
         });
       } else {
-        const { run } = await request("POST", `/api/tasks/${job.taskId}/run`, {
+        const { run, rules } = await request("POST", `/api/tasks/${job.taskId}/run`, {
           goal: goal.length > 200 ? `${goal.slice(0, 197)}…` : goal,
           step: "Starting",
         });
         runId = run.id;
+        job.rules = rules;
       }
     } catch (err) {
       // 409: somebody else holds it, or the run closed. Either way, not ours.
@@ -1270,7 +1287,7 @@ commands.watch = async function watch() {
       key: job.key,
       id: job.taskId,
       event: job.event,
-      prompt: promptFor(job.event, job.key, goal, job.place),
+      prompt: promptFor(job.event, job.key, goal, job.place, job.rules),
       skill: SKILL_DIR,
     });
 

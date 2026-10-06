@@ -54,6 +54,18 @@ export function Input({
   );
 }
 
+/** A box of several lines, in the same paint as `Input`. It fills its row. */
+export function TextArea({ className, ...rest }: React.ComponentPropsWithRef<"textarea">) {
+  return (
+    <textarea
+      {...rest}
+      className={[styles.input, styles.inputBlock, styles.textArea, className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+    />
+  );
+}
+
 /**
  * A dropdown in the board's menu style. Focus stays on the button and the
  * highlight is named by `aria-activedescendant`, so a screen reader hears the
