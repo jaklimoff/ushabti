@@ -23,7 +23,7 @@ import { BLOCKS, PARENT, readDoneWhen, type DoneWhen } from "./links";
 import { readProgressBy } from "./progress";
 import { byPos } from "./order";
 import { readSort } from "./sort";
-import { readTypeBy, readWhens } from "./when";
+import { readDefaults, readTypeBy, readWhens } from "./when";
 import { optionColumns, toOptionDTO } from "./queries";
 import { VIEW_KINDS } from "./types";
 import type {
@@ -225,15 +225,18 @@ export async function loadExport(
       .where(kept),
   ]);
 
-  const propertyList: PropertyDTO[] = readWhens(
-    propRows.map((p) => ({
-      id: p.id,
-      name: p.name,
-      type: p.type as PropertyType,
-      position: p.position,
-      config: (p.config ?? {}) as PropertyDTO["config"],
-      options: optRows.filter((o) => o.propertyId === p.id).map(toOptionDTO),
-    })),
+  const propertyList: PropertyDTO[] = readDefaults(
+    readWhens(
+      propRows.map((p) => ({
+        id: p.id,
+        name: p.name,
+        type: p.type as PropertyType,
+        position: p.position,
+        config: (p.config ?? {}) as PropertyDTO["config"],
+        options: optRows.filter((o) => o.propertyId === p.id).map(toOptionDTO),
+      })),
+    ),
+    projectRow.typeBy,
   );
 
   const key = (n: number) => `${projectRow.key}-${n}`;
