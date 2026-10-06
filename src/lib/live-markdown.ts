@@ -40,7 +40,17 @@ export type Piece =
 
 export type Style = "strong" | "em" | "strike" | "code" | "link";
 export type LineStyle =
-  "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "code" | "fence" | "gap" | "folded";
+  | "h1"
+  | "h2"
+  | "h3"
+  | "h4"
+  | "h5"
+  | "h6"
+  | "code"
+  | "fence"
+  | "gap"
+  | "folded"
+  | "folded-under-heading";
 
 /**
  * What the page knows when it draws the same words: how a file looks, and
@@ -138,6 +148,7 @@ export function pieces(state: EditorState): Piece[] {
   };
   const noKeys: Array<[number, number]> = [];
   const codeLines = new Set<number>();
+  const headingLines = new Set<number>();
   /* A description is short, so the whole tree is parsed at once. A long one
      falls back to what the background parse has. */
   const tree = ensureSyntaxTree(state, doc.length, 50) ?? syntaxTree(state);
@@ -148,6 +159,7 @@ export function pieces(state: EditorState): Piece[] {
       if (QUIET_KEYS.has(name)) noKeys.push([from, to]);
       const heading = /^ATXHeading([1-6])$/.exec(name);
       if (heading) {
+        headingLines.add(doc.lineAt(from).number);
         out.push({ kind: "line", at: doc.lineAt(from).from, style: `h${heading[1]}` as LineStyle });
         return;
       }
@@ -236,12 +248,17 @@ export function pieces(state: EditorState): Piece[] {
   });
   /* A blank line is the gap between two blocks on the page, so it draws as
      that gap. The page draws one gap for a run of them, so the rest fold away.
-     The cursor's own blank line stays whole, to be typed into. */
+     The cursor's own blank line stays whole, to be typed into. A run under a
+     heading says so on its folded lines: CSS cannot look past them to see the
+     heading above the next one. */
   const blank = (n: number) => !codeLines.has(n) && !doc.line(n).text.trim();
+  let underHeading = false;
   for (let n = 1; n <= doc.lines; n++) {
     if (active.has(n) || !blank(n)) continue;
     const folded = n > 1 && blank(n - 1) && !active.has(n - 1);
-    out.push({ kind: "line", at: doc.line(n).from, style: folded ? "folded" : "gap" });
+    if (!folded) underHeading = headingLines.has(n - 1);
+    const style = !folded ? "gap" : underHeading ? "folded-under-heading" : "folded";
+    out.push({ kind: "line", at: doc.line(n).from, style });
   }
   // A key in code or in a link stays words, as `renderMarkdown()` leaves it.
   for (const { index: from, written, key, href } of context.keysIn(doc.toString())) {

@@ -48,6 +48,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Two headings with blank lines between them sit as far apart in the box as on the page.** With
+  two or more blank lines between them, they used to sit closer together in the box.
 - **The description opens at once.** A click on it used to wait about 300 ms for the editor,
   however short the text. Now the editor shows in the same frame once the panel has loaded it.
 - **The task panel shows the activity of its own changes at once.** A value set in the panel,

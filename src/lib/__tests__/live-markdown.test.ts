@@ -177,6 +177,22 @@ describe("live preview", () => {
     ]);
   });
 
+  it("says which folded lines a heading's gap holds", () => {
+    expect(lines(drawn("# a\n\n\n\n# b", 0).all)).toEqual([
+      [0, "h1"],
+      [7, "h1"],
+      [4, "gap"],
+      [5, "folded-under-heading"],
+      [6, "folded-under-heading"],
+    ]);
+    // A run under a paragraph folds as before, though a heading follows it.
+    expect(lines(drawn("a\n\n\n# b", 0).all)).toEqual([
+      [4, "h1"],
+      [2, "gap"],
+      [3, "folded"],
+    ]);
+  });
+
   it("leaves a blank line inside an indented code block as code", () => {
     expect(lines(drawn("x\n\n    a\n\n    b", 0).all)).toEqual([[2, "gap"]]);
   });

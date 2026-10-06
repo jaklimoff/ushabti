@@ -191,6 +191,40 @@ test.describe("The live description", () => {
       expect(Math.abs(inBox[key] - wanted[key]), key).toBeLessThanOrEqual(2);
   });
 
+  for (const blanks of [2, 3, 4]) {
+    test(`two headings with ${blanks} blank lines between them keep the page's space`, async ({
+      page,
+    }) => {
+      const editor = await openDescription(page, false);
+      const gap = "\n".repeat(blanks + 1);
+      await fillBox(editor, `intro${gap}## Plan${gap}## Steps${gap}first\n`);
+      const line = (text: string) => editor.locator(".cm-line", { hasText: text });
+      const box = {
+        intro: await words(line("intro")),
+        plan: await words(line("Plan")),
+        steps: await words(line("Steps")),
+        first: await words(line("first")),
+      };
+      await editor.press("ControlOrMeta+Enter");
+      const markdown = page.getByTestId("markdown");
+      const onPage = {
+        intro: await words(markdown.locator("p", { hasText: "intro" })),
+        plan: await words(markdown.locator("h2", { hasText: "Plan" })),
+        steps: await words(markdown.locator("h2", { hasText: "Steps" })),
+        first: await words(markdown.locator("p", { hasText: "first" })),
+      };
+      const spaces = (v: typeof box) => ({
+        aboveHeading: v.plan.top - v.intro.bottom,
+        betweenHeadings: v.steps.top - v.plan.bottom,
+        belowHeading: v.first.top - v.steps.bottom,
+      });
+      const inBox = spaces(box);
+      const wanted = spaces(onPage);
+      for (const key of Object.keys(wanted) as Array<keyof typeof wanted>)
+        expect(Math.abs(inBox[key] - wanted[key]), key).toBeLessThanOrEqual(2);
+    });
+  }
+
   test("a blank line under the cursor is a full line and takes typing", async ({ page }) => {
     const editor = await openDescription(page, false);
     await fillBox(editor, "one\n\ntwo");
