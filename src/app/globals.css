@@ -1,4 +1,8 @@
 :root {
+  /* The page is dark, so the browser draws its own controls dark: the date
+     icon, the select list, the scrollbars. */
+  color-scheme: dark;
+
   --bg: #0a0b0d;
   --bg-top: #0f1013;
   --bg-sub: #0c0d10;
