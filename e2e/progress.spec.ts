@@ -8,6 +8,7 @@ import {
   register,
   showColumn,
   unique,
+  choose,
 } from "./helpers";
 
 type Page = import("@playwright/test").Page;
@@ -121,9 +122,9 @@ test.describe("A dated column reads as a release", () => {
       page.waitForResponse(
         (r) => r.url().endsWith(`/api/projects/${projectId}`) && r.request().method() === "PATCH",
       ),
-      box.selectOption({ label: "Points" }),
+      choose(box, "Points"),
     ]);
-    await expect(box).toHaveValue(/.+/);
+    await expect(box).toHaveAttribute("data-value", /.+/);
 
     await page.goto(`/p/${projectId}`);
     const v1 = column(page, "v1");
@@ -139,7 +140,7 @@ test.describe("A dated column reads as a release", () => {
       page.waitForResponse(
         (r) => r.url().endsWith(`/api/projects/${projectId}`) && r.request().method() === "PATCH",
       ),
-      page.getByLabel("Count progress by").selectOption({ label: "Tasks" }),
+      choose(page.getByLabel("Count progress by"), "Tasks"),
     ]);
     await page.goto(`/p/${projectId}`);
     await expect(column(page, "v1").getByTestId("column-sum")).toHaveCount(0);

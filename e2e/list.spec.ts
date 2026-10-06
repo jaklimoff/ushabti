@@ -4,6 +4,7 @@ import {
   addListTask,
   addListView,
   addTask,
+  choose,
   column,
   createProject,
   gotoSettings,
@@ -87,25 +88,29 @@ test.describe("A list view", () => {
     await gotoSettings(page, projectId, "views");
 
     const row = page.getByLabel("How the view Phases shows");
-    await expect(row).toHaveValue("board");
-    await expect(page.getByLabel("Grouping property of the view Phases")).toHaveValue(/.+/);
+    await expect(row).toHaveAttribute("data-value", "board");
+    await expect(page.getByLabel("Grouping property of the view Phases")).toHaveAttribute(
+      "data-value",
+      /.+/,
+    );
     const phaseProperty = await page
       .getByLabel("Grouping property of the view Phases")
-      .inputValue();
+      .getAttribute("data-value");
 
     // Becoming a list takes the question away and asks nothing before it does.
     await saved(page, async () => {
-      await row.selectOption("list");
+      await choose(row, "List");
     });
     await expect(page.getByLabel("Grouping property of the view Phases")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Yes, / })).toHaveCount(0);
 
     // And back: the same property, remembered.
     await saved(page, async () => {
-      await row.selectOption("board");
+      await choose(row, "Board");
     });
-    await expect(page.getByLabel("Grouping property of the view Phases")).toHaveValue(
-      phaseProperty,
+    await expect(page.getByLabel("Grouping property of the view Phases")).toHaveAttribute(
+      "data-value",
+      phaseProperty!,
     );
   });
 
@@ -271,7 +276,7 @@ test.describe("A list view", () => {
     }
     // The main view cannot be deleted, so it becomes a list instead.
     await saved(page, async () => {
-      await page.getByLabel("How the view Board shows").selectOption("list");
+      await choose(page.getByLabel("How the view Board shows"), "List");
     });
 
     await gotoSettings(page, projectId, "properties");
@@ -298,7 +303,7 @@ test.describe("A list view", () => {
     const projectId = await createProject(page, unique("Unpin"));
     await gotoSettings(page, projectId, "views");
     await saved(page, async () => {
-      await page.getByLabel("How the view Phases shows").selectOption("list");
+      await choose(page.getByLabel("How the view Phases shows"), "List");
     });
 
     // A board would refuse this. A list remembers the property but never reads

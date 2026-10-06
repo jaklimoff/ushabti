@@ -155,6 +155,128 @@
   border-color: rgba(224, 87, 77, 0.55);
 }
 
+/* Fixed widths for a box whose answer has a known length. Named, so that no
+   page writes a width of its own. */
+.inputShort {
+  width: 120px;
+}
+
+.inputMedium {
+  width: 180px;
+}
+
+.inputLong {
+  width: 220px;
+}
+
+/* A box that takes what the row leaves, down to a width a URL still reads in. */
+.inputGrow {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* The small box sits in a list of rows 24 px high, such as an option's name. */
+.inputSm {
+  height: 24px;
+  padding: 0 7px;
+}
+
+/* A dropdown. Every select is at least as wide as its neighbour, so two in
+   one card line up; the menu is the board's own. */
+.select {
+  display: inline-flex;
+  min-width: 120px;
+  max-width: 100%;
+}
+
+.selectBlock {
+  display: flex;
+  width: 100%;
+}
+
+.selectButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.selectButton:hover:not(:disabled) {
+  border-color: var(--line-menu);
+}
+
+.selectText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectCaret {
+  font-size: 9px;
+  line-height: 1;
+  color: #5d646f;
+}
+
+/* Fixed, so a card's overflow cannot cut it; `placeMenu` says where. */
+.selectMenu {
+  position: fixed;
+  z-index: 60;
+  max-width: 320px;
+  overflow-y: auto;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: 8px;
+  box-shadow: var(--shadow-menu);
+}
+
+.selectItem {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  transition:
+    background 120ms var(--ease),
+    color 120ms var(--ease);
+}
+
+/* The row Enter would pick. It reads as a hover, because it is one by key. */
+.selectItemAt {
+  background: #1b2126;
+  color: var(--text);
+}
+
+.selectItemOn {
+  color: var(--text);
+}
+
+.selectItem[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.selectItemText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selectTick {
+  font-size: 10px;
+}
+
 /* A checkbox. The row is 24 px high so a finger finds it; the box is 14. */
 .check {
   display: inline-flex;
