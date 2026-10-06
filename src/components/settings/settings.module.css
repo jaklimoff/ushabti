@@ -1292,3 +1292,73 @@
   line-height: 1.5;
   color: var(--danger-text);
 }
+
+/* The Types page: the types as a row of pills, then one type's properties. */
+.typeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.typeItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: var(--t-small);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.typeItem:hover {
+  color: var(--text);
+}
+
+.typeItemOn {
+  border-color: var(--text-3);
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.typeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.typeGroup {
+  margin: 0;
+  padding: 10px 14px 4px;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.typeRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line);
+  font-size: var(--t-small);
+}
+
+.typeName {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.typeAct {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

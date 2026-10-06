@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "type_by" text;
