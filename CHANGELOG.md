@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.19.0 — 2026-10-06
+
 ### Fixed
 
 - **Settings on a phone shows that there is more.** The menu fades at its right edge while more
