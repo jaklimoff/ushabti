@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createProject, gotoSettings, propertyBox, register, unique } from "./helpers";
+import { createProject, gotoSettings, propertyBox, register, unique, choose } from "./helpers";
 
 type Locator = import("@playwright/test").Locator;
 
@@ -103,7 +103,7 @@ test.describe("Settings draws its controls dark", () => {
     /* The ticks of "Shown when" are the same control. */
     const priority = propertyBox(page, "Priority");
     await priority.getByRole("button", { name: "Shown when…" }).click();
-    await priority.getByLabel("Shown when of Priority").selectOption({ label: "Status" });
+    await choose(priority.getByLabel("Shown when of Priority"), "Status");
     const tick = priority.getByLabel("Todo", { exact: true });
     expect(await checkboxGeometry(tick)).toEqual(geometry);
   });

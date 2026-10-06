@@ -272,19 +272,18 @@ function Preview({
                 aria-label="The property the lists become options of"
                 value={preview.group.propertyId ?? ""}
                 disabled={busy || selects.length === 0}
-                onChange={(e) =>
+                onChange={(picked) =>
                   /* Another property is another set of options, so the picks
                      made against the old one go with it. */
-                  onAsk({ ...ask, groupPropertyId: e.target.value || null, lists: {} })
+                  onAsk({ ...ask, groupPropertyId: picked || null, lists: {} })
                 }
-              >
-                {preview.group.making && <option value="">A new {preview.group.name}</option>}
-                {selects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </Select>
+                options={[
+                  ...(preview.group.making
+                    ? [{ value: "", label: `A new ${preview.group.name}` }]
+                    : []),
+                  ...selects.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
               <Note>Each list becomes an option of this property.</Note>
             </Field>
           </Row>
@@ -407,15 +406,12 @@ function Rows({
               aria-label={`Where ${row.name} goes`}
               value={row.optionId ?? ""}
               disabled={busy}
-              onChange={(e) => onPick(row.sourceId, e.target.value || null)}
-            >
-              <option value="">Add “{row.name}”</option>
-              {options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </Select>
+              onChange={(picked) => onPick(row.sourceId, picked || null)}
+              options={[
+                { value: "", label: `Add “${row.name}”` },
+                ...options.map((option) => ({ value: option.id, label: option.name })),
+              ]}
+            />
           </Row>
         ))}
       </Card>

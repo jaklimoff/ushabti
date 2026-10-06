@@ -14,6 +14,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   a dropdown list and the file button no longer draw white. Settings has one checkbox, in the
   page's own colours, with a ring for the keyboard and the words as a part of it. An empty date
   reads muted, so it no longer looks like a date.
+- **A dropdown in Settings is the board's own menu.** It replaces the browser's native list. It
+  opens with Enter, Space or Down, walks with the arrows, jumps by the first letter, and closes
+  with Esc. A card's edge or the bottom of the window no longer cuts it, and two dropdowns in one
+  card line up.
 
 ## 0.18.0 — 2026-10-06
 

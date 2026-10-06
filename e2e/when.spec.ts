@@ -10,6 +10,7 @@ import {
   register,
   saved,
   unique,
+  choose,
 } from "./helpers";
 
 type Property = {
@@ -103,7 +104,7 @@ test.describe("A property says when it shows", () => {
     const box = propertyBox(page, "Priority");
     await box.getByRole("button", { name: "Shown when…" }).click();
     /* Picking a select asks the question; it writes nothing yet. */
-    await box.getByLabel("Shown when of Priority").selectOption({ label: "Type" });
+    await choose(box.getByLabel("Shown when of Priority"), "Type");
     /* A new rule counts what it hides before it writes, so the box ticks
        once the write is out. */
     await saved(page, () => box.getByLabel("Bug", { exact: true }).click());

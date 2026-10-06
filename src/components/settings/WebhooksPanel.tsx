@@ -158,7 +158,7 @@ function Hooks({
 
         <Foot>
           <Input
-            style={{ flex: 1, minWidth: 180 }}
+            grow
             aria-label="URL of the new webhook"
             value={url}
             invalid={error !== null}
@@ -312,7 +312,7 @@ function HookBox({
     <div className={styles.hookBox} data-testid="webhook-box">
       <Row>
         <Input
-          style={{ flex: 1, minWidth: 160 }}
+          grow
           aria-label={`URL of the webhook ${hook.prefix}`}
           value={url}
           onChange={(e) => {

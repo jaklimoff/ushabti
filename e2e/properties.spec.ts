@@ -14,6 +14,7 @@ import {
   saved,
   sortBoard,
   unique,
+  choose,
 } from "./helpers";
 
 /** The options of one property in Settings, in the order the chips sit. */
@@ -251,7 +252,7 @@ test.describe("Custom properties", () => {
       ["Blocked", "Checkbox"],
     ] as const) {
       await page.getByLabel("New property name").fill(name);
-      await page.getByLabel("Type of the new property").selectOption({ label: type });
+      await choose(page.getByLabel("Type of the new property"), type);
       await page.getByRole("button", { name: "Add property" }).click();
       await expect(page.getByLabel(`Name of the ${name} property`)).toBeVisible();
     }

@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createProject, gotoSettings, inDatabase, overflow, register, unique } from "./helpers";
+import {
+  choose,
+  createProject,
+  gotoSettings,
+  inDatabase,
+  overflow,
+  register,
+  unique,
+} from "./helpers";
 
 /** Adds a person with an account from the People page, as the owner does. */
 async function addMember(page: Page, email: string, name: string) {
@@ -19,7 +27,7 @@ async function changeRole(page: Page, name: string, role: string) {
   const answer = page.waitForResponse(
     (res) => res.request().method() === "PATCH" && /\/members\//.test(res.url()),
   );
-  await page.getByLabel(`Role of ${name}`).selectOption(role);
+  await choose(page.getByLabel(`Role of ${name}`), role);
   expect((await answer).ok()).toBeTruthy();
 }
 
@@ -157,7 +165,7 @@ test.describe("Roles", () => {
     await expect(page.getByLabel("Role of Nia Next")).toBeVisible();
     expect(await overflow(page)).toBe(0);
 
-    await page.getByLabel("Role of Nia Next").selectOption("owner");
+    await choose(page.getByLabel("Role of Nia Next"), "owner");
     await expect(page.getByText("Make Nia Next the owner? You become an admin.")).toBeVisible();
     await page.getByRole("button", { name: "Yes, make owner" }).click();
 

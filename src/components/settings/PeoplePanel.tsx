@@ -168,7 +168,7 @@ function Members({ mail }: { mail: boolean }) {
         {canEdit && (
           <Foot>
             <Input
-              style={{ flex: 1, minWidth: 180 }}
+              grow
               aria-label="Email of the new member"
               value={email}
               invalid={error !== null}
@@ -311,18 +311,13 @@ function MemberRow({
           <Select
             aria-label={`Role of ${member.name}`}
             value={member.role}
-            onChange={(e) => {
-              const next = e.target.value as Role;
+            onChange={(picked) => {
+              const next = picked as Role;
               if (next === "owner") handOver.ask();
               else onRole(next);
             }}
-          >
-            {roles.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </Select>
+            options={roles.map((role) => ({ value: role, label: role }))}
+          />
         ) : isOwner(member.role) ? (
           <Tag accent>owner</Tag>
         ) : member.role === "admin" ? (
@@ -517,7 +512,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
         {canEdit && (
           <Foot>
             <Input
-              style={{ flex: 1, minWidth: 180 }}
+              grow
               aria-label="Name of the new agent"
               value={name}
               placeholder="Builder"

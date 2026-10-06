@@ -1,9 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { AVATAR_COLORS, facePaint, initials } from "@/lib/colors";
 import { FACE_EMOJI, isOneEmoji } from "@/lib/emoji";
+import {
+  placeMenu,
+  step,
+  typeAhead,
+  typedWord,
+  type MenuPlace,
+  type SelectOption,
+} from "@/lib/select-keys";
 import styles from "./ui.module.css";
+import { useDismiss } from "./useDismiss";
 
 /**
  * It takes a `ref` because a password box is read from the page and not from
@@ -11,12 +20,16 @@ import styles from "./ui.module.css";
  */
 export function Input({
   size = "md",
+  width,
+  grow = false,
   block = false,
   invalid = false,
   className,
   ...rest
-}: Omit<React.ComponentPropsWithRef<"input">, "size"> & {
-  size?: "md" | "lg";
+}: Omit<React.ComponentPropsWithRef<"input">, "size" | "width"> & {
+  size?: "sm" | "md" | "lg";
+  width?: "short" | "medium" | "long";
+  grow?: boolean;
   block?: boolean;
   invalid?: boolean;
 }) {
@@ -26,7 +39,11 @@ export function Input({
       aria-invalid={invalid || undefined}
       className={[
         styles.input,
-        size === "lg" ? styles.inputLg : "",
+        size === "lg" ? styles.inputLg : size === "sm" ? styles.inputSm : "",
+        width === "short" ? styles.inputShort : "",
+        width === "medium" ? styles.inputMedium : "",
+        width === "long" ? styles.inputLong : "",
+        grow ? styles.inputGrow : "",
         block ? styles.inputBlock : "",
         invalid ? styles.inputInvalid : "",
         className ?? "",
@@ -37,8 +54,224 @@ export function Input({
   );
 }
 
-export function Select({ className, ...rest }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...rest} className={[styles.input, className ?? ""].filter(Boolean).join(" ")} />;
+/**
+ * A dropdown in the board's menu style. Focus stays on the button and the
+ * highlight is named by `aria-activedescendant`, so a screen reader hears the
+ * row the keys are on and the button never loses the keyboard.
+ *
+ * The button carries the value as `data-value`, because a button has no
+ * value of its own for a test to read.
+ *
+ * The list carries no name of its own: the button names it through
+ * `aria-controls`, and a second element with the same label would answer
+ * every lookup by that label twice while the menu is open.
+ */
+export function Select({
+  value,
+  onChange,
+  options,
+  disabled,
+  block = false,
+  className,
+  "aria-label": ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  disabled?: boolean;
+  block?: boolean;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [at, setAt] = useState(0);
+  const [place, setPlace] = useState<MenuPlace | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const typed = useRef({ word: "", at: 0 });
+  const id = useId();
+  const close = useCallback(() => setOpen(false), []);
+  const wrap = useDismiss<HTMLSpanElement>(() => {
+    close();
+    button.current?.focus();
+  }, open);
+  const current = options.findIndex((o) => o.value === value);
+
+  /* A native select closes its list when it turns disabled. A role change in
+     another tab or a busy import can do that while this menu is open. It is
+     settled in the render, so no frame shows an open menu on a disabled button. */
+  if (disabled && open) setOpen(false);
+
+  /* Measured after the menu is drawn and before it is painted, so it never
+     shows for a frame where a card's edge or the window's bottom would cut it.
+     A scroll or a resize moves the button, so the menu follows it. */
+  useLayoutEffect(() => {
+    if (!open) return;
+    function measure(event?: Event) {
+      if (!button.current || !menu.current) return;
+      /* The menu's own scroll moves no button. Answering it would draw the
+         menu again and pull the highlight back into view under the wheel. */
+      if (event?.target instanceof Node && menu.current.contains(event.target)) return;
+      const box = button.current.getBoundingClientRect();
+      setPlace(
+        placeMenu(
+          box,
+          { height: menu.current.scrollHeight, width: menu.current.offsetWidth },
+          { height: window.innerHeight, width: window.innerWidth },
+        ),
+      );
+    }
+    measure();
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+    };
+  }, [open]);
+
+  /* Asked again once the menu is placed, because it scrolls only after it
+     has a height; never on a later move of the menu, which would undo a scroll. */
+  const placed = place !== null;
+  useEffect(() => {
+    if (!open || !placed) return;
+    menu.current
+      ?.querySelector<HTMLElement>('[data-at="true"]')
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [open, at, placed]);
+
+  function show(from = current) {
+    setAt(from >= 0 && !options[from]?.disabled ? from : step(options, -1, 1));
+    setOpen(true);
+  }
+
+  function pick(i: number) {
+    const option = options[i];
+    if (disabled || !option || option.disabled) return;
+    setOpen(false);
+    button.current?.focus();
+    if (option.value !== value) onChange(option.value);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent) {
+    const key = event.key;
+    const now = Date.now();
+    const word = typedWord(typed.current, event, now);
+    if (word !== null) {
+      event.preventDefault();
+      typed.current = { word, at: now };
+      const found = typeAhead(options, open ? at : current, word);
+      if (found >= 0) {
+        if (open) setAt(found);
+        else show(found);
+      }
+      return;
+    }
+    if (!open) {
+      if (key === "Enter" || key === " " || key === "ArrowDown" || key === "ArrowUp") {
+        event.preventDefault();
+        show();
+      }
+      return;
+    }
+    if (key === "ArrowDown" || key === "ArrowUp" || key === "Home" || key === "End") {
+      event.preventDefault();
+      const move =
+        key === "ArrowDown" ? 1 : key === "ArrowUp" ? -1 : key === "Home" ? "first" : "last";
+      setAt(step(options, at, move));
+    } else if (key === "Enter" || key === " ") {
+      event.preventDefault();
+      pick(at);
+    } else if (key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+    } else if (key === "Tab") {
+      setOpen(false);
+    }
+  }
+
+  const listId = `${id}-list`;
+  const optionId = (i: number) => `${id}-option-${i}`;
+
+  return (
+    <span
+      ref={wrap}
+      className={[styles.select, block ? styles.selectBlock : "", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <button
+        ref={button}
+        type="button"
+        role="combobox"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={open ? optionId(at) : undefined}
+        data-value={value}
+        disabled={disabled}
+        className={`${styles.input} ${styles.selectButton}`}
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={onKeyDown}
+      >
+        <span className={styles.selectText}>{options[current]?.label ?? ""}</span>
+        <span className={styles.selectCaret} aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div
+          ref={menu}
+          id={listId}
+          role="listbox"
+          className={styles.selectMenu}
+          style={
+            place
+              ? {
+                  top: place.top,
+                  bottom: place.bottom,
+                  left: place.left,
+                  maxHeight: place.maxHeight,
+                  minWidth: button.current?.offsetWidth,
+                }
+              : { visibility: "hidden" }
+          }
+        >
+          {options.map((option, i) => (
+            <div
+              key={option.value}
+              id={optionId(i)}
+              role="option"
+              aria-selected={i === current}
+              aria-disabled={option.disabled || undefined}
+              data-at={i === at}
+              className={[
+                styles.selectItem,
+                i === at ? styles.selectItemAt : "",
+                i === current ? styles.selectItemOn : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              /* The press must not take focus from the button, or the keys
+                 stop working before the click lands. */
+              onMouseDown={(event) => event.preventDefault()}
+              onMouseEnter={() => !option.disabled && setAt(i)}
+              onClick={() => pick(i)}
+            >
+              <span className={styles.selectItemText}>{option.label}</span>
+              {i === current && (
+                <span className={styles.selectTick} aria-hidden="true">
+                  ✓
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </span>
+  );
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   propertyBox,
   register,
   unique,
+  choose,
 } from "./helpers";
 
 /**
@@ -35,7 +36,7 @@ test("Settings offers Iteration, and its options always show the date boxes", as
   await gotoSettings(page, projectId);
 
   await page.getByLabel("New property name").fill("Sprint");
-  await page.getByLabel("Type of the new property").selectOption({ label: "Iteration" });
+  await choose(page.getByLabel("Type of the new property"), "Iteration");
   await page.getByPlaceholder("Options, separated by commas").fill("Sprint 1");
   const made = page.waitForResponse((r) => r.url().endsWith("/properties"));
   await page.getByRole("button", { name: "Add property" }).click();
@@ -192,7 +193,7 @@ test("a picker opens on the current sprint, and grouping by one starts on 'is cu
   const write = page.waitForResponse(
     (r) => /\/api\/views\/[0-9a-f-]+$/.test(r.url()) && r.request().method() === "PATCH",
   );
-  await page.getByLabel("Grouping property of the view Board").selectOption({ label: "Sprint" });
+  await choose(page.getByLabel("Grouping property of the view Board"), "Sprint");
   expect((await write).ok()).toBeTruthy();
   const view = (
     (await (await page.request.get(`/api/projects/${projectId}/board`)).json()) as {

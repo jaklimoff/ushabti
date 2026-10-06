@@ -118,7 +118,7 @@ export function PropertiesPanel() {
 
         <Foot>
           <Input
-            style={{ width: 148 }}
+            width="medium"
             aria-label="New property name"
             value={name}
             placeholder="New property name"
@@ -127,17 +127,12 @@ export function PropertiesPanel() {
           <Select
             aria-label="Type of the new property"
             value={type}
-            onChange={(e) => setType(e.target.value as PropertyType)}
-          >
-            {PROPERTY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {PROPERTY_TYPE_LABEL[t]}
-              </option>
-            ))}
-          </Select>
+            onChange={(picked) => setType(picked as PropertyType)}
+            options={PROPERTY_TYPES.map((t) => ({ value: t, label: PROPERTY_TYPE_LABEL[t] }))}
+          />
           {hasOptions(type) && (
             <Input
-              style={{ flex: 1, minWidth: 160 }}
+              grow
               value={options}
               placeholder="Options, separated by commas"
               onChange={(e) => setOptions(e.target.value)}
@@ -435,7 +430,8 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           </DndContext>
           {adding ? (
             <Input
-              style={{ height: 24, width: 130 }}
+              size="sm"
+              width="short"
               autoFocus
               value={draft}
               placeholder="Option name"
@@ -807,15 +803,12 @@ function WhenRow({
             aria-label={`Shown when of ${property.name}`}
             className={styles.whenPick}
             value={shownBy?.id ?? ""}
-            onChange={(e) => setPicked(e.target.value || null)}
-          >
-            <option value="">Pick a select</option>
-            {candidates.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </Select>
+            onChange={(picked) => setPicked(picked || null)}
+            options={[
+              { value: "", label: "Pick a select" },
+              ...candidates.map((p) => ({ value: p.id, label: p.name })),
+            ]}
+          />
           {shownBy &&
             [...shownBy.options.map((o) => o.id), NO_VALUE_KEY].map((id) => (
               <Checkbox
