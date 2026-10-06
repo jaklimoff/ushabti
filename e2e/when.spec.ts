@@ -6,6 +6,8 @@ import {
   gotoSettings,
   inDatabase,
   listRow,
+  edgeRoom,
+  fromName,
   propertyBox,
   register,
   saved,
@@ -130,6 +132,35 @@ test.describe("A property says when it shows", () => {
     expect(
       (await board(page, projectId)).properties.find((p) => p.id === priority.id)?.config.when,
     ).toBeUndefined();
+  });
+
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+  ] as const) {
+    test(`the rule's line keeps off the card edge at ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await register(page);
+      const { projectId } = await typed(page, `When edge ${width}`);
+      await gotoSettings(page, projectId);
+      const box = propertyBox(page, "Priority");
+      await box.getByRole("button", { name: "Shown when…" }).click();
+      await choose(box.getByLabel("Shown when of Priority"), "Type");
+      await expect(box.getByLabel("Bug", { exact: true })).toBeVisible();
+
+      /* A refresh can hide the page for a moment, so the measure waits. */
+      await expect.poll(() => edgeRoom(box)).toBeGreaterThanOrEqual(12);
+    });
+  }
+
+  test("the rule's line starts where the property's name does", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await register(page);
+    const { projectId } = await typed(page, "When under name");
+    await gotoSettings(page, projectId);
+    const box = propertyBox(page, "Priority");
+    await box.getByRole("button", { name: "Shown when…" }).click();
+    await expect.poll(() => fromName(box, box.getByTestId("when-said"))).toBeLessThanOrEqual(3);
   });
 
   test("only an admin, and only a person, sets it, and a value it cannot read is a 400", async ({

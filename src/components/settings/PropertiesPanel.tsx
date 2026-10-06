@@ -313,6 +313,8 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           {GROUPABLE_TYPES.includes(property.type) && (
             <Tag title="A view can use this property for its columns">groupable</Tag>
           )}
+        </div>
+        <div className={styles.propTools} data-testid="property-tools">
           {/* Off, a select's options read as they did before they had dates.
               Off keeps the values: it hides the boxes and writes nothing.
               An iteration always carries them, so it has no switch. */}
@@ -328,12 +330,10 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
             !whenOpen &&
             canEdit &&
             whenCandidates(property, data.properties).length > 0 && (
-              <button type="button" className={styles.whenAdd} onClick={() => setWhenOpen(true)}>
+              <Button variant="text" onClick={() => setWhenOpen(true)}>
                 Shown when…
-              </button>
+              </Button>
             )}
-        </div>
-        <div className={styles.propTools}>
           {canEdit && (
             <IconButton
               danger
