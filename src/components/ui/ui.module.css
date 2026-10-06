@@ -48,13 +48,30 @@
   filter: brightness(1.08);
 }
 
-.ghost {
+.input::file-selector-button {
+  height: calc(var(--control-h) - 8px);
+  margin: 3px 9px 3px -5px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font: inherit;
+  font-size: var(--t-small);
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+/* The file box's own button is a ghost button, so it shares the paint. */
+.ghost,
+.input::file-selector-button {
   border: 1px solid #1f2229;
   color: var(--muted);
   font-weight: 500;
 }
 
-.ghost:hover:not(:disabled) {
+.ghost:hover:not(:disabled),
+.input:hover:not(:disabled)::file-selector-button {
   background: var(--bg-hover);
   color: var(--text-2);
 }
@@ -136,6 +153,64 @@
 .inputInvalid,
 .inputInvalid:focus {
   border-color: rgba(224, 87, 77, 0.55);
+}
+
+/* A checkbox. The row is 24 px high so a finger finds it; the box is 14. */
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  font-size: var(--t-small);
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.check:has(:disabled) {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.checkBox {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--line-dash);
+  border-radius: 3px;
+  background: var(--bg-input);
+  cursor: inherit;
+  transition:
+    background 140ms var(--ease),
+    border-color 140ms var(--ease);
+}
+
+.checkBox::before {
+  content: "";
+  width: 7px;
+  height: 4px;
+  margin-top: -2px;
+  border-left: 2px solid var(--accent-ink);
+  border-bottom: 2px solid var(--accent-ink);
+  transform: rotate(-45deg);
+  visibility: hidden;
+}
+
+.checkBox:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkBox:checked::before {
+  visibility: visible;
+}
+
+.checkBox:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /* A name that edits in place: invisible until you touch it. */

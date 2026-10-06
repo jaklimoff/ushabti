@@ -1,6 +1,6 @@
 "use client";
 
-import { type FocusEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FocusEvent, useEffect, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -25,7 +25,7 @@ import { editedText } from "@/lib/leave";
 import { carriesDates, NOTE_MAX, optionEdit, splitShipped } from "@/lib/option-dates";
 import { AHEAD_MAX, cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Input, NameInput, Select } from "@/components/ui/Form";
+import { Checkbox, Input, NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
@@ -322,15 +322,12 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
               Off keeps the values: it hides the boxes and writes nothing.
               An iteration always carries them, so it has no switch. */}
           {property.type === "select" && (
-            <label className={styles.datedSwitch}>
-              <input
-                type="checkbox"
-                checked={dated}
-                disabled={!canEdit}
-                onChange={(e) => void patchProperty(property.id, { dated: e.target.checked })}
-              />
-              Options carry dates
-            </label>
+            <Checkbox
+              label="Options carry dates"
+              checked={dated}
+              disabled={!canEdit}
+              onChange={(e) => void patchProperty(property.id, { dated: e.target.checked })}
+            />
           )}
           {!property.config.when &&
             !whenOpen &&
@@ -694,6 +691,9 @@ function OptionField({
   /* A date box with one part cleared answers "" as an empty one does. Only
      badInput tells them apart, and a half date is not a date taken away. */
   const halfDate = () => type === "date" && box.current?.validity.badInput === true;
+  /* Whether the box draws its placeholder. The box is not controlled, so
+     this follows what it holds rather than what is saved. */
+  const [empty, setEmpty] = useState(!saved);
 
   useSaveOnLeave(() => {
     if (!typed.current || halfDate()) return null;
@@ -704,7 +704,10 @@ function OptionField({
   });
 
   useEffect(() => {
-    if (box.current && document.activeElement !== box.current) box.current.value = saved ?? "";
+    if (box.current && document.activeElement !== box.current) {
+      box.current.value = saved ?? "";
+      setEmpty(!saved);
+    }
   }, [saved]);
 
   const shared = {
@@ -712,8 +715,9 @@ function OptionField({
     "aria-label": `${label} of ${option.name}`,
     title: label,
     defaultValue: saved ?? "",
-    onChange: () => {
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       typed.current = true;
+      setEmpty(e.target.value === "");
     },
     onBlur: (e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       /* A box nobody typed in writes nothing, so what it shows can never
@@ -722,6 +726,7 @@ function OptionField({
       typed.current = false;
       if (halfDate()) {
         e.target.value = saved ?? "";
+        setEmpty(!saved);
         return;
       }
       const edit = optionEdit(e.target.value, saved);
@@ -751,7 +756,7 @@ function OptionField({
     <input
       {...shared}
       type="date"
-      className={styles.optionDate}
+      className={`${styles.optionDate} ${empty ? styles.optionDateEmpty : ""}`}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
     />
   );
@@ -813,14 +818,12 @@ function WhenRow({
           </Select>
           {shownBy &&
             [...shownBy.options.map((o) => o.id), NO_VALUE_KEY].map((id) => (
-              <label key={id} className={styles.datedSwitch}>
-                <input
-                  type="checkbox"
-                  checked={ticked.includes(id)}
-                  onChange={(e) => void toggle(shownBy, id, e.target.checked)}
-                />
-                {keyName(id, shownBy, [])}
-              </label>
+              <Checkbox
+                key={id}
+                label={keyName(id, shownBy, [])}
+                checked={ticked.includes(id)}
+                onChange={(e) => void toggle(shownBy, id, e.target.checked)}
+              />
             ))}
           <IconButton
             label={rule ? `Always show ${property.name}` : "Cancel"}

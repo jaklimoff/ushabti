@@ -42,6 +42,24 @@ export function Select({ className, ...rest }: React.SelectHTMLAttributes<HTMLSe
 }
 
 /**
+ * A checkbox drawn in the page's colours. It is a real checkbox under the
+ * paint, so the keyboard and a screen reader meet it as before, and the label
+ * round it makes the words a part of the control.
+ */
+export function Checkbox({
+  label,
+  className,
+  ...rest
+}: Omit<React.ComponentPropsWithRef<"input">, "type"> & { label: React.ReactNode }) {
+  return (
+    <label className={[styles.check, className ?? ""].filter(Boolean).join(" ")}>
+      <input {...rest} type="checkbox" className={styles.checkBox} />
+      {label}
+    </label>
+  );
+}
+
+/**
  * A name that edits in place. Invisible until you touch it.
  *
  * It takes a `ref` because a box that holds its own words has to be readable

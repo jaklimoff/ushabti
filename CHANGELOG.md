@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **Settings draws its controls dark.** The page now tells the browser it is dark, so a date box,
+  a dropdown list and the file button no longer draw white. Settings has one checkbox, in the
+  page's own colours, with a ring for the keyboard and the words as a part of it. An empty date
+  reads muted, so it no longer looks like a date.
+
 ## 0.18.0 — 2026-10-06
 
 ### Added
