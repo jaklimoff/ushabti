@@ -67,8 +67,9 @@ export function readSort(raw: unknown, properties: PropertyDTO[]): ViewSort | nu
     properties.some((p) => p.id === sort.columnId);
   if (!known) return null;
 
-  /* The description is not a column of a list, so it is not an order either. */
-  if (sort.columnId === "_desc") return null;
+  /* The description is not a column of a list, so it is not an order either.
+     The count of children is a column, but ordering by it was left for later. */
+  if (sort.columnId === "_desc" || sort.columnId === "_parts") return null;
 
   return { columnId: sort.columnId, direction: sort.direction };
 }
@@ -270,6 +271,7 @@ const WAYS_OF_KIND: Record<CardKind, Record<SortDirection, string>> = {
   title: { asc: "A→Z", desc: "Z→A" },
   desc: { asc: "A→Z", desc: "Z→A" },
   checklist: { asc: "Least done first", desc: "Most done first" },
+  parts: { asc: "Least done first", desc: "Most done first" },
   comments: { asc: "Fewest first", desc: "Most first" },
   select: { asc: "Option order", desc: "Reverse order" },
   person: { asc: "A→Z", desc: "Z→A" },
@@ -319,5 +321,6 @@ export function sortLabel(
  * here rather than at every heading.
  */
 export function canSort(item: CardItem): boolean {
-  return kindOf(item) !== "desc";
+  const kind = kindOf(item);
+  return kind !== "desc" && kind !== "parts";
 }

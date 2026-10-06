@@ -83,6 +83,7 @@ const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
   _title: 0,
   _desc: 0,
   _checklist: 72,
+  _parts: 72,
   _comments: HEADING_WIDTH,
 };
 
