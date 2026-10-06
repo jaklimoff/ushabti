@@ -152,6 +152,28 @@ The dev container uses `drizzle-kit push`, so your local database follows the
 schema immediately. A migration file is still necessary, because self-hosted
 installs upgrade with `npm run db:migrate`.
 
+A pushed database has no rows in `drizzle.__drizzle_migrations`, so
+`db:migrate` replays `0000_init.sql` on it and fails on tables that exist. To
+try a new migration file on the dev database before it ships, mark the pushed
+database as migrated first. Do these steps in place of steps 1 and 2 above:
+
+1. With the app container running and before you edit the schema, run
+   `docker compose exec app npm run db:baseline`. It marks every file in
+   `drizzle/meta/_journal.json` as applied and changes no schema. A second run
+   changes nothing.
+2. Edit `src/db/schema.ts` and run `npm run db:generate`.
+3. Run `docker compose exec app npm run db:migrate`. It applies only the new
+   file and ends with "migrations applied".
+
+Do not restart the app container between the steps: it pushes the schema as
+it starts, and then the new file fails on what push made. If you ran
+`db:baseline` after `db:generate`, it marked the new file as applied too. To
+go back, remove those marks with
+`docker compose exec db psql -U ushabti -c 'DROP SCHEMA drizzle CASCADE'`,
+remove the new file with its journal entry, and start again at step 1. Never
+run `db:baseline` on a database that push did not build: it would skip
+migrations that never ran.
+
 ## Style
 
 - TypeScript, strict mode. ESLint refuses `any`.
