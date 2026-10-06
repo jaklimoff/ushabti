@@ -222,10 +222,6 @@ export const propertyOptions = pgTable(
     startAt: date("start_at"),
     targetAt: date("target_at"),
     shippedAt: date("shipped_at"),
-    // True when the read rolled an iteration whose end had passed, not a press of Ship.
-    rolled: boolean("rolled").notNull().default(false),
-    // True when a person unshipped it, so the roll leaves it open until its target moves.
-    keptOpen: boolean("kept_open").notNull().default(false),
     note: text("note"),
   },
   (t) => [index("property_options_property_idx").on(t.propertyId)],

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  keptOpenByUnship,
-  movedWhenEnded,
+  endedSaid,
   nextOpenOption,
   nextOptionOf,
   readShipRest,
@@ -111,22 +110,17 @@ describe("what the board says after", () => {
   });
 });
 
-describe("the comment a roll leaves", () => {
-  it("names both sprints and why, in plain words", () => {
-    expect(movedWhenEnded("Sprint 14", "Sprint 15")).toBe(
-      "Moved from Sprint 14 to Sprint 15 when Sprint 14 ended.",
-    );
-  });
-});
-
-describe("an unship", () => {
-  it("keeps a sprint open only when its end has passed", () => {
-    expect(keptOpenByUnship("2026-10-02", "2026-10-03")).toBe(true);
+describe("a sprint past its end", () => {
+  it("says how long ago it ended, in whole days", () => {
+    expect(endedSaid("2026-10-02", "2026-10-03")).toBe("Ended yesterday");
+    expect(endedSaid("2026-10-01", "2026-10-03")).toBe("Ended 2 days ago");
+    // Across a month, and across the clocks going back.
+    expect(endedSaid("2026-09-30", "2026-11-02")).toBe("Ended 33 days ago");
   });
 
-  it("leaves a sprint that has not ended free to roll when it does", () => {
-    expect(keptOpenByUnship("2026-10-03", "2026-10-03")).toBe(false);
-    expect(keptOpenByUnship("2026-10-10", "2026-10-03")).toBe(false);
-    expect(keptOpenByUnship(null, "2026-10-03")).toBe(false);
+  it("says nothing on its last day, before it, or with no end", () => {
+    expect(endedSaid("2026-10-03", "2026-10-03")).toBeNull();
+    expect(endedSaid("2026-10-10", "2026-10-03")).toBeNull();
+    expect(endedSaid(null, "2026-10-03")).toBeNull();
   });
 });

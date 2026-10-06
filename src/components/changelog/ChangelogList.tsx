@@ -11,7 +11,6 @@ type Shown = { title: string; key?: string };
 type Entry = {
   name: string;
   shippedAt: string;
-  ended: boolean;
   note: string | null;
   tasks: Shown[];
 };

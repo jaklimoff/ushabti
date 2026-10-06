@@ -222,11 +222,10 @@ test.describe("The changelog", () => {
         property_id: string;
         name: string;
         shipped_at: string | null;
-        rolled: boolean;
         note: string | null;
       }>(
         `select o.id, o.property_id, o.name, to_char(o.shipped_at, 'YYYY-MM-DD') as shipped_at,
-                o.rolled, o.note
+                o.note
            from property_options o join properties p on p.id = o.property_id
           where p.project_id = $1 order by o.position`,
         [projectId],
@@ -239,7 +238,6 @@ test.describe("The changelog", () => {
             id: o.id,
             name: o.name,
             shippedAt: o.shipped_at,
-            rolled: o.rolled,
             note: o.note,
           })),
       }));

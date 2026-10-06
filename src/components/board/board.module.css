@@ -794,6 +794,11 @@
   color: #7fb38a;
 }
 
+/* Brighter than a target, because it waits for somebody to press Ship. */
+.colEnded {
+  color: var(--text-4);
+}
+
 .colSum {
   color: #6b727d;
 }

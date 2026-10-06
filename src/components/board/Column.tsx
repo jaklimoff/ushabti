@@ -132,6 +132,7 @@ export function Column({
   onArchiveAll,
   onFold,
   dates,
+  ended,
   rule,
   ship,
 }: {
@@ -164,6 +165,8 @@ export function Column({
   onFold: (folded: boolean) => void;
   /** The dates of the option this column stands for, or null for none. */
   dates: ColumnDates | null;
+  /** "Ended 2 days ago" for an open sprint past its end, which waits for Ship. */
+  ended: string | null;
   rule: ProgressRule;
   ship: ShipOffer | null;
 }) {
@@ -327,12 +330,12 @@ export function Column({
           </span>
           {release && (
             <span
-              className={`${styles.colDate} ${release.shipped ? styles.colShipped : ""}`}
+              className={`${styles.colDate} ${release.shipped ? styles.colShipped : ""} ${ended ? styles.colEnded : ""}`}
               data-testid="column-date"
               title={`${release.shipped ? "Shipped" : "Target"} ${release.day}`}
             >
               {release.shipped && "✓ "}
-              {formatDate(release.day)}
+              {ended ?? formatDate(release.day)}
             </span>
           )}
           {release && rule.countBy && (

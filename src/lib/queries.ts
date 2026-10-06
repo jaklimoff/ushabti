@@ -45,7 +45,6 @@ import { readDefaults, readTypeBy, readWhens } from "./when";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
-import { rollEnded } from "./ship-option";
 import { kickAskMail } from "./ask-sender";
 import { kickSender } from "./webhooks";
 import { GROUPABLE_TYPES, isSelect, VIEW_KINDS } from "./types";
@@ -681,10 +680,6 @@ export async function loadBoard(
   kickSender();
   // An ask that waited long enough is emailed on the same road.
   kickAskMail();
-  /* A sprint whose end has passed rolls on the same road, but it is awaited:
-     it takes the project lock and writes, and this read must draw what it
-     wrote. */
-  await rollEnded(projectId);
 
   const [projectRow] = await db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
 
