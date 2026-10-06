@@ -1351,6 +1351,18 @@
   font-weight: 500;
 }
 
+.typeStarts {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.typeStartsLabel {
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
 .typeAct {
   margin-left: auto;
   display: inline-flex;

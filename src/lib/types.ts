@@ -80,6 +80,12 @@ export type PropertyConfig = {
    * carry only what that read.
    */
   when?: When;
+  /**
+   * What a new task of each type starts with, by the id of an option of the
+   * project's Type: "a Bug starts with Severity Minor". Read it with
+   * `readDefaults()`; the board and the export carry only what that read.
+   */
+  defaults?: Record<string, TaskValue>;
 };
 
 /** One select of the same project, and the options of it a task must carry. */

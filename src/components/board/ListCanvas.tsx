@@ -25,6 +25,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
 import { listColumns, listTemplate } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
+import { startsWith } from "@/lib/when";
 import { canSort, pressSort, sortTasks, sortWayInline } from "@/lib/sort";
 import type { TaskDTO } from "@/lib/types";
 import { useCursorBack, useShortcut } from "./keys";
@@ -201,7 +202,12 @@ export function ListCanvas({
    * and hidden in the same breath, with nothing on screen to say why.
    */
   const seed = seedValues(filters, data.properties, null, user.id, data.today);
-  const addNote = seedNote(seed, data.properties, data.members);
+  const addNote = seedNote(
+    seed,
+    data.properties,
+    data.members,
+    startsWith(data.project.typeBy, seed, data.properties),
+  );
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;
 

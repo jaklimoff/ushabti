@@ -52,6 +52,14 @@ All optional and applied independently.
   `config.dated`, and is off until somebody turns it on. Only the owner or an admin writes it, and
   only as a person: a token gets `403`, a member gets `403`, and any type but a select gets `400`.
   A token reads it from `config` like the rest of the property.
+- `defaults` says what a new task of each type starts with: `{ "<typeOptionId>": value }`, where
+  the key is an option of the project's Type and the value has the
+  [shape of the property's type](#value-shapes-by-type). Each type is merged on its own; `null`
+  clears one. Only a select, a multi-select, a checkbox, a number or text can carry one — never a
+  person, a date, a link or an iteration. Only the owner or an admin writes it. A value that would
+  not read back, a key that is not a type, or a property that cannot carry one gets `400`. It is
+  read afresh into `config.defaults`: a deleted type or value, or a project with no Type, reads as
+  no default. Every [create](/ushabti/api/tasks/#post-apiprojectsprojectidtasks) writes it.
 - `afterId` moves it. **`null` means the front**, and so does an id that names nothing. It is the
   presence of the key that triggers the move, not its value.
 

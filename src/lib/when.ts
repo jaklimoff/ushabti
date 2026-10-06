@@ -301,6 +301,120 @@ export function readTypeBy(raw: unknown, properties: PropertyDTO[]): string | nu
   return property && isSelect(property.type) ? raw : null;
 }
 
+/* ------------------------------------------------------------------ */
+/* What a new task starts with                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * True for the types that can carry a value a new task starts with. A person
+ * never: who works on a task is a choice, not a default. A date is a day that
+ * passes, a link points at one thing, and a sprint closes.
+ */
+export function canStartAs(type: string): boolean {
+  return ["select", "multi_select", "checkbox", "number", "text"].includes(type);
+}
+
+/** One default as it would be written, or undefined when it does not read. */
+export function readDefault(raw: unknown, property: PropertyDTO): TaskValue | undefined {
+  const live = new Set(property.options.map((o) => o.id));
+  switch (property.type) {
+    case "select":
+      return typeof raw === "string" && live.has(raw) ? raw : undefined;
+    case "multi_select": {
+      if (!Array.isArray(raw)) return undefined;
+      const kept = [...new Set(raw)].filter((id): id is string => live.has(id as string));
+      return kept.length ? kept : undefined;
+    }
+    case "checkbox":
+      return typeof raw === "boolean" ? raw : undefined;
+    case "number":
+      return typeof raw === "number" && Number.isFinite(raw) ? raw : undefined;
+    case "text":
+      return typeof raw === "string" && raw.trim() !== "" ? raw.slice(0, 2000) : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Every property with its defaults read against the project's Type.
+ *
+ * Read afresh and never cleaned up, as a rule is. An entry whose type is not
+ * a live option of the Type, or whose value no longer reads, drops out; with
+ * no Type, or on a property that cannot start as anything, all of them do.
+ * The Type select itself starts as nothing: its value is the type.
+ */
+export function readDefaults(properties: PropertyDTO[], rawTypeBy: unknown): PropertyDTO[] {
+  const typeById = readTypeBy(rawTypeBy, properties);
+  const type = properties.find((p) => p.id === typeById);
+  const types = new Set(type?.options.map((o) => o.id) ?? []);
+  return properties.map((p) => {
+    if (p.config.defaults === undefined) return p;
+    const raw = p.config.defaults as unknown;
+    const kept: Record<string, TaskValue> = {};
+    if (p.id !== typeById && canStartAs(p.type) && isRecord(raw)) {
+      for (const [optionId, value] of Object.entries(raw)) {
+        const read = types.has(optionId) ? readDefault(value, p) : undefined;
+        if (read !== undefined) kept[optionId] = read;
+      }
+    }
+    const config = { ...p.config };
+    delete config.defaults;
+    return { ...p, config: Object.keys(kept).length ? { ...config, defaults: kept } : config };
+  });
+}
+
+function isRecord(raw: unknown): raw is Record<string, unknown> {
+  return typeof raw === "object" && raw !== null && !Array.isArray(raw);
+}
+
+/**
+ * The values a new task of this type starts with: the defaults of the
+ * properties that have no value yet and that show on it.
+ *
+ * A default can show another property, or hide one, so they are taken until
+ * nothing more shows, and only those that show at the end are given. The
+ * properties must already be read with `readWhens` and `readDefaults`.
+ */
+export function defaultsFor(
+  typeOptionId: string,
+  properties: PropertyDTO[],
+  values: Record<string, TaskValue>,
+): Record<string, TaskValue> {
+  const taken: Record<string, TaskValue> = {};
+  for (let added = true; added;) {
+    added = false;
+    for (const p of properties) {
+      const value = p.config.defaults?.[typeOptionId];
+      if (value === undefined || values[p.id] !== undefined || p.id in taken) continue;
+      if (!isShown(p, { ...values, ...taken }, properties)) continue;
+      taken[p.id] = value;
+      added = true;
+    }
+  }
+  const after = { ...values, ...taken };
+  const shown: Record<string, TaskValue> = {};
+  for (const [id, value] of Object.entries(taken)) {
+    const p = properties.find((q) => q.id === id);
+    if (p && isShown(p, after, properties)) shown[id] = value;
+  }
+  return shown;
+}
+
+/**
+ * The defaults for a task about to carry these values: its type is the value
+ * of the Type select, and with no Type or no value there is none. The create
+ * route and the composer both ask this, so the note says what is written.
+ */
+export function startsWith(
+  typeById: string | null,
+  values: Record<string, TaskValue>,
+  properties: PropertyDTO[],
+): Record<string, TaskValue> {
+  const type = typeById ? values[typeById] : null;
+  return typeof type === "string" && type !== "" ? defaultsFor(type, properties, values) : {};
+}
+
 /** One property as the Types page lists it under one type. */
 export type TypeRow = {
   property: PropertyDTO;

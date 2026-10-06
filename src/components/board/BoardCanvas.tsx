@@ -39,6 +39,7 @@ import {
   type CursorStep,
 } from "@/lib/board";
 import { allowedColumns, seedNote, seedValues, takesCards } from "@/lib/filters";
+import { startsWith } from "@/lib/when";
 import { isOpenOption } from "@/lib/option-dates";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
@@ -472,11 +473,19 @@ export function BoardCanvas({
   const takes = (column: BoardColumn) =>
     takesCards(column, filters, groupProperty, data.today, user.id);
 
-  const addNote = seedNote(
-    seedValues(filters, data.properties, groupProperty?.id ?? null, user.id, data.today),
-    data.properties,
-    data.members,
-  );
+  const seed = seedValues(filters, data.properties, groupProperty?.id ?? null, user.id, data.today);
+  /* What a task added to this column carries: the filter's seeds and the
+     column's value, which is also how a board grouped by Type names the type. */
+  const sentTo = (column: BoardColumn): Record<string, TaskValue> =>
+    groupProperty && !column.isNone ? { ...seed, [groupProperty.id]: column.value } : { ...seed };
+  /* The defaults are the server's to write; the note only says them. */
+  const addNoteOf = (column: BoardColumn) =>
+    seedNote(
+      seed,
+      data.properties,
+      data.members,
+      startsWith(data.project.typeBy, sentTo(column), data.properties),
+    );
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;
   const activeColumn = activeColumnId
@@ -638,14 +647,7 @@ export function BoardCanvas({
   async function addTask(column: BoardColumn, title: string, atTop: boolean) {
     // The filter decides everything the column does not, so a task added to a
     // filtered board is not hidden by the filter it was added under.
-    const values: Record<string, TaskValue> = seedValues(
-      filters,
-      data.properties,
-      groupProperty?.id ?? null,
-      user.id,
-      data.today,
-    );
-    if (groupProperty && !column.isNone) values[groupProperty.id] = column.value;
+    const values = sentTo(column);
     const neighbour = atTop ? null : (column.tasks.at(-1)?.id ?? null);
     const task = await createTask({ title, values, afterId: neighbour, atTop });
     if (task) onOpenTask(task);
@@ -808,7 +810,7 @@ export function BoardCanvas({
               <Column
                 key={column.id}
                 column={column}
-                addNote={addNote}
+                addNote={addNoteOf(column)}
                 selectedTaskId={selectedTaskId}
                 cursorTaskId={cursorTaskId}
                 draggable={columnsDraggable && !column.isNone && !column.folded}

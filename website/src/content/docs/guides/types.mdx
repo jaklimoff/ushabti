@@ -13,8 +13,9 @@ A type is an option of one select, such as Bug or Story. It is not a thing of it
 names one select as its **Type**, and each option of that select is a type. A property can then show
 only on the types it applies to — Severity on a Bug, Acceptance criteria on a Story.
 
-This page is the [Properties](/ushabti/guides/properties/) page read type first. It stores one
-thing, which select is the Type. Everything else on it is each property's **Shown when** rule.
+This page is the [Properties](/ushabti/guides/properties/) page read type first. It stores
+which select is the Type. Everything else on it is each property's **Shown when** rule, and what it
+starts as.
 
 ## Pick the select <Badge text="owner and admins" variant="caution" size="small" />
 
@@ -47,7 +48,19 @@ the same write, as on the Properties page.
 
 **Add type**, under the list, adds an option to the Type select.
 
+## Say what a type starts with <Badge text="owner and admins" variant="caution" size="small" />
+
+Each property a type shows that can carry a value — a select, a multi-select, a checkbox, a number
+or text — has **Starts as** under it. Pick a value there, and every new task of that type starts
+with it: *a Bug starts with Severity Minor*. A person never has one.
+
+The server writes it on every create, from the board, a list or an agent, for each property the
+create did not set. The composer says it before you press Enter: *starts with Severity Minor*. On a
+board grouped by Type the column names the type; elsewhere a filter that sets the type does. A task
+that changes its type later keeps its values. Delete the type or the value, and the default goes
+with it.
+
 <Aside title="The Type is only a name">
-Nothing else reads which select is the Type yet. A rule names a select of its own, so a property
+Only **Starts as** reads which select is the Type. A rule names a select of its own, so a property
 can still be shown by any select, on this page or not.
 </Aside>

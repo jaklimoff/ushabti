@@ -3,7 +3,7 @@ import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { projects, properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { GROUPED_KINDS } from "@/lib/types";
+import { GROUPED_KINDS, type TaskValue } from "@/lib/types";
 import { readCadenceInput } from "@/lib/cadence";
 import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
 import { fallbackRow, KIND_OF_TYPE, readCardView, setCardPlace } from "@/lib/card-view";
@@ -16,7 +16,7 @@ import {
 } from "@/lib/queries";
 import { dropHidden, lockTasks, projectTaskIds } from "@/lib/hidden";
 import { rankBetween } from "@/lib/rank";
-import { readWhen, readWhens } from "@/lib/when";
+import { canStartAs, carriesValue, readDefault, readTypeBy, readWhen, readWhens } from "@/lib/when";
 
 type Ctx = { params: Promise<{ propertyId: string }> };
 
@@ -32,6 +32,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     dated?: boolean;
     cadence?: { length?: unknown; ahead?: unknown };
     when?: unknown;
+    defaults?: unknown;
     afterId?: string | null;
   }>(req);
   const patch: Record<string, unknown> = {};
@@ -93,6 +94,10 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     if (input.when === null) mergeConfig((c) => sql`(${c}) - 'when'`);
   }
 
+  /* What a new task starts with is the shape of the project, so it is an
+     admin's. It is checked against the Type under the lock, below. */
+  if (input.defaults !== undefined) adminOnly(user, membership, "say what a new task starts with");
+
   if (configChanged) patch.config = config;
 
   /* The rule is read under the project lock, against the rules as that lock
@@ -121,6 +126,49 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     patch.config = config;
   };
 
+  /* Each type is merged on its own, so two admins on two types keep both.
+     A value that would not read back is refused rather than kept to read as
+     none: the person who set it would see it vanish. Nothing, or an empty
+     value, clears that type's default. */
+  const writeDefaults = async (tx: Tx) => {
+    if (input.defaults === undefined) return;
+    const raw = input.defaults;
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+      throw new HttpError(400, "Defaults must be an object of type option ids and values.");
+    }
+    const [[project], all] = await Promise.all([
+      tx.select({ typeBy: projects.typeBy }).from(projects).where(eq(projects.id, projectId)),
+      loadProperties(projectId, tx),
+    ]);
+    const property = all.find((p) => p.id === propertyId);
+    const typeById = readTypeBy(project?.typeBy, all);
+    if (!property) throw new HttpError(404, "Property not found.");
+    if (!canStartAs(property.type) || property.id === typeById) {
+      throw new HttpError(400, `${property.name} cannot carry a value a new task starts with.`);
+    }
+    const types = all.find((p) => p.id === typeById)?.options ?? [];
+    const changes: Record<string, TaskValue> = {};
+    for (const [optionId, value] of Object.entries(raw as Record<string, unknown>)) {
+      if (!types.some((o) => o.id === optionId)) {
+        throw new HttpError(400, "A default must name a type of this project.");
+      }
+      if (!carriesValue(value as TaskValue)) {
+        changes[optionId] = null;
+        continue;
+      }
+      const read = readDefault(value, property);
+      if (read === undefined || JSON.stringify(read) !== JSON.stringify(value)) {
+        throw new HttpError(400, `That is not a value ${property.name} can start with.`);
+      }
+      changes[optionId] = read;
+    }
+    mergeConfig(
+      (c) => sql`${c} || jsonb_build_object('defaults', jsonb_strip_nulls(
+      coalesce(${properties.config} -> 'defaults', '{}'::jsonb) || ${JSON.stringify(changes)}::jsonb))`,
+    );
+    patch.config = config;
+  };
+
   /* A rule that hides a property takes its values with it, in the same
      transaction. Settings asked first, with the count. A rule taken away
      usually shows more, but it can let a rule elsewhere out of a circle,
@@ -145,11 +193,17 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 
   /* The rule is checked before anything is written, so a refused rule
      leaves the card view as it was too. */
-  if (input.afterId !== undefined || Object.keys(patch).length > 0 || input.when !== undefined) {
+  if (
+    input.afterId !== undefined ||
+    Object.keys(patch).length > 0 ||
+    input.when !== undefined ||
+    input.defaults !== undefined
+  ) {
     /* The project lock, as a create and an import take it: a task written
        beside a rule is either in the list the rule drops from, or reads it. */
     const ring = await withProjectLock(projectId, async (tx) => {
       await writeWhen(tx);
+      await writeDefaults(tx);
       const set = input.afterId === undefined ? patch : { ...patch, position: await rankAfter(tx) };
       await tx.update(properties).set(set).where(eq(properties.id, propertyId));
       return dropForRule(tx);

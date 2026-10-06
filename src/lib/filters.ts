@@ -773,11 +773,16 @@ export function seedValues(
   return seed;
 }
 
-/** What the composer says it is about to do, or "" when it does nothing. */
+/**
+ * What the composer says it is about to do, or "" when it does nothing: what
+ * the filter sets, then what the type starts with. The composer sends only the
+ * first; the server writes the defaults, and this only says so.
+ */
 export function seedNote(
   seed: Record<string, TaskValue>,
   properties: PropertyDTO[],
   members: MemberDTO[],
+  starts: Record<string, TaskValue> = {},
 ): string {
   const byId = new Map(properties.map((p) => [p.id, p]));
   const said: string[] = [];
@@ -789,7 +794,30 @@ export function seedNote(
     said.push(`${property.name} ${keyName(key, property, members)}`);
   }
 
-  return said.length ? `sets ${said.join(", ")}` : "";
+  const sets = said.length ? `sets ${said.join(", ")}` : "";
+  const starting = startsSaid(starts, byId, members);
+  return [sets, starting && `starts with ${starting}`].filter(Boolean).join("; ");
+}
+
+/** The defaults in words: "Severity Minor, Labels ui and api, Flaky". */
+function startsSaid(
+  starts: Record<string, TaskValue>,
+  byId: Map<string, PropertyDTO>,
+  members: MemberDTO[],
+): string {
+  const said: string[] = [];
+  for (const [propertyId, value] of Object.entries(starts)) {
+    const property = byId.get(propertyId);
+    if (!property) continue;
+    if (typeof value === "boolean") said.push(keyName(String(value), property, members));
+    else if (Array.isArray(value)) {
+      const names = value.map((id) => keyName(id, property, members));
+      said.push(`${property.name} ${names.join(" and ")}`);
+    } else if (typeof value === "string" && hasOptions(property.type)) {
+      said.push(`${property.name} ${keyName(value, property, members)}`);
+    } else if (value !== null) said.push(`${property.name} ${value}`);
+  }
+  return said.join(", ");
 }
 
 /* ------------------------------------------------------------------ */

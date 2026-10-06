@@ -41,7 +41,7 @@ import {
   type LinkEdge,
 } from "./links";
 import { readProgressBy } from "./progress";
-import { readTypeBy, readWhens } from "./when";
+import { readDefaults, readTypeBy, readWhens } from "./when";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
@@ -763,7 +763,9 @@ export async function loadBoard(
     valuesByTask.set(v.taskId, bag);
   }
 
-  const propertyList = withOptions(propRows, optRows);
+  /* The defaults are read against the Type, so a deleted type or value
+     reads as none on the board and in Settings alike. */
+  const propertyList = readDefaults(withOptions(propRows, optRows), projectRow.typeBy);
 
   const viewList: ViewDTO[] = viewRows.map((v) => toViewDTO(v, propertyList, lenses.get(v.id)));
 
