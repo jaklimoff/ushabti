@@ -22,7 +22,10 @@ services:
       dockerfile: Dockerfile.dev
     restart: unless-stopped
     working_dir: /workspace
-    command: sh -c "npm install && npm run db:push -- --force && npm run dev"
+    # Docker Desktop does not pass the event for a new file through the bind
+    # mount, so dev-route-watch.mjs restarts the dev server when a route file
+    # comes or goes. Otherwise a new route folder answers 404 until a restart.
+    command: sh -c "npm install && npm run db:push -- --force && (node scripts/dev-route-watch.mjs & exec npm run dev)"
     environment:
       DATABASE_URL: postgres://ushabti:ushabti@db:5432/ushabti
       NODE_ENV: development
