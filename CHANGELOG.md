@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Settings has a Types page.** Name the select whose options are your task types, then press a
+  type to see the properties it shows: those on every type, those on this type, and those on
+  other types. **Add to**, **Only on** and **Take off** change a property's **Shown when** rule,
+  and a change that drops values asks first with the count. Agents read `project.typeBy`.
+
 - **A task can have a parent, one level deep.** Pick **Part of…** or **Add a part…** in the task
   menu. The panel shows a **Parent** row and a **Children** list, and each row opens its task.
   A part is never a blocker. Agents use `PUT` and `DELETE /api/tasks/{id}/parent`, or

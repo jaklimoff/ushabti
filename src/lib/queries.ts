@@ -32,7 +32,7 @@ import { readFilters, WAITS } from "./filters";
 import { readTimeZone, todayIn } from "./day";
 import { BLOCKS, isOver, PARENT, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
 import { readProgressBy } from "./progress";
-import { readWhens } from "./when";
+import { readTypeBy, readWhens } from "./when";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
@@ -848,6 +848,7 @@ export async function loadBoard(
       role,
       doneWhen,
       progressBy: readProgressBy(projectRow.progressBy, propertyList),
+      typeBy: readTypeBy(projectRow.typeBy, propertyList),
       timeZone,
       publicChangelog: projectRow.publicChangelog,
     },

@@ -17,6 +17,7 @@ import {
 import { isTimeZone, zoneRefused } from "@/lib/day";
 import { readDoneWhen } from "@/lib/links";
 import { readProgressBy } from "@/lib/progress";
+import { readTypeBy } from "@/lib/when";
 import { loadProperties } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -31,6 +32,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     key?: string;
     doneWhen?: unknown;
     progressBy?: unknown;
+    typeBy?: unknown;
     timeZone?: string;
     publicChangelog?: unknown;
   }>(req);
@@ -67,6 +69,20 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       const id = readProgressBy(input.progressBy, await loadProperties(projectId));
       if (!id) throw new HttpError(400, "Progress can only be counted by a number property.");
       patch.progressBy = id;
+    }
+  }
+  /*
+   * The select whose options are this project's types. Refused as
+   * `progressBy` is: a save that quietly became "no Type" would empty the
+   * Types page and say nothing.
+   */
+  if (input.typeBy !== undefined) {
+    if (input.typeBy === null || input.typeBy === "") {
+      patch.typeBy = null;
+    } else {
+      const id = readTypeBy(input.typeBy, await loadProperties(projectId));
+      if (!id) throw new HttpError(400, "Types can only come from a select property.");
+      patch.typeBy = id;
     }
   }
   /*

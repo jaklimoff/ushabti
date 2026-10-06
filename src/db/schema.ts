@@ -92,6 +92,15 @@ export const projects = pgTable(
      */
     progressBy: text("progress_by"),
     /**
+     * The select this project names as its Type, or null for none.
+     *
+     * A type is an option of this one select, never a table of its own. No
+     * foreign key, on purpose: it is read afresh through `readTypeBy`, as
+     * `progressBy` is, so a property that is gone or is no longer a select
+     * reads as none.
+     */
+    typeBy: text("type_by"),
+    /**
      * The zone this project's day is worked out in, as an IANA name.
      *
      * A filter can say "due this week", and a shared filter has to mean one

@@ -1,0 +1,53 @@
+---
+title: Types
+description: Pick the select whose options are your task types, then see and change which properties each type shows.
+sidebar:
+  order: 1
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components'
+
+**Settings → Types**, or `/p/{projectId}/settings/types`.
+
+A type is an option of one select, such as Bug or Story. It is not a thing of its own: the project
+names one select as its **Type**, and each option of that select is a type. A property can then show
+only on the types it applies to — Severity on a Bug, Acceptance criteria on a Story.
+
+This page is the [Properties](/ushabti/guides/properties/) page read type first. It stores one
+thing, which select is the Type. Everything else on it is each property's **Shown when** rule.
+
+## Pick the select <Badge text="owner and admins" variant="caution" size="small" />
+
+With no Type, the page says what a type is and offers **Types come from**, a list of the project's
+selects. Pick one. Pick **No select** to stop. A member reads the page and cannot pick.
+
+## Open a type
+
+The page lists the types, which are the options of the select in their order and colours. Press one
+to see what a task of that type shows:
+
+| Group | What is in it |
+| --- | --- |
+| **Every type** | The properties with no rule. Each type shows them. |
+| **This type** | The properties whose rule names the Type and this type. A property that is on other types too says *also on Bug, Story*. |
+| **On other types** | The properties whose rule names the Type, but not this type. |
+| **Shown by another select** | The properties whose rule names a different select. They show their rule in words, such as *Shown when Area is UI*. Change them on the Properties page. |
+
+## Change what a type shows <Badge text="owner and admins" variant="caution" size="small" />
+
+- **Add to Bug** puts this type into the rule of a property that is on other types. It hides
+  nothing, so it saves at once.
+- **Only on Bug** limits a property on every type to this type. The other types stop showing it.
+- **Take off Bug** takes this type out of the rule. When this is the only type the property is on,
+  the row offers nothing and points to the Properties page, which can make it show on every type.
+
+A change that hides a property drops its values from the tasks that stop showing it. Before it
+writes, the row asks with the count: *12 tasks lose their Severity.* This is the same question, and
+the same write, as on the Properties page.
+
+**Add type**, under the list, adds an option to the Type select.
+
+<Aside title="The Type is only a name">
+Nothing else reads which select is the Type yet. A rule names a select of its own, so a property
+can still be shown by any select, on this page or not.
+</Aside>

@@ -32,7 +32,7 @@ import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PALETTE } from "@/lib/colors";
 import { keyName } from "@/lib/filters";
-import { ruleAsked, whenSaid } from "@/lib/when";
+import { whenSaid } from "@/lib/when";
 import {
   GROUPABLE_TYPES,
   hasOptions,
@@ -43,9 +43,9 @@ import {
   PROPERTY_TYPES,
   type PropertyDTO,
   type PropertyType,
-  type When,
 } from "@/lib/types";
 import { PageHead } from "./SettingsShell";
+import { useWhenWrite } from "./useWhenWrite";
 import styles from "./settings.module.css";
 
 /* The grip is the only thing that lifts a row or a chip, so the name boxes
@@ -776,50 +776,14 @@ function WhenRow({
   canEdit: boolean;
   onClose: () => void;
 }) {
-  const { data, patchProperty, notify } = useBoard();
-  const rule = property.config.when ?? null;
+  const { data } = useBoard();
+  const { rule, asking, toggle, write, confirm, cancel } = useWhenWrite(property);
   const candidates = whenCandidates(property, data.properties);
   /* A select picked and not yet answered writes nothing, as a new filter rule
      does: the rule is the select and at least one option. */
   const [picked, setPicked] = useState<string | null>(null);
   const shownBy = candidates.find((p) => p.id === (picked ?? rule?.propertyId)) ?? null;
   const ticked = rule && shownBy && rule.propertyId === shownBy.id ? rule.optionIds : [];
-
-  /* A rule that hides values on tasks asks first, with the count, and the
-     write drops them. The count is the server's, because archived tasks lose
-     theirs too. An answer that lands after another tick is dropped. */
-  const [asking, setAsking] = useState<{ when: When | null; question: string } | null>(null);
-  const asked = useRef(0);
-
-  function toggle(id: string, on: boolean) {
-    if (!shownBy) return;
-    const next = on ? [...ticked, id] : ticked.filter((t) => t !== id);
-    const when = next.length ? { propertyId: shownBy.id, optionIds: next } : null;
-    /* One more option under the same rule shows more and hides nothing. */
-    if (on && rule?.propertyId === shownBy.id) {
-      asked.current++;
-      setAsking(null);
-      return void patchProperty(property.id, { when });
-    }
-    return write(when);
-  }
-
-  /* Even no rule at all can hide: it may let a rule elsewhere out of a
-     circle. So everything else is counted first. */
-  async function write(when: When | null) {
-    const mine = ++asked.current;
-    setAsking(null);
-    try {
-      const drops = await api.get<{ tasks: number; names: string[] }>(
-        `/api/properties/${property.id}/count?when=${encodeURIComponent(JSON.stringify(when))}`,
-      );
-      if (asked.current !== mine) return;
-      if (drops.tasks === 0) return void patchProperty(property.id, { when });
-      setAsking({ when, question: `${ruleAsked(drops)}.` });
-    } catch {
-      if (asked.current === mine) notify("Could not count the values the rule hides.");
-    }
-  }
 
   function clear() {
     setPicked(null);
@@ -853,7 +817,7 @@ function WhenRow({
                 <input
                   type="checkbox"
                   checked={ticked.includes(id)}
-                  onChange={(e) => void toggle(id, e.target.checked)}
+                  onChange={(e) => void toggle(shownBy, id, e.target.checked)}
                 />
                 {keyName(id, shownBy, [])}
               </label>
@@ -872,16 +836,8 @@ function WhenRow({
           <ConfirmRow
             question={asking.question}
             confirmLabel="Yes, hide"
-            onConfirm={() => {
-              const { when } = asking;
-              asked.current++;
-              setAsking(null);
-              void patchProperty(property.id, { when });
-            }}
-            onCancel={() => {
-              asked.current++;
-              setAsking(null);
-            }}
+            onConfirm={confirm}
+            onCancel={cancel}
           />
         </div>
       )}
