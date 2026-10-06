@@ -44,9 +44,9 @@ and what is easy to get wrong.
 - **Properties have one order, and it is the Settings drag.** The card view
   holds no order. `cardOrder()` in `card-view.ts` is the one place that says
   which row comes first: `_key`, `_title` and `_desc`, then the properties in
-  their `position`, then `_checklist` and `_comments`. The chips that share a
-  place on a card, the columns of a list and the fields of the task panel all
-  follow it. One rule sits on top, on a card only: in each place a chip with no
+  their `position`, then `_checklist`, `_parts` and `_comments`. The chips
+  that share a place on a card, the columns of a list and the fields of the
+  task panel all follow it. One rule sits on top, on a card only: in each place a chip with no
   words — mode `colour` or `avatar` — comes first, so a card nobody rearranged
   still opens with its square of colour. `buildCard` keys it off the mode, never
   off a property. The card view used to keep an `order` of its own, so a
@@ -193,10 +193,12 @@ and what is easy to get wrong.
   that answer. A copy is a whole card view, never a set of changes on top of
   the project's: a diff would need its own rules for a row the project later
   moved. It holds no order and no edge rule of its own, for the reasons above.
-- **Five rows of the card view are not properties.** `_key`, `_title`, `_desc`,
-  `_checklist` and `_comments` are the task row the board already has, given
-  rows so that somebody can take them off. They are not fields on a task and
-  must never become any: nothing writes them, and the words are fixed.
+- **Six rows of the card view are not properties.** `_key`, `_title`, `_desc`,
+  `_checklist`, `_parts` and `_comments` are the task row the board already
+  has, given rows so that somebody can take them off. `_parts` is the count of
+  a parent's children that are done, worked out by `getBoard` from `isOver`.
+  They are not fields on a task and must never become any: nothing writes
+  them, and the words are fixed.
 - **A read that crossed this tab's own write is thrown away, and asked
   again.** The stream asks for the board the moment it connects, and that
   answer is stale the instant somebody clicks. A write sent just before a read

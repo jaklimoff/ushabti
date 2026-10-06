@@ -1,5 +1,15 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import { addTask, card, createProject, gotoSettings, register, settles, unique } from "./helpers";
+import {
+  addListView,
+  addTask,
+  card,
+  createProject,
+  gotoSettings,
+  listRow,
+  register,
+  settles,
+  unique,
+} from "./helpers";
 
 type Page = import("@playwright/test").Page;
 
@@ -220,5 +230,105 @@ test.describe("What a task is part of", () => {
       (l: { kind: string }) => l.kind === "link",
     );
     expect(left[0].data).toMatchObject({ action: "unparented", parentKey: a.key });
+  });
+
+  test("a parent says how many of its parts are done, on the card, in the list and in the panel", async ({
+    page,
+  }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Counted"));
+    const read = async () => (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    let board = await read();
+    const status = board.properties.find((p: { name: string }) => p.name === "Status");
+    const done = status.options.find((o: { name: string }) => o.name === "Shipped");
+    const backlog = status.options.find((o: { name: string }) => o.name === "Backlog");
+    expect(
+      (
+        await page.request.patch(`/api/projects/${projectId}`, {
+          data: { doneWhen: { propertyId: status.id, optionId: done.id } },
+        })
+      ).ok(),
+    ).toBeTruthy();
+
+    const made = async (title: string, optionId: string) =>
+      (
+        await (
+          await page.request.post(`/api/projects/${projectId}/tasks`, {
+            data: { title, values: { [status.id]: optionId } },
+          })
+        ).json()
+      ).task.id as string;
+    const epic = await made("The epic", backlog.id);
+    const lone = await made("A lone task", backlog.id);
+    const parts: string[] = [];
+    for (const [title, optionId] of [
+      ["Part A", done.id],
+      ["Part B", done.id],
+      ["Part C", backlog.id],
+      ["Part D", backlog.id],
+      ["Part E", backlog.id],
+    ]) {
+      const id = await made(title, optionId);
+      const put = await page.request.put(`/api/tasks/${id}/parent`, { data: { parentId: epic } });
+      expect(put.ok()).toBeTruthy();
+      parts.push(id);
+    }
+    /* Archived counts as done, as it does for a blocker. */
+    expect((await page.request.post(`/api/tasks/${parts[2]}/archive`)).ok()).toBeTruthy();
+    board = await read();
+    expect(board.tasks.find((t: { id: string }) => t.id === epic).parts).toEqual({
+      done: 3,
+      total: 5,
+    });
+    expect(board.tasks.find((t: { id: string }) => t.id === lone).parts).toBeNull();
+
+    await page.goto(`/p/${projectId}`);
+    const count = (title: string) =>
+      card(page, title)
+        .getByTestId("card-chip")
+        .filter({ hasText: /^\d+\/\d+$/ });
+    await expect(count("The epic")).toHaveText("3/5");
+    await expect(count("The epic")).toHaveAttribute("title", "Children · 3/5");
+    await expect(count("A lone task")).toHaveCount(0);
+
+    /* A part moved to done changes the parent's card at the next read. */
+    const moved = await page.request.put(`/api/tasks/${parts[3]}/values/${status.id}`, {
+      data: { value: done.id },
+    });
+    expect(moved.ok()).toBeTruthy();
+    await expect(count("The epic")).toHaveText("4/5");
+
+    /* What the person does in this tab moves the count too: this tab drops
+       the doorbell of its own writes, so the store has to read again. */
+    await card(page, "Part E").click();
+    await page.getByRole("button", { name: "Task menu" }).click();
+    await page.getByTestId("archive-task").click();
+    await expect(page.getByTestId("archived-row")).toBeVisible();
+    await page.getByRole("button", { name: "Close task" }).click();
+    await expect(count("The epic")).toHaveText("5/5");
+
+    /* A deleted part is not counted at all. */
+    await card(page, "Part B").click();
+    await page.getByRole("button", { name: "Task menu" }).click();
+    await settles(page, /\/api\/tasks\/[0-9a-f-]+$/, () =>
+      page.getByRole("button", { name: "Delete task" }).click(),
+    );
+    await expect(card(page, "Part B")).toHaveCount(0);
+    await expect(count("The epic")).toHaveText("4/4");
+
+    /* A part added from the panel joins the count. */
+    const loneKey = board.tasks.find((t: { id: string }) => t.id === lone).key;
+    await card(page, "The epic").click();
+    await pick(page, "add-child", loneKey);
+    await expect(page.getByTestId("links-children").locator(".label").first()).toHaveText(
+      "Children · 4 of 5 done",
+    );
+    await page.getByRole("button", { name: "Close task" }).click();
+    await expect(count("The epic")).toHaveText("4/5");
+
+    await addListView(page, "Everything");
+    await expect(
+      listRow(page, "The epic").getByTestId("card-chip").filter({ hasText: "4/5" }),
+    ).toBeVisible();
   });
 });

@@ -250,7 +250,9 @@ Each of these is refused with `409` and one sentence: a task made part of
 itself, a parent that is itself a part, and a parent for a task that has parts.
 
 `GET /api/tasks/{taskId}` carries `parent`, one row `{ id, key, title, over }`
-or null, and `children`, the same rows in board order. A part is never a
+or null, and `children`, the same rows in board order. `parts` is `{ "done": 3, "total": 5 }`, or null when the task has
+no children; it is on the board answer too. `done` follows the project's Done
+when, an archived child counts as done, and a deleted child is not counted. A part is never a
 blocker: it puts no chain on a card and is not in `blockedBy`. The feed writes
 a `link` line on the part, with `action` `parented` or `unparented` and the
 `parentKey`. The export carries each task's `parent` as a key.

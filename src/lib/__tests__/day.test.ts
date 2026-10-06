@@ -216,6 +216,7 @@ function task(value: string): TaskDTO {
     checklistDone: 0,
     commentCount: 0,
     blockedBy: [],
+    parts: null,
   };
 }
 

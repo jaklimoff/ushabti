@@ -159,6 +159,7 @@ function task(id: string, values: TaskDTO["values"] = {}, over: Partial<TaskDTO>
     checklistDone: 0,
     commentCount: 0,
     blockedBy: [],
+    parts: null,
     ...over,
   };
 }
@@ -439,8 +440,9 @@ describe("ordering by a property a task does not show", () => {
 });
 
 describe("which headings can be pressed", () => {
-  it("is every column a list draws", () => {
-    expect(ITEMS.filter((i) => i.place !== "off").every(canSort)).toBe(true);
+  it("is every column a list draws, but the count of children", () => {
+    const drawn = ITEMS.filter((i) => i.place !== "off" && i.id !== "_parts");
+    expect(drawn.every(canSort)).toBe(true);
   });
 });
 
@@ -552,5 +554,15 @@ describe("a sort by a Link property", () => {
     const item = LINK_ITEMS.find((i) => i.id === "p-prs")!;
     expect(sortWay(item, "asc")).toBe("A→Z");
     expect(canSort(item)).toBe(true);
+  });
+});
+
+describe("the count of children", () => {
+  it("is no order, because a sort by it is not part of this release", () => {
+    const item = cardItems(readCardView(null, PROPERTIES, null), PROPERTIES).find(
+      (i) => i.id === "_parts",
+    )!;
+    expect(canSort(item)).toBe(false);
+    expect(readSort({ columnId: "_parts", direction: "asc" }, PROPERTIES)).toBeNull();
   });
 });

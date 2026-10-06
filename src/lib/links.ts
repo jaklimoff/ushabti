@@ -1,4 +1,4 @@
-import type { PropertyDTO, TaskValue } from "./types";
+import type { PropertyDTO, TaskLinkDTO, TaskValue } from "./types";
 import { isSelect } from "./types";
 
 /**
@@ -154,6 +154,46 @@ export function parentRefusal(
     return `${keyOf(childId)} has parts of its own, so it cannot be part of another task.`;
   }
   return null;
+}
+
+/**
+ * How many parts of each parent are done, by the parent's id.
+ *
+ * `over` holds every task that may be counted: the live ones by the project's
+ * Done when, the archived ones as over. A deleted part is not in it, so it
+ * is not counted at all. A parent whose parts are all gone is not named.
+ */
+export function partsOf(
+  edges: LinkEdge[],
+  over: Map<string, boolean>,
+): Map<string, { done: number; total: number }> {
+  const parts = new Map<string, { done: number; total: number }>();
+  for (const e of edges) {
+    const isDone = over.get(e.toId);
+    if (isDone === undefined) continue;
+    const count = parts.get(e.fromId) ?? { done: 0, total: 0 };
+    count.total += 1;
+    if (isDone) count.done += 1;
+    parts.set(e.fromId, count);
+  }
+  return parts;
+}
+
+/**
+ * How many of the parts the panel holds are done, or null when there are none.
+ * Each part already says whether it is over, read on the server.
+ */
+export function countParts(
+  children: readonly Pick<TaskLinkDTO, "over">[],
+): { done: number; total: number } | null {
+  if (children.length === 0) return null;
+  return { done: children.filter((c) => c.over).length, total: children.length };
+}
+
+/** The head of the Children list in the panel. */
+export function childrenHead(children: readonly Pick<TaskLinkDTO, "over">[]): string {
+  const parts = countParts(children);
+  return parts ? `Children · ${parts.done} of ${parts.total} done` : "Children";
 }
 
 /** The one sentence a task made its own parent is refused with. */

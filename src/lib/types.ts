@@ -154,6 +154,12 @@ export type TaskDTO = {
    * and lists nothing; the two lists belong to the panel.
    */
   blockedBy: string[];
+  /**
+   * How many of its parts are done, or null when it has none. Done is the
+   * project's Done when, read on the server: an archived part is done and a
+   * deleted one is not counted. The card draws it and decides nothing.
+   */
+  parts: { done: number; total: number } | null;
 };
 
 /**
@@ -209,7 +215,14 @@ export type DeletedTaskDTO = {
  * be able to take them off. Nothing here is a field on a task — the words are
  * fixed, the values come from the task row the board already has.
  */
-export const CARD_BUILTINS = ["_key", "_title", "_desc", "_checklist", "_comments"] as const;
+export const CARD_BUILTINS = [
+  "_key",
+  "_title",
+  "_desc",
+  "_checklist",
+  "_parts",
+  "_comments",
+] as const;
 
 export type CardBuiltin = (typeof CARD_BUILTINS)[number];
 
@@ -218,6 +231,7 @@ export const CARD_BUILTIN_NAME: Record<CardBuiltin, string> = {
   _title: "Title",
   _desc: "Description",
   _checklist: "Checklist",
+  _parts: "Children",
   _comments: "Comments",
 };
 
@@ -286,6 +300,7 @@ export const CARD_KINDS = [
   "title",
   "desc",
   "checklist",
+  "parts",
   "comments",
   "select",
   "person",

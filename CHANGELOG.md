@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A parent shows how many of its children are done.** The card and the list row draw **3/5**,
+  as a bar or as a count, and the panel heading reads _Children · 3 of 5 done_. Done is the
+  project's **Done when**, and an archived child counts as done. **Children** is a row of the card
+  view, so it can be moved or taken off.
+
 - **Settings has a Types page.** Name the select whose options are your task types, then press a
   type to see the properties it shows: those on every type, those on this type, and those on
   other types. **Add to**, **Only on** and **Take off** change a property's **Shown when** rule,

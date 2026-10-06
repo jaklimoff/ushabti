@@ -219,9 +219,29 @@ A circle is refused with one sentence — *USH-12 already waits on USH-71, so th
 A task with no links draws nothing at all in the panel. That is why the way in is the menu: a
 heading over an empty list, on every task in the project, would cost more than the line it saved.
 
-<Aside type="note" title="One link kind, on one board">
-`blocks` is the only kind of link there is, and both ends have to be tasks on the same board. There
-is no graph, no Gantt and no dates — see [the roadmap](https://github.com/jaklimoff/ushabti/blob/main/ROADMAP.md).
+## Parent and children
+
+A task can be part of another one, one level deep. Open the task, press **⋯** and choose
+**Part of…** to give it a **Parent**, or **Add a part…** to give it a child. The panel then shows a
+**Parent** row with the one task it is part of, and a **Children** list with its parts, in board
+order. Each adds by the **+** beside its heading and comes off by its **✕**, as the chain does.
+
+One level means a part has no parts of its own. Make a part the parent of another task, or give a
+parent a parent, and the panel refuses it with one sentence that names the two tasks.
+
+**A parent says how many of its children are done.** The panel heading reads _Children · 3 of 5
+done_, and the card and the list row draw **3/5**, as a bar or as a count. Done means the same as
+for a blocker: archived, or holding the option under **Done when**. A deleted child is not counted.
+The count changes at the next board read, so a child moved to Done changes its parent's card
+without a reload. A task with no children draws nothing.
+
+The count is a row of the card view, called **Children**. It sits in the footer at first; move it,
+read it as a count, or take it off in [the card view](/ushabti/guides/card-view/), as the checklist.
+
+<Aside type="note" title="Two link kinds, on one board">
+`blocks` and `parent` are the only kinds of link there are, and both ends have to be tasks on the
+same board. There is no graph, no Gantt and no dates — see
+[the roadmap](https://github.com/jaklimoff/ushabti/blob/main/ROADMAP.md).
 </Aside>
 
 ## Selecting several cards

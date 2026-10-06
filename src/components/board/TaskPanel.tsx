@@ -22,6 +22,7 @@ import {
   STATUS_WORD,
 } from "@/lib/run-state";
 import { checklistField, editingSaid } from "@/lib/presence";
+import { childrenHead } from "@/lib/links";
 import { searchTasks } from "@/lib/search";
 import { trackWrites } from "@/lib/writes";
 import type {
@@ -1182,7 +1183,7 @@ function Links({
         return (
           <div key={way} className={styles.block} data-testid={`links-${way}`}>
             <div className={styles.blockHead}>
-              <span className="label">{words.head}</span>
+              <span className="label">{way === "children" ? childrenHead(list) : words.head}</span>
               <span style={{ flex: 1 }} />
               <button
                 className={styles.linkAdd}
