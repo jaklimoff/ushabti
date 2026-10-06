@@ -1,9 +1,10 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { boardMjsPin, runStep, WORKFLOW } from "./workflow-step";
+import { boardMjsPin, pinnedBoardMjs, runStep, WORKFLOW } from "./workflow-step";
 
 /**
  * The documented GitHub Actions step, against a board that remembers what was
@@ -189,6 +190,21 @@ describe("The GitHub Actions step", () => {
       sha: expect.stringMatching(/^[0-9a-f]{40}$/),
       file: "examples/skill/ushabti/board.mjs",
     });
+  });
+
+  it("runs this checkout's board.mjs unless a test asks for the pinned one", async () => {
+    const { url } = await fakeBoard();
+    const checkout = readFileSync(path.resolve(process.cwd(), boardMjsPin().file), "utf8");
+    const { sha, file } = boardMjsPin();
+    const pinned = execFileSync("git", ["show", `${sha}:${file}`], { encoding: "utf8" });
+    expect(pinnedBoardMjs().toString("utf8")).toEqual(pinned);
+
+    const ours = await runStep({ ...base, url, title: "USH-7", branch: "x" });
+    expect(ours.boardMjs).toEqual(checkout);
+
+    const theirs = await runStep({ ...base, url, title: "USH-7", branch: "x", board: "pinned" });
+    expect(theirs.code).toBe(0);
+    expect(theirs.boardMjs).toEqual(pinned);
   });
 
   it("is shown whole in both places a team copies it from", () => {
