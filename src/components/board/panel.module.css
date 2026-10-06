@@ -429,7 +429,8 @@
 .descEditor :global([class*="cm-lp-h"] + .cm-lp-gap) {
   line-height: var(--md-below-heading);
 }
-.descEditor :global([class*="cm-lp-h"] + .cm-lp-gap + [class*="cm-lp-h"]) {
+.descEditor
+  :global(:is([class*="cm-lp-h"] + .cm-lp-gap, .cm-lp-folded-under-heading) + [class*="cm-lp-h"]) {
   padding-top: calc(var(--md-above-heading) - var(--md-below-heading));
 }
 .descEditor :global(.cm-lp-strong) {
@@ -446,7 +447,7 @@
 .descEditor :global(.cm-lp-gap) {
   line-height: var(--md-gap);
 }
-.descEditor :global(.cm-lp-folded) {
+.descEditor :global(:is(.cm-lp-folded, .cm-lp-folded-under-heading)) {
   line-height: 0;
 }
 .descEditor :global(.cm-line.cm-lp-code),
