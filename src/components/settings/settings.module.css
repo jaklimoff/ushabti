@@ -158,17 +158,19 @@
 
 /*
  * Below 720 px the row used to wrap, which dropped the tools onto a second
- * line and left the card toggle stranded on the first. Two deliberate rows
- * instead of one accidental one. The grip keeps the name company, because a
- * grip on a line of its own is a line that says nothing.
+ * line and left the card toggle stranded on the first. Deliberate rows
+ * instead of an accidental one. The grip keeps the name company, because a
+ * grip on a line of its own is a line that says nothing. The tools take a row
+ * the grid makes only when they are drawn: a named row would keep its gap
+ * for a member, who may hold no tools at all.
  */
 @media (max-width: 620px) {
   .propHead {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr;
     grid-template-areas:
-      "grip name name"
-      "tags tags tools";
+      "grip name"
+      "tags tags";
     gap: 8px 10px;
   }
   .propHead .grip {
@@ -181,7 +183,7 @@
     grid-area: tags;
   }
   .propTools {
-    grid-area: tools;
+    grid-column: 1 / -1;
   }
 }
 
@@ -198,26 +200,12 @@
   min-width: 0;
 }
 
-.whenAdd {
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-size: var(--t-small);
-  color: var(--text-3);
-  cursor: pointer;
-}
-
-.whenAdd:hover {
-  color: var(--text-2);
-}
-
 .when {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 12px;
-  margin-top: 8px;
+  padding: 0 13px 12px 47px;
   font-size: var(--t-small);
   color: var(--text-3);
 }
@@ -240,7 +228,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 14px;
-  margin-top: 8px;
+  padding: 0 13px 12px 47px;
 }
 
 .cadenceBox {
@@ -255,11 +243,36 @@
   width: 4.5em;
 }
 
+/* The second lines start under the name, which is 47 px in: the head's 13,
+   the grip's 24 and the gap's 10. A phone puts the name beside the grip on
+   its own line, so the lines there keep only the card's 13. */
+@media (max-width: 620px) {
+  .when,
+  .cadence {
+    padding: 0 13px 12px;
+  }
+}
+
 .propTools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   margin-left: auto;
+}
+
+/* On a phone the tools take a line of their own, and the delete keeps the
+   end of it, where it sits on a wide screen. */
+@media (max-width: 620px) {
+  .propTools {
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+  .propTools > :last-child {
+    margin-left: auto;
+  }
+  .propTools:empty {
+    display: none;
+  }
 }
 
 .options {
@@ -430,13 +443,13 @@
 }
 
 .optionRemove {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
   border-radius: 3px;
-  color: var(--faint-3);
-  font-size: 9px;
+  color: var(--icon);
+  font-size: 12px;
 }
 
 .optionRemove:hover {
@@ -444,7 +457,7 @@
 }
 
 /*
- * A finger needs 24 px, and these two were 11 and 15. The buttons hold a
+ * A finger needs 24 px, and these two are 11 and 18 on a wide screen. The buttons hold a
  * 24 px square on a phone; the colour and the ✕ stay the size they were.
  * The swatch keeps its size by padding, which the background is clipped to,
  * which is also why the colour is set as `background-color`: the `background`

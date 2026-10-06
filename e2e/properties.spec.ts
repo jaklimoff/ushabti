@@ -7,6 +7,7 @@ import {
   confirmDelete,
   createProject,
   dragOnto,
+  edgeRoom,
   gotoSettings,
   propertyBox,
   propertyRowOrder,
@@ -52,6 +53,83 @@ test.describe("Custom properties", () => {
     for (const name of ["Low", "Medium", "High"]) {
       await expect(column(page, name)).toBeVisible();
     }
+  });
+
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+  ] as const) {
+    test(`a property row keeps its tools together and off the card edge at ${width} px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      await register(page);
+      const projectId = await createProject(page, unique(`Row ${width}`));
+      await gotoSettings(page, projectId);
+      const status = propertyBox(page, "Status");
+      const tools = status.getByTestId("property-tools");
+      await expect(tools.getByLabel("Options carry dates")).toBeVisible();
+      const when = tools.getByRole("button", { name: "Shown when…" });
+      await expect(when).toBeVisible();
+      await expect(tools.getByRole("button", { name: "Delete the property Status" })).toBeVisible();
+
+      /* A refresh can hide the page for a moment, so the measure waits. */
+      await expect.poll(() => edgeRoom(status)).toBeGreaterThanOrEqual(12);
+
+      /* Shown when is a button: it has a box, and a ring when the keys reach it. */
+      expect((await when.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+      await when.focus();
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab");
+      await expect(when).toBeFocused();
+      expect(await when.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe("solid");
+
+      /* The option ✕ is big enough to see, in the icon colour. */
+      const remove = status.getByRole("button", { name: "Delete the option Backlog" });
+      const size = (await remove.boundingBox())!;
+      expect(size.width).toBeGreaterThanOrEqual(18);
+      const colours = await page.evaluate(() => {
+        const probe = document.createElement("span");
+        document.body.append(probe);
+        probe.style.color = "var(--icon)";
+        const icon = getComputedStyle(probe).color;
+        probe.style.color = "var(--danger-soft)";
+        const danger = getComputedStyle(probe).color;
+        probe.remove();
+        return { icon, danger };
+      });
+      expect(await remove.evaluate((el) => getComputedStyle(el).color)).toBe(colours.icon);
+      expect(
+        await remove.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+      ).toBeGreaterThanOrEqual(12);
+      await remove.hover();
+      await expect
+        .poll(() => remove.evaluate((el) => getComputedStyle(el).color))
+        .toBe(colours.danger);
+    });
+  }
+
+  test("a member's row on a phone draws no empty tools line", async ({ page, browser }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Member row"));
+    const memberContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const memberPage = await memberContext.newPage();
+    const member = await register(memberPage, "Mia Member");
+    await page.request.post(`/api/projects/${projectId}/members`, {
+      data: { email: member.email },
+    });
+    await gotoSettings(memberPage, projectId);
+    const box = propertyBox(memberPage, "Assignee");
+    await expect(box).toBeVisible();
+    /* Under the tags sits only the head's own 11 px, and no gap for a line
+       that holds nothing. */
+    const under = await box.getByTestId("property-tools").evaluate((tools) => {
+      const head = tools.parentElement!;
+      const tags = tools.previousElementSibling!;
+      return head.getBoundingClientRect().bottom - tags.getBoundingClientRect().bottom;
+    });
+    expect(under).toBeLessThanOrEqual(12);
+    await memberContext.close();
   });
 
   test("rename an option and the column follows", async ({ page }) => {

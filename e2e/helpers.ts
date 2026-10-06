@@ -298,6 +298,51 @@ export function propertyBox(page: Page, propertyName: string) {
   });
 }
 
+/**
+ * How close the nearest drawn thing in a settings card comes to the card's
+ * left or right edge. Only what draws counts: an element with no element
+ * inside it, or with words of its own. A row's own box spans the card on
+ * purpose, and a pixel-wide live region is not seen.
+ */
+export async function edgeRoom(box: Locator): Promise<number> {
+  return box.evaluate((root) => {
+    const edge = root.getBoundingClientRect();
+    let left = Infinity;
+    let right = Infinity;
+    for (const el of root.querySelectorAll("*")) {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 1 || r.height <= 1) continue;
+      const words = [...el.childNodes].some(
+        (n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim() !== "",
+      );
+      if (el.children.length > 0 && !words) continue;
+      left = Math.min(left, r.left - edge.left);
+      right = Math.min(right, edge.right - r.right);
+    }
+    if (left === Infinity) throw new Error("The card draws nothing");
+    return Math.min(left, right);
+  });
+}
+
+/**
+ * How far `line` starts from the words of the property's name in `box`: the
+ * name box draws its words inside its own padding.
+ */
+export async function fromName(box: Locator, line: Locator): Promise<number> {
+  const name = await box
+    .locator('input[aria-label^="Name of the "][aria-label$=" property"]')
+    .evaluate((el) => {
+      const style = getComputedStyle(el);
+      return (
+        el.getBoundingClientRect().left +
+        parseFloat(style.paddingLeft) +
+        parseFloat(style.borderLeftWidth)
+      );
+    });
+  const at = await line.boundingBox();
+  return at ? Math.abs(at.x - name) : Infinity;
+}
+
 /** Runs `action` and waits until the value it writes has reached the server. */
 export async function saved(page: Page, action: () => Promise<void>) {
   const [response] = await Promise.all([
