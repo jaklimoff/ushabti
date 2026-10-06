@@ -712,6 +712,12 @@ export type ProjectDTO = {
    */
   progressBy: string | null;
   /**
+   * The select this project names as its Type, or null for none. A type is an
+   * option of it. Read afresh: a property that is gone, or is not a single
+   * select, arrives here as null.
+   */
+  typeBy: string | null;
+  /**
    * The zone this project's day is worked out in, as an IANA name. UTC until
    * the owner says otherwise, and read afresh: a name this runtime does not
    * know arrives here as UTC.

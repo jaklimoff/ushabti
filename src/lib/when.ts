@@ -282,3 +282,76 @@ export function droppedSaid(by: string | null, names: string[]): string {
     ? `${by} hid ${said}, and ${tail}`
     : `${said} ${one ? "was" : "were"} hidden, and ${tail}`;
 }
+
+/* ------------------------------------------------------------------ */
+/* The Type                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The select this project names as its Type, made safe to use.
+ *
+ * Read afresh and never cleaned up, exactly as `progressBy` is: a project
+ * that names a property that is gone, or that is no longer a single select,
+ * has no Type. A type is then only an option of that select, and every rule
+ * above already answers for it.
+ */
+export function readTypeBy(raw: unknown, properties: PropertyDTO[]): string | null {
+  if (typeof raw !== "string") return null;
+  const property = properties.find((p) => p.id === raw);
+  return property && isSelect(property.type) ? raw : null;
+}
+
+/** One property as the Types page lists it under one type. */
+export type TypeRow = {
+  property: PropertyDTO;
+  /** What else it is on, by name, in the order of the select, then "No type". */
+  also: string[];
+};
+
+/**
+ * What one type shows, in the four groups of the Types page.
+ *
+ * The properties must already be read with `readWhens`, so a rule that does
+ * not hold reads as none and the property is on every type. The Type select
+ * itself is in no group: it is what a type is, not a field of one.
+ */
+export function typeSheet(
+  properties: PropertyDTO[],
+  typeById: string,
+  optionId: string,
+): {
+  every: PropertyDTO[];
+  here: TypeRow[];
+  elsewhere: TypeRow[];
+  ruledBy: { property: PropertyDTO; said: string }[];
+} {
+  const type = properties.find((p) => p.id === typeById);
+  const sheet = {
+    every: [] as PropertyDTO[],
+    here: [] as TypeRow[],
+    elsewhere: [] as TypeRow[],
+    ruledBy: [] as { property: PropertyDTO; said: string }[],
+  };
+  if (!type) return sheet;
+  for (const property of properties) {
+    if (property.id === typeById) continue;
+    const when = property.config.when;
+    if (!when) {
+      sheet.every.push(property);
+      continue;
+    }
+    if (when.propertyId !== typeById) {
+      sheet.ruledBy.push({ property, said: whenSaid(when, properties) });
+      continue;
+    }
+    const others = type.options.filter((o) => o.id !== optionId && when.optionIds.includes(o.id));
+    const also = others.map((o) => o.name);
+    /* A rule that keeps "nothing yet" shows on an untyped task too, so this
+       type is not its only one. */
+    if (when.optionIds.includes(NO_VALUE_KEY)) also.push(keyName(NO_VALUE_KEY, type, []));
+    const row = { property, also };
+    if (when.optionIds.includes(optionId)) sheet.here.push(row);
+    else sheet.elsewhere.push(row);
+  }
+  return sheet;
+}
