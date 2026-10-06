@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState } from "react";
 import {
   DndContext,
@@ -20,7 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
-import { IconButton } from "@/components/ui/Button";
+import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Row, Tag } from "@/components/ui/Layout";
@@ -210,15 +209,14 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
       ) : (
         canEdit && (
           <span className={styles.viewMain}>
-            <button
-              type="button"
-              className={styles.makeMain}
+            <Button
+              variant="text"
               aria-label={`Make ${view.name} the main view`}
               title="The board opens on the main view, and it cannot be deleted."
               onClick={() => void setMainView(view.id)}
             >
               Make main
-            </button>
+            </Button>
           </span>
         )
       )}
@@ -257,8 +255,8 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
             roadmap draws no card, so it has nothing to arrange. */}
         {view.kind !== "roadmap" && (
           <span className={styles.viewPair}>
-            <Link
-              className={styles.makeMain}
+            <ButtonPageLink
+              variant="text"
               href={`/p/${data.project.id}/settings/views/${view.id}/card`}
               aria-label={`Card view of ${view.name}`}
               title={
@@ -268,17 +266,16 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
               }
             >
               Card view…
-            </Link>
+            </ButtonPageLink>
             {view.cardView && (
-              <button
-                type="button"
-                className={styles.makeMain}
+              <Button
+                variant="text"
                 aria-label={`Use the default card view for ${view.name}`}
                 title="Throw this view's copy away and draw the project's card view again."
                 onClick={unCopy.ask}
               >
                 Use the default
-              </button>
+              </Button>
             )}
           </span>
         )}

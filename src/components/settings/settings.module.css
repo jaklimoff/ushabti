@@ -633,11 +633,10 @@
   }
 }
 
-.cardHead {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 128px;
-  align-items: center;
-  gap: 10px;
+/* A group on the Types page is a head of its card too, so it reads the same. */
+.cardHead,
+.typeGroup {
+  margin: 0;
   padding: 8px 13px;
   border-bottom: 1px solid var(--line-soft);
   background: var(--bg-sub);
@@ -647,6 +646,13 @@
   letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--faint);
+}
+
+.cardHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 128px;
+  align-items: center;
+  gap: 10px;
 }
 
 .cardHeadName {
@@ -1051,29 +1057,6 @@
   }
 }
 
-/* The word "main" is given, never taken away, so only the rows that have not
-   got it carry a button. It stays quiet until the pointer is on it. */
-.makeMain {
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: var(--t-label);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--faint);
-  transition:
-    background 140ms var(--ease),
-    color 140ms var(--ease);
-}
-
-.makeMain:hover,
-.makeMain:focus-visible {
-  background: var(--bg-hover);
-  color: var(--accent-soft);
-}
-
 /* The parts of a view row. On a wide screen this is the plain row it always
    was: the name sits its own width and the two boxes are pushed right. */
 .viewMain {
@@ -1323,14 +1306,6 @@
   height: 8px;
   border-radius: 2px;
   flex: none;
-}
-
-.typeGroup {
-  margin: 0;
-  padding: 10px 13px 4px;
-  font-size: var(--t-small);
-  font-weight: 600;
-  color: var(--text-3);
 }
 
 /* A ui Row that wraps, so the hide question can take a line of its own. */

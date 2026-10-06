@@ -252,19 +252,19 @@ function TypeRow({
       <span className={styles.typeAct} data-testid="type-act">
         {canEdit && kind === "every" && (
           <Button
-            variant="ghost"
+            variant="text"
             onClick={() => void write({ propertyId: type.id, optionIds: [optionId] })}
           >
             Only on {typeName}
           </Button>
         )}
         {canEdit && kind === "elsewhere" && (
-          <Button variant="ghost" onClick={() => void toggle(type, optionId, true)}>
+          <Button variant="text" onClick={() => void toggle(type, optionId, true)}>
             Add to {typeName}
           </Button>
         )}
         {canEdit && kind === "here" && also.length > 0 && (
-          <Button variant="ghost" onClick={() => void toggle(type, optionId, false)}>
+          <Button variant="text" onClick={() => void toggle(type, optionId, false)}>
             Take off {typeName}
           </Button>
         )}
