@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ProjectBar } from "@/components/ui/ProjectBar";
@@ -33,6 +34,36 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
   const { data, user, toasts } = useBoard();
   const pathname = usePathname();
   const base = `/p/${data.project.id}/settings`;
+  const rail = useRef<HTMLElement>(null);
+  const [more, setMore] = useState(false);
+
+  /* On a phone the rail is one scrolled line with no scrollbar, so it fades
+     while there is more, and the page that opens brings its item into view.
+     The rail is moved by hand: scrollIntoView would scroll the page too. */
+  useEffect(() => {
+    const el = rail.current;
+    if (!el) return;
+    const here = el.querySelector<HTMLElement>('[aria-current="page"]');
+    if (here && el.scrollWidth > el.clientWidth) {
+      const from = el.getBoundingClientRect();
+      const to = here.getBoundingClientRect();
+      if (to.left < from.left || to.right > from.right) {
+        el.scrollLeft += to.left - from.left - (from.width - to.width) / 2;
+      }
+    }
+    const measure = () => setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+    measure();
+    el.addEventListener("scroll", measure, { passive: true });
+    /* The rail and its items change width without a window resize: a count
+       grows, a font arrives. */
+    const sizes = new ResizeObserver(measure);
+    sizes.observe(el);
+    for (const item of el.children) sizes.observe(item);
+    return () => {
+      el.removeEventListener("scroll", measure);
+      sizes.disconnect();
+    };
+  }, [pathname]);
 
   const items = [
     { slug: "properties", label: "Properties", count: data.properties.length },
@@ -65,7 +96,12 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
       <ProjectBar project={data.project} here="Settings" user={user} />
 
       <div className={styles.shell}>
-        <nav className={styles.rail} aria-label="Settings sections">
+        <nav
+          ref={rail}
+          className={styles.rail}
+          aria-label="Settings sections"
+          data-more={more || undefined}
+        >
           {items.map((item) => {
             const href = `${base}/${item.slug}`;
             /* A view's card view sits under its view, and lights Views. */

@@ -310,9 +310,10 @@ function HookBox({
 
   return (
     <div className={styles.hookBox} data-testid="webhook-box">
-      <Row>
+      <Row className={styles.hookRow}>
         <Input
           grow
+          className={styles.hookUrl}
           aria-label={`URL of the webhook ${hook.prefix}`}
           value={url}
           onChange={(e) => {

@@ -43,6 +43,12 @@
   display: none;
 }
 
+/* The scrollbar is hidden, so the edge says there is more. It goes when the
+   last item is in view. */
+.rail[data-more="true"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+}
+
 @media (min-width: 900px) {
   .rail {
     position: sticky;
@@ -51,6 +57,10 @@
     overflow: visible;
     border-bottom: 0;
     padding-bottom: 0;
+  }
+
+  .rail[data-more="true"] {
+    mask-image: none;
   }
 }
 
@@ -65,7 +75,7 @@
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--muted);
   white-space: nowrap;
   transition:
     background 140ms var(--ease),
@@ -528,7 +538,7 @@
 
 .memberMail {
   font-size: var(--t-small);
-  color: var(--faint);
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -823,7 +833,7 @@
   font-weight: 500;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .modes {
@@ -1267,6 +1277,14 @@
 
 /* A phone shows the URL on a line of its own; the tools wrap under it. */
 @media (max-width: 560px) {
+  .hookRow {
+    flex-wrap: wrap;
+  }
+
+  .hookRow > .hookUrl {
+    flex-basis: 100%;
+  }
+
   .hookUnder {
     padding: 0 11px 11px;
   }

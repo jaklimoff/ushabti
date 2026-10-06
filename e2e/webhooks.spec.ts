@@ -299,6 +299,14 @@ test.describe("Webhooks", () => {
         await expect(
           page.getByRole("group", { name: "What rings this webhook" }).getByRole("button"),
         ).toHaveCount(WEBHOOK_KINDS.length + 1);
+
+        // The URL takes a line of its own, so the address is not cut short.
+        const box = page.getByTestId("webhook-box").first();
+        const urlBox = await box.getByLabel(/^URL of the webhook /).boundingBox();
+        const rowBox = await box.locator(":scope > div").first().boundingBox();
+        const turn = await box.getByRole("button", { name: /^Turn (off|on)$/ }).boundingBox();
+        expect(urlBox!.width).toBeGreaterThan(rowBox!.width - 30);
+        expect(turn!.y).toBeGreaterThanOrEqual(urlBox!.y + urlBox!.height);
       } finally {
         await hook.stop();
       }
