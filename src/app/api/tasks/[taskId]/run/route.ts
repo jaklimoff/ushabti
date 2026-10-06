@@ -1,8 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { agentRuns } from "@/db/schema";
+import { agentRuns, projects } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { agentOnly, body, broadcast, clientIdOf, guard, json, optionalStr, route } from "@/lib/api";
+import { rulesHash } from "@/lib/agent-rules-hash";
 import { logActivity, taskProjectId } from "@/lib/queries";
 import { addLog, closeHandOver, loadRun, replaceSteps } from "@/lib/runs";
 
@@ -86,5 +87,14 @@ export const POST = route<Ctx>(async (req, ctx) => {
   });
   await broadcast({ projectId, scope: "board", taskId, clientId: clientIdOf(req) });
 
-  return json({ run: await loadRun(runId) }, 201);
+  /* How to work on this board. The claim is the one answer that carries it,
+     so a run pays for the text once and not on every step or beat. The hash
+     names the version, to match against the `rules` line that wrote it. */
+  const [project] = await db
+    .select({ agentRules: projects.agentRules })
+    .from(projects)
+    .where(eq(projects.id, projectId));
+  const text = project?.agentRules ?? "";
+
+  return json({ run: await loadRun(runId), rules: { text, hash: rulesHash(text) } }, 201);
 });

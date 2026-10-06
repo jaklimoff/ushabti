@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { attachments, projects } from "@/db/schema";
 import { removeObjects } from "@/lib/attachment-rows";
@@ -14,6 +14,9 @@ import {
   route,
   str,
 } from "@/lib/api";
+import { logActivity } from "@/lib/activity";
+import { AGENT_RULES_MAX } from "@/lib/agent-rules";
+import { rulesHash } from "@/lib/agent-rules-hash";
 import { isTimeZone, zoneRefused } from "@/lib/day";
 import { readDoneWhen } from "@/lib/links";
 import { readProgressBy } from "@/lib/progress";
@@ -35,6 +38,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     typeBy?: unknown;
     timeZone?: string;
     publicChangelog?: unknown;
+    agentRules?: unknown;
   }>(req);
   const patch: Record<string, unknown> = {};
   if (input.name !== undefined) patch.name = str(input.name, "Project name", { max: 80 });
@@ -105,10 +109,24 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     }
     patch.publicChangelog = input.publicChangelog;
   }
-  if (Object.keys(patch).length === 0) return json({ ok: true });
+  /* The rules an agent obeys on this board. `adminOnly` above keeps them a
+     person's: an agent must not write its own rules. */
+  let rules: string | null = null;
+  if (input.agentRules !== undefined) {
+    if (typeof input.agentRules !== "string") {
+      throw new HttpError(400, "The agent rules are text.");
+    }
+    rules = input.agentRules.trim();
+    if (rules.length > AGENT_RULES_MAX) {
+      throw new HttpError(400, `The agent rules can be at most ${AGENT_RULES_MAX} characters.`);
+    }
+  }
+  if (Object.keys(patch).length === 0 && rules === null) return json({ ok: true });
 
   try {
-    await db.update(projects).set(patch).where(eq(projects.id, projectId));
+    if (Object.keys(patch).length > 0) {
+      await db.update(projects).set(patch).where(eq(projects.id, projectId));
+    }
   } catch (err) {
     /* One address, one project: the index lets one project per key be
        public, and a turn-on or a rename that would make two is refused. */
@@ -119,6 +137,29 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .where(eq(projects.id, projectId));
     const key = (patch.key as string | undefined) ?? row?.key ?? "";
     throw new HttpError(409, `Another project with the key ${key} already has a public changelog.`);
+  }
+  /*
+   * The rules are written only where they differ, and the line follows only a
+   * row that changed. Two admins saving the same words, or one blur that
+   * changed nothing, write no line, so each line is one version an agent may
+   * have been given. The line holds the words, because the row keeps only the
+   * newest.
+   */
+  if (rules !== null) {
+    const changed = await db
+      .update(projects)
+      .set({ agentRules: rules })
+      .where(and(eq(projects.id, projectId), ne(projects.agentRules, rules)))
+      .returning({ id: projects.id });
+    if (changed.length > 0) {
+      await logActivity({
+        projectId,
+        taskId: null,
+        actorId: user.id,
+        kind: "rules",
+        data: { hash: rulesHash(rules), text: rules },
+      });
+    }
   }
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
   return json({ ok: true });

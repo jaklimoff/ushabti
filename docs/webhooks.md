@@ -28,9 +28,14 @@ you leave the box. Delete asks in its own row first.
 
 **Which kinds.** The words are the ones the activity feed writes: `created`,
 `title`, `description`, `value`, `checklist`, `comment`, `run`, `archive`,
-`link`, `deleted`, `reset`, `import`, `attachment`. Pick none and it rings for every one of
+`link`, `deleted`, `reset`, `import`, `attachment`, `rules`. Pick none and it rings for every one of
 them. A change that writes no feed line — a view, a property, the card view —
 rings nothing.
+
+**`rules` rings when an admin changes the agent rules** in Settings → Project.
+It is a line about the project, so `taskId` and `taskKey` are null, and like
+every ring it carries no data: the new text and its hash are on the feed line.
+Read them from `/activity`.
 
 **`import` rings once for a whole import**, and not once per card. The owner
 brought a board in from Trello; the ring carries the line about the project,

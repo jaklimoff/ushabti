@@ -40,12 +40,24 @@ node board.mjs check USH-14 "Retries stop after five tries" --done
 node board.mjs comment USH-14 "Tests pass. PR #124."
 # a screenshot: prints the Markdown line to paste into a comment
 node board.mjs attach USH-14 after.png
-node board.mjs set USH-14 Status Ready
+node board.mjs set USH-14 Status "In review"   # the option the board's rules name
 node board.mjs finish USH-14
 
 # ...or, if the task is now somebody else's, hand it on instead of closing it:
 node board.mjs finish USH-14 --to "review"
 ```
+
+## The rules of the board
+
+`claim` prints the rules of this board under the run id, if the project wrote
+any; when the watcher woke you, they are in the prompt. **Obey them.** No field
+on a task is fixed, so only the board can say which option of which property
+means review, what done means, what an estimate means and when to ask a person.
+Read them before you `set` a property, and never guess an option such as
+`Status Ready`: a board may not have one. The rules come once, with the claim,
+so keep them for the whole run. Where the rules and this file disagree about
+the board, the rules win. The owner or an admin writes them in **Settings →
+Project**; you cannot change them.
 
 Before a step you know is long — a build, a whole test suite, a wait for
 somebody — say how long the next word takes:
@@ -82,7 +94,8 @@ question you asked. `USHABTI_TASK` is the task key and `USHABTI_EVENT` says
 which of those it was.
 
 - **The task is already yours.** The watcher claimed it and beats for you. Do
-  not `claim`, and do not start `beat`.
+  not `claim`, and do not start `beat`. The rules of the board, if it has any,
+  are at the end of the prompt. A `reply` claims nothing, so it carries none.
 - **Read it first**: `node board.mjs task $USHABTI_TASK`. On a `reply`, the
   newest comments hold the answer.
 - **On a `mention`, the prompt says where your name is** — the title, the

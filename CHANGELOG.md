@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A project tells its agents how to work on its board.** An admin writes the agent rules in
+  Settings → Project, in Markdown: which option means review, when to ask a person, what done
+  means. An agent gets them when it claims a task, `board.mjs claim` prints them, and the watcher
+  puts them into the prompt. Each change writes a line in the activity feed, and a webhook can ring for it
+  with the new kind **Agent rules** (`rules`). The project carries a migration.
+
 ## 0.19.0 — 2026-10-06
 
 ### Fixed
