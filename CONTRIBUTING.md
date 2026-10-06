@@ -63,6 +63,13 @@ Write the host name only, without the scheme and without the port.
 `next.config.mjs` reads the variable, and only `next dev` uses it. Unset, the
 default stands, and the production build is the same either way.
 
+Docker Desktop does not pass the event for a new file into the container, so
+`scripts/dev-route-watch.mjs` restarts the dev server when a route file comes
+or goes; a new route answers within about 10 seconds. An edit made in the
+second of that restart can be missed: save the file again. If a new route
+still answers 404, run `docker compose restart app`; do not start a second
+`next dev` beside it.
+
 ## Before you open a pull request
 
 Run these. All of them must pass, because CI runs the same list.

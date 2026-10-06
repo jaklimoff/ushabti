@@ -40,6 +40,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **The description opens at once.** A click on it used to wait about 300 ms for the editor,
   however short the text. Now the editor shows in the same frame once the panel has loaded it.
+- **The Docker dev server serves a route folder added while it runs.** It answered 404 until a
+  restart, because Docker Desktop does not pass the event for a new file into the container. A
+  small watcher of `src/app` now restarts the dev server when a route file comes or goes.
 
 ## 0.17.0 — 2026-10-05
 
