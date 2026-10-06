@@ -377,6 +377,38 @@ test.describe("Settings on a phone", () => {
     await forAFinger(page.getByRole("button", { name: /^Delete the option / }), 24);
     await forAFinger(page.getByRole("button", { name: /^Move the option / }), 24);
   });
+
+  test("the menu fades at its right edge while there is more of it", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pocket"));
+
+    await gotoSettings(page, projectId, "properties");
+    const rail = page.getByRole("navigation", { name: "Settings sections" });
+    await expect(rail).toHaveAttribute("data-more", "true");
+    expect(await rail.evaluate((el) => getComputedStyle(el).maskImage)).not.toBe("none");
+
+    await rail.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+    await expect(rail).not.toHaveAttribute("data-more", "true");
+    expect(await rail.evaluate((el) => getComputedStyle(el).maskImage)).toBe("none");
+  });
+
+  test("the page that opens has its menu item in view", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Pocket"));
+
+    await gotoSettings(page, projectId, "project");
+    const rail = page.getByRole("navigation", { name: "Settings sections" });
+    const here = rail.locator('[aria-current="page"]');
+    await expect(here).toHaveText("Project");
+    await expect
+      .poll(async () => {
+        const [r, h] = [await rail.boundingBox(), await here.boundingBox()];
+        if (!r || !h) return false;
+        // A pixel for rounding: the last item ends where the rail does.
+        return h.x >= r.x - 1 && h.x + h.width <= r.x + r.width + 1;
+      })
+      .toBe(true);
+  });
 });
 
 /*

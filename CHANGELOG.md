@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Settings on a phone shows that there is more.** The menu fades at its right edge while more
+  pages are off screen, and the page you open scrolls its own item into view. A webhook's URL
+  takes a line of its own, so the address is not cut. Field labels, menu items and member emails
+  are easier to read.
 - **The Project settings page has headings.** Its cards sit under "Name and key", "Dates and
   progress", "Sprints", "Sharing and export" and, last, "Danger zone". A label such as "Count
   progress by" stays on one line, and "Make it public" is as wide as its words.
