@@ -57,10 +57,11 @@ of that becomes `TSK`. **Keys are not unique across projects.**
 
 ```json title="request"
 { "name": "Ushabti", "key": "USH",
-  "doneWhen": { "propertyId": "<propertyId>", "optionId": "<optionId>" } }
+  "doneWhen": { "propertyId": "<propertyId>", "optionId": "<optionId>" },
+  "typeBy": "<propertyId>" }
 ```
 
-All three optional. `key` is length-checked **before** the non-alphanumerics are stripped, so
+All optional. `key` is length-checked **before** the non-alphanumerics are stripped, so
 `a-b-c-d` is rejected as too long even though four characters would survive it.
 
 `doneWhen` is what this project calls done, and it is what makes a blocker stop blocking. It names
@@ -69,6 +70,11 @@ says otherwise. It is read afresh on the way in and on the way out, so a row nam
 an option that has since been deleted reads as `null` rather than lingering. There is no Done
 status in Ushabti — Status is a property the owner may rename tomorrow — which is why the project
 has to say which option it means.
+
+`typeBy` names the select whose options are this project's types, as **Settings → Types** shows
+them. `null` or `""` clears it; a property that is not a single select or iteration of this project
+is a `400`. It is read afresh, so the board answer and the export carry `typeBy: null` once that
+select is deleted. Nothing but the Types page reads it yet.
 
 ```json title="200"
 { "ok": true }
@@ -132,7 +138,7 @@ filename="ushabti-{KEY}-{YYYY-MM-DD}.json"`, the day being the project's time zo
   "format": "ushabti-export",
   "version": 1,
   "exportedAt": "2026-09-29T10:00:00.000Z",
-  "project": { "name": "Ushabti", "key": "USH", "timeZone": "Europe/Berlin", "cardView": { "rows": {} }, "doneWhen": null },
+  "project": { "name": "Ushabti", "key": "USH", "timeZone": "Europe/Berlin", "cardView": { "rows": {} }, "doneWhen": null, "progressBy": null, "typeBy": null },
   "properties": [{ "id": "…", "name": "Status", "type": "select", "position": "a0", "config": {}, "options": [{ "id": "…", "name": "Todo", "color": "#8a8f98", "position": "a0" }] }],
   "views": [{ "id": "…", "name": "Board", "kind": "board", "groupById": "…", "position": "a0", "isDefault": true, "filters": { "rules": [] }, "sort": null }],
   "members": [{ "id": "…", "name": "Ada", "email": "ada@example.com", "kind": "human", "role": "owner", "color": "#6d5bd0" }],

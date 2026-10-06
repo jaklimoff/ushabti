@@ -313,6 +313,12 @@ route, the bulk route and the move route answer with
 `dropped: [{ taskId, propertyId, name }]`, `[]` when nothing went, and
 `board.mjs set` prints it. `board.mjs props` prints the rule after the
 property.
+
+`project.typeBy` on the board answer is the id of the select the project
+names as its Type, or `null`: each option of it is a type, as **Settings →
+Types** lists them. It is read afresh, so a deleted select reads as `null`.
+It changes nothing about a rule — any select can still show a property.
+
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the

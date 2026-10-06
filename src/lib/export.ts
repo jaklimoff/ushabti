@@ -23,7 +23,7 @@ import { BLOCKS, PARENT, readDoneWhen, type DoneWhen } from "./links";
 import { readProgressBy } from "./progress";
 import { byPos } from "./order";
 import { readSort } from "./sort";
-import { readWhens } from "./when";
+import { readTypeBy, readWhens } from "./when";
 import { optionColumns, toOptionDTO } from "./queries";
 import { VIEW_KINDS } from "./types";
 import type {
@@ -57,6 +57,7 @@ export type ProjectExport = {
     cardView: CardView;
     doneWhen: DoneWhen | null;
     progressBy: string | null;
+    typeBy: string | null;
   };
   properties: PropertyDTO[];
   views: {
@@ -275,6 +276,7 @@ export async function loadExport(
       cardView: readCardView(projectRow.cardView, propertyList, mainBoardGroupById(viewRows)),
       doneWhen: readDoneWhen(projectRow.doneWhen, propertyList),
       progressBy: readProgressBy(projectRow.progressBy, propertyList),
+      typeBy: readTypeBy(projectRow.typeBy, propertyList),
     },
     properties: propertyList,
     /* The team's rules and order only. A lens is one person's, and stays. */

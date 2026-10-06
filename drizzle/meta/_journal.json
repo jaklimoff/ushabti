@@ -176,6 +176,13 @@
       "when": 1791106865542,
       "tag": "0024_chilly_elektra",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791270810171,
+      "tag": "0025_type_by",
+      "breakpoints": true
     }
   ]
 }
