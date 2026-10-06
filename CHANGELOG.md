@@ -57,6 +57,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   for a circle under the project lock, so one of the two writes is refused. After a rule is
   written, Settings reads the board again, so a rule that the write frees from a circle shows
   at once, and so do the values it drops.
+- **The Docker dev server serves a route folder added while it runs.** It answered 404 until a
+  restart, because Docker Desktop does not pass the event for a new file into the container. A
+  small watcher of `src/app` now restarts the dev server when a route file comes or goes.
 
 ## 0.17.0 — 2026-10-05
 
