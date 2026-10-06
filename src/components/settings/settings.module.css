@@ -255,20 +255,6 @@
   width: 4.5em;
 }
 
-.datedSwitch {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--t-small);
-  color: var(--text-3);
-  cursor: pointer;
-}
-
-.datedSwitch input {
-  margin: 0;
-  accent-color: var(--accent);
-}
-
 .propTools {
   display: flex;
   align-items: center;
@@ -335,6 +321,12 @@
 
 .optionDate {
   width: 118px;
+}
+
+/* An empty date box shows dd/mm/yyyy, which is a placeholder and must not
+   read as a date. It stays muted until the date is whole, focused or not. */
+.optionDateEmpty {
+  color: var(--muted);
 }
 
 /* The note keeps its lines, so it grows with them instead of hiding them. */
