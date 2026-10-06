@@ -19,12 +19,14 @@
   --line-faint: #16181c;
   --line-menu: #262b32;
   --line-dash: #23272e;
+  --line-ghost: #1f2229;
 
   --accent: #3fb0c8;
   --accent-soft: #9fd7e3;
   --accent-ink: #05242b;
   --danger: #e0574d;
   --danger-soft: #ea8a80;
+  --danger-ink: #d2726a;
 
   --text: #e8e9ec;
   --text-2: #dfe1e5;
