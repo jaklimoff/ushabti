@@ -114,6 +114,7 @@ function task(values: TaskDTO["values"] = {}, over: Partial<TaskDTO> = {}): Task
     checklistDone: 0,
     commentCount: 0,
     blockedBy: [],
+    parts: null,
     ...over,
   };
 }
@@ -260,6 +261,7 @@ describe("the order of the rows", () => {
       "p-who",
       "p-due",
       "_checklist",
+      "_parts",
       "_comments",
     ]);
     expect(cardOrder(PROPERTIES)).toEqual(items(null).map((i) => i.id));
@@ -520,6 +522,76 @@ describe("the colour a panel takes from a card", () => {
       },
     });
     expect(cardAccent(words, task({ "p-prio": "o-urgent" }), [])).toBeNull();
+  });
+});
+
+describe("how many parts are done", () => {
+  it("sits in the footer by default, as a bar", () => {
+    expect(defaultCardView(PROPERTIES, "p-status").rows._parts).toEqual({
+      place: "footerL",
+      mode: "bar",
+    });
+  });
+
+  it("shows at its default place on a card view saved before it existed", () => {
+    const older = { rows: { _checklist: { place: "footerR", mode: "bar" } } };
+    expect(readCardView(older, PROPERTIES, "p-status").rows._parts).toEqual({
+      place: "footerL",
+      mode: "bar",
+    });
+  });
+
+  it("can be moved, read as a count, or taken off", () => {
+    const moved = { rows: { _parts: { place: "headerR", mode: "text" } } };
+    expect(readCardView(moved, PROPERTIES, "p-status").rows._parts).toEqual({
+      place: "headerR",
+      mode: "text",
+    });
+    const off = { rows: { _parts: { place: "off", mode: "bar" } } };
+    const card = buildCard(items(off), task({}, { parts: { done: 3, total: 5 } }), [ADA]);
+    expect(card.footerL).toHaveLength(0);
+  });
+
+  it("draws 3/5 and a bar on a card", () => {
+    const card = buildCard(items(null), task({}, { parts: { done: 3, total: 5 } }), [ADA]);
+    expect(card.footerL).toHaveLength(1);
+    expect(card.footerL[0]).toMatchObject({
+      text: "3/5",
+      tip: "Children · 3/5",
+      bar: { done: 3, total: 5 },
+    });
+  });
+
+  it("draws the count with no bar as a count", () => {
+    const saved = { rows: { _parts: { place: "footerL", mode: "text" } } };
+    const card = buildCard(items(saved), task({}, { parts: { done: 3, total: 5 } }), [ADA]);
+    expect(card.footerL[0]).toMatchObject({ text: "3/5", bar: null });
+  });
+
+  it("draws nothing for a task with no parts", () => {
+    const card = buildCard(items(null), task(), [ADA]);
+    expect(card.footerL).toHaveLength(0);
+  });
+
+  it("is a column of the list, and reads there as it does on the card", () => {
+    const resolved = items(null);
+    expect(listColumns(resolved).map((c) => c.id)).toContain("_parts");
+    const row = buildRow(resolved, task({}, { parts: { done: 3, total: 5 } }), [ADA]);
+    expect(row.cells._parts.map((c) => c.text)).toEqual(["3/5"]);
+  });
+
+  it("is on the task the preview draws when the project has none", () => {
+    expect(previewTasks([], PROPERTIES, [ADA], "USH")[0].parts).toEqual({ done: 3, total: 5 });
+  });
+
+  it("brings a parent into the preview", () => {
+    const real = [
+      task({}, { id: "a" }),
+      task({}, { id: "b" }),
+      task({}, { id: "c" }),
+      task({}, { id: "p", parts: { done: 1, total: 2 } }),
+    ];
+    expect(previewTasks(real, PROPERTIES, [ADA], "USH").map((t) => t.id)).toContain("p");
   });
 });
 

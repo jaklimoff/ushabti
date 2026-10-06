@@ -30,7 +30,16 @@ import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters, WAITS } from "./filters";
 import { readTimeZone, todayIn } from "./day";
-import { BLOCKS, isOver, PARENT, readDoneWhen, type DoneWhen, type LinkEdge } from "./links";
+import {
+  BLOCKS,
+  countParts,
+  isOver,
+  PARENT,
+  partsOf,
+  readDoneWhen,
+  type DoneWhen,
+  type LinkEdge,
+} from "./links";
 import { readProgressBy } from "./progress";
 import { readWhens } from "./when";
 import { readLensSort, readSort } from "./sort";
@@ -499,7 +508,7 @@ function archivedTaskRows(projectId: string) {
  */
 export async function projectLinks(
   projectId: string,
-  tx: Tx,
+  tx: Tx | typeof db,
   kind: typeof BLOCKS | typeof PARENT = BLOCKS,
 ): Promise<LinkEdge[]> {
   return tx
@@ -735,7 +744,7 @@ export async function loadBoard(
   /* Only the live ones. Nothing draws an archived task, so its values are
      fetched when its panel asks for them and not before. */
   const taskIds = taskRows.map((t) => t.id);
-  const [valueRows, runs, linkRows] = await Promise.all([
+  const [valueRows, runs, linkRows, parentRows] = await Promise.all([
     taskIds.length
       ? db.select().from(taskValues).where(inArray(taskValues.taskId, taskIds))
       : Promise.resolve([]),
@@ -743,6 +752,8 @@ export async function loadBoard(
     /* Only what the cards on this board wait on. What they block is the
        panel's half of the chain, and the panel asks for it itself. */
     taskIds.length ? waitingLinks(taskIds) : Promise.resolve([]),
+    /* Every parent row, because a parent counts its archived parts too. */
+    taskIds.length ? projectLinks(projectId, db, PARENT) : Promise.resolve([]),
   ]);
 
   const valuesByTask = new Map<string, Record<string, TaskValue>>();
@@ -786,6 +797,9 @@ export async function loadBoard(
     });
   }
   for (const t of archivedRows) blockers.set(t.id, { number: t.number, over: true });
+  /* A parent counts its parts by the same reading of over, so a part that
+     blocks nothing reads done here exactly when it would on a chain. */
+  const parts = partsOf(parentRows, new Map([...blockers].map(([id, b]) => [id, b.over])));
 
   const waitsOn = new Map<string, number[]>();
   for (const link of linkRows) {
@@ -816,6 +830,7 @@ export async function loadBoard(
     checklistDone: t.checklistDone,
     commentCount: t.commentCount,
     blockedBy: (waitsOn.get(t.id) ?? []).map((n) => `${projectRow.key}-${n}`),
+    parts: parts.get(t.id) ?? null,
   }));
 
   const archivedList: ArchivedTaskDTO[] = archivedRows.map((t) => ({
@@ -1036,6 +1051,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     checklistDone: checklist.filter((c) => c.done).length,
     commentCount: commentList.length,
     blockedBy: links.blockedBy.filter((t) => !t.over).map((t) => t.key),
+    parts: countParts(children),
     links,
     parent,
     children,

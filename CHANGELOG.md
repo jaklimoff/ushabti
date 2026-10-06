@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A parent shows how many of its children are done.** The card and the list row draw **3/5**,
+  as a bar or as a count, and the panel heading reads _Children · 3 of 5 done_. Done is the
+  project's **Done when**, and an archived child counts as done. **Children** is a row of the card
+  view, so it can be moved or taken off.
+
 - **A task can have a parent, one level deep.** Pick **Part of…** or **Add a part…** in the task
   menu. The panel shows a **Parent** row and a **Children** list, and each row opens its task.
   A part is never a blocker. Agents use `PUT` and `DELETE /api/tasks/{id}/parent`, or

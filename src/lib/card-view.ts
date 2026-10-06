@@ -53,6 +53,7 @@ export const KIND_OF_BUILTIN: Record<CardBuiltin, CardKind> = {
   _title: "title",
   _desc: "desc",
   _checklist: "checklist",
+  _parts: "parts",
   _comments: "comments",
 };
 
@@ -100,6 +101,10 @@ export const MODES_FOR_KIND: Record<CardKind, { id: CardMode; label: string }[]>
     { id: "bar", label: "Bar" },
     { id: "text", label: "Count" },
   ],
+  parts: [
+    { id: "bar", label: "Bar" },
+    { id: "text", label: "Count" },
+  ],
   comments: [{ id: "text", label: "Count" }],
   title: [{ id: "fixed", label: "Always the task title" }],
 };
@@ -139,6 +144,7 @@ export function fallbackRow(kind: CardKind): CardRow {
     case "desc":
       return { place: "off", mode: "two" };
     case "checklist":
+    case "parts":
       return { place: "footerL", mode: "bar" };
     case "comments":
       return { place: "footerL", mode: "text" };
@@ -166,7 +172,15 @@ export function fallbackRow(kind: CardKind): CardRow {
  * order, which is how the board carries them.
  */
 export function cardOrder(properties: readonly { id: string }[]): string[] {
-  return ["_key", "_title", "_desc", ...properties.map((p) => p.id), "_checklist", "_comments"];
+  return [
+    "_key",
+    "_title",
+    "_desc",
+    ...properties.map((p) => p.id),
+    "_checklist",
+    "_parts",
+    "_comments",
+  ];
 }
 
 /* ------------------------------------------------------------------ */
@@ -205,6 +219,7 @@ export function defaultCardView(properties: PropertyDTO[], groupById: string | n
     _title: { place: "title", mode: "fixed" },
     _desc: { place: "off", mode: "two" },
     _checklist: { place: "footerL", mode: "bar" },
+    _parts: { place: "footerL", mode: "bar" },
     _comments: { place: "footerL", mode: "text" },
   };
 
@@ -529,6 +544,19 @@ function chipsFor(
       ];
     }
 
+    /* The count arrives ready from the server: the card asks no part
+       whether it is done. */
+    case "parts": {
+      if (!task.parts) return [];
+      const count = `${task.parts.done}/${task.parts.total}`;
+      return [
+        chip(item, `${item.id}-${task.id}`, count, {
+          text: count,
+          bar: item.mode === "bar" ? task.parts : null,
+        }),
+      ];
+    }
+
     case "comments": {
       if (task.commentCount === 0) return [];
       const count = String(task.commentCount);
@@ -819,6 +847,7 @@ export function sampleTask(properties: PropertyDTO[], members: MemberDTO[], key:
     checklistDone: 3,
     commentCount: 2,
     blockedBy: [],
+    parts: { done: 3, total: 5 },
   };
 }
 
@@ -834,9 +863,11 @@ export function previewTasks(
   count = 3,
 ): TaskDTO[] {
   if (!tasks.length) return [sampleTask(properties, members, key)];
+  /* A parent counts as one more value, so the count of its parts shows
+     whenever the project has one. */
   const weight = (task: TaskDTO) =>
     Object.values(task.values).filter((v) =>
       Array.isArray(v) ? v.length > 0 : v !== null && v !== undefined && v !== "",
-    ).length;
+    ).length + (task.parts ? 1 : 0);
   return [...tasks].sort((a, b) => weight(b) - weight(a)).slice(0, count);
 }
