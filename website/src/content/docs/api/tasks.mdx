@@ -37,6 +37,11 @@ values.
 
 Neither placement field means the end of the board.
 
+**A create gets the type's defaults.** When the project has a Type, the server reads the type from
+`values` and writes what that type starts with — each property's `config.defaults` — for every
+property the request did not send and that the type shows. A value sent explicitly, `null`
+included, always wins. See [`defaults`](/ushabti/api/properties/#patch-apipropertiespropertyid).
+
 ```json title="201"
 { "task": { "id": "…", "number": 14, "key": "USH-14", "title": "…", "description": "",
             "position": "Vk", "projectId": "…", "createdBy": "…", "createdAt": "…", "updatedAt": "…",

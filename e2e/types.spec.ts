@@ -106,7 +106,7 @@ test.describe("The Types page", () => {
       ask.getByRole("button", { name: "Yes, hide" }).click(),
     );
     await expect(row).toContainText("Only on Bug. Change it on the Properties page.");
-    await expect(row.getByRole("button")).toHaveCount(0);
+    await expect(row.getByTestId("type-act").getByRole("button")).toHaveCount(0);
 
     // On Story it is on another type, and adding it hides nothing, so nothing asks.
     await types.getByRole("button", { name: "Story" }).click();
@@ -155,7 +155,7 @@ test.describe("The Types page", () => {
     await gotoSettings(page, projectId, "types");
     const row = typeRow(page, "Priority");
     await expect(row).toContainText("Shown when Status is Todo");
-    await expect(row.getByRole("button")).toHaveCount(0);
+    await expect(row.getByTestId("type-act").getByRole("button")).toHaveCount(0);
   });
 
   test("with no Type, the page says what a type is and offers the selects", async ({ page }) => {

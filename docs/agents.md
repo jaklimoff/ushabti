@@ -84,6 +84,14 @@ so an agent sees exactly what a person sees and nothing more.
 | What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
 
+**A create gets the type's defaults.** When the project names a select as its
+Type, a property can say what a new task of each type starts with: "a Bug
+starts with Severity Minor". It is in `config.defaults` of that property,
+keyed by the option id of the type. `POST /api/projects/{projectId}/tasks`
+reads the type from the `values` you send and writes the defaults of every
+property you did not send and that the type shows. A value you send always
+wins, even an empty one, so send `null` to start a property empty.
+
 **A text write may say what it started from.** Send `baseTitle` beside
 `title`, `baseDescription` beside `description`, or `baseText` beside a
 checklist item's `text`, holding the words you read before you changed them.

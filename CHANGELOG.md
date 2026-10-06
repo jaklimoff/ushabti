@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A type can say what a new task starts with.** On the Types page, **Starts as** under a
+  property sets a value for that type: _a Bug starts with Severity Minor_. The server writes it on
+  every create, from the board, a list or an agent, and a value the create sends always wins. The
+  composer says it first: _starts with Severity Minor_. A person never has a default.
+
 - **A parent shows how many of its children are done.** The card and the list row draw **3/5**,
   as a bar or as a count, and the panel heading reads _Children · 3 of 5 done_. Done is the
   project's **Done when**, and an archived child counts as done. **Children** is a row of the card
