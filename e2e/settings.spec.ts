@@ -467,6 +467,61 @@ test.describe("Settings on a small tablet", () => {
   });
 });
 
+test.describe("Settings on a laptop", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("the project page groups its cards under headings, the danger zone last", async ({
+    page,
+  }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Grouped"));
+
+    await gotoSettings(page, projectId, "project");
+    /* "Files" shows only on a server with no bucket, so it is left out. */
+    const headings = page.getByRole("heading", { level: 2 }).filter({ hasNotText: /^Files$/ });
+    await expect(headings).toHaveText([
+      "Name and key",
+      "Dates and progress",
+      "Sprints",
+      "Sharing and export",
+      "Danger zone",
+    ]);
+  });
+
+  test("no inline label breaks onto a second line", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Labels"));
+
+    await gotoSettings(page, projectId, "project");
+    for (const label of [
+      "Name",
+      "Key",
+      "Time zone",
+      "Done when",
+      "Count progress by",
+      "Length",
+      "Public changelog",
+      "Export",
+    ]) {
+      await oneLine(page.locator(`span:text-is("${label}")`), label);
+    }
+
+    await gotoSettings(page, projectId, "types");
+    await oneLine(page.locator('span:text-is("Types come from")'), "Types come from");
+  });
+});
+
+/** A label is drawn on one line, counted by the lines its words fill. */
+async function oneLine(label: Locator, name: string) {
+  await expect(label).toBeVisible();
+  const lines = await label.evaluate((el) => {
+    const range = document.createRange();
+    range.selectNodeContents(el.firstChild!);
+    return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+  });
+  expect(lines, `"${name}" takes ${lines} lines`).toBe(1);
+}
+
 /**
  * Every box draws the whole of its own text.
  *

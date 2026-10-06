@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The Project settings page has headings.** Its cards sit under "Name and key", "Dates and
+  progress", "Sprints", "Sharing and export" and, last, "Danger zone". A label such as "Count
+  progress by" stays on one line, and "Make it public" is as wide as its words.
 - **A property row reads cleanly in Settings.** The "Shown when" line and a sprint's length start
   under the property's name and no longer touch the edge of the card. "Options carry dates" and
   "Shown when…" sit beside the delete ✕, and "Shown when…" is a real button. An option's ✕ is

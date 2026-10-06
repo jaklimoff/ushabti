@@ -400,8 +400,10 @@
   flex-wrap: wrap;
 }
 
+/* As wide as the longest label settings has, COUNT PROGRESS BY, so that no
+   label breaks and the boxes of one card start in one place. */
 .fieldRow > .fieldLabel {
-  width: 66px;
+  width: 120px;
   flex: 0 0 auto;
 }
 
