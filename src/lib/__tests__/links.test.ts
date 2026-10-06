@@ -4,6 +4,9 @@ import {
   isOver,
   brokenParts,
   parentRefusal,
+  partsOf,
+  childrenHead,
+  countParts,
   readDoneWhen,
   SELF_PARENT_SAID,
   wouldCircle,
@@ -226,5 +229,48 @@ describe("a part put back", () => {
       { fromId: "r", toId: "c" },
     ];
     expect(brokenParts(edges, "r")).toEqual([{ fromId: "p", toId: "r" }]);
+  });
+});
+
+describe("how many parts are done", () => {
+  const edges: LinkEdge[] = ["a", "b", "c", "d", "e"].map((c) => ({ fromId: "p", toId: c }));
+
+  it("counts the parts that are over, an archived one among them", () => {
+    const over = new Map([
+      ["a", true],
+      ["b", true],
+      ["c", true],
+      ["d", false],
+      ["e", false],
+    ]);
+    expect(partsOf(edges, over).get("p")).toEqual({ done: 3, total: 5 });
+  });
+
+  it("leaves out a part that was deleted", () => {
+    const over = new Map([
+      ["a", true],
+      ["b", false],
+    ]);
+    expect(partsOf(edges, over).get("p")).toEqual({ done: 1, total: 2 });
+  });
+
+  it("names no task that has no parts", () => {
+    expect(partsOf(edges, new Map()).has("p")).toBe(false);
+    expect(partsOf(edges, new Map([["a", true]])).has("a")).toBe(false);
+  });
+});
+
+describe("the head of the children in the panel", () => {
+  const part = (over: boolean) => ({ id: "x", key: "USH-9", title: "A part", over });
+
+  it("says how many are done", () => {
+    const five = [part(true), part(true), part(true), part(false), part(false)];
+    expect(countParts(five)).toEqual({ done: 3, total: 5 });
+    expect(childrenHead(five)).toBe("Children · 3 of 5 done");
+  });
+
+  it("says only the word while there are none", () => {
+    expect(countParts([])).toBeNull();
+    expect(childrenHead([])).toBe("Children");
   });
 });

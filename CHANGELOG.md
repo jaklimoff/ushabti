@@ -10,6 +10,16 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A parent shows how many of its children are done.** The card and the list row draw **3/5**,
+  as a bar or as a count, and the panel heading reads _Children · 3 of 5 done_. Done is the
+  project's **Done when**, and an archived child counts as done. **Children** is a row of the card
+  view, so it can be moved or taken off.
+
+- **Settings has a Types page.** Name the select whose options are your task types, then press a
+  type to see the properties it shows: those on every type, those on this type, and those on
+  other types. **Add to**, **Only on** and **Take off** change a property's **Shown when** rule,
+  and a change that drops values asks first with the count. Agents read `project.typeBy`.
+
 - **A task can have a parent, one level deep.** Pick **Part of…** or **Add a part…** in the task
   menu. The panel shows a **Parent** row and a **Children** list, and each row opens its task.
   A part is never a blocker. Agents use `PUT` and `DELETE /api/tasks/{id}/parent`, or
@@ -40,6 +50,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **The description opens at once.** A click on it used to wait about 300 ms for the editor,
   however short the text. Now the editor shows in the same frame once the panel has loaded it.
+- **The task panel shows the activity of its own changes at once.** A value set in the panel,
+  and the values it dropped, used to reach **Activity** only after the panel was opened again.
+
+- **Two "Shown when" rules written at once can no longer close a circle.** The server now checks
+  for a circle under the project lock, so one of the two writes is refused. After a rule is
+  written, Settings reads the board again, so a rule that the write frees from a circle shows
+  at once, and so do the values it drops.
 - **The Docker dev server serves a route folder added while it runs.** It answered 404 until a
   restart, because Docker Desktop does not pass the event for a new file into the container. A
   small watcher of `src/app` now restarts the dev server when a route file comes or goes.

@@ -65,6 +65,7 @@ function task(id: string, values: TaskDTO["values"] = {}, position = "V"): TaskD
     checklistDone: 0,
     commentCount: 0,
     blockedBy: [],
+    parts: null,
   };
 }
 

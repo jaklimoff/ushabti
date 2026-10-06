@@ -857,12 +857,17 @@ export function BoardProvider({
    * then. A board with no links, and a project that never named an option,
    * pay nothing.
    */
+  /* A task that goes may also be a part, and the board does not carry which
+     parent it is a part of. So while any card counts its parts, the count is
+     read again rather than guessed here. */
   const holdsUpACard = useCallback(
     (taskId: string) => {
       const key = data.tasks.find((t) => t.id === taskId)?.key;
-      return !!key && data.tasks.some((t) => t.blockedBy.includes(key));
+      if (key && data.tasks.some((t) => t.blockedBy.includes(key))) return true;
+      const known = !!key || data.archived.some((t) => t.id === taskId);
+      return known && data.tasks.some((t) => t.parts !== null);
     },
-    [data.tasks],
+    [data.archived, data.tasks],
   );
 
   const saysDone = useCallback(
@@ -904,6 +909,7 @@ export function BoardProvider({
           checklistDone: 0,
           commentCount: 0,
           blockedBy: [],
+          parts: null,
           description: task.description ?? "",
           archivedAt: null,
         };
@@ -1160,20 +1166,23 @@ export function BoardProvider({
     [refresh, tracked],
   );
 
-  /* Counted like every write, though the board draws no parent yet: the
-     panel reads its lists afresh after it. */
+  /* How many parts a parent has done is worked out on the server, as the
+     chain is, so the board is read again rather than patched here. The panel
+     reads its own lists afresh after it. */
   const linkParent = useCallback<Store["linkParent"]>(
     async (childId, parentId) => {
       if (!parentId) {
         await tracked.del(`/api/tasks/${childId}/parent`);
+        await refresh();
         return null;
       }
       const res = await tracked.put<{ left?: string | null }>(`/api/tasks/${childId}/parent`, {
         parentId,
       });
+      await refresh();
       return res.left ?? null;
     },
-    [tracked],
+    [refresh, tracked],
   );
 
   /*
@@ -1598,9 +1607,13 @@ export function BoardProvider({
       });
       await guarded(async () => {
         await tracked.patch(`/api/properties/${propertyId}`, patch);
+        /* The copy above reads rules the server already read, so a rule a
+           circle switched off stays off here even when this write frees it.
+           The server's rules and values are the answer. */
+        if (patch.when !== undefined) await refresh();
       });
     },
-    [guarded, tracked],
+    [guarded, refresh, tracked],
   );
 
   /*

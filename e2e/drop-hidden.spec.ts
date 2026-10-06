@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 import {
   card,
   createProject,
@@ -21,6 +21,25 @@ type Detail = { task: { activity: { kind: string; data: Record<string, unknown> 
 
 /** Any write to a task's values: one task, or the picked ones in one call. */
 const WRITE = /\/api\/(tasks\/[0-9a-f-]+\/values\/[0-9a-f-]+|projects\/[0-9a-f-]+\/tasks\/values)$/;
+
+/**
+ * Waits for a quiet board: no read of the board or of the task has started or
+ * ended for a second. The writes of the set-up ring the stream after the page
+ * opens, and a read they start that crosses the panel's own write is asked
+ * again after it, which would hide a panel that never reads on its own. It
+ * does not wait for every read to end, because now and then one hangs.
+ */
+function watchReads(page: Page) {
+  const READ = /\/api\/(tasks\/[0-9a-f-]+|projects\/[0-9a-f-]+\/board)$/;
+  let last = Date.now();
+  const heard = (r: Request) => {
+    if (r.method() === "GET" && READ.test(new URL(r.url()).pathname)) last = Date.now();
+  };
+  page.on("request", heard);
+  page.on("response", (r) => heard(r.request()));
+  page.on("requestfailed", heard);
+  return () => expect.poll(() => Date.now() - last > 1_000, { timeout: 15_000 }).toBe(true);
+}
 
 async function board(page: Page, projectId: string): Promise<Board> {
   return (await page.request.get(`/api/projects/${projectId}/board`)).json();
@@ -277,6 +296,32 @@ test.describe("A value its task does not show is dropped", () => {
     await expect(ask).toHaveCount(0);
   });
 
+  test("the panel's own write shows its lines in Activity at once", async ({ page }) => {
+    const { projectId, type, story, valuesOf } = await bugs(page, "Drop activity");
+    const quiet = watchReads(page);
+    await page.goto(`/p/${projectId}`);
+    await card(page, "First bug").click();
+    const panel = page.getByTestId("task-panel");
+    const typeRow = panel.locator('[data-property="Type"]');
+    await panel.getByRole("tab", { name: /^Activity/ }).click();
+    await quiet();
+
+    await typeRow.getByRole("button", { name: "Story" }).click();
+    await panel.getByTestId("value-confirm").getByRole("button", { name: "Yes, change" }).click();
+    /* No reopen: the write itself reads the task again. */
+    await expect(panel.getByText("set Type to Story")).toBeVisible();
+    await expect(panel.getByText("Story hid Priority, and its value was dropped")).toBeVisible();
+    /* The value just picked holds. */
+    await expect(panel.locator('[data-property="Priority"]')).toHaveCount(0);
+    expect((await valuesOf("First bug"))[type.id]).toBe(story);
+
+    /* A title already read its line; this keeps it so. */
+    await quiet();
+    await panel.getByTestId("task-title").fill("Renamed bug");
+    await panel.getByTestId("task-title").press("Enter");
+    await expect(panel.getByText("renamed it to “Renamed bug”")).toBeVisible();
+  });
+
   test("bulk Set asks first with the counts", async ({ page }) => {
     const { projectId, priority, valuesOf } = await bugs(page, "Drop bulk");
     await page.goto(`/p/${projectId}`);
@@ -382,6 +427,43 @@ test.describe("A value its task does not show is dropped", () => {
     const { area, size, valuesOf } = await circle(page, "Drop circle property");
     expect((await page.request.delete(`/api/properties/${size.id}`)).ok()).toBeTruthy();
     expect(await valuesOf()).not.toHaveProperty(area.id);
+  });
+
+  test("a rule that breaks a circle in Settings shows the rules it frees at once", async ({
+    page,
+  }) => {
+    const { projectId, size, area, valuesOf } = await circle(page, "Drop circle screen");
+    await gotoSettings(page, projectId);
+    /* Every rule of the circle reads as none, here as on the board. */
+    for (const name of ["Type", "Area", "Size"]) {
+      await expect(propertyBox(page, name).getByTestId("when-said")).toHaveCount(0);
+    }
+
+    /* Size shown when Priority is Urgent breaks the circle, and frees the
+       rules of Type and Area; the story has no priority, so all three go. */
+    const box = propertyBox(page, "Size");
+    await box.getByRole("button", { name: "Shown when…" }).click();
+    await box.getByLabel("Shown when of Size").selectOption({ label: "Priority" });
+    await box.getByLabel("Urgent", { exact: true }).click();
+    const read = page.waitForResponse(
+      (r) => r.url().endsWith(`/api/projects/${projectId}/board`) && r.request().method() === "GET",
+    );
+    await settles(page, /\/api\/properties\/[0-9a-f-]+$/, () =>
+      box.getByTestId("when-confirm").getByRole("button", { name: "Yes, hide" }).click(),
+    );
+    await read;
+    await expect(propertyBox(page, "Size").getByTestId("when-said")).toHaveText(
+      "Shown when Priority is Urgent",
+    );
+    await expect(propertyBox(page, "Type").getByTestId("when-said")).toHaveText(
+      "Shown when Size is Small",
+    );
+    await expect(propertyBox(page, "Area").getByTestId("when-said")).toHaveText(
+      "Shown when Type is Bug",
+    );
+    const values = await valuesOf();
+    expect(values).not.toHaveProperty(area.id);
+    expect(values).not.toHaveProperty(size.id);
   });
 
   test("a rule written in Settings asks with the count, then drops", async ({ page }) => {

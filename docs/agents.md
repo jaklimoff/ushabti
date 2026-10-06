@@ -250,7 +250,9 @@ Each of these is refused with `409` and one sentence: a task made part of
 itself, a parent that is itself a part, and a parent for a task that has parts.
 
 `GET /api/tasks/{taskId}` carries `parent`, one row `{ id, key, title, over }`
-or null, and `children`, the same rows in board order. A part is never a
+or null, and `children`, the same rows in board order. `parts` is `{ "done": 3, "total": 5 }`, or null when the task has
+no children; it is on the board answer too. `done` follows the project's Done
+when, an archived child counts as done, and a deleted child is not counted. A part is never a
 blocker: it puts no chain on a card and is not in `blockedBy`. The feed writes
 a `link` line on the part, with `action` `parented` or `unparented` and the
 `parentKey`. The export carries each task's `parent` as a key.
@@ -313,6 +315,12 @@ route, the bulk route and the move route answer with
 `dropped: [{ taskId, propertyId, name }]`, `[]` when nothing went, and
 `board.mjs set` prints it. `board.mjs props` prints the rule after the
 property.
+
+`project.typeBy` on the board answer is the id of the select the project
+names as its Type, or `null`: each option of it is a type, as **Settings →
+Types** lists them. It is read afresh, so a deleted select reads as `null`.
+It changes nothing about a rule — any select can still show a property.
+
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the
