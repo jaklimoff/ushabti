@@ -22,7 +22,7 @@
      width above it. Without this the name inside has nothing to ellipse to. */
   width: 100%;
   padding: 3px 10px 3px 4px;
-  border: 1px solid #1f2229;
+  border: 1px solid var(--line-ghost);
   background: var(--bg-card);
   border-radius: 5px;
   transition:

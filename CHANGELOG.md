@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A button in Views and Types looks like a button.** "Make main", "Card view…" and the actions
+  of a type are quiet text buttons in sentence case, with a ring for the keyboard. They no longer
+  read as the small grey capitals of a label. The groups "Every type" and "This type" read as the
+  head of the card.
 - **Settings draws its controls dark.** The page now tells the browser it is dark, so a date box,
   a dropdown list and the file button no longer draw white. Settings has one checkbox, in the
   page's own colours, with a ring for the keyboard and the words as a part of it. An empty date

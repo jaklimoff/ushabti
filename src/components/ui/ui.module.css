@@ -65,7 +65,7 @@
 /* The file box's own button is a ghost button, so it shares the paint. */
 .ghost,
 .input::file-selector-button {
-  border: 1px solid #1f2229;
+  border: 1px solid var(--line-ghost);
   color: var(--muted);
   font-weight: 500;
 }
@@ -78,13 +78,31 @@
 
 .danger {
   border: 1px solid rgba(224, 87, 77, 0.35);
-  color: #d2726a;
+  color: var(--danger-ink);
   font-weight: 500;
 }
 
 .danger:hover:not(:disabled) {
   background: rgba(224, 87, 77, 0.12);
   color: var(--danger-soft);
+}
+
+/* A quiet press inside a row: words and no box, so it does not shout over
+   the row it acts on, and still not a label, which is mono capitals. */
+.text {
+  padding: 0 8px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.text:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+.text:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 0;
 }
 
 .iconBtn {
@@ -831,7 +849,7 @@
   color: var(--muted);
   padding: 5px 10px;
   border-radius: var(--r-sm);
-  border: 1px solid #1f2229;
+  border: 1px solid var(--line-ghost);
   white-space: nowrap;
 }
 

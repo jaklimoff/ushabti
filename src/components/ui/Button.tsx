@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import styles from "./ui.module.css";
 
-type Variant = "primary" | "ghost" | "danger";
+type Variant = "primary" | "ghost" | "danger" | "text";
 
 export function Button({
   variant = "primary",
@@ -43,6 +44,23 @@ export function ButtonLink({
 }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { variant?: Variant }) {
   return (
     <a
+      {...rest}
+      className={[styles.btn, styles[variant], className ?? ""].filter(Boolean).join(" ")}
+    />
+  );
+}
+
+/**
+ * A link to another page of this app that looks like a button. It goes
+ * through the router, which a file to save must not.
+ */
+export function ButtonPageLink({
+  variant = "primary",
+  className,
+  ...rest
+}: React.ComponentProps<typeof Link> & { variant?: Variant }) {
+  return (
+    <Link
       {...rest}
       className={[styles.btn, styles[variant], className ?? ""].filter(Boolean).join(" ")}
     />
