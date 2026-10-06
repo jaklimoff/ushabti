@@ -117,6 +117,13 @@ export const projects = pgTable(
      * only one project per key turn it on: one address, one project.
      */
     publicChangelog: boolean("public_changelog").notNull().default(false),
+    /**
+     * How an agent works on this board, in Markdown. Only the project knows
+     * which option means review or what done means, because no field is
+     * hardcoded. It travels on the answer to a claim and nowhere else, so a
+     * run pays for it once.
+     */
+    agentRules: text("agent_rules").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
