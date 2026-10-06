@@ -536,23 +536,24 @@ test.describe("Settings on a laptop", () => {
       "Public changelog",
       "Export",
     ]) {
-      await oneLine(page.locator(`span:text-is("${label}")`), label);
+      const lines = await linesOf(page.locator(`span:text-is("${label}")`));
+      expect(lines, `"${label}" takes ${lines} lines`).toBe(1);
     }
 
     await gotoSettings(page, projectId, "types");
-    await oneLine(page.locator('span:text-is("Types come from")'), "Types come from");
+    const lines = await linesOf(page.locator('span:text-is("Types come from")'));
+    expect(lines, `"Types come from" takes ${lines} lines`).toBe(1);
   });
 });
 
-/** A label is drawn on one line, counted by the lines its words fill. */
-async function oneLine(label: Locator, name: string) {
+/** The lines a label's words fill. The test asserts on it, so the lint rule sees an expect. */
+async function linesOf(label: Locator) {
   await expect(label).toBeVisible();
-  const lines = await label.evaluate((el) => {
+  return label.evaluate((el) => {
     const range = document.createRange();
     range.selectNodeContents(el.firstChild!);
     return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
   });
-  expect(lines, `"${name}" takes ${lines} lines`).toBe(1);
 }
 
 /**
