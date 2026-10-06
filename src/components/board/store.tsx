@@ -1598,9 +1598,13 @@ export function BoardProvider({
       });
       await guarded(async () => {
         await tracked.patch(`/api/properties/${propertyId}`, patch);
+        /* The copy above reads rules the server already read, so a rule a
+           circle switched off stays off here even when this write frees it.
+           The server's rules and values are the answer. */
+        if (patch.when !== undefined) await refresh();
       });
     },
-    [guarded, tracked],
+    [guarded, refresh, tracked],
   );
 
   /*

@@ -4,6 +4,7 @@ import {
   card,
   createProject,
   gotoSettings,
+  inDatabase,
   listRow,
   propertyBox,
   register,
@@ -211,5 +212,41 @@ test.describe("A property says when it shows", () => {
     expect(await when()).toBeUndefined();
 
     await memberPage.context().close();
+  });
+
+  test("two rules written at once cannot close a circle", async ({ page }) => {
+    await register(page);
+    const { projectId, of, type, bug } = await typed(page, "When race");
+    const priority = of("Priority");
+    const urgent = priority.options.find((o) => o.name === "Urgent")!.id;
+    const rules = async () =>
+      (await board(page, projectId)).properties.filter((p) => p.config.when).map((p) => p.id);
+    for (let round = 0; round < 5; round++) {
+      for (const id of [priority.id, type.id]) {
+        await page.request.patch(`/api/properties/${id}`, { data: { when: null } });
+      }
+      const answers = await Promise.all([
+        page.request.patch(`/api/properties/${priority.id}`, {
+          data: { when: { propertyId: type.id, optionIds: [bug] } },
+        }),
+        page.request.patch(`/api/properties/${type.id}`, {
+          data: { when: { propertyId: priority.id, optionIds: [urgent] } },
+        }),
+      ]);
+      const statuses = answers.map((a) => a.status()).sort();
+      expect(statuses).toEqual([200, 400]);
+      const refused = answers.find((a) => a.status() === 400)!;
+      expect((await refused.json()).error).toMatch(/circle/);
+      /* The one that passed reads on the board; a circle would read as none. */
+      expect(await rules()).toHaveLength(1);
+      const stored = await inDatabase(async (client) => {
+        const { rows } = await client.query<{ n: number }>(
+          "select count(*)::int as n from properties where id = any($1) and config ? 'when'",
+          [[priority.id, type.id]],
+        );
+        return rows[0].n;
+      });
+      expect(stored).toBe(1);
+    }
   });
 });

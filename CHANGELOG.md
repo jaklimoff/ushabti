@@ -41,6 +41,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **The description opens at once.** A click on it used to wait about 300 ms for the editor,
   however short the text. Now the editor shows in the same frame once the panel has loaded it.
 
+- **Two "Shown when" rules written at once can no longer close a circle.** The server now checks
+  for a circle under the project lock, so one of the two writes is refused. After a rule is
+  written, Settings reads the board again, so a rule that the write frees from a circle shows
+  at once, and so do the values it drops.
+
 ## 0.17.0 — 2026-10-05
 
 ### Added
