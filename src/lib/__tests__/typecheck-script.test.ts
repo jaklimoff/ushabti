@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -73,6 +81,26 @@ describe("npm run typecheck", () => {
     const run = typecheck();
     expect(run.out).not.toMatch(/gone/);
     expect(run.ok).toBe(true);
+  }, 120_000);
+
+  // next-env.d.ts is not tracked, so a fresh clone has none until something
+  // writes it. An image import has a type only through that file.
+  it("passes on a fresh clone with no next-env.d.ts", () => {
+    rmSync(join(app, "next-env.d.ts"), { force: true });
+    rmSync(join(app, ".next"), { recursive: true, force: true });
+    put("public/logo.png", "");
+    put(
+      "src/logo.ts",
+      'import logo from "../public/logo.png";\nexport const src: string = logo.src;\n',
+    );
+    try {
+      const run = typecheck();
+      expect(run.out).not.toMatch(/logo/);
+      expect(run.ok).toBe(true);
+      expect(existsSync(join(app, "next-env.d.ts"))).toBe(true);
+    } finally {
+      rmSync(join(app, "src/logo.ts"));
+    }
   }, 120_000);
 
   it("still fails on a real type error", () => {
