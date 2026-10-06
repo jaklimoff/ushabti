@@ -368,11 +368,12 @@ export function TaskPanel({
             }
           : current,
       );
-      const saved = await counted(() => setValue(taskId, propertyId, value));
-      /* The store puts the board right when a write is refused, and nothing
-         puts this copy right. On an archived task it is the only copy, so the
-         value the person sees is the one that was thrown away. */
-      if (!saved) await reload();
+      await counted(() => setValue(taskId, propertyId, value));
+      /* Read either way, after the write is answered. A saved write logged a
+         line, and what it dropped, and the stream does not ring this tab for
+         its own write. A refused one left this copy wrong: the store puts the
+         board right, and on an archived task this copy is the only one. */
+      await reload();
     },
     [counted, data.properties, reload, setValue, taskId],
   );

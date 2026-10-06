@@ -40,6 +40,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **The description opens at once.** A click on it used to wait about 300 ms for the editor,
   however short the text. Now the editor shows in the same frame once the panel has loaded it.
+- **The task panel shows the activity of its own changes at once.** A value set in the panel,
+  and the values it dropped, used to reach **Activity** only after the panel was opened again.
 
 ## 0.17.0 — 2026-10-05
 
