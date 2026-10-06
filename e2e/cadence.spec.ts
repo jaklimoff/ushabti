@@ -1,5 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
-import { column, createProject, gotoSettings, propertyBox, register, unique } from "./helpers";
+import {
+  column,
+  createProject,
+  edgeRoom,
+  fromName,
+  gotoSettings,
+  propertyBox,
+  register,
+  unique,
+} from "./helpers";
 
 /**
  * An iteration's cadence makes the next sprint. The unit tests hold the names
@@ -196,4 +205,32 @@ test("Settings shows the cadence, saved on blur and on leave", async ({ page, br
   });
   expect(refused.status()).toBe(403);
   await memberContext.close();
+});
+
+for (const [width, height] of [
+  [1440, 900],
+  [390, 844],
+] as const) {
+  test(`the cadence keeps off the card edge at ${width} px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    const projectId = await sprintsFrom(page, "2036-10-05");
+    await gotoSettings(page, projectId);
+    const box = propertyBox(page, "Sprint");
+    const length = box.getByLabel("Sprint length in days of Sprint");
+    await expect(length).toHaveValue("14");
+    await expect(length).toBeVisible();
+
+    /* A refresh can hide the page for a moment, so the measure waits. */
+    await expect.poll(() => edgeRoom(box)).toBeGreaterThanOrEqual(12);
+  });
+}
+
+test("the cadence starts where the property's name does", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const projectId = await sprintsFrom(page, "2036-10-05");
+  await gotoSettings(page, projectId);
+  const box = propertyBox(page, "Sprint");
+  const length = box.getByLabel("Sprint length in days of Sprint");
+  await expect(length).toBeVisible();
+  await expect.poll(() => fromName(box, length)).toBeLessThanOrEqual(3);
 });

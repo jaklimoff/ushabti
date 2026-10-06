@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A property row reads cleanly in Settings.** The "Shown when" line and a sprint's length start
+  under the property's name and no longer touch the edge of the card. "Options carry dates" and
+  "Shown when…" sit beside the delete ✕, and "Shown when…" is a real button. An option's ✕ is
+  bigger and easier to see.
 - **A button in Views and Types looks like a button.** "Make main", "Card view…" and the actions
   of a type are quiet text buttons in sentence case, with a ring for the keyboard. They no longer
   read as the small grey capitals of a label. The groups "Every type" and "This type" read as the
