@@ -8,33 +8,30 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.18.0 — 2026-10-06
+
 ### Added
 
 - **A type can say what a new task starts with.** On the Types page, **Starts as** under a
   property sets a value for that type: _a Bug starts with Severity Minor_. The server writes it on
   every create, from the board, a list or an agent, and a value the create sends always wins. The
   composer says it first: _starts with Severity Minor_. A person never has a default.
-
 - **A parent shows how many of its children are done.** The card and the list row draw **3/5**,
   as a bar or as a count, and the panel heading reads _Children · 3 of 5 done_. Done is the
   project's **Done when**, and an archived child counts as done. **Children** is a row of the card
   view, so it can be moved or taken off.
-
 - **Settings has a Types page.** Name the select whose options are your task types, then press a
   type to see the properties it shows: those on every type, those on this type, and those on
   other types. **Add to**, **Only on** and **Take off** change a property's **Shown when** rule,
   and a change that drops values asks first with the count. Agents read `project.typeBy`.
-
 - **A task can have a parent, one level deep.** Pick **Part of…** or **Add a part…** in the task
   menu. The panel shows a **Parent** row and a **Children** list, and each row opens its task.
   A part is never a blocker. Agents use `PUT` and `DELETE /api/tasks/{id}/parent`, or
   `board.mjs parent` and `unparent`, and the export carries each task's parent.
-
 - **A property can say when it shows.** In Settings → Properties, **Shown when…** picks a select
   and its options: "Severity, shown when Type is Bug". A task then draws that property — in the
   panel, on the card and in the list — only while its value of the select is one of them. The
   ✕ clears the rule.
-
 - **A task that changes type drops the values its new type does not show.** A hidden value no
   longer closes a blocker, passes a filter or leaves in the export. The panel, **Set…** and a
   rule written in Settings ask first and name what goes; a drag, an agent, an option delete and
@@ -46,7 +43,6 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A heading in the description is bigger than its text.** A `#` heading was the same size as
   body text and read as bold words. Now `#`, `##` and `###` step up in size, and the box and the
   page draw the same sizes.
-
 - **The description box reads as the description does.** Inline code wears the same box, a
   blank line takes the page's gap between paragraphs, and a heading has the same space above
   and below. Put the cursor on a blank line and it is a full line again.
@@ -62,7 +58,6 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   however short the text. Now the editor shows in the same frame once the panel has loaded it.
 - **The task panel shows the activity of its own changes at once.** A value set in the panel,
   and the values it dropped, used to reach **Activity** only after the panel was opened again.
-
 - **Two "Shown when" rules written at once can no longer close a circle.** The server now checks
   for a circle under the project lock, so one of the two writes is refused. After a rule is
   written, Settings reads the board again, so a rule that the write frees from a circle shows
