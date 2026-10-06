@@ -1335,20 +1335,15 @@
 
 .typeGroup {
   margin: 0;
-  padding: 10px 14px 4px;
+  padding: 10px 13px 4px;
   font-size: var(--t-small);
   font-weight: 600;
   color: var(--text-3);
 }
 
+/* A ui Row that wraps, so the hide question can take a line of its own. */
 .typeRow {
-  display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  padding: 8px 14px;
-  border-top: 1px solid var(--line);
-  font-size: var(--t-small);
 }
 
 .typeName {

@@ -245,7 +245,7 @@ function TypeRow({
   const said = rule ? whenSaid(rule, data.properties) : null;
 
   return (
-    <div className={styles.typeRow} data-testid="type-row">
+    <Row className={styles.typeRow} data-testid="type-row">
       <span className={styles.typeName}>{property.name}</span>
       {kind === "here" && also.length > 0 && <Note>also on {also.join(", ")}</Note>}
       {kind === "elsewhere" && <Note>{also.length ? `on ${also.join(", ")}` : said}</Note>}
@@ -291,6 +291,6 @@ function TypeRow({
           />
         </div>
       )}
-    </div>
+    </Row>
   );
 }

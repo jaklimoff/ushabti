@@ -70,11 +70,20 @@ describe("what one type shows", () => {
     const sheet = typeSheet(all, "p-type", "o-bug");
     expect(sheet.here.map((r) => [r.property.name, r.also])).toEqual([
       ["Severity", []],
-      ["Repro", ["Story"]],
+      ["Repro", ["Story", "No type"]],
     ]);
     expect(sheet.elsewhere.map((r) => [r.property.name, r.also])).toEqual([
       ["Acceptance", ["Story"]],
     ]);
+  });
+
+  it("names nothing yet as one more place a property is on", () => {
+    const sheet = typeSheet(
+      readWhens([type, property("p-triage", "Triage", rule("p-type", ["o-bug", NO_VALUE_KEY]))]),
+      "p-type",
+      "o-bug",
+    );
+    expect(sheet.here.map((r) => [r.property.name, r.also])).toEqual([["Triage", ["No type"]]]);
   });
 
   it("lists a property ruled by another select with its rule in words", () => {

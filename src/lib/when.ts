@@ -304,7 +304,7 @@ export function readTypeBy(raw: unknown, properties: PropertyDTO[]): string | nu
 /** One property as the Types page lists it under one type. */
 export type TypeRow = {
   property: PropertyDTO;
-  /** The other types it is on, by name, in the order of the select. */
+  /** What else it is on, by name, in the order of the select, then "No type". */
   also: string[];
 };
 
@@ -345,7 +345,11 @@ export function typeSheet(
       continue;
     }
     const others = type.options.filter((o) => o.id !== optionId && when.optionIds.includes(o.id));
-    const row = { property, also: others.map((o) => o.name) };
+    const also = others.map((o) => o.name);
+    /* A rule that keeps "nothing yet" shows on an untyped task too, so this
+       type is not its only one. */
+    if (when.optionIds.includes(NO_VALUE_KEY)) also.push(keyName(NO_VALUE_KEY, type, []));
+    const row = { property, also };
     if (when.optionIds.includes(optionId)) sheet.here.push(row);
     else sheet.elsewhere.push(row);
   }
