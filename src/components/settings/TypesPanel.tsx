@@ -72,15 +72,12 @@ export function TypesPanel() {
               aria-label="Types come from"
               value={type?.id ?? ""}
               disabled={!canEdit || selects.length === 0}
-              onChange={(e) => void pick(e.target.value || null)}
-            >
-              <option value="">No select</option>
-              {selects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
+              onChange={(picked) => void pick(picked || null)}
+              options={[
+                { value: "", label: "No select" },
+                ...selects.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
             <Note>
               {selects.length === 0
                 ? "This project has no select property yet. Add one on the Properties page."
@@ -116,7 +113,7 @@ export function TypesPanel() {
             {canEdit && (
               <Foot>
                 <Input
-                  style={{ width: 180 }}
+                  width="medium"
                   aria-label="New type name"
                   value={name}
                   placeholder="New type"
@@ -418,7 +415,7 @@ function StartsAsBox({
 
   return (
     <Input
-      style={{ width: 180 }}
+      width="medium"
       aria-labelledby={labelId}
       inputMode={numeric ? "decimal" : undefined}
       value={draft ?? saved}

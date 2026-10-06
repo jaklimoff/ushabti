@@ -149,7 +149,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
         <Row>
           <Field label="Name" inline>
             <Input
-              style={{ flex: 1, minWidth: 160 }}
+              grow
               aria-label="Project name"
               value={name}
               disabled={!canEdit}
@@ -168,7 +168,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
         <Row>
           <Field label="Key" inline>
             <Input
-              style={{ width: 110 }}
+              width="short"
               aria-label="Project key"
               value={key}
               maxLength={6}
@@ -221,7 +221,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
         <Row>
           <Field label="Time zone" inline>
             <Input
-              style={{ width: 220 }}
+              width="long"
               aria-label="The time zone this project's day is worked out in"
               value={zone}
               disabled={!canEdit}
@@ -269,44 +269,36 @@ export function ProjectPanel({ files }: { files: boolean }) {
               aria-label="The property that says a task is done"
               value={doneProperty?.id ?? ""}
               disabled={!canEdit || selects.length === 0}
-              onChange={(e) => {
+              onChange={(picked) => {
                 /* The same property again is the same question, so it is not
                    asked twice: re-picking it would otherwise throw away the
                    option that is already the answer. */
-                if (e.target.value === (doneProperty?.id ?? "")) return;
-                setPickedId(e.target.value);
+                if (picked === (doneProperty?.id ?? "")) return;
+                setPickedId(picked);
                 /* Another property is another question, so the old answer
                    goes now rather than when the new one arrives. */
                 void save({ doneWhen: null });
               }}
-            >
-              <option value="">Archived only</option>
-              {selects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
+              options={[
+                { value: "", label: "Archived only" },
+                ...selects.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
             {doneProperty && (
               <Select
                 aria-label="The option that says a task is done"
                 value={doneWhen?.optionId ?? ""}
                 disabled={!canEdit}
-                onChange={(e) =>
+                onChange={(picked) =>
                   void save({
-                    doneWhen: e.target.value
-                      ? { propertyId: doneProperty.id, optionId: e.target.value }
-                      : null,
+                    doneWhen: picked ? { propertyId: doneProperty.id, optionId: picked } : null,
                   })
                 }
-              >
-                <option value="">Pick one</option>
-                {doneProperty.options.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </Select>
+                options={[
+                  { value: "", label: "Pick one" },
+                  ...doneProperty.options.map((o) => ({ value: o.id, label: o.name })),
+                ]}
+              />
             )}
             <Note>
               A task that blocks another stops blocking when it is archived, or when it reaches
@@ -325,15 +317,12 @@ export function ProjectPanel({ files }: { files: boolean }) {
               aria-label="Count progress by"
               value={data.project.progressBy ?? ""}
               disabled={!canEdit || numbers.length === 0}
-              onChange={(e) => void save({ progressBy: e.target.value || null })}
-            >
-              <option value="">Tasks</option>
-              {numbers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
+              onChange={(picked) => void save({ progressBy: picked || null })}
+              options={[
+                { value: "", label: "Tasks" },
+                ...numbers.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
             <Note>
               A column with a target date shows how much of it is done. A task with no value counts
               zero.
@@ -474,7 +463,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
               </Note>
               <Input
                 autoFocus
-                style={{ width: 110 }}
+                width="short"
                 aria-label="Type the project key to confirm"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value.toUpperCase())}

@@ -9,6 +9,7 @@ import {
   register,
   saved,
   unique,
+  choose,
 } from "./helpers";
 
 const PR = "https://github.com/acme/shop/pull/12";
@@ -18,7 +19,7 @@ const ISSUE = "https://github.com/acme/shop/issues/7";
 async function addLinkProperty(page: Page, projectId: string, name: string) {
   await gotoSettings(page, projectId);
   await page.getByLabel("New property name").fill(name);
-  await page.getByLabel("Type of the new property").selectOption({ label: "Link" });
+  await choose(page.getByLabel("Type of the new property"), "Link");
   await expect(page.getByText("Web addresses, such as a pull request.")).toBeVisible();
   await page.getByRole("button", { name: "Add property" }).click();
   await expect(page.getByLabel(`Name of the ${name} property`)).toHaveValue(name);

@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createProject, gotoSettings, register, settles, unique } from "./helpers";
+import {
+  createProject,
+  gotoSettings,
+  register,
+  settles,
+  unique,
+  choose,
+  optionsOf,
+} from "./helpers";
 
 type Property = {
   id: string;
@@ -85,7 +93,7 @@ test.describe("The Types page", () => {
     await gotoSettings(page, projectId, "types");
     const nav = page.getByRole("navigation", { name: "Settings sections" });
     await expect(nav.getByRole("link", { name: /^Types/ })).toHaveText("Types0");
-    await page.getByLabel("Types come from").selectOption({ label: "Type" });
+    await choose(page.getByLabel("Types come from"), "Type");
     const types = page.getByRole("group", { name: "Types" });
     await expect(types.getByRole("button")).toHaveText(["Bug", "Story"]);
     await expect(nav.getByRole("link", { name: /^Types/ })).toHaveText("Types2");
@@ -164,13 +172,10 @@ test.describe("The Types page", () => {
     await gotoSettings(page, projectId, "types");
     await expect(page.getByText(/A type is an option of one select/)).toBeVisible();
     const picker = page.getByLabel("Types come from");
-    await expect(picker).toHaveValue("");
-    await expect(picker.locator("option")).toContainText([
-      "No select",
-      "Status",
-      "Priority",
-      "Type",
-    ]);
+    await expect(picker).toHaveAttribute("data-value", "");
+    /* In this order, with the board's other selects between them. */
+    const named = ["No select", "Status", "Priority", "Type"];
+    expect((await optionsOf(picker)).filter((word) => named.includes(word))).toEqual(named);
     await expect(page.getByTestId("type-sheet")).toHaveCount(0);
   });
 });

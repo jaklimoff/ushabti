@@ -508,3 +508,26 @@ export async function expectBoxValue(box: Locator, want: string | RegExp) {
   if (typeof want === "string") await expect.poll(() => boxValue(box)).toBe(want);
   else await expect.poll(() => boxValue(box)).toMatch(want);
 }
+
+/**
+ * Picks an option of a settings `Select` by its words, as a person does: open
+ * it, click the row. It stands where `selectOption` stood on the native one.
+ */
+export async function choose(select: Locator, label: string): Promise<void> {
+  const list = await select.getAttribute("aria-controls");
+  await select.click();
+  await select
+    .page()
+    .locator(`[id="${list}"]`)
+    .getByRole("option", { name: label, exact: true })
+    .click();
+}
+
+/** The words of every option of a settings `Select`, read with it open. */
+export async function optionsOf(select: Locator): Promise<string[]> {
+  const list = await select.getAttribute("aria-controls");
+  await select.click();
+  const words = await select.page().locator(`[id="${list}"]`).getByRole("option").allInnerTexts();
+  await select.press("Escape");
+  return words.map((w) => w.replace("✓", "").trim());
+}

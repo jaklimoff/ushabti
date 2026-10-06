@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   card,
+  choose,
   column,
   columnOrder,
   createProject,
@@ -65,16 +66,16 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   await expect(page.getByText("1 archived card stays behind", { exact: false })).toBeVisible();
 
   // A list whose name matches an option is proposed against it, either case.
-  await expect(mapping(page, "in progress")).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(mapping(page, "in progress")).toHaveAttribute("data-value", /[0-9a-f-]{36}/);
   // One nothing matches is proposed as a new column.
-  await expect(mapping(page, "To do")).toHaveValue("");
+  await expect(mapping(page, "To do")).toHaveAttribute("data-value", "");
 
   /* The owner points that list at an option the board already has. This is
      the one thing the preview exists for. */
   await settles(page, /\/import\/preview$/, async () => {
-    await mapping(page, "To do").selectOption({ label: "Todo" });
+    await choose(mapping(page, "To do"), "Todo");
   });
-  await expect(mapping(page, "To do")).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(mapping(page, "To do")).toHaveAttribute("data-value", /[0-9a-f-]{36}/);
 
   await settles(page, /\/import$/, () =>
     page.getByRole("button", { name: "Import 4 tasks" }).click(),

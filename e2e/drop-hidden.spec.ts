@@ -8,6 +8,7 @@ import {
   register,
   settles,
   unique,
+  choose,
 } from "./helpers";
 
 type Property = { id: string; name: string; options: { id: string; name: string }[] };
@@ -443,7 +444,7 @@ test.describe("A value its task does not show is dropped", () => {
        rules of Type and Area; the story has no priority, so all three go. */
     const box = propertyBox(page, "Size");
     await box.getByRole("button", { name: "Shown when…" }).click();
-    await box.getByLabel("Shown when of Size").selectOption({ label: "Priority" });
+    await choose(box.getByLabel("Shown when of Size"), "Priority");
     await box.getByLabel("Urgent", { exact: true }).click();
     const read = page.waitForResponse(
       (r) => r.url().endsWith(`/api/projects/${projectId}/board`) && r.request().method() === "GET",
@@ -479,7 +480,7 @@ test.describe("A value its task does not show is dropped", () => {
     await gotoSettings(page, projectId);
     const box = propertyBox(page, "Priority");
     await box.getByRole("button", { name: "Shown when…" }).click();
-    await box.getByLabel("Shown when of Priority").selectOption({ label: "Type" });
+    await choose(box.getByLabel("Shown when of Priority"), "Type");
     await box.getByLabel("Bug", { exact: true }).click();
     const ask = box.getByTestId("when-confirm");
     await expect(ask).toContainText("1 task loses its Priority.");

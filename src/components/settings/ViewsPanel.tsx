@@ -230,20 +230,13 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
           <Select
             aria-label={`How the view ${view.name} shows`}
             value={view.kind}
-            onChange={(e) => setKind(e.target.value as ViewKind)}
-          >
-            {VIEW_KINDS.map((option) => (
-              <option
-                key={option}
-                value={option}
-                disabled={
-                  GROUPED_KINDS.includes(option) && !propertiesFor(option, groupable).length
-                }
-              >
-                {VIEW_KIND_LABEL[option]}
-              </option>
-            ))}
-          </Select>
+            onChange={(picked) => setKind(picked as ViewKind)}
+            options={VIEW_KINDS.map((option) => ({
+              value: option,
+              label: VIEW_KIND_LABEL[option],
+              disabled: GROUPED_KINDS.includes(option) && !propertiesFor(option, groupable).length,
+            }))}
+          />
         </span>
         {GROUPED_KINDS.includes(view.kind) && (
           <span className={styles.viewPair}>
@@ -251,14 +244,12 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
             <Select
               aria-label={`Grouping property of the view ${view.name}`}
               value={view.groupById ?? ""}
-              onChange={(e) => void updateView(view.id, { groupById: e.target.value })}
-            >
-              {propertiesFor(view.kind, groupable).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
+              onChange={(picked) => void updateView(view.id, { groupById: picked })}
+              options={propertiesFor(view.kind, groupable).map((p) => ({
+                value: p.id,
+                label: p.name,
+              }))}
+            />
           </span>
         )}
         {/* A list's columns are its card view, so a list is arranged here
