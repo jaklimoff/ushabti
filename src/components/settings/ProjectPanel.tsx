@@ -12,7 +12,7 @@ import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Field, Input, Select } from "@/components/ui/Form";
-import { Card, Note, Row, Spacer } from "@/components/ui/Layout";
+import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 import { isSelect } from "@/lib/types";
@@ -145,196 +145,194 @@ export function ProjectPanel({ files }: { files: boolean }) {
     <>
       <PageHead title="Project" note="The name on the board and the prefix on every task key." />
 
-      <Card>
-        <Row>
-          <Field label="Name" inline>
-            <Input
-              grow
-              aria-label="Project name"
-              value={name}
-              disabled={!canEdit}
-              onChange={(e) => {
-                setName(e.target.value);
-                setTypedName(true);
-              }}
-              onBlur={() => {
-                setTypedName(false);
-                if (!name.trim()) return setName(data.project.name);
-                if (nameEdit) void save({ name: nameEdit });
-              }}
-            />
-          </Field>
-        </Row>
-        <Row>
-          <Field label="Key" inline>
-            <Input
-              width="short"
-              aria-label="Project key"
-              value={key}
-              maxLength={6}
-              disabled={!canEdit}
-              onChange={(e) => {
-                setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
-                setTypedKey(true);
-              }}
-              onBlur={() => {
-                setTypedKey(false);
-                if (!key) return setKey(data.project.key);
-                if (keyEdit) void save({ key: keyEdit });
-              }}
-            />
-            <Note>Task keys look like {key || "USH"}-14.</Note>
-          </Field>
-        </Row>
-        {/*
-         * A task key is built from this prefix, never stored. Changing it
-         * renames every task at once, which breaks every link somebody pasted
-         * and every key an agent was told to work on.
-         */}
-        {keyChanged && taskCount > 0 && (
-          <Row>
-            <span className={styles.keyWarn} role="alert">
-              ⚠ {taskCount} {taskCount === 1 ? "task is" : "tasks are"} called {data.project.key}-…
-              today. Leaving this box renames all of them. Links and agent instructions that use the
-              old key stop working.
-            </span>
-          </Row>
-        )}
-        {!canEdit && (
-          <Row>
-            <Note>Only the owner or an admin can change the name and the key.</Note>
-          </Row>
-        )}
-      </Card>
-
-      {/*
-       * Which day a relative date rule means.
-       *
-       * A shared filter that says "due this week" has to mean one week for
-       * the whole team, so the day is the project's and not the reader's: two
-       * browsers in two zones would otherwise see different cards through one
-       * view, and an agent has no browser at all. The box takes a name and
-       * the server refuses one it does not know, because the list of zones
-       * belongs to the machine that works the day out.
-       */}
-      <Card>
-        <Row>
-          <Field label="Time zone" inline>
-            <Input
-              width="long"
-              aria-label="The time zone this project's day is worked out in"
-              value={zone}
-              disabled={!canEdit}
-              onChange={(e) => {
-                setZone(e.target.value);
-                setTypedZone(true);
-              }}
-              onBlur={() => {
-                setTypedZone(false);
-                if (!zone.trim()) return setZone(data.project.timeZone);
-                if (zoneEdit) void save({ timeZone: zoneEdit });
-              }}
-            />
-            <Note>
-              Today is {data.today} here. A filter that says <b>Due this week</b> or <b>Overdue</b>{" "}
-              is worked out in this zone, for everybody on the board.
-            </Note>
-          </Field>
-        </Row>
-        {!canEdit && (
-          <Row>
-            <Note>Only the owner or an admin can change the time zone of this project.</Note>
-          </Row>
-        )}
-      </Card>
-
-      {!files && (
+      <Section title="Name and key">
         <Card>
           <Row>
-            <Note>{FILES_OFF_NOTE}</Note>
+            <Field label="Name" inline>
+              <Input
+                grow
+                aria-label="Project name"
+                value={name}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setTypedName(true);
+                }}
+                onBlur={() => {
+                  setTypedName(false);
+                  if (!name.trim()) return setName(data.project.name);
+                  if (nameEdit) void save({ name: nameEdit });
+                }}
+              />
+            </Field>
           </Row>
+          <Row>
+            <Field label="Key" inline>
+              <Input
+                width="short"
+                aria-label="Project key"
+                value={key}
+                maxLength={6}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+                  setTypedKey(true);
+                }}
+                onBlur={() => {
+                  setTypedKey(false);
+                  if (!key) return setKey(data.project.key);
+                  if (keyEdit) void save({ key: keyEdit });
+                }}
+              />
+              <Note>Task keys look like {key || "USH"}-14.</Note>
+            </Field>
+          </Row>
+          {/*
+           * A task key is built from this prefix, never stored. Changing it
+           * renames every task at once, which breaks every link somebody pasted
+           * and every key an agent was told to work on.
+           */}
+          {keyChanged && taskCount > 0 && (
+            <Row>
+              <span className={styles.keyWarn} role="alert">
+                ⚠ {taskCount} {taskCount === 1 ? "task is" : "tasks are"} called {data.project.key}
+                -… today. Leaving this box renames all of them. Links and agent instructions that
+                use the old key stop working.
+              </span>
+            </Row>
+          )}
+          {!canEdit && (
+            <Row>
+              <Note>Only the owner or an admin can change the name and the key.</Note>
+            </Row>
+          )}
         </Card>
-      )}
+      </Section>
 
-      {/*
-       * The two boxes are one answer, so they sit on one row. Picking a
-       * property with no option yet writes nothing: the answer is the option.
-       * Both boxes save the moment they change — a dropdown has no draft to
-       * lose, so the change is its blur.
-       */}
-      <Card>
-        <Row>
-          <Field label="Done when" inline>
-            <Select
-              aria-label="The property that says a task is done"
-              value={doneProperty?.id ?? ""}
-              disabled={!canEdit || selects.length === 0}
-              onChange={(picked) => {
-                /* The same property again is the same question, so it is not
+      <Section title="Dates and progress">
+        {/*
+         * Which day a relative date rule means.
+         *
+         * A shared filter that says "due this week" has to mean one week for
+         * the whole team, so the day is the project's and not the reader's: two
+         * browsers in two zones would otherwise see different cards through one
+         * view, and an agent has no browser at all. The box takes a name and
+         * the server refuses one it does not know, because the list of zones
+         * belongs to the machine that works the day out.
+         */}
+        <Card>
+          <Row>
+            <Field label="Time zone" inline>
+              <Input
+                width="long"
+                aria-label="The time zone this project's day is worked out in"
+                value={zone}
+                disabled={!canEdit}
+                onChange={(e) => {
+                  setZone(e.target.value);
+                  setTypedZone(true);
+                }}
+                onBlur={() => {
+                  setTypedZone(false);
+                  if (!zone.trim()) return setZone(data.project.timeZone);
+                  if (zoneEdit) void save({ timeZone: zoneEdit });
+                }}
+              />
+              <Note>
+                Today is {data.today} here. A filter that says <b>Due this week</b> or{" "}
+                <b>Overdue</b> is worked out in this zone, for everybody on the board.
+              </Note>
+            </Field>
+          </Row>
+          {!canEdit && (
+            <Row>
+              <Note>Only the owner or an admin can change the time zone of this project.</Note>
+            </Row>
+          )}
+        </Card>
+
+        {/*
+         * The two boxes are one answer, so they sit on one row. Picking a
+         * property with no option yet writes nothing: the answer is the option.
+         * Both boxes save the moment they change — a dropdown has no draft to
+         * lose, so the change is its blur.
+         */}
+        <Card>
+          <Row>
+            <Field label="Done when" inline>
+              <Select
+                aria-label="The property that says a task is done"
+                value={doneProperty?.id ?? ""}
+                disabled={!canEdit || selects.length === 0}
+                onChange={(picked) => {
+                  /* The same property again is the same question, so it is not
                    asked twice: re-picking it would otherwise throw away the
                    option that is already the answer. */
-                if (picked === (doneProperty?.id ?? "")) return;
-                setPickedId(picked);
-                /* Another property is another question, so the old answer
+                  if (picked === (doneProperty?.id ?? "")) return;
+                  setPickedId(picked);
+                  /* Another property is another question, so the old answer
                    goes now rather than when the new one arrives. */
-                void save({ doneWhen: null });
-              }}
-              options={[
-                { value: "", label: "Archived only" },
-                ...selects.map((p) => ({ value: p.id, label: p.name })),
-              ]}
-            />
-            {doneProperty && (
-              <Select
-                aria-label="The option that says a task is done"
-                value={doneWhen?.optionId ?? ""}
-                disabled={!canEdit}
-                onChange={(picked) =>
-                  void save({
-                    doneWhen: picked ? { propertyId: doneProperty.id, optionId: picked } : null,
-                  })
-                }
+                  void save({ doneWhen: null });
+                }}
                 options={[
-                  { value: "", label: "Pick one" },
-                  ...doneProperty.options.map((o) => ({ value: o.id, label: o.name })),
+                  { value: "", label: "Archived only" },
+                  ...selects.map((p) => ({ value: p.id, label: p.name })),
                 ]}
               />
-            )}
-            <Note>
-              A task that blocks another stops blocking when it is archived, or when it reaches
-              this.
-            </Note>
-          </Field>
-        </Row>
-        {selects.length === 0 && (
-          <Row>
-            <Note>This board has no select property with options, so archived is the answer.</Note>
+              {doneProperty && (
+                <Select
+                  aria-label="The option that says a task is done"
+                  value={doneWhen?.optionId ?? ""}
+                  disabled={!canEdit}
+                  onChange={(picked) =>
+                    void save({
+                      doneWhen: picked ? { propertyId: doneProperty.id, optionId: picked } : null,
+                    })
+                  }
+                  options={[
+                    { value: "", label: "Pick one" },
+                    ...doneProperty.options.map((o) => ({ value: o.id, label: o.name })),
+                  ]}
+                />
+              )}
+              <Note>
+                A task that blocks another stops blocking when it is archived, or when it reaches
+                this.
+              </Note>
+            </Field>
           </Row>
-        )}
-        <Row>
-          <Field label="Count progress by" inline>
-            <Select
-              aria-label="Count progress by"
-              value={data.project.progressBy ?? ""}
-              disabled={!canEdit || numbers.length === 0}
-              onChange={(picked) => void save({ progressBy: picked || null })}
-              options={[
-                { value: "", label: "Tasks" },
-                ...numbers.map((p) => ({ value: p.id, label: p.name })),
-              ]}
-            />
-            <Note>
-              A column with a target date shows how much of it is done. A task with no value counts
-              zero.
-            </Note>
-          </Field>
-        </Row>
-        {!canEdit && (
+          {selects.length === 0 && (
+            <Row>
+              <Note>
+                This board has no select property with options, so archived is the answer.
+              </Note>
+            </Row>
+          )}
           <Row>
-            <Note>Only the owner or an admin can change what this project calls done.</Note>
+            <Field label="Count progress by" inline>
+              <Select
+                aria-label="Count progress by"
+                value={data.project.progressBy ?? ""}
+                disabled={!canEdit || numbers.length === 0}
+                onChange={(picked) => void save({ progressBy: picked || null })}
+                options={[
+                  { value: "", label: "Tasks" },
+                  ...numbers.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
+              <Note>
+                A column with a target date shows how much of it is done. A task with no value
+                counts zero.
+              </Note>
+            </Field>
           </Row>
-        )}
-      </Card>
+          {!canEdit && (
+            <Row>
+              <Note>Only the owner or an admin can change what this project calls done.</Note>
+            </Row>
+          )}
+        </Card>
+      </Section>
 
       {/*
        * Sprints are a property and two views, nothing more, so the row says
@@ -342,13 +340,13 @@ export function ProjectPanel({ files }: { files: boolean }) {
        * there is nothing left to do, whoever made it.
        */}
       {canEdit && (
-        <Card>
-          <Row>
-            <Field label="Sprints" inline>
+        <Section title="Sprints">
+          <Card>
+            <Row>
               {hasSprints ? (
                 <Note>Sprints are set up.</Note>
               ) : (
-                <>
+                <Field label="Length" inline>
                   <label className={styles.cadenceBox}>
                     <Input
                       aria-label="Sprint length in days"
@@ -375,125 +373,144 @@ export function ProjectPanel({ files }: { files: boolean }) {
                     hold today. Each ship makes the next sprint. You can rename or delete each one
                     afterwards.
                   </Note>
-                </>
+                </Field>
               )}
-            </Field>
-          </Row>
-        </Card>
+            </Row>
+          </Card>
+        </Section>
       )}
 
-      {/*
-       * The changelog, for people with no account. Off until somebody turns
-       * it on, because it shows the titles of the shipped tasks to anyone
-       * who has the address. The address is the key, so a project whose key
-       * another public project already has is refused, with that sentence.
-       */}
-      <Card>
-        <Row>
-          <Field
-            label="Public changelog"
-            note={
-              data.project.publicChangelog ? (
-                <>
-                  Anyone with the address reads the shipped options and the titles of their tasks,
-                  with no keys and no people:{" "}
-                  <a
-                    href={`/changelog/${changelogSlug(data.project.key)}`}
-                    data-testid="public-changelog-link"
-                  >
-                    /changelog/{changelogSlug(data.project.key)}
-                  </a>
-                </>
-              ) : (
-                "Only the members of this project read its changelog."
-              )
-            }
-          >
-            <Button
-              variant="ghost"
-              disabled={!canEdit || flipping}
-              onClick={() => void flipPublic()}
-            >
-              {data.project.publicChangelog ? "Make it private" : "Make it public"}
-            </Button>
-          </Field>
-        </Row>
-        <Row>
-          <a href={`/p/${data.project.id}/changelog`}>Changelog</a>
-        </Row>
-        {!canEdit && (
-          <Row>
-            <Note>Only the owner or an admin can make the changelog public.</Note>
-          </Row>
-        )}
-      </Card>
-
-      {/*
-       * The file holds every member's email, so it is an admin's, as the
-       * route says. The server answers with an attachment, so following it
-       * saves the file and leaves this page where it is.
-       */}
-      {canEdit && (
+      <Section title="Sharing and export">
+        {/*
+         * The changelog, for people with no account. Off until somebody turns
+         * it on, because it shows the titles of the shipped tasks to anyone
+         * who has the address. The address is the key, so a project whose key
+         * another public project already has is refused, with that sentence.
+         */}
         <Card>
           <Row>
-            <Field label="Export" inline>
-              <ButtonLink variant="ghost" href={`/api/projects/${data.project.id}/export`} download>
-                Download
-              </ButtonLink>
-              <Note>
-                One JSON file with the properties, views, members, and every live and archived task
-                with its values, checklist and comments.
-              </Note>
+            <Field
+              label="Public changelog"
+              inline
+              note={
+                data.project.publicChangelog ? (
+                  <>
+                    Anyone with the address reads the shipped options and the titles of their tasks,
+                    with no keys and no people:{" "}
+                    <a
+                      href={`/changelog/${changelogSlug(data.project.key)}`}
+                      data-testid="public-changelog-link"
+                    >
+                      /changelog/{changelogSlug(data.project.key)}
+                    </a>
+                  </>
+                ) : (
+                  "Only the members of this project read its changelog."
+                )
+              }
+            >
+              <Button
+                variant="ghost"
+                disabled={!canEdit || flipping}
+                onClick={() => void flipPublic()}
+              >
+                {data.project.publicChangelog ? "Make it private" : "Make it public"}
+              </Button>
             </Field>
           </Row>
+          <Row>
+            <a href={`/p/${data.project.id}/changelog`}>Changelog</a>
+          </Row>
+          {!canEdit && (
+            <Row>
+              <Note>Only the owner or an admin can make the changelog public.</Note>
+            </Row>
+          )}
         </Card>
+
+        {/*
+         * The file holds every member's email, so it is an admin's, as the
+         * route says. The server answers with an attachment, so following it
+         * saves the file and leaves this page where it is.
+         */}
+        {canEdit && (
+          <Card>
+            <Row>
+              <Field label="Export" inline>
+                <ButtonLink
+                  variant="ghost"
+                  href={`/api/projects/${data.project.id}/export`}
+                  download
+                >
+                  Download
+                </ButtonLink>
+                <Note>
+                  One JSON file with the properties, views, members, and every live and archived
+                  task with its values, checklist and comments.
+                </Note>
+              </Field>
+            </Row>
+          </Card>
+        )}
+      </Section>
+
+      {!files && (
+        <Section title="Files">
+          <Card>
+            <Row>
+              <Note>{FILES_OFF_NOTE}</Note>
+            </Row>
+          </Card>
+        </Section>
       )}
 
       {isOwner && (
-        <div className={styles.danger}>
-          <span className={styles.dangerHead}>Delete this project</span>
-          <Note>
-            The board, its {taskCount} {taskCount === 1 ? "task" : "tasks"}, its properties, its
-            views and its agents go with it. There is no undo.
-          </Note>
-          {confirming ? (
-            <div className={styles.dangerRow}>
-              <Note>
-                Type <b>{data.project.key}</b> to confirm.
-              </Note>
-              <Input
-                autoFocus
-                width="short"
-                aria-label="Type the project key to confirm"
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-              />
-              <Button
-                variant="danger"
-                disabled={confirmText !== data.project.key}
-                onClick={() => void remove()}
-              >
-                Delete for good
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setConfirming(false);
-                  setConfirmText("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Spacer />
-            </div>
-          ) : (
-            <div className={styles.dangerRow}>
-              <Button variant="danger" onClick={() => setConfirming(true)}>
-                Delete project
-              </Button>
-            </div>
-          )}
-        </div>
+        <Section title="Danger zone">
+          <div className={styles.danger}>
+            <span className={styles.dangerHead}>Delete this project</span>
+            <Note>
+              The board, its {taskCount} {taskCount === 1 ? "task" : "tasks"}, its properties, its
+              views and its agents go with it. There is no undo.
+            </Note>
+            {confirming ? (
+              <div className={styles.dangerRow}>
+                <Note>
+                  Type <b>{data.project.key}</b> to confirm.
+                </Note>
+                <Input
+                  autoFocus
+                  width="short"
+                  aria-label="Type the project key to confirm"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+                />
+                <Button
+                  variant="danger"
+                  disabled={confirmText !== data.project.key}
+                  onClick={() => void remove()}
+                >
+                  Delete for good
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setConfirming(false);
+                    setConfirmText("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Spacer />
+              </div>
+            ) : (
+              <div className={styles.dangerRow}>
+                <Button variant="danger" onClick={() => setConfirming(true)}>
+                  Delete project
+                </Button>
+              </div>
+            )}
+          </div>
+        </Section>
       )}
     </>
   );

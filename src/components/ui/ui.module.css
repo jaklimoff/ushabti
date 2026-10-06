@@ -400,9 +400,13 @@
   flex-wrap: wrap;
 }
 
+/* About as wide as the longest label settings has, COUNT PROGRESS BY, so the
+   boxes of one card start in one place. A label never breaks: where the font
+   is wider than ours, the label grows past the column instead. */
 .fieldRow > .fieldLabel {
-  width: 66px;
+  min-width: 120px;
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .fieldLabel {
