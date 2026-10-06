@@ -64,6 +64,9 @@ The task in full — everything the panel shows.
     "values": { "<propertyId>": "<value>" },
     "checklistTotal": 4, "checklistDone": 2, "commentCount": 3,
     "blockedBy": ["USH-12"],            // the keys of the blockers that are NOT over
+    "parts": { "done": 3, "total": 5 }, // its children, or null when it has none
+                                        // done = the project's Done when; an archived child
+                                        // counts as done; a deleted child is not counted
 
     "links": {                          // both ends of the chain, over ones included
       "blockedBy": [{ "id": "…", "key": "USH-12", "title": "…", "over": false }],

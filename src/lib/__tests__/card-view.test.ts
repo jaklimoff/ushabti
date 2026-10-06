@@ -593,6 +593,19 @@ describe("how many parts are done", () => {
     ];
     expect(previewTasks(real, PROPERTIES, [ADA], "USH").map((t) => t.id)).toContain("p");
   });
+
+  it("keeps a parent in the preview when three tasks carry more values", () => {
+    const full = { x: "1", y: "2", z: "3" };
+    const real = [
+      task(full, { id: "a" }),
+      task(full, { id: "b" }),
+      task(full, { id: "c" }),
+      task({ x: "1" }, { id: "p", parts: { done: 1, total: 2 } }),
+    ];
+    const ids = previewTasks(real, PROPERTIES, [ADA], "USH").map((t) => t.id);
+    expect(ids).toHaveLength(3);
+    expect(ids).toContain("p");
+  });
 });
 
 describe("a task laid out as a row", () => {

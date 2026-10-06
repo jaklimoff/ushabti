@@ -863,11 +863,14 @@ export function previewTasks(
   count = 3,
 ): TaskDTO[] {
   if (!tasks.length) return [sampleTask(properties, members, key)];
-  /* A parent counts as one more value, so the count of its parts shows
-     whenever the project has one. */
+  /* The count of its parts shows only on a parent, so when the project has
+     one, the best parent is taken first and the rest fill by weight. */
   const weight = (task: TaskDTO) =>
     Object.values(task.values).filter((v) =>
       Array.isArray(v) ? v.length > 0 : v !== null && v !== undefined && v !== "",
-    ).length + (task.parts ? 1 : 0);
-  return [...tasks].sort((a, b) => weight(b) - weight(a)).slice(0, count);
+    ).length;
+  const sorted = [...tasks].sort((a, b) => weight(b) - weight(a));
+  const parent = sorted.find((t) => t.parts);
+  if (!parent) return sorted.slice(0, count);
+  return [parent, ...sorted.filter((t) => t !== parent)].slice(0, count);
 }
