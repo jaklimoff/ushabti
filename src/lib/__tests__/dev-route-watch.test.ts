@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -73,5 +73,20 @@ describe("the dev server's route watcher", () => {
   it("is started beside the dev server by the Docker dev compose file", () => {
     const compose = readFileSync(new URL("../../../docker-compose.yml", import.meta.url), "utf8");
     expect(compose).toMatch(/node scripts\/dev-route-watch\.mjs & exec npm run dev/);
+  });
+
+  it("polls through Watchpack, and sets nothing that nobody reads", () => {
+    const compose = readFileSync(new URL("../../../docker-compose.yml", import.meta.url), "utf8");
+    expect(compose).toMatch(/WATCHPACK_POLLING: "true"/);
+    expect(compose).not.toMatch(/CHOKIDAR_USEPOLLING/);
+  });
+
+  // Every start of the dev server writes next-env.d.ts again, and a restart
+  // for a new route is one more start. A tracked copy leaves the checkout dirty.
+  it("leaves the checkout clean when the dev server writes next-env.d.ts", () => {
+    const root = fileURLToPath(new URL("../../../", import.meta.url));
+    const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf8" });
+    expect(git("ls-files", "--error-unmatch", "next-env.d.ts").status).not.toBe(0);
+    expect(git("check-ignore", "-q", "next-env.d.ts").status).toBe(0);
   });
 });

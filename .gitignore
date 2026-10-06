@@ -1,5 +1,7 @@
 node_modules
 .next
+# Next.js writes it on every build, typegen and dev start, each a little differently.
+next-env.d.ts
 out
 .env*
 !.env.example

@@ -48,6 +48,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Running the dev server leaves the checkout clean.** `next-env.d.ts` is no longer tracked.
+  Next.js writes it on every dev start, build and typecheck, each a little differently, so a
+  restart of the dev server for a new route left a change that nobody made.
 - **Two headings with blank lines between them sit as far apart in the box as on the page.** With
   two or more blank lines between them, they used to sit closer together in the box.
 - **The description opens at once.** A click on it used to wait about 300 ms for the editor,
