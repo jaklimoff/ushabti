@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
+import { Note } from "@/components/ui/Layout";
 import { BoardProvider, useBoard } from "@/components/board/store";
 import { canManage } from "@/lib/roles";
 import type { BoardData } from "@/lib/types";
@@ -107,7 +108,7 @@ export function PageHead({ title, note }: { title: string; note: React.ReactNode
   return (
     <div className={styles.pageHead}>
       <h1 className={styles.h1}>{title}</h1>
-      <span style={{ fontSize: 12, lineHeight: 1.55, color: "var(--muted)" }}>{note}</span>
+      <Note>{note}</Note>
     </div>
   );
 }

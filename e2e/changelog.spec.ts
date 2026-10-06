@@ -142,7 +142,10 @@ test.describe("The changelog", () => {
     expect((await outside.goto(address))!.status()).toBe(404);
 
     await gotoSettings(page, projectId, "project");
-    await page.getByRole("button", { name: "Make it public" }).click();
+    /* The button is as wide as its words, not as the card. */
+    const makePublic = page.getByRole("button", { name: "Make it public" });
+    expect((await makePublic.boundingBox())!.width).toBeLessThan(200);
+    await makePublic.click();
     await expect(page.getByTestId("public-changelog-link")).toHaveText(address);
 
     /* A stranger reads it with no session: no keys, no people, no links. */
