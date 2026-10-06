@@ -53,6 +53,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **The task panel shows the activity of its own changes at once.** A value set in the panel,
   and the values it dropped, used to reach **Activity** only after the panel was opened again.
 
+- **Two "Shown when" rules written at once can no longer close a circle.** The server now checks
+  for a circle under the project lock, so one of the two writes is refused. After a rule is
+  written, Settings reads the board again, so a rule that the write frees from a circle shows
+  at once, and so do the values it drops.
+
 ## 0.17.0 — 2026-10-05
 
 ### Added

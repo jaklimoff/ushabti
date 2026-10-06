@@ -90,31 +90,36 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
      and so is one that closes a circle of rules. Null clears it. */
   if (input.when !== undefined) {
     adminOnly(user, membership, "say when a property shows");
-    if (input.when === null) {
-      mergeConfig((c) => sql`(${c}) - 'when'`);
-    } else {
-      const all = await loadProperties(projectId);
-      const when = readWhen(input.when, all, propertyId);
-      if (!when) {
-        throw new HttpError(
-          400,
-          "Shown when must name another select of this project and some of its options.",
-        );
-      }
-      const after = readWhens(
-        all.map((p) => (p.id === propertyId ? { ...p, config: { ...p.config, when } } : p)),
-      );
-      if (!after.find((p) => p.id === propertyId)?.config.when) {
-        throw new HttpError(
-          400,
-          "That rule closes a circle: the properties in it would hide each other.",
-        );
-      }
-      mergeConfig((c) => sql`${c} || ${JSON.stringify({ when })}::jsonb`);
-    }
+    if (input.when === null) mergeConfig((c) => sql`(${c}) - 'when'`);
   }
 
   if (configChanged) patch.config = config;
+
+  /* The rule is read under the project lock, against the rules as that lock
+     sees them. Read outside it, two rules written at once each found no
+     circle, and together they closed one. */
+  const writeWhen = async (tx: Tx) => {
+    if (input.when === undefined || input.when === null) return;
+    const all = await loadProperties(projectId, tx);
+    const when = readWhen(input.when, all, propertyId);
+    if (!when) {
+      throw new HttpError(
+        400,
+        "Shown when must name another select of this project and some of its options.",
+      );
+    }
+    const after = readWhens(
+      all.map((p) => (p.id === propertyId ? { ...p, config: { ...p.config, when } } : p)),
+    );
+    if (!after.find((p) => p.id === propertyId)?.config.when) {
+      throw new HttpError(
+        400,
+        "That rule closes a circle: the properties in it would hide each other.",
+      );
+    }
+    mergeConfig((c) => sql`${c} || ${JSON.stringify({ when })}::jsonb`);
+    patch.config = config;
+  };
 
   /* A rule that hides a property takes its values with it, in the same
      transaction. Settings asked first, with the count. A rule taken away
@@ -126,6 +131,32 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     return (await dropHidden(tx, { projectId, taskIds, actorId: user.id })).ring;
   };
 
+  const rankAfter = async (tx: Tx) => {
+    const siblings = await tx
+      .select({ id: properties.id, position: properties.position })
+      .from(properties)
+      .where(and(eq(properties.projectId, projectId), ne(properties.id, propertyId)))
+      .orderBy(byPos(properties.position));
+    const index = input.afterId ? siblings.findIndex((s) => s.id === input.afterId) : -1;
+    const before = index >= 0 ? siblings[index].position : null;
+    const after = siblings[index + 1]?.position ?? null;
+    return rankBetween(before, after);
+  };
+
+  /* The rule is checked before anything is written, so a refused rule
+     leaves the card view as it was too. */
+  if (input.afterId !== undefined || Object.keys(patch).length > 0 || input.when !== undefined) {
+    /* The project lock, as a create and an import take it: a task written
+       beside a rule is either in the list the rule drops from, or reads it. */
+    const ring = await withProjectLock(projectId, async (tx) => {
+      await writeWhen(tx);
+      const set = input.afterId === undefined ? patch : { ...patch, position: await rankAfter(tx) };
+      await tx.update(properties).set(set).where(eq(properties.id, propertyId));
+      return dropForRule(tx);
+    });
+    await ring();
+  }
+
   /* Where a property sits on a card belongs to the card view, so this writes
      there. It is the short way to say it: off the card, or back where its kind
      belongs. The card view page says the rest. */
@@ -133,36 +164,6 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     await setShownOnCard(projectId, propertyId, !!input.showOnCard);
   }
 
-  if (input.afterId !== undefined) {
-    const ring = await withProjectLock(projectId, async (tx) => {
-      const siblings = await tx
-        .select({ id: properties.id, position: properties.position })
-        .from(properties)
-        .where(and(eq(properties.projectId, projectId), ne(properties.id, propertyId)))
-        .orderBy(byPos(properties.position));
-      const index = input.afterId ? siblings.findIndex((s) => s.id === input.afterId) : -1;
-      const before = index >= 0 ? siblings[index].position : null;
-      const after = siblings[index + 1]?.position ?? null;
-      await tx
-        .update(properties)
-        .set({ ...patch, position: rankBetween(before, after) })
-        .where(eq(properties.id, propertyId));
-      return dropForRule(tx);
-    });
-    await ring();
-    await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
-    return json({ ok: true });
-  }
-
-  if (Object.keys(patch).length > 0) {
-    /* The project lock, as a create and an import take it: a task written
-       beside a rule is either in the list the rule drops from, or reads it. */
-    const ring = await withProjectLock(projectId, async (tx) => {
-      await tx.update(properties).set(patch).where(eq(properties.id, propertyId));
-      return dropForRule(tx);
-    });
-    await ring();
-  }
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
   return json({ ok: true });
 });

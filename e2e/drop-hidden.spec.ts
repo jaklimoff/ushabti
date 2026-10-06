@@ -429,6 +429,43 @@ test.describe("A value its task does not show is dropped", () => {
     expect(await valuesOf()).not.toHaveProperty(area.id);
   });
 
+  test("a rule that breaks a circle in Settings shows the rules it frees at once", async ({
+    page,
+  }) => {
+    const { projectId, size, area, valuesOf } = await circle(page, "Drop circle screen");
+    await gotoSettings(page, projectId);
+    /* Every rule of the circle reads as none, here as on the board. */
+    for (const name of ["Type", "Area", "Size"]) {
+      await expect(propertyBox(page, name).getByTestId("when-said")).toHaveCount(0);
+    }
+
+    /* Size shown when Priority is Urgent breaks the circle, and frees the
+       rules of Type and Area; the story has no priority, so all three go. */
+    const box = propertyBox(page, "Size");
+    await box.getByRole("button", { name: "Shown when…" }).click();
+    await box.getByLabel("Shown when of Size").selectOption({ label: "Priority" });
+    await box.getByLabel("Urgent", { exact: true }).click();
+    const read = page.waitForResponse(
+      (r) => r.url().endsWith(`/api/projects/${projectId}/board`) && r.request().method() === "GET",
+    );
+    await settles(page, /\/api\/properties\/[0-9a-f-]+$/, () =>
+      box.getByTestId("when-confirm").getByRole("button", { name: "Yes, hide" }).click(),
+    );
+    await read;
+    await expect(propertyBox(page, "Size").getByTestId("when-said")).toHaveText(
+      "Shown when Priority is Urgent",
+    );
+    await expect(propertyBox(page, "Type").getByTestId("when-said")).toHaveText(
+      "Shown when Size is Small",
+    );
+    await expect(propertyBox(page, "Area").getByTestId("when-said")).toHaveText(
+      "Shown when Type is Bug",
+    );
+    const values = await valuesOf();
+    expect(values).not.toHaveProperty(area.id);
+    expect(values).not.toHaveProperty(size.id);
+  });
+
   test("a rule written in Settings asks with the count, then drops", async ({ page }) => {
     const { projectId, priority, story, ids, type, valuesOf } = await bugs(
       page,
