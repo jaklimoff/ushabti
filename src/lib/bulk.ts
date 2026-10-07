@@ -173,3 +173,43 @@ export function changed(current: TaskValue, change: Change, optionId: string): s
   if (change === "remove") return list.filter((id) => id !== optionId);
   return list.includes(optionId) ? list : [...list, optionId];
 }
+
+/** What a run of batches did: how many went, which ids did not, and why. */
+export type BatchesRun = { count: number; left: string[]; said: string | null };
+
+/**
+ * Sends any number of ids as calls of at most `BULK_LIMIT`, one after another.
+ *
+ * The route keeps its ceiling, so a person who picked five hundred cards is
+ * served by the browser asking three times. It stops at the first refusal:
+ * the batches after it would most likely be refused for the same reason, and
+ * the ids that were not sent are the ones to keep picked. `send` answers how
+ * many it changed, because an archive counts only what was still live.
+ */
+export async function inBatches(
+  ids: string[],
+  send: (batch: string[]) => Promise<number>,
+  size = BULK_LIMIT,
+): Promise<BatchesRun> {
+  let count = 0;
+  for (let at = 0; at < ids.length; at += size) {
+    try {
+      count += await send(ids.slice(at, at + size));
+    } catch (err) {
+      const said = err instanceof Error && err.message ? err.message : "The change did not save.";
+      return { count, left: ids.slice(at), said };
+    }
+  }
+  return { count, left: [], said: null };
+}
+
+/**
+ * The toast for a run that stopped partway. Nothing went is the plain refusal,
+ * exactly as one call says it; otherwise both counts, so a person knows the
+ * board is half done and which half the picks still hold.
+ */
+export function batchesSaid(verb: "Archived" | "Set", total: number, run: BatchesRun): string {
+  const said = run.said ?? "";
+  if (total - run.left.length === 0) return said;
+  return `${verb} ${total - run.left.length} of ${total}. The rest did not: ${said}`;
+}
