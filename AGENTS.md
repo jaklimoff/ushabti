@@ -22,6 +22,14 @@ and what is easy to get wrong.
   `kind = "agent"` and no password. Nothing else in the schema knows about
   agents, which is why an assignee, a comment author and an activity actor all
   work for them without a second code path. Resist a parallel identity table.
+- **Somebody who left is still named, never offered.** Leaving deletes only the
+  membership, so a person value can name a user who is no longer a member.
+  `loadBoard` sends those as `former`, a list apart from `members`, because a
+  mention, ask mail, presence, People and the picker's choices read `members`
+  and must not offer them. `personOf()` in `src/lib/people.ts` is the one
+  lookup for a person value: members first, so a person who rejoins reads as a
+  member again with nothing written. Nothing clears a value when somebody
+  leaves.
 - **Every JSON route accepts a token.** `guard()` takes a session cookie or an
   `Authorization: Bearer` header, and the token carries the one project it
   opens. When you add a route, decide on purpose whether an agent may call it:

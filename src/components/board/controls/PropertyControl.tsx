@@ -6,7 +6,8 @@ import { tint } from "@/lib/colors";
 import { formatDate } from "@/lib/board";
 import { currentOption, keyName } from "@/lib/filters";
 import { NO_VALUE_KEY } from "@/lib/types";
-import type { MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
+import type { FormerDTO, MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
+import { personName, personOf } from "@/lib/people";
 import { openingAt, optionMenu } from "@/lib/option-menu";
 import { pickableOptions } from "@/lib/option-dates";
 import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
@@ -19,6 +20,8 @@ type Props = {
   property: PropertyDTO;
   value: TaskValue;
   members: MemberDTO[];
+  /** Who a value may still name after they left. Shown, never offered. */
+  former?: FormerDTO[];
   onChange: (value: TaskValue) => void;
   onAddOption?: (name: string) => Promise<string | null>;
   /** The board's day, which an iteration's picker reads "current" against. */
@@ -514,7 +517,7 @@ const LIST_STEPS: Record<string, (at: number, count: number) => number> = {
  * is still a button, so Enter and Space pick as they always did. The list is
  * one tab stop, like every listbox: Tab leaves it.
  */
-function PersonMenu({ value, members, onChange, labelId }: Props) {
+function PersonMenu({ value, members, former = [], onChange, labelId }: Props) {
   const [open, setOpen] = useState(false);
   const triggerId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -523,7 +526,9 @@ function PersonMenu({ value, members, onChange, labelId }: Props) {
     focusBack(trigger.current);
     setOpen(false);
   }, open);
-  const current = members.find((m) => m.id === value);
+  /* Somebody who left is read as the value and drawn as gone. The rows below
+     offer only members, so picking anyone hands the task on. */
+  const current = personOf(value, members, former);
 
   useEffect(() => {
     if (!open) return;
@@ -581,14 +586,17 @@ function PersonMenu({ value, members, onChange, labelId }: Props) {
               color={current.color}
               emoji={current.emoji}
               kind={current.kind}
+              gone={current.gone}
               size={18}
             />
           ) : (
             NOBODY
           )}
         </span>
-        <span className={`${styles.triggerText} ${current ? "" : styles.triggerEmpty}`}>
-          {current?.name ?? "Unassigned"}
+        <span
+          className={`${styles.triggerText} ${current && !current.gone ? "" : styles.triggerEmpty}`}
+        >
+          {current ? personName(current) : "Unassigned"}
         </span>
         <span className={styles.caret} aria-hidden="true">
           ▾

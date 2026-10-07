@@ -39,6 +39,7 @@ export function Chip({ chip }: { chip: CardChip }) {
           color={chip.person.color}
           emoji={chip.person.emoji}
           kind={chip.person.kind}
+          gone={chip.person.gone}
           size={17}
         />
       )}

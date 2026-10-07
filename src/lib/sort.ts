@@ -1,12 +1,14 @@
 import type { CardItem } from "./card-view";
 import { KIND_OF_BUILTIN, KIND_OF_TYPE } from "./card-view";
 import { linkLabel, linksOf } from "./web-links";
+import { personName, personOf } from "./people";
 import { isShown } from "./when";
 import {
   CARD_BUILTINS,
   SORT_DIRECTIONS,
   type CardBuiltin,
   type CardKind,
+  type FormerDTO,
   type MemberDTO,
   type PropertyDTO,
   type SortDirection,
@@ -131,7 +133,7 @@ export function readLensSort(raw: unknown, properties: PropertyDTO[]): ViewSort 
 }
 
 /** What a task is worth for one column. Empty is null, whatever its type. */
-function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[]): SortKey {
+function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[], former: FormerDTO[]): SortKey {
   switch (item.kind) {
     case "id":
       return task.number;
@@ -177,8 +179,9 @@ function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[]): SortKey {
       return best;
     }
     case "person": {
-      const member = members.find((m) => m.id === value);
-      return member ? member.name : null;
+      /* The words the chip shows, so somebody who left sorts as they read. */
+      const person = personOf(value, members, former);
+      return person ? personName(person) : null;
     }
     case "date":
       /* An ISO date compares as words and comes out chronological. */
@@ -225,6 +228,7 @@ export function sortTasks(
   sort: ViewSort | null,
   columns: CardItem[],
   members: MemberDTO[],
+  former: FormerDTO[] = [],
 ): TaskDTO[] {
   if (!sort) return tasks;
   const item = columns.find((c) => c.id === sort.columnId);
@@ -235,7 +239,7 @@ export function sortTasks(
   const properties = columns.flatMap((c) => (c.property ? [c.property] : []));
   for (const task of tasks) {
     const shown = !item.property || isShown(item.property, task.values, properties);
-    keys.set(task.id, shown ? keyOf(item, task, members) : null);
+    keys.set(task.id, shown ? keyOf(item, task, members, former) : null);
   }
 
   return [...tasks].sort((a, b) => {
