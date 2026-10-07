@@ -64,18 +64,22 @@ export function addDays(day: string, days: number): string {
 /**
  * The dates of the sprint after `prev`: it starts the day after its target.
  * A sprint somebody left without a target is taken to have lasted one length,
- * and one with no dates at all hands over to today.
+ * and one with no dates at all hands over to today. It never starts before
+ * today: a sprint ends when somebody ships it, and a late ship must not make
+ * a sprint that has already ended and still reads as the current one.
  */
 export function followOn(
   prev: Dates,
   length: number,
   today: string,
 ): { startAt: string; targetAt: string } {
-  const startAt = prev.targetAt
+  const after = prev.targetAt
     ? addDays(prev.targetAt, 1)
     : prev.startAt
       ? addDays(prev.startAt, length)
       : today;
+  // Both are YYYY-MM-DD, so the later day is the larger string.
+  const startAt = after > today ? after : today;
   return { startAt, targetAt: addDays(startAt, length - 1) };
 }
 

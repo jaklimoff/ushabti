@@ -130,6 +130,13 @@ export type MemberDTO = {
   listeningAt: string | null;
 };
 
+/**
+ * A user a person value in this project names who is no longer a member.
+ * It is kept apart from `members` so nothing that offers a person — a
+ * mention, ask mail, presence, People, the picker — offers somebody who left.
+ */
+export type FormerDTO = Pick<MemberDTO, "id" | "name" | "color" | "emoji" | "kind">;
+
 export type TaskValue = string | string[] | number | boolean | null;
 
 export type TaskDTO = {
@@ -757,6 +764,8 @@ export type BoardData = {
    */
   today: string;
   members: MemberDTO[];
+  /** People a task still names who left the project. Never offered as a choice. */
+  former: FormerDTO[];
   /** Emails invited and not yet signed up. They join the moment they do. */
   invites: InviteDTO[];
   properties: PropertyDTO[];
@@ -781,6 +790,12 @@ export type BoardData = {
   archivedUnder: Record<string, ArchivedUnder>;
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];
+  /**
+   * Every task of the project, live and archived, when `tasks` holds only a
+   * few of them. Settings reads that: it carries the tasks the card view
+   * preview draws, and nothing it does needs the rest.
+   */
+  taskCount?: number;
 };
 
 /* ------------------------------------------------------------------ */

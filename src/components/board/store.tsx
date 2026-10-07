@@ -58,6 +58,7 @@ import type {
 import { readWhens, withoutHidden, withWhen } from "@/lib/when";
 import type { OptionDates } from "@/lib/option-dates";
 import type { ShipDone, ShipRest } from "@/lib/ship";
+import { personOf } from "@/lib/people";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 
@@ -462,9 +463,9 @@ export function usePresence(taskId: string) {
   const faces = useMemo(
     () =>
       peopleOn(room, taskId, user.id)
-        .map((id) => data.members.find((m) => m.id === id))
-        .filter((m) => m !== undefined),
-    [data.members, room, taskId, user.id],
+        .map((id) => personOf(id, data.members, data.former))
+        .filter((m) => m !== null),
+    [data.members, data.former, room, taskId, user.id],
   );
   const inField = useCallback(
     (field: string | null) => {
@@ -476,9 +477,9 @@ export function usePresence(taskId: string) {
   const editing = useCallback(
     (field: string) =>
       editorsOf(room, taskId, field, user.id)
-        .map((id) => data.members.find((m) => m.id === id)?.name)
+        .map((id) => personOf(id, data.members, data.former)?.name)
         .filter((name) => name !== undefined),
-    [data.members, room, taskId, user.id],
+    [data.members, data.former, room, taskId, user.id],
   );
   return { faces, inField, editing };
 }
@@ -542,10 +543,13 @@ const noLastView = () => null;
 export function BoardProvider({
   initial,
   user,
+  reads = "board",
   children,
 }: {
   initial: BoardData;
   user: SessionUser;
+  /** What a read asks for. Settings reads its own loader, never the board. */
+  reads?: "board" | "settings";
   children: React.ReactNode;
 }) {
   const [data, setData] = useState<BoardData>(initial);
@@ -607,17 +611,23 @@ export function BoardProvider({
   const refresh = useCallback(async () => {
     const reading = writes.reading();
     try {
-      const fresh = await api.get<BoardData>(`/api/projects/${projectId}/board`);
+      const fresh = await api.get<BoardData>(`/api/projects/${projectId}/${reads}`);
       if (!writes.keep(reading)) return;
       setData(fresh);
-      /* The answer names every task this project still has, so it is the one
-         place that can say which unsent notes have nothing left to sit on. */
-      sweepDrafts(projectId, [...fresh.tasks.map((t) => t.id), ...fresh.archived.map((t) => t.id)]);
+      /* The board's answer names every task this project still has, so it is
+         the one place that can say which unsent notes have nothing left to
+         sit on. Settings' answer names a few. */
+      if (reads === "board") {
+        sweepDrafts(projectId, [
+          ...fresh.tasks.map((t) => t.id),
+          ...fresh.archived.map((t) => t.id),
+        ]);
+      }
     } catch (err) {
       // The project is gone, or this person was removed from it.
       if (err instanceof ApiError && err.status === 404) router.push("/projects");
     }
-  }, [projectId, router, writes]);
+  }, [projectId, reads, router, writes]);
 
   /*
    * The stream must outlive every re-render, so the effect below holds the

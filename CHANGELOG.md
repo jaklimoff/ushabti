@@ -16,6 +16,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   a property gets `403 Only a person can do this.`
 ### Fixed
 
+- **A sprint made by a late Ship starts today.** It used to start the day after the last
+  sprint's end date, so a Ship three weeks late made a sprint that had already ended.
+- **A roadmap bar with no start date begins after the previous one ends.** It used to start at the
+  oldest task under the option, so one old task moved into a release dragged its bar years back.
+  Only the first dated option still starts at its oldest task.
 - **A new property with more than 40 options is refused, never cut short.** It used to keep the
   first 40 and drop the rest without a word. The box now takes one option per line, so a name may
   hold a comma, and says the limit before it sends.
@@ -25,8 +30,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **Set and Archive work on any number of picked tasks.** Past 200 they used to refuse the whole
   pick. They now go in batches of 200, one after another. If one is refused, the toast says how
   many went and how many did not, and after an archive only the tasks that did not go stay picked.
+- **Settings opens without reading every task.** It reads the project, its properties, views and
+  people, and only the few tasks the card view preview draws. A change somebody else makes reloads
+  only that, so Settings stays quick on a project of thousands of tasks.
 
 ### Changed
+
+- **Tasks of a person who left keep their name, marked as gone.** A card, a list row and the panel
+  show "Ada (left)" with a faded face, where they used to show nobody. A board grouped by a person
+  gives them a column of their own until their tasks are handed on, so Unassigned on the board and
+  in the filter mean the same thing. The filter lists them under **Left the project**; the picker
+  shows them as the value but never offers them. Somebody who rejoins is a member again.
 
 - **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
   **Close**: it ends the sprint and moves its unfinished tasks to the next one or leaves them, and
