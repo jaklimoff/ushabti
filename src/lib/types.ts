@@ -545,6 +545,8 @@ export type TaskLinkDTO = {
 };
 
 export type TaskDetailDTO = TaskDTO & {
+  /** Who made it, or null when their account is gone or nobody did. */
+  creator: FormerDTO | null;
   /**
    * Both ends of the chain: what this task waits on, and what waits on it.
    * They carry the tasks that are over as well, struck through in the panel,

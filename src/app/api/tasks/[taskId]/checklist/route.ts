@@ -3,7 +3,7 @@ import { byPos } from "@/lib/order";
 import { checklistItems } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
-import { logActivity, taskProjectId, withProjectLock } from "@/lib/queries";
+import { logActivity, taskProjectId, touchTasks, withProjectLock } from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
 
 type Ctx = { params: Promise<{ taskId: string }> };
@@ -28,6 +28,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .insert(checklistItems)
       .values({ taskId, text, position: rankAfter(siblings.at(-1)?.position ?? null) })
       .returning();
+    await touchTasks([taskId], tx);
     return row;
   });
 

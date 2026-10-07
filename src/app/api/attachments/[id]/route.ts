@@ -5,6 +5,7 @@ import { logActivity } from "@/lib/activity";
 import { attachmentRow, deleteRow } from "@/lib/attachment-rows";
 import { attachmentsOn, ATTACHMENTS_OFF } from "@/lib/attachments";
 import { canManage } from "@/lib/roles";
+import { touchTasks } from "@/lib/queries";
 import { presignGet, removeObject } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -50,6 +51,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
 
   // An upload nobody confirmed was never on the feed, so its removal is not either.
   if (row.readyAt) {
+    await touchTasks([row.taskId]);
     await logActivity({
       projectId: row.projectId,
       taskId: row.taskId,

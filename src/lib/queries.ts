@@ -75,6 +75,19 @@ import type {
 
 export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/**
+ * Says that somebody did something to these tasks. A write that changes a row
+ * of `tasks` itself sets `updatedAt` in the same statement instead. Nothing
+ * else bumps it: not a run report, not a beat, not a rank, and not a value a
+ * change of the board's shape rewrote, because none of those is somebody
+ * touching the task.
+ */
+export async function touchTasks(taskIds: string[], tx: Tx | typeof db = db): Promise<void> {
+  const ids = [...new Set(taskIds)];
+  if (!ids.length) return;
+  await tx.update(tasks).set({ updatedAt: new Date() }).where(inArray(tasks.id, ids));
+}
+
 /** What a project is called, for a sentence addressed to somebody outside the board. */
 export async function projectName(projectId: string): Promise<string> {
   const [project] = await db
@@ -1067,9 +1080,15 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       projectId: tasks.projectId,
       projectKey: projects.key,
       doneWhen: projects.doneWhen,
+      creatorId: users.id,
+      creatorName: users.name,
+      creatorColor: users.color,
+      creatorEmoji: users.avatarEmoji,
+      creatorKind: users.kind,
     })
     .from(tasks)
     .innerJoin(projects, eq(projects.id, tasks.projectId))
+    .leftJoin(users, eq(users.id, tasks.createdBy))
     .where(eq(tasks.id, taskId))
     .limit(1);
 
@@ -1204,6 +1223,16 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     /* The detail answers for an archived task exactly as it does for a live
        one: the panel opens on a link, and a run that finished keeps its log. */
     archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,
+    /* The account, not the membership: somebody who left made it all the same. */
+    creator: row.creatorId
+      ? {
+          id: row.creatorId,
+          name: row.creatorName!,
+          color: row.creatorColor!,
+          emoji: row.creatorEmoji,
+          kind: row.creatorKind === "agent" ? "agent" : "human",
+        }
+      : null,
     values,
     checklistTotal: checklist.length,
     checklistDone: checklist.filter((c) => c.done).length,

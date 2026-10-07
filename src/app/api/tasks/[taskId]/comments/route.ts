@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { comments } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
-import { logActivity, taskProjectId } from "@/lib/queries";
+import { logActivity, taskProjectId, touchTasks } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -15,10 +15,14 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const input = await body<{ body?: string }>(req);
   const text = str(input.body, "Comment", { max: 8000 });
 
-  const [comment] = await db
-    .insert(comments)
-    .values({ taskId, authorId: user.id, body: text })
-    .returning();
+  const comment = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(comments)
+      .values({ taskId, authorId: user.id, body: text })
+      .returning();
+    await touchTasks([taskId], tx);
+    return row;
+  });
 
   // The id lets an agent reading the feed find the words it was addressed in.
   await logActivity({

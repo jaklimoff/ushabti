@@ -40,6 +40,7 @@ const fake = vi.hoisted(() => {
       return chain(() => state.updated);
     },
     select: () => chain(() => state.read),
+    transaction: <T>(work: (tx: unknown) => Promise<T>): Promise<T> => work(db),
   };
   return { state, db };
 });
@@ -50,6 +51,7 @@ vi.mock("@/lib/queries", () => ({
   taskProjectId: async () => "project-1",
   commentRow: async () => fake.state.comment,
   logActivity: vi.fn(async () => undefined),
+  touchTasks: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),

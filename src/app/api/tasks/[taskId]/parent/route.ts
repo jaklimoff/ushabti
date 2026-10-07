@@ -9,6 +9,7 @@ import {
   projectLinks,
   taskCards,
   taskProjectId,
+  touchTasks,
   withProjectLock,
 } from "@/lib/queries";
 
@@ -59,6 +60,7 @@ export const PUT = route<Ctx>(async (req, ctx) => {
 
     await tx.delete(taskLinks).where(and(eq(taskLinks.toId, taskId), eq(taskLinks.kind, PARENT)));
     await tx.insert(taskLinks).values({ fromId: parentId, toId: taskId, kind: PARENT });
+    await touchTasks([taskId], tx);
     /* The parent it left, unless that one is deleted: nobody can see it. */
     const left = had && !cards.get(had.fromId)?.gone ? cards.get(had.fromId)!.key : null;
     return { parentKey: parent.key, left };
@@ -97,6 +99,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
     .returning({ fromId: taskLinks.fromId });
 
   if (gone.length) {
+    await touchTasks([taskId]);
     const parent = (await taskCards([gone[0].fromId])).get(gone[0].fromId);
     await logActivity({
       projectId,

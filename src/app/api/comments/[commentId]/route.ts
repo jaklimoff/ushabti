@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { comments } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
-import { commentRow, logActivity, taskProjectId } from "@/lib/queries";
+import { commentRow, logActivity, taskProjectId, touchTasks } from "@/lib/queries";
 import { canManage } from "@/lib/roles";
 
 type Ctx = { params: Promise<{ commentId: string }> };
@@ -37,11 +37,15 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   if (baseBody !== undefined)
     unchanged.push(or(eq(comments.body, baseBody), eq(comments.body, text))!);
 
-  const [comment] = await db
-    .update(comments)
-    .set({ body: text, editedAt: new Date() })
-    .where(and(...unchanged))
-    .returning();
+  const comment = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(comments)
+      .set({ body: text, editedAt: new Date() })
+      .where(and(...unchanged))
+      .returning();
+    if (row) await touchTasks([row.taskId], tx);
+    return row;
+  });
 
   if (!comment) {
     const [now] = await db
@@ -79,7 +83,16 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
     throw new HttpError(403, "You can only delete your own comments.");
   }
 
-  await db.delete(comments).where(eq(comments.id, commentId));
+  await db.transaction(async (tx) => {
+    const gone = await tx
+      .delete(comments)
+      .where(eq(comments.id, commentId))
+      .returning({ taskId: comments.taskId });
+    await touchTasks(
+      gone.map((g) => g.taskId),
+      tx,
+    );
+  });
   await broadcast({ projectId, scope: "task", taskId: row.taskId, clientId: clientIdOf(req) });
   return json({ ok: true });
 });

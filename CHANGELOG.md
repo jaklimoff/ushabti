@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A task shows when it was made and when somebody last changed it.** The panel reads
+  "Made 3 Oct by Ana · changed 2 hours ago" under the title, with the full time in the
+  project's zone on hover. A comment, a checklist item, a link, a file, an archive and a put
+  back now count as a change. A drag inside one column, a run report, a beat and a value a
+  deleted option took away do not, so the top-bar search ranks by real work.
 - **Done when can name more than one option.** In **Settings → Project**, tick every option
   that means over, such as Done and Won't do. A blocker in any of them frees what waits on it,
   and Ship, progress and parts count it as done. The API now answers `doneWhen` as

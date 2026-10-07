@@ -9,6 +9,7 @@ import {
   imageSize,
   SIZED_IMAGES,
 } from "@/lib/attachments";
+import { touchTasks } from "@/lib/queries";
 import { headObject, readHead } from "@/lib/storage";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -49,6 +50,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   const ready = await markReady(row.id, size);
   if (!ready) throw new HttpError(404, "File not found.");
+  await touchTasks([row.taskId]);
 
   await logActivity({
     projectId: row.projectId,
