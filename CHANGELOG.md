@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A roadmap bar with no start date begins after the previous one ends.** It used to start at the
+  oldest task under the option, so one old task moved into a release dragged its bar years back.
+  Only the first dated option still starts at its oldest task.
 - **Set and Archive work on any number of picked tasks.** Past 200 they used to refuse the whole
   pick. They now go in batches of 200, one after another. If one is refused, the toast says how
   many went and how many did not, and after an archive only the tasks that did not go stay picked.
