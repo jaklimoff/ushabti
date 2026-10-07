@@ -556,7 +556,7 @@ function AgentBox({
     <div className={styles.agentBox} data-testid="agent-box">
       {confirm.asking ? (
         <ConfirmRow
-          question={`Remove ${agent.name}? Its tokens stop working at once. Its comments and its activity stay.`}
+          question={`Remove ${agent.name}? Its tokens stop working at once. Its runs, its comments and its activity stay on the tasks.`}
           confirmLabel="Yes, remove"
           onConfirm={() => confirm.confirm(onRemove)}
           onCancel={confirm.cancel}

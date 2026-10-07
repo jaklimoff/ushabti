@@ -730,6 +730,60 @@ test.describe("Agents on the board", () => {
     expect(detail.task.pastRuns[0]).not.toHaveProperty("lastLog");
   });
 
+  test("a removed agent leaves its runs on the task", async ({ page, request }) => {
+    await register(page, "Removal Owner");
+    const projectId = await createProject(page, unique("Removal"));
+    await addTask(page, "Todo", "Worked on before removal");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Departed");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Departed" });
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const token = (
+      (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
+    ).trim();
+
+    const api = agentApi(request, token);
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const task = board.tasks.find((t: { title: string }) => t.title === "Worked on before removal");
+    const { run } = await (
+      await api.post(`/api/tasks/${task.id}/run`, {
+        goal: "Leave a record",
+        step: "Planning",
+        steps: ["Plan the work", "Do the work"],
+      })
+    ).json();
+    await api.patch(`/api/runs/${run.id}`, { status: "done", log: "left a line in the log" });
+
+    /* ---- the question says what goes and what stays ----------------- */
+
+    await page.reload();
+    await agentBox.getByRole("button", { name: "Remove the agent Departed" }).click();
+    await expect(agentBox).toContainText(
+      "Remove Departed? Its tokens stop working at once. Its runs, its comments and its activity stay on the tasks.",
+    );
+    await agentBox.getByRole("button", { name: "Yes, remove" }).click();
+    await expect(page.getByTestId("agent-box").filter({ hasText: "Departed" })).toHaveCount(0);
+
+    // What goes: the token opens nothing.
+    expect((await api.get(`/api/projects/${projectId}/board`)).status()).toBe(401);
+
+    /* ---- what stays: the run, its plan and its log ------------------- */
+
+    await page.goto(`/p/${projectId}`);
+    await card(page, "Worked on before removal").first().click();
+    await page.getByTestId("agent-tab").click();
+    const row = page.getByTestId("past-run").first();
+    await expect(row).toContainText("Departed");
+    await expect(row).toContainText("Leave a record");
+    await row.click();
+    const opened = page.getByTestId("past-run-open");
+    await expect(opened).toContainText("Plan the work");
+    await expect(opened.getByText("left a line in the log")).toBeVisible();
+  });
+
   test("a task opens on the Agent tab while an agent works on it", async ({ page, request }) => {
     await register(page, "Tab Owner");
     const projectId = await createProject(page, unique("Tabs"));

@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { agentRuns, projectMembers, users } from "@/db/schema";
+import { agentRuns, agentTokens, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, adminOnly, guard, json, readId, route } from "@/lib/api";
 import { readFace } from "@/lib/face";
@@ -49,8 +49,10 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 });
 
 /**
- * Deletes the agent. An agent belongs to one project, so this removes the
- * machine member for good, with its tokens, its runs and its authorship.
+ * Removes the agent from the project, as a person is removed: its membership
+ * and its tokens go, and its user row stays. The runs it made, with their
+ * plans and their logs, hang off that row, and so do the names on its comments
+ * and its activity. Deleting the row took every run with it.
  */
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { projectId, agentId } = await ctx.params;
@@ -69,7 +71,14 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
     throw new HttpError(409, "That agent still holds a task. Take the task over first.");
   }
 
-  await db.delete(users).where(eq(users.id, agentId));
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(agentTokens)
+      .where(and(eq(agentTokens.agentId, agentId), eq(agentTokens.projectId, projectId)));
+    await tx
+      .delete(projectMembers)
+      .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, agentId)));
+  });
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
   return json({ ok: true });
 });
