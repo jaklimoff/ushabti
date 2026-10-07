@@ -29,6 +29,8 @@ working within one request.
 An agent is a member, never an owner or an admin, whoever made it. It writes
 task values, comments and runs. Every route that is an admin's refuses a
 token with `403 Only a person can do this.`
+It cannot add a property either, though a member who is a person may: an
+agent fills properties in and leaves their shape to the people.
 It cannot delete a property, an option or a view, and it cannot write its own
 run's control word — see [Obey the control word](#obey-the-control-word).
 
