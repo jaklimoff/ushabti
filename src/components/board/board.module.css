@@ -2239,6 +2239,17 @@ button.listHeadCell:focus-visible {
   padding: 4px 6px;
 }
 
+/* A heading among the rows, such as "Left the project". It is not a row: the
+   arrows and the highlight walk past it. */
+.filterGroup {
+  display: block;
+  font-size: var(--t-small);
+  color: var(--muted);
+  padding: 8px 6px 2px;
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+}
+
 /* A line above the question, not a second question: the rule is still
    changed with one press, and nobody is asked to confirm it. */
 .filterShared {
