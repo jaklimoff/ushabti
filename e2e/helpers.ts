@@ -576,3 +576,30 @@ export async function optionsOf(select: Locator): Promise<string[]> {
   await select.press("Escape");
   return words.map((w) => w.replace("✓", "").trim());
 }
+
+/**
+ * How a column header holds its own box, measured. The name gives way before
+ * anything else, so a header that grows can leave it a few pixels wide and
+ * still pass a test that only looks for the words. Every box in the header
+ * counts, as in `pastTheBar`: a button past the column's edge is clipped by
+ * the column in silence.
+ */
+export async function headerRoom(
+  header: Locator,
+): Promise<{ past: number; nameCut: number; nameWidth: number }> {
+  return header.evaluate((el) => {
+    const head = el.querySelector('[class*="colHead"]') ?? el;
+    const edge = (el.closest('[data-testid="column"]') ?? el).getBoundingClientRect().right;
+    const name = head.querySelector('[data-testid="column-name"]') as HTMLElement;
+    let past = 0;
+    for (const child of head.querySelectorAll("*")) {
+      const at = child.getBoundingClientRect();
+      if (at.width > 0) past = Math.max(past, at.right - edge);
+    }
+    return {
+      past: Math.max(Math.round(past), 0),
+      nameCut: name.scrollWidth - name.clientWidth,
+      nameWidth: Math.round(name.getBoundingClientRect().width),
+    };
+  });
+}

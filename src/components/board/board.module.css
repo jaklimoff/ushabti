@@ -717,6 +717,35 @@
   flex: 0 0 auto;
 }
 
+/* An ended sprint's day and sum take a second line, so the name keeps the
+   first one with the buttons. The title takes what the buttons leave, and
+   the spacer has nothing to do. */
+.colHeadEnded {
+  flex-wrap: wrap;
+  row-gap: 5px;
+}
+
+.colHeadEnded .colTitle {
+  flex: 1 1 0;
+}
+
+.colHeadEnded .colSpacer {
+  display: none;
+}
+
+.colSpacer {
+  min-width: 0;
+}
+
+.colMeta {
+  order: 1;
+  flex: 1 0 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-left: 20px;
+}
+
 .grip {
   display: grid;
   grid-template-columns: 2px 2px;

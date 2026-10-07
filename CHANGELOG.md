@@ -20,7 +20,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **A sprint ends when somebody presses Ship.** The board no longer closes a sprint by itself on
   its end date, and no longer archives or moves work on a timer. A sprint past its end stays open,
-  and its column says "Ended 2 days ago" beside the Ship button. Ship makes the next sprint when
+  and its column says "Ended 2 days ago" on a line below its name. Ship makes the next sprint when
   none is open after it. The cadence is only the sprint length now; "Sprints kept ahead" is gone.
 
 ## 0.19.0 — 2026-10-06

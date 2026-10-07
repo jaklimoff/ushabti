@@ -178,6 +178,26 @@ export function Column({
   const [shipping, setShipping] = useState(false);
   const canShip = !!ship && !!dates?.targetAt && !dates.shippedAt && !shipping;
   const release = releaseOf(dates, column.tasks, rule);
+  /* The day and the sum. An ended header sets them on a line of their own:
+     "Ended 12 days ago" is longer than the name, and on one line it left the
+     name no room at all in a column this wide. */
+  const when = release && (
+    <>
+      <span
+        className={`${styles.colDate} ${release.shipped ? styles.colShipped : ""} ${ended ? styles.colEnded : ""}`}
+        data-testid="column-date"
+        title={`${release.shipped ? "Shipped" : "Target"} ${release.day}`}
+      >
+        {release.shipped && "✓ "}
+        {ended ?? formatDate(release.day)}
+      </span>
+      {rule.countBy && (
+        <span className={styles.colSum} data-testid="column-sum" title={release.said}>
+          {release.done} of {release.total}
+        </span>
+      )}
+    </>
+  );
 
   const sortable = useSortable({
     id: COLUMN_PREFIX + column.id,
@@ -297,7 +317,7 @@ export function Column({
           </button>
         </div>
       ) : (
-        <div className={styles.colHead}>
+        <div className={`${styles.colHead} ${ended ? styles.colHeadEnded : ""}`}>
           {draggable ? (
             <span
               className={styles.grip}
@@ -328,22 +348,8 @@ export function Column({
           <span className={styles.colCount} data-testid="column-count">
             {column.tasks.length}
           </span>
-          {release && (
-            <span
-              className={`${styles.colDate} ${release.shipped ? styles.colShipped : ""} ${ended ? styles.colEnded : ""}`}
-              data-testid="column-date"
-              title={`${release.shipped ? "Shipped" : "Target"} ${release.day}`}
-            >
-              {release.shipped && "✓ "}
-              {ended ?? formatDate(release.day)}
-            </span>
-          )}
-          {release && rule.countBy && (
-            <span className={styles.colSum} data-testid="column-sum" title={release.said}>
-              {release.done} of {release.total}
-            </span>
-          )}
-          <span style={{ flex: 1 }} />
+          {ended ? <span className={styles.colMeta}>{when}</span> : when}
+          <span className={styles.colSpacer} style={{ flex: 1 }} />
           {onAddTask && (
             <button
               className={styles.colAdd}
