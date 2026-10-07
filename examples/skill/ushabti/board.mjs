@@ -1487,17 +1487,20 @@ commands.watch = async function watch() {
         again = false;
         board = null;
         try {
+          /* A page goes on from the last line read, by its moment and its id.
+             One write stamps all its lines alike, so a moment alone would read
+             the first page of a long burst again and never get past it. */
+          let after = new Date(Date.parse(cursor) - OVERLAP_MS).toISOString();
+          let afterId = null;
           for (;;) {
-            const after = new Date(Date.parse(cursor) - OVERLAP_MS).toISOString();
+            const page = afterId ? `&afterId=${afterId}` : "";
             const { entries } = await request(
               "GET",
-              `/api/projects/${projectId}/activity?after=${encodeURIComponent(after)}&limit=200`,
+              `/api/projects/${projectId}/activity?after=${encodeURIComponent(after)}${page}&limit=200`,
             );
-            let fresh = 0;
             for (const entry of entries) {
               if (seen.has(entry.id)) continue;
               remember(entry.id);
-              fresh += 1;
               if (entry.createdAt > cursor) cursor = entry.createdAt;
               try {
                 await consider(entry);
@@ -1505,7 +1508,12 @@ commands.watch = async function watch() {
                 say(`could not read ${entry.taskKey ?? "a task"}: ${err.message}`);
               }
             }
-            if (entries.length < 200 || fresh === 0) break;
+            if (entries.length < 200) break;
+            const last = entries[entries.length - 1];
+            // A board too old to read afterId answers the same page again.
+            if (last.id === afterId) break;
+            after = last.createdAt;
+            afterId = last.id;
           }
           saveState();
         } catch (err) {

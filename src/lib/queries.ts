@@ -1,6 +1,6 @@
 import "server-only";
 import { byPos } from "@/lib/order";
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   activity,
@@ -1161,12 +1161,26 @@ export { logActivity } from "./activity";
 /**
  * A project's activity after a moment, oldest first, for an agent that reads
  * what the stream rang about. The time index makes this one range scan.
+ *
+ * One write stamps all its lines with one moment, so a moment alone cannot
+ * say where a page ended: a burst longer than a page would be read from its
+ * start for ever. `afterId` names the last line read, and the lines of that
+ * same millisecond after it in id order come next. It compares the
+ * millisecond rather than the stamp because the stamp goes out as an ISO
+ * string, and rows older than the webhooks carry microseconds.
  */
 export async function loadActivityFeed(
   projectId: string,
   after: Date,
   limit: number,
+  afterId: string | null = null,
 ): Promise<ActivityFeedEntryDTO[]> {
+  const past = afterId
+    ? and(
+        gte(activity.createdAt, after),
+        or(gte(activity.createdAt, new Date(after.getTime() + 1)), gt(activity.id, afterId)),
+      )
+    : gt(activity.createdAt, after);
   const rows = await db
     .select({
       id: activity.id,
@@ -1184,7 +1198,7 @@ export async function loadActivityFeed(
     .innerJoin(projects, eq(projects.id, activity.projectId))
     .leftJoin(tasks, eq(tasks.id, activity.taskId))
     .leftJoin(users, eq(users.id, activity.actorId))
-    .where(and(eq(activity.projectId, projectId), gt(activity.createdAt, after)))
+    .where(and(eq(activity.projectId, projectId), past))
     .orderBy(asc(activity.createdAt), asc(activity.id))
     .limit(limit);
 

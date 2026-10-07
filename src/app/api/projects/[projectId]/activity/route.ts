@@ -1,5 +1,6 @@
 import { HttpError } from "@/lib/auth";
 import { guard, json, route } from "@/lib/api";
+import { isId } from "@/lib/ids";
 import { loadActivityFeed } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -11,6 +12,10 @@ type Ctx = { params: Promise<{ projectId: string }> };
  * reads it after every ring and after every reconnect, so a task created
  * while its socket was down still reaches it. Without `after` it answers
  * nothing and the server's clock, which is where a new reader starts.
+ *
+ * A page ends inside a moment whenever one write made more lines than a page
+ * holds, so the next page is asked with `afterId` too: the last line read,
+ * beside its own `createdAt` as `after`.
  *
  * Any member may read it, a person or an agent: it says nothing the task
  * panels do not already say.
@@ -28,6 +33,11 @@ export const GET = route<Ctx>(async (req, ctx) => {
   const after = new Date(afterRaw);
   if (Number.isNaN(after.getTime())) throw new HttpError(400, "after must be an ISO date.");
 
-  const entries = await loadActivityFeed(projectId, after, limit);
+  const afterId = url.searchParams.get("afterId");
+  if (afterId !== null && !isId(afterId)) {
+    throw new HttpError(400, "afterId must be the id of a line in the feed.");
+  }
+
+  const entries = await loadActivityFeed(projectId, after, limit, afterId);
   return json({ entries, now: new Date().toISOString() });
 });
