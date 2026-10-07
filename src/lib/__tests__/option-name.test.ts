@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { sameOptionName, takenBy, takenSaid } from "../option-name";
+import {
+  optionLines,
+  OPTIONS_MAX,
+  sameOptionName,
+  takenBy,
+  takenSaid,
+  tooManySaid,
+} from "../option-name";
 
 describe("sameOptionName", () => {
   it("ignores letter case and the spaces around a name", () => {
@@ -32,5 +39,21 @@ describe("takenBy", () => {
 describe("takenSaid", () => {
   it("names the property and the option as it is spelt", () => {
     expect(takenSaid("Priority", "High")).toBe("Priority already has an option named High.");
+  });
+});
+
+describe("tooManySaid", () => {
+  it("names the limit and the length of the list", () => {
+    expect(OPTIONS_MAX).toBe(40);
+    expect(tooManySaid(60)).toBe("A property holds at most 40 options. This list has 60.");
+  });
+});
+
+describe("optionLines", () => {
+  it("reads one option per line, so a name may hold a comma", () => {
+    expect(optionLines("Low, but not nothing\n\n  High \r\n")).toEqual([
+      "Low, but not nothing",
+      "High",
+    ]);
   });
 });

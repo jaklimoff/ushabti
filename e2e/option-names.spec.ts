@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { addTask, createProject, inDatabase, register, unique } from "./helpers";
+import {
+  addTask,
+  createProject,
+  gotoSettings,
+  inDatabase,
+  propertyBox,
+  register,
+  unique,
+} from "./helpers";
 
 type Page = import("@playwright/test").Page;
 
@@ -101,5 +109,56 @@ test.describe("One name, one option", () => {
     await expect(page.getByTestId("toast")).toContainText(
       "Status already has an option named parked.",
     );
+  });
+
+  test("a new property with more than 40 options is refused whole", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Long list"));
+    const sixty = Array.from({ length: 60 }, (_, i) => `Label ${i + 1}`);
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Stickers", type: "multi_select", options: sixty },
+    });
+    expect(made.status()).toBe(400);
+    expect((await made.json()).error).toBe(
+      "A property holds at most 40 options. This list has 60.",
+    );
+
+    const board: Board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(board.properties.map((p) => p.name)).not.toContain("Stickers");
+    const [{ count }] = await inDatabase((db) =>
+      db
+        .query(
+          `select count(*)::int as count from property_options o
+             join properties p on p.id = o.property_id
+            where p.project_id = $1 and o.name like 'Label %'`,
+          [projectId],
+        )
+        .then((r) => r.rows as { count: number }[]),
+    );
+    expect(count).toBe(0);
+  });
+
+  test("the box takes one option per line, says the limit and sends nothing", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Option box"));
+    await gotoSettings(page, projectId);
+
+    const box = page.getByLabel("Options of the new property");
+    await page.getByLabel("New property name").fill("Stickers");
+    await box.fill(Array.from({ length: 60 }, (_, i) => `Label ${i + 1}`).join("\n"));
+    await expect(
+      page.getByRole("alert").filter({ hasText: "A property holds at most 40 options." }),
+    ).toHaveText("A property holds at most 40 options. This list has 60.");
+    await expect(page.getByRole("button", { name: "Add property" })).toBeDisabled();
+    await expect(page.getByLabel("Name of the Stickers property")).toHaveCount(0);
+
+    await page.getByLabel("New property name").fill("Size");
+    await box.fill("Small, but not tiny\nLarge");
+    await page.getByRole("button", { name: "Add property" }).click();
+    const size = propertyBox(page, "Size");
+    await expect(size.getByLabel("Name of the option Small, but not tiny")).toHaveValue(
+      "Small, but not tiny",
+    );
+    await expect(size.getByLabel("Name of the option Large")).toHaveValue("Large");
   });
 });

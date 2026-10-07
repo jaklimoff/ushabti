@@ -70,16 +70,21 @@ options, which happens on the board.
 ### Create one
 
 The bottom row of the card: a name, a type from the dropdown, and — for select and multi-select
-only — options separated by commas. A hint under the row explains the type currently chosen.
+only — options, one per line, so an option name may hold a comma. A hint under the row explains
+the type currently chosen.
 
 ```
 Name:    Environment
 Type:    Select
-Options: local, staging, production
+Options: local
+         staging
+         production
 ```
 
-New properties are appended last and start on the card, except a Link, which starts off it. Up to forty options at
-creation; their colours cycle through the palette. Any member can add a property.
+New properties are appended last and start on the card, except a Link, which starts off it. A new
+property takes at most 40 options. A longer list is refused whole, never cut short: the box says
+"A property holds at most 40 options. This list has 60." and nothing is written. The colours of the
+options cycle through the palette. Any member can add a property.
 
 ### Rename it
 

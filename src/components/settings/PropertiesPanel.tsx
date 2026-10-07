@@ -25,12 +25,13 @@ import { editedText } from "@/lib/leave";
 import { carriesDates, NOTE_MAX, optionEdit, splitShipped } from "@/lib/option-dates";
 import { cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Checkbox, Input, NameInput, Select } from "@/components/ui/Form";
+import { Checkbox, Input, NameInput, Select, TextArea } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PALETTE } from "@/lib/colors";
+import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
 import {
@@ -66,6 +67,8 @@ export function PropertiesPanel() {
   const [options, setOptions] = useState("");
   const canEdit = canManage(data.project.role);
   const sensors = useGripSensors();
+  const listed = hasOptions(type) ? optionLines(options) : [];
+  const tooMany = listed.length > OPTIONS_MAX;
 
   /* The drag names the row it landed on, never a rank. The store works the
      neighbour out, as it does for a view, and the rank is made on the server
@@ -78,13 +81,9 @@ export function PropertiesPanel() {
 
   async function create() {
     const trimmed = name.trim();
-    if (!trimmed) return;
-    const list = hasOptions(type)
-      ? options
-          .split(",")
-          .map((o) => o.trim())
-          .filter(Boolean)
-      : undefined;
+    // A list too long is refused whole, and stays in the box to be cut down.
+    if (!trimmed || tooMany) return;
+    const list = hasOptions(type) ? listed : undefined;
     setName("");
     setOptions("");
     await addProperty(trimmed, type, list);
@@ -131,14 +130,22 @@ export function PropertiesPanel() {
             options={PROPERTY_TYPES.map((t) => ({ value: t, label: PROPERTY_TYPE_LABEL[t] }))}
           />
           {hasOptions(type) && (
-            <Input
-              grow
+            <TextArea
+              aria-label="Options of the new property"
+              aria-invalid={tooMany}
               value={options}
-              placeholder="Options, separated by commas"
+              placeholder="Options, one per line"
               onChange={(e) => setOptions(e.target.value)}
             />
           )}
-          <Button onClick={() => void create()}>Add property</Button>
+          {tooMany && (
+            <span className={styles.keyWarn} role="alert" style={{ width: "100%" }}>
+              {tooManySaid(listed.length)}
+            </span>
+          )}
+          <Button disabled={tooMany} onClick={() => void create()}>
+            Add property
+          </Button>
           <span style={{ width: "100%" }}>
             <Note>{PROPERTY_TYPE_HINT[type]}</Note>
           </span>
