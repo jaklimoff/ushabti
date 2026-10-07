@@ -664,6 +664,37 @@ async function loadLenses(
 }
 
 /**
+ * The users a person value in this project names who are no longer members.
+ *
+ * Leaving deletes only the membership, so their tasks still name them, and
+ * clearing those values would lose who did the work. They come back as a list
+ * of their own, apart from `members`, because nothing that offers a person may
+ * offer somebody who left. A person who rejoins is a member again and drops
+ * out of this list with nothing written.
+ */
+function formerRows(projectId: string) {
+  return db
+    .selectDistinct({
+      id: users.id,
+      name: users.name,
+      color: users.color,
+      emoji: users.avatarEmoji,
+      kind: users.kind,
+    })
+    .from(taskValues)
+    .innerJoin(properties, eq(properties.id, taskValues.propertyId))
+    .innerJoin(users, sql`${taskValues.value} = to_jsonb(${users.id}::text)`)
+    .where(
+      and(
+        eq(properties.projectId, projectId),
+        eq(properties.type, "person"),
+        sql`not exists (select 1 from ${projectMembers} where ${projectMembers.projectId} = ${projectId} and ${projectMembers.userId} = ${users.id})`,
+      ),
+    )
+    .orderBy(asc(users.name));
+}
+
+/**
  * `viewerId` is the person asking, so each view can carry their own lens and
  * nobody else's. An agent passes null: it reads the view's filters, which is
  * what the whole team sees, and a person's own narrowing never reaches it.
@@ -693,6 +724,7 @@ export async function loadBoard(
     archivedRows,
     lenses,
     underRows,
+    formerList,
   ] = await Promise.all([
     db
       .select({
@@ -734,6 +766,7 @@ export async function loadBoard(
     archivedTaskRows(projectId),
     loadLenses(projectId, viewerId),
     archivedUnderRows(projectId),
+    formerRows(projectId),
   ]);
 
   /* Only the live ones. Nothing draws an archived task, so its values are
@@ -870,6 +903,7 @@ export async function loadBoard(
        hydrates, so both renders draw the same cards. */
     today: todayIn(timeZone),
     members,
+    former: formerList.map((f) => ({ ...f, kind: f.kind === "agent" ? "agent" : "human" })),
     invites: inviteRows.map((i) => ({ email: i.email, createdAt: i.createdAt.toISOString() })),
     properties: propertyList,
     views: viewList,

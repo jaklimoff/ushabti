@@ -58,6 +58,7 @@ import type {
 import { readWhens, withoutHidden, withWhen } from "@/lib/when";
 import type { OptionDates } from "@/lib/option-dates";
 import type { ShipDone, ShipRest } from "@/lib/ship";
+import { personOf } from "@/lib/people";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 
@@ -464,9 +465,9 @@ export function usePresence(taskId: string) {
   const faces = useMemo(
     () =>
       peopleOn(room, taskId, user.id)
-        .map((id) => data.members.find((m) => m.id === id))
-        .filter((m) => m !== undefined),
-    [data.members, room, taskId, user.id],
+        .map((id) => personOf(id, data.members, data.former))
+        .filter((m) => m !== null),
+    [data.members, data.former, room, taskId, user.id],
   );
   const inField = useCallback(
     (field: string | null) => {
@@ -478,9 +479,9 @@ export function usePresence(taskId: string) {
   const editing = useCallback(
     (field: string) =>
       editorsOf(room, taskId, field, user.id)
-        .map((id) => data.members.find((m) => m.id === id)?.name)
+        .map((id) => personOf(id, data.members, data.former)?.name)
         .filter((name) => name !== undefined),
-    [data.members, room, taskId, user.id],
+    [data.members, data.former, room, taskId, user.id],
   );
   return { faces, inField, editing };
 }
