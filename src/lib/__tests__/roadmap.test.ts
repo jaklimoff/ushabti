@@ -24,7 +24,7 @@ function task(version: string, createdAt: string, status = "o-todo"): RoadmapTas
   return { archivedAt: null, createdAt, values: { "p-version": version, "p-status": status } };
 }
 
-const rule = { doneWhen: { propertyId: "p-status", optionId: "o-done" }, countBy: null };
+const rule = { doneWhen: { propertyId: "p-status", optionIds: ["o-done"] }, countBy: null };
 
 describe("roadmapRows", () => {
   it("draws one row per option with a target date, in option order", () => {

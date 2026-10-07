@@ -107,7 +107,7 @@ function fill(count: number) {
       ownerId: ADA,
       taskCounter: count,
       cardView: null,
-      doneWhen: { propertyId: STATUS, optionId: DONE },
+      doneWhen: { propertyId: STATUS, optionIds: [DONE] },
       timeZone: "Europe/Berlin",
       createdAt: AT,
       webhookSecret: HOOK_SECRET,
@@ -233,7 +233,7 @@ describe("the export", () => {
       name: "Ushabti",
       key: "USH",
       timeZone: "Europe/Berlin",
-      doneWhen: { propertyId: STATUS, optionId: DONE },
+      doneWhen: { propertyId: STATUS, optionIds: [DONE] },
     });
     expect(file.project.cardView.rows).toBeTruthy();
   });

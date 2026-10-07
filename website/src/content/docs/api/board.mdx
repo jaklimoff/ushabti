@@ -22,7 +22,7 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     "id": "…", "name": "Ushabti roadmap", "key": "USH",
     "ownerId": "…",
     "role": "owner",         // YOUR role — the same board answers differently to a member
-    "doneWhen": null         // the option this project calls done, or null for archived
+    "doneWhen": null         // the options this project calls done, as { propertyId, optionIds }, or null for archived
   },
 
   "invites": [ { "email": "…", "createdAt": "…" } ],   // added before they had an account

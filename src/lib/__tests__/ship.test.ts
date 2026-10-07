@@ -12,7 +12,7 @@ import {
   splitShip,
 } from "../ship";
 
-const done = { propertyId: "status", optionId: "done" };
+const done = { propertyId: "status", optionIds: ["done"] };
 
 describe("a ship splits the column by the done rule", () => {
   it("puts the done and the archived on one side and the rest on the other", () => {
@@ -26,6 +26,18 @@ describe("a ship splits the column by the done rule", () => {
       done,
     );
     expect(split).toEqual({ over: ["a", "d"], rest: ["b", "c"] });
+  });
+
+  it("puts every option the project calls done on the over side", () => {
+    const split = splitShip(
+      [
+        { id: "a", archivedAt: null, values: { status: "done" } },
+        { id: "b", archivedAt: null, values: { status: "wont" } },
+        { id: "c", archivedAt: null, values: { status: "doing" } },
+      ],
+      { propertyId: "status", optionIds: ["done", "wont"] },
+    );
+    expect(split).toEqual({ over: ["a", "b"], rest: ["c"] });
   });
 
   it("with no done rule, nothing on the board is over", () => {

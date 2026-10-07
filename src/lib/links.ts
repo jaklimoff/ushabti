@@ -16,15 +16,33 @@ import { isSelect } from "./types";
 /* When a blocker stops blocking                                       */
 /* ------------------------------------------------------------------ */
 
-/** The option this project calls done: one property, one of its options. */
-export type DoneWhen = { propertyId: string; optionId: string };
+/**
+ * The options this project calls done: one property, any of its options.
+ *
+ * More than one, because work ends in more than one way: a blocker closed as
+ * Won't do frees what waits on it as surely as one that is Done.
+ */
+export type DoneWhen = { propertyId: string; optionIds: string[] };
+
+/**
+ * The options a written answer names. A row saved before the list existed
+ * holds one `optionId`, and it reads as a list of one, so no row is rewritten.
+ */
+function namedOptions(raw: { optionId?: unknown; optionIds?: unknown }): string[] | null {
+  if (Array.isArray(raw.optionIds)) {
+    return raw.optionIds.every((id) => typeof id === "string") ? (raw.optionIds as string[]) : null;
+  }
+  if (typeof raw.optionId === "string") return [raw.optionId];
+  return null;
+}
 
 /**
  * The project's answer to "what does over mean", made safe to use.
  *
  * It is read afresh and never cleaned up, exactly as a filter is: nothing
- * rewrites the project when the property or the option it names is deleted.
- * A row that names either of those answers null, and null means archived —
+ * rewrites the project when the property or an option it names is deleted.
+ * An option that is gone drops out of the list; a row with none left, or one
+ * naming a property that is gone, answers null, and null means archived —
  * the one mark the product owns, which no owner can rename away.
  *
  * Only a select can answer. A person, a date or a number has no option to
@@ -32,12 +50,34 @@ export type DoneWhen = { propertyId: string; optionId: string };
  */
 export function readDoneWhen(raw: unknown, properties: PropertyDTO[]): DoneWhen | null {
   if (typeof raw !== "object" || raw === null) return null;
-  const { propertyId, optionId } = raw as { propertyId?: unknown; optionId?: unknown };
-  if (typeof propertyId !== "string" || typeof optionId !== "string") return null;
+  const { propertyId } = raw as { propertyId?: unknown };
+  const named = namedOptions(raw as { optionId?: unknown; optionIds?: unknown });
+  if (typeof propertyId !== "string" || !named) return null;
   const property = properties.find((p) => p.id === propertyId);
   if (!property || !isSelect(property.type)) return null;
-  if (!property.options.some((o) => o.id === optionId)) return null;
-  return { propertyId, optionId };
+  /* The property's own order, so two saves of the same picks read the same. */
+  const optionIds = property.options.filter((o) => named.includes(o.id)).map((o) => o.id);
+  return optionIds.length ? { propertyId, optionIds } : null;
+}
+
+/**
+ * Why a write of Done when is refused, or null when it may land.
+ *
+ * The read swallows an option that is gone because one may go after the
+ * save. A write has no such excuse: an option of another property, or a
+ * property that cannot answer, is a mistake, and saving what is left of it
+ * would quietly change what frees a blocker.
+ */
+export function doneWhenRefused(raw: unknown, properties: PropertyDTO[]): string | null {
+  const said = "Done when names a select property and some of its options.";
+  if (typeof raw !== "object" || raw === null) return said;
+  const { propertyId } = raw as { propertyId?: unknown };
+  const named = namedOptions(raw as { optionId?: unknown; optionIds?: unknown });
+  if (typeof propertyId !== "string" || !named) return said;
+  const property = properties.find((p) => p.id === propertyId);
+  if (!property || !isSelect(property.type)) return said;
+  const stray = named.some((id) => !property.options.some((o) => o.id === id));
+  return stray ? `Every option of Done when has to be an option of ${property.name}.` : null;
 }
 
 /** What a blocker has to be for this rule to read it. */
@@ -50,13 +90,14 @@ export type OverTask = {
  * True when this task is over, so it blocks nothing any more.
  *
  * Archived always counts, whatever the project says: a task off every board
- * is not work anybody is waiting for. The named option is the other half, and
- * it is the half the owner chooses.
+ * is not work anybody is waiting for. The named options are the other half,
+ * and they are the half the owner chooses: any one of them is over.
  */
 export function isOver(task: OverTask, doneWhen: DoneWhen | null): boolean {
   if (task.archivedAt) return true;
   if (!doneWhen) return false;
-  return task.values[doneWhen.propertyId] === doneWhen.optionId;
+  const value = task.values[doneWhen.propertyId];
+  return typeof value === "string" && doneWhen.optionIds.includes(value);
 }
 
 /* ------------------------------------------------------------------ */

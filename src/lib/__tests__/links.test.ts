@@ -7,6 +7,7 @@ import {
   partsOf,
   childrenHead,
   countParts,
+  doneWhenRefused,
   readDoneWhen,
   SELF_PARENT_SAID,
   wouldCircle,
@@ -57,22 +58,45 @@ const assignee: PropertyDTO = {
 /* What over means                                                     */
 /* ------------------------------------------------------------------ */
 
+/** Status with a second way to end: Won't do. */
+const closing: PropertyDTO = {
+  ...status,
+  options: [
+    ...status.options,
+    { ...status.options[1], id: "o-wont", name: "Won't do", position: "s" },
+  ],
+};
+
 describe("the project's word for done", () => {
-  it("reads a property and one of its options", () => {
+  it("reads a property and the options it names", () => {
+    expect(
+      readDoneWhen({ propertyId: "p-status", optionIds: ["o-wont", "o-done"] }, [closing]),
+    ).toEqual({ propertyId: "p-status", optionIds: ["o-done", "o-wont"] });
+  });
+
+  /* A project saved before the list existed is not rewritten: it reads as one. */
+  it("reads a saved single option as a list of one", () => {
     expect(readDoneWhen({ propertyId: "p-status", optionId: "o-done" }, [status])).toEqual({
       propertyId: "p-status",
-      optionId: "o-done",
+      optionIds: ["o-done"],
     });
   });
 
   /* Nothing rewrites the project when the property goes, so the read is what
      throws the answer away — exactly as a filter's rule is. */
   it("falls back to archived when the property is gone", () => {
-    expect(readDoneWhen({ propertyId: "p-status", optionId: "o-done" }, [])).toBe(null);
+    expect(readDoneWhen({ propertyId: "p-status", optionIds: ["o-done"] }, [])).toBe(null);
   });
 
-  it("falls back to archived when the option is gone", () => {
+  it("drops an option that is gone and keeps the rest", () => {
+    expect(
+      readDoneWhen({ propertyId: "p-status", optionIds: ["o-done", "o-wont"] }, [status]),
+    ).toEqual({ propertyId: "p-status", optionIds: ["o-done"] });
+  });
+
+  it("falls back to archived when no option is left", () => {
     expect(readDoneWhen({ propertyId: "p-status", optionId: "o-shipped" }, [status])).toBe(null);
+    expect(readDoneWhen({ propertyId: "p-status", optionIds: [] }, [status])).toBe(null);
   });
 
   it("refuses a property that has no options to point at", () => {
@@ -83,11 +107,33 @@ describe("the project's word for done", () => {
     expect(readDoneWhen(null, [status])).toBe(null);
     expect(readDoneWhen("Done", [status])).toBe(null);
     expect(readDoneWhen({ propertyId: 4, optionId: [] }, [status])).toBe(null);
+    expect(readDoneWhen({ propertyId: "p-status", optionIds: [4] }, [status])).toBe(null);
+  });
+});
+
+describe("a write of the word for done", () => {
+  it("lets a property and its own options land, in either shape", () => {
+    expect(
+      doneWhenRefused({ propertyId: "p-status", optionIds: ["o-done", "o-wont"] }, [closing]),
+    ).toBe(null);
+    expect(doneWhenRefused({ propertyId: "p-status", optionId: "o-done" }, [status])).toBe(null);
+  });
+
+  it("refuses an option of another property", () => {
+    expect(
+      doneWhenRefused({ propertyId: "p-status", optionIds: ["o-done", "u-1"] }, [status, assignee]),
+    ).toBe("Every option of Done when has to be an option of Status.");
+  });
+
+  it("refuses a property that cannot answer", () => {
+    expect(doneWhenRefused({ propertyId: "p-who", optionIds: [] }, [assignee])).toMatch(/select/);
+    expect(doneWhenRefused({ propertyId: "p-gone", optionIds: [] }, [status])).toMatch(/select/);
+    expect(doneWhenRefused("Done", [status])).toMatch(/select/);
   });
 });
 
 describe("a blocker that is over", () => {
-  const done = { propertyId: "p-status", optionId: "o-done" };
+  const done = { propertyId: "p-status", optionIds: ["o-done"] };
 
   it("is over once it is archived, whatever the project says", () => {
     expect(isOver({ archivedAt: "2026-09-01T00:00:00.000Z", values: {} }, null)).toBe(true);
@@ -96,6 +142,13 @@ describe("a blocker that is over", () => {
 
   it("is over when it holds the option the project named", () => {
     expect(isOver({ archivedAt: null, values: { "p-status": "o-done" } }, done)).toBe(true);
+  });
+
+  it("is over when it holds any of the options the project named", () => {
+    const either = { propertyId: "p-status", optionIds: ["o-done", "o-wont"] };
+    expect(isOver({ archivedAt: null, values: { "p-status": "o-done" } }, either)).toBe(true);
+    expect(isOver({ archivedAt: null, values: { "p-status": "o-wont" } }, either)).toBe(true);
+    expect(isOver({ archivedAt: null, values: { "p-status": "o-todo" } }, either)).toBe(false);
   });
 
   it("is not over while it holds another option", () => {

@@ -75,7 +75,8 @@ export const projects = pgTable(
      */
     cardView: jsonb("card_view"),
     /**
-     * What this project calls done: `{ propertyId, optionId }`, or null.
+     * What this project calls done: `{ propertyId, optionIds }`, or null. A
+     * row saved before the list holds `optionId`, and reads as a list of one.
      *
      * A blocker stops blocking when it is over, and no status is hardcoded, so
      * the project says which option means it. Null falls back to archived, and
