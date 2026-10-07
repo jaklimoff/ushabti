@@ -421,8 +421,9 @@ export function TaskPanel({
      colour the card view puts on it. The panel and the card it came from are
      one thing, so they read the same colour out of the same place. */
   const accent = useMemo(
-    () => (boardTask ? cardAccent(cardItems, boardTask, data.members) : null) ?? "#3f4650",
-    [boardTask, cardItems, data.members],
+    () =>
+      (boardTask ? cardAccent(cardItems, boardTask, data.members, data.former) : null) ?? "#3f4650",
+    [boardTask, cardItems, data.members, data.former],
   );
 
   /* How wide the panel is lives on the element and never in state: a render
@@ -764,6 +765,7 @@ export function TaskPanel({
                         property={property}
                         value={shown.values[property.id] ?? null}
                         members={data.members}
+                        former={data.former}
                         today={data.today}
                         labelId={`${ids}-field-${property.id}`}
                         onChange={(value: TaskValue) => {

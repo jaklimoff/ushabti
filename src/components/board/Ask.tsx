@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
 import type { PropertyDTO } from "@/lib/types";
 import styles from "./board.module.css";
@@ -16,7 +17,15 @@ import styles from "./board.module.css";
  * filter: a module that everybody imports must not be somebody's own file.
  */
 
-export type Row = { id: string; name: string; color: string; on?: boolean; note?: string };
+export type Row = {
+  id: string;
+  name: string;
+  color: string;
+  on?: boolean;
+  note?: string;
+  /** A heading drawn above the first row of a run that shares it. Not a row. */
+  group?: string;
+};
 
 /**
  * The rows are a listbox and the box keeps the focus, so the panel is one tab
@@ -41,31 +50,37 @@ export function Rows({
   return (
     <div className={styles.filterList} role="listbox" id={listId}>
       {rows.map((row, i) => (
-        <div
-          key={row.id}
-          id={`${listId}-${i}`}
-          role="option"
-          aria-selected={!!row.on}
-          className={`${styles.filterItem} ${row.on ? styles.filterItemOn : ""} ${
-            i === at ? styles.filterItemAt : ""
-          }`}
-          // The box must keep the focus, so the press must not move it.
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onPick(row)}
-        >
-          <span
-            className={styles.dot6}
-            style={{ background: row.color, opacity: row.on === false ? 0.45 : 1 }}
-          />
-          {row.name}
-          <span style={{ flex: 1 }} />
-          {row.note && <span className={styles.filterRowNote}>{row.note}</span>}
-          {row.on !== undefined && (
-            <span className={styles.filterTick} style={{ opacity: row.on ? 1 : 0 }}>
-              ✓
+        <Fragment key={row.id}>
+          {row.group && row.group !== rows[i - 1]?.group && (
+            <span className={styles.filterGroup} role="presentation">
+              {row.group}
             </span>
           )}
-        </div>
+          <div
+            id={`${listId}-${i}`}
+            role="option"
+            aria-selected={!!row.on}
+            className={`${styles.filterItem} ${row.on ? styles.filterItemOn : ""} ${
+              i === at ? styles.filterItemAt : ""
+            }`}
+            // The box must keep the focus, so the press must not move it.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(row)}
+          >
+            <span
+              className={styles.dot6}
+              style={{ background: row.color, opacity: row.on === false ? 0.45 : 1 }}
+            />
+            {row.name}
+            <span style={{ flex: 1 }} />
+            {row.note && <span className={styles.filterRowNote}>{row.note}</span>}
+            {row.on !== undefined && (
+              <span className={styles.filterTick} style={{ opacity: row.on ? 1 : 0 }}>
+                ✓
+              </span>
+            )}
+          </div>
+        </Fragment>
       ))}
     </div>
   );
