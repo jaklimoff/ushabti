@@ -70,6 +70,8 @@ test.describe("Agents on the board", () => {
     await expect(agentBox).toBeVisible();
 
     await agentBox.getByRole("button", { name: "Connect" }).click();
+
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const secret = page.getByTestId("agent-secret").first();
     await expect(secret).toBeVisible();
 
@@ -189,6 +191,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Beater" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -254,6 +257,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Ghost" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -328,6 +332,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Reis" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -382,6 +387,7 @@ test.describe("Agents on the board", () => {
         .filter({ hasText: "Beater" })
         .getByRole("button", { name: "Connect" })
         .click();
+      await page.getByRole("button", { name: "Make token" }).click();
       const token = (
         (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
       ).trim();
@@ -446,6 +452,7 @@ test.describe("Agents on the board", () => {
       .filter({ hasText: "Handler" })
       .getByRole("button", { name: "Connect" })
       .click();
+    await page.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -484,6 +491,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Builder" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -561,6 +569,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Reader" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -579,6 +588,66 @@ test.describe("Agents on the board", () => {
   });
 
   /*
+   * Two tokens of one agent used to read as two prefixes and nothing else, and
+   * revoking either one said the agent stopped working.
+   */
+  test("an agent's tokens can be told apart, and revoking one says what is left", async ({
+    page,
+  }) => {
+    await register(page, "Token Keeper");
+    const projectId = await createProject(page, unique("Tokens"));
+
+    await gotoSettings(page, projectId, "people");
+    await page.getByLabel("Name of the new agent").fill("Twin");
+    await page.getByRole("button", { name: "Add agent" }).click();
+    const agentBox = page.getByTestId("agent-box").filter({ hasText: "Twin" });
+    const rows = agentBox.getByTestId("token-row");
+
+    // The name is today's date unless somebody says otherwise.
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    const name = agentBox.getByLabel("Name of the new token for Twin");
+    await expect(name).toHaveValue(today);
+    await agentBox.getByRole("button", { name: "Make token" }).click();
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText(today);
+    await expect(rows.first()).toContainText(/ush_\S+…/);
+    await expect(rows.first()).toContainText("made today");
+    await expect(rows.first()).toContainText("never used");
+    await expect(name).toBeHidden();
+
+    await agentBox.getByRole("button", { name: "Connect" }).click();
+    await name.fill("Laptop");
+    await name.press("Enter");
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(1)).toContainText("Laptop");
+    await expect(rows.nth(1)).toContainText("made today");
+
+    await rows
+      .nth(1)
+      .getByRole("button", { name: /^Revoke the token/ })
+      .click();
+    await expect(page.getByRole("alertdialog")).toHaveText(
+      /Revoke the token “Laptop”\? Twin keeps working on its other token\./,
+    );
+    await page.getByRole("button", { name: "Yes, revoke" }).click();
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText(today);
+
+    await rows
+      .first()
+      .getByRole("button", { name: /^Revoke the token/ })
+      .click();
+    await expect(page.getByRole("alertdialog")).toHaveText(
+      new RegExp(`Revoke the token “${today}”\\? Twin stops working within one request\\.`),
+    );
+    await page.getByRole("button", { name: "Yes, revoke" }).click();
+    await expect(rows).toHaveCount(0);
+  });
+
+  /*
    * A lens is one person's screen. An agent works from the board the team
    * shares, so it never reads one and never writes one — which is also what
    * keeps a token that got loose from hiding the work from everybody.
@@ -592,6 +661,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Looker" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -635,6 +705,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Mover" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -668,6 +739,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Historian" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -750,6 +822,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Departed" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -804,6 +877,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Worker" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -865,6 +939,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Builder" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
@@ -914,6 +989,7 @@ test.describe("Agents on the board", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Builder" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();

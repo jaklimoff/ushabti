@@ -15,16 +15,21 @@ Open **Settings → People**, at `/p/{projectId}/settings/people`. Only the
 owner of the project and its admins see the controls.
 
 1. Type a name, for example `Builder`, and press **Add agent**.
-2. Press **Connect**. A panel opens with the token and the three commands that
-   put it to work, each with a copy button and each already carrying this
-   board's own address. Copy the token now: the database keeps a SHA-256
-   digest, so nothing can read it back — not the owner, not the server, not
-   you.
+2. Press **Connect**. A box asks for a name for the token, filled in with
+   today's date. Change it if you like, for example to the machine that will
+   use it, and press **Make token** or Enter. A panel opens with the token and
+   the three commands that put it to work, each with a copy button and each
+   already carrying this board's own address. Copy the token now: the
+   database keeps a SHA-256 digest, so nothing can read it back — not the
+   owner, not the server, not you.
 3. Paste the commands. The panel says **Waiting for the first call…** until the
    token is used, and then says the agent answered.
 
-A token opens **one project**. Revoke it with the ✕ next to it; the agent stops
-working within one request.
+A token opens **one project**. An agent can have more than one token, for
+example one for each machine. Each token row shows its name, its prefix and
+the day it was made. Revoke a token with the ✕ next to it. The question names
+the token. When it is the agent's last live token, the agent stops working
+within one request. Otherwise the agent keeps working on its other tokens.
 
 An agent is a member, never an owner or an admin, whoever made it. It writes
 task values, comments and runs. Every route that is an admin's refuses a

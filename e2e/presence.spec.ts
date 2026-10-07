@@ -176,6 +176,7 @@ test.describe("Who else has the task open", () => {
     await owner.page.getByRole("button", { name: "Add agent" }).click();
     const box = owner.page.getByTestId("agent-box").filter({ hasText: "Builder" });
     await box.getByRole("button", { name: "Connect" }).click();
+    await box.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await owner.page
         .getByTestId("agent-secret")

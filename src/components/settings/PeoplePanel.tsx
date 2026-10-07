@@ -428,16 +428,19 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
     }
   }
 
-  async function connect(agent: AgentDTO) {
+  /** True when the token was made, so the name box can close. */
+  async function connect(agent: AgentDTO, tokenName: string): Promise<boolean> {
     try {
       const res = await send.post<{ token: { id: string }; secret: string }>(
         `/api/projects/${projectId}/agents/${agent.id}/tokens`,
-        { name: "default" },
+        { name: tokenName },
       );
       setSecrets((current) => ({ ...current, [res.token.id]: res.secret }));
       await reload();
+      return true;
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not issue a token.");
+      return false;
     }
   }
 
@@ -501,7 +504,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
             agent={agent}
             canEdit={canEdit}
             secrets={secrets}
-            onConnect={() => void connect(agent)}
+            onConnect={(tokenName) => connect(agent, tokenName)}
             onRevoke={(id) => void revoke(id)}
             onRemove={() => void remove(agent)}
             onFace={(patch) => changeFace(agent, patch)}
@@ -542,7 +545,7 @@ function AgentBox({
   agent: AgentDTO;
   canEdit: boolean;
   secrets: Record<string, string>;
-  onConnect: () => void;
+  onConnect: (tokenName: string) => Promise<boolean>;
   onRevoke: (tokenId: string) => void;
   onRemove: () => void;
   onFace: (patch: { color?: string; emoji?: string | null }) => Promise<void>;
@@ -550,7 +553,19 @@ function AgentBox({
 }) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
+  /** The name of the token about to be made; null while nobody is making one. */
+  const [naming, setNaming] = useState<string | null>(null);
+  const [making, setMaking] = useState(false);
   const face = usePickedFace(agent, onFace);
+
+  async function make() {
+    const tokenName = (naming ?? "").trim();
+    if (!tokenName || making) return;
+    setMaking(true);
+    const made = await onConnect(tokenName);
+    setMaking(false);
+    if (made) setNaming(null);
+  }
 
   return (
     <div className={styles.agentBox} data-testid="agent-box">
@@ -577,7 +592,11 @@ function AgentBox({
               >
                 Face
               </Button>
-              <Button variant="ghost" onClick={onConnect}>
+              <Button
+                variant="ghost"
+                aria-expanded={naming !== null}
+                onClick={() => setNaming((open) => (open === null ? today() : null))}
+              >
                 Connect
               </Button>
               <IconButton
@@ -621,10 +640,34 @@ function AgentBox({
         </div>
       )}
 
+      {canEdit && naming !== null && (
+        <div className={styles.tokenRow} data-testid="token-name">
+          <Input
+            grow
+            autoFocus
+            maxLength={60}
+            aria-label={`Name of the new token for ${agent.name}`}
+            value={naming}
+            onChange={(e) => setNaming(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void make();
+              if (e.key === "Escape") setNaming(null);
+            }}
+          />
+          <Button onClick={() => void make()} disabled={making || !naming.trim()}>
+            Make token
+          </Button>
+          <Button variant="ghost" onClick={() => setNaming(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
       {agent.tokens.map((token) => (
         <TokenRow
           key={token.id}
           token={token}
+          others={agent.tokens.length - 1}
           agentName={agent.name}
           secret={secrets[token.id]}
           canEdit={canEdit}
@@ -667,6 +710,7 @@ function usePickedFace(
 
 function TokenRow({
   token,
+  others,
   agentName,
   secret,
   canEdit,
@@ -674,6 +718,8 @@ function TokenRow({
   reload,
 }: {
   token: AgentDTO["tokens"][number];
+  /** How many live tokens the agent keeps once this one is gone. */
+  others: number;
   agentName: string;
   secret: string | undefined;
   canEdit: boolean;
@@ -685,7 +731,11 @@ function TokenRow({
   if (confirm.asking) {
     return (
       <ConfirmRow
-        question={`Revoke this token? ${agentName} stops working within one request.`}
+        question={`Revoke the token “${token.name}”? ${
+          others === 0
+            ? `${agentName} stops working within one request.`
+            : `${agentName} keeps working on its ${others === 1 ? "other token" : `${others} other tokens`}.`
+        }`}
         confirmLabel="Yes, revoke"
         onConfirm={() => confirm.confirm(onRevoke)}
         onCancel={confirm.cancel}
@@ -695,9 +745,11 @@ function TokenRow({
 
   return (
     <>
-      <div className={styles.tokenRow}>
+      <div className={styles.tokenRow} data-testid="token-row">
+        <span className={styles.tokenName}>{token.name}</span>
         <span className={styles.tokenPrefix}>{token.prefix}…</span>
         <Note>
+          made {relativeDay(token.createdAt)} ·{" "}
           {isListening(token.listeningAt)
             ? "listening now"
             : token.lastUsedAt
@@ -823,6 +875,13 @@ function Connect({
 /** window.location never changes under us, so there is nothing to subscribe to. */
 function subscribeNothing() {
   return () => {};
+}
+
+/** The local day, as a token's first name: it says when the token was made. */
+function today(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 /** Whole days, so the token list never has to tick. */

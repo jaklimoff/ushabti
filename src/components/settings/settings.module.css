@@ -570,6 +570,11 @@
   padding: 4px 13px 8px 45px;
 }
 
+.tokenName {
+  font-size: var(--t-small);
+  color: var(--text-2);
+}
+
 .tokenPrefix {
   font-family: var(--font-mono);
   font-size: var(--t-micro);

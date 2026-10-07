@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **An agent's tokens can be told apart.** **Connect** asks for a name for the token, filled in
+  with today's date. Each token row shows its name, its prefix and the day it was made. Revoking
+  a token names it, and says the agent keeps working when it has other tokens.
 - **A member adds a type as they add a property, and an agent adds no property.** The Types
   page shows **Add type** to every person on the project, not only the owner and the admins.
   Deleting a property, an option or a type stays an admin's. An agent token that tries to create

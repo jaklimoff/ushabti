@@ -358,6 +358,7 @@ test.describe("Archiving what is picked", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const box = page.getByTestId("agent-box").filter({ hasText: "Sweeper" });
     await box.getByRole("button", { name: "Connect" }).click();
+    await box.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();
