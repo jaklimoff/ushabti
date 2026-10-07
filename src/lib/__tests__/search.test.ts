@@ -144,6 +144,21 @@ describe("searchTasks", () => {
     expect(searchTasks(TASKS, "dp", null, 2)).toHaveLength(2);
   });
 
+  it("leaves the left-out tasks out before it cuts the list", () => {
+    /* Twelve linked parts would fill the box; the thirteenth is the one the
+       link box can still offer. */
+    const linked = Array.from({ length: 12 }, (_, i) =>
+      task({ number: i + 1, title: "Checkout", updatedAt: WHEN }),
+    );
+    const free = task({ number: 13, title: "Checkout" });
+    const all = [...linked, free];
+    const taken = new Set(linked.map((t) => t.id));
+
+    /* With nothing left out, as the top bar asks, the linked ones are found. */
+    expect(keys("checkout", all)).toEqual(linked.map((t) => t.key));
+    expect(searchTasks(all, "checkout", null, 12, taken).map((h) => h.task.key)).toEqual(["DP-13"]);
+  });
+
   describe("with the project's Done when", () => {
     const DONE = { propertyId: "status", optionId: "done" };
     const doneTask = (over: Partial<TaskDTO> & { number: number }) =>
