@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   canSetOnMany,
+  changed,
   BULK_LIMIT,
   onBoardSaid,
   readArchiveAsk,
+  readChange,
   readTaskIds,
   rowsSaid,
   type BulkRow,
@@ -211,5 +213,43 @@ describe("canSetOnMany", () => {
     ] as const) {
       expect(canSetOnMany(type)).toBe(true);
     }
+  });
+});
+
+describe("readChange", () => {
+  it("reads no change as a plain set", () => {
+    expect(readChange(undefined, "multi_select")).toEqual({ ok: true, change: null });
+    expect(readChange(undefined, "select")).toEqual({ ok: true, change: null });
+  });
+
+  it("adds or takes off one option of a multi-select", () => {
+    expect(readChange("add", "multi_select")).toEqual({ ok: true, change: "add" });
+    expect(readChange("remove", "multi_select")).toEqual({ ok: true, change: "remove" });
+  });
+
+  it("refuses a change on any other type, and a change it does not know", () => {
+    expect(readChange("add", "select").ok).toBe(false);
+    expect(readChange("toggle", "multi_select").ok).toBe(false);
+  });
+});
+
+describe("changed", () => {
+  /* Thirty tasks, each with labels of its own: Bug goes on, and every other
+     label stays where it was. */
+  it("adds one option and keeps every other", () => {
+    const thirty = Array.from({ length: 30 }, (_, i) => (i % 2 ? ["ux", "docs"] : ["infra"]));
+    const after = thirty.map((had) => changed(had, "add", "bug"));
+    after.forEach((list, i) => expect(list).toEqual([...thirty[i], "bug"]));
+  });
+
+  it("adds nothing twice, and adds to an empty value", () => {
+    expect(changed(["bug", "ux"], "add", "bug")).toEqual(["bug", "ux"]);
+    expect(changed(null, "add", "bug")).toEqual(["bug"]);
+  });
+
+  it("takes one option off and keeps the rest in their order", () => {
+    expect(changed(["ux", "bug", "docs"], "remove", "bug")).toEqual(["ux", "docs"]);
+    expect(changed(["ux"], "remove", "bug")).toEqual(["ux"]);
+    expect(changed(null, "remove", "bug")).toEqual([]);
   });
 });

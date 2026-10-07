@@ -461,6 +461,11 @@ them — so the value that reaches one task is the value that reaches every task
 activity is written for each task, the same `value` line the single route writes, and the board
 rings once.
 
+A multi-select is a list each task has of its own, and a plain `value` replaces the whole list on
+every task. To add one label and keep the rest, send `"change": "add"` with that one option as
+`value`; `"remove"` takes it off. A task the change leaves as it was is not written, and `set`
+counts only the tasks that changed. This is what **Set…** does with a multi-select.
+
 It takes an agent token. A value is content, and an agent may already write ten of them with ten
 calls; this is the same work in one call. There is **no project lock**, because the lock serialises
 the writes that compute a rank and this touches none.
@@ -469,7 +474,8 @@ the writes that compute a rank and this touches none.
 | --- | --- |
 | `taskIds` | required, a list of ids, **200 at most**. The same id twice counts once. |
 | `propertyId` | required, a property of this project |
-| `value` | as for one task — `null` or `""` clears it |
+| `value` | as for one task — `null` or `""` clears it. With `change`, the one option id |
+| `change` | optional, a multi-select only: `"add"` puts one option on each task, `"remove"` takes it off |
 
 | Status | Message |
 | --- | --- |
@@ -478,6 +484,7 @@ the writes that compute a rank and this touches none.
 | `400` | `Name the property to set.` · `That property is not in this project.` |
 | `400` | `One of those tasks is not on this board.` |
 | `400` | `One of those tasks is archived. Put it back first.` |
+| `400` | `Only a multi-select adds or takes off one option.` · `A change is "add" or "remove".` |
 
 <Aside type="note" title="All of it, or none of it">
 One bad id refuses the whole call. Writing what it could reach would leave the board half set, and

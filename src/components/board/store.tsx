@@ -35,6 +35,7 @@ import {
   type PresenceSaid,
   type Room,
 } from "@/lib/presence";
+import { changed, type Change } from "@/lib/bulk";
 import { rankBetween } from "@/lib/rank";
 import { trackWrites } from "@/lib/writes";
 import type {
@@ -244,7 +245,8 @@ type Store = {
   /** Nothing is picked. Escape, the ✕ and a change of view all end here. */
   clearPicks: () => void;
   /** Sets one property on every picked task, in one call. */
-  setPickedValue: (propertyId: string, value: TaskValue) => Promise<void>;
+  /** With a change, `value` is the one option a multi-select gains or loses. */
+  setPickedValue: (propertyId: string, value: TaskValue, change?: Change) => Promise<void>;
   /**
    * Archives every picked task, in one call, and ends the pick once it has
    * gone through. It answers how many went, because the bar says so in words
@@ -1197,17 +1199,22 @@ export function BoardProvider({
    * the next thing a person does, and clearing them would take it away.
    */
   const setPickedValue = useCallback<Store["setPickedValue"]>(
-    async (propertyId, value) => {
+    async (propertyId, value, change) => {
       const ids = pickedHere;
       if (ids.length === 0) return;
       const wanted = new Set(ids);
+      const next = (had: TaskValue) =>
+        change && typeof value === "string" ? changed(had, change, value) : value;
       setData((current) => ({
         ...current,
         tasks: current.tasks.map((t) =>
           wanted.has(t.id)
             ? {
                 ...t,
-                values: withoutHidden({ ...t.values, [propertyId]: value }, current.properties),
+                values: withoutHidden(
+                  { ...t.values, [propertyId]: next(t.values[propertyId] ?? null) },
+                  current.properties,
+                ),
               }
             : t,
         ),
@@ -1217,6 +1224,7 @@ export function BoardProvider({
           taskIds: ids,
           propertyId,
           value,
+          ...(change ? { change } : {}),
         });
       });
       if (saysDone(propertyId)) await refresh();
