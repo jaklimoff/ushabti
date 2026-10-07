@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, requireMembership, HttpError } from "@/lib/auth";
-import { loadBoard } from "@/lib/queries";
+import { loadSettings } from "@/lib/queries";
 import { SettingsShell } from "@/components/settings/SettingsShell";
 import { version } from "../../../../../package.json";
 
@@ -28,9 +28,9 @@ export default async function SettingsLayout({
     throw err;
   }
 
-  const board = await loadBoard(projectId, role, user.id);
+  const settings = await loadSettings(projectId, role, user.id);
   return (
-    <SettingsShell initial={board} user={user} version={version}>
+    <SettingsShell initial={settings} user={user} version={version}>
       {children}
     </SettingsShell>
   );

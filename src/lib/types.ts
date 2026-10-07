@@ -790,6 +790,12 @@ export type BoardData = {
   archivedUnder: Record<string, ArchivedUnder>;
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];
+  /**
+   * Every task of the project, live and archived, when `tasks` holds only a
+   * few of them. Settings reads that: it carries the tasks the card view
+   * preview draws, and nothing it does needs the rest.
+   */
+  taskCount?: number;
 };
 
 /* ------------------------------------------------------------------ */
