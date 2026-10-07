@@ -110,23 +110,22 @@ export function TypesPanel() {
               ))}
               {type.options.length === 0 && <Note>{type.name} has no options yet.</Note>}
             </div>
-            {canEdit && (
-              <Foot>
-                <Input
-                  width="medium"
-                  aria-label="New type name"
-                  value={name}
-                  placeholder="New type"
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void add();
-                  }}
-                />
-                <Button disabled={adding} onClick={() => void add()}>
-                  Add type
-                </Button>
-              </Foot>
-            )}
+            {/* A member adds a type as they add a property; only deleting one is an admin's. */}
+            <Foot>
+              <Input
+                width="medium"
+                aria-label="New type name"
+                value={name}
+                placeholder="New type"
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void add();
+                }}
+              />
+              <Button disabled={adding} onClick={() => void add()}>
+                Add type
+              </Button>
+            </Foot>
           </Card>
         </Section>
       )}
