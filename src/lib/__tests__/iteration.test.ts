@@ -9,9 +9,9 @@ import {
 } from "../types";
 
 describe("the iteration type", () => {
-  it("is a property type with the word Iteration", () => {
+  it("is a property type with the word Sprint", () => {
     expect(PROPERTY_TYPES).toContain("iteration");
-    expect(PROPERTY_TYPE_LABEL.iteration).toBe("Iteration");
+    expect(PROPERTY_TYPE_LABEL.iteration).toBe("Sprint");
   });
 
   it("reads as a select on a card, and can group a board", () => {

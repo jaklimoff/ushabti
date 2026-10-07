@@ -77,7 +77,8 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .select({ type: properties.type })
       .from(properties)
       .where(eq(properties.id, propertyId));
-    if (row?.type !== "iteration") throw new HttpError(400, "Only an iteration has a cadence.");
+    if (row?.type !== "iteration")
+      throw new HttpError(400, "Only a sprint property has a cadence.");
     mergeConfig(
       (c) => sql`${c} || jsonb_build_object('cadence',
       (coalesce(${properties.config} -> 'cadence', '{}'::jsonb) - 'ahead') || ${JSON.stringify(read.patch)}::jsonb)`,
