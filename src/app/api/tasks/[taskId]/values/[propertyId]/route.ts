@@ -5,7 +5,7 @@ import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { dropHidden, lockTasks } from "@/lib/hidden";
 import { taskProjectId } from "@/lib/queries";
-import { coerceValue, describeValue, loadProperty } from "@/lib/values";
+import { coerceValue, describeValue, loadProperty, valueLine } from "@/lib/values";
 
 type Ctx = { params: Promise<{ taskId: string; propertyId: string }> };
 
@@ -45,8 +45,7 @@ export const PUT = route<Ctx>(async (req, ctx) => {
           taskId,
           actorId: user.id,
           kind: "value",
-          // The name is for people; the id is for an agent, since a name can change.
-          data: { property: prop.name, propertyId, value: described },
+          data: valueLine(prop, value, described),
         },
       ],
     });

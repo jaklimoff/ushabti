@@ -199,6 +199,7 @@ export async function shipOptionIn(
       data: {
         property: option.property,
         propertyId,
+        type: option.type,
         value: next && to ? next.name : "empty",
         shipId,
       },

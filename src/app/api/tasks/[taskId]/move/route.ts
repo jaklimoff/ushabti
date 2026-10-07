@@ -8,7 +8,7 @@ import { byPos } from "@/lib/order";
 import { rankOnTheEnd, taskProjectId, touchTasks, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { dropHidden, lockTasks } from "@/lib/hidden";
-import { coerceValue, describeValue, loadProperty } from "@/lib/values";
+import { coerceValue, describeValue, loadProperty, valueLine } from "@/lib/values";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -86,7 +86,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         taskId,
         actorId: user.id,
         kind: "value",
-        data: { property: prop.name, propertyId, value: await describeValue(prop, value) },
+        data: valueLine(prop, value, await describeValue(prop, value)),
       });
     }
     const taskIds = entries.length ? [taskId] : [];

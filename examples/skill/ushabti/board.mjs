@@ -1418,8 +1418,13 @@ commands.watch = async function watch() {
       if (byPerson && triggers.has("mention") && mention.test(String(entry.data.title ?? "")))
         return wake(entry.taskId, key, "mention", "title");
       if (byPerson && triggers.has("created")) return wake(entry.taskId, key, "created");
-      if (triggers.has("assigned") && assignedToMe(await freshBoard(), entry.taskId))
-        return wake(entry.taskId, key, "assigned");
+      if (!triggers.has("assigned")) return;
+      /* A newer board names the assignees on the line; an older one does
+         not, and then the board is read to find out. */
+      const named = Array.isArray(entry.data?.assigneeIds)
+        ? entry.data.assigneeIds.includes(agentId)
+        : assignedToMe(await freshBoard(), entry.taskId);
+      if (named) return wake(entry.taskId, key, "assigned");
       return;
     }
 
@@ -1438,6 +1443,18 @@ commands.watch = async function watch() {
     }
 
     if (entry.kind === "value" && triggers.has("assigned")) {
+      // A value a change hid is taken away, and taking away assigns nobody.
+      if (entry.data?.dropped) return;
+      /* A newer board says on the line what the property is and whom a
+         person value names, so a card dragged across a column reads nothing.
+         A line without them comes from an older board, which is asked. */
+      if (typeof entry.data?.type === "string") {
+        if (entry.data.type !== "person") return;
+        if ("personId" in entry.data) {
+          if (entry.data.personId === agentId) return wake(entry.taskId, key, "assigned");
+          return;
+        }
+      }
       const b = await freshBoard();
       const property = b.properties.find((p) => p.id === entry.data.propertyId);
       if (property?.type !== "person") return;

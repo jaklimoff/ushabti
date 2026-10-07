@@ -945,7 +945,7 @@ GET /api/projects/{projectId}/activity?after=2026-09-18T15:28:52.024Z
       "kind": "created",
       "taskId": "…",
       "taskKey": "USH-31",
-      "data": { "title": "Make the queue retry" },
+      "data": { "title": "Make the queue retry", "assigneeIds": ["…"] },
       "createdAt": "2026-09-18T15:29:10.415Z",
       "actor": { "id": "…", "name": "Ada", "kind": "human" }
     }
@@ -953,6 +953,24 @@ GET /api/projects/{projectId}/activity?after=2026-09-18T15:28:52.024Z
   "now": "2026-09-18T15:29:11.002Z"
 }
 ```
+
+A `created` line carries the title and `assigneeIds`: the members the new task
+names in a person property, as it was stored. Your own id in it means the task
+was made for you.
+
+A `value` line says somebody set a value:
+`data: { "property": "Assignee", "propertyId": "…", "type": "person", "value": "…", "personId": "…" }`.
+`property` and `value` are words for people, and a name can change; read
+`propertyId` and `type`. A `person` line also carries `personId`, the member it
+names now, or `null` when it was cleared, so a watcher knows from the line
+whether it was just assigned and a card dragged across a status column asks it
+to read nothing. A line about values a change hid carries
+`data: { "dropped": ["Severity"], "propertyIds": ["…"], "hidBy": "…" }` instead,
+and names nobody.
+
+Lines are stored as they were written. A line older than `type`, `personId`
+and `assigneeIds` lacks them, and then the board says what the line does not;
+`board.mjs watch` reads it once a pass for those, and only for those.
 
 A `link` line says one task was made to wait on another, or stopped waiting:
 `data: { "action": "linked" | "unlinked", "blockerKey": "USH-12" }`. It is
