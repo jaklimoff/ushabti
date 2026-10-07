@@ -13,6 +13,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A new property with more than 40 options is refused, never cut short.** It used to keep the
   first 40 and drop the rest without a word. The box now takes one option per line, so a name may
   hold a comma, and says the limit before it sends.
+- **The link box offers every task it can.** Tasks already linked used to fill its twelve rows and
+  hide one that could still be picked, so the box said "No task by that name" when there was one.
+  An empty box no longer says that either.
 - **Set and Archive work on any number of picked tasks.** Past 200 they used to refuse the whole
   pick. They now go in batches of 200, one after another. If one is refused, the toast says how
   many went and how many did not, and after an archive only the tasks that did not go stay picked.
