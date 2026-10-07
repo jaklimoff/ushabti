@@ -3,7 +3,8 @@ import { isSelect } from "./types";
 
 /**
  * The changelog: every shipped option of every select property, newest first,
- * with the tasks that carry it.
+ * with the tasks that carry it. A sprint closes and never ships, so an
+ * iteration lists nothing here.
  *
  * It costs no table of its own. A ship writes `shippedAt` on the option and
  * archives what was over, so the options and the archived tasks are the
@@ -73,13 +74,19 @@ export type ChangelogInput = {
   }[];
 };
 
+/** True when a property's shipped options are releases the changelog lists. */
+export function isRelease(type: string): boolean {
+  return isSelect(type) && type !== "iteration";
+}
+
 export function buildChangelog(input: ChangelogInput): Changelog {
   const tasks = sortByPosition(input.tasks);
   const entries: ChangelogEntry[] = [];
   for (const prop of input.properties) {
-    /* Only a select option carries a ship. A multi-select has none, and an
-       option dated by some older write on another type is not a release. */
-    if (!isSelect(prop.type)) continue;
+    /* Only a select option carries a ship. A multi-select has none, an
+       option dated by some older write on another type is not a release,
+       and a closed sprint is not one either. */
+    if (!isRelease(prop.type)) continue;
     for (const option of prop.options) {
       if (!option.shippedAt) continue;
       entries.push({
@@ -133,7 +140,7 @@ const MONTHS = [
   "December",
 ];
 
-/** How the changelog dates an entry. A sprint ships by a press, as a release does. */
+/** How the changelog dates an entry. */
 export function shippedSaid(entry: { shippedAt: string }): string {
   return `Shipped ${shippedDay(entry.shippedAt)}`;
 }
