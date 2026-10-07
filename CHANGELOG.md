@@ -10,6 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A sprint made by a late Ship starts today.** It used to start the day after the last
+  sprint's end date, so a Ship three weeks late made a sprint that had already ended.
 - **A roadmap bar with no start date begins after the previous one ends.** It used to start at the
   oldest task under the option, so one old task moved into a release dragged its bar years back.
   Only the first dated option still starts at its oldest task.
