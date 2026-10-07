@@ -6,7 +6,7 @@ import { HttpError } from "@/lib/auth";
 import { changed, readChange, readTaskIds, rowsSaid } from "@/lib/bulk";
 import { dropHidden, lockTasks } from "@/lib/hidden";
 import type { TaskValue } from "@/lib/types";
-import { coerceValue, describeValue, loadProperty } from "@/lib/values";
+import { coerceValue, describeValue, loadProperty, valueLine } from "@/lib/values";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -127,8 +127,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         taskId: w.taskId,
         actorId: user.id,
         kind: "value",
-        // The name is for people; the id is for an agent, since a name can change.
-        data: { property: property.name, propertyId: property.id, value: await describe(w.value) },
+        data: valueLine(property, w.value, await describe(w.value)),
       })),
     );
     /* One line on each task, the same kind and the same shape the task route

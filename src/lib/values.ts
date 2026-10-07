@@ -100,6 +100,25 @@ async function assertOptions(propertyId: string, ids: string[]) {
   }
 }
 
+/** The data of a value line. The name is for people; the id and the type
+    are for an agent, since a name can change. A person line names the
+    person too, so a watcher can tell whether it is for it without reading
+    the board. Fields are only ever added here: old watchers read the rest. */
+export function valueLine(
+  prop: Pick<PropertyRow, "id" | "name" | "type">,
+  value: TaskValue,
+  described: string,
+): Record<string, unknown> {
+  const line: Record<string, unknown> = {
+    property: prop.name,
+    propertyId: prop.id,
+    type: prop.type,
+    value: described,
+  };
+  if (prop.type === "person") line.personId = typeof value === "string" && value ? value : null;
+  return line;
+}
+
 /** Human-readable text for one value. Used by the activity log. */
 /** `q` is the transaction a caller is inside, so the read takes no second connection. */
 export async function describeValue(

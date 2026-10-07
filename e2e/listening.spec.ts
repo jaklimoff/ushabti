@@ -431,6 +431,57 @@ test.describe("Agents that wait for work", () => {
   });
 });
 
+test.describe("A line that says whom it is for", () => {
+  /* A watcher decides from the line, so the line has to say it: the type on
+     every value line, the person on a person line, the assignees on a new
+     task. The panel reads the same line and names the person. */
+  test("a value line names its type and its person, and the panel names the person", async ({
+    page,
+  }) => {
+    await register(page, "Line Owner");
+    const projectId = await createProject(page, unique("Lines"));
+    await addTask(page, "Todo", "Hand it over");
+    await page.getByRole("button", { name: "Close task" }).click();
+    const token = await connectAgent(page, projectId, "Reis");
+    const api = agentApi(page.request, token);
+
+    const { board, task } = await taskByTitle(page.request, projectId, "Hand it over");
+    const assignee = board.properties.find((p: { type: string }) => p.type === "person");
+    const status = board.properties.find((p: { type: string }) => p.type === "select");
+    const reis = board.members.find((m: { name: string }) => m.name === "Reis");
+    const since = (await (await api.get(`/api/projects/${projectId}/activity`)).json()).now;
+
+    const put = (propertyId: string, value: unknown) =>
+      page.request.put(`/api/tasks/${task.id}/values/${propertyId}`, { data: { value } });
+    expect((await put(assignee.id, reis.id)).ok()).toBeTruthy();
+    expect((await put(status.id, status.options[1].id)).ok()).toBeTruthy();
+    const made = await page.request.post(`/api/projects/${projectId}/tasks`, {
+      data: { title: "Made for Reis", values: { [assignee.id]: reis.id } },
+    });
+    expect(made.ok()).toBeTruthy();
+
+    type Line = { kind: string; taskKey: string; data: Record<string, unknown> };
+    const { entries } = (await (
+      await api.get(`/api/projects/${projectId}/activity?after=${encodeURIComponent(since)}`)
+    ).json()) as { entries: Line[] };
+    const values = entries.filter((e) => e.kind === "value" && e.taskKey === task.key);
+    expect(values.find((e) => e.data.propertyId === assignee.id)?.data).toMatchObject({
+      type: "person",
+      personId: reis.id,
+    });
+    const drag = values.find((e) => e.data.propertyId === status.id)?.data;
+    expect(drag).toMatchObject({ type: "select" });
+    expect(drag).not.toHaveProperty("personId");
+    const created = entries.find((e) => e.kind === "created");
+    expect(created?.data.assigneeIds).toEqual([reis.id]);
+
+    await page.goto(`/p/${projectId}?task=${task.key}`);
+    await page.getByRole("tab", { name: /^Activity/ }).click();
+    await expect(page.getByText("Line Owner set Assignee to Reis")).toBeVisible();
+    await expect(page.getByText(reis.id)).toHaveCount(0);
+  });
+});
+
 test.describe("A write of more than a page of lines", () => {
   /* One write stamps all its lines with one moment. A feed paged by the
      moment alone read the first 200 of such a burst for ever, and the

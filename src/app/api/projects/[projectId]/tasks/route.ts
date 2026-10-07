@@ -7,7 +7,7 @@ import { byPos } from "@/lib/order";
 import { rankBefore, rankBetween } from "@/lib/rank";
 import type { TaskValue } from "@/lib/types";
 import { coerceValue, loadProperty } from "@/lib/values";
-import { readDefaults, readTypeBy, startsWith } from "@/lib/when";
+import { readDefaults, readTypeBy, startsWith, withoutHidden } from "@/lib/when";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -82,7 +82,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
     /* The type's defaults are written here and nowhere else, so a task an
        agent makes starts as one made from the composer does. A value the
        caller sent, empty or not, always wins over a default. */
-    const read = readDefaults(await loadProperties(projectId, tx), project.typeBy);
+    const props = await loadProperties(projectId, tx);
+    const read = readDefaults(props, project.typeBy);
     const starts = startsWith(readTypeBy(project.typeBy, read), sent, read);
     const written = { ...starts, ...sent };
     for (const [propertyId, value] of Object.entries(written)) {
@@ -94,11 +95,30 @@ export const POST = route<Ctx>(async (req, ctx) => {
           set: { value },
         });
     }
+    /* Who the task names, as the drop will leave it, so a watcher knows from
+       the line whether the task is its own without reading the board. */
+    const shown = withoutHidden(written, props);
+    const assigneeIds = [
+      ...new Set(
+        props
+          .filter((p) => p.type === "person")
+          .map((p) => shown[p.id])
+          .filter((v): v is string => typeof v === "string" && v !== ""),
+      ),
+    ];
     const { ring } = await dropHidden(tx, {
       projectId,
       taskIds: Object.keys(written).length ? [task.id] : [],
       actorId: user.id,
-      before: [{ projectId, taskId: task.id, actorId: user.id, kind: "created", data: { title } }],
+      before: [
+        {
+          projectId,
+          taskId: task.id,
+          actorId: user.id,
+          kind: "created",
+          data: { title, assigneeIds },
+        },
+      ],
     });
     /* The tab that made the task hears no bell, so the answer carries what
        was stored: the defaults, less what the drop took. Read back here, it

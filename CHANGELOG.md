@@ -19,6 +19,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A watcher knows from the feed whether a change is for it.** A value line now carries the
+  property's `type`, and a person line the `personId` it names; a `created` line carries
+  `assigneeIds`. `board.mjs watch` decides from those, so a card dragged across a column no
+  longer makes every agent read the whole board. A line from an older board still reads it. The
+  panel's activity names the person who was assigned, not their id.
 - **The Iteration type reads Sprint.** The type picker, the property row, the card settings, the
   errors and the docs say Sprint. The sprint length note names **Close**, the button a sprint has.
   The API still names the type `iteration`.

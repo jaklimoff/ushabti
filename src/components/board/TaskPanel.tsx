@@ -32,6 +32,7 @@ import { checklistField, editingSaid } from "@/lib/presence";
 import { childrenHead } from "@/lib/links";
 import { SEARCH_LIMIT, searchTasks } from "@/lib/search";
 import { trackWrites } from "@/lib/writes";
+import { personName, personOf } from "@/lib/people";
 import type {
   AgentRunDTO,
   AgentRunDetailDTO,
@@ -934,7 +935,10 @@ export function TaskPanel({
                     <div key={entry.id} className={styles.activityRow}>
                       <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
                       <span className={styles.activityText}>
-                        {describeActivity(entry, data.project.name)}
+                        {describeActivity(entry, data.project.name, (id) => {
+                          const person = personOf(id, data.members, data.former);
+                          return person ? personName(person) : null;
+                        })}
                       </span>
                     </div>
                   ))}
@@ -1293,6 +1297,20 @@ function Links({
   );
 }
 
+/* A person line stores the id, so a person who was renamed reads by the
+   name they have now. A line older than the type field is tried as an id
+   too: a member id is never somebody's words. */
+function valueSaid(
+  d: { type?: string; value?: string; personId?: string | null },
+  nameOf: (id: unknown) => string | null,
+): string {
+  if (d.type === undefined || d.type === "person") {
+    const named = nameOf(d.personId ?? d.value);
+    if (named) return named;
+  }
+  return d.value ?? "empty";
+}
+
 function describeActivity(
   entry: {
     kind: string;
@@ -1300,12 +1318,15 @@ function describeActivity(
     actor: { name: string } | null;
   },
   projectName: string,
+  nameOf: (id: unknown) => string | null,
 ): string {
   // A roll, which older releases did on a sprint's end, had no person behind it.
   const who = entry.actor?.name ?? (entry.data.rolled ? projectName : "Someone");
   const d = entry.data as {
     property?: string;
+    type?: string;
     value?: string;
+    personId?: string | null;
     title?: string;
     text?: string;
     action?: string;
@@ -1330,7 +1351,7 @@ function describeActivity(
       /* A line about values a change hid names what went, and the change
          that hid them has its own line beside it. */
       if (d.dropped?.length) return droppedSaid(d.hidBy ?? null, d.dropped);
-      return `${who} set ${d.property ?? "a property"} to ${d.value ?? "empty"}`;
+      return `${who} set ${d.property ?? "a property"} to ${valueSaid(d, nameOf)}`;
     case "checklist":
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;
     case "comment":
