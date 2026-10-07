@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A roadmap bar with no start date begins after the previous one ends.** It used to start at the
+  oldest task under the option, so one old task moved into a release dragged its bar years back.
+  Only the first dated option still starts at its oldest task.
 - **A new property with more than 40 options is refused, never cut short.** It used to keep the
   first 40 and drop the rest without a word. The box now takes one option per line, so a name may
   hold a comma, and says the limit before it sends.
