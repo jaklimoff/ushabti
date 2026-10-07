@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **A member adds a type as they add a property, and an agent adds no property.** The Types
+  page shows **Add type** to every person on the project, not only the owner and the admins.
+  Deleting a property, an option or a type stays an admin's. An agent token that tries to create
+  a property gets `403 Only a person can do this.`
+
 ### Fixed
 
 - **Shift-click picks from the open task.** Click a card, then Shift-click another in the same
