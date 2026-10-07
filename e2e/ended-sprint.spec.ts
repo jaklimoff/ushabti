@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { card, column, createProject, register, unique } from "./helpers";
+import { card, column, createProject, headerRoom, register, unique } from "./helpers";
 
 /**
  * A sprint ends when a person presses Ship, the same as a release. One past
@@ -189,4 +189,36 @@ test("the Sprint view keeps an ended sprint as current until it ships", async ({
   const next = column(page, "Sprint 2");
   await expect(next.getByTestId("column-date")).not.toHaveText(/Ended/);
   await expect(next.getByTestId("card")).toHaveCount(2);
+});
+
+test("an ended header leaves the name readable with the sum, archive and Ship showing", async ({
+  page,
+}) => {
+  const { projectId, first } = await ended(page);
+
+  /* Twelve days is the longest the words usually run; a sum needs a number. */
+  const dated = await page.request.patch(`/api/options/${first.id}`, {
+    data: { startAt: day(-26), targetAt: day(-12) },
+  });
+  expect(dated.ok()).toBeTruthy();
+  const points = await page.request.post(`/api/projects/${projectId}/properties`, {
+    data: { name: "Points", type: "number" },
+  });
+  expect(points.ok()).toBeTruthy();
+  const pointsId = (await board(page, projectId)).properties.find((p) => p.name === "Points")!.id;
+  const counted = await page.request.patch(`/api/projects/${projectId}`, {
+    data: { progressBy: pointsId },
+  });
+  expect(counted.ok()).toBeTruthy();
+
+  await page.goto(`/p/${projectId}`);
+  const header = column(page, "Sprint 1");
+  await expect(header.getByTestId("column-date")).toHaveText("Ended 12 days ago");
+  await expect(header.getByTestId("column-sum")).toBeVisible();
+  await expect(header.getByTestId("column-archive")).toBeVisible();
+  await expect(header.getByTestId("column-ship")).toBeVisible();
+
+  const room = await headerRoom(header);
+  expect(room.past).toBe(0);
+  expect(room.nameCut).toBeLessThanOrEqual(0);
 });
