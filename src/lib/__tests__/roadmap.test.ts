@@ -94,6 +94,41 @@ describe("roadmapRows", () => {
     expect([rows[1].end, rows[1].share]).toEqual(["2026-09-03", 1]);
   });
 
+  it("begins an option with no start the day after the previous dated option's target", () => {
+    const property = release([
+      option("v1", { startAt: "2026-09-01", targetAt: "2026-09-30" }),
+      option("v2"),
+      option("v3", { targetAt: "2026-10-31" }),
+    ]);
+    const rows = roadmapRows(property, [], [], rule, "UTC");
+    expect(rows.map((r) => [r.id, r.start, r.end])).toEqual([
+      ["v1", "2026-09-01", "2026-09-30"],
+      ["v3", "2026-10-01", "2026-10-31"],
+    ]);
+  });
+
+  it("does not move a bar's start when an old task is moved into the release", () => {
+    const property = release([
+      option("v2", { targetAt: "2026-09-30" }),
+      option("v3", { targetAt: "2026-10-31" }),
+    ]);
+    const tasks = [task("v2", "2026-09-01T10:00:00Z"), task("v3", "2024-03-01T10:00:00Z")];
+    const rows = roadmapRows(property, tasks, tasks, rule, "UTC");
+    expect(rows.map((r) => [r.id, r.start])).toEqual([
+      ["v2", "2026-09-01"],
+      ["v3", "2026-10-01"],
+    ]);
+    expect(roadmapAxis(rows, "2026-10-07").weeks[0]).toBe("2026-08-24");
+  });
+
+  it("starts an option with a start date there, whatever came before it", () => {
+    const property = release([
+      option("v1", { startAt: "2026-09-01", targetAt: "2026-09-30" }),
+      option("v2", { startAt: "2026-09-15", targetAt: "2026-10-31" }),
+    ]);
+    expect(roadmapRows(property, [], [], rule, "UTC")[1].start).toBe("2026-09-15");
+  });
+
   it("draws a start after the end as one day", () => {
     const property = release([option("v1", { startAt: "2026-10-09", targetAt: "2026-10-01" })]);
     const [row] = roadmapRows(property, [], [], rule, "UTC");
@@ -109,7 +144,7 @@ describe("a shipped option, whose work the ship archived", () => {
   const archived = { v1: { firstAt: "2026-09-02T10:00:00.000Z", count: 4, taskIds: [] } };
 
   it("starts at its oldest archived task, and says how many it took", () => {
-    const [row] = roadmapRows(property, [], [], rule, "UTC", archived);
+    const row = roadmapRows(property, [], [], rule, "UTC", archived).find((r) => r.id === "v1")!;
     expect([row.id, row.start, row.end, row.archived]).toEqual([
       "v1",
       "2026-09-02",
@@ -120,11 +155,12 @@ describe("a shipped option, whose work the ship archived", () => {
 
   it("takes whichever is older, a live task or an archived one", () => {
     const live = [task("v1", "2026-08-20T10:00:00Z")];
-    expect(roadmapRows(property, live, live, rule, "UTC", archived)[0].start).toBe("2026-08-20");
+    const rows = roadmapRows(property, live, live, rule, "UTC", archived);
+    expect(rows.find((r) => r.id === "v1")?.start).toBe("2026-08-20");
   });
 
-  it("is not drawn without them, as before", () => {
-    expect(roadmapRows(property, [], [], rule, "UTC")).toEqual([]);
+  it("is not drawn without them, while the option after it starts from its target", () => {
+    expect(roadmapRows(property, [], [], rule, "UTC").map((r) => r.id)).toEqual(["v2"]);
   });
 });
 

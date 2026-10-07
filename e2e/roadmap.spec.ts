@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { formatDate } from "../src/lib/board";
 import { createProject, register, unique } from "./helpers";
 
 type Page = import("@playwright/test").Page;
@@ -21,12 +22,14 @@ function plus(day: string, days: number): string {
 }
 
 /*
- * A Version select with four options: one open around today, one shipped,
- * one with no target date, and one with a target and nothing to start it by.
+ * A Version select with four options: one with a target and nothing to start
+ * it by, one open around today, one shipped, and one with no target date.
+ * Ghost comes first, because an option after a dated one starts when that one
+ * ends; only the first dated option waits for a task to start it.
  */
 async function versions(page: Page, projectId: string) {
   const made = await page.request.post(`/api/projects/${projectId}/properties`, {
-    data: { name: "Version", type: "select", options: ["Beta", "Alpha", "Someday", "Ghost"] },
+    data: { name: "Version", type: "select", options: ["Ghost", "Beta", "Alpha", "Someday"] },
   });
   expect(made.status()).toBe(201);
   const { today, properties } = await boardOf(page, projectId);
@@ -89,11 +92,18 @@ test.describe("A roadmap", () => {
     expect((await refused.json()).error).toContain('"Plan"');
   });
 
-  test("starts a bar at its oldest task, and asks for a select", async ({ page }) => {
+  test("starts the first bar at its oldest task, the next after it, and asks for a select", async ({
+    page,
+  }) => {
     await register(page);
     const projectId = await createProject(page, unique("Roadmap"));
-    const { version } = await versions(page, projectId);
+    const { version, today } = await versions(page, projectId);
     const ghost = version.options.find((o) => o.name === "Ghost")!;
+    const beta = version.options.find((o) => o.name === "Beta")!;
+    const patch = (optionId: string, data: object) =>
+      page.request.patch(`/api/options/${optionId}`, { data });
+    expect((await patch(ghost.id, { targetAt: plus(today, 5) })).status()).toBe(200);
+    expect((await patch(beta.id, { startAt: null })).status()).toBe(200);
     const task = await page.request.post(`/api/projects/${projectId}/tasks`, {
       data: { title: "Haunt", values: { [version.id]: ghost.id } },
     });
@@ -108,9 +118,21 @@ test.describe("A roadmap", () => {
     expect(wrong.status()).toBe(400);
 
     await addRoadmap(page, projectId);
-    await expect(page.getByTestId("roadmap-row")).toHaveCount(3);
-    await expect(page.getByTestId("roadmap-row").nth(1)).toContainText("Ghost");
-    await expect(page.getByTestId("roadmap-row").nth(1)).toContainText("0 of 1 task done");
+    const rows = page.getByTestId("roadmap-row");
+    await expect(rows).toHaveCount(3);
+    await expect(rows.nth(0)).toContainText("Ghost");
+    await expect(rows.nth(0)).toContainText("0 of 1 task done");
+    /* Ghost starts on the day its task was made; Beta the day after Ghost's target. */
+    const bars = page.getByTestId("roadmap-bar");
+    await expect(bars.nth(0)).toHaveAttribute(
+      "title",
+      `${formatDate(today)} – ${formatDate(plus(today, 5))}`,
+    );
+    await expect(rows.nth(1)).toContainText("Beta");
+    await expect(bars.nth(1)).toHaveAttribute(
+      "title",
+      `${formatDate(plus(today, 6))} – ${formatDate(plus(today, 20))}`,
+    );
   });
 
   test("a shipped option keeps its start in its archived work, and a filter takes rows away", async ({
@@ -121,7 +143,13 @@ test.describe("A roadmap", () => {
     const { version, today } = await versions(page, projectId);
     const id = (name: string) => version.options.find((o) => o.name === name)!.id;
 
-    /* Alpha loses its start date, and its one task is archived, as a ship does. */
+    /* Alpha loses its start date, and its one task is archived, as a ship does.
+       Ghost loses its target, so nothing dated comes before Alpha. */
+    expect(
+      (
+        await page.request.patch(`/api/options/${id("Ghost")}`, { data: { targetAt: null } })
+      ).status(),
+    ).toBe(200);
     expect(
       (
         await page.request.patch(`/api/options/${id("Alpha")}`, { data: { startAt: null } })
