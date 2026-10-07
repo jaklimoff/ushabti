@@ -410,7 +410,8 @@ not even for itself. The change is broadcast, so every open board draws it.
 
 ### `DELETE /api/projects/{projectId}/agents/{agentId}` <Badge text="owner and admins" variant="caution" size="small" />
 
-Deletes the agent for good, with its tokens, its runs and its authorship.
+Removes the agent from the project, and its tokens with it. Its runs, with their plans and logs,
+stay on the tasks, and its comments and activity keep its name.
 
 | Status | Message |
 | --- | --- |

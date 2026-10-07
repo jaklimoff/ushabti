@@ -550,6 +550,8 @@ export const agentRuns = pgTable(
     taskId: uuid("task_id")
       .notNull()
       .references(() => tasks.id, { onDelete: "cascade" }),
+    /* Removing an agent keeps its user row, so this cascade never runs for
+       one and the history stays. Delete the row and every run goes with it. */
     agentId: uuid("agent_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
