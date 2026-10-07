@@ -37,7 +37,7 @@ test("Settings offers Iteration, and its options always show the date boxes", as
 
   await page.getByLabel("New property name").fill("Sprint");
   await choose(page.getByLabel("Type of the new property"), "Iteration");
-  await page.getByPlaceholder("Options, separated by commas").fill("Sprint 1");
+  await page.getByLabel("Options of the new property").fill("Sprint 1");
   const made = page.waitForResponse((r) => r.url().endsWith("/properties"));
   await page.getByRole("button", { name: "Add property" }).click();
   expect((await made).status()).toBe(201);
