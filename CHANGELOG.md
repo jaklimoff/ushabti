@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.20.0 — 2026-10-07
+
 ### Added
 
 - **A project tells its agents how to work on its board.** An admin writes the agent rules in
@@ -22,6 +24,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   its end date, and no longer archives or moves work on a timer. A sprint past its end stays open,
   and its column says "Ended 2 days ago" on a line below its name. Ship makes the next sprint when
   none is open after it. The cadence is only the sprint length now; "Sprints kept ahead" is gone.
+  The project carries a migration that drops the two columns the roll kept, so 0.19.0 cannot run
+  on a database 0.20.0 has opened.
 
 ### Fixed
 
