@@ -1182,10 +1182,29 @@ commands.watch = async function watch() {
   const timeout = Math.max(1, Number(flags.timeout ?? 30) || 30) * 60_000;
   const once = flags.once === "true";
 
-  const me = await call("GET", "/api/agent/me");
+  let me = await call("GET", "/api/agent/me");
   const projectId = me.project.id;
   const agentId = me.agent.id;
-  const mention = new RegExp(mentionPattern(me.agent.name), "i");
+  let mention = new RegExp(mentionPattern(me.agent.name), "i");
+
+  /* An admin can rename the agent while this runs. The rename's event names
+     the agent, and a stream that was down for it says `ready` again, so the
+     name is read again on both, and a mention of the new name wakes this
+     watcher without a restart. */
+  const rereadMe = async () => {
+    const now = await tryRead("/api/agent/me");
+    if (!now) return say(`could not read my name again, so I keep ${me.agent.name}`);
+    if (now.agent.name !== me.agent.name) say(`renamed: I answer to @${now.agent.name} now`);
+    me = now;
+    mention = new RegExp(mentionPattern(me.agent.name), "i");
+  };
+  const renames = (block) => {
+    try {
+      return JSON.parse(/^data:\s*(.*)$/m.exec(block)?.[1] ?? "{}").renamed === agentId;
+    } catch {
+      return false;
+    }
+  };
 
   /* --- where the feed was left ------------------------------------- */
 
@@ -1579,9 +1598,11 @@ commands.watch = async function watch() {
           for (const block of blocks) {
             const event = /^event:\s*(\S+)/m.exec(block)?.[1];
             if (event === "ready") {
+              await rereadMe();
               say(`listening on ${me.project.name} (${me.project.key}) as ${me.agent.name}`);
               rang();
             } else if (event === "change") {
+              if (renames(block)) await rereadMe();
               rang();
             }
           }

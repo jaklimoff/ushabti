@@ -13,6 +13,8 @@ export type BoardEvent = {
   taskId?: string;
   /** The browser tab that caused the change. It skips its own echo. */
   clientId?: string;
+  /** The agent whose name changed, so its watcher reads the name again. */
+  renamed?: string;
 };
 
 /**

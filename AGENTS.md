@@ -317,6 +317,9 @@ and what is easy to get wrong.
   happens while a socket is down, so putting the change itself in an event
   makes a watcher that silently misses work. `ready` goes out after the
   subscription, so a client that reads on `ready` misses nothing in between.
+  A `change` may name an agent whose name changed, as `renamed`. That is
+  still a where: a hint to read `/api/agent/me` again, never the name itself.
+  A watcher that misses it reads its name again on the next `ready`.
 - **Listening is a lease, and only the stream writes it.** `listening_at` on a
   token is touched while an agent holds the stream and cleared when it closes;
   `isListening()` reads it against a minute. It is not "last used": a token

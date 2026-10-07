@@ -35,7 +35,10 @@ const fake = vi.hoisted(() => {
         emoji: (state.set.at(-1)?.avatarEmoji as string | null | undefined) ?? null,
       },
     ]);
-  return { state, db: { select: () => select, update: () => update } };
+  const db: Record<string, unknown> = { select: () => select, update: () => update };
+  /* The write runs under the project lock, which is one more statement. */
+  db.transaction = (work: (tx: unknown) => unknown) => work({ ...db, execute: async () => [] });
+  return { state, db };
 });
 
 vi.mock("server-only", () => ({}));

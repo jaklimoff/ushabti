@@ -2,8 +2,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRuns, agentTokens, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, adminOnly, guard, json, readId, route } from "@/lib/api";
+import { body, broadcast, clientIdOf, adminOnly, guard, json, readId, route, str } from "@/lib/api";
+import { refuseTakenName } from "@/lib/agents";
 import { readFace } from "@/lib/face";
+import { withProjectLock } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ projectId: string; agentId: string }> };
 
@@ -22,10 +24,15 @@ async function agentOf(projectId: string, agentId: string) {
 }
 
 /**
- * The colour and the emoji of an agent. It keeps the colour it was given at
- * random, so two agents, or an agent and a person, can wear the same face. A
- * person changes it and the agent does not: a face is how the team tells who
- * did the work, and a token that could change it could wear somebody else's.
+ * The name, the colour and the emoji of an agent. It keeps the colour it was
+ * given at random, so two agents, or an agent and a person, can wear the same
+ * face. A person changes it and the agent does not: a face is how the team
+ * tells who did the work, and a token that could change it could wear
+ * somebody else's.
+ *
+ * A name is how a mention finds an agent, so two agents of one project may
+ * not share one, whatever the case. History joins the name on read, so old
+ * comments and runs show the new one; text already written keeps the old.
  */
 export const PATCH = route<Ctx>(async (req, ctx) => {
   const { projectId, agentId } = await ctx.params;
@@ -34,17 +41,33 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   adminOnly(user, membership, "change an agent");
 
   await agentOf(projectId, agentId);
-  const patch = readFace(await body<{ color?: unknown; emoji?: unknown }>(req), "the ◆");
+  const input = await body<{ name?: unknown; color?: unknown; emoji?: unknown }>(req);
+  const patch: { name?: string; color?: string; avatarEmoji?: string | null } = readFace(
+    input,
+    "the ◆",
+  );
+  if (input.name !== undefined) patch.name = str(input.name, "Name", { max: 80 });
   if (Object.keys(patch).length === 0) return json({ ok: true });
 
-  const [agent] = await db.update(users).set(patch).where(eq(users.id, agentId)).returning({
-    id: users.id,
-    name: users.name,
-    color: users.color,
-    emoji: users.avatarEmoji,
+  const agent = await withProjectLock(projectId, async (tx) => {
+    if (patch.name !== undefined) await refuseTakenName(tx, projectId, patch.name, agentId);
+    const [row] = await tx.update(users).set(patch).where(eq(users.id, agentId)).returning({
+      id: users.id,
+      name: users.name,
+      color: users.color,
+      emoji: users.avatarEmoji,
+    });
+    return row;
   });
 
-  await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
+  /* A watcher matches mentions against its name, so the event names the
+     agent and that watcher reads the name again. */
+  await broadcast({
+    projectId,
+    scope: "project",
+    clientId: clientIdOf(req),
+    ...(patch.name !== undefined ? { renamed: agentId } : {}),
+  });
   return json({ agent });
 });
 
