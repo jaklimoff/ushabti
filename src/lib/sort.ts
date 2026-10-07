@@ -1,5 +1,5 @@
 import type { CardItem } from "./card-view";
-import { KIND_OF_BUILTIN, KIND_OF_TYPE } from "./card-view";
+import { KIND_OF_BUILTIN, KIND_OF_TYPE, stampOf } from "./card-view";
 import { linkLabel, linksOf } from "./web-links";
 import { personName, personOf } from "./people";
 import { isShown } from "./when";
@@ -147,6 +147,10 @@ function keyOf(item: CardItem, task: TaskDTO, members: MemberDTO[], former: Form
       return task.checklistTotal === 0 ? null : task.checklistDone / task.checklistTotal;
     case "comments":
       return task.commentCount || null;
+    /* A moment, and every task has one. The moment and not its day, so two
+       tasks changed on one day still come out in the order they were. */
+    case "stamp":
+      return Date.parse(stampOf(item.id, task));
     default:
       break;
   }
@@ -277,6 +281,7 @@ const WAYS_OF_KIND: Record<CardKind, Record<SortDirection, string>> = {
   checklist: { asc: "Least done first", desc: "Most done first" },
   parts: { asc: "Least done first", desc: "Most done first" },
   comments: { asc: "Fewest first", desc: "Most first" },
+  stamp: { asc: "Oldest first", desc: "Newest first" },
   select: { asc: "Option order", desc: "Reverse order" },
   person: { asc: "A→Z", desc: "Z→A" },
   date: { asc: "Earliest first", desc: "Latest first" },

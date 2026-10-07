@@ -70,6 +70,7 @@ describe("waitingRows", () => {
       "2026-01-02",
       null,
       waitingTasks(runs),
+      "UTC",
     );
     const rows = waitingRows(tasks, runs, new Set());
     expect(new Set(rows.map((r) => r.task.id))).toEqual(new Set(filtered.map((t) => t.id)));

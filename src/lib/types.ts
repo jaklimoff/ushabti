@@ -224,8 +224,10 @@ export type DeletedTaskDTO = {
  * The three parts of a task that behave like properties on a card without
  * being any: its key, its title and its description. The checklist and the
  * comment count join them, because a card draws those too and somebody has to
- * be able to take them off. Nothing here is a field on a task — the words are
- * fixed, the values come from the task row the board already has.
+ * be able to take them off. So do the two days the server stamps on every
+ * task, when it was made and when somebody last changed it. Nothing here is a
+ * field on a task — the words are fixed, the values come from the task row the
+ * board already has.
  */
 export const CARD_BUILTINS = [
   "_key",
@@ -234,6 +236,8 @@ export const CARD_BUILTINS = [
   "_checklist",
   "_parts",
   "_comments",
+  "_created",
+  "_updated",
 ] as const;
 
 export type CardBuiltin = (typeof CARD_BUILTINS)[number];
@@ -245,6 +249,8 @@ export const CARD_BUILTIN_NAME: Record<CardBuiltin, string> = {
   _checklist: "Checklist",
   _parts: "Children",
   _comments: "Comments",
+  _created: "Created",
+  _updated: "Updated",
 };
 
 /**
@@ -314,6 +320,7 @@ export const CARD_KINDS = [
   "checklist",
   "parts",
   "comments",
+  "stamp",
   "select",
   "person",
   "date",

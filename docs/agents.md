@@ -153,14 +153,18 @@ the owner changes it in **Settings → Project**.
 hardcoded, so the board cannot know what done means. A view that wants "late
 and not finished" says so with a second rule beside it.
 
-**A rule may name no property at all.** Two `propertyId`s are fixed words
+**A rule may name no property at all.** Four `propertyId`s are fixed words
 rather than ids. `_blocked` asks whether the task is waiting on another one:
 read it as a checkbox whose value is `blockedBy` being non-empty.
 `_agent_waiting` asks whether an agent waits for a person on the task: read it
 as a checkbox whose value is the task's run in `runs` having `status`
-`waiting`. A `handed_over` run does not count. Neither word is in a row of
-`properties`, so look it up there and you find nothing. Neither can be
-deleted, so a view keeps a rule about one for ever.
+`waiting`. A `handed_over` run does not count. `_created` and `_updated` ask
+when the task was made and last changed: read each as a date whose value is
+the day of `createdAt` or `updatedAt` in the project's `timeZone`. They take
+`on`, `before`, `after` and `within` with `today`, `this_week`, `last_7` or
+`last_30`, and never `empty`. None of these words is in a row of
+`properties`, so look it up there and you find nothing. None can be deleted,
+so a view keeps a rule about one for ever.
 
 The two routes that write those rules are a person's, and answer `403` to a
 token: `PUT /api/views/{viewId}/lens` and `POST /api/views/{viewId}/lens/promote`.

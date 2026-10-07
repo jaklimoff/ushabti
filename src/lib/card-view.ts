@@ -1,4 +1,5 @@
 import { formatDate } from "./board";
+import { todayIn } from "./day";
 import { linkLabel, linksOf } from "./web-links";
 import {
   CARD_BUILTIN_NAME,
@@ -25,7 +26,7 @@ import { isShown } from "./when";
  * What a card carries, and how.
  *
  * Nothing here names Status, Priority or a due date. A row holds an id — a
- * property, or one of the five parts a task has of its own — and its kind says
+ * property, or one of the parts a task has of its own — and its kind says
  * which modes it offers and how the card draws it. Adding a property type
  * means adding a line to `KIND_OF_TYPE`, and nothing else.
  *
@@ -57,6 +58,8 @@ export const KIND_OF_BUILTIN: Record<CardBuiltin, CardKind> = {
   _checklist: "checklist",
   _parts: "parts",
   _comments: "comments",
+  _created: "stamp",
+  _updated: "stamp",
 };
 
 /**
@@ -108,6 +111,10 @@ export const MODES_FOR_KIND: Record<CardKind, { id: CardMode; label: string }[]>
     { id: "text", label: "Count" },
   ],
   comments: [{ id: "text", label: "Count" }],
+  stamp: [
+    { id: "text", label: "Plain" },
+    { id: "boxed", label: "Boxed" },
+  ],
   title: [{ id: "fixed", label: "Always the task title" }],
 };
 
@@ -156,6 +163,11 @@ export function fallbackRow(kind: CardKind): CardRow {
        until somebody asks it to say one. */
     case "link":
       return { place: "off", mode: "text" };
+    /* Every task has both days, so a card that drew them unasked would grow
+       two chips on every card at once. They wait to be turned on, also on a
+       card somebody arranged before they existed. */
+    case "stamp":
+      return { place: "off", mode: "text" };
     default:
       return { place: "footerL", mode: firstMode(kind) };
   }
@@ -182,6 +194,8 @@ export function cardOrder(properties: readonly { id: string }[]): string[] {
     "_checklist",
     "_parts",
     "_comments",
+    "_created",
+    "_updated",
   ];
 }
 
@@ -223,6 +237,8 @@ export function defaultCardView(properties: PropertyDTO[], groupById: string | n
     _checklist: { place: "footerL", mode: "bar" },
     _parts: { place: "footerL", mode: "bar" },
     _comments: { place: "footerL", mode: "text" },
+    _created: fallbackRow("stamp"),
+    _updated: fallbackRow("stamp"),
   };
 
   /* The small square of colour a card has always opened with: the first
@@ -522,6 +538,7 @@ function chipsFor(
   members: MemberDTO[],
   former: FormerDTO[],
   properties: PropertyDTO[],
+  timeZone: string,
 ): CardChip[] {
   const boxed = item.mode === "boxed";
 
@@ -564,6 +581,13 @@ function chipsFor(
       if (task.commentCount === 0) return [];
       const count = String(task.commentCount);
       return [chip(item, `${item.id}-${task.id}`, count, { text: count, bubble: true })];
+    }
+
+    /* A moment, read as the day it was in the project's zone. The zone is
+       named, so the server and the browser draw the same day. */
+    case "stamp": {
+      const text = formatDate(todayIn(timeZone, new Date(stampOf(item.id, task))));
+      return [chip(item, `${item.id}-${task.id}`, text, { text, boxed })];
     }
 
     default:
@@ -647,6 +671,11 @@ function chipsFor(
   }
 }
 
+/** The moment a stamp row stands for. */
+export function stampOf(id: string, task: TaskDTO): string {
+  return id === "_created" ? task.createdAt : task.updatedAt;
+}
+
 /**
  * The properties behind the items. Every property has an item, the ones off
  * the card too, so this is the whole list a rule's chain is walked through.
@@ -676,6 +705,7 @@ export function buildCard(
   task: TaskDTO,
   members: MemberDTO[],
   former: FormerDTO[] = [],
+  timeZone: string = "UTC",
 ): CardSlots {
   const properties = propertiesOf(items);
   const slots: CardSlots = {
@@ -695,7 +725,7 @@ export function buildCard(
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
-      slots.edge = chipColour(chipsFor(item, task, members, former, properties)[0]);
+      slots.edge = chipColour(chipsFor(item, task, members, former, properties, timeZone)[0]);
       continue;
     }
 
@@ -705,7 +735,7 @@ export function buildCard(
       continue;
     }
 
-    const chips = chipsFor(item, task, members, former, properties);
+    const chips = chipsFor(item, task, members, former, properties, timeZone);
     if (!chips.length) continue;
     if (item.place === "headerL") slots.headerL.push(...chips);
     else if (item.place === "headerR") slots.headerR.push(...chips);
@@ -737,6 +767,7 @@ export function buildRow(
   task: TaskDTO,
   members: MemberDTO[],
   former: FormerDTO[] = [],
+  timeZone: string = "UTC",
 ): RowSlots {
   const properties = propertiesOf(items);
   const slots: RowSlots = { edge: null, desc: null, cells: {} };
@@ -745,7 +776,7 @@ export function buildRow(
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
-      slots.edge = chipColour(chipsFor(item, task, members, former, properties)[0]);
+      slots.edge = chipColour(chipsFor(item, task, members, former, properties, timeZone)[0]);
       continue;
     }
 
@@ -764,7 +795,7 @@ export function buildRow(
      * bare squares under PRIORITY says only that the task has one.
      */
     const named: CardItem = item.mode === "colour" ? { ...item, mode: "both" } : item;
-    slots.cells[item.id] = chipsFor(named, task, members, former, properties);
+    slots.cells[item.id] = chipsFor(named, task, members, former, properties, timeZone);
   }
 
   return slots;
@@ -788,8 +819,9 @@ export function cardAccent(
   former: FormerDTO[] = [],
 ): string | null {
   const properties = propertiesOf(items);
+  /* A day carries no colour, so the zone it is read in cannot change the answer. */
   const colourOf = (item: CardItem): string | null =>
-    chipColour(chipsFor(item, task, members, former, properties)[0]);
+    chipColour(chipsFor(item, task, members, former, properties, "UTC")[0]);
 
   const edge = items.find((i) => i.place === "edge");
   if (edge) return colourOf(edge);

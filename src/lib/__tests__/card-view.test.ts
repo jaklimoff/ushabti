@@ -263,6 +263,8 @@ describe("the order of the rows", () => {
       "_checklist",
       "_parts",
       "_comments",
+      "_created",
+      "_updated",
     ]);
     expect(cardOrder(PROPERTIES)).toEqual(items(null).map((i) => i.id));
   });

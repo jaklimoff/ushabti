@@ -110,11 +110,13 @@ saved one away and goes back to the default.
 | `rows[id].place` | `edge`, `headerL`, `headerR`, `body`, `footerL`, `footerR`, `off` |
 | `rows[id].mode` | `colour`, `both`, `avatar`, `text`, `boxed`, `one`, `two`, `bar`, `fixed` — the row's kind decides which it may use |
 
-Five ids are not properties: `_key`, `_title`, `_desc`, `_checklist` and `_comments`.
+Eight ids are not properties: `_key`, `_title`, `_desc`, `_checklist`, `_parts`, `_comments`,
+`_created` and `_updated`. The last two are the days the task was made and last changed, in the
+project's time zone, and are `off` until somebody turns them on.
 
 A card view has **no order**. Where two rows share a place they follow the order of the properties
 (set with `afterId` on [`PATCH /api/properties/{id}`](/ushabti/api/properties/)), after `_key`,
-`_title` and `_desc` and before `_checklist` and `_comments`. A row whose mode is `colour` or
+`_title` and `_desc` and before `_checklist`, `_parts`, `_comments`, `_created` and `_updated`. A row whose mode is `colour` or
 `avatar` carries no words and is drawn first in its place. An `order` in the body is ignored and
 never stored.
 

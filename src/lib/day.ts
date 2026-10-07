@@ -226,8 +226,10 @@ export function zoneRefused(name: string): string {
  * whose default is not Gregorian still answers the same day.
  *
  * This is the only place in the product that reads a clock for a filter, and
- * only the server calls it. The answer travels on the board as a string, so
- * the browser hydrates with the day the server drew and never reads its own.
+ * only the server calls it without a moment. The answer travels on the board
+ * as a string, so the browser hydrates with the day the server drew and never
+ * reads its own. Handed a moment, it reads no clock, which is how both sides
+ * turn the day a task was made or changed into the same string.
  */
 export function todayIn(timeZone: string, now: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-US-u-ca-gregory", {

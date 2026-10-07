@@ -54,8 +54,8 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   const picking = picked.length > 0;
 
   const slots = useMemo(
-    () => buildCard(cardItems, task, data.members, data.former),
-    [cardItems, data.members, data.former, task],
+    () => buildCard(cardItems, task, data.members, data.former, data.project.timeZone),
+    [cardItems, data.members, data.former, data.project.timeZone, task],
   );
 
   /* One glyph, and never a list. A card with ten runs on it has to stay
