@@ -111,12 +111,12 @@ test("the header says how long ago it ended, and Close makes the next sprint", a
     column(page, "Sprint 2").getByTestId("card").filter({ hasText: "Alpha" }),
   ).toBeVisible();
 
-  /* The new sprint follows on from the old one's end and lasts the length. */
+  /* The old end was a week ago, so the new sprint starts today and lasts the length. */
   const read = await board(page, projectId);
   const made = read.properties.find((p) => p.id === sprint.id)!.options;
   expect(made.map((o) => [o.name, o.startAt, o.targetAt, o.shippedAt])).toEqual([
     ["Sprint 1", day(-20), day(-7), new Date().toISOString().slice(0, 10)],
-    ["Sprint 2", day(-6), day(7), null],
+    ["Sprint 2", day(0), day(13), null],
   ]);
   expect(read.tasks.find((t) => t.title === "Alpha")!.values[sprint.id]).toBe(made[1].id);
   expect(first.id).toBe(made[0].id);
