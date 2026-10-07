@@ -2,9 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { card, column, createProject, headerRoom, register, unique } from "./helpers";
 
 /**
- * A sprint ends when a person presses Ship, the same as a release. One past
+ * A sprint ends when a person presses Close, as a release ships by a press. One past
  * its end stays open on every read, its header says how long ago it ended,
- * and Ship makes the next sprint from the length when none follows it.
+ * and Close makes the next sprint from the length when none follows it.
  */
 
 type Option = {
@@ -52,7 +52,7 @@ async function ended(page: Page) {
     expect(res.ok()).toBeTruthy();
   }
   const main = read.views.find((v) => v.isDefault)!;
-  /* Grouping by a sprint starts on "is current"; Ship wants the whole column. */
+  /* Grouping by a sprint starts on "is current"; Close wants the whole column. */
   await page.request.patch(`/api/views/${main.id}`, { data: { groupById: sprint.id } });
   const unfiltered = await page.request.patch(`/api/views/${main.id}`, {
     data: { filters: { rules: [] } },
@@ -90,7 +90,7 @@ test("a sprint past its end stays open, and the board read writes nothing", asyn
   expect(((await feed.json()) as { entries: unknown[] }).entries).toEqual([]);
 });
 
-test("the header says how long ago it ended, and Ship makes the next sprint", async ({ page }) => {
+test("the header says how long ago it ended, and Close makes the next sprint", async ({ page }) => {
   const { projectId, sprint, first, second } = await ended(page);
   /* With the next sprint gone, Sprint 1 has no open sprint after it. */
   expect((await page.request.delete(`/api/options/${second.id}`)).ok()).toBeTruthy();
@@ -100,10 +100,10 @@ test("the header says how long ago it ended, and Ship makes the next sprint", as
   await expect(header.getByTestId("column-date")).toHaveText("Ended 7 days ago");
   await expect(header.getByTestId("column-date")).toHaveAttribute("title", `Target ${day(-7)}`);
 
-  await header.getByRole("button", { name: "Ship Sprint 1" }).click();
+  await header.getByRole("button", { name: "Close Sprint 1" }).click();
   const ship = page.waitForResponse((res) => res.url().endsWith("/ship"));
   await page
-    .getByRole("alertdialog", { name: "Ship Sprint 1" })
+    .getByRole("alertdialog", { name: "Close Sprint 1" })
     .getByRole("button", { name: "Move to the next option" })
     .click();
   expect((await ship).ok()).toBeTruthy();
@@ -145,7 +145,7 @@ test("Unship reopens an ended sprint, and nothing closes it again", async ({ pag
   await page.goto(`/p/${projectId}`);
   const header = column(page, "Sprint 1");
   await expect(header.getByTestId("column-date")).toHaveText("Ended 7 days ago");
-  await expect(header.getByRole("button", { name: "Ship Sprint 1" })).toBeVisible();
+  await expect(header.getByRole("button", { name: "Close Sprint 1" })).toBeVisible();
   await page.reload();
   await expect(column(page, "Sprint 1").getByTestId("column-date")).toHaveText("Ended 7 days ago");
   expect(await shippedAt()).toBeNull();
@@ -191,7 +191,7 @@ test("the Sprint view keeps an ended sprint as current until it ships", async ({
   await expect(next.getByTestId("card")).toHaveCount(2);
 });
 
-test("an ended header leaves the name readable with the sum, archive and Ship showing", async ({
+test("an ended header leaves the name readable with the sum, archive and Close showing", async ({
   page,
 }) => {
   const { projectId, first } = await ended(page);

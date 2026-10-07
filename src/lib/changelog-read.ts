@@ -1,8 +1,8 @@
 import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { properties, propertyOptions, taskValues, tasks } from "../db/schema";
-import type { ChangelogInput } from "./changelog";
-import { isSelect, PROPERTY_TYPES } from "./types";
+import { isRelease, type ChangelogInput } from "./changelog";
+import { PROPERTY_TYPES } from "./types";
 
 /* Imports no `@/db` and no `server-only`, so a test can hand it a client of
    its own and hold it against a read of every task. */
@@ -51,7 +51,8 @@ export function readShipped(
         eq(tasks.projectId, projectId),
         isNull(tasks.deletedAt),
         eq(properties.projectId, projectId),
-        inArray(properties.type, PROPERTY_TYPES.filter(isSelect)),
+        /* A closed sprint is not a release, so it lists nothing. */
+        inArray(properties.type, PROPERTY_TYPES.filter(isRelease)),
         isNotNull(propertyOptions.shippedAt),
       ),
     );

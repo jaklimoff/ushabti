@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  closes,
   endedSaid,
   nextOpenOption,
   nextOptionOf,
@@ -87,6 +88,20 @@ describe("the question", () => {
     );
     expect(shipQuestion("v1", 0, 0)).toBe("Ship v1? 0 tasks are over and will be archived.");
   });
+
+  it("asks to close a sprint, and says the finished tasks stay", () => {
+    expect(shipQuestion("Sprint 14", 3, 2, true)).toBe(
+      "Close Sprint 14? 3 tasks are over and stay. 2 tasks are not over.",
+    );
+    expect(shipQuestion("Sprint 14", 0, 1, true)).toBe("Close Sprint 14? 1 task is not over.");
+  });
+});
+
+describe("a sprint closes; a release ships", () => {
+  it("is decided by the type, never the name", () => {
+    expect(closes({ type: "iteration" })).toBe(true);
+    expect(closes({ type: "select" })).toBe(false);
+  });
 });
 
 describe("the day a ship writes", () => {
@@ -106,6 +121,16 @@ describe("what the board says after", () => {
     );
     expect(shipSaid("v1", { ...done, archived: 1, moved: 0, rest: "leave" }, null)).toBe(
       "Shipped v1: archived 1 task.",
+    );
+  });
+
+  it("names no archive for a closed sprint", () => {
+    const done = { archived: 0, moved: 2, shippedAt: "2026-10-03" };
+    expect(shipSaid("Sprint 14", { ...done, rest: "next" }, "Sprint 15", true)).toBe(
+      "Closed Sprint 14: moved 2 tasks to Sprint 15.",
+    );
+    expect(shipSaid("Sprint 14", { ...done, moved: 0, rest: "leave" }, null, true)).toBe(
+      "Closed Sprint 14.",
     );
   });
 });

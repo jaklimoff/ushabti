@@ -188,8 +188,9 @@ test.describe("The changelog", () => {
     });
     expect(plain.ok()).toBeTruthy();
 
-    /* An iteration ships as a select does. Golf carries two shipped options,
-       one on each property; Hotel sits in a sprint that is still open. */
+    /* A closed sprint is not a release. Golf carries a shipped version and a
+       closed sprint, and only the version is read; Hotel sits in a sprint
+       that is still open. */
     const madeSprint = await page.request.post(`/api/projects/${projectId}/properties`, {
       data: { name: "Sprint", type: "iteration", options: ["Old", "Now"] },
     });
@@ -279,7 +280,6 @@ test.describe("The changelog", () => {
         "Bravo lands",
         "Charlie lands",
         "Golf ships twice",
-        "Golf ships twice",
       ]);
       const after = buildChangelog({ project, properties, tasks: shippedTasks(rows) });
 
@@ -287,7 +287,6 @@ test.describe("The changelog", () => {
       expect(after.entries.map((e) => e.tasks.map((t) => t.title))).toEqual([
         ["Charlie lands", "Golf ships twice"],
         ["Alpha lands", "Bravo lands"],
-        ["Golf ships twice"],
       ]);
     });
   });

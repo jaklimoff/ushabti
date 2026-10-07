@@ -12,7 +12,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatDate, type BoardColumn } from "@/lib/board";
 import type { DoneWhen } from "@/lib/links";
 import { progressOf } from "@/lib/progress";
-import { SHIP_REST_LABEL, shipQuestion, shipRestsFor, splitShip, type ShipRest } from "@/lib/ship";
+import {
+  SHIP_REST_LABEL,
+  shipQuestion,
+  shipRestsFor,
+  shipWord,
+  splitShip,
+  type ShipRest,
+} from "@/lib/ship";
 import type { PropertyOptionDTO, TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { MentionList, useMentions } from "./Mentions";
@@ -113,6 +120,8 @@ function releaseOf(dates: ColumnDates | null, tasks: TaskDTO[], rule: ProgressRu
 export type ShipOffer = {
   /** The option after this one, or null when it is the last. */
   nextName: string | null;
+  /** A sprint closes and archives nothing; a release ships. */
+  closing: boolean;
   /** Settles once the ship is answered and the board read again. */
   onShip: (rest: ShipRest) => Promise<boolean>;
 };
@@ -165,7 +174,7 @@ export function Column({
   onFold: (folded: boolean) => void;
   /** The dates of the option this column stands for, or null for none. */
   dates: ColumnDates | null;
-  /** "Ended 2 days ago" for an open sprint past its end, which waits for Ship. */
+  /** "Ended 2 days ago" for an open sprint past its end, which waits for Close. */
   ended: string | null;
   rule: ProgressRule;
   ship: ShipOffer | null;
@@ -380,8 +389,12 @@ export function Column({
             <button
               className={`${styles.colAdd} ${styles.colShip}`}
               data-testid="column-ship"
-              aria-label={`Ship ${column.name}`}
-              title="Ship: archive what is over and close this option"
+              aria-label={`${shipWord(ship.closing)} ${column.name}`}
+              title={
+                ship.closing
+                  ? "Close: end this sprint and keep its tasks on the board"
+                  : "Ship: archive what is over and close this option"
+              }
               onClick={shipAsk.ask}
             >
               ✓
@@ -496,10 +509,10 @@ function ShipQuestion({
     <div
       className={`${styles.colHead} ${styles.colHeadAsking}`}
       role="alertdialog"
-      aria-label={`Ship ${column.name}`}
+      aria-label={`${shipWord(ship.closing)} ${column.name}`}
     >
       <span className={styles.colConfirm} data-testid="ship-confirm">
-        {shipQuestion(column.name, over.length, rest.length)}
+        {shipQuestion(column.name, over.length, rest.length, ship.closing)}
         {rest.length > 0 && " What happens to them?"}
       </span>
       {answers.map((answer, i) => (
@@ -510,7 +523,7 @@ function ShipQuestion({
           title={answer === "next" ? `Move them to ${ship.nextName}` : undefined}
           onClick={() => onPick(answer)}
         >
-          {rest.length ? SHIP_REST_LABEL[answer] : "Yes, ship"}
+          {rest.length ? SHIP_REST_LABEL[answer] : `Yes, ${shipWord(ship.closing).toLowerCase()}`}
         </button>
       ))}
       <button className={styles.colConfirmNo} onClick={onCancel}>

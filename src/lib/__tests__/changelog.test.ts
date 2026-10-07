@@ -71,7 +71,7 @@ describe("the changelog", () => {
     expect(log.entries.map((e) => e.name)).toEqual(["One", "Two"]);
   });
 
-  it("reads an iteration as a select", () => {
+  it("lists no sprint, because a sprint closes and never ships", () => {
     const log = buildChangelog(
       input({
         properties: [
@@ -84,7 +84,7 @@ describe("the changelog", () => {
         ],
       }),
     );
-    expect(log.entries.map((e) => e.name)).toEqual(["Sprint 1"]);
+    expect(log.entries).toEqual([]);
   });
 
   it("reads only a select property", () => {
@@ -120,23 +120,12 @@ describe("the changelog", () => {
   });
 });
 
-describe("a shipped sprint", () => {
-  it("says shipped, as a release does", () => {
-    const log = buildChangelog(
-      input({
-        properties: [
-          {
-            id: "sprint",
-            name: "Sprint",
-            type: "iteration",
-            options: [{ id: "s14", name: "Sprint 14", shippedAt: "2026-09-27", note: null }],
-          },
-        ],
-      }),
-    );
-    expect(log.entries.map((e) => shippedSaid(e))).toEqual(["Shipped September 27, 2026"]);
-    expect(publicChangelog(log).entries.map((e) => shippedSaid(e))).toEqual([
-      "Shipped September 27, 2026",
+describe("the date of an entry", () => {
+  it("says shipped", () => {
+    const log = buildChangelog(input());
+    expect(log.entries.map((e) => shippedSaid(e))).toEqual([
+      "Shipped October 1, 2026",
+      "Shipped September 1, 2026",
     ]);
   });
 });

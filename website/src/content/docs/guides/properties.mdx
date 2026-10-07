@@ -120,10 +120,12 @@ option's own target, so a property turned off after it was dated still ships. **
 turns it on for the Sprint property it makes.
 
 For an **Iteration**, which is what a sprint is, **current** works another way. A sprint past its
-target that nobody has shipped is still current, the oldest one first, because nothing ends a sprint
-but a press of **Ship**. Its column header says "Ended 7 days ago" in place of the target day, on a
-line below the name. **Ship** closes it, can move what is left to the next sprint, and makes that
-sprint from the sprint length when none follows.
+target that nobody has closed is still current, the oldest one first, because nothing ends a sprint
+but a press of **Close**. Its column header says "Ended 7 days ago" in place of the target day, on a
+line below the name. **Close** ends it, can move what is left to the next sprint, and makes that
+sprint from the sprint length when none follows. Closing archives nothing and writes no changelog
+entry: the finished tasks stay where they are, because the same task may still wait for a release.
+Only **Ship** on a release archives what is over.
 
 ### Reorder properties
 

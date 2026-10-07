@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
+  **Close**: it ends the sprint and moves its unfinished tasks to the next one or leaves them, and
+  the finished tasks stay on the board. A task in a closed sprint and an open release stays until
+  the release ships. The changelog lists releases only, and a closed sprint's line in the feed says
+  `closed` where a release's says `shipped`.
+
 ## 0.20.0 — 2026-10-07
 
 ### Added
