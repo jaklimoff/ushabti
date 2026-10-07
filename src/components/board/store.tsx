@@ -35,7 +35,7 @@ import {
   type PresenceSaid,
   type Room,
 } from "@/lib/presence";
-import { changed, type Change } from "@/lib/bulk";
+import { batchesSaid, changed, inBatches, type Change } from "@/lib/bulk";
 import { rankBetween } from "@/lib/rank";
 import { trackWrites } from "@/lib/writes";
 import type {
@@ -1192,8 +1192,10 @@ export function BoardProvider({
   /*
    * One call, not one for each card. Ten calls coerce the value ten times,
    * ring the doorbell ten times, and can stop halfway with nothing on screen
-   * saying where. The cards move at once and the refusal puts them back, like
-   * every other write here.
+   * saying where. A pick past the route's ceiling goes as a few calls in a
+   * row, and if one is refused the toast says how far it got. The cards move
+   * at once and the refresh puts back what was refused, like every other
+   * write here.
    *
    * The picks stand afterwards. Setting a second property on the same cards is
    * the next thing a person does, and clearing them would take it away.
@@ -1219,25 +1221,32 @@ export function BoardProvider({
             : t,
         ),
       }));
-      await guarded(async () => {
+      const run = await inBatches(ids, async (batch) => {
         await tracked.post(`/api/projects/${projectId}/tasks/values`, {
-          taskIds: ids,
+          taskIds: batch,
           propertyId,
           value,
           ...(change ? { change } : {}),
         });
+        return batch.length;
       });
+      if (run.said !== null) {
+        notify(batchesSaid("Set", ids.length, run));
+        await refresh();
+        return;
+      }
       if (saysDone(propertyId)) await refresh();
     },
-    [guarded, pickedHere, projectId, refresh, saysDone, tracked],
+    [notify, pickedHere, projectId, refresh, saysDone, tracked],
   );
 
   /*
-   * One call, not one for each card, for the same reason a bulk set is one.
+   * One call, not one for each card, for the same reason a bulk set is one,
+   * and a few in a row past the ceiling.
    *
    * The pick ends on the answer and not before it. A refusal — a task somebody
-   * else deleted a moment ago, a socket that dropped — leaves the picks where
-   * they were, so the toast is the whole of what went wrong and nobody has to
+   * else deleted a moment ago, a socket that dropped — leaves picked what did
+   * not go, so the toast is the whole of what went wrong and nobody has to
    * pick twenty cards again to try it. Once it goes through the pick ends,
    * unlike a set: the cards are off the board, so a bar still counting them
    * would count what nobody can see. The count is the server's, because it
@@ -1246,18 +1255,25 @@ export function BoardProvider({
   const archivePicked = useCallback<Store["archivePicked"]>(async () => {
     const ids = pickedHere;
     if (ids.length === 0) return 0;
-    try {
+    const run = await inBatches(ids, async (batch) => {
       const res = await tracked.post<{ archived: number }>(`/api/projects/${projectId}/archive`, {
-        taskIds: ids,
+        taskIds: batch,
       });
+      return res.archived;
+    });
+    if (run.said === null) {
       clearPicks();
       await refresh();
-      return res.archived;
-    } catch (err) {
-      notify(err instanceof Error ? err.message : "Those tasks did not archive.");
-      await refresh();
-      return 0;
+      return run.count;
     }
+    /* What went is off the board, so only what did not stays picked. The
+       toast gives both counts, so the answer is none: a second toast saying
+       "Archived 200 tasks." would cover the one that says what failed. */
+    const left = new Set(run.left);
+    setPickedRaw((current) => current.filter((id) => left.has(id)));
+    notify(batchesSaid("Archived", ids.length, run));
+    await refresh();
+    return 0;
   }, [clearPicks, notify, pickedHere, projectId, refresh, tracked]);
 
   const controlRun = useCallback<Store["controlRun"]>(

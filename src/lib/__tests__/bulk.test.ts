@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  batchesSaid,
   canSetOnMany,
+  inBatches,
   changed,
   BULK_LIMIT,
   onBoardSaid,
@@ -251,5 +253,58 @@ describe("changed", () => {
     expect(changed(["ux", "bug", "docs"], "remove", "bug")).toEqual(["ux", "docs"]);
     expect(changed(["ux"], "remove", "bug")).toEqual(["ux"]);
     expect(changed(null, "remove", "bug")).toEqual([]);
+  });
+});
+
+describe("inBatches", () => {
+  it("sends 500 ids as three calls of at most the limit, in order", async () => {
+    const sent: string[][] = [];
+    const run = await inBatches(many(500), async (batch) => {
+      sent.push(batch);
+      return batch.length;
+    });
+    expect(sent.map((b) => b.length)).toEqual([BULK_LIMIT, BULK_LIMIT, 100]);
+    expect(sent.flat()).toEqual(many(500));
+    expect(run).toEqual({ count: 500, left: [], said: null });
+  });
+
+  it("sends a small pick as one call", async () => {
+    const sent: string[][] = [];
+    await inBatches(many(3), async (batch) => {
+      sent.push(batch);
+      return batch.length;
+    });
+    expect(sent).toEqual([many(3)]);
+  });
+
+  it("stops at the first refusal and hands back what was not sent", async () => {
+    const ids = many(500);
+    let calls = 0;
+    const run = await inBatches(ids, async (batch) => {
+      calls += 1;
+      if (calls === 2) throw new Error("One of those tasks is not on this board.");
+      return batch.length;
+    });
+    expect(calls).toBe(2);
+    expect(run.count).toBe(BULK_LIMIT);
+    expect(run.left).toEqual(ids.slice(BULK_LIMIT));
+    expect(run.said).toBe("One of those tasks is not on this board.");
+  });
+
+  it("counts what the server says it changed", async () => {
+    const run = await inBatches(many(250), async (batch) => batch.length - 1);
+    expect(run.count).toBe(248);
+  });
+});
+
+describe("batchesSaid", () => {
+  it("gives both counts when some went", () => {
+    const run = { count: 200, left: many(300), said: "No." };
+    expect(batchesSaid("Archived", 500, run)).toBe("Archived 200 of 500. The rest did not: No.");
+    expect(batchesSaid("Set", 500, run)).toBe("Set 200 of 500. The rest did not: No.");
+  });
+
+  it("is the plain refusal when nothing went", () => {
+    expect(batchesSaid("Set", 5, { count: 0, left: many(5), said: "No." })).toBe("No.");
   });
 });
