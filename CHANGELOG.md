@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **Set and Archive work on any number of picked tasks.** Past 200 they used to refuse the whole
+  pick. They now go in batches of 200, one after another. If one is refused, the toast says how
+  many went and how many did not, and after an archive only the tasks that did not go stay picked.
+
 ### Changed
 
 - **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
