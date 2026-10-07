@@ -34,7 +34,16 @@ function runClient(token: string, args: string[]) {
 
 /** The calls an agent makes, with the token in place of a session cookie. */
 function agentApi(request: APIRequestContext, token: string) {
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  /* The limiter counts a bad token per address, and the address is whatever
+     the proxy in front says in `x-forwarded-for`. Some tests here send a token
+     that no longer works, so each token takes an address of its own, made
+     fresh inside the test so that a retry gets another one. Without it every
+     run counts under 127.0.0.1, and a few runs in a row meet the limit. */
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+    "x-forwarded-for": unique("198.51.100"),
+  };
   return {
     get: (path: string) => request.get(path, { headers }),
     post: (path: string, data: unknown = {}) => request.post(path, { headers, data }),
