@@ -5,6 +5,11 @@ import { isOpenOption } from "./option-dates";
  * Shipping one column: the tasks that are over leave the board, the rest go
  * where the person said, and the option says the day it shipped.
  *
+ * A sprint is closed rather than shipped. It answers "when", and a release
+ * answers "what goes out", so only a release takes its finished work off the
+ * board and into the changelog. A task can sit in Sprint 14 and in 0.20 at
+ * once, and shipping 0.20 must not empty the sprint before its review.
+ *
  * Everything here is pure. The route reads the rows under the project lock and
  * asks this file what to do with them; the column asks the same file what to
  * say, so the numbers in the question are the numbers the route works with.
@@ -56,6 +61,19 @@ export function nextOpenOption<T extends { id: string; shippedAt: string | null 
   return nextOptionOf(open, optionId);
 }
 
+/**
+ * True when the option closes rather than ships: an iteration. Closing archives
+ * nothing and writes no changelog entry; the rest still moves or stays.
+ */
+export function closes(property: { type: string }): boolean {
+  return property.type === "iteration";
+}
+
+/** The button word: a sprint is closed, a release is shipped. */
+export function shipWord(closing: boolean): "Close" | "Ship" {
+  return closing ? "Close" : "Ship";
+}
+
 /** The answers a column can offer: "next" only when there is a next option. */
 export function shipRestsFor(hasNext: boolean): ShipRest[] {
   return SHIP_RESTS.filter((rest) => rest !== "next" || hasNext);
@@ -73,9 +91,13 @@ export function splitShip<T extends OverTask & { id: string }>(
 }
 
 /** The question the column header asks, in real numbers. */
-export function shipQuestion(name: string, over: number, rest: number): string {
+export function shipQuestion(name: string, over: number, rest: number, closing = false): string {
   const tasks = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;
   const left = rest === 0 ? "" : ` ${tasks(rest)} ${rest === 1 ? "is" : "are"} not over.`;
+  if (closing) {
+    const done = over === 0 ? "" : ` ${tasks(over)} ${over === 1 ? "is" : "are"} over and stay.`;
+    return `Close ${name}?${done}${left}`;
+  }
   return `Ship ${name}? ${tasks(over)} ${over === 1 ? "is" : "are"} over and will be archived.${left}`;
 }
 
@@ -86,7 +108,7 @@ export function shipDay(now: Date): string {
 
 /**
  * What the header of an open sprint says once its end has passed, or null
- * before then. Nothing ends a sprint but a press of Ship, so the header says
+ * before then. Nothing ends a sprint but a press of Close, so the header says
  * how long it has waited for one. Both are days, so they are counted in UTC.
  */
 export function endedSaid(targetAt: string | null, today: string): string | null {
@@ -98,9 +120,14 @@ export function endedSaid(targetAt: string | null, today: string): string | null
 }
 
 /** What the board says once a ship went through, in the server's numbers. */
-export function shipSaid(name: string, done: ShipDone, nextName: string | null): string {
+export function shipSaid(
+  name: string,
+  done: ShipDone,
+  nextName: string | null,
+  closing = false,
+): string {
   const tasks = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;
-  const parts = [`archived ${tasks(done.archived)}`];
+  const parts = closing ? [] : [`archived ${tasks(done.archived)}`];
   if (done.moved > 0) {
     parts.push(
       done.rest === "next" && nextName
@@ -108,5 +135,6 @@ export function shipSaid(name: string, done: ShipDone, nextName: string | null):
         : `cleared ${tasks(done.moved)}`,
     );
   }
+  if (closing) return parts.length ? `Closed ${name}: ${parts.join(", ")}.` : `Closed ${name}.`;
   return `Shipped ${name}: ${parts.join(", ")}.`;
 }

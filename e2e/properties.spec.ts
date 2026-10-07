@@ -37,7 +37,7 @@ test.describe("Custom properties", () => {
 
     await gotoSettings(page, projectId);
     await page.getByLabel("New property name").fill("Risk");
-    await page.getByPlaceholder("Options, separated by commas").fill("Low, Medium, High");
+    await page.getByLabel("Options of the new property").fill("Low\nMedium\nHigh");
     await page.getByRole("button", { name: "Add property" }).click();
 
     const risk = propertyBox(page, "Risk");

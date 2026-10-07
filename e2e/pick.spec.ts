@@ -383,6 +383,139 @@ test.describe("Archiving what is picked", () => {
   });
 });
 
+/** Five hundred tasks, made through the route, so the board opens on them. */
+async function fiveHundred(page: Page, projectId: string) {
+  const titles = Array.from({ length: 500 }, (_, i) => `Row ${String(i + 1).padStart(3, "0")}`);
+  for (let at = 0; at < titles.length; at += 25) {
+    await Promise.all(
+      titles.slice(at, at + 25).map(async (title) => {
+        const made = await page.request.post(`/api/projects/${projectId}/tasks`, {
+          data: { title },
+        });
+        expect(made.status()).toBe(201);
+      }),
+    );
+  }
+  await page.reload();
+}
+
+/** Picks every row of the list: the first by its check, the rest by Shift. */
+async function pickAllRows(page: Page) {
+  const rows = page.getByTestId("list-row");
+  await expect(rows).toHaveCount(500);
+  await rows.first().getByTestId("list-pick").click();
+  await rows.last().click({ modifiers: ["Shift"] });
+  await expect(page.getByTestId("pick-count")).toHaveText("500 selected");
+}
+
+/** Every write the page sends to one path, counted as it goes out. */
+function writesTo(page: Page, ending: string): string[] {
+  const calls: string[] = [];
+  page.on("request", (asked) => {
+    if (asked.method() !== "GET" && new URL(asked.url()).pathname.endsWith(ending)) {
+      calls.push(asked.url());
+    }
+  });
+  return calls;
+}
+
+/*
+ * The route takes two hundred ids at most, and a Shift-click in a long list
+ * picks more than that without a word. So the browser sends the picks in a
+ * few calls one after another, and if one is refused it says how far it got.
+ */
+test.describe("Picking more than one call holds", () => {
+  test.setTimeout(120_000);
+
+  test("500 picked tasks archive in one press", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Many"));
+    await fiveHundred(page, projectId);
+    await addListView(page, "Everything");
+    await pickAllRows(page);
+
+    const calls = writesTo(page, "/archive");
+    await page.getByTestId("pick-archive").click();
+    await page.getByTestId("pick-archive-yes").click();
+
+    await expect(page.getByTestId("toast")).toContainText("Archived 500 tasks.");
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+    await expect(page.getByTestId("list-row")).toHaveCount(0);
+    expect(calls).toHaveLength(3);
+
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(board.tasks).toHaveLength(0);
+    expect(board.archived).toHaveLength(500);
+  });
+
+  test("a refused batch gives both counts and keeps only what did not go", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Half"));
+    await fiveHundred(page, projectId);
+    await addListView(page, "Everything");
+    await pickAllRows(page);
+
+    /* The first call goes through; the second is refused, and the third is
+       never sent. */
+    let seen = 0;
+    await page.route("**/api/projects/*/archive", (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      seen += 1;
+      if (seen === 1) return route.fallback();
+      return route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "One of those tasks is not on this board." }),
+      });
+    });
+
+    await page.getByTestId("pick-archive").click();
+    await page.getByTestId("pick-archive-yes").click();
+
+    await expect(page.getByTestId("toast")).toContainText(
+      "Archived 200 of 500. The rest did not: One of those tasks is not on this board.",
+    );
+    expect(seen).toBe(2);
+    /* The refresh puts the cards of the refused batch back, and they are the
+       only ones still picked. */
+    await expect(page.getByTestId("list-row")).toHaveCount(300);
+    await expect(page.getByTestId("pick-count")).toHaveText("300 selected");
+    await expect(page.locator('[data-testid="list-row"][data-picked="true"]')).toHaveCount(300);
+  });
+
+  test("setting a value on 500 picked tasks writes all 500", async ({ page }) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Set many"));
+    await fiveHundred(page, projectId);
+    await addListView(page, "Everything");
+    await pickAllRows(page);
+
+    const calls = writesTo(page, "/tasks/values");
+    await page.getByTestId("pick-set").click();
+    const search = page.getByTestId("pick-search");
+    await search.fill("Priority");
+    await search.press("Enter");
+    await page.getByTestId("pick-menu").getByRole("button", { name: "Urgent" }).click();
+    await expect.poll(() => calls.length).toBe(3);
+    await page.keyboard.press("Escape");
+
+    /* A set keeps its picks, whatever the number. */
+    await expect(page.getByTestId("pick-count")).toHaveText("500 selected");
+
+    /* Really written: every task on the server carries the one option. */
+    await expect
+      .poll(async () => {
+        const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+        const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
+        const urgent = priority.options.find((o: { name: string }) => o.name === "Urgent").id;
+        return board.tasks.filter(
+          (t: { values: Record<string, unknown> }) => t.values[priority.id] === urgent,
+        ).length;
+      })
+      .toBe(500);
+  });
+});
+
 /*
  * A list is the same tasks lying down, so it picks the same way. The check is
  * in the gutter before the key rather than a column of its own: the columns of
