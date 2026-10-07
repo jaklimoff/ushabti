@@ -23,7 +23,7 @@ import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { carriesDates, NOTE_MAX, optionEdit, splitShipped } from "@/lib/option-dates";
-import { AHEAD_MAX, cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
+import { cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Checkbox, Input, NameInput, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -842,9 +842,8 @@ function WhenRow({
 }
 
 /**
- * An iteration's cadence: how long a sprint is, and how many open ones wait
- * after the one that ships. Each box saves on blur, and on leave for a tab
- * closed while it still has the focus.
+ * An iteration's cadence: how long a sprint is. The box saves on blur, and on
+ * leave for a tab closed while it still has the focus.
  */
 function CadenceRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
   const cadence = readCadence(property.config);
@@ -859,16 +858,10 @@ function CadenceRow({ property, canEdit }: { property: PropertyDTO; canEdit: boo
         unit="days a sprint"
         canEdit={canEdit}
       />
-      <CadenceBox
-        property={property}
-        field="ahead"
-        saved={cadence.ahead}
-        max={AHEAD_MAX}
-        label="Sprints kept ahead"
-        unit="open ahead"
-        canEdit={canEdit}
-      />
-      <Note>A ship makes the next sprint, named and dated after the last one.</Note>
+      <Note>
+        A sprint ends when somebody presses Ship. If no open sprint follows, Ship makes the next
+        one, named and dated after the last.
+      </Note>
     </div>
   );
 }

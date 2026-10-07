@@ -30,7 +30,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     name?: string;
     showOnCard?: boolean;
     dated?: boolean;
-    cadence?: { length?: unknown; ahead?: unknown };
+    cadence?: { length?: unknown };
     when?: unknown;
     defaults?: unknown;
     afterId?: string | null;
@@ -64,13 +64,12 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     mergeConfig((c) => sql`${c} || ${JSON.stringify({ dated: input.dated })}::jsonb`);
   }
 
-  /* The cadence is the shape of an iteration, so it is an admin's too. Each
-     half is merged into what is saved, so a blur on the length keeps the
-     ahead another tab wrote. */
+  /* The cadence is the shape of an iteration, so it is an admin's too. It is
+     merged into what is saved; an `ahead` an older release wrote goes. */
   if (input.cadence !== undefined) {
     adminOnly(user, membership, "change the cadence");
     if (!input.cadence || typeof input.cadence !== "object") {
-      throw new HttpError(400, "The cadence must be an object with length and ahead.");
+      throw new HttpError(400, "The cadence must be an object with a length.");
     }
     const read = readCadenceInput(input.cadence);
     if ("error" in read) throw new HttpError(400, read.error);
@@ -81,7 +80,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     if (row?.type !== "iteration") throw new HttpError(400, "Only an iteration has a cadence.");
     mergeConfig(
       (c) => sql`${c} || jsonb_build_object('cadence',
-      coalesce(${properties.config} -> 'cadence', '{}'::jsonb) || ${JSON.stringify(read.patch)}::jsonb)`,
+      (coalesce(${properties.config} -> 'cadence', '{}'::jsonb) - 'ahead') || ${JSON.stringify(read.patch)}::jsonb)`,
     );
   }
 

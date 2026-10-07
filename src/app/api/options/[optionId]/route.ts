@@ -4,8 +4,7 @@ import { properties, propertyOptions, taskValues } from "@/db/schema";
 import { dropHidden, lockTasks, projectTaskIds } from "@/lib/hidden";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
-import { optionPropertyId, projectToday, withProjectLock } from "@/lib/queries";
-import { keptOpenByUnship } from "@/lib/ship";
+import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
 import { datesClash, namesOptionDates, ONLY_SELECT, readOptionDates } from "@/lib/option-dates";
@@ -27,11 +26,6 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const dates = readOptionDates(input);
   if ("error" in dates) throw new HttpError(400, dates.error);
   Object.assign(patch, dates.patch);
-  // A ship day set or taken away by hand is a person's act, never a roll.
-  if (dates.patch.shippedAt !== undefined) patch.rolled = false;
-  /* A new target is a new end, and the roll may take it then. An unship
-     is read under the lock, against the end the sprint has. */
-  if (dates.patch.targetAt !== undefined) patch.keptOpen = false;
 
   if (input.name !== undefined) patch.name = str(input.name, "Option name", { max: 40 });
   if (input.color !== undefined) {
@@ -95,15 +89,6 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       const before = index >= 0 ? siblings[index].position : null;
       const after = siblings[index + 1]?.position ?? null;
       patch.position = rankBetween(before, after);
-    }
-
-    if (dates.patch.shippedAt === null && dates.patch.targetAt === undefined) {
-      const [own] = await tx
-        .select({ targetAt: propertyOptions.targetAt })
-        .from(propertyOptions)
-        .where(eq(propertyOptions.id, optionId))
-        .limit(1);
-      patch.keptOpen = keptOpenByUnship(own?.targetAt ?? null, await projectToday(owner.projectId));
     }
 
     await tx.update(propertyOptions).set(patch).where(eq(propertyOptions.id, optionId));

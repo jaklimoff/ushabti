@@ -69,11 +69,10 @@ export type PropertyConfig = {
    */
   dated?: boolean;
   /**
-   * An iteration's cadence: a sprint's length in days, and how many open
-   * sprints wait after the one that ships. Read it with `readCadence()`, which
-   * fills in 14 and 1.
+   * An iteration's cadence: a sprint's length in days, which Ship uses for the
+   * next sprint. Read it with `readCadence()`, which fills in 14.
    */
-  cadence?: { length?: number; ahead?: number };
+  cadence?: { length?: number };
   /**
    * When this property shows on a task: "Severity, shown when Type is Bug".
    * Absent is always. Read it with `readWhen()`; the board and the export

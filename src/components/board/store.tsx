@@ -300,7 +300,7 @@ type Store = {
     patch: {
       name?: string;
       dated?: boolean;
-      cadence?: { length?: number; ahead?: number };
+      cadence?: { length?: number };
       /** Null clears the rule, so the property always shows. */
       when?: When | null;
     },

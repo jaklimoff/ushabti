@@ -44,8 +44,8 @@ import { isOpenOption } from "@/lib/option-dates";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
 import { canManage } from "@/lib/roles";
-import { nextOpenOption, shipSaid } from "@/lib/ship";
-import { readCadence, sprintsAhead } from "@/lib/cadence";
+import { endedSaid, nextOpenOption, shipSaid } from "@/lib/ship";
+import { readCadence, sprintAfter } from "@/lib/cadence";
 import { sortTasks } from "@/lib/sort";
 import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
@@ -397,12 +397,12 @@ export function BoardCanvas({
     const nextName =
       nextOpenOption(groupProperty, groupProperty.options, column.id)?.name ??
       (groupProperty.type === "iteration"
-        ? (sprintsAhead(
+        ? (sprintAfter(
             groupProperty.options,
             column.id,
             readCadence(groupProperty.config),
             data.today,
-          )[0]?.name ?? null)
+          )?.name ?? null)
         : null);
     return {
       nextName,
@@ -420,6 +420,13 @@ export function BoardCanvas({
      The unit is a number property the owner named, read afresh on the
      server; the name comes from here so a rename shows at once. */
   const datedOptions = groupProperty && isSelect(groupProperty.type) ? groupProperty.options : [];
+  /* A sprint past its end stays open until somebody presses Ship, so its
+     header says how long it has waited. A release keeps its target. */
+  const endedOf = (columnId: string): string | null => {
+    if (groupProperty?.type !== "iteration") return null;
+    const option = datedOptions.find((o) => o.id === columnId);
+    return option && !option.shippedAt ? endedSaid(option.targetAt, data.today) : null;
+  };
   const countBy = data.properties.find((p) => p.id === data.project.progressBy) ?? null;
   const rule: ProgressRule = useMemo(
     () => ({
@@ -831,6 +838,7 @@ export function BoardCanvas({
                 }
                 onFold={(on) => fold(column.id, on)}
                 dates={datedOptions.find((o) => o.id === column.id) ?? null}
+                ended={endedOf(column.id)}
                 rule={rule}
                 ship={shipOffer(column)}
               />

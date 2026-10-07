@@ -2,8 +2,8 @@ import { takenBy } from "./option-name";
 import { SPRINT } from "./sprints";
 
 /**
- * The cadence of an iteration: how long a sprint is, and how many open ones
- * wait after the one that ships. It fills in what nobody typed; it forbids
+ * The cadence of an iteration: how long a sprint is. It fills in what nobody
+ * typed when Ship makes the next sprint; it forbids
  * nothing, so an admin still makes, renames, dates and deletes a sprint by
  * hand, and the next one follows whatever is there.
  *
@@ -11,11 +11,10 @@ import { SPRINT } from "./sprints";
  * lock and ask this file what to make.
  */
 
-export type Cadence = { length: number; ahead: number };
+export type Cadence = { length: number };
 
-export const CADENCE_DEFAULT: Cadence = { length: 14, ahead: 1 };
+export const CADENCE_DEFAULT: Cadence = { length: 14 };
 export const LENGTH_MAX = 365;
-export const AHEAD_MAX = 10;
 /** The longest option name, as the option routes take it. */
 export const NAME_MAX = 40;
 
@@ -30,17 +29,12 @@ export function readCadence(config: { cadence?: unknown } | null | undefined): C
   const saved = (config?.cadence ?? {}) as Partial<Record<keyof Cadence, unknown>>;
   return {
     length: whole(saved.length, 1, LENGTH_MAX) ? saved.length : CADENCE_DEFAULT.length,
-    ahead: whole(saved.ahead, 1, AHEAD_MAX) ? saved.ahead : CADENCE_DEFAULT.ahead,
   };
 }
 
-/**
- * The fields of a request body a write would change, or the sentence a 400
- * says. At least one ahead, always: that is what lets Ship move the rest on.
- */
+/** The fields of a request body a write would change, or the sentence a 400 says. */
 export function readCadenceInput(input: {
   length?: unknown;
-  ahead?: unknown;
 }): { patch: Partial<Cadence> } | { error: string } {
   const patch: Partial<Cadence> = {};
   if (input.length !== undefined) {
@@ -48,12 +42,6 @@ export function readCadenceInput(input: {
       return { error: `The length must be a whole number of days from 1 to ${LENGTH_MAX}.` };
     }
     patch.length = input.length;
-  }
-  if (input.ahead !== undefined) {
-    if (!whole(input.ahead, 1, AHEAD_MAX)) {
-      return { error: `Ahead must be a whole number from 1 to ${AHEAD_MAX}.` };
-    }
-    patch.ahead = input.ahead;
   }
   return { patch };
 }
@@ -91,44 +79,30 @@ export function followOn(
   return { startAt, targetAt: addDays(startAt, length - 1) };
 }
 
-/** What Set up sprints makes: the first sprint, and `ahead` more after it. */
-export function firstSprints(startAt: string, length: number, ahead: number): MadeSprint[] {
-  const made: MadeSprint[] = [
-    { name: `${SPRINT} 1`, startAt, targetAt: addDays(startAt, length - 1) },
-  ];
-  for (let i = 0; i < ahead; i++) {
-    const prev = made[made.length - 1];
-    made.push({ name: nextSprintName(prev.name), ...followOn(prev, length, startAt) });
-  }
-  return made;
+/** What Set up sprints makes: the first sprint, and the one after it to plan into. */
+export function firstSprints(startAt: string, length: number): MadeSprint[] {
+  const first = { name: `${SPRINT} 1`, startAt, targetAt: addDays(startAt, length - 1) };
+  return [first, { name: nextSprintName(first.name), ...followOn(first, length, startAt) }];
 }
 
 /**
- * The sprints a ship of `shippingId` must make, so that `ahead` open ones
- * wait after it. Each follows the last option there is, in the order everybody
- * shares, and takes the next name nobody holds yet.
+ * The sprint a ship of `shippingId` must make, or null when an open one
+ * already follows it. It follows the last option there is, in the order
+ * everybody shares, and takes the next name nobody holds yet. Only a ship
+ * asks: nothing makes a sprint on a clock.
  */
-export function sprintsAhead(
+export function sprintAfter(
   options: (Dates & { id: string; name: string; shippedAt: string | null })[],
   shippingId: string,
   cadence: Cadence,
   today: string,
-): MadeSprint[] {
+): MadeSprint | null {
   const at = options.findIndex((o) => o.id === shippingId);
-  if (at < 0) return [];
-  const open = options.slice(at + 1).filter((o) => !o.shippedAt).length;
-  const made: MadeSprint[] = [];
-  const taken: { name: string }[] = [...options];
-  let prev: Dates & { name: string } = options[options.length - 1];
-  for (let i = open; i < cadence.ahead; i++) {
-    let name = nextSprintName(prev.name);
-    while (takenBy(taken, name)) name = nextSprintName(name);
-    const sprint = { name, ...followOn(prev, cadence.length, today) };
-    made.push(sprint);
-    taken.push(sprint);
-    prev = sprint;
-  }
-  return made;
+  if (at < 0 || options.slice(at + 1).some((o) => !o.shippedAt)) return null;
+  const prev = options[options.length - 1];
+  let name = nextSprintName(prev.name);
+  while (takenBy(options, name)) name = nextSprintName(name);
+  return { name, ...followOn(prev, cadence.length, today) };
 }
 
 /**

@@ -16,9 +16,9 @@ type Ctx = { params: Promise<{ projectId: string }> };
 /**
  * Sets up sprints: the Sprint property, the Sprint board and the Backlog list.
  * The body may carry `length`, a sprint's days, and `startAt`, the first
- * sprint's first day; they default to 14 and the project's today. The cadence
- * makes the first sprint and one ahead, so the board has a current sprint and
- * Ship has somewhere to move the rest.
+ * sprint's first day; they default to 14 and the project's today. It makes
+ * the first sprint and the one after it, so the board has a current sprint
+ * and a next one to plan into. Ship makes each one after that.
  *
  * One transaction under the project lock, so a board never holds the property
  * without its views, and two presses at once cannot make two of each. The
@@ -38,7 +38,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .where(eq(properties.projectId, projectId))
       .orderBy(byPos(properties.position));
     if (sprintsSetUp(props)) throw new HttpError(409, "Sprints are set up.");
-    const cadence = { length, ahead: CADENCE_DEFAULT.ahead };
+    const cadence = { length };
     let first = startAt;
     if (!first) {
       const [project] = await tx
@@ -63,7 +63,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
     let rank: string | null = null;
     const colors: string[] = [];
-    for (const made of firstSprints(first, cadence.length, cadence.ahead)) {
+    for (const made of firstSprints(first, cadence.length)) {
       rank = rankAfter(rank);
       const color = nextPaletteColor(colors);
       colors.push(color);

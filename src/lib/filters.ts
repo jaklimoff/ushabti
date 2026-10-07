@@ -102,8 +102,10 @@ export const ME_KEY = "__me__";
  *
  * It is a value, as ME_KEY is, so "Sprint is current, or nothing yet" is one
  * rule. The stored rule keeps the word, and `matches` reads it against `today`
- * and the options, so a sprint board rolls over on the day and nobody edits
- * it. Every screen reads the same day, so it means one sprint for the team.
+ * and the options, so nobody edits it when the next sprint begins. A sprint
+ * past its end stays current until somebody ships it, so a sprint board moves
+ * on at a press of Ship and never on a clock. Every screen reads the same day,
+ * so it means one sprint for the team.
  */
 export const CURRENT_KEY = "__current__";
 
@@ -134,8 +136,24 @@ export function offersCurrent(property: PropertyDTO, chosen: readonly string[]):
  * target is current until that day. A missing target is not: an option with
  * only a start never ends, and every sprint that forgot its target would stay
  * current for ever. Days are `YYYY-MM-DD`, so text order is date order.
+ *
+ * An iteration has one rule on top: a sprint past its end that nobody shipped
+ * is still the current one, because only Ship ends a sprint. Without it, its
+ * column and its open tasks would leave a board filtered on "is current" the
+ * day after its end. The oldest such sprint wins, so the next one becomes
+ * current when it ships.
  */
 function currentOptions(property: PropertyDTO, today: string): string[] {
+  if (property.type === "iteration") {
+    const ended = property.options.filter(
+      (o) => o.targetAt !== null && o.targetAt < today && !o.shippedAt,
+    );
+    if (ended.length) {
+      // The options are in the Settings order, which breaks a tie of one end day.
+      const oldest = ended.reduce((a, b) => (b.targetAt! < a.targetAt! ? b : a));
+      return [oldest.id];
+    }
+  }
   return property.options
     .filter(
       (o) =>

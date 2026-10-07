@@ -1363,7 +1363,15 @@ describe("a rule that says a dated option is current", () => {
   });
 
   it("is offered for an iteration with no switch, and matches as for a select", () => {
-    const iteration: PropertyDTO = { ...sprints, type: "iteration", config: {} };
+    // Sprint 1 shipped; an open one past its end would still be current.
+    const iteration: PropertyDTO = {
+      ...sprints,
+      type: "iteration",
+      config: {},
+      options: sprints.options.map((o) =>
+        o.id === "o-s1" ? { ...o, shippedAt: "2026-09-20" } : o,
+      ),
+    };
     expect(offersCurrent(iteration, [])).toBe(true);
     expect(on(TODAY, "o-s2", iteration)).toBe(true);
     expect(on(TODAY, "o-s1", iteration)).toBe(false);
@@ -1456,11 +1464,19 @@ describe("a rule that says a dated option is current", () => {
   });
 
   describe("on an iteration", () => {
-    const iteration: PropertyDTO = { ...sprints, type: "iteration", config: {} };
+    // Sprint 1 shipped, as a sprint before the current one has.
+    const iteration: PropertyDTO = {
+      ...sprints,
+      type: "iteration",
+      config: {},
+      options: sprints.options.map((o) =>
+        o.id === "o-s1" ? { ...o, shippedAt: "2026-09-20" } : o,
+      ),
+    };
 
     it("names the one option that holds today, and nothing when none or two do", () => {
       expect(currentOption(iteration, TODAY)).toBe("o-s2");
-      expect(currentOption(iteration, "2027-01-01")).toBeNull();
+      expect(currentOption(iteration, "2026-01-01")).toBeNull();
       const overlap = {
         ...iteration,
         options: [...iteration.options, sprint("o-x", "X", null, "2026-09-30")],
@@ -1475,7 +1491,7 @@ describe("a rule that says a dated option is current", () => {
         "p-sprint": "o-s2",
       });
       expect(seedValues({ rules: [rule] }, [iteration], iteration.id, null, TODAY)).toEqual({});
-      expect(seedValues({ rules: [rule] }, [iteration], null, null, "2027-01-01")).toEqual({});
+      expect(seedValues({ rules: [rule] }, [iteration], null, null, "2026-01-01")).toEqual({});
     });
 
     it("starts a board grouped by it on 'is current'", () => {
@@ -1492,7 +1508,7 @@ describe("a rule that says a dated option is current", () => {
 
     it("writes nothing when no option that still has a column holds today", () => {
       // No option holds the day: the rule would take every column away.
-      expect(startsOnCurrent({ rules: [] }, iteration, "2027-01-01")).toEqual({ rules: [] });
+      expect(startsOnCurrent({ rules: [] }, iteration, "2026-01-01")).toEqual({ rules: [] });
       // The one that holds it has shipped, so it has no column either.
       const shipped = {
         ...iteration,
@@ -1501,6 +1517,32 @@ describe("a rule that says a dated option is current", () => {
         ),
       };
       expect(startsOnCurrent({ rules: [] }, shipped, TODAY)).toEqual({ rules: [] });
+    });
+
+    it("keeps a sprint past its end current until somebody ships it", () => {
+      // Sprint 2 ended on 2026-10-04 and nobody shipped it; Sprint 3 holds the day.
+      const day = "2026-10-08";
+      expect(currentOption(iteration, day)).toBe("o-s2");
+      expect(on(day, "o-s2", iteration)).toBe(true);
+      expect(on(day, "o-s3", iteration)).toBe(false);
+      const columns = iteration.options.map((o) => ({ id: o.id, value: o.id }));
+      expect(
+        allowedColumns(columns, { rules: [current] }, iteration, day, null).map((c) => c.id),
+      ).toEqual(["o-s2"]);
+      // Long after every end, the oldest open sprint is still the one.
+      expect(currentOption(iteration, "2027-01-01")).toBe("o-s2");
+
+      // Once it ships, the next sprint is current by its dates.
+      const shipped = {
+        ...iteration,
+        options: iteration.options.map((o) => (o.id === "o-s2" ? { ...o, shippedAt: day } : o)),
+      };
+      expect(currentOption(shipped, day)).toBe("o-s3");
+    });
+
+    it("lets a dated select end on its target, because only a sprint waits for Ship", () => {
+      expect(currentOption(sprints, "2026-10-08")).toBe("o-s3");
+      expect(on("2027-01-01", "o-s3")).toBe(false);
     });
 
     it("leaves a view that already asks about it, and a dated select, alone", () => {
