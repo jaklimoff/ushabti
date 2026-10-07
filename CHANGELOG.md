@@ -12,6 +12,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **Shift-click picks from the open task.** Click a card, then Shift-click another in the same
   column, and both are picked with every card between them. The same works in a list.
+- **A sprint made by a late Ship starts today.** It used to start the day after the last
+  sprint's end date, so a Ship three weeks late made a sprint that had already ended.
 - **A roadmap bar with no start date begins after the previous one ends.** It used to start at the
   oldest task under the option, so one old task moved into a release dragged its bar years back.
   Only the first dated option still starts at its oldest task.
@@ -24,6 +26,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **Set and Archive work on any number of picked tasks.** Past 200 they used to refuse the whole
   pick. They now go in batches of 200, one after another. If one is refused, the toast says how
   many went and how many did not, and after an archive only the tasks that did not go stay picked.
+- **Settings opens without reading every task.** It reads the project, its properties, views and
+  people, and only the few tasks the card view preview draws. A change somebody else makes reloads
+  only that, so Settings stays quick on a project of thousands of tasks.
 
 ### Changed
 

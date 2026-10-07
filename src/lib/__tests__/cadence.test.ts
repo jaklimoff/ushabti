@@ -76,6 +76,16 @@ describe("the dates that follow on", () => {
       targetAt: "2026-01-07",
     });
   });
+
+  it("never start before today", () => {
+    expect(followOn({ startAt: "2026-10-05", targetAt: "2026-10-18" }, 14, "2026-11-07")).toEqual({
+      startAt: "2026-11-07",
+      targetAt: "2026-11-20",
+    });
+    expect(followOn({ startAt: "2026-10-05", targetAt: null }, 7, "2026-11-07").startAt).toBe(
+      "2026-11-07",
+    );
+  });
 });
 
 describe("set up sprints", () => {
@@ -132,6 +142,24 @@ describe("the sprint a ship makes", () => {
       open("Sprint 14", "2026-10-05", "2026-10-18"),
     ];
     expect(sprintAfter(options, "Sprint 14", cadence, "2026-10-18")?.name).toBe("Sprint 16");
+  });
+
+  it("starts today, and lasts the length, when the ship comes 20 days after the target", () => {
+    const options = [open("Sprint 14", "2026-10-05", "2026-10-18")];
+    expect(sprintAfter(options, "Sprint 14", cadence, "2026-11-07")).toEqual({
+      name: "Sprint 15",
+      startAt: "2026-11-07",
+      targetAt: "2026-11-20",
+    });
+  });
+
+  it("starts the day after the target when the ship comes on time", () => {
+    const options = [open("Sprint 14", "2026-10-05", "2026-10-18")];
+    expect(sprintAfter(options, "Sprint 14", { length: 7 }, "2026-10-18")).toEqual({
+      name: "Sprint 15",
+      startAt: "2026-10-19",
+      targetAt: "2026-10-25",
+    });
   });
 });
 

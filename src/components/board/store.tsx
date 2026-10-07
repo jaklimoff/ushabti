@@ -545,10 +545,13 @@ const noLastView = () => null;
 export function BoardProvider({
   initial,
   user,
+  reads = "board",
   children,
 }: {
   initial: BoardData;
   user: SessionUser;
+  /** What a read asks for. Settings reads its own loader, never the board. */
+  reads?: "board" | "settings";
   children: React.ReactNode;
 }) {
   const [data, setData] = useState<BoardData>(initial);
@@ -610,17 +613,23 @@ export function BoardProvider({
   const refresh = useCallback(async () => {
     const reading = writes.reading();
     try {
-      const fresh = await api.get<BoardData>(`/api/projects/${projectId}/board`);
+      const fresh = await api.get<BoardData>(`/api/projects/${projectId}/${reads}`);
       if (!writes.keep(reading)) return;
       setData(fresh);
-      /* The answer names every task this project still has, so it is the one
-         place that can say which unsent notes have nothing left to sit on. */
-      sweepDrafts(projectId, [...fresh.tasks.map((t) => t.id), ...fresh.archived.map((t) => t.id)]);
+      /* The board's answer names every task this project still has, so it is
+         the one place that can say which unsent notes have nothing left to
+         sit on. Settings' answer names a few. */
+      if (reads === "board") {
+        sweepDrafts(projectId, [
+          ...fresh.tasks.map((t) => t.id),
+          ...fresh.archived.map((t) => t.id),
+        ]);
+      }
     } catch (err) {
       // The project is gone, or this person was removed from it.
       if (err instanceof ApiError && err.status === 404) router.push("/projects");
     }
-  }, [projectId, router, writes]);
+  }, [projectId, reads, router, writes]);
 
   /*
    * The stream must outlive every re-render, so the effect below holds the
