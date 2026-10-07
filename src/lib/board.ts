@@ -1,4 +1,5 @@
-import type { MemberDTO, PropertyDTO, TaskDTO, TaskValue } from "./types";
+import type { FormerDTO, MemberDTO, PropertyDTO, TaskDTO, TaskValue } from "./types";
+import { personName } from "./people";
 import { isSelect } from "./types";
 import { isOpenOption } from "./option-dates";
 
@@ -12,6 +13,11 @@ export type BoardColumn = {
   /** The value written to the group property when a card lands here. */
   value: TaskValue;
   isNone: boolean;
+  /**
+   * Somebody who left and still holds tasks. The column keeps their cards in
+   * sight, and takes no card: the server refuses a value naming them.
+   */
+  gone?: boolean;
   /** Folded to a strip in this browser. Nobody else's board knows. */
   folded?: boolean;
   tasks: TaskDTO[];
@@ -57,6 +63,7 @@ export function buildColumns(
   property: PropertyDTO | null,
   tasks: TaskDTO[],
   members: MemberDTO[],
+  former: FormerDTO[] = [],
 ): BoardColumn[] {
   const columns: BoardColumn[] = [];
 
@@ -99,6 +106,20 @@ export function buildColumns(
         color: member.color,
         value: member.id,
         isNone: false,
+        tasks: [],
+      });
+    }
+    /* Unassigned means no value, as the filter says. A card that names
+       somebody who left sits under their name, not among the unassigned. */
+    for (const person of former) {
+      if (members.some((m) => m.id === person.id)) continue;
+      columns.push({
+        id: person.id,
+        name: personName({ ...person, gone: true }),
+        color: person.color,
+        value: person.id,
+        isNone: false,
+        gone: true,
         tasks: [],
       });
     }
@@ -149,7 +170,10 @@ export function buildColumns(
 
   // A column for "no value" only earns its place when something sits in it, or
   // when the board would otherwise have nowhere to drop a card.
-  return columns.filter((c) => !c.isNone || c.tasks.length > 0 || columns.length === 1);
+  // Somebody who left gets a column only while they still hold a task.
+  return columns.filter(
+    (c) => (!c.isNone && !c.gone) || c.tasks.length > 0 || columns.length === 1,
+  );
 }
 
 /**

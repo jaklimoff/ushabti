@@ -312,15 +312,26 @@ export function BoardCanvas({
       allowedColumns(
         buildColumns(
           groupProperty,
-          sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members),
+          sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members, data.former),
           data.members,
+          data.former,
         ),
         filters,
         groupProperty,
         data.today,
         user.id,
       ),
-    [visibleTasks, sort, cardItems, data.members, data.today, filters, groupProperty, user.id],
+    [
+      visibleTasks,
+      sort,
+      cardItems,
+      data.members,
+      data.former,
+      data.today,
+      filters,
+      groupProperty,
+      user.id,
+    ],
   );
 
   /*
@@ -480,9 +491,16 @@ export function BoardCanvas({
   /* A column kept for the cards in it, but a card written into it would fail
      the filter: it takes no drop from another column and no new task. */
   const takes = (column: BoardColumn) =>
-    takesCards(column, filters, groupProperty, data.today, user.id);
+    !column.gone && takesCards(column, filters, groupProperty, data.today, user.id);
 
-  const seed = seedValues(filters, data.properties, groupProperty?.id ?? null, user.id, data.today);
+  const seed = seedValues(
+    filters,
+    data.properties,
+    groupProperty?.id ?? null,
+    user.id,
+    data.today,
+    data.former,
+  );
   /* What a task added to this column carries: the filter's seeds and the
      column's value, which is also how a board grouped by Type names the type. */
   const sentTo = (column: BoardColumn): Record<string, TaskValue> =>

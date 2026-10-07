@@ -10,6 +10,7 @@ import {
   type CardPlace,
   type CardRow,
   type CardView,
+  type FormerDTO,
   GROUPED_KINDS,
   isSelect,
   type MemberDTO,
@@ -17,6 +18,7 @@ import {
   type PropertyType,
   type TaskDTO,
 } from "./types";
+import { personName, personOf, type Person } from "./people";
 import { isShown } from "./when";
 
 /**
@@ -468,7 +470,7 @@ export type CardChip = {
   swatch: { color: string; round: boolean } | null;
   /** The colour painted behind the words, instead of beside them. */
   fill: string | null;
-  person: MemberDTO | null;
+  person: Person | null;
   text: string | null;
   /** A hairline box around it. */
   boxed: boolean;
@@ -518,6 +520,7 @@ function chipsFor(
   item: CardItem,
   task: TaskDTO,
   members: MemberDTO[],
+  former: FormerDTO[],
   properties: PropertyDTO[],
 ): CardChip[] {
   const boxed = item.mode === "boxed";
@@ -600,12 +603,13 @@ function chipsFor(
     }
 
     case "person": {
-      const member = members.find((m) => m.id === value);
-      if (!member) return [];
+      const person = personOf(value, members, former);
+      if (!person) return [];
+      const name = personName(person);
       return [
-        chip(item, `${item.id}-${task.id}`, member.name, {
-          person: item.mode === "text" ? null : member,
-          text: item.mode === "avatar" ? null : member.name,
+        chip(item, `${item.id}-${task.id}`, name, {
+          person: item.mode === "text" ? null : person,
+          text: item.mode === "avatar" ? null : name,
           boxed: item.mode === "both",
         }),
       ];
@@ -667,7 +671,12 @@ function wordless(item: CardItem): boolean {
  * task actually holds, so a task with no due date has a shorter footer than the
  * one beside it and neither leaves a gap.
  */
-export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]): CardSlots {
+export function buildCard(
+  items: CardItem[],
+  task: TaskDTO,
+  members: MemberDTO[],
+  former: FormerDTO[] = [],
+): CardSlots {
   const properties = propertiesOf(items);
   const slots: CardSlots = {
     edge: null,
@@ -686,7 +695,7 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
-      slots.edge = chipColour(chipsFor(item, task, members, properties)[0]);
+      slots.edge = chipColour(chipsFor(item, task, members, former, properties)[0]);
       continue;
     }
 
@@ -696,7 +705,7 @@ export function buildCard(items: CardItem[], task: TaskDTO, members: MemberDTO[]
       continue;
     }
 
-    const chips = chipsFor(item, task, members, properties);
+    const chips = chipsFor(item, task, members, former, properties);
     if (!chips.length) continue;
     if (item.place === "headerL") slots.headerL.push(...chips);
     else if (item.place === "headerR") slots.headerR.push(...chips);
@@ -723,7 +732,12 @@ export type RowSlots = {
   cells: Record<string, CardChip[]>;
 };
 
-export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[]): RowSlots {
+export function buildRow(
+  items: CardItem[],
+  task: TaskDTO,
+  members: MemberDTO[],
+  former: FormerDTO[] = [],
+): RowSlots {
   const properties = propertiesOf(items);
   const slots: RowSlots = { edge: null, desc: null, cells: {} };
 
@@ -731,7 +745,7 @@ export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[])
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
-      slots.edge = chipColour(chipsFor(item, task, members, properties)[0]);
+      slots.edge = chipColour(chipsFor(item, task, members, former, properties)[0]);
       continue;
     }
 
@@ -750,7 +764,7 @@ export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[])
      * bare squares under PRIORITY says only that the task has one.
      */
     const named: CardItem = item.mode === "colour" ? { ...item, mode: "both" } : item;
-    slots.cells[item.id] = chipsFor(named, task, members, properties);
+    slots.cells[item.id] = chipsFor(named, task, members, former, properties);
   }
 
   return slots;
@@ -767,10 +781,15 @@ export function buildRow(items: CardItem[], task: TaskDTO, members: MemberDTO[])
  * row that reads as words carries none, and neither does an empty value, which
  * is why the answer is a colour and not a property.
  */
-export function cardAccent(items: CardItem[], task: TaskDTO, members: MemberDTO[]): string | null {
+export function cardAccent(
+  items: CardItem[],
+  task: TaskDTO,
+  members: MemberDTO[],
+  former: FormerDTO[] = [],
+): string | null {
   const properties = propertiesOf(items);
   const colourOf = (item: CardItem): string | null =>
-    chipColour(chipsFor(item, task, members, properties)[0]);
+    chipColour(chipsFor(item, task, members, former, properties)[0]);
 
   const edge = items.find((i) => i.place === "edge");
   if (edge) return colourOf(edge);

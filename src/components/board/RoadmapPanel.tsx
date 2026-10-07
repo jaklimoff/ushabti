@@ -47,8 +47,8 @@ export function RoadmapPanel({
   const option = groupProperty?.options.find((o) => o.id === optionId) ?? null;
 
   const ordered = useMemo(
-    () => sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members),
-    [visibleTasks, sort, cardItems, data.members],
+    () => sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members, data.former),
+    [visibleTasks, sort, cardItems, data.members, data.former],
   );
   const tasks = useMemo(
     () =>

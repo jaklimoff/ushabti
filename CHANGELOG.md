@@ -22,6 +22,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Tasks of a person who left keep their name, marked as gone.** A card, a list row and the panel
+  show "Ada (left)" with a faded face, where they used to show nobody. A board grouped by a person
+  gives them a column of their own until their tasks are handed on, so Unassigned on the board and
+  in the filter mean the same thing. The filter lists them under **Left the project**; the picker
+  shows them as the value but never offers them. Somebody who rejoins is a member again.
+
 - **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
   **Close**: it ends the sprint and moves its unfinished tasks to the next one or leaves them, and
   the finished tasks stay on the board. A task in a closed sprint and an open release stays until

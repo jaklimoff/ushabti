@@ -11,6 +11,7 @@ import {
   type FilterOp,
   type FilterRule,
   hasOptions,
+  type FormerDTO,
   isSelect,
   type MemberDTO,
   NO_VALUE_KEY,
@@ -21,6 +22,7 @@ import {
   type TaskValue,
   type ViewFilters,
 } from "./types";
+import { personName, personOf } from "./people";
 import { linksOf } from "./web-links";
 import { carriesDates, splitShipped } from "./option-dates";
 
@@ -742,6 +744,7 @@ export function seedValues(
   groupPropertyId: string | null,
   viewer: string | null,
   today: string,
+  former: FormerDTO[] = [],
 ): Record<string, TaskValue> {
   const byId = new Map(properties.map((p) => [p.id, p]));
   const seed: Record<string, TaskValue> = {};
@@ -778,9 +781,13 @@ export function seedValues(
       case "checkbox":
         seed[property.id] = keys[0] === "true";
         break;
+      case "person":
+        /* A new task is never handed to somebody who left. The server would
+           refuse the value, and the composer would fail on a word it wrote. */
+        if (!former.some((f) => f.id === keys[0])) seed[property.id] = keys[0];
+        break;
       case "iteration":
       case "select":
-      case "person":
         seed[property.id] = keys[0];
         break;
       default:
@@ -852,7 +859,12 @@ function startsSaid(
  * A key that names nothing left reads as "?" rather than disappearing, because
  * a chip that silently dropped a word would misdescribe what is being hidden.
  */
-export function keyName(key: string, property: PropertyDTO, members: MemberDTO[]): string {
+export function keyName(
+  key: string,
+  property: PropertyDTO,
+  members: MemberDTO[],
+  former: FormerDTO[] = [],
+): string {
   if (key === NO_VALUE_KEY) {
     return property.type === "person" ? "Unassigned" : `No ${property.name.toLowerCase()}`;
   }
@@ -864,7 +876,10 @@ export function keyName(key: string, property: PropertyDTO, members: MemberDTO[]
     if (property.id === AGENT_WAITING_KEY) return "No agent waiting";
     return `Not ${property.name.toLowerCase()}`;
   }
-  if (property.type === "person") return members.find((m) => m.id === key)?.name ?? "?";
+  if (property.type === "person") {
+    const person = personOf(key, members, former);
+    return person ? personName(person) : "?";
+  }
   return property.options.find((o) => o.id === key)?.name ?? "?";
 }
 
@@ -882,14 +897,19 @@ function windowSaid(property: PropertyDTO, word: string): string {
 }
 
 /** The colour of one key, for the dot on the chip. */
-export function keyColor(key: string, property: PropertyDTO, members: MemberDTO[]): string {
+export function keyColor(
+  key: string,
+  property: PropertyDTO,
+  members: MemberDTO[],
+  former: FormerDTO[] = [],
+): string {
   if (key === NO_VALUE_KEY) return "#3f4650";
   /* Me is a different person on every screen, so it wears no one's colour. */
   if (key === ME_KEY) return "#6b7280";
   /* Current is a different option every sprint, so it wears none's colour. */
   if (key === CURRENT_KEY) return "#6b7280";
   if (property.type === "checkbox") return key === "true" ? "#4f8a5b" : "#6b7280";
-  if (property.type === "person") return members.find((m) => m.id === key)?.color ?? "#3f4650";
+  if (property.type === "person") return personOf(key, members, former)?.color ?? "#3f4650";
   return property.options.find((o) => o.id === key)?.color ?? "#3f4650";
 }
 
@@ -907,15 +927,16 @@ export function describeRule(
   rule: FilterRule,
   property: PropertyDTO,
   members: MemberDTO[],
+  former: FormerDTO[] = [],
 ): string {
   if (isBareOp(rule.op)) return `${property.name} ${OP_LABEL[rule.op]}`;
   if (isWindowOp(rule.op)) return windowSaid(property, rule.text ?? "");
   if (isSetOp(rule.op)) {
     const keys = rule.values ?? [];
     if (rule.op === "is" && keys.length === 1 && keySpeaksForItself(keys[0], property)) {
-      return keyName(keys[0], property, members);
+      return keyName(keys[0], property, members, former);
     }
-    const names = keys.map((key) => keyName(key, property, members));
+    const names = keys.map((key) => keyName(key, property, members, former));
     const said =
       names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", ");
     return `${property.name} ${OP_LABEL[rule.op]} ${said}`;

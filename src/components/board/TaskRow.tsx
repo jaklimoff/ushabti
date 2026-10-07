@@ -44,8 +44,8 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
   const picking = picked.length > 0;
 
   const slots = useMemo(
-    () => buildRow(cardItems, task, data.members),
-    [cardItems, data.members, task],
+    () => buildRow(cardItems, task, data.members, data.former),
+    [cardItems, data.members, data.former, task],
   );
 
   const className = [

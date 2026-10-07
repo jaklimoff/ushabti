@@ -29,6 +29,7 @@ import {
   NO_VALUE_KEY,
   type FilterOp,
   type FilterRule,
+  type FormerDTO,
   type MemberDTO,
   type PropertyDTO,
   type PropertyType,
@@ -52,10 +53,18 @@ import styles from "./board.module.css";
  * "Todo, or nothing yet" is one question, and two rules cannot ask it: every
  * rule has to pass.
  */
-function keysFor(property: PropertyDTO, members: MemberDTO[], chosen: string[]): string[] {
+function keysFor(
+  property: PropertyDTO,
+  members: MemberDTO[],
+  former: FormerDTO[],
+  chosen: string[],
+): string[] {
   /* Me comes first: it is the one a shared "My tasks" view is made of, and it
-     means whoever reads the view, not the person who picked it. */
-  if (property.type === "person") return [ME_KEY, ...members.map((m) => m.id), NO_VALUE_KEY];
+     means whoever reads the view, not the person who picked it. Who left comes
+     last, under a heading of its own, so their tasks can still be found. */
+  if (property.type === "person") {
+    return [ME_KEY, ...members.map((m) => m.id), NO_VALUE_KEY, ...former.map((f) => f.id)];
+  }
   if (property.type === "checkbox") return ["true", "false"];
   /* A shipped sprint waits behind the fold unless the rule already names it. */
   const options = pickableOptions(property, chosen).map((o) => o.id);
@@ -134,6 +143,7 @@ function Ask({
   property,
   rule,
   members,
+  former,
   onChange,
   owed,
   onBack,
@@ -142,6 +152,7 @@ function Ask({
   property: PropertyDTO;
   rule: FilterRule;
   members: MemberDTO[];
+  former: FormerDTO[];
   onChange: (rule: FilterRule) => void;
   /** The request this box would send for that rule, for a tab that is going. */
   owed: (rule: FilterRule) => LeaveSend | null;
@@ -179,12 +190,15 @@ function Ask({
     const toRow = (key: string): Row => ({
       id: key,
       /* The chip reads "Sprint is current"; a row of the menu opens a line. */
-      name: key === CURRENT_KEY ? "Current" : keyName(key, property, members),
-      color: keyColor(key, property, members),
+      name: key === CURRENT_KEY ? "Current" : keyName(key, property, members, former),
+      color: keyColor(key, property, members, former),
       on: chosen.includes(key),
+      ...(property.type === "person" && former.some((f) => f.id === key)
+        ? { group: "Left the project" }
+        : {}),
     });
     const matches = (row: Row) => !wanted || row.name.toLowerCase().includes(wanted);
-    const open = keysFor(property, members, chosen).map(toRow).filter(matches);
+    const open = keysFor(property, members, former, chosen).map(toRow).filter(matches);
     const shipped = splitShipped(property)
       .shipped.filter((o) => !chosen.includes(o.id))
       .map((o) => toRow(o.id));
@@ -198,7 +212,7 @@ function Ask({
       note: `${shipped.length} ${unfolded ? "▾" : "▸"}`,
     };
     return [...open, fold, ...(unfolded ? shipped : [])];
-  }, [chosen, members, property, query, rule.text, set, unfolded, win]);
+  }, [chosen, former, members, property, query, rule.text, set, unfolded, win]);
 
   /* Changing the operator keeps the answer it can carry and drops what it
      cannot. It never invents one. */
@@ -453,10 +467,10 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
     const map = new Map<string, string>();
     for (const r of filters.rules) {
       const property = askable.find((p) => p.id === r.propertyId);
-      if (property) map.set(r.propertyId, describeRule(r, property, data.members));
+      if (property) map.set(r.propertyId, describeRule(r, property, data.members, data.former));
     }
     return map;
-  }, [askable, data.members, filters.rules]);
+  }, [askable, data.members, data.former, filters.rules]);
 
   const rows: Row[] = useMemo(() => {
     const wanted = query.trim().toLowerCase();
@@ -544,6 +558,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
               property={picked}
               rule={rule}
               members={data.members}
+              former={data.former}
               onChange={change}
               owed={(next) => (view ? lensSend(view, lensAfter(next)) : null)}
               onBack={reset}
@@ -759,6 +774,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             rule={rule}
             property={property}
             members={data.members}
+            former={data.former}
             shared
             onChange={(next) => void setFilters(edited(viewFilters.rules, i, next))}
             owed={(next) => (view ? viewSend(view.id, edited(viewFilters.rules, i, next)) : null)}
@@ -785,6 +801,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             rule={rule}
             property={property}
             members={data.members}
+            former={data.former}
             onChange={(next) => void setLens(edited(lens.rules, i, next))}
             owed={(next) => (view ? lensSend(view, edited(lens.rules, i, next)) : null)}
             onRemove={() => void setLens(edited(lens.rules, i, null))}
@@ -929,6 +946,7 @@ function Chip({
   rule,
   property,
   members,
+  former,
   shared = false,
   onChange,
   owed,
@@ -937,6 +955,7 @@ function Chip({
   rule: FilterRule;
   property: PropertyDTO;
   members: MemberDTO[];
+  former: FormerDTO[];
   shared?: boolean;
   onChange: (rule: FilterRule) => void;
   owed: (rule: FilterRule) => LeaveSend | null;
@@ -944,7 +963,7 @@ function Chip({
 }) {
   const [open, setOpen] = useState(false);
   const asking = useConfirm();
-  const said = describeRule(rule, property, members);
+  const said = describeRule(rule, property, members, former);
   const ref = useDismiss<HTMLDivElement>(() => {
     setOpen(false);
     asking.cancel();
@@ -1026,6 +1045,7 @@ function Chip({
             property={property}
             rule={rule}
             members={members}
+            former={former}
             onChange={onChange}
             owed={owed}
             onClose={() => setOpen(false)}
