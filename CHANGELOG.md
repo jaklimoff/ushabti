@@ -8,6 +8,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A sprint made by a late Ship starts today.** It used to start the day after the last
+  sprint's end date, so a Ship three weeks late made a sprint that had already ended.
+
 ## 0.20.0 — 2026-10-07
 
 ### Added
