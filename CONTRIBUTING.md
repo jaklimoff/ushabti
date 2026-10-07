@@ -140,7 +140,10 @@ listens on; `BASE_URL` still says `localhost`.
   Geometry, radius and type come from the tokens at the top of `globals.css`.
 - **Write plain English** in the interface and in comments. Short sentences.
 - **Add a line to [CHANGELOG.md](CHANGELOG.md)** under "Unreleased" if a user
-  would notice the change.
+  would notice the change. When "Unreleased" already has the heading you need,
+  such as `### Fixed`, add your entry under it. Never add a second copy of a
+  heading: `.gitattributes` merges this file by union, so two branches that add
+  entries under one heading meet without a conflict.
 
 ## If you change the database
 
@@ -238,6 +241,10 @@ bump may break something.
 2. Set the same number in `package.json`.
 3. Commit both.
 4. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`
+5. After the release, check every branch rebased across it. Its changelog entry
+   must sit under "Unreleased", not under the new version. The changelog
+   merges by union, which never reports a conflict, so an entry can land under
+   the new heading in silence.
 
 The tag does the rest. It refuses to release if the tag, `package.json` and the
 changelog disagree. When they agree it publishes:
