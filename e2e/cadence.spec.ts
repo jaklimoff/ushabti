@@ -112,10 +112,10 @@ test("shipping the last sprint makes the next one, and Move takes the rest there
 
   /* Sprint 2 is the last option, and still Move is offered. */
   await page.goto(`/p/${projectId}`);
-  await column(page, "Sprint 2").getByRole("button", { name: "Ship Sprint 2" }).click();
+  await column(page, "Sprint 2").getByRole("button", { name: "Close Sprint 2" }).click();
   const ship = page.waitForResponse((res) => res.url().endsWith("/ship"));
   await page
-    .getByRole("alertdialog", { name: "Ship Sprint 2" })
+    .getByRole("alertdialog", { name: "Close Sprint 2" })
     .getByRole("button", { name: "Move to the next option" })
     .click();
   expect((await ship).ok()).toBeTruthy();

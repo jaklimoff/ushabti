@@ -98,7 +98,7 @@ test("a board grouped by an iteration dates its header, filters 'is current', sh
   await page.goto(`/p/${projectId}`);
   await expect(column(page, "Now").getByTestId("column-date")).toBeVisible();
   await expect(column(page, "Next").getByTestId("column-date")).toBeVisible();
-  await expect(column(page, "Now").getByRole("button", { name: "Ship Now" })).toBeVisible();
+  await expect(column(page, "Now").getByRole("button", { name: "Close Now" })).toBeVisible();
 
   /* ---- the columns drag, and a drop moves the option ---------------- */
 

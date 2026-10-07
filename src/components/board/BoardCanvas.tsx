@@ -44,7 +44,7 @@ import { isOpenOption } from "@/lib/option-dates";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
 import { canManage } from "@/lib/roles";
-import { endedSaid, nextOpenOption, shipSaid } from "@/lib/ship";
+import { closes, endedSaid, nextOpenOption, shipSaid } from "@/lib/ship";
 import { readCadence, sprintAfter } from "@/lib/cadence";
 import { sortTasks } from "@/lib/sort";
 import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
@@ -404,13 +404,15 @@ export function BoardCanvas({
             data.today,
           )?.name ?? null)
         : null);
+    const closing = closes(groupProperty);
     return {
       nextName,
+      closing,
       onShip: async (rest) => {
         const done = await shipOption(column.id, rest);
         if (!done) return false;
         fold(column.id, true);
-        notify(shipSaid(column.name, done, nextName), "info");
+        notify(shipSaid(column.name, done, nextName, closing), "info");
         return true;
       },
     };
@@ -420,7 +422,7 @@ export function BoardCanvas({
      The unit is a number property the owner named, read afresh on the
      server; the name comes from here so a rename shows at once. */
   const datedOptions = groupProperty && isSelect(groupProperty.type) ? groupProperty.options : [];
-  /* A sprint past its end stays open until somebody presses Ship, so its
+  /* A sprint past its end stays open until somebody presses Close, so its
      header says how long it has waited. A release keeps its target. */
   const endedOf = (columnId: string): string | null => {
     if (groupProperty?.type !== "iteration") return null;

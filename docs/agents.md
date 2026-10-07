@@ -336,7 +336,8 @@ It changes nothing about a rule — any select can still show a property.
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship
 share one `shipId` in their `data`, and the line on the project carries the
-counts.
+counts. Its `action` is `shipped` for a release and `closed` for a sprint,
+which archives nothing.
 
 An agent cannot ship or unship. `shippedAt` closes a release or a sprint, so
 only the owner or an admin writes it, and only as a person: a write that
