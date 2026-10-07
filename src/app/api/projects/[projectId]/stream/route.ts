@@ -20,6 +20,10 @@ type Ctx = { params: Promise<{ projectId: string }> };
  * carry the change, because SSE drops whatever happens while the socket is
  * down, and the feed does not.
  *
+ * A `change` may name an agent whose name changed, as `renamed`. It is a
+ * hint to read `/api/agent/me` again and never carries the name. A watcher
+ * that misses it reads its name again on the next `ready`.
+ *
  * `presence` is the one event that carries its data: which task a person's
  * tab has open. Nothing stores it, so there is nothing to read instead. An
  * agent receives it too and ignores it, as it ignores any event it does not

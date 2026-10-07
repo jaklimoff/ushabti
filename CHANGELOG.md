@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An admin can rename an agent.** Open **Face** on the agent in Settings → People and change
+  its name. Its comments, runs and activity show the new name; text already written, such as an
+  old `@mention` or a log line, keeps the old one. Two agents of a project cannot share a name, in
+  any case, because a mention finds an agent by it. A running `board.mjs watch` answers to the
+  new name without a restart.
 - **A view can show, filter and sort by when a task was made and last changed.** Turn on
   **Created** or **Updated** in the card settings to put the day on every card and a column in a
   list; both stay off until somebody does. A filter asks is on, before, after or within today,

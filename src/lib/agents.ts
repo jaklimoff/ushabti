@@ -1,8 +1,10 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { and, asc, eq, isNull, lt, or } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agentTokens, projectMembers, users } from "@/db/schema";
+import { HttpError } from "./auth";
+import type { Tx } from "./queries";
 import type { AgentDTO } from "./types";
 
 /** Every agent token starts with this, so a leak is easy to search for. */
@@ -168,4 +170,31 @@ export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
         listeningAt: t.listeningAt?.toISOString() ?? null,
       })),
   }));
+}
+
+/**
+ * A mention finds an agent by its name, in any case, so two agents of one
+ * project never share one. Ask under the project lock, as the write that
+ * follows has to see the same answer.
+ */
+export async function refuseTakenName(
+  tx: Tx,
+  projectId: string,
+  name: string,
+  except?: string,
+): Promise<void> {
+  const [taken] = await tx
+    .select({ id: users.id })
+    .from(projectMembers)
+    .innerJoin(users, eq(users.id, projectMembers.userId))
+    .where(
+      and(
+        eq(projectMembers.projectId, projectId),
+        eq(users.kind, "agent"),
+        except ? ne(users.id, except) : undefined,
+        sql`lower(${users.name}) = lower(${name})`,
+      ),
+    )
+    .limit(1);
+  if (taken) throw new HttpError(409, `Another agent here is already called ${name}.`);
 }

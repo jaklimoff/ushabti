@@ -914,6 +914,12 @@ to keep the socket open. An event says *that* something changed, never what:
 server-sent events drop whatever happens while the socket is down, so nothing
 may depend on them arriving.
 
+One `change` names a little more: when an admin renames an agent, the event
+carries `renamed` with that agent's id. It is a hint to read `/api/agent/me`
+again, and it never carries the name. A watcher that misses it, because its
+socket was down, catches up on the next `ready`, which is why `board.mjs watch`
+reads its name again on every `ready` too.
+
 The stream also carries `event: presence`, which says which task a person's
 browser tab has open. It is for the board's panel, not for you: ignore it, as
 `board.mjs watch` does with every event name it does not know. It does not
@@ -1067,7 +1073,9 @@ What wakes it:
   tells the agent it may take its own `@Name` out again when the work is done
   — `board.mjs unmention <key>` does that and touches no other word. Only a
   person's words wake it, so an agent writing the name, or taking its own out,
-  wakes nobody.
+  wakes nobody. When an admin renames the agent, a running watcher answers to
+  the new name without a restart; an old `@Name` already written stays as it
+  is.
 - `created` — a person creates a task. Use it on a board where every new task
   should be refined; on a shared board, `assigned` says who asked for it. A
   new task whose title names this agent wakes it as a `mention` instead, which

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import { emailedLine } from "@/lib/emailed";
+import { editedText } from "@/lib/leave";
 import { canManage, isOwner, outranks, rolesOffered, type Role } from "@/lib/roles";
 import { isListening } from "@/lib/presence";
 import { useBoard } from "@/components/board/store";
@@ -11,6 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
 import { ColorSwatches, FaceSwatches, Field, Input, Select } from "@/components/ui/Form";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
@@ -472,6 +474,19 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
     }
   }
 
+  /** True when the name was saved; a refused one puts the old name back. */
+  async function rename(agent: AgentDTO, next: string): Promise<boolean> {
+    try {
+      await send.patch(`/api/projects/${projectId}/agents/${agent.id}`, { name: next });
+      await reload();
+      await refresh();
+      return true;
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not rename the agent.");
+      return false;
+    }
+  }
+
   async function remove(agent: AgentDTO) {
     try {
       await send.del(`/api/projects/${projectId}/agents/${agent.id}`);
@@ -502,12 +517,14 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
           <AgentBox
             key={agent.id}
             agent={agent}
+            projectId={projectId}
             canEdit={canEdit}
             secrets={secrets}
             onConnect={(tokenName) => connect(agent, tokenName)}
             onRevoke={(id) => void revoke(id)}
             onRemove={() => void remove(agent)}
             onFace={(patch) => changeFace(agent, patch)}
+            onRename={(next) => rename(agent, next)}
             reload={reload}
           />
         ))}
@@ -534,21 +551,25 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
 
 function AgentBox({
   agent,
+  projectId,
   canEdit,
   secrets,
   onConnect,
   onRevoke,
   onRemove,
   onFace,
+  onRename,
   reload,
 }: {
   agent: AgentDTO;
+  projectId: string;
   canEdit: boolean;
   secrets: Record<string, string>;
   onConnect: (tokenName: string) => Promise<boolean>;
   onRevoke: (tokenId: string) => void;
   onRemove: () => void;
   onFace: (patch: { color?: string; emoji?: string | null }) => Promise<void>;
+  onRename: (name: string) => Promise<boolean>;
   reload: () => Promise<void>;
 }) {
   const confirm = useConfirm();
@@ -557,6 +578,22 @@ function AgentBox({
   const [naming, setNaming] = useState<string | null>(null);
   const [making, setMaking] = useState(false);
   const face = usePickedFace(agent, onFace);
+  const box = useRef<HTMLInputElement>(null);
+  /* The box holds a name that another tab can change under it, so only what
+     this tab typed may be written back. */
+  const [typed, setTyped] = useState(false);
+
+  /* The name saves on blur, and a closed tab sends no blur. */
+  useSaveOnLeave(() => {
+    const edit = typed ? editedText(box.current?.value ?? "", agent.name) : null;
+    return edit
+      ? {
+          method: "PATCH",
+          url: `/api/projects/${projectId}/agents/${agent.id}`,
+          body: { name: edit },
+        }
+      : null;
+  });
 
   async function make() {
     const tokenName = (naming ?? "").trim();
@@ -614,6 +651,33 @@ function AgentBox({
 
       {canEdit && editing && (
         <div className={styles.agentFace} data-testid="agent-face">
+          <Field
+            label="Name"
+            note="A mention of the new name wakes it. Its comments and runs show the new name; text already written keeps the old one."
+          >
+            <Input
+              key={agent.name}
+              ref={box}
+              width="medium"
+              maxLength={80}
+              aria-label={`Name of the agent ${agent.name}`}
+              defaultValue={agent.name}
+              onChange={() => setTyped(true)}
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              onBlur={(e) => {
+                setTyped(false);
+                const input = e.currentTarget;
+                const edit = editedText(input.value, agent.name);
+                if (!edit) {
+                  input.value = agent.name;
+                  return;
+                }
+                void onRename(edit).then((saved) => {
+                  if (!saved) input.value = agent.name;
+                });
+              }}
+            />
+          </Field>
           <Field label="Colour" note="Pick one no other agent and no person on the team wears.">
             <ColorSwatches
               name={agent.name}
