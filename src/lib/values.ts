@@ -101,13 +101,18 @@ async function assertOptions(propertyId: string, ids: string[]) {
 }
 
 /** Human-readable text for one value. Used by the activity log. */
-export async function describeValue(prop: PropertyRow, value: TaskValue): Promise<string> {
+/** `q` is the transaction a caller is inside, so the read takes no second connection. */
+export async function describeValue(
+  prop: PropertyRow,
+  value: TaskValue,
+  q: Pick<typeof db, "select"> = db,
+): Promise<string> {
   if (value === null || value === undefined || (Array.isArray(value) && value.length === 0)) {
     return "empty";
   }
   if (hasOptions(prop.type)) {
     const ids = Array.isArray(value) ? value : [String(value)];
-    const rows = await db
+    const rows = await q
       .select({ id: propertyOptions.id, name: propertyOptions.name })
       .from(propertyOptions)
       .where(inArray(propertyOptions.id, ids));

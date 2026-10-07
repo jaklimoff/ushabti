@@ -3,8 +3,9 @@ import { db } from "@/db";
 import { tasks, taskValues } from "@/db/schema";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { HttpError } from "@/lib/auth";
-import { readTaskIds, rowsSaid } from "@/lib/bulk";
+import { changed, readChange, readTaskIds, rowsSaid } from "@/lib/bulk";
 import { dropHidden, lockTasks } from "@/lib/hidden";
+import type { TaskValue } from "@/lib/types";
 import { coerceValue, describeValue, loadProperty } from "@/lib/values";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -26,12 +27,22 @@ type Ctx = { params: Promise<{ projectId: string }> };
  * already write ten of them with ten calls. The column sweep beside it is
  * guarded because it names a value and takes away cards nobody counted; this
  * names the ids.
+ *
+ * A multi-select is changed one option at a time: `change` is "add" or
+ * "remove" and `value` is the one option. Each task keeps the rest of its
+ * list, so a task's own list is read under the lock it is written under, and
+ * a task the change would leave as it was is not written at all.
  */
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user } = await guard(projectId);
 
-  const input = await body<{ taskIds?: unknown; propertyId?: unknown; value?: unknown }>(req);
+  const input = await body<{
+    taskIds?: unknown;
+    propertyId?: unknown;
+    value?: unknown;
+    change?: unknown;
+  }>(req);
 
   const read = readTaskIds(input.taskIds);
   if (!read.ok) throw new HttpError(400, read.said);
@@ -45,11 +56,20 @@ export const POST = route<Ctx>(async (req, ctx) => {
     throw new HttpError(400, "That property is not in this project.");
   }
 
+  const asked = readChange(input.change, property.type);
+  if (!asked.ok) throw new HttpError(400, asked.said);
+  const { change } = asked;
+
   /* Once, for every task. The value is the same for all of them, so checking
      it once is both the cheap answer and the only one that can be consistent:
      a coerce that passed for one task and failed for the next would be a
-     board half set. */
-  const value = await coerceValue(property, input.value ?? null);
+     board half set. A change names one option, and is checked as a list of
+     one. */
+  if (change && typeof input.value !== "string") {
+    throw new HttpError(400, `Name the one ${property.name} option to add or take off.`);
+  }
+  const value = await coerceValue(property, change ? [input.value] : (input.value ?? null));
+  const optionId = change ? (value as string[])[0] : null;
 
   /* Every id has to be a live task of this project. A task of another project
      is simply not among the rows, and a deleted one is not either, because
@@ -63,37 +83,70 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const said = rowsSaid(ids, rows);
   if (said) throw new HttpError(400, said);
 
-  const described = await describeValue(property, value);
-  const { dropped, ring } = await db.transaction(async (tx) => {
+  const { written, dropped, ring } = await db.transaction(async (tx) => {
     await lockTasks(tx, ids);
+    /* A value reads the same on every task it lands on, so each list is named
+       once however many tasks carry it, and inside the transaction, so a
+       full pool cannot leave it waiting on itself. */
+    const said = new Map<string, Promise<string>>();
+    const describe = (v: TaskValue) => {
+      const key = JSON.stringify(v);
+      if (!said.has(key)) said.set(key, describeValue(property, v, tx));
+      return said.get(key)!;
+    };
+    let writes: { taskId: string; value: TaskValue }[] = ids.map((taskId) => ({ taskId, value }));
+    if (change && optionId) {
+      const had = await tx
+        .select({ taskId: taskValues.taskId, value: taskValues.value })
+        .from(taskValues)
+        .where(and(eq(taskValues.propertyId, property.id), inArray(taskValues.taskId, ids)));
+      const before = new Map(had.map((row) => [row.taskId, row.value as TaskValue]));
+      writes = [];
+      for (const taskId of ids) {
+        const old = before.get(taskId) ?? null;
+        const next = changed(old, change, optionId);
+        const oldList = Array.isArray(old) ? old : [];
+        if (next.length !== oldList.length) writes.push({ taskId, value: next });
+      }
+    }
+    if (writes.length === 0) {
+      return { written: 0, dropped: [], ring: async () => {} };
+    }
+    const touched = writes.map((w) => w.taskId);
     await tx
       .insert(taskValues)
-      .values(ids.map((taskId) => ({ taskId, propertyId: property.id, value })))
+      .values(writes.map((w) => ({ taskId: w.taskId, propertyId: property.id, value: w.value })))
       .onConflictDoUpdate({
         target: [taskValues.taskId, taskValues.propertyId],
         set: { value: sql`excluded.value` },
       });
-    await tx.update(tasks).set({ updatedAt: new Date() }).where(inArray(tasks.id, ids));
+    await tx.update(tasks).set({ updatedAt: new Date() }).where(inArray(tasks.id, touched));
+    const lines = await Promise.all(
+      writes.map(async (w) => ({
+        projectId,
+        taskId: w.taskId,
+        actorId: user.id,
+        kind: "value",
+        // The name is for people; the id is for an agent, since a name can change.
+        data: { property: property.name, propertyId: property.id, value: await describe(w.value) },
+      })),
+    );
     /* One line on each task, the same kind and the same shape the task route
        writes, because the history of a task says what happened to it however
        it happened. Through the funnel, so the webhook rings for each one, and
        before the lines of what it hid, which are its effect. */
-    return dropHidden(tx, {
+    const done = await dropHidden(tx, {
       projectId,
-      taskIds: ids,
+      taskIds: touched,
       actorId: user.id,
-      before: ids.map((taskId) => ({
-        projectId,
-        taskId,
-        actorId: user.id,
-        kind: "value",
-        // The name is for people; the id is for an agent, since a name can change.
-        data: { property: property.name, propertyId: property.id, value: described },
-      })),
+      before: lines,
     });
+    return { written: writes.length, ...done };
   });
   await ring();
-  await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
+  if (written > 0) await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
 
-  return json({ set: ids.length, value, dropped });
+  /* `set` counts the tasks that changed. A change on tasks that all had it,
+     or none of which had it, sets nothing, and says so. */
+  return json({ set: written, value: optionId ?? value, change, dropped });
 });
