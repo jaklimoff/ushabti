@@ -42,6 +42,8 @@ import {
 } from "./links";
 import { readProgressBy } from "./progress";
 import { readDefaults, readTypeBy, readWhens } from "./when";
+import { readReleaseBy } from "./releases";
+import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
@@ -861,6 +863,8 @@ export async function loadBoard(
       doneWhen,
       progressBy: readProgressBy(projectRow.progressBy, propertyList),
       typeBy: readTypeBy(projectRow.typeBy, propertyList),
+      releaseBy: readReleaseBy(projectRow.releaseBy, propertyList),
+      sprintBy: readSprintBy(projectRow.sprintBy, propertyList),
       timeZone,
       publicChangelog: projectRow.publicChangelog,
       agentRules: viewerId ? projectRow.agentRules : null,

@@ -7,12 +7,13 @@ import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { AGENT_RULES_MAX, AGENT_RULES_SOFT, rulesCount } from "@/lib/agent-rules";
 import type { DoneWhen } from "@/lib/links";
-import { sprintsSetUp } from "@/lib/sprints";
+import { offQuestion } from "@/lib/plan-switch";
 import { CADENCE_DEFAULT } from "@/lib/cadence";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { Field, Input, Select, TextArea } from "@/components/ui/Form";
+import { Checkbox, Field, Input, Select, TextArea } from "@/components/ui/Form";
+import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -43,10 +44,13 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const [typedRules, setTypedRules] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [confirming, setConfirming] = useState(false);
-  /* A press waits for its answer, so a second press cannot ask again. */
-  const [settingUp, setSettingUp] = useState(false);
-  const hasSprints = sprintsSetUp(data.properties);
-  /* What the cadence starts from. Nothing is saved until the press. */
+  /* A press waits for its answer, so a second press cannot flip it back. */
+  const [switching, setSwitching] = useState(false);
+  const release = data.properties.find((p) => p.id === data.project.releaseBy) ?? null;
+  const sprint = data.properties.find((p) => p.id === data.project.sprintBy) ?? null;
+  const releasesOff = useConfirm();
+  const sprintsOff = useConfirm();
+  /* What the cadence starts from. Nothing is saved until the switch. */
   const [sprintLength, setSprintLength] = useState(String(CADENCE_DEFAULT.length));
   const [sprintStart, setSprintStart] = useState(data.today);
   /* A press waits for its answer before it counts again: a second press on a
@@ -119,19 +123,23 @@ export function ProjectPanel({ files }: { files: boolean }) {
     }
   }
 
-  async function setUpSprints() {
-    if (settingUp) return;
-    setSettingUp(true);
+  /*
+   * Use releases or Use sprints. On makes the property and its views, or takes
+   * the one already there; off clears the switch and keeps everything.
+   */
+  async function setPlan(what: "releases" | "sprints", on: boolean) {
+    if (switching) return;
+    setSwitching(true);
+    const at = `/api/projects/${data.project.id}/${what}`;
     try {
-      await send.post(`/api/projects/${data.project.id}/sprints`, {
-        length: Number(sprintLength.trim()),
-        startAt: sprintStart,
-      });
+      if (!on) await send.del(at);
+      else if (what === "releases") await send.post(at, {});
+      else await send.post(at, { length: Number(sprintLength.trim()), startAt: sprintStart });
       await refresh();
     } catch (err) {
-      notify(err instanceof Error ? err.message : "Could not set up sprints.");
+      notify(err instanceof Error ? err.message : `Could not turn ${what} ${on ? "on" : "off"}.`);
     } finally {
-      setSettingUp(false);
+      setSwitching(false);
     }
   }
 
@@ -395,47 +403,109 @@ export function ProjectPanel({ files }: { files: boolean }) {
       </Section>
 
       {/*
-       * Sprints are a property and two views, nothing more, so the row says
-       * which ones before it makes them. Once a property named Sprint exists
-       * there is nothing left to do, whoever made it.
+       * Releases and sprints are a property and its views, nothing more, so
+       * each switch says which ones before it makes them. The switch reads
+       * the project's pointer, never a property's name.
        */}
       {canEdit && (
-        <Section title="Sprints">
+        <Section title="Releases and sprints">
           <Card>
-            <Row>
-              {hasSprints ? (
-                <Note>Sprints are set up.</Note>
-              ) : (
-                <Field label="Length" inline>
-                  <label className={styles.cadenceBox}>
-                    <Input
-                      aria-label="Sprint length in days"
-                      inputMode="numeric"
-                      className={styles.cadenceInput}
-                      value={sprintLength}
-                      onChange={(e) => setSprintLength(e.target.value)}
-                    />
-                    days, from
-                  </label>
-                  <Input
-                    aria-label="First day of the first sprint"
-                    type="date"
-                    value={sprintStart}
-                    onChange={(e) => setSprintStart(e.target.value)}
+            {releasesOff.asking && release ? (
+              <ConfirmRow
+                question={offQuestion("release", release, data.tasks, data.views)}
+                confirmLabel="Yes, turn off"
+                onConfirm={() => releasesOff.confirm(() => void setPlan("releases", false))}
+                onCancel={releasesOff.cancel}
+              />
+            ) : (
+              <Row>
+                <Field
+                  label="Releases"
+                  inline
+                  note={
+                    release ? (
+                      <>
+                        Releases are the options of <b>{release.name}</b>. Each one has dates,
+                        ships, and has a bar on the roadmap.
+                      </>
+                    ) : (
+                      <>
+                        Adds a property <b>Release</b> with no releases yet, and a roadmap{" "}
+                        <b>Roadmap</b> with a bar for each one. You can rename or delete each one
+                        afterwards.
+                      </>
+                    )
+                  }
+                >
+                  <Checkbox
+                    role="switch"
+                    label="Use releases"
+                    checked={release !== null}
+                    disabled={switching}
+                    onChange={() => (release ? releasesOff.ask() : void setPlan("releases", true))}
                   />
-                  <Button variant="ghost" disabled={settingUp} onClick={() => void setUpSprints()}>
-                    Set up sprints
-                  </Button>
-                  <Note>
-                    Adds an iteration property <b>Sprint</b> with Sprint 1 from that day and Sprint
-                    2 after it, a board <b>Sprint</b> that shows the current sprint, and a list{" "}
-                    <b>Backlog</b> of the tasks in no sprint. A sprint is current while its dates
-                    hold today. Each ship makes the next sprint. You can rename or delete each one
-                    afterwards.
-                  </Note>
                 </Field>
-              )}
-            </Row>
+              </Row>
+            )}
+            {sprintsOff.asking && sprint ? (
+              <ConfirmRow
+                question={offQuestion("sprint", sprint, data.tasks, data.views)}
+                confirmLabel="Yes, turn off"
+                onConfirm={() => sprintsOff.confirm(() => void setPlan("sprints", false))}
+                onCancel={sprintsOff.cancel}
+              />
+            ) : (
+              <Row>
+                <Field
+                  label="Sprints"
+                  inline
+                  note={
+                    sprint ? (
+                      <>
+                        Sprints are the options of <b>{sprint.name}</b>. A sprint is current while
+                        its dates hold today, and each ship makes the next one.
+                      </>
+                    ) : (
+                      <>
+                        Adds a property <b>Sprint</b> with Sprint 1 from that day and Sprint 2 after
+                        it, a board <b>Sprint</b> that shows the current sprint, and a list{" "}
+                        <b>Backlog</b> of the tasks in no sprint. A sprint is current while its
+                        dates hold today. Each ship makes the next sprint. You can rename or delete
+                        each one afterwards.
+                      </>
+                    )
+                  }
+                >
+                  <Checkbox
+                    role="switch"
+                    label="Use sprints"
+                    checked={sprint !== null}
+                    disabled={switching}
+                    onChange={() => (sprint ? sprintsOff.ask() : void setPlan("sprints", true))}
+                  />
+                  {!sprint && (
+                    <>
+                      <label className={styles.cadenceBox}>
+                        <Input
+                          aria-label="Sprint length in days"
+                          inputMode="numeric"
+                          className={styles.cadenceInput}
+                          value={sprintLength}
+                          onChange={(e) => setSprintLength(e.target.value)}
+                        />
+                        days, from
+                      </label>
+                      <Input
+                        aria-label="First day of the first sprint"
+                        type="date"
+                        value={sprintStart}
+                        onChange={(e) => setSprintStart(e.target.value)}
+                      />
+                    </>
+                  )}
+                </Field>
+              </Row>
+            )}
           </Card>
         </Section>
       )}

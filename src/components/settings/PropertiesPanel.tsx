@@ -322,17 +322,6 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           )}
         </div>
         <div className={styles.propTools} data-testid="property-tools">
-          {/* Off, a select's options read as they did before they had dates.
-              Off keeps the values: it hides the boxes and writes nothing.
-              An iteration always carries them, so it has no switch. */}
-          {property.type === "select" && (
-            <Checkbox
-              label="Options carry dates"
-              checked={dated}
-              disabled={!canEdit}
-              onChange={(e) => void patchProperty(property.id, { dated: e.target.checked })}
-            />
-          )}
           {!property.config.when &&
             !whenOpen &&
             canEdit &&
