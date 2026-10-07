@@ -1,0 +1,7 @@
+# Two branches that each add an entry under "Unreleased" touch the same lines,
+# so a plain merge stops at the rebase. Union keeps the lines of both sides,
+# and a heading both sides add is kept once.
+# The cost: union never reports a conflict. When both sides change the same
+# line it keeps both and says nothing. A branch that started before a release
+# can land its entry under the new version instead of under "Unreleased".
+CHANGELOG.md merge=union
