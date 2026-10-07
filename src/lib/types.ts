@@ -21,7 +21,7 @@ export const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
   date: "Date",
   checkbox: "Checkbox",
   link: "Link",
-  iteration: "Iteration",
+  iteration: "Sprint",
 };
 
 export const PROPERTY_TYPE_HINT: Record<PropertyType, string> = {

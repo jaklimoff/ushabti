@@ -299,13 +299,13 @@ one sentence. A multi-select option is a label and carries none of them.
 `config.dated` on the property says whether its options carry dates: it
 decides what Settings shows and whether a filter offers "current", and only a
 person who is the owner or an admin writes it.
-An `iteration` property is a select whose options always carry dates, one
+A sprint property, type `iteration`, is a select whose options always carry dates, one
 per sprint. `config.cadence` on it is `{ "length": 14 }`: a sprint's length
 in days. A property with no cadence saved reads as 14. A sprint ends only
 when a person ships it; one past its target stays open, and nothing on the
 server closes it. Until it ships it is still the current sprint, the one an
 "is current" filter, a picker and a new task name, and the sprint whose dates
-hold today becomes current when it does. When an iteration option ships and no open sprint follows
+hold today becomes current when it does. When a sprint is closed and no open sprint follows
 it, the server makes the next one in the same transaction: it starts the day
 after the last option's target, lasts `length` days, and takes the last name
 with its trailing number plus one ("Sprint 14" to "Sprint 15"; a name with
@@ -314,7 +314,7 @@ no number gets " 2"). Write it with `PATCH /api/properties/{id}` and
 is the owner or an admin writes it. The cadence fills in and forbids
 nothing: an option made, renamed, dated or deleted by hand stays as it is.
 A property may say when it shows: `config.when` is `{ "propertyId",
-"optionIds" }`, one single select or iteration of the project and a set of
+"optionIds" }`, one single select or sprint property of the project and a set of
 its option ids, which may hold `"__none__"` for "nothing yet" as a filter's
 set does. "Severity, shown when Type is Bug" is a task type as a value. The
 property is drawn — in the panel, on the card, in the list — only for a task

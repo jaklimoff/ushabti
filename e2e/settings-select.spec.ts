@@ -90,7 +90,7 @@ test.describe("A settings select is the app's own menu", () => {
     /* Down and Up move the highlight; Enter picks it. */
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
-    expect(await at()).toMatch(/^Iteration/);
+    expect(await at()).toMatch(/^Sprint/);
     await page.keyboard.press("ArrowUp");
     expect(await at()).toMatch(/^Multi-select/);
     await page.keyboard.press("Enter");

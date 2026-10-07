@@ -866,7 +866,7 @@ function CadenceRow({ property, canEdit }: { property: PropertyDTO; canEdit: boo
         canEdit={canEdit}
       />
       <Note>
-        A sprint ends when somebody presses Ship. If no open sprint follows, Ship makes the next
+        A sprint ends when somebody presses Close. If no open sprint follows, Close makes the next
         one, named and dated after the last.
       </Note>
     </div>

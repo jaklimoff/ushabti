@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The Iteration type reads Sprint.** The type picker, the property row, the card settings, the
+  errors and the docs say Sprint. The sprint length note names **Close**, the button a sprint has.
+  The API still names the type `iteration`.
 - **A task shows when it was made and when somebody last changed it.** The panel reads
   "Made 3 Oct by Ana · changed 2 hours ago" under the title, with the full time in the
   project's zone on hover. A comment, a checklist item, a link, a file, an archive and a put

@@ -450,10 +450,10 @@ export function ProjectPanel({ files }: { files: boolean }) {
                     Set up sprints
                   </Button>
                   <Note>
-                    Adds an iteration property <b>Sprint</b> with Sprint 1 from that day and Sprint
-                    2 after it, a board <b>Sprint</b> that shows the current sprint, and a list{" "}
+                    Adds a sprint property <b>Sprint</b> with Sprint 1 from that day and Sprint 2
+                    after it, a board <b>Sprint</b> that shows the current sprint, and a list{" "}
                     <b>Backlog</b> of the tasks in no sprint. A sprint is current while its dates
-                    hold today. Each ship makes the next sprint. You can rename or delete each one
+                    hold today. Each Close makes the next sprint. You can rename or delete each one
                     afterwards.
                   </Note>
                 </Field>

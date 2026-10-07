@@ -56,7 +56,7 @@ All optional and applied independently.
   the key is an option of the project's Type and the value has the
   [shape of the property's type](#value-shapes-by-type). Each type is merged on its own; `null`
   clears one. Only a select, a multi-select, a checkbox, a number or text can carry one — never a
-  person, a date, a link or an iteration. Only the owner or an admin writes it. A value that would
+  person, a date, a link or a sprint. Only the owner or an admin writes it. A value that would
   not read back, a key that is not a type, or a property that cannot carry one gets `400`. It is
   read afresh into `config.defaults`: a deleted type or value, or a project with no Type, reads as
   no default. Every [create](/ushabti/api/tasks/#post-apiprojectsprojectidtasks) writes it.

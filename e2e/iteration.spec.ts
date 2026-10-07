@@ -30,23 +30,23 @@ function day(offset: number): string {
   return new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 }
 
-test("Settings offers Iteration, and its options always show the date boxes", async ({ page }) => {
+test("Settings offers Sprint, and its options always show the date boxes", async ({ page }) => {
   await register(page);
   const projectId = await createProject(page, unique("Iteration"));
   await gotoSettings(page, projectId);
 
-  await page.getByLabel("New property name").fill("Sprint");
-  await choose(page.getByLabel("Type of the new property"), "Iteration");
+  await page.getByLabel("New property name").fill("Cycle");
+  await choose(page.getByLabel("Type of the new property"), "Sprint");
   await page.getByLabel("Options of the new property").fill("Sprint 1");
   const made = page.waitForResponse((r) => r.url().endsWith("/properties"));
   await page.getByRole("button", { name: "Add property" }).click();
   expect((await made).status()).toBe(201);
 
-  const sprint = (await board(page, projectId)).properties.find((p) => p.name === "Sprint")!;
+  const sprint = (await board(page, projectId)).properties.find((p) => p.name === "Cycle")!;
   expect(sprint.type).toBe("iteration");
 
-  const box = propertyBox(page, "Sprint");
-  await expect(box.getByText("Iteration", { exact: true })).toBeVisible();
+  const box = propertyBox(page, "Cycle");
+  await expect(box.getByText("Sprint", { exact: true })).toBeVisible();
   await expect(box.getByLabel("Options carry dates")).toHaveCount(0);
   await expect(box.getByLabel("Start of Sprint 1")).toBeVisible();
   await expect(box.getByLabel("Target of Sprint 1")).toBeVisible();
