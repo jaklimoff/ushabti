@@ -675,6 +675,8 @@ test.describe("Ordering a board", () => {
     const beetle = await card(page, "Beetle").boundingBox();
     await dragCard(page, "Aardvark", { x: beetle!.x + beetle!.width / 2, y: beetle!.y + 10 }, null);
     expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+    // The drop animates the overlay home; a lift before it lands draws two.
+    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
 
     // Nor do the arrows of a lifted card: they belong to the drag, and inside
     // a sorted column there is nowhere for them to take it.

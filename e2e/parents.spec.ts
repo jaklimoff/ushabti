@@ -155,6 +155,7 @@ test.describe("What a task is part of", () => {
     await page.getByRole("button", { name: "Add agent" }).click();
     const agentBox = page.getByTestId("agent-box").filter({ hasText: "Splitter" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const secret = page.getByTestId("agent-secret").first();
     await expect(secret).toBeVisible();
     const token = ((await secret.locator("code").first().textContent()) ?? "").trim();
