@@ -282,6 +282,7 @@ export function ListCanvas({
       pickTo(
         taskId,
         rows.map((t) => t.id),
+        selectedTaskId,
       );
     else togglePick(taskId);
   }
