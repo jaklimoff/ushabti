@@ -306,6 +306,7 @@ rang about, and it is the record a watcher reads to catch up after a reconnect.
 | --- | --- |
 | `after` | an ISO moment. Without it the answer is empty, and `now` is where a new reader starts. |
 | `limit` | 1 to 500, 200 by default |
+| `afterId` | the `id` of the last line read. A full page goes on from its last line: its `createdAt` as `after`, its `id` as `afterId`. One write gives all its lines one moment, so `after` alone would start a long burst again at its first line. Lines of one moment come in `id` order. A value that is not an id is refused with `400`. |
 
 ```json title="200"
 {
