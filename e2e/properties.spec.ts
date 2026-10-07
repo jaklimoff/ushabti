@@ -68,7 +68,8 @@ test.describe("Custom properties", () => {
       await gotoSettings(page, projectId);
       const status = propertyBox(page, "Status");
       const tools = status.getByTestId("property-tools");
-      await expect(tools.getByLabel("Options carry dates")).toBeVisible();
+      /* No switch for dates: Use releases and Use sprints say that now. */
+      await expect(tools.getByLabel("Options carry dates")).toHaveCount(0);
       const when = tools.getByRole("button", { name: "Shown when…" });
       await expect(when).toBeVisible();
       await expect(tools.getByRole("button", { name: "Delete the property Status" })).toBeVisible();

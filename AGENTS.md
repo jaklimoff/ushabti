@@ -85,12 +85,23 @@ and what is easy to get wrong.
   everything with a dated select: the option ids, the columns, the header date,
   Ship, "is current", the roadmap, the changelog and the option drag. So a
   check that means "a select" asks `isSelect()` or `hasOptions()` in
-  `types.ts`, and `carriesDates()` answers true for an iteration with no
-  switch. The one place that still compares `type === "select"` is the
-  "Options carry dates" switch, which only a plain select has. It is its
-  own type because a sprint is not a version: many, short, made by a cadence
-  and gone when shipped. Those differences hang off the type, never off the
-  name Sprint. A version or an epic stays a plain dated select.
+  `types.ts`, and `carriesDates()` answers true for an iteration and for a
+  select whose stored `config.dated` is on. No screen offers that flag any
+  more: **Use releases** makes a select with it on, and a select that had it
+  keeps its boxes. It is its own type because a sprint is not a version:
+  many, short, made by a cadence and gone when shipped. Those differences
+  hang off the type, never off the name Sprint. A version or an epic stays a
+  plain dated select.
+- **Releases and sprints are two switches, and each is a pointer.**
+  `projects.releaseBy` and `projects.sprintBy` name the select and the
+  iteration, in the `typeBy` pattern: no foreign key, read afresh by
+  `readReleaseBy()` and `readSprintBy()`. "Are sprints on?" asks the pointer
+  and never a name, so a plain select named Sprint is just a select. Off
+  clears the pointer and nothing else; on takes the property the pointer
+  names, or else the first dated select or iteration there is, before it
+  makes one, so off and on again never makes a second. Two dated selects
+  still both date, ship and draw a roadmap: the pointer says which one is the
+  releases, and `carriesDates()` never reads it.
 - **A row draws the card view and decides nothing**, exactly as a card does.
   `listColumns()` in `src/lib/list-view.ts` is the one place that says which
   columns a list has: a row that is off the card is off the list, the edge is

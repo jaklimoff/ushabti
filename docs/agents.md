@@ -304,7 +304,9 @@ that does not parse, or a target before the start, is refused with `400` and
 one sentence. A multi-select option is a label and carries none of them.
 `config.dated` on the property says whether its options carry dates: it
 decides what Settings shows and whether a filter offers "current", and only a
-person who is the owner or an admin writes it.
+person who is the owner or an admin writes it. Settings no longer offers it as
+a switch: **Use releases** makes a select with it on, and a select that had it
+on before keeps it.
 A sprint property, type `iteration`, is a select whose options always carry dates, one
 per sprint. `config.cadence` on it is `{ "length": 14 }`: a sprint's length
 in days. A property with no cadence saved reads as 14. A sprint ends only
@@ -348,6 +350,17 @@ property.
 names as its Type, or `null`: each option of it is a type, as **Settings →
 Types** lists them. It is read afresh, so a deleted select reads as `null`.
 It changes nothing about a rule — any select can still show a property.
+
+`project.releaseBy` and `project.sprintBy` are the ids of the select the
+project ships releases by and of the iteration it runs sprints by, or `null`
+when the **Use releases** or **Use sprints** switch in Settings → Project is
+off. Both are read afresh, so a deleted property reads as `null`, and neither
+follows a name: a plain select named Sprint is just a select. Turning a switch
+on is `POST /api/projects/{id}/releases` or `/sprints` and off is `DELETE` on
+the same address. Both are a person's who is the owner or an admin, and
+answer a token with `403`. On makes the property and its views, `201`, or
+takes the one already there and makes nothing, `200`. Off clears the pointer
+and nothing else.
 
 Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
 answers a token with `403`. You see it in the feed: the lines of one ship

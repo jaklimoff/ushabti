@@ -12,7 +12,7 @@ import {
 
 /**
  * An iteration's cadence makes the next sprint. The unit tests hold the names
- * and the dates; this walks the three doors: Set up sprints, Ship, and the
+ * and the dates; this walks the three doors: Use sprints, Ship, and the
  * length box in Settings.
  */
 
@@ -56,7 +56,7 @@ async function sprintsFrom(page: Page, startAt: string, length = 14) {
   return projectId;
 }
 
-test("Set up sprints asks for the length and the first day, and makes two sprints", async ({
+test("Use sprints asks for the length and the first day, and makes two sprints", async ({
   page,
 }) => {
   await register(page);
@@ -67,9 +67,11 @@ test("Set up sprints asks for the length and the first day, and makes two sprint
   await page.getByLabel("Sprint length in days").fill("7");
   await page.getByLabel("First day of the first sprint").fill("2036-11-02");
   const answer = page.waitForResponse((res) => res.url().endsWith("/sprints"));
-  await page.getByRole("button", { name: "Set up sprints" }).click();
+  await page.getByRole("switch", { name: "Use sprints" }).click();
   expect((await answer).status()).toBe(201);
-  await expect(page.getByText("Sprints are set up.")).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Use sprints" })).toBeChecked();
+  /* On, the questions are answered and go. */
+  await expect(page.getByLabel("Sprint length in days")).toHaveCount(0);
 
   const sprint = await sprintOf(page, projectId);
   expect(sprint.config.cadence).toEqual({ length: 7 });

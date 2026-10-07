@@ -114,15 +114,23 @@ go. Only that row makes an option: Enter picks the highlighted row, and the arro
 
 ### Give the options dates <Badge text="owner and admins" variant="caution" size="small" />
 
-A select whose options are a Version, a Sprint or a Quarter needs dates on them. Tick **Options carry
-dates** beside the property's name. Each option then takes a line of its own, with a **Start**, a
-**Target** and a **Note**, and **Unship** once it has shipped. A filter on that property can then
-say **current**: the option whose start and target hold today.
+Releases and sprints carry dates. Turn them on in **Settings → Project**:
 
-It is off by default, so Status and Priority carry no date boxes. Turning it off hides the boxes and
-keeps what they hold; turn it on again and the dates are back. A column header and **Ship** read the
-option's own target, so a property turned off after it was dated still ships. **Set up sprints**
-turns it on for the Sprint property it makes.
+- **Use releases** adds a property **Release** with no releases yet, and a roadmap **Roadmap** with
+  a bar for each one.
+- **Use sprints** asks for a sprint's length and the first day, then adds a property **Sprint** with
+  Sprint 1 and Sprint 2, a board **Sprint** that shows the current sprint, and a list **Backlog** of
+  the tasks in no sprint.
+
+Each option of those properties takes a line of its own, with a **Start**, a **Target** and a
+**Note**, and **Unship** once it has shipped. A filter on that property can then say **current**:
+the option whose start and target hold today. Status and Priority carry no date boxes.
+
+A switch reads which property it points at, never a name, so a select you name Sprint yourself is
+just a select. Turning a switch off asks first and deletes nothing: the property, its options, the
+values on the tasks and the views all stay, and turning it on again takes them back without making a
+second one. A select that carried dates before these switches keeps its date boxes, **Ship** and its
+roadmap.
 
 For a **Sprint** property, **current** works another way. A sprint past its
 target that nobody has closed is still current, the oldest one first, because nothing ends a sprint

@@ -102,6 +102,20 @@ export const projects = pgTable(
      */
     typeBy: text("type_by"),
     /**
+     * The dated select this project ships releases by, or null when the
+     * project does not use releases. What the Use releases switch says.
+     *
+     * No foreign key, on purpose: it is read afresh through `readReleaseBy`,
+     * as `typeBy` is, so a property that is gone reads as releases off.
+     */
+    releaseBy: text("release_by"),
+    /**
+     * The iteration this project runs sprints by, or null when the project
+     * does not use sprints. What the Use sprints switch says, read afresh
+     * through `readSprintBy`.
+     */
+    sprintBy: text("sprint_by"),
+    /**
      * The zone this project's day is worked out in, as an IANA name.
      *
      * A filter can say "due this week", and a shared filter has to mean one
