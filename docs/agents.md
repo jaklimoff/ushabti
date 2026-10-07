@@ -290,16 +290,18 @@ one sentence. A multi-select option is a label and carries none of them.
 decides what Settings shows and whether a filter offers "current", and only a
 person who is the owner or an admin writes it.
 An `iteration` property is a select whose options always carry dates, one
-per sprint. `config.cadence` on it is `{ "length": 14, "ahead": 1 }`: a
-sprint's length in days and how many open sprints wait after the one that
-ships. A property with no cadence saved reads as those two defaults. When an
-iteration option ships, the server makes what is missing ahead in the same
-transaction: each new sprint starts the day after the last option's target,
-lasts `length` days, and takes the last name with its trailing number plus
-one ("Sprint 14" to "Sprint 15"; a name with no number gets " 2"). Write it
-with `PATCH /api/properties/{id}` and `{"cadence":{"length":7}}`, either half
-alone, a whole number, `length` 1 to 365 and `ahead` 1 to 10; only a person
-who is the owner or an admin writes it. The cadence fills in and forbids
+per sprint. `config.cadence` on it is `{ "length": 14 }`: a sprint's length
+in days. A property with no cadence saved reads as 14. A sprint ends only
+when a person ships it; one past its target stays open, and nothing on the
+server closes it. Until it ships it is still the current sprint, the one an
+"is current" filter, a picker and a new task name, and the sprint whose dates
+hold today becomes current when it does. When an iteration option ships and no open sprint follows
+it, the server makes the next one in the same transaction: it starts the day
+after the last option's target, lasts `length` days, and takes the last name
+with its trailing number plus one ("Sprint 14" to "Sprint 15"; a name with
+no number gets " 2"). Write it with `PATCH /api/properties/{id}` and
+`{"cadence":{"length":7}}`, a whole number from 1 to 365; only a person who
+is the owner or an admin writes it. The cadence fills in and forbids
 nothing: an option made, renamed, dated or deleted by hand stays as it is.
 A property may say when it shows: `config.when` is `{ "propertyId",
 "optionIds" }`, one single select or iteration of the project and a set of

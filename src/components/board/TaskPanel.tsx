@@ -1275,7 +1275,7 @@ function describeActivity(
   },
   projectName: string,
 ): string {
-  // A roll has no person behind it: the project moved the task.
+  // A roll, which older releases did on a sprint's end, had no person behind it.
   const who = entry.actor?.name ?? (entry.data.rolled ? projectName : "Someone");
   const d = entry.data as {
     property?: string;

@@ -7,34 +7,31 @@ import {
   nextSprintName,
   readCadence,
   readCadenceInput,
-  sprintsAhead,
+  sprintAfter,
 } from "../cadence";
 
 describe("the cadence a property carries", () => {
-  it("is 14 days and 1 ahead when nobody set it", () => {
-    expect(readCadence({})).toEqual({ length: 14, ahead: 1 });
-    expect(readCadence(null)).toEqual({ length: 14, ahead: 1 });
+  it("is 14 days when nobody set it", () => {
+    expect(readCadence({})).toEqual({ length: 14 });
+    expect(readCadence(null)).toEqual({ length: 14 });
   });
 
-  it("reads what was saved, and drops what cannot be a cadence", () => {
-    expect(readCadence({ cadence: { length: 7, ahead: 3 } })).toEqual({ length: 7, ahead: 3 });
-    expect(readCadence({ cadence: { length: 0, ahead: "x" } })).toEqual({ length: 14, ahead: 1 });
+  it("reads the length saved, and drops what cannot be one", () => {
+    expect(readCadence({ cadence: { length: 7, ahead: 3 } })).toEqual({ length: 7 });
+    expect(readCadence({ cadence: { length: 0 } })).toEqual({ length: 14 });
   });
 });
 
 describe("a cadence written", () => {
-  it("takes whole numbers in range, each optional", () => {
+  it("takes a whole number of days in range", () => {
     expect(readCadenceInput({ length: 10 })).toEqual({ patch: { length: 10 } });
-    expect(readCadenceInput({ ahead: 2 })).toEqual({ patch: { ahead: 2 } });
+    expect(readCadenceInput({})).toEqual({ patch: {} });
   });
 
-  it("refuses a length or an ahead that is not a whole number in range", () => {
+  it("refuses a length that is not a whole number in range", () => {
     expect(readCadenceInput({ length: 0 })).toHaveProperty("error");
     expect(readCadenceInput({ length: 1.5 })).toHaveProperty("error");
     expect(readCadenceInput({ length: 400 })).toHaveProperty("error");
-    // Ship's "Move to the next option" needs one ahead, always.
-    expect(readCadenceInput({ ahead: 0 })).toHaveProperty("error");
-    expect(readCadenceInput({ ahead: "2" })).toHaveProperty("error");
   });
 });
 
@@ -82,15 +79,15 @@ describe("the dates that follow on", () => {
 });
 
 describe("set up sprints", () => {
-  it("makes the first sprint and the ones ahead, each following on", () => {
-    expect(firstSprints("2026-10-05", 14, 1)).toEqual([
+  it("makes the first sprint and the one after it, following on", () => {
+    expect(firstSprints("2026-10-05", 14)).toEqual([
       { name: "Sprint 1", startAt: "2026-10-05", targetAt: "2026-10-18" },
       { name: "Sprint 2", startAt: "2026-10-19", targetAt: "2026-11-01" },
     ]);
   });
 });
 
-describe("the sprints a ship leaves ahead", () => {
+describe("the sprint a ship makes", () => {
   const open = (name: string, startAt: string, targetAt: string) => ({
     id: name,
     name,
@@ -98,32 +95,35 @@ describe("the sprints a ship leaves ahead", () => {
     targetAt,
     shippedAt: null as string | null,
   });
-  const cadence = { length: 14, ahead: 1 };
+  const cadence = { length: 14 };
 
-  it("makes the one that is missing after the last", () => {
+  it("makes the next one when no open sprint follows", () => {
     const options = [open("Sprint 14", "2026-10-05", "2026-10-18")];
-    expect(sprintsAhead(options, "Sprint 14", cadence, "2026-10-18")).toEqual([
-      { name: "Sprint 15", startAt: "2026-10-19", targetAt: "2026-11-01" },
-    ]);
+    expect(sprintAfter(options, "Sprint 14", cadence, "2026-10-18")).toEqual({
+      name: "Sprint 15",
+      startAt: "2026-10-19",
+      targetAt: "2026-11-01",
+    });
   });
 
-  it("makes nothing when enough are open ahead already", () => {
+  it("makes nothing when an open sprint follows already", () => {
     const options = [
       open("Sprint 14", "2026-10-05", "2026-10-18"),
       open("Sprint 15", "2026-10-19", "2026-11-01"),
     ];
-    expect(sprintsAhead(options, "Sprint 14", cadence, "2026-10-18")).toEqual([]);
+    expect(sprintAfter(options, "Sprint 14", cadence, "2026-10-18")).toBeNull();
   });
 
-  it("counts only the open ones ahead, and follows the last option", () => {
+  it("makes one only, after the last option, when the ones after are shipped", () => {
     const options = [
       open("Sprint 14", "2026-10-05", "2026-10-18"),
       { ...open("Sprint 15", "2026-10-19", "2026-11-01"), shippedAt: "2026-10-30" },
     ];
-    expect(sprintsAhead(options, "Sprint 14", { length: 7, ahead: 2 }, "2026-10-18")).toEqual([
-      { name: "Sprint 16", startAt: "2026-11-02", targetAt: "2026-11-08" },
-      { name: "Sprint 17", startAt: "2026-11-09", targetAt: "2026-11-15" },
-    ]);
+    expect(sprintAfter(options, "Sprint 14", { length: 7 }, "2026-10-18")).toEqual({
+      name: "Sprint 16",
+      startAt: "2026-11-02",
+      targetAt: "2026-11-08",
+    });
   });
 
   it("steps past a name somebody already took by hand", () => {
@@ -131,7 +131,7 @@ describe("the sprints a ship leaves ahead", () => {
       open("sprint 15", "2026-09-01", "2026-09-02"),
       open("Sprint 14", "2026-10-05", "2026-10-18"),
     ];
-    expect(sprintsAhead(options, "Sprint 14", cadence, "2026-10-18")[0].name).toBe("Sprint 16");
+    expect(sprintAfter(options, "Sprint 14", cadence, "2026-10-18")?.name).toBe("Sprint 16");
   });
 });
 

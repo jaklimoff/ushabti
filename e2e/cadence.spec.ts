@@ -13,7 +13,7 @@ import {
 /**
  * An iteration's cadence makes the next sprint. The unit tests hold the names
  * and the dates; this walks the three doors: Set up sprints, Ship, and the
- * two boxes in Settings.
+ * length box in Settings.
  */
 
 type Option = {
@@ -28,7 +28,7 @@ type Board = {
     id: string;
     name: string;
     type: string;
-    config: { cadence?: { length?: number; ahead?: number } };
+    config: { cadence?: { length?: number } };
     options: Option[];
   }[];
   views: { id: string; isDefault: boolean }[];
@@ -72,7 +72,7 @@ test("Set up sprints asks for the length and the first day, and makes two sprint
   await expect(page.getByText("Sprints are set up.")).toBeVisible();
 
   const sprint = await sprintOf(page, projectId);
-  expect(sprint.config.cadence).toEqual({ length: 7, ahead: 1 });
+  expect(sprint.config.cadence).toEqual({ length: 7 });
   expect(sprint.options.map(dates)).toEqual([
     ["Sprint 1", "2036-11-02", "2036-11-08"],
     ["Sprint 2", "2036-11-09", "2036-11-15"],
@@ -169,9 +169,8 @@ test("Settings shows the cadence, saved on blur and on leave", async ({ page, br
 
   const box = propertyBox(page, "Sprint");
   const length = box.getByLabel("Sprint length in days of Sprint");
-  const ahead = box.getByLabel("Sprints kept ahead of Sprint");
   await expect(length).toHaveValue("14");
-  await expect(ahead).toHaveValue("1");
+  await expect(box.getByLabel("Sprints kept ahead of Sprint")).toHaveCount(0);
 
   /* A fill before React owns the box reaches no handler. */
   await expect
@@ -183,14 +182,14 @@ test("Settings shows the cadence, saved on blur and on leave", async ({ page, br
   expect((await blur).ok()).toBeTruthy();
   await expect
     .poll(async () => (await sprintOf(page, projectId)).config.cadence)
-    .toEqual({ length: 7, ahead: 1 });
+    .toEqual({ length: 7 });
 
-  await ahead.fill("3");
-  await expect(ahead).toBeFocused();
+  await length.fill("10");
+  await expect(length).toBeFocused();
   await page.goto("about:blank");
   await expect
     .poll(async () => (await sprintOf(page, projectId)).config.cadence)
-    .toEqual({ length: 7, ahead: 3 });
+    .toEqual({ length: 10 });
 
   /* A member writes values, never the cadence. */
   const memberContext = await browser.newContext();

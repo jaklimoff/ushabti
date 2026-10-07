@@ -91,7 +91,7 @@ test("an admin sets up sprints in one press; a member and an agent are refused",
   const sprint = after.properties.find((p) => p.name === "Sprint")!;
   /* A sprint is an iteration, whose options always carry dates. */
   expect(sprint).toMatchObject({ type: "iteration" });
-  /* The cadence makes the first sprint and one ahead. */
+  /* Set up makes the first sprint and the one after it. */
   expect(sprint.options).toHaveLength(2);
   const added = after.views.filter((v) => !before.views.some((b) => b.id === v.id));
   expect(added.map((v) => [v.name, v.kind])).toEqual([

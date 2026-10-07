@@ -155,7 +155,7 @@ test("a picker opens on the current sprint, and grouping by one starts on 'is cu
   expect(made.status()).toBe(201);
   const sprint = (await board(page, projectId)).properties.find((p) => p.name === "Sprint")!;
   const [old, now, next] = sprint.options;
-  // An ended sprint that never shipped rolls on the first read, so Old starts shipped.
+  // Old is shipped by hand: a sprint past its end stays open until somebody ships it.
   for (const [option, start, target, shippedAt] of [
     [old, day(-10), day(-4), day(-4)],
     [now, day(-3), day(3), undefined],
