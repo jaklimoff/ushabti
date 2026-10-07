@@ -159,7 +159,7 @@ export async function shipOptionIn(
       ? (
           await tx
             .update(tasks)
-            .set({ archivedAt: now })
+            .set({ archivedAt: now, updatedAt: now })
             .where(and(inArray(tasks.id, split.over), isNull(tasks.archivedAt), stillHere))
             .returning({ id: tasks.id })
         ).map((r) => r.id)

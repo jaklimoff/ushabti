@@ -28,6 +28,7 @@ vi.mock("@/lib/events", () => ({ publish: vi.fn() }));
 vi.mock("@/lib/activity", () => ({ logActivity: vi.fn() }));
 vi.mock("@/lib/queries", () => ({
   taskProjectId: async (id: string) => (id === TASK ? PROJECT : null),
+  touchTasks: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/auth", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/auth")>();

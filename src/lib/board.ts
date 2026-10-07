@@ -329,6 +329,36 @@ export function longAgo(iso: string, now: number = Date.now()): string {
   return plural(Math.floor(diff / year), "year");
 }
 
+/*
+ * A moment read in the project's zone. Unlike `shortDate`, these name both
+ * the locale and the zone, so the server and the browser write the same words
+ * whoever reads them and wherever they sit.
+ */
+const DAY = (timeZone: string, year: boolean) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    ...(year ? { year: "numeric" } : {}),
+  });
+
+/** "3 Oct", and "3 Oct 2025" when it was not this year in that zone. */
+export function shortDay(iso: string, timeZone: string, now: number = Date.now()): string {
+  const yearOf = (t: number | string) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric" }).format(new Date(t));
+  return DAY(timeZone, yearOf(iso) !== yearOf(now)).format(new Date(iso));
+}
+
+/** "3 Oct 2026, 14:05 Europe/Berlin", for a hover that owes the whole moment. */
+export function fullTime(iso: string, timeZone: string): string {
+  const said = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(iso));
+  return `${said} ${timeZone}`;
+}
+
 function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? "" : "s"} ago`;
 }

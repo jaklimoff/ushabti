@@ -7,6 +7,7 @@ import {
   projectLinks,
   taskCards,
   taskProjectId,
+  touchTasks,
   withProjectLock,
 } from "@/lib/queries";
 
@@ -61,6 +62,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .values({ fromId: blockerId, toId: taskId, kind: BLOCKS })
       .onConflictDoNothing()
       .returning({ toId: taskLinks.toId });
+    if (landed.length) await touchTasks([taskId], tx);
 
     return landed.length ? blocker.key : null;
   });

@@ -4,7 +4,7 @@ import { taskLinks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, json, readId, route } from "@/lib/api";
 import { BLOCKS } from "@/lib/links";
-import { logActivity, taskCards, taskProjectId } from "@/lib/queries";
+import { logActivity, taskCards, taskProjectId, touchTasks } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ taskId: string; blockerId: string }> };
 
@@ -31,6 +31,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
     .returning({ toId: taskLinks.toId });
 
   if (gone.length) {
+    await touchTasks([taskId]);
     /* The key is read after the row goes, so the line names what was there
        even when the blocker was archived in between. */
     const blocker = (await taskCards([blockerId])).get(blockerId);

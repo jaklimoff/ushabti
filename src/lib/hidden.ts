@@ -26,7 +26,9 @@ export type Dropped = { taskId: string; propertyId: string; name: string };
  * other's drop deletes. The lock here is a no-op for a task already held.
  *
  * The line in the activity names only what held something. The doorbell is
- * handed back, to ring after the commit.
+ * handed back, to ring after the commit. It leaves `updatedAt` alone: the
+ * caller that wrote a value has already said somebody touched the task, and a
+ * value a change of the board's shape took away is nobody touching it.
  */
 export async function dropHidden(
   tx: Tx,
@@ -91,12 +93,6 @@ export async function dropHidden(
         ...a.extra,
       },
     });
-  }
-  if (dropped.length) {
-    await tx
-      .update(tasks)
-      .set({ updatedAt: new Date() })
-      .where(inArray(tasks.id, [...new Set(dropped.map((d) => d.taskId))]));
   }
   return { dropped, ring: await logActivityIn(tx, [...before, ...entries]) };
 }

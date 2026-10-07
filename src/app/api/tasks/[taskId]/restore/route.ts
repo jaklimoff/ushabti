@@ -51,7 +51,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     await lockTasks(tx, [taskId]);
     const [row] = await tx
       .update(tasks)
-      .set({ deletedAt: null })
+      .set({ deletedAt: null, updatedAt: new Date() })
       .where(and(eq(tasks.id, taskId), isNotNull(tasks.deletedAt)))
       .returning({ title: tasks.title, number: tasks.number });
     if (!row) return { row, dropped: [], ring: async () => {} };

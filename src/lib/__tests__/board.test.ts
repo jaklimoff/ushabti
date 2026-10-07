@@ -5,11 +5,13 @@ import {
   cursorTarget,
   clampPanelWidth,
   firstTask,
+  fullTime,
   isReachable,
   longAgo,
   NO_VALUE,
   PANEL_MIN_WIDTH,
   shownColumn,
+  shortDay,
   taskByAddress,
   type BoardColumn,
 } from "../board";
@@ -423,5 +425,27 @@ describe("how long ago, in words", () => {
 
   it("never counts backwards when two clocks disagree", () => {
     expect(longAgo(archived, at(-4000))).toBe("just now");
+  });
+});
+
+describe("shortDay and fullTime", () => {
+  const made = "2026-10-03T23:30:00.000Z";
+  const now = new Date("2026-10-07T12:00:00.000Z").getTime();
+
+  it("reads the day in the project's zone, not the reader's", () => {
+    expect(shortDay(made, "UTC", now)).toBe("3 Oct");
+    expect(shortDay(made, "Europe/Berlin", now)).toBe("4 Oct");
+    process.env.TZ = "Pacific/Niue";
+    expect(shortDay(made, "UTC", now)).toBe("3 Oct");
+    process.env.TZ = "UTC";
+  });
+
+  it("adds the year only when it is not this year", () => {
+    expect(shortDay("2025-03-01T12:00:00.000Z", "UTC", now)).toBe("1 Mar 2025");
+  });
+
+  it("gives the whole moment and names the zone", () => {
+    expect(fullTime(made, "UTC")).toBe("3 Oct 2026, 23:30 UTC");
+    expect(fullTime(made, "Europe/Berlin")).toBe("4 Oct 2026, 01:30 Europe/Berlin");
   });
 });

@@ -5,7 +5,7 @@ import type { ActivityEntry } from "@/lib/activity";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { byPos } from "@/lib/order";
-import { rankOnTheEnd, taskProjectId, withProjectLock } from "@/lib/queries";
+import { rankOnTheEnd, taskProjectId, touchTasks, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { dropHidden, lockTasks } from "@/lib/hidden";
 import { coerceValue, describeValue, loadProperty } from "@/lib/values";
@@ -60,10 +60,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
     const end = onTheEnd
       ? await rankOnTheEnd(tx, projectId, siblings)
       : { position: rankBetween(lower, upper), rewrote: false };
-    await tx
-      .update(tasks)
-      .set({ position: end.position, updatedAt: new Date() })
-      .where(eq(tasks.id, taskId));
+    /* A rank is not something a person said, so `updatedAt` waits for a value. */
+    await tx.update(tasks).set({ position: end.position }).where(eq(tasks.id, taskId));
     return end;
   });
 
@@ -92,6 +90,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
       });
     }
     const taskIds = entries.length ? [taskId] : [];
+    await touchTasks(taskIds, tx);
     return dropHidden(tx, { projectId, taskIds, actorId: user.id, before: entries });
   });
   await ring();

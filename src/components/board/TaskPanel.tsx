@@ -3,7 +3,14 @@
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/client";
 import { copyText } from "@/lib/clipboard";
-import { clampPanelWidth, longAgo, PANEL_MIN_WIDTH, relativeTime } from "@/lib/board";
+import {
+  clampPanelWidth,
+  fullTime,
+  longAgo,
+  PANEL_MIN_WIDTH,
+  relativeTime,
+  shortDay,
+} from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
 import { commentDraftKey } from "@/lib/draft";
 import { editedText } from "@/lib/leave";
@@ -725,6 +732,20 @@ export function TaskPanel({
           onLeave={onClose}
           focusOnOpen={answer === 0}
         />
+        {detail && (
+          <TaskStamp
+            createdAt={detail.createdAt}
+            /* The board hears a link or a value first, and the detail hears a
+               comment first, so the later of the two is the last change. */
+            updatedAt={
+              liveTask && liveTask.updatedAt > detail.updatedAt
+                ? liveTask.updatedAt
+                : detail.updatedAt
+            }
+            creator={detail.creator?.name ?? null}
+            timeZone={data.project.timeZone}
+          />
+        )}
       </div>
 
       <div className={styles.body}>
@@ -1651,6 +1672,43 @@ function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
  * field after this tab started typing, so nothing was written.
  */
 type Saved = "saved" | "changed" | "failed";
+
+/**
+ * When the task was made, by whom, and when somebody last did something to
+ * it. Its own component, so the clock it reads re-renders this line and not
+ * the panel. The hovers give the whole moment in the project's zone, because
+ * "2 hours ago" is a reading of the reader's clock and a day is the project's.
+ */
+function TaskStamp({
+  createdAt,
+  updatedAt,
+  creator,
+  timeZone,
+}: {
+  createdAt: string;
+  updatedAt: string;
+  creator: string | null;
+  timeZone: string;
+}) {
+  const now = useNow();
+  return (
+    <div className={styles.stamp} data-testid="task-stamp">
+      <span title={fullTime(createdAt, timeZone)} data-testid="task-made">
+        Made {shortDay(createdAt, timeZone, now)}
+        {creator && ` by ${creator}`}
+      </span>
+      <span className={styles.archivedSep}>·</span>
+      {/* Read from a clock, as the archived row is. */}
+      <span
+        title={fullTime(updatedAt, timeZone)}
+        data-testid="task-changed"
+        suppressHydrationWarning
+      >
+        changed {longAgo(updatedAt, now)}
+      </span>
+    </div>
+  );
+}
 
 /**
  * A text save that was refused, asked in place. The field turns into the

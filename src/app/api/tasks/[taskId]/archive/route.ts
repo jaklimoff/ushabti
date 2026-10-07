@@ -31,7 +31,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   const archived = await db
     .update(tasks)
-    .set({ archivedAt: new Date() })
+    .set({ archivedAt: new Date(), updatedAt: new Date() })
     .where(and(eq(tasks.id, taskId), isNull(tasks.archivedAt)))
     .returning({ id: tasks.id });
 
@@ -57,7 +57,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   /* The task keeps its rank, so it comes back where it was. */
   const restored = await db
     .update(tasks)
-    .set({ archivedAt: null })
+    .set({ archivedAt: null, updatedAt: new Date() })
     .where(and(eq(tasks.id, taskId), isNotNull(tasks.archivedAt)))
     .returning({ id: tasks.id });
 

@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { checklistItems } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
-import { checklistTaskId, logActivity, taskProjectId } from "@/lib/queries";
+import { checklistTaskId, logActivity, taskProjectId, touchTasks } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ itemId: string }> };
 
@@ -42,11 +42,15 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       or(eq(checklistItems.text, baseText), eq(checklistItems.text, patch.text as string))!,
     );
 
-  const [item] = await db
-    .update(checklistItems)
-    .set(patch)
-    .where(and(...unchanged))
-    .returning();
+  const item = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(checklistItems)
+      .set(patch)
+      .where(and(...unchanged))
+      .returning();
+    if (row) await touchTasks([taskId], tx);
+    return row;
+  });
 
   if (!item) {
     const [row] = await db
@@ -75,7 +79,13 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { itemId } = await ctx.params;
   const { taskId, projectId } = await locate(itemId);
   await guard(projectId);
-  await db.delete(checklistItems).where(eq(checklistItems.id, itemId));
+  await db.transaction(async (tx) => {
+    const gone = await tx
+      .delete(checklistItems)
+      .where(eq(checklistItems.id, itemId))
+      .returning({ id: checklistItems.id });
+    if (gone.length) await touchTasks([taskId], tx);
+  });
   await broadcast({ projectId, scope: "task", taskId, clientId: clientIdOf(req) });
   return json({ ok: true });
 });

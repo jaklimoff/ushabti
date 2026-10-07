@@ -50,7 +50,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const archived = ids.length
     ? await db
         .update(tasks)
-        .set({ archivedAt: new Date() })
+        .set({ archivedAt: new Date(), updatedAt: new Date() })
         .where(and(inArray(tasks.id, ids), isNull(tasks.archivedAt)))
         .returning({ id: tasks.id })
     : [];
