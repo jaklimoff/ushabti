@@ -201,12 +201,15 @@ and what is easy to get wrong.
   that answer. A copy is a whole card view, never a set of changes on top of
   the project's: a diff would need its own rules for a row the project later
   moved. It holds no order and no edge rule of its own, for the reasons above.
-- **Six rows of the card view are not properties.** `_key`, `_title`, `_desc`,
-  `_checklist`, `_parts` and `_comments` are the task row the board already
-  has, given rows so that somebody can take them off. `_parts` is the count of
-  a parent's children that are done, worked out by `getBoard` from `isOver`.
-  They are not fields on a task and must never become any: nothing writes
-  them, and the words are fixed.
+- **Eight rows of the card view are not properties.** `_key`, `_title`,
+  `_desc`, `_checklist`, `_parts`, `_comments`, `_created` and `_updated` are
+  the task row the board already has, given rows so that somebody can take
+  them off. `_parts` is the count of a parent's children that are done, worked
+  out by `getBoard` from `isOver`. `_created` and `_updated` are the two
+  moments the server stamps, drawn as the day in the project's zone; they
+  start off, also on a card somebody arranged before they existed, because
+  every task has both. They are not fields on a task and must never become
+  any: nothing writes them, and the words are fixed.
 - **A read that crossed this tab's own write is thrown away, and asked
   again.** The stream asks for the board the moment it connects, and that
   answer is stale the instant somebody clicks. A write sent just before a read

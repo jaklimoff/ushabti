@@ -85,6 +85,8 @@ const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
   _checklist: 72,
   _parts: 72,
   _comments: HEADING_WIDTH,
+  _created: 84,
+  _updated: 84,
 };
 
 function widthOf(item: ListColumn["item"]): number {

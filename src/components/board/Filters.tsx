@@ -16,10 +16,11 @@ import {
   ME_KEY,
   CURRENT_KEY,
   offersCurrent,
-  OPS_FOR_TYPE,
+  opsFor,
   OP_LABEL,
+  windowsFor,
 } from "@/lib/filters";
-import { DATE_WINDOWS, DATE_WINDOW_NAME } from "@/lib/day";
+import { DATE_WINDOW_NAME } from "@/lib/day";
 import { pickableOptions, splitShipped } from "@/lib/option-dates";
 import { canSort, pressSort, sortLabel, sortWay } from "@/lib/sort";
 import { listColumns } from "@/lib/list-view";
@@ -87,7 +88,7 @@ const SHIPPED_FOLD = "__shipped__";
  * know the answer, so it does not guess one.
  */
 function emptyRule(property: PropertyDTO): FilterRule {
-  const op = OPS_FOR_TYPE[property.type][0];
+  const op = opsFor(property)[0];
   return isSetOp(op)
     ? { propertyId: property.id, op, values: [] }
     : { propertyId: property.id, op, text: "" };
@@ -160,7 +161,7 @@ function Ask({
   onBack?: () => void;
   onClose: () => void;
 }) {
-  const ops = OPS_FOR_TYPE[property.type];
+  const ops = opsFor(property);
   const set = isSetOp(rule.op);
   const bare = isBareOp(rule.op);
   /* A window is one word from a closed list, so the box searches the list
@@ -179,12 +180,14 @@ function Ask({
   const rows: Row[] = useMemo(() => {
     const wanted = query.trim().toLowerCase();
     if (win) {
-      return DATE_WINDOWS.map((word) => ({
-        id: word,
-        name: DATE_WINDOW_NAME[word],
-        color: WINDOW_DOT,
-        on: rule.text === word,
-      })).filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
+      return windowsFor(property)
+        .map((word) => ({
+          id: word,
+          name: DATE_WINDOW_NAME[word],
+          color: WINDOW_DOT,
+          on: rule.text === word,
+        }))
+        .filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
     }
     if (!set) return [];
     const toRow = (key: string): Row => ({

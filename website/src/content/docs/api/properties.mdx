@@ -177,7 +177,7 @@ becomes a board again.
 ```json title="request"
 { "name": "Board", "kind": "list", "groupById": "…",
   "filters": { "rules": [ … ] },
-  "sort": { "columnId": "<propertyId or _key|_title|_checklist|_comments>", "direction": "asc" } }
+  "sort": { "columnId": "<propertyId or _key|_title|_checklist|_comments|_created|_updated>", "direction": "asc" } }
 ```
 
 `sort` is the order the view draws in — the rows of a list, and the cards inside every column of a

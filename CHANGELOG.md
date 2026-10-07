@@ -8,6 +8,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A view can show, filter and sort by when a task was made and last changed.** Turn on
+  **Created** or **Updated** in the card settings to put the day on every card and a column in a
+  list; both stay off until somebody does. A filter asks is on, before, after or within today,
+  this week, the last 7 or the last 30 days, read in the project's time zone, so "Updated is
+  before" a day a month ago finds the work nobody touched. A list or a board sorts by either,
+  newest or oldest first.
+
 ### Changed
 
 - **The Iteration type reads Sprint.** The type picker, the property row, the card settings, the

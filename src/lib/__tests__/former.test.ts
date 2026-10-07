@@ -77,6 +77,7 @@ describe("a person who left", () => {
       "2026-10-07",
       null,
       new Set(),
+      "UTC",
     );
     expect(theirs.map((t) => t.id)).toEqual(["b"]);
   });
@@ -93,6 +94,7 @@ describe("a person who left", () => {
       "2026-10-07",
       null,
       new Set(),
+      "UTC",
     );
     expect(none.tasks.map((t) => t.id)).toEqual(unassigned.map((t) => t.id));
   });

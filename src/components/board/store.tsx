@@ -763,8 +763,17 @@ export function BoardProvider({
      question takes the card out on the read the answer rings for. */
   const waiting = useMemo(() => waitingTasks(data.runs), [data.runs]);
   const visibleTasks = useMemo(
-    () => applyFilters(data.tasks, filters, data.properties, data.today, user.id, waiting),
-    [data.properties, data.tasks, data.today, filters, user.id, waiting],
+    () =>
+      applyFilters(
+        data.tasks,
+        filters,
+        data.properties,
+        data.today,
+        user.id,
+        waiting,
+        data.project.timeZone,
+      ),
+    [data.project.timeZone, data.properties, data.tasks, data.today, filters, user.id, waiting],
   );
 
   /*

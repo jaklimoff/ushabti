@@ -1,7 +1,9 @@
 import {
   DATE_WINDOW_NAME,
   DATE_WINDOW_SAID,
+  DATE_WINDOWS,
   isDateWindow,
+  todayIn,
   windowDays,
   type DateWindow,
 } from "./day";
@@ -70,6 +72,17 @@ export const BLOCKED_KEY = "_blocked";
  * leaves it the moment the run moves on.
  */
 export const AGENT_WAITING_KEY = "_agent_waiting";
+
+/**
+ * "When was it made?" and "When did somebody last change it?"
+ *
+ * Two more built-in words, read off the two moments the server stamps on the
+ * task row. Each is a date from here down, read as the day it was in the
+ * project's zone. They share their ids with the rows of the card view, because
+ * they are the same two days.
+ */
+export const CREATED_KEY = "_created";
+export const UPDATED_KEY = "_updated";
 
 /**
  * The one status that means an agent waits for a person. The project list
@@ -198,8 +211,37 @@ export const AGENT_WAITING_PROPERTY: PropertyDTO = {
   options: [],
 };
 
+/** The stand-ins of the two days, dates for the same reason. */
+export const CREATED_PROPERTY: PropertyDTO = {
+  id: CREATED_KEY,
+  name: "Created",
+  type: "date",
+  position: "",
+  config: {},
+  options: [],
+};
+
+export const UPDATED_PROPERTY: PropertyDTO = {
+  id: UPDATED_KEY,
+  name: "Updated",
+  type: "date",
+  position: "",
+  config: {},
+  options: [],
+};
+
 /** The words that are not properties, in the order the panel lists them. */
-const BUILT_IN: PropertyDTO[] = [BLOCKED_PROPERTY, AGENT_WAITING_PROPERTY];
+const BUILT_IN: PropertyDTO[] = [
+  BLOCKED_PROPERTY,
+  AGENT_WAITING_PROPERTY,
+  CREATED_PROPERTY,
+  UPDATED_PROPERTY,
+];
+
+/** True when a rule names one of the two days the server stamps. */
+function isStamp(propertyId: string): boolean {
+  return propertyId === CREATED_KEY || propertyId === UPDATED_KEY;
+}
 
 /** True when a rule names one of the words rather than a property. */
 export function isBuiltIn(propertyId: string): boolean {
@@ -241,6 +283,26 @@ export const OPS_FOR_TYPE: Record<PropertyType, FilterOp[]> = {
   link: ["contains", "not_contains", "empty", "not_empty"],
   iteration: ["is", "is_not"],
 };
+
+/**
+ * The operators one property offers. A stamp is never empty, so it asks
+ * neither "is empty" nor "is not empty": one would hide every task and the
+ * other none.
+ */
+export function opsFor(property: PropertyDTO): FilterOp[] {
+  const ops = OPS_FOR_TYPE[property.type];
+  return isStamp(property.id) ? ops.filter((op) => !isBareOp(op)) : ops;
+}
+
+/**
+ * The windows one property offers. A stamp is never in the future, so only
+ * the windows that look back are a question about it.
+ */
+export function windowsFor(property: PropertyDTO): readonly DateWindow[] {
+  return isStamp(property.id) ? PAST_WINDOWS : DATE_WINDOWS;
+}
+
+const PAST_WINDOWS: readonly DateWindow[] = ["today", "this_week", "last_7", "last_30"];
 
 /** True when the operator takes a set of values rather than one piece of text. */
 export function isSetOp(op: FilterOp): boolean {
@@ -340,6 +402,10 @@ function isEmpty(value: TaskValue, type: PropertyType): boolean {
  *
  * `waiting` is `waitingTasks()` of the open runs, and it has no default
  * either: a caller that forgot it would find no agent waiting anywhere.
+ *
+ * `timeZone` is the project's, and only a rule about a stamp reads it. No
+ * default: a caller that forgot it would move every task changed late in the
+ * evening to the wrong day.
  */
 export function matches(
   task: TaskDTO,
@@ -348,16 +414,23 @@ export function matches(
   today: string,
   viewer: string | null,
   waiting: ReadonlySet<string>,
+  timeZone: string,
 ): boolean {
-  /* The built-in words read off the links and the runs rather than off the
-     values, and nothing else about them differs: each is a checkbox from here
-     down. */
+  /* The built-in words read off the links, the runs and the task row rather
+     than off the values, and nothing else about them differs: each is a
+     checkbox or a date from here down. A stamp becomes the day it was in the
+     project's zone, and the zone is named, so the server and the browser read
+     the same day. */
   const value =
     rule.propertyId === BLOCKED_KEY
       ? (task.blockedBy?.length ?? 0) > 0
       : rule.propertyId === AGENT_WAITING_KEY
         ? waiting.has(task.id)
-        : (task.values[rule.propertyId] ?? null);
+        : rule.propertyId === CREATED_KEY
+          ? todayIn(timeZone, new Date(task.createdAt))
+          : rule.propertyId === UPDATED_KEY
+            ? todayIn(timeZone, new Date(task.updatedAt))
+            : (task.values[rule.propertyId] ?? null);
   const type = property.type;
 
   switch (rule.op) {
@@ -466,7 +539,7 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
     const raw = entry as Partial<FilterRule>;
     const property = typeof raw.propertyId === "string" ? byId.get(raw.propertyId) : undefined;
     if (!property || !isOp(raw.op)) continue;
-    if (!OPS_FOR_TYPE[property.type].includes(raw.op)) continue;
+    if (!opsFor(property).includes(raw.op)) continue;
 
     let built: FilterRule;
     if (isBareOp(raw.op)) {
@@ -477,7 +550,7 @@ export function readFilters(raw: unknown, properties: PropertyDTO[]): ViewFilter
          here, on every read, rather than in a cleanup pass that would have to
          run wherever a version changes. */
       const word = typeof raw.text === "string" ? raw.text : "";
-      if (!isDateWindow(word)) continue;
+      if (!isDateWindow(word) || !windowsFor(property).includes(word)) continue;
       built = { propertyId: property.id, op: raw.op, text: word };
     } else if (isSetOp(raw.op)) {
       const live = liveKeys(property);
@@ -638,13 +711,14 @@ export function applyFilters(
   today: string,
   viewer: string | null,
   waiting: ReadonlySet<string>,
+  timeZone: string,
 ): TaskDTO[] {
   if (filters.rules.length === 0) return tasks;
   const byId = byIdWithBuiltIn(properties);
   return tasks.filter((task) =>
     filters.rules.every((rule) => {
       const property = byId.get(rule.propertyId);
-      return property ? matches(task, rule, property, today, viewer, waiting) : true;
+      return property ? matches(task, rule, property, today, viewer, waiting, timeZone) : true;
     }),
   );
 }
@@ -712,8 +786,9 @@ function survives(
   viewer: string | null,
 ): boolean {
   const stand = { values: { [property.id]: value } } as TaskDTO;
-  /* The rules here name a property, never a word, so no run is asked. */
-  return rules.every((rule) => matches(stand, rule, property, today, viewer, NO_RUNS));
+  /* The rules here name a property, never a word, so no run and no zone is
+     asked. */
+  return rules.every((rule) => matches(stand, rule, property, today, viewer, NO_RUNS, "UTC"));
 }
 
 /* ------------------------------------------------------------------ */
