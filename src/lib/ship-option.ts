@@ -12,14 +12,16 @@ import { todayIn } from "./day";
 import { readDoneWhen } from "./links";
 import { rankAfter } from "./rank";
 import { loadProperties, type Tx } from "./queries";
-import { nextOpenOption, shipDay, splitShip, type ShipDone, type ShipRest } from "./ship";
+import { closes, nextOpenOption, shipDay, splitShip, type ShipDone, type ShipRest } from "./ship";
 import type { TaskValue } from "./types";
 import { isSelect } from "./types";
 
 /**
  * Ships one column inside the caller's transaction, which already holds the
  * project lock. Only a press of Ship comes here: a sprint past its end stays
- * open until somebody says it is over, as a release does.
+ * open until somebody says it is over, as a release does. A sprint closes
+ * rather than ships: its finished tasks stay where they are, because the same
+ * task may still wait for a release.
  */
 export async function shipOptionIn(
   tx: Tx,
@@ -152,15 +154,16 @@ export async function shipOptionIn(
   /* The tasks that move are locked before their values change, as every
      write that drops what it hides does. */
   await lockTasks(tx, asked);
-  const archived = split.over.length
-    ? (
-        await tx
-          .update(tasks)
-          .set({ archivedAt: now })
-          .where(and(inArray(tasks.id, split.over), isNull(tasks.archivedAt), stillHere))
-          .returning({ id: tasks.id })
-      ).map((r) => r.id)
-    : [];
+  const archived =
+    split.over.length && !closes(option)
+      ? (
+          await tx
+            .update(tasks)
+            .set({ archivedAt: now })
+            .where(and(inArray(tasks.id, split.over), isNull(tasks.archivedAt), stillHere))
+            .returning({ id: tasks.id })
+        ).map((r) => r.id)
+      : [];
   const to = rest === "next" ? next!.id : null;
   const moved = asked.length
     ? (
@@ -205,7 +208,7 @@ export async function shipOptionIn(
       taskId: null,
       kind: "archive",
       data: {
-        action: "shipped",
+        action: closes(option) ? "closed" : "shipped",
         shipId,
         option: option.name,
         optionId,

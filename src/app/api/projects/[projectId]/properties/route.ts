@@ -8,7 +8,7 @@ import { optionColumns, toOptionDTO, withProjectLock } from "@/lib/queries";
 import { rankAfter, rankSequence } from "@/lib/rank";
 import { hasOptions, PROPERTY_TYPES, type PropertyOptionDTO, type PropertyType } from "@/lib/types";
 import { PALETTE } from "@/lib/colors";
-import { takenBy, takenSaid } from "@/lib/option-name";
+import { OPTIONS_MAX, takenBy, takenSaid, tooManySaid } from "@/lib/option-name";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -26,11 +26,10 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   const names =
     hasOptions(type) && Array.isArray(input.options)
-      ? input.options
-          .map((o) => (typeof o === "string" ? o.trim() : ""))
-          .filter(Boolean)
-          .slice(0, 40)
+      ? input.options.map((o) => (typeof o === "string" ? o.trim() : "")).filter(Boolean)
       : [];
+  // Refused whole: a list cut short loses the rest without a word.
+  if (names.length > OPTIONS_MAX) throw new HttpError(400, tooManySaid(names.length));
   // Asked before the property is written, so a refused list makes nothing.
   names.forEach((n, i) => {
     const taken = takenBy(

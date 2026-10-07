@@ -114,6 +114,10 @@ export function searchTasks(
   query: string,
   doneWhen: DoneWhen | null = null,
   limit: number = SEARCH_LIMIT,
+  /* The tasks a caller cannot offer, such as the ones already linked. They
+     go before the cut, or twelve of them would fill the box and hide a
+     thirteenth that could be picked. */
+  leaveOut: ReadonlySet<string> = new Set(),
 ): SearchHit[] {
   const whole = query.trim().toLowerCase();
   if (!whole) return [];
@@ -121,6 +125,7 @@ export function searchTasks(
 
   const found: { rank: number; standing: number; hit: SearchHit }[] = [];
   for (const task of tasks) {
+    if (leaveOut.has(task.id)) continue;
     const haystack = `${task.key}\n${task.title}\n${task.description}`.toLowerCase();
     /* Every word has to be somewhere, exactly as every filter rule has to
        pass. A second word narrows the answer; it never widens it. */

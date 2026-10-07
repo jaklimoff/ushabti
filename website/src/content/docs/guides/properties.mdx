@@ -70,16 +70,21 @@ options, which happens on the board.
 ### Create one
 
 The bottom row of the card: a name, a type from the dropdown, and — for select and multi-select
-only — options separated by commas. A hint under the row explains the type currently chosen.
+only — options, one per line, so an option name may hold a comma. A hint under the row explains
+the type currently chosen.
 
 ```
 Name:    Environment
 Type:    Select
-Options: local, staging, production
+Options: local
+         staging
+         production
 ```
 
-New properties are appended last and start on the card, except a Link, which starts off it. Up to forty options at
-creation; their colours cycle through the palette. Any member can add a property.
+New properties are appended last and start on the card, except a Link, which starts off it. A new
+property takes at most 40 options. A longer list is refused whole, never cut short: the box says
+"A property holds at most 40 options. This list has 60." and nothing is written. The colours of the
+options cycle through the palette. Any member can add a property.
 
 ### Rename it
 
@@ -120,10 +125,12 @@ option's own target, so a property turned off after it was dated still ships. **
 turns it on for the Sprint property it makes.
 
 For an **Iteration**, which is what a sprint is, **current** works another way. A sprint past its
-target that nobody has shipped is still current, the oldest one first, because nothing ends a sprint
-but a press of **Ship**. Its column header says "Ended 7 days ago" in place of the target day, on a
-line below the name. **Ship** closes it, can move what is left to the next sprint, and makes that
-sprint from the sprint length when none follows.
+target that nobody has closed is still current, the oldest one first, because nothing ends a sprint
+but a press of **Close**. Its column header says "Ended 7 days ago" in place of the target day, on a
+line below the name. **Close** ends it, can move what is left to the next sprint, and makes that
+sprint from the sprint length when none follows. Closing archives nothing and writes no changelog
+entry: the finished tasks stay where they are, because the same task may still wait for a release.
+Only **Ship** on a release archives what is over.
 
 ### Reorder properties
 
