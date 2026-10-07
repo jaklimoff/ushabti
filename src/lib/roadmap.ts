@@ -37,8 +37,12 @@ export type RoadmapRule = { doneWhen: DoneWhen | null; countBy: string | null };
 /**
  * The rows, in option order with the shipped ones below the open ones.
  *
- * The start reads every task under the option, archived ones too, because the
- * day a release began moves with neither a filter nor a ship. The fill reads
+ * A bar with no start date begins the day after the previous dated option's
+ * target, because a release starts when the one before it ends. Only the first
+ * dated option has nothing before it, so it starts at its oldest task, archived
+ * ones too, because the day a release began moves with neither a filter nor a
+ * ship. Reading the oldest task for every option let one old task moved into a
+ * release start its bar years back. The fill reads
  * only the live tasks the view's filters left, as the column header does, so
  * the bar agrees with the board.
  */
@@ -55,12 +59,16 @@ export function roadmapRows(
     tasks.filter((t) => t.values[property.id] === id);
 
   const rows: RoadmapRow[] = [];
+  let previousTarget: string | null = null;
   for (const option of property.options) {
     if (!option.targetAt) continue;
     const gone = archived[option.id];
     const start =
       option.startAt ??
-      oldestDay([...under(all, option.id).map((t) => t.createdAt), gone?.firstAt], timeZone);
+      (previousTarget
+        ? dayOf(dayNumber(previousTarget) + 1)
+        : oldestDay([...under(all, option.id).map((t) => t.createdAt), gone?.firstAt], timeZone));
+    previousTarget = option.targetAt;
     // Nothing says when it began: no start, and no task to date it by.
     if (!start) continue;
     const end = option.shippedAt ?? option.targetAt;

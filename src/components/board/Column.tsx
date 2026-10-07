@@ -233,7 +233,9 @@ export function Column({
   const className = [
     styles.column,
     column.folded ? styles.columnFolded : "",
-    column.isNone ? styles.columnNone : "",
+    /* Somebody who left holds these and nothing new lands here, which is
+       what the dashed edge already says of Unassigned. */
+    column.isNone || column.gone ? styles.columnNone : "",
     isOver ? styles.columnOver : "",
     sortable.isDragging ? styles.columnDragging : "",
   ]

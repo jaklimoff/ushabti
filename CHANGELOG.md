@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A roadmap bar with no start date begins after the previous one ends.** It used to start at the
+  oldest task under the option, so one old task moved into a release dragged its bar years back.
+  Only the first dated option still starts at its oldest task.
 - **A new property with more than 40 options is refused, never cut short.** It used to keep the
   first 40 and drop the rest without a word. The box now takes one option per line, so a name may
   hold a comma, and says the limit before it sends.
@@ -24,6 +27,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   only that, so Settings stays quick on a project of thousands of tasks.
 
 ### Changed
+
+- **Tasks of a person who left keep their name, marked as gone.** A card, a list row and the panel
+  show "Ada (left)" with a faded face, where they used to show nobody. A board grouped by a person
+  gives them a column of their own until their tasks are handed on, so Unassigned on the board and
+  in the filter mean the same thing. The filter lists them under **Left the project**; the picker
+  shows them as the value but never offers them. Somebody who rejoins is a member again.
 
 - **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
   **Close**: it ends the sprint and moves its unfinished tasks to the next one or leaves them, and

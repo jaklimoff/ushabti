@@ -119,8 +119,8 @@ export function ListCanvas({
    * boards go on showing it.
    */
   const base = useMemo(
-    () => sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members),
-    [visibleTasks, sort, cardItems, data.members],
+    () => sortTasks(sortByPosition(visibleTasks), sort, cardItems, data.members, data.former),
+    [visibleTasks, sort, cardItems, data.members, data.former],
   );
   const rows = preview ?? base;
 
@@ -201,7 +201,7 @@ export function ListCanvas({
    * the filter has to answer for it too. Without the null the row is written
    * and hidden in the same breath, with nothing on screen to say why.
    */
-  const seed = seedValues(filters, data.properties, null, user.id, data.today);
+  const seed = seedValues(filters, data.properties, null, user.id, data.today, data.former);
   const addNote = seedNote(
     seed,
     data.properties,
