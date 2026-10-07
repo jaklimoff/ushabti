@@ -14,6 +14,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   page shows **Add type** to every person on the project, not only the owner and the admins.
   Deleting a property, an option or a type stays an admin's. An agent token that tries to create
   a property gets `403 Only a person can do this.`
+
 ### Fixed
 
 - **A sprint made by a late Ship starts today.** It used to start the day after the last
