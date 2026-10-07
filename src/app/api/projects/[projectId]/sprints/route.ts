@@ -9,45 +9,50 @@ import { todayIn } from "@/lib/day";
 import { isoDay } from "@/lib/option-dates";
 import { defaultGroupById, withProjectLock } from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
-import { SPRINT, sprintsSetUp, sprintViews } from "@/lib/sprints";
+import { SPRINT, sprintToReuse, sprintViews } from "@/lib/sprints";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
 /**
- * Sets up sprints: the Sprint property, the Sprint board and the Backlog list.
+ * Use sprints, on: the Sprint property, the Sprint board and the Backlog list.
  * The body may carry `length`, a sprint's days, and `startAt`, the first
  * sprint's first day; they default to 14 and the project's today. It makes
  * the first sprint and the one after it, so the board has a current sprint
  * and a next one to plan into. Ship makes each one after that.
  *
+ * An iteration already there is taken instead and nothing is made: off keeps
+ * the property and its views, so on again must not make a second of each.
+ *
  * One transaction under the project lock, so a board never holds the property
- * without its views, and two presses at once cannot make two of each. The
- * second one reads the Sprint the first one wrote and is refused. It is
+ * without its views, and two presses at once cannot make two of each. It is
  * structure, so it is an admin's, and a person's.
  */
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
-  adminOnly(user, membership, "set up sprints");
+  adminOnly(user, membership, "turn sprints on");
   const { length, startAt } = await readSetUp(req);
 
-  await withProjectLock(projectId, async (tx) => {
+  const made = await withProjectLock(projectId, async (tx) => {
     const props = await tx
-      .select({ name: properties.name, position: properties.position })
+      .select({ id: properties.id, type: properties.type, position: properties.position })
       .from(properties)
       .where(eq(properties.projectId, projectId))
       .orderBy(byPos(properties.position));
-    if (sprintsSetUp(props)) throw new HttpError(409, "Sprints are set up.");
-    const cadence = { length };
-    let first = startAt;
-    if (!first) {
-      const [project] = await tx
-        .select({ timeZone: projects.timeZone })
-        .from(projects)
-        .where(eq(projects.id, projectId))
-        .limit(1);
-      first = todayIn(project.timeZone);
+    const [project] = await tx
+      .select({ timeZone: projects.timeZone, sprintBy: projects.sprintBy })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    const reuse = sprintToReuse(project.sprintBy, props);
+    if (reuse) {
+      if (reuse !== project.sprintBy) {
+        await tx.update(projects).set({ sprintBy: reuse }).where(eq(projects.id, projectId));
+      }
+      return false;
     }
+    const cadence = { length };
+    const first = startAt ?? todayIn(project.timeZone);
 
     const [sprint] = await tx
       .insert(properties)
@@ -96,10 +101,28 @@ export const POST = route<Ctx>(async (req, ctx) => {
         config: { filters: view.filters },
       });
     }
+    await tx.update(projects).set({ sprintBy: sprint.id }).where(eq(projects.id, projectId));
+    return true;
   });
 
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
-  return json({ ok: true }, 201);
+  return json({ ok: true }, made ? 201 : 200);
+});
+
+/**
+ * Use sprints, off. It clears the pointer and nothing else: the property, its
+ * sprints, the values on the tasks and the views all stay where they are.
+ */
+export const DELETE = route<Ctx>(async (req, ctx) => {
+  const { projectId } = await ctx.params;
+  const { user, membership } = await guard(projectId);
+  adminOnly(user, membership, "turn sprints off");
+  /* Under the lock, so it cannot land between an on's read and its write. */
+  await withProjectLock(projectId, (tx) =>
+    tx.update(projects).set({ sprintBy: null }).where(eq(projects.id, projectId)),
+  );
+  await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
+  return json({ ok: true });
 });
 
 /** The body, which may be empty: a press with no answers takes the defaults. */

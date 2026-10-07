@@ -49,8 +49,18 @@ test.describe("Settings draws its controls dark", () => {
       "dark",
     );
 
+    /* Dates on, as a select dated before the switch went keeps them. Written
+       once the page is up, so the boxes come by the stream and the page that
+       draws them has hydrated: a box filled before that saves nothing. */
     const box = propertyBox(page, "Status");
-    await box.getByLabel("Options carry dates").check();
+    await expect(box).toBeVisible();
+    const board = (await (await page.request.get(`/api/projects/${projectId}/board`)).json()) as {
+      properties: { id: string; name: string }[];
+    };
+    const statusId = board.properties.find((p) => p.name === "Status")!.id;
+    expect(
+      (await page.request.patch(`/api/properties/${statusId}`, { data: { dated: true } })).ok(),
+    ).toBe(true);
     const start = box.getByLabel("Start of Todo");
     await expect(start).toHaveValue("");
     const muted = await token(start, "--muted");
@@ -72,40 +82,41 @@ test.describe("Settings draws its controls dark", () => {
     const projectId = await createProject(page, unique("One checkbox"));
     await gotoSettings(page, projectId);
 
-    const status = propertyBox(page, "Status");
-    const dated = status.getByLabel("Options carry dates");
-    const geometry = await checkboxGeometry(dated);
+    /* The ticks of "Shown when" are the checkbox Settings draws. */
+    const priority = propertyBox(page, "Priority");
+    await priority.getByRole("button", { name: "Shown when…" }).click();
+    await choose(priority.getByLabel("Shown when of Priority"), "Status");
+    const tick = priority.getByLabel("Todo", { exact: true });
+    const geometry = await checkboxGeometry(tick);
     expect(geometry).toMatchObject({
       appearance: "none",
       width: 14,
       height: 14,
       radius: "3px",
-      background: await token(dated, "--bg-input"),
-      border: await token(dated, "--line-dash"),
+      background: await token(tick, "--bg-input"),
+      border: await token(tick, "--line-dash"),
     });
     expect(geometry.labelHeight).toBeGreaterThanOrEqual(24);
 
     /* The words are part of the control. */
-    await status.getByText("Options carry dates", { exact: true }).click();
-    await expect(dated).toBeChecked();
-    await expect(dated).toHaveCSS("background-color", await token(dated, "--accent"));
+    await priority.getByText("Todo", { exact: true }).click();
+    await expect(tick).toBeChecked();
+    await expect(tick).toHaveCSS("background-color", await token(tick, "--accent"));
 
     /* The keyboard reaches it, and it says so. */
-    await dated.focus();
+    await tick.focus();
     await page.keyboard.press("Shift+Tab");
     await page.keyboard.press("Tab");
-    await expect(dated).toBeFocused();
-    await expect(dated).toHaveCSS("outline-color", await token(dated, "--focus-ring"));
-    await expect(dated).toHaveCSS("outline-style", "solid");
+    await expect(tick).toBeFocused();
+    await expect(tick).toHaveCSS("outline-color", await token(tick, "--focus-ring"));
+    await expect(tick).toHaveCSS("outline-style", "solid");
     await page.keyboard.press("Space");
-    await expect(dated).not.toBeChecked();
+    await expect(tick).not.toBeChecked();
 
-    /* The ticks of "Shown when" are the same control. */
-    const priority = propertyBox(page, "Priority");
-    await priority.getByRole("button", { name: "Shown when…" }).click();
-    await choose(priority.getByLabel("Shown when of Priority"), "Status");
-    const tick = priority.getByLabel("Todo", { exact: true });
-    expect(await checkboxGeometry(tick)).toEqual(geometry);
+    /* The switches of Settings → Project are the same control. */
+    await gotoSettings(page, projectId, "project");
+    const releases = page.getByRole("switch", { name: "Use releases" });
+    expect(await checkboxGeometry(releases)).toEqual(geometry);
   });
 
   test("the file button of Import looks like a ghost button", async ({ page }) => {

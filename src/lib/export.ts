@@ -24,6 +24,8 @@ import { readProgressBy } from "./progress";
 import { byPos } from "./order";
 import { readSort } from "./sort";
 import { readDefaults, readTypeBy, readWhens } from "./when";
+import { readReleaseBy } from "./releases";
+import { readSprintBy } from "./sprints";
 import { optionColumns, toOptionDTO } from "./queries";
 import { VIEW_KINDS } from "./types";
 import type {
@@ -58,6 +60,8 @@ export type ProjectExport = {
     doneWhen: DoneWhen | null;
     progressBy: string | null;
     typeBy: string | null;
+    releaseBy: string | null;
+    sprintBy: string | null;
   };
   properties: PropertyDTO[];
   views: {
@@ -280,6 +284,8 @@ export async function loadExport(
       doneWhen: readDoneWhen(projectRow.doneWhen, propertyList),
       progressBy: readProgressBy(projectRow.progressBy, propertyList),
       typeBy: readTypeBy(projectRow.typeBy, propertyList),
+      releaseBy: readReleaseBy(projectRow.releaseBy, propertyList),
+      sprintBy: readSprintBy(projectRow.sprintBy, propertyList),
     },
     properties: propertyList,
     /* The team's rules and order only. A lens is one person's, and stays. */

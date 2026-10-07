@@ -745,6 +745,17 @@ export type ProjectDTO = {
    */
   typeBy: string | null;
   /**
+   * The select this project ships releases by, or null when Use releases is
+   * off. Read afresh: a property that is gone, or is not a select, arrives
+   * here as null.
+   */
+  releaseBy: string | null;
+  /**
+   * The iteration this project runs sprints by, or null when Use sprints is
+   * off. Read afresh, as `releaseBy` is.
+   */
+  sprintBy: string | null;
+  /**
    * The zone this project's day is worked out in, as an IANA name. UTC until
    * the owner says otherwise, and read afresh: a name this runtime does not
    * know arrives here as UTC.

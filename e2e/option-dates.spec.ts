@@ -406,13 +406,13 @@ test.describe("An option carries a plan", () => {
 
 /*
  * Status and Priority are selects nobody dates, so the boxes wait for the
- * property to say its options carry dates. Off hides them and keeps what
- * they hold.
+ * property to say its options carry dates. Nothing on the page says it any
+ * more; a select dated before keeps its boxes by the stored flag.
  */
 test.describe("A select says whether its options carry dates", () => {
-  test("the switch shows the boxes, and off hides them and keeps the values", async ({ page }) => {
+  test("no switch says it; a select dated before keeps its boxes", async ({ page }) => {
     await register(page);
-    const projectId = await createProject(page, unique("Dated switch"));
+    const projectId = await createProject(page, unique("Dated flag"));
     const todo = await optionOf(page, projectId, "Status", "Todo");
     await page.request.patch(`/api/options/${todo.id}`, {
       data: { startAt: "2026-10-01", shippedAt: "2026-10-02" },
@@ -420,35 +420,21 @@ test.describe("A select says whether its options carry dates", () => {
 
     await gotoSettings(page, projectId);
     const box = propertyBox(page, "Status");
-    const toggle = box.getByLabel("Options carry dates");
-    /* Off by default, and only a select has it. */
-    await expect(toggle).not.toBeChecked();
-    await expect(propertyBox(page, "Labels").getByLabel("Options carry dates")).toHaveCount(0);
+    /* A new plain select has no dates, and nothing on the page offers them. */
+    await expect(page.getByText("Options carry dates")).toHaveCount(0);
     await expect(box.getByLabel(/^Start of /)).toHaveCount(0);
     await expect(box.getByLabel(/^Note of /)).toHaveCount(0);
     await expect(box.getByRole("button", { name: /^Unship / })).toHaveCount(0);
 
-    await saved(page, () => toggle.check());
+    /* The stored flag is what draws the boxes, as it was for a select dated
+       before the switch went. */
+    await datesOn(page, projectId, "Status");
+    await page.reload();
     await expect(box.getByLabel("Start of Todo")).toHaveValue("2026-10-01");
     await expect(box.getByLabel("Target of Todo")).toBeVisible();
     await expect(box.getByLabel("Note of Todo")).toBeVisible();
     await expect(box.getByRole("button", { name: "Unship Todo" })).toBeVisible();
-    expect(
-      ((await propertyOf(page, projectId, "Status")) as { config?: { dated?: boolean } }).config,
-    ).toMatchObject({ dated: true });
-
-    await saved(page, () => toggle.uncheck());
-    await expect(box.getByLabel(/^Start of /)).toHaveCount(0);
-    await page.reload();
-    await expect(box.getByLabel("Options carry dates")).not.toBeChecked();
-    await expect(box.getByLabel(/^Start of /)).toHaveCount(0);
-    expect(await optionOf(page, projectId, "Status", "Todo")).toMatchObject({
-      startAt: "2026-10-01",
-      shippedAt: "2026-10-02",
-    });
-
-    await saved(page, () => box.getByLabel("Options carry dates").check());
-    await expect(box.getByLabel("Start of Todo")).toHaveValue("2026-10-01");
+    await expect(page.getByText("Options carry dates")).toHaveCount(0);
   });
 
   test("only an admin, and only a person, turns it", async ({ page, browser }) => {

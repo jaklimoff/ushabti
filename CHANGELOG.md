@@ -93,6 +93,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   in the filter mean the same thing. The filter lists them under **Left the project**; the picker
   shows them as the value but never offers them. Somebody who rejoins is a member again.
 
+- **Releases and sprints are switches in Settings.** Settings → Project has **Use releases** and
+  **Use sprints** in place of **Set up sprints**. Use releases adds a dated property Release and a
+  Roadmap on it; Use sprints asks for the length and the first day and makes what Set up sprints
+  made. Off asks first, says what stays in numbers, and deletes nothing; on again makes nothing
+  twice. The **Options carry dates** switch is gone from Properties, and a select dated before keeps
+  its dates. A project that dated a select or had an iteration has its switches on after the
+  upgrade.
 - **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
   **Close**: it ends the sprint and moves its unfinished tasks to the next one or leaves them, and
   the finished tasks stay on the board. A task in a closed sprint and an open release stays until

@@ -197,6 +197,13 @@
       "when": 1791367958355,
       "tag": "0027_sprint_ends_on_ship",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791396534929,
+      "tag": "0028_release_sprint_by",
+      "breakpoints": true
     }
   ]
 }

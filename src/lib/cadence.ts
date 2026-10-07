@@ -83,7 +83,7 @@ export function followOn(
   return { startAt, targetAt: addDays(startAt, length - 1) };
 }
 
-/** What Set up sprints makes: the first sprint, and the one after it to plan into. */
+/** What Use sprints makes: the first sprint, and the one after it to plan into. */
 export function firstSprints(startAt: string, length: number): MadeSprint[] {
   const first = { name: `${SPRINT} 1`, startAt, targetAt: addDays(startAt, length - 1) };
   return [first, { name: nextSprintName(first.name), ...followOn(first, length, startAt) }];
