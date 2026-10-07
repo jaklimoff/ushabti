@@ -446,8 +446,10 @@ test.describe("A value its task does not show is dropped", () => {
     await box.getByRole("button", { name: "Shown when…" }).click();
     await choose(box.getByLabel("Shown when of Size"), "Priority");
     await box.getByLabel("Urgent", { exact: true }).click();
+    /* Settings answers the stream with its own loader, never the board. */
     const read = page.waitForResponse(
-      (r) => r.url().endsWith(`/api/projects/${projectId}/board`) && r.request().method() === "GET",
+      (r) =>
+        r.url().endsWith(`/api/projects/${projectId}/settings`) && r.request().method() === "GET",
     );
     await settles(page, /\/api\/properties\/[0-9a-f-]+$/, () =>
       box.getByTestId("when-confirm").getByRole("button", { name: "Yes, hide" }).click(),

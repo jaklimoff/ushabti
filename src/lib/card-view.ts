@@ -870,6 +870,9 @@ export function sampleTask(properties: PropertyDTO[], members: MemberDTO[], key:
   };
 }
 
+/** How many cards the preview draws. Settings reads this many and a parent. */
+export const PREVIEW_COUNT = 3;
+
 /**
  * The tasks the preview draws: the ones that carry the most, because a card
  * that holds nothing shows nothing and teaches nothing.
@@ -879,7 +882,7 @@ export function previewTasks(
   properties: PropertyDTO[],
   members: MemberDTO[],
   key: string,
-  count = 3,
+  count = PREVIEW_COUNT,
 ): TaskDTO[] {
   if (!tasks.length) return [sampleTask(properties, members, key)];
   /* The count of its parts shows only on a parent, so when the project has

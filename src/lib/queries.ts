@@ -25,7 +25,7 @@ import { readId } from "./api";
 import { listReady, removeObjects, toAttachmentDTO } from "./attachment-rows";
 import { attachmentsOn } from "./attachments";
 import { HttpError } from "./auth";
-import { mainBoardGroupById, ownCardView, readCardView } from "./card-view";
+import { mainBoardGroupById, ownCardView, PREVIEW_COUNT, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
 import { readFilters, WAITS } from "./filters";
@@ -404,7 +404,7 @@ function rawWithOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
  * touches an archived or a deleted row — and the three count subqueries
  * below, which run once per row, are never run for a task nobody draws.
  */
-function liveTaskRows(projectId: string) {
+function liveTaskRows(projectId: string, only?: string[]) {
   return (
     db
       .select({
@@ -424,10 +424,83 @@ function liveTaskRows(projectId: string) {
         commentCount: sql<number>`(select count(*)::int from ${comments} c where c.task_id = ${tasks}.id)`,
       })
       .from(tasks)
-      .where(and(eq(tasks.projectId, projectId), isNull(tasks.archivedAt), isNull(tasks.deletedAt)))
+      .where(
+        and(
+          eq(tasks.projectId, projectId),
+          isNull(tasks.archivedAt),
+          isNull(tasks.deletedAt),
+          only ? inArray(tasks.id, only) : undefined,
+        ),
+      )
       // the number keeps the order stable if two ranks ever match
       .orderBy(byPos(tasks.position), asc(tasks.number))
   );
+}
+
+/**
+ * The few live tasks the card view preview in Settings draws, picked in the
+ * database as `previewTasks` would pick them from the whole board: the ones
+ * that carry the most values, and the heaviest parent beside them. Settings
+ * never reads the rest.
+ */
+async function previewTaskRows(projectId: string) {
+  const live = and(
+    eq(tasks.projectId, projectId),
+    isNull(tasks.archivedAt),
+    isNull(tasks.deletedAt),
+  );
+  /* Empty is what `previewTasks` calls empty: no row, null, "" or []. */
+  const weight = sql`(select count(*) from ${taskValues} tv where tv.task_id = ${tasks}.id
+    and tv.value is not null and tv.value not in ('null'::jsonb, '""'::jsonb, '[]'::jsonb))`;
+  /* A part counts while it is not deleted, as `partsOf` counts it on a board. */
+  const hasParts = sql`exists (select 1 from ${taskLinks} l join ${tasks} c on c.id = l.to_id
+    where l.from_id = ${tasks}.id and l.kind = ${PARENT} and c.deleted_at is null)`;
+  const order = [desc(weight), byPos(tasks.position), asc(tasks.number)];
+  const [heavy, parent] = await Promise.all([
+    db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(live)
+      .orderBy(...order)
+      .limit(PREVIEW_COUNT),
+    db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(and(live, hasParts))
+      .orderBy(...order)
+      .limit(1),
+  ]);
+  const ids = [...new Set([...heavy, ...parent].map((r) => r.id))];
+  return ids.length ? liveTaskRows(projectId, ids) : [];
+}
+
+/**
+ * The tasks at the far end of the preview's links, with what says whether
+ * each is over. A deleted one is left out, as the board leaves it out.
+ */
+async function farEnds(ids: string[], doneWhen: DoneWhen | null) {
+  if (ids.length === 0) return [];
+  const [rows, held] = await Promise.all([
+    db
+      .select({ id: tasks.id, number: tasks.number, archivedAt: tasks.archivedAt })
+      .from(tasks)
+      .where(and(inArray(tasks.id, ids), isNull(tasks.deletedAt))),
+    doneValues(ids, doneWhen),
+  ]);
+  return rows.map((r) => {
+    const value = held.get(r.id);
+    return {
+      id: r.id,
+      number: r.number,
+      over: isOver(
+        {
+          archivedAt: r.archivedAt ? r.archivedAt.toISOString() : null,
+          values: doneWhen && value !== undefined ? { [doneWhen.propertyId]: value } : {},
+        },
+        doneWhen,
+      ),
+    };
+  });
 }
 
 /**
@@ -699,10 +772,33 @@ function formerRows(projectId: string) {
  * nobody else's. An agent passes null: it reads the view's filters, which is
  * what the whole team sees, and a person's own narrowing never reaches it.
  */
-export async function loadBoard(
+export function loadBoard(
   projectId: string,
   role: string,
   viewerId: string | null = null,
+): Promise<BoardData> {
+  return loadProject(projectId, role, viewerId, false);
+}
+
+/**
+ * What Settings reads: the board's shape, with only the few tasks the card
+ * view preview draws and a count of the rest. Renaming a property on a
+ * project of thousands of tasks must not download every value it holds, and
+ * Settings answers the stream with this, not with the board.
+ */
+export function loadSettings(
+  projectId: string,
+  role: string,
+  viewerId: string | null = null,
+): Promise<BoardData> {
+  return loadProject(projectId, role, viewerId, true);
+}
+
+async function loadProject(
+  projectId: string,
+  role: string,
+  viewerId: string | null,
+  preview: boolean,
 ): Promise<BoardData> {
   /* The sender runs on the read path as the lease does, and for the same
      reason: a board is read far more often than any schedule would fire, and
@@ -762,26 +858,44 @@ export async function loadBoard(
       .where(eq(properties.projectId, projectId))
       .orderBy(byPos(propertyOptions.position)),
     db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
-    liveTaskRows(projectId),
-    archivedTaskRows(projectId),
+    preview ? previewTaskRows(projectId) : liveTaskRows(projectId),
+    preview ? [] : archivedTaskRows(projectId),
     loadLenses(projectId, viewerId),
-    archivedUnderRows(projectId),
+    preview ? [] : archivedUnderRows(projectId),
+    /* The preview cards name a person who left as the board does. */
     formerRows(projectId),
   ]);
 
   /* Only the live ones. Nothing draws an archived task, so its values are
      fetched when its panel asks for them and not before. */
   const taskIds = taskRows.map((t) => t.id);
-  const [valueRows, runs, linkRows, parentRows] = await Promise.all([
+  const [valueRows, runs, linkRows, parentRows, taskCount] = await Promise.all([
     taskIds.length
       ? db.select().from(taskValues).where(inArray(taskValues.taskId, taskIds))
       : Promise.resolve([]),
-    loadOpenRuns(projectId),
+    /* Settings draws no run. */
+    preview ? [] : loadOpenRuns(projectId),
     /* Only what the cards on this board wait on. What they block is the
        panel's half of the chain, and the panel asks for it itself. */
     taskIds.length ? waitingLinks(taskIds) : Promise.resolve([]),
-    /* Every parent row, because a parent counts its archived parts too. */
-    taskIds.length ? projectLinks(projectId, db, PARENT) : Promise.resolve([]),
+    /* Every parent row, because a parent counts its archived parts too. The
+       preview needs only the parts of its own few. */
+    !taskIds.length
+      ? Promise.resolve([])
+      : preview
+        ? db
+            .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
+            .from(taskLinks)
+            .where(and(inArray(taskLinks.fromId, taskIds), eq(taskLinks.kind, PARENT)))
+        : projectLinks(projectId, db, PARENT),
+    /* The rename of a key and the delete of the project name what they cost. */
+    preview
+      ? db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(tasks)
+          .where(and(eq(tasks.projectId, projectId), isNull(tasks.deletedAt)))
+          .then(([row]) => row?.count ?? 0)
+      : undefined,
   ]);
 
   const valuesByTask = new Map<string, Record<string, TaskValue>>();
@@ -827,6 +941,16 @@ export async function loadBoard(
     });
   }
   for (const t of archivedRows) blockers.set(t.id, { number: t.number, over: true });
+  /* The preview holds a few live tasks and nothing else, so the ends of their
+     links are read on their own. */
+  if (preview) {
+    const far = [...linkRows.map((l) => l.fromId), ...parentRows.map((l) => l.toId)];
+    const ends = await farEnds(
+      [...new Set(far)].filter((id) => !blockers.has(id)),
+      doneWhen,
+    );
+    for (const t of ends) blockers.set(t.id, { number: t.number, over: t.over });
+  }
   /* A parent counts its parts by the same reading of over, so a part that
      blocks nothing reads done here exactly when it would on a chain. */
   const parts = partsOf(parentRows, new Map([...blockers].map(([id, b]) => [id, b.over])));
@@ -921,6 +1045,7 @@ export async function loadBoard(
       ]),
     ),
     runs,
+    ...(taskCount === undefined ? {} : { taskCount }),
   };
 }
 

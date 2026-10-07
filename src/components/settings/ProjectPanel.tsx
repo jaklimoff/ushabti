@@ -55,7 +55,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
 
   /* Every task of the project, archived ones too: a rename renames their keys
      as well, and a delete takes them with it. */
-  const taskCount = data.tasks.length + data.archived.length;
+  const taskCount = data.taskCount ?? data.tasks.length + data.archived.length;
   const keyChanged = key !== data.project.key && key.length > 0;
 
   /*

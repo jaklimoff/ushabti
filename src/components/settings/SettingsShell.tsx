@@ -24,7 +24,7 @@ export function SettingsShell({
   children: React.ReactNode;
 }) {
   return (
-    <BoardProvider initial={initial} user={user}>
+    <BoardProvider initial={initial} user={user} reads="settings">
       <Chrome version={version}>{children}</Chrome>
     </BoardProvider>
   );

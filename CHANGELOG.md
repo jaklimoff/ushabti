@@ -24,6 +24,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **Set and Archive work on any number of picked tasks.** Past 200 they used to refuse the whole
   pick. They now go in batches of 200, one after another. If one is refused, the toast says how
   many went and how many did not, and after an archive only the tasks that did not go stay picked.
+- **Settings opens without reading every task.** It reads the project, its properties, views and
+  people, and only the few tasks the card view preview draws. A change somebody else makes reloads
+  only that, so Settings stays quick on a project of thousands of tasks.
 
 ### Changed
 
