@@ -669,7 +669,7 @@ export function BoardCanvas({
    * not the cards between them in any order the board keeps.
    */
   function pickCard(taskId: string, event: React.MouseEvent, columnTaskIds: string[]) {
-    if (event.shiftKey) pickTo(taskId, columnTaskIds);
+    if (event.shiftKey) pickTo(taskId, columnTaskIds, selectedTaskId);
     else togglePick(taskId);
   }
 

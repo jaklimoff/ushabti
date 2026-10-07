@@ -213,6 +213,46 @@ test.describe("Picking several cards", () => {
     await expect(page.getByTestId("pick-count")).toHaveText("4 selected");
     await expect(column(page, "Backlog").locator('[data-picked="true"]')).toHaveCount(1);
   });
+
+  /* A plain click opens a task and picks nothing, so the run is measured from
+     the open task, as a click and a Shift-click are in every file list. */
+  test("Shift-click after a plain click picks the open card and all between", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Opened"));
+    await fourCards(page);
+    const picked = page.locator('[data-testid="card"][data-picked="true"]');
+
+    /* Downward. */
+    await card(page, "Aardvark").click();
+    await expect(page.getByTestId("task-panel")).toBeVisible();
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+    await card(page, "Cricket").click({ modifiers: ["Shift"] });
+    await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await page.getByTestId("pick-clear").click();
+
+    /* Upward. */
+    await card(page, "Cricket").click();
+    await card(page, "Aardvark").click({ modifiers: ["Shift"] });
+    await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await page.getByTestId("pick-clear").click();
+
+    /* With nothing open and nothing picked, there is no run: not even from
+       the board cursor, which sits on the first card. */
+    await card(page, "Beetle").click({ modifiers: ["Shift"] });
+    await expect(page.getByTestId("pick-count")).toHaveText("1 selected");
+    await expect(card(page, "Beetle")).toHaveAttribute("data-picked", "true");
+    await page.getByTestId("pick-clear").click();
+
+    /* The open task is in another column: a run across two columns is two
+       runs, so only the clicked card is picked. */
+    await card(page, "Dingo").click();
+    await card(page, "Cricket").click({ modifiers: ["Shift"] });
+    await expect(page.getByTestId("pick-count")).toHaveText("1 selected");
+    await expect(picked).toHaveCount(1);
+    await expect(card(page, "Cricket")).toHaveAttribute("data-picked", "true");
+  });
 });
 
 /*
@@ -349,6 +389,26 @@ test.describe("Archiving what is picked", () => {
  * a list are the rows of the card view and nothing else.
  */
 test.describe("Picking on a list", () => {
+  test("Shift-click after a plain click picks the open row and all between", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Opened list"));
+    await fourCards(page);
+    await addListView(page, "Everything");
+
+    await listRow(page, "Aardvark").click();
+    await expect(page.getByTestId("task-panel")).toBeVisible();
+    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
+    await listRow(page, "Cricket").click({ modifiers: ["Shift"] });
+    await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
+    await page.getByRole("button", { name: "Close task" }).click();
+    await page.getByTestId("pick-clear").click();
+
+    await listRow(page, "Dingo").click();
+    await listRow(page, "Beetle").click({ modifiers: ["Shift"] });
+    await expect(page.getByTestId("pick-count")).toHaveText("3 selected");
+    await expect(listRow(page, "Aardvark")).not.toHaveAttribute("data-picked", "true");
+  });
+
   test("x and Shift-click pick, and Set writes all of them", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Lying down"));

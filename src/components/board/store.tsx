@@ -240,8 +240,10 @@ type Store = {
    * given as the column's own cards, top to bottom, because a range is a
    * range of the screen and only the column knows its order. With the last
    * pick somewhere else, there is no run: this one card is picked instead.
+   * With nothing picked by hand yet, the run starts at the open task, the way
+   * a click and then a Shift-click works in every file list.
    */
-  pickTo: (taskId: string, columnTaskIds: string[]) => void;
+  pickTo: (taskId: string, columnTaskIds: string[], openTaskId: string | null) => void;
   /** Nothing is picked. Escape, the ✕ and a change of view all end here. */
   clearPicks: () => void;
   /** Sets one property on every picked task, in one call. */
@@ -777,8 +779,12 @@ export function BoardProvider({
     );
   }, []);
 
-  const pickTo = useCallback<Store["pickTo"]>((taskId, columnTaskIds) => {
-    const from = anchor.current ? columnTaskIds.indexOf(anchor.current) : -1;
+  const pickTo = useCallback<Store["pickTo"]>((taskId, columnTaskIds, openTaskId) => {
+    /* A plain click opens a task and sets no anchor, so the open task stands
+       in. Not the board cursor: it falls back to the first card, and a
+       Shift-click with nothing open would pick a run from the top. */
+    const start = anchor.current ?? openTaskId;
+    const from = start ? columnTaskIds.indexOf(start) : -1;
     const to = columnTaskIds.indexOf(taskId);
     /* The last pick is in another column, or gone. A run across two columns
        is two runs, so this picks the one card and starts again from it. */

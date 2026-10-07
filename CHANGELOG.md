@@ -8,6 +8,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **Shift-click picks from the open task.** Click a card, then Shift-click another in the same
+  column, and both are picked with every card between them. The same works in a list.
+
 ## 0.20.0 — 2026-10-07
 
 ### Added
