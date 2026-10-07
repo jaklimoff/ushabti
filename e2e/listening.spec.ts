@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import {
@@ -422,6 +424,173 @@ test.describe("Agents that wait for work", () => {
       // The harness closed its own run, and the card is quiet again.
       expect(detail.run).toBeNull();
       await expect(card(page, "Refine me").first().getByTestId("card-run")).toBeHidden();
+    } finally {
+      watcher.kill("SIGTERM");
+    }
+  });
+});
+
+test.describe("A write of more than a page of lines", () => {
+  /* One write stamps all its lines with one moment. A feed paged by the
+     moment alone read the first 200 of such a burst for ever, and the
+     watcher behind it stopped hearing anything at all. */
+
+  type FeedEntry = { id: string; kind: string; createdAt: string; taskKey: string | null };
+
+  /** Makes `count` tasks with no value in a select, and archives that column in one write. */
+  async function archiveBurst(request: APIRequestContext, projectId: string, count: number) {
+    const { board } = await taskByTitle(request, projectId, "Keep me");
+    const select = board.properties.find((p: { type: string }) => p.type === "select");
+    for (let made = 0; made < count; made += 10) {
+      await Promise.all(
+        Array.from({ length: Math.min(10, count - made) }, (_, i) =>
+          request
+            .post(`/api/projects/${projectId}/tasks`, { data: { title: `Burst ${made + i}` } })
+            .then((res) => expect(res.ok()).toBeTruthy()),
+        ),
+      );
+    }
+    const since = (await (await request.get(`/api/projects/${projectId}/activity`)).json()).now;
+    const res = await request.post(`/api/projects/${projectId}/archive`, {
+      data: { propertyId: select.id, value: null },
+    });
+    expect(res.ok()).toBeTruthy();
+    expect((await res.json()).archived).toBe(count);
+    return since as string;
+  }
+
+  /** A task that keeps a value in every select, so the burst leaves it alone. */
+  async function keepTask(page: Page) {
+    await addTask(page, "Todo", "Keep me");
+    await page.getByRole("button", { name: "Close task" }).click();
+  }
+
+  async function assignTo(request: APIRequestContext, projectId: string, name: string) {
+    const { board, task } = await taskByTitle(request, projectId, "Keep me");
+    const assignee = board.properties.find((p: { type: string }) => p.type === "person");
+    const agent = board.members.find((m: { name: string }) => m.name === name);
+    const assigned = await request.put(`/api/tasks/${task.id}/values/${assignee.id}`, {
+      data: { value: agent.id },
+    });
+    expect(assigned.ok()).toBeTruthy();
+    return task.key as string;
+  }
+
+  function watch(token: string, args: string[]) {
+    const harness = `node ${JSON.stringify(BOARD_MJS)} finish {key} --log heard`;
+    const watcher = spawn(
+      process.execPath,
+      [BOARD_MJS, "watch", "--once", "--on", "assigned", "--run", harness, ...args],
+      {
+        env: { ...process.env, USHABTI_URL: boardUrl(), USHABTI_TOKEN: token },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    const out = { text: "" };
+    watcher.stdout.on("data", (chunk) => (out.text += chunk));
+    watcher.stderr.on("data", (chunk) => (out.text += chunk));
+    const exited = new Promise<number | null>((done) => watcher.on("exit", (code) => done(code)));
+    const finished = () =>
+      Promise.race([
+        exited,
+        new Promise<"timeout">((done) => setTimeout(() => done("timeout"), 40_000)),
+      ]);
+    return { watcher, out, finished };
+  }
+
+  test("a feed of 500 lines written at one moment is read whole, 200 at a time", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await register(page, "Feed Owner");
+    const projectId = await createProject(page, unique("Burst"));
+    await keepTask(page);
+    const since = await archiveBurst(page.request, projectId, 500);
+
+    const read: FeedEntry[] = [];
+    const pages: number[] = [];
+    let query = `after=${encodeURIComponent(since)}`;
+    for (;;) {
+      const res = await page.request.get(`/api/projects/${projectId}/activity?${query}&limit=200`);
+      expect(res.ok()).toBeTruthy();
+      const { entries } = (await res.json()) as { entries: FeedEntry[] };
+      pages.push(entries.length);
+      read.push(...entries);
+      if (entries.length < 200 || pages.length > 5) break;
+      const last = entries[entries.length - 1];
+      query = `after=${encodeURIComponent(last.createdAt)}&afterId=${last.id}`;
+    }
+
+    expect(pages).toEqual([200, 200, 100]);
+    expect(new Set(read.map((e) => e.id)).size).toBe(500);
+    expect(read.every((e) => e.kind === "archive")).toBe(true);
+    // One write, one moment: the moment alone could not have said where a page ended.
+    expect(new Set(read.map((e) => e.createdAt)).size).toBe(1);
+
+    const bad = await page.request.get(
+      `/api/projects/${projectId}/activity?after=${encodeURIComponent(since)}&afterId=nope`,
+    );
+    expect(bad.status()).toBe(400);
+  });
+
+  test("after 300 cards are archived in one write, an assignment that follows wakes the watcher", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    await register(page, "Burst Owner");
+    const projectId = await createProject(page, unique("Deaf"));
+    await keepTask(page);
+    const token = await connectAgent(page, projectId, "Refiner");
+
+    const { watcher, out, finished } = watch(token, []);
+    try {
+      await page.goto(`/p/${projectId}`);
+      await expect(page.getByTestId("listening-agent")).toBeVisible();
+
+      await archiveBurst(page.request, projectId, 300);
+      // The watcher reads the burst before the assignment arrives.
+      await page.waitForTimeout(3_000);
+      const key = await assignTo(page.request, projectId, "Refiner");
+
+      expect(await finished(), out.text).toBe(0);
+      expect(out.text).toContain(`${key}: assigned`);
+      expect(out.text).toContain(`${key}: done`);
+    } finally {
+      watcher.kill("SIGTERM");
+    }
+  });
+
+  test("a watcher with an old --state file catches up instead of stopping", async ({ page }) => {
+    test.setTimeout(240_000);
+    await register(page, "State Owner");
+    const projectId = await createProject(page, unique("Stuck"));
+    await keepTask(page);
+    const token = await connectAgent(page, projectId, "Refiner");
+    const since = await archiveBurst(page.request, projectId, 300);
+
+    /* What a watcher of the old release left behind: its cursor on the
+       burst's moment, and the first page of the burst seen. */
+    const first = (
+      await (
+        await page.request.get(
+          `/api/projects/${projectId}/activity?after=${encodeURIComponent(since)}&limit=200`,
+        )
+      ).json()
+    ).entries as FeedEntry[];
+    expect(first).toHaveLength(200);
+    const state = path.join(mkdtempSync(path.join(os.tmpdir(), "ushabti-state-")), "watch.json");
+    writeFileSync(
+      state,
+      JSON.stringify({ projectId, cursor: first[0].createdAt, seen: first.map((e) => e.id) }),
+    );
+
+    const key = await assignTo(page.request, projectId, "Refiner");
+
+    const { watcher, out, finished } = watch(token, ["--state", state]);
+    try {
+      expect(await finished(), out.text).toBe(0);
+      expect(out.text).toContain(`${key}: assigned`);
+      expect(out.text).toContain(`${key}: done`);
     } finally {
       watcher.kill("SIGTERM");
     }

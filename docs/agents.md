@@ -966,6 +966,19 @@ it answers only `now`, which is where a new reader starts. Read a few seconds
 before your cursor and skip the ids you have seen: two writes can commit out of
 the order of their clocks.
 
+A page holds 200 lines unless you ask for up to 500 with `limit`. When it comes
+back full, ask for the next one from its last line: that line's `createdAt` as
+`after`, and its `id` as `afterId`.
+
+```http
+GET /api/projects/{projectId}/activity?after=2026-09-18T15:29:10.415Z&afterId=…
+```
+
+`after` alone is not enough. One write gives all its lines one moment, so
+archiving 300 cards writes 300 lines with the same `createdAt`, and a page that
+ends among them would start again at their first. Lines of one moment come in
+`id` order.
+
 `actor.kind` is there so that an agent can leave alone what another agent did.
 Two agents that each react to the other's new tasks refine each other for ever.
 

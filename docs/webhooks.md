@@ -203,3 +203,5 @@ structure is the owner's.
 4. Read `/activity?after=…` for what actually happened, a few seconds before
    your cursor, and skip the entries you have already handled: two writes can
    commit out of the order of their clocks.
+   A full page goes on from its last line, with `afterId` beside `after`, as
+   [agents.md](agents.md) says.

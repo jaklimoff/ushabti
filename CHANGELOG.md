@@ -23,6 +23,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   and its column says "Ended 2 days ago" on a line below its name. Ship makes the next sprint when
   none is open after it. The cadence is only the sprint length now; "Sprints kept ahead" is gone.
 
+### Fixed
+
+- **A watcher keeps hearing new work after a write of more than 200 lines.** Archiving a column of
+  300 cards, or an import of 500, left every listening agent deaf: the watcher read the same first
+  page again and stopped. The activity feed now goes on from a page's last line with `afterId`
+  beside `after`, and the watcher pages through a burst of any length, even from an old `--state`
+  file.
+
 ## 0.19.0 — 2026-10-06
 
 ### Fixed
