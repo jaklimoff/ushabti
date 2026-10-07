@@ -195,6 +195,9 @@ test.describe("What a task waits on", () => {
 
     await page.getByRole("button", { name: "Task menu" }).click();
     await page.getByTestId("add-blocker").click();
+    /* An empty box has asked for nothing, so it does not say nothing was found. */
+    await expect(page.getByTestId("link-search-blockedBy")).toBeVisible();
+    await expect(page.getByTestId("links-blockedBy")).not.toContainText("No task");
     await page.getByTestId("link-search-blockedBy").fill(key);
     /* The task itself is never in the list, so there is nothing to press: the
        box says so rather than offering a row that would be refused. */
