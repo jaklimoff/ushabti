@@ -70,6 +70,7 @@ test.describe("Roles", () => {
     await adminPage.getByRole("button", { name: "Add agent" }).click();
     const agentBox = adminPage.getByTestId("agent-box").filter({ hasText: "Helper" });
     await agentBox.getByRole("button", { name: "Connect" }).click();
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const secret = adminPage.getByTestId("agent-secret").first();
     const token = ((await secret.locator("code").first().textContent()) ?? "").trim();
     expect(token).toMatch(/^ush_/);
@@ -179,6 +180,7 @@ test.describe("Roles", () => {
       .filter({ hasText: "Helper" })
       .getByRole("button", { name: "Connect" })
       .click();
+    await page.getByRole("button", { name: "Make token" }).click();
     const token = (
       (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
     ).trim();

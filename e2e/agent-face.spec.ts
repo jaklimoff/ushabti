@@ -96,6 +96,8 @@ test.describe("The face of an agent", () => {
     /* ---- the agent comments, and the panel still says it is an agent --- */
 
     await agentBox.getByRole("button", { name: "Connect" }).click();
+
+    await agentBox.getByRole("button", { name: "Make token" }).click();
     const secret = page.getByTestId("agent-secret").first();
     const token = ((await secret.locator("code").first().textContent()) ?? "").trim();
     const board = await (await memberPage.request.get(`/api/projects/${projectId}/board`)).json();
