@@ -129,7 +129,7 @@ describe("values a task does not show", () => {
 
 describe("a hidden Done closes nothing", () => {
   it("is over as a bug, and not over once the type changes", () => {
-    const doneWhen = { propertyId: "p-status", optionId: "o-done" };
+    const doneWhen = { propertyId: "p-status", optionIds: ["o-done"] };
     expect(isOver({ archivedAt: null, values: bug }, doneWhen)).toBe(true);
     const story = withoutHidden({ ...bug, "p-type": "o-story" }, all);
     expect(isOver({ archivedAt: null, values: story }, doneWhen)).toBe(false);

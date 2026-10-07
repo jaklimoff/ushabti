@@ -12,7 +12,7 @@ import { CADENCE_DEFAULT } from "@/lib/cadence";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { Field, Input, Select, TextArea } from "@/components/ui/Form";
+import { Checkbox, Field, Input, Select, TextArea } from "@/components/ui/Form";
 import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -73,6 +73,28 @@ export function ProjectPanel({ files }: { files: boolean }) {
    */
   const [pickedId, setPickedId] = useState<string | null>(null);
   const doneProperty = selects.find((p) => p.id === (pickedId ?? doneWhen?.propertyId)) ?? null;
+  /*
+   * Each tick writes the whole list, worked out from the saved one, so a
+   * second tick waits for the first answer rather than writing over it. The
+   * list on its way out is what the ticks show until the answer lands.
+   */
+  const savedTicks = doneWhen?.propertyId === doneProperty?.id ? (doneWhen?.optionIds ?? []) : [];
+  const [sendingTicks, setSendingTicks] = useState<string[] | null>(null);
+  const ticks = sendingTicks ?? savedTicks;
+  async function tickDone(optionId: string, on: boolean) {
+    if (!doneProperty || sendingTicks) return;
+    const next = doneProperty.options
+      .map((o) => o.id)
+      .filter((id) => (id === optionId ? on : savedTicks.includes(id)));
+    setSendingTicks(next);
+    try {
+      await save({
+        doneWhen: next.length ? { propertyId: doneProperty.id, optionIds: next } : null,
+      });
+    } finally {
+      setSendingTicks(null);
+    }
+  }
   /* What a column's bar sums. The board cannot know what a point is, so the
      owner names a number property, and none means each task counts one. */
   const numbers = data.properties.filter((p) => p.type === "number");
@@ -265,10 +287,10 @@ export function ProjectPanel({ files }: { files: boolean }) {
         </Card>
 
         {/*
-         * The two boxes are one answer, so they sit on one row. Picking a
-         * property with no option yet writes nothing: the answer is the option.
-         * Both boxes save the moment they change — a dropdown has no draft to
-         * lose, so the change is its blur.
+         * The property and its ticks are one answer, so they sit on one row.
+         * Picking a property with no option yet writes nothing: the answer is
+         * the options. Each saves the moment it changes — a dropdown or a tick
+         * has no draft to lose, so the change is its blur.
          */}
         <Card>
           <Row>
@@ -293,24 +315,25 @@ export function ProjectPanel({ files }: { files: boolean }) {
                 ]}
               />
               {doneProperty && (
-                <Select
-                  aria-label="The option that says a task is done"
-                  value={doneWhen?.optionId ?? ""}
-                  disabled={!canEdit}
-                  onChange={(picked) =>
-                    void save({
-                      doneWhen: picked ? { propertyId: doneProperty.id, optionId: picked } : null,
-                    })
-                  }
-                  options={[
-                    { value: "", label: "Pick one" },
-                    ...doneProperty.options.map((o) => ({ value: o.id, label: o.name })),
-                  ]}
-                />
+                <div
+                  role="group"
+                  aria-label="The options that say a task is done"
+                  className={styles.doneOptions}
+                >
+                  {doneProperty.options.map((o) => (
+                    <Checkbox
+                      key={o.id}
+                      label={o.name}
+                      checked={ticks.includes(o.id)}
+                      disabled={!canEdit || sendingTicks !== null}
+                      onChange={(e) => void tickDone(o.id, e.target.checked)}
+                    />
+                  ))}
+                </div>
               )}
               <Note>
                 A task that blocks another stops blocking when it is archived, or when it reaches
-                this.
+                any option ticked here.
               </Note>
             </Field>
           </Row>

@@ -712,11 +712,12 @@ export type ProjectDTO = {
   ownerId: string;
   role: string;
   /**
-   * The property and the option this project calls done, or null for
+   * The property and the options this project calls done, or null for
    * archived. It is what makes a blocker stop blocking, and it is read afresh:
-   * a row naming a property that is gone arrives here as null.
+   * an option that is gone drops out, and a row naming a property that is
+   * gone, or no option left, arrives here as null.
    */
-  doneWhen: { propertyId: string; optionId: string } | null;
+  doneWhen: { propertyId: string; optionIds: string[] } | null;
   /**
    * The number property a column's progress bar sums, or null to count
    * tasks. Read afresh: a property that is gone, or is not a number, arrives

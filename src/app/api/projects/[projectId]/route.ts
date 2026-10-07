@@ -18,7 +18,7 @@ import { logActivity } from "@/lib/activity";
 import { AGENT_RULES_MAX } from "@/lib/agent-rules";
 import { rulesHash } from "@/lib/agent-rules-hash";
 import { isTimeZone, zoneRefused } from "@/lib/day";
-import { readDoneWhen } from "@/lib/links";
+import { doneWhenRefused, readDoneWhen } from "@/lib/links";
 import { readProgressBy } from "@/lib/progress";
 import { readTypeBy } from "@/lib/when";
 import { loadProperties } from "@/lib/queries";
@@ -51,15 +51,21 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   }
   /*
    * What this project calls done, which is what makes a blocker stop
-   * blocking. It goes through `readDoneWhen` on the way in, so a row that
-   * names a property or an option that is gone never lands — and it is read
-   * afresh on the way out as well, because one may go afterwards. Null is
-   * "archived", which is the answer until somebody says otherwise.
+   * blocking. A row naming an option of another property is refused, and
+   * what lands is what `readDoneWhen` reads, so an old `optionId` is stored
+   * as a list of one. It is read afresh on the way out as well, because an
+   * option may go afterwards. Null is "archived", which is the answer until
+   * somebody says otherwise, and a list with nothing picked is null too.
    */
   if (input.doneWhen !== undefined) {
-    patch.doneWhen = input.doneWhen
-      ? readDoneWhen(input.doneWhen, await loadProperties(projectId))
-      : null;
+    if (input.doneWhen) {
+      const properties = await loadProperties(projectId);
+      const refused = doneWhenRefused(input.doneWhen, properties);
+      if (refused) throw new HttpError(400, refused);
+      patch.doneWhen = readDoneWhen(input.doneWhen, properties);
+    } else {
+      patch.doneWhen = null;
+    }
   }
   /*
    * The number property a column's bar sums. A name that is not a number

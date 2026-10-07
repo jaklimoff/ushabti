@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Done when can name more than one option.** In **Settings → Project**, tick every option
+  that means over, such as Done and Won't do. A blocker in any of them frees what waits on it,
+  and Ship, progress and parts count it as done. The API now answers `doneWhen` as
+  `{ propertyId, optionIds }`; a write may still send `optionId`.
 - **An agent's tokens can be told apart.** **Connect** asks for a name for the token, filled in
   with today's date. Each token row shows its name, its prefix and the day it was made. Revoking
   a token names it, and says the agent keeps working when it has other tokens.

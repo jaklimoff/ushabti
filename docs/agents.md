@@ -225,9 +225,12 @@ sentence — _USH-12 already waits on USH-71, so this would be a circle._ — an
 task told to wait on itself is refused with _A task cannot wait on itself._
 
 **A blocker stops blocking when it is over.** Over means archived, and it also
-means the one option the owner named in **Settings → Project**, if they named
-one. Nothing here is hardcoded: read `project.doneWhen` on the board answer,
-which is `{ "propertyId": …, "optionId": … }` or null. A task carries
+means any of the options the owner ticked in **Settings → Project**, such as
+Done and Won't do. Nothing here is hardcoded: read `project.doneWhen` on the
+board answer, which is `{ "propertyId": …, "optionIds": [ … ] }` or null. It
+used to carry one `optionId`; it is a list now, and a list of one when a single
+option was named. A write still takes `optionId` and reads it as a list of one,
+and an option of another property is refused with `400`. A task carries
 `blockedBy`, the keys of the blockers that are **not** over — so an empty list
 means the task is free to pick up, whatever links it holds.
 

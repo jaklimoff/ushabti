@@ -160,7 +160,7 @@ describe("searchTasks", () => {
   });
 
   describe("with the project's Done when", () => {
-    const DONE = { propertyId: "status", optionId: "done" };
+    const DONE = { propertyId: "status", optionIds: ["done"] };
     const doneTask = (over: Partial<TaskDTO> & { number: number }) =>
       task({ values: { status: "done" }, ...over });
     const doneKeys = (query: string, tasks: TaskDTO[]) =>

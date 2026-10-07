@@ -1372,3 +1372,10 @@
   align-items: center;
   gap: 6px;
 }
+
+/* The ticks of Done when: as many as the property has options, so they wrap. */
+.doneOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}

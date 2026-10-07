@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { progressOf, readProgressBy } from "../progress";
 import type { PropertyDTO } from "../types";
 
-const done = { propertyId: "p-status", optionId: "o-done" };
+const done = { propertyId: "p-status", optionIds: ["o-done"] };
 
 function task(status: string | null, points?: unknown) {
   return {
