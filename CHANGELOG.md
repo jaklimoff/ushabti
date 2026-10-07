@@ -34,6 +34,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   page again and stopped. The activity feed now goes on from a page's last line with `afterId`
   beside `after`, and the watcher pages through a burst of any length, even from an old `--state`
   file.
+- **Removing an agent keeps what it did.** Its past runs, with their plans and logs, stay on the
+  Agent tab of every task it worked on, and its comments and activity keep its name. Only its
+  tokens and its place in the project go, and the question in Settings now says so.
 
 ## 0.19.0 — 2026-10-06
 

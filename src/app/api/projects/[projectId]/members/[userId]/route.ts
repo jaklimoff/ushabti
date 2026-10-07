@@ -36,7 +36,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
 
   const removingSelf = user.id === userId;
   // A person may leave. An agent may not: an admin removes it in Settings,
-  // which deletes its user row and its tokens with it.
+  // which takes its tokens with it.
   if (removingSelf && user.kind === "agent") {
     throw new HttpError(
       403,
