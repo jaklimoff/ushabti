@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { canSetOnMany } from "@/lib/bulk";
-import type { TaskValue } from "@/lib/types";
+import { useMemo, useRef, useState } from "react";
+import { canSetOnMany, type Change } from "@/lib/bulk";
+import type { PropertyDTO, TaskValue } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { AskBox, propertyColor, Rows, type Row } from "./Ask";
@@ -215,41 +215,49 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
                     {property.name}
                   </button>
                 </div>
-                <div className={styles.pickControl}>
-                  <PropertyControl
-                    property={property}
-                    value={draft}
-                    members={data.members}
-                    today={data.today}
-                    onChange={(value: TaskValue) => {
-                      const wanted = new Set(picked);
-                      const cards = data.tasks.filter((t) => wanted.has(t.id));
-                      const drops = pickedDrops(cards, data.properties, property.id, value);
-                      if (drops.values > 0) {
-                        close();
-                        setAsking({
-                          propertyId: property.id,
-                          value,
-                          question: pickedAsked(property, value, picked.length, drops),
-                          picks,
-                        });
-                        return;
-                      }
-                      setDraft(value);
-                      void setPickedValue(property.id, value);
-                    }}
-                    onAddOption={
-                      hasOptions(property.type) ? (name) => addOption(property.id, name) : undefined
-                    }
-                  />
-                </div>
-                {/* It says what it will do before it does it, exactly as the
+                {property.type === "multi_select" ? (
+                  <OneOption property={property} />
+                ) : (
+                  <>
+                    <div className={styles.pickControl}>
+                      <PropertyControl
+                        property={property}
+                        value={draft}
+                        members={data.members}
+                        today={data.today}
+                        onChange={(value: TaskValue) => {
+                          const wanted = new Set(picked);
+                          const cards = data.tasks.filter((t) => wanted.has(t.id));
+                          const drops = pickedDrops(cards, data.properties, property.id, value);
+                          if (drops.values > 0) {
+                            close();
+                            setAsking({
+                              propertyId: property.id,
+                              value,
+                              question: pickedAsked(property, value, picked.length, drops),
+                              picks,
+                            });
+                            return;
+                          }
+                          setDraft(value);
+                          void setPickedValue(property.id, value);
+                        }}
+                        onAddOption={
+                          hasOptions(property.type)
+                            ? (name) => addOption(property.id, name)
+                            : undefined
+                        }
+                      />
+                    </div>
+                    {/* It says what it will do before it does it, exactly as the
                     composer says what a filter will put on a new task. */}
-                <span className={styles.filterNote}>
-                  {picked.length === 1
-                    ? "It goes on the one task."
-                    : `It goes on all ${picked.length} tasks.`}
-                </span>
+                    <span className={styles.filterNote}>
+                      {picked.length === 1
+                        ? "It goes on the one task."
+                        : `It goes on all ${picked.length} tasks.`}
+                    </span>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -306,4 +314,119 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
       </button>
     </div>
   );
+}
+
+/*
+ * A multi-select is changed one option at a time, never set whole.
+ *
+ * Each picked task has a list of its own, so one list sent to all of them
+ * replaces every one of those lists: Bug set on thirty tasks took every other
+ * label off all thirty. So the bar asks which way — on or off — and which
+ * option, and says under the list what the highlighted one will do before a
+ * press does it. A row says how many of the picks already carry it.
+ */
+function OneOption({ property }: { property: PropertyDTO }) {
+  const { data, picked, setPickedValue } = useBoard();
+  const [change, setChange] = useState<Change>("add");
+  const [query, setQuery] = useState("");
+  const [at, setAt] = useState(0);
+  // A press while the last one is out would send a second change on top of it.
+  const out = useRef(false);
+
+  const cards = useMemo(() => {
+    const wanted = new Set(picked);
+    return data.tasks.filter((t) => wanted.has(t.id));
+  }, [data.tasks, picked]);
+
+  // How many of the picks carry each option, for the rows and the sentence.
+  const carrying = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const t of cards) {
+      const v = t.values[property.id];
+      if (!Array.isArray(v)) continue;
+      for (const id of v) count.set(id, (count.get(id) ?? 0) + 1);
+    }
+    return count;
+  }, [cards, property.id]);
+
+  const n = cards.length;
+  const rows: Row[] = useMemo(() => {
+    const wanted = query.trim().toLowerCase();
+    return property.options
+      .filter((o) => !wanted || o.name.toLowerCase().includes(wanted))
+      .map((o) => ({
+        id: o.id,
+        name: o.name,
+        color: o.color,
+        note: `${carrying.get(o.id) ?? 0} of ${n}`,
+      }));
+  }, [property.options, query, carrying, n]);
+
+  async function pick(row: Row) {
+    if (out.current) return;
+    out.current = true;
+    try {
+      await setPickedValue(property.id, row.id, change);
+    } finally {
+      out.current = false;
+    }
+  }
+
+  const row = rows[at];
+  const said = row
+    ? changeSaid(change, row.name, property.name, carrying.get(row.id) ?? 0, n)
+    : `Pick the ${property.name} option to ${change === "add" ? "add" : "take off"}.`;
+
+  return (
+    <>
+      <div className={styles.chipRow} role="group" aria-label={`Add or take off ${property.name}`}>
+        {(["add", "remove"] as const).map((way) => (
+          <button
+            key={way}
+            className={`${styles.chip} ${change === way ? styles.chipOn : ""}`}
+            aria-pressed={change === way}
+            data-testid={`pick-${way}`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setChange(way)}
+          >
+            {way === "add" ? "Add" : "Take off"}
+          </button>
+        ))}
+      </div>
+      <AskBox
+        query={query}
+        onQuery={setQuery}
+        rows={rows}
+        at={at}
+        setAt={setAt}
+        onPick={(r) => void pick(r)}
+        listId="pick-options"
+        label={`Find the ${property.name} option`}
+        placeholder="Which option?"
+        testId="pick-option-search"
+      />
+      <Rows
+        rows={rows}
+        at={at}
+        listId="pick-options"
+        empty="No option by that name."
+        onPick={(r) => void pick(r)}
+      />
+      <span className={styles.filterNote} data-testid="pick-note" aria-live="polite">
+        {said}
+      </span>
+    </>
+  );
+}
+
+/** What a press on one option will do to the picks, said before it does it. */
+function changeSaid(change: Change, option: string, name: string, have: number, n: number) {
+  const tasks = (count: number) => (count === 1 ? "1 task" : `${count} tasks`);
+  if (change === "add") {
+    if (have === n)
+      return n === 1 ? `It has ${option} already.` : `All ${n} have ${option} already.`;
+    return `Adds ${option} to ${tasks(n - have)}. Their other ${name} stay.`;
+  }
+  if (have === 0) return n === 1 ? `It has no ${option}.` : `None of the ${n} has ${option}.`;
+  return `Takes ${option} off ${tasks(have)}. Their other ${name} stay.`;
 }

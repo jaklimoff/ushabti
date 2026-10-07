@@ -1,5 +1,5 @@
 import { isId } from "./ids";
-import type { PropertyType } from "./types";
+import type { PropertyType, TaskValue } from "./types";
 
 /**
  * The rules one bulk write obeys, apart from the database.
@@ -131,9 +131,45 @@ export function readArchiveAsk(input: {
 /**
  * Whether **Set…** offers a property for the picked tasks. A Link holds a list
  * that each task has of its own, and one pasted link would replace every list
- * picked. A multi-select is offered, because its options are the board's and
- * one set of them on many tasks is what Set means.
+ * picked. A multi-select is offered, because its options are the board's; it
+ * is set one option at a time, through `Change`, so the others stay.
  */
 export function canSetOnMany(type: PropertyType): boolean {
   return type !== "link";
+}
+
+/**
+ * What a bulk set does to a multi-select: put one option on, or take it off.
+ *
+ * Each picked task carries labels of its own, so one list sent to all of them
+ * would replace every one of those lists. Setting Bug on thirty tasks that way
+ * took every other label off all thirty, and nothing said so. A change names
+ * one option and leaves the rest of each task's list alone. A call without a
+ * change still replaces, because an agent that sends a whole list means it.
+ */
+export type Change = "add" | "remove";
+
+export type ChangeRead = { ok: true; change: Change | null } | { ok: false; said: string };
+
+/** The change a call asked for, null for a plain set, or the sentence to refuse it. */
+export function readChange(raw: unknown, type: PropertyType): ChangeRead {
+  if (raw === undefined || raw === null) return { ok: true, change: null };
+  if (raw !== "add" && raw !== "remove") {
+    return { ok: false, said: 'A change is "add" or "remove".' };
+  }
+  if (type !== "multi_select") {
+    return { ok: false, said: "Only a multi-select adds or takes off one option." };
+  }
+  return { ok: true, change: raw };
+}
+
+/**
+ * One task's list after the change. The order it had is kept and a new option
+ * goes on the end, so a card does not shuffle its chips. The server writes
+ * this and the board draws it before the answer comes, so both ask here.
+ */
+export function changed(current: TaskValue, change: Change, optionId: string): string[] {
+  const list = Array.isArray(current) ? current : [];
+  if (change === "remove") return list.filter((id) => id !== optionId);
+  return list.includes(optionId) ? list : [...list, optionId];
 }

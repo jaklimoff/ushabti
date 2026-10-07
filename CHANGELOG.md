@@ -25,6 +25,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Set… on a multi-select adds or takes off one option and keeps the rest.** Setting Labels to
+  bug on 30 selected tasks used to replace every task's labels with bug alone, and said nothing.
+  The bar now asks Add or Take off, shows how many of the selection carry each option, and says
+  what a press will do before it does it. The bulk route takes `"change": "add"` or `"remove"`.
 - **A watcher keeps hearing new work after a write of more than 200 lines.** Archiving a column of
   300 cards, or an import of 500, left every listening agent deaf: the watcher read the same first
   page again and stopped. The activity feed now goes on from a page's last line with `afterId`
