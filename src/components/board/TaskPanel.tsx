@@ -23,7 +23,7 @@ import {
 } from "@/lib/run-state";
 import { checklistField, editingSaid } from "@/lib/presence";
 import { childrenHead } from "@/lib/links";
-import { searchTasks } from "@/lib/search";
+import { SEARCH_LIMIT, searchTasks } from "@/lib/search";
 import { trackWrites } from "@/lib/writes";
 import type {
   AgentRunDTO,
@@ -1114,14 +1114,14 @@ function Links({
 
   const rows: Row[] = useMemo(() => {
     if (!adding) return [];
-    return searchTasks(searchable, query, data.project.doneWhen)
-      .filter((hit) => !taken.has(hit.task.id))
-      .map((hit) => ({
+    return searchTasks(searchable, query, data.project.doneWhen, SEARCH_LIMIT, taken).map(
+      (hit) => ({
         id: hit.task.id,
         name: `${hit.task.key}  ${hit.task.title}`,
         color: "#6b7280",
         note: hit.task.archivedAt ? "archived" : undefined,
-      }));
+      }),
+    );
   }, [adding, data.project.doneWhen, query, searchable, taken]);
 
   /* One route writes both lists of each kind: which end of it this task is
@@ -1251,13 +1251,16 @@ function Links({
                     {refused}
                   </span>
                 )}
-                <Rows
-                  rows={rows}
-                  at={at}
-                  listId={listId}
-                  empty={words.empty}
-                  onPick={(row) => void add(way, row.id)}
-                />
+                {/* An empty box has asked nothing, so it is told nothing. */}
+                {query.trim() && (
+                  <Rows
+                    rows={rows}
+                    at={at}
+                    listId={listId}
+                    empty={words.empty}
+                    onPick={(row) => void add(way, row.id)}
+                  />
+                )}
               </>
             )}
           </div>
