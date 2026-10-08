@@ -7,6 +7,7 @@ import {
   unique,
   descriptionBox,
   expectBoxValue,
+  hydrated,
 } from "./helpers";
 
 /**
@@ -70,6 +71,8 @@ test("a PNG dropped on the composer uploads with a line, and becomes an image in
   );
 
   const composer = page.getByTestId("comment-box");
+  // A drop before React owns the box lands on nothing that listens.
+  await hydrated(composer);
   await drop(page, composer, [{ name: "pixel.png", mime: "image/png", base64: PNG }]);
   await expect(composer).toHaveValue(/^Uploading pixel\.png… \d+%$/);
   const send = page.getByRole("button", { name: "Uploading…" });
@@ -98,6 +101,7 @@ test("a video draws a player, a refused file says why, and the strip removes one
   await addTask(page, "Todo", "Shows a clip");
 
   const composer = page.getByTestId("comment-box");
+  await hydrated(composer);
   await composer.fill("Two files:");
   await drop(page, composer, [
     { name: "pixel.png", mime: "image/png", base64: PNG },
@@ -160,6 +164,7 @@ test("a line a stopped upload left in the composer draft is not shown again", as
   await addTask(page, "Todo", "Left a line");
 
   // The draft a tab closed mid-upload leaves behind: the words and the line.
+  await hydrated(page.getByTestId("comment-box"));
   await page.getByTestId("comment-box").fill("Kept words\nUploading shot.png… 40%");
   await expect(page.getByTestId("comment-box")).toHaveValue("Kept words");
   await page.close();

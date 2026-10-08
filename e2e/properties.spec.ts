@@ -308,11 +308,16 @@ test.describe("Custom properties", () => {
     await page.waitForTimeout(120);
     await page.keyboard.press("ArrowRight");
     await page.waitForTimeout(120);
+    // The order on this page is drawn before the write lands; the board reads the write.
+    const moved = page.waitForResponse(
+      (r) => r.request().method() === "PATCH" && /\/api\/options\//.test(r.url()),
+    );
     await page.keyboard.press("Space");
 
     await expect
       .poll(async () => (await optionOrder(status)).slice(0, 2))
       .toEqual(["Todo", "Backlog"]);
+    expect((await moved).ok()).toBe(true);
 
     await page.goto(`/p/${projectId}`);
     await expect
