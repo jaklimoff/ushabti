@@ -4,7 +4,15 @@ import { agentRuns } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { agentOnly, body, broadcast, clientIdOf, guard, json, optionalStr, route } from "@/lib/api";
 import { logActivity } from "@/lib/queries";
-import { addLog, beat, loadRun, replaceSteps, runContext, setCurrentStep } from "@/lib/runs";
+import {
+  addLog,
+  beat,
+  loadLogBefore,
+  loadRun,
+  replaceSteps,
+  runContext,
+  setCurrentStep,
+} from "@/lib/runs";
 import { CLOSED_STATUSES, RUN_STATUSES, type RunStatus } from "@/lib/types";
 import {
   isOpen,
@@ -17,10 +25,17 @@ import {
 
 type Ctx = { params: Promise<{ runId: string }> };
 
-export const GET = route<Ctx>(async (_req, ctx) => {
+/**
+ * The run with the tail of its log, or with `?before=<line id>` the hundred
+ * lines older than that one. Reading is for everybody on the project, an
+ * agent included, as the board is.
+ */
+export const GET = route<Ctx>(async (req, ctx) => {
   const { runId } = await ctx.params;
   const context = await runContext(runId);
   await guard(context.projectId);
+  const before = new URL(req.url).searchParams.get("before");
+  if (before !== null) return json(await loadLogBefore(runId, before));
   return json({ run: await loadRun(runId) });
 });
 

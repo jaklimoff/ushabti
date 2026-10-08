@@ -36,6 +36,17 @@ import type {
 /** The panel shows the tail of the log. The table keeps everything. */
 const LOG_TAIL = 40;
 
+/** One press of "Show earlier lines" reads this many. */
+export const LOG_PAGE = 100;
+
+/*
+ * The one order of a log, newest first. Lines written in one transaction
+ * share `now()`, so the time alone leaves them in no fixed order, and a page
+ * cut between two of them would show one twice and lose the other. The id
+ * settles a tie the same way on every read.
+ */
+const LOG_ORDER = [desc(agentRunLog.createdAt), desc(agentRunLog.id)];
+
 /**
  * How many closed runs a task hands out with itself.
  *
@@ -208,7 +219,7 @@ async function shapeMany(rows: RunRow[]): Promise<AgentRunDTO[]> {
       .selectDistinctOn([agentRunLog.runId], { runId: agentRunLog.runId, text: agentRunLog.text })
       .from(agentRunLog)
       .where(inArray(agentRunLog.runId, ids))
-      .orderBy(agentRunLog.runId, desc(agentRunLog.createdAt)),
+      .orderBy(agentRunLog.runId, ...LOG_ORDER),
   ]);
 
   const stepsByRun = new Map<string, AgentRunStepDTO[]>();
@@ -274,13 +285,20 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
  * log line are two more tables, and a row draws neither of them; the run that
  * a person opens is read whole, one at a time, by `GET /api/runs/{id}`.
  */
-export async function loadTaskRuns(
-  taskId: string,
-): Promise<{ run: AgentRunDetailDTO | null; pastRuns: AgentRunRowDTO[] }> {
+export async function loadTaskRuns(taskId: string): Promise<{
+  run: AgentRunDetailDTO | null;
+  pastRuns: AgentRunRowDTO[];
+  pastRunsTotal: number;
+}> {
   await Promise.all([sweepLost(eq(agentRuns.taskId, taskId)), sweepUnready({ taskId })]);
 
   const rows = await db
-    .select(runColumns)
+    .select({
+      ...runColumns,
+      // A window over the same rows, so the count and the list are one
+      // reading and a run closing between two statements cannot split them.
+      closed: sql<number>`count(*) filter (where ${agentRuns.endedAt} is not null) over ()`,
+    })
     .from(agentRuns)
     .innerJoin(users, eq(users.id, agentRuns.agentId))
     .where(eq(agentRuns.taskId, taskId))
@@ -298,7 +316,79 @@ export async function loadTaskRuns(
   return {
     run: openRow ? await withDetail(openRow) : null,
     pastRuns: closedRows.map(shapeRow),
+    pastRunsTotal: Number(rows[0]?.closed ?? 0),
   };
+}
+
+/**
+ * The closed runs of a task that started before the one named, in the order
+ * the history reads. The cursor is a run, not a time: `started_at` keeps
+ * microseconds a JavaScript date would round away, so the database compares
+ * the pair it holds.
+ */
+export async function loadPastRunsBefore(
+  taskId: string,
+  beforeRunId: string,
+): Promise<{ runs: AgentRunRowDTO[]; more: boolean }> {
+  readId(beforeRunId, "run");
+  const [cursor] = await db
+    .select({ id: agentRuns.id })
+    .from(agentRuns)
+    .where(and(eq(agentRuns.id, beforeRunId), eq(agentRuns.taskId, taskId)))
+    .limit(1);
+  if (!cursor) throw new HttpError(404, "Run not found.");
+
+  const rows = await db
+    .select(runColumns)
+    .from(agentRuns)
+    .innerJoin(users, eq(users.id, agentRuns.agentId))
+    .where(
+      and(
+        eq(agentRuns.taskId, taskId),
+        isNotNull(agentRuns.endedAt),
+        sql`(${agentRuns.startedAt}, ${agentRuns.id}) < (select started_at, id from agent_runs where id = ${beforeRunId})`,
+      ),
+    )
+    .orderBy(desc(agentRuns.startedAt), desc(agentRuns.id))
+    .limit(PAST_RUNS + 1);
+
+  return { runs: rows.slice(0, PAST_RUNS).map(shapeRow), more: rows.length > PAST_RUNS };
+}
+
+/**
+ * The lines of a run written before the one named, newest first and so the
+ * oldest last, as the tail is read. A page never changes once written, so
+ * nothing about it is stale.
+ */
+export async function loadLogBefore(
+  runId: string,
+  beforeLineId: string,
+): Promise<{ lines: AgentRunLogDTO[]; more: boolean }> {
+  readId(beforeLineId, "line");
+  const [cursor] = await db
+    .select({ id: agentRunLog.id })
+    .from(agentRunLog)
+    .where(and(eq(agentRunLog.id, beforeLineId), eq(agentRunLog.runId, runId)))
+    .limit(1);
+  if (!cursor) throw new HttpError(404, "Line not found.");
+
+  const rows = await db
+    .select()
+    .from(agentRunLog)
+    .where(
+      and(
+        eq(agentRunLog.runId, runId),
+        sql`(${agentRunLog.createdAt}, ${agentRunLog.id}) < (select created_at, id from agent_run_log where id = ${beforeLineId})`,
+      ),
+    )
+    .orderBy(...LOG_ORDER)
+    .limit(LOG_PAGE + 1);
+
+  return { lines: rows.slice(0, LOG_PAGE).map(lineOf), more: rows.length > LOG_PAGE };
+}
+
+function lineOf(l: { id: string; text: string; createdAt: Date }): AgentRunLogDTO {
+  return { id: l.id, text: l.text, createdAt: l.createdAt.toISOString() };
 }
 
 export async function loadRun(runId: string): Promise<AgentRunDetailDTO> {
@@ -324,8 +414,8 @@ async function withDetail(row: RunRow): Promise<AgentRunDetailDTO> {
       .select()
       .from(agentRunLog)
       .where(eq(agentRunLog.runId, row.id))
-      .orderBy(desc(agentRunLog.createdAt))
-      .limit(LOG_TAIL),
+      .orderBy(...LOG_ORDER)
+      .limit(LOG_TAIL + 1),
   ]);
 
   const steps: AgentRunStepDTO[] = stepRows.map((s) => ({
@@ -335,11 +425,10 @@ async function withDetail(row: RunRow): Promise<AgentRunDetailDTO> {
     index: s.index,
   }));
 
-  const log: AgentRunLogDTO[] = logRows
-    .map((l) => ({ id: l.id, text: l.text, createdAt: l.createdAt.toISOString() }))
-    .reverse();
+  const log: AgentRunLogDTO[] = logRows.slice(0, LOG_TAIL).map(lineOf).reverse();
+  const logMore = logRows.length > LOG_TAIL;
 
-  return { ...shape(row, steps, log.at(-1)?.text ?? null), steps, log };
+  return { ...shape(row, steps, log.at(-1)?.text ?? null), steps, log, logMore };
 }
 
 /** The project and the open run of a task, or 404. */

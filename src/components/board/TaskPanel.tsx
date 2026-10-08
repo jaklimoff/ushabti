@@ -32,6 +32,7 @@ import { checklistField, editingSaid } from "@/lib/presence";
 import { childrenHead } from "@/lib/links";
 import { SEARCH_LIMIT, searchTasks } from "@/lib/search";
 import { trackWrites } from "@/lib/writes";
+import { joinLog } from "@/lib/run-log";
 import { personName, personOf } from "@/lib/people";
 import type {
   AgentRunDTO,
@@ -531,6 +532,7 @@ export function TaskPanel({
    */
   const run = detail?.run ?? null;
   const pastRuns = detail?.pastRuns ?? [];
+  const pastRunsTotal = detail?.pastRunsTotal ?? 0;
   /* The board knows an open run before the detail lands, so the tab a task
      opens on is drawn at once and not after a moment on Comments. */
   const anyRun = run ?? pastRuns[0] ?? runOf(taskId);
@@ -957,7 +959,9 @@ export function TaskPanel({
                       }}
                     />
                   )}
-                  {pastRuns.length > 0 && <PastRuns runs={pastRuns} />}
+                  {pastRuns.length > 0 && (
+                    <PastRuns taskId={taskId} runs={pastRuns} total={pastRunsTotal} />
+                  )}
                 </>
               )}
             </div>
@@ -1499,7 +1503,7 @@ function AgentRunBlock({
         </>
       )}
 
-      <RunLog log={run.log} />
+      <RunLog runId={run.id} log={run.log} more={run.logMore} />
 
       {handedOver ? (
         <div className={styles.runNote} data-testid="panel-run-handed-over">
@@ -1600,13 +1604,99 @@ function RunPlan({
   );
 }
 
-/** The log of a run, as it was written. */
-function RunLog({ log }: { log: AgentRunLogDTO[] }) {
-  if (log.length === 0) return null;
+type HeldLog = { runId: string; lines: AgentRunLogDTO[]; more: boolean };
+
+/**
+ * The log of a run, as it was written: the tail the run came with, and every
+ * page of older lines somebody asked for.
+ *
+ * Once a page is asked for, the panel holds the whole stretch itself. A
+ * reload replaces the run and its tail moves on as the agent writes, so the
+ * lines that fall out of the new tail are kept here, and a tail that jumped
+ * past them is joined by reading across the gap. The held lines belong to
+ * one run: a panel opened on another task drops them.
+ */
+function RunLog({ runId, log, more }: { runId: string; log: AgentRunLogDTO[]; more: boolean }) {
+  const [held, setHeld] = useState<HeldLog | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const mine = held?.runId === runId ? held : null;
+  const joined = mine ? joinLog(mine.lines, log) : null;
+  const lines = joined ? joined.lines : log;
+  const earlier = mine ? mine.more : more;
+  const gapBefore = joined?.gapBefore ?? null;
+
+  /* Fold each new tail into what is held, so a line that leaves the tail
+     stays. A tail that jumped past the held lines is joined by reading the
+     pages across the gap first. */
+  useEffect(() => {
+    if (!mine || (!gapBefore && lines.length === mine.lines.length)) return;
+    let gone = false;
+    const known = new Set(mine.lines.map((line) => line.id));
+    void (async () => {
+      const across: AgentRunLogDTO[] = [];
+      let cursor = gapBefore;
+      while (cursor) {
+        const page = await api
+          .get<{ lines: AgentRunLogDTO[]; more: boolean }>(`/api/runs/${runId}?before=${cursor}`)
+          .catch(() => null);
+        if (!page || gone) return;
+        const meets = page.lines.findIndex((line) => known.has(line.id));
+        const newer = meets === -1 ? page.lines : page.lines.slice(0, meets);
+        across.unshift(...[...newer].reverse());
+        cursor = meets === -1 && page.more ? (page.lines.at(-1)?.id ?? null) : null;
+      }
+      if (gone) return;
+      setHeld((current) => {
+        if (current?.runId !== runId) return current;
+        const filled = joinLog(current.lines, across).lines;
+        return { ...current, lines: joinLog(filled, log).lines };
+      });
+    })();
+    return () => {
+      gone = true;
+    };
+  }, [runId, log, gapBefore, lines.length, mine]);
+
+  async function showEarlier() {
+    if (busy) return;
+    const first = lines[0];
+    if (!first) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const page = await api.get<{ lines: AgentRunLogDTO[]; more: boolean }>(
+        `/api/runs/${runId}?before=${first.id}`,
+      );
+      setHeld((current) => {
+        const base = current?.runId === runId ? joinLog(current.lines, log).lines : log;
+        // The cursor was the first line then; a page for an older cursor is
+        // already in, and a page for another run is not ours.
+        if (base[0]?.id !== first.id) return current;
+        return { runId, lines: [...[...page.lines].reverse(), ...base], more: page.more };
+      });
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (lines.length === 0) return null;
   return (
     <div className={styles.runLog} data-testid="panel-run-log">
-      {log.map((line) => (
-        <div key={line.id} className={styles.runLogRow}>
+      {earlier && (
+        <button
+          className={styles.runMore}
+          disabled={busy}
+          data-testid="run-log-earlier"
+          onClick={() => void showEarlier()}
+        >
+          {failed ? "Those lines did not load. Try again" : "Show earlier lines"}
+        </button>
+      )}
+      {lines.map((line) => (
+        <div key={line.id} className={styles.runLogRow} data-testid="run-log-line">
           <span className={styles.runLogTime}>{relativeTime(line.createdAt)}</span>
           <span className={styles.runLogText}>{line.text}</span>
         </div>
@@ -1625,8 +1715,49 @@ function RunLog({ log }: { log: AgentRunLogDTO[] }) {
  * were left, one row at a time, because two open rows are a list nobody can
  * read.
  */
-function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
+function PastRuns({
+  taskId,
+  runs,
+  total,
+}: {
+  taskId: string;
+  runs: AgentRunRowDTO[];
+  total: number;
+}) {
   const [openId, setOpenId] = useState<string | null>(null);
+  /* Every row shown once somebody asked for more, newest first. A reload
+     hands back only the newest twenty, and a run that closes meanwhile
+     pushes the twentieth out of them, so the rest are kept here. */
+  const [kept, setKept] = useState<{ taskId: string; rows: AgentRunRowDTO[] } | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreFailed, setMoreFailed] = useState(false);
+  const fresh = new Set(runs.map((run) => run.id));
+  const shown =
+    kept?.taskId === taskId ? [...runs, ...kept.rows.filter((run) => !fresh.has(run.id))] : runs;
+
+  async function showMore() {
+    if (loadingMore) return;
+    const last = shown.at(-1);
+    if (!last) return;
+    setLoadingMore(true);
+    setMoreFailed(false);
+    try {
+      const page = await api.get<{ runs: AgentRunRowDTO[]; more: boolean }>(
+        `/api/tasks/${taskId}/runs?before=${last.id}`,
+      );
+      setKept((current) => {
+        const base = current?.taskId === taskId ? current.rows : [];
+        const rows = [...runs, ...base.filter((run) => !fresh.has(run.id))];
+        // A page asked for after another task opened, or twice, is dropped.
+        if (rows.at(-1)?.id !== last.id) return current;
+        return { taskId, rows: [...rows, ...page.runs] };
+      });
+    } catch {
+      setMoreFailed(true);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
   /* What the opened rows answered. A run that is over never changes, so it is
      read once and kept for as long as the panel is on this task. */
   const [seen, setSeen] = useState<Record<string, AgentRunDetailDTO>>({});
@@ -1650,8 +1781,10 @@ function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
 
   return (
     <div className={styles.past} data-testid="panel-past-runs">
-      <span className="label">Earlier runs</span>
-      {runs.map((run) => {
+      <span className="label" data-testid="past-runs-total">
+        Earlier runs · {Math.max(total, shown.length)}
+      </span>
+      {shown.map((run) => {
         const words = pastRunWords(run);
         const open = openId === run.id;
         const detail = seen[run.id];
@@ -1688,7 +1821,7 @@ function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
                     {detail.steps.length > 0 && (
                       <RunPlan steps={detail.steps} color={run.agent.color} />
                     )}
-                    <RunLog log={detail.log} />
+                    <RunLog runId={detail.id} log={detail.log} more={detail.logMore} />
                     {detail.steps.length === 0 && detail.log.length === 0 && (
                       <span className={styles.runNote}>This run left no plan and no log.</span>
                     )}
@@ -1703,6 +1836,16 @@ function PastRuns({ runs }: { runs: AgentRunRowDTO[] }) {
           </div>
         );
       })}
+      {shown.length < total && (
+        <button
+          className={styles.runMore}
+          disabled={loadingMore}
+          data-testid="past-runs-more"
+          onClick={() => void showMore()}
+        >
+          {moreFailed ? "Those runs did not load. Try again" : "Show 20 more"}
+        </button>
+      )}
     </div>
   );
 }

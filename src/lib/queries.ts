@@ -1247,6 +1247,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     activity: activityList,
     run: runs.run,
     pastRuns: runs.pastRuns,
+    pastRunsTotal: runs.pastRunsTotal,
     attachments: files.map(toAttachmentDTO),
   };
 }

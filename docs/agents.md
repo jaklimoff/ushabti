@@ -71,6 +71,8 @@ so an agent sees exactly what a person sees and nothing more.
 | The whole board     | `GET /api/projects/{projectId}/board`               |
 | One task in full    | `GET /api/tasks/{taskId}`                           |
 | One run in full     | `GET /api/runs/{runId}`                             |
+| Older log lines     | `GET /api/runs/{runId}?before={lineId}`             |
+| Older runs of a task | `GET /api/tasks/{taskId}/runs?before={runId}`      |
 | Create a task       | `POST /api/projects/{projectId}/tasks`              |
 | Rename or rewrite   | `PATCH /api/tasks/{taskId}`                         |
 | Set one property    | `PUT /api/tasks/{taskId}/values/{propertyId}`       |
@@ -875,6 +877,20 @@ open run and not on a history row. A row answers "who ran this, when, and how
 did it end". Ask `GET /api/runs/{runId}` for one of those in full: it answers
 for a closed run exactly as it does for an open one, counts and plan and log
 and all, and a person's session and a token both read it.
+
+Both lists go further back. `pastRunsTotal` says how many runs are over, and
+`GET /api/tasks/{taskId}/runs?before={runId}` answers the twenty that started
+before the run named, with `more` when others remain. A run carries the newest
+forty lines of its log, oldest first, and `logMore` when there are older ones;
+`GET /api/runs/{runId}?before={lineId}` answers the hundred lines before the one
+named, newest first, so the oldest is last and is the next cursor:
+
+```json
+{ "lines": [{ "id": "…", "text": "ran the tests", "createdAt": "…" }], "more": true }
+```
+
+Lines written in one moment come back in the order of their ids, on every
+read, so walking back page by page meets each line once.
 
 The panel reads the same list. The Agent tab is there when a task has an open
 run **or** one that is over; with none open the dot does not pulse and the tab
