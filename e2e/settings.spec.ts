@@ -515,7 +515,7 @@ test.describe("Settings on a laptop", () => {
       "Name and key",
       "Dates and progress",
       "Agents",
-      "Sprints",
+      "Releases and sprints",
       "Sharing and export",
       "Danger zone",
     ]);
@@ -532,7 +532,8 @@ test.describe("Settings on a laptop", () => {
       "Time zone",
       "Done when",
       "Count progress by",
-      "Length",
+      "Releases",
+      "Sprints",
       "Public changelog",
       "Export",
     ]) {
