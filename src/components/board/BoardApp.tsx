@@ -50,7 +50,8 @@ export function BoardApp({
   );
 }
 
-function BoardShell({ initialTask }: { initialTask: string | null }) {
+/** The board inside its store. A component test draws it inside a store of its own. */
+export function BoardShell({ initialTask }: { initialTask: string | null }) {
   const { data, user, view, live, toasts, groupProperty, filters, lens, visibleTasks, setLens } =
     useBoard();
   /* A link to an archived task opens its panel, and the board behind it still

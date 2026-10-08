@@ -78,9 +78,13 @@ Run these. All of them must pass, because CI runs the same list.
 npm run format     # Prettier writes the files
 npm run lint       # ESLint
 npm run typecheck  # the app and the specs
-npm test           # unit tests
+npm test           # unit, route and component tests
 npm run test:e2e   # Playwright
 ```
+
+[docs/testing.md](docs/testing.md) says where a new test belongs: a unit, a
+component, a route or an end to end test. A component test runs in Chromium,
+so `npm test` needs the browser Playwright installs.
 
 Playwright runs four files at once, each in order. The specs that listen on
 the one test SMTP port run one at a time, in the `mail` project of

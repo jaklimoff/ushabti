@@ -9,5 +9,6 @@ out
 .DS_Store
 test-results
 playwright-report
+.vitest
 *.tsbuildinfo
 .claude/settings.local.json
