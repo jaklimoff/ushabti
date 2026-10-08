@@ -12,7 +12,9 @@ import {
 /**
  * A typo in a comment used to cost the comment: delete it and write it again,
  * at the bottom of the thread. Now its author edits it in place, the way the
- * description is edited, and the thread says that it changed.
+ * description is edited, and the thread says that it changed. The box's keys
+ * and its closed tab are `src/components/board/Comments.test.tsx`; who may
+ * edit is `src/lib/__tests__/comments-route.test.ts`.
  */
 
 async function freshPage(browser: Browser) {
@@ -131,130 +133,6 @@ test.describe("The author of a comment can edit it", () => {
       await close();
     },
   );
-
-  test("Escape puts the old words back, and the same words write nothing", async ({ browser }) => {
-    const { anna, projectId, close } = await oneComment(browser);
-
-    await anna.getByTestId("comment").hover();
-    await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    await anna.getByTestId("comment-editor").fill("Thrown away");
-    await anna.getByTestId("comment-editor").press("Escape");
-    await expect(anna.getByTestId("comment-editor")).toHaveCount(0);
-    await expect(anna.getByTestId("comment-markdown")).toHaveText("The tests are gren");
-
-    await anna.getByTestId("comment").hover();
-    await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    // An empty box is not a save: Mod + Enter leaves it open.
-    await anna.getByTestId("comment-editor").fill("");
-    await anna.getByTestId("comment-editor").press("ControlOrMeta+Enter");
-    await expect(anna.getByTestId("comment-editor")).toBeVisible();
-    await anna.getByTestId("comment-editor").fill("The tests are gren");
-    await anna.getByTestId("comment-editor").press("ControlOrMeta+Enter");
-    await expect(anna.getByTestId("comment-editor")).toHaveCount(0);
-
-    const [row] = await savedComment(projectId);
-    expect(row.body).toBe("The tests are gren");
-    expect(row.edited_at).toBeNull();
-    await expect(anna.getByTestId("comment-edited")).toHaveCount(0);
-
-    await close();
-  });
-
-  /* A comment is a sentence somebody signed: a misclick must not rewrite it. */
-  test("a click away from the box writes nothing and leaves the words in it", async ({
-    browser,
-  }) => {
-    const { anna, projectId, close } = await oneComment(browser);
-    let sent = 0;
-    anna.on("request", (r) => {
-      if (/\/api\/comments\/[0-9a-f-]+$/.test(r.url()) && r.method() === "PATCH") sent++;
-    });
-
-    await anna.getByTestId("comment").hover();
-    await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    const editor = anna.getByTestId("comment-editor");
-    await editor.fill("Not yet");
-    await anna.getByTestId("comment-box").click();
-    await expect(editor).not.toBeFocused();
-    await expect(editor).toHaveValue("Not yet");
-    await expect(anna.getByRole("button", { name: "Update", exact: true })).toBeEnabled();
-    expect(sent).toBe(0);
-    expect((await savedComment(projectId))[0].body).toBe("The tests are gren");
-
-    // Mod + Enter saves, as it posts in the composer.
-    expect(await statusOf(anna, () => editor.press("ControlOrMeta+Enter"))).toBe(200);
-    await expect(editor).toHaveCount(0);
-    await expect(anna.getByTestId("comment-markdown")).toHaveText("Not yet");
-    expect(sent).toBe(1);
-
-    await close();
-  });
-
-  test("Cancel puts the old words back and writes nothing", async ({ browser }) => {
-    const { anna, projectId, close } = await oneComment(browser);
-
-    await anna.getByTestId("comment").hover();
-    await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    await anna.getByTestId("comment-editor").fill("Thrown away");
-    await anna.getByRole("button", { name: "Cancel", exact: true }).click();
-    await expect(anna.getByTestId("comment-editor")).toHaveCount(0);
-    await expect(anna.getByTestId("comment-markdown")).toHaveText("The tests are gren");
-
-    // Opened again, it holds the saved words, not the thrown away ones.
-    await anna.getByTestId("comment").hover();
-    await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    await expect(anna.getByTestId("comment-editor")).toHaveValue("The tests are gren");
-
-    const [row] = await savedComment(projectId);
-    expect(row.body).toBe("The tests are gren");
-    expect(row.edited_at).toBeNull();
-
-    await close();
-  });
-
-  /* A save is a press now, so a closed tab has nothing to send. */
-  test("words typed and left in a closed tab are not saved", async ({ browser }) => {
-    const { anna, projectId, close } = await oneComment(browser);
-
-    await anna.getByTestId("comment").hover();
-    await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    await anna.getByTestId("comment-editor").fill("Left in a closed tab");
-    await anna.close();
-
-    // Long enough for a keepalive request to have landed, if one went.
-    await new Promise((r) => setTimeout(r, 2_000));
-    const [row] = await savedComment(projectId);
-    expect(row.body).toBe("The tests are gren");
-    expect(row.edited_at).toBeNull();
-
-    await close();
-  });
-
-  test("somebody else's comment answers 403, the owner's included", async ({ browser }) => {
-    const { anna, ben, projectId, close } = await oneComment(browser);
-    const [row] = await savedComment(projectId);
-
-    const refused = await ben.request.patch(`/api/comments/${row.id}`, {
-      data: { body: "Ben's words" },
-    });
-    expect(refused.status()).toBe(403);
-
-    // Ben's own comment, which Anna owns the project around.
-    await ben.getByTestId("comment-box").fill("Mine");
-    await ben.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(ben.getByTestId("comment")).toHaveCount(2);
-    const bens = (await savedComment(projectId)).find((c) => c.body === "Mine")!;
-    const owner = await anna.request.patch(`/api/comments/${bens.id}`, {
-      data: { body: "Anna's words" },
-    });
-    expect(owner.status()).toBe(403);
-
-    const empty = await anna.request.patch(`/api/comments/${row.id}`, { data: { body: "  " } });
-    expect(empty.status()).toBe(400);
-    expect((await empty.json()).error).toMatch(/Delete it instead/);
-
-    await close();
-  });
 
   test("a save that crossed a newer one asks Keep mine or Take theirs", async ({ browser }) => {
     const { anna, projectId, close } = await oneComment(browser);

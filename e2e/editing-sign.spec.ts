@@ -11,7 +11,9 @@ import {
 
 /*
  * A field says who else is typing in it, and blocks nobody. It rides on the
- * presence a tab already sends: the field is one more word in it.
+ * presence a tab already sends: the field is one more word in it. Two names
+ * on one field and the line on a phone are
+ * `src/components/board/EditingSign.test.tsx`.
  */
 
 async function freshPage(browser: Browser) {
@@ -102,59 +104,5 @@ test.describe("A field shows who is editing it", () => {
 
     await anna.context.close();
     await ben.context.close();
-  });
-
-  test("two editors are named together, and the line fits a phone", async ({ browser }) => {
-    const anna = await freshPage(browser);
-    const ben = await freshPage(browser);
-    const cy = await freshPage(browser);
-
-    await register(anna.page, "Anna Person");
-    const projectId = await createProject(anna.page, unique("Two editors"));
-    for (const [other, name] of [
-      [ben, "Ben Person"],
-      [cy, "Cy Person"],
-    ] as const) {
-      const account = await register(other.page, name);
-      await addMember(anna.page, projectId, account.email);
-    }
-
-    await anna.page.goto(`/p/${projectId}`);
-    await addTask(anna.page, "Todo", "Crowded title");
-    await anna.page.getByRole("button", { name: "Close task" }).click();
-
-    await openTask(cy.page, projectId, "Crowded title");
-    await cy.page.setViewportSize({ width: 390, height: 844 });
-    await openTask(anna.page, projectId, "Crowded title");
-    await openTask(ben.page, projectId, "Crowded title");
-    await expect(cy.page.getByTestId("panel-present-face")).toHaveCount(2, { timeout: 2_000 });
-
-    await anna.page.getByTestId("task-title").click();
-    await ben.page.getByTestId("task-title").click();
-    await expect(sign(cy.page)).toHaveText("Anna Person and Ben Person are editing the title", {
-      timeout: 2_000,
-    });
-    // Each of the two sees only the other.
-    await expect(sign(anna.page)).toHaveText("Ben Person is editing the title", {
-      timeout: 2_000,
-    });
-    await expect(sign(ben.page)).toHaveText("Anna Person is editing the title", {
-      timeout: 2_000,
-    });
-
-    const line = (await sign(cy.page).boundingBox())!;
-    expect(line.x + line.width).toBeLessThanOrEqual(390);
-    const title = (await cy.page.getByTestId("task-title").boundingBox())!;
-    expect(line.y).toBeGreaterThanOrEqual(title.y + title.height);
-
-    // A tab that goes to another page stops editing too.
-    await ben.page.goto("/projects");
-    await expect(sign(cy.page)).toHaveText("Anna Person is editing the title", {
-      timeout: 2_000,
-    });
-
-    await anna.context.close();
-    await ben.context.close();
-    await cy.context.close();
   });
 });

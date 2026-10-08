@@ -68,6 +68,13 @@ jumps once and dnd-kit never lifts. A reload is a second `renderWithBoard`
 with `{ keepStorage: true }`, which keeps what the browser stored, and
 `{ user }` signs in somebody other than `ME`.
 
+The task panel reads and writes more than the board. `serving()` in
+`src/test/panel.ts` answers it: the tasks, their comments, checklists and
+feed, with a text save refused by 409 when its base moved, as the routes
+refuse it. `wrote()` puts somebody else's save in first. `hear()` from
+`renderWithBoard` is another tab speaking on the stream, for a face or an
+editing sign.
+
 A test moved down from `e2e/` checks what it checked there, and carries the
 name it had there, or names that test in a comment.
 
@@ -91,7 +98,7 @@ everyone** has a race half and a half where the clash is on screen.
 One line per spec file, with how many of its tests stay end to end and where
 the rest go. **move** means most of it goes down, **keep** that most stays,
 and **drop** a test that a unit test already holds. The kept tests of a file
-may later be folded into one walk. The totals leave 86 tests end to end, and
+may later be folded into one walk. The totals leave 90 tests end to end, and
 the walks still to be written for the main flows bring it to about 100, on
 four workers at most.
 
@@ -115,12 +122,12 @@ four workers at most.
 | `changelog.spec.ts` | 6 | move | 1 | 1 |  | 4 |  | Keep one shipped walk. Public, private and the token are route answers. |
 | `close-sprint.spec.ts` | 1 | move |  |  |  | 1 |  | What a close archives is a route answer. |
 | `collaboration.spec.ts` | 9 | keep | 7 | 1 | 1 |  |  | Two people on one board is what end to end is for. The member list is a component; the shared Me is `applyFilters`. |
-| `comment-delete.spec.ts` | 1 | move |  |  |  | 1 |  | Who may delete is a route answer; the question folds into the comment component tests. |
-| `comment-edit.spec.ts` | 7 | move | 1 | 5 |  | 1 |  | Keep the save that crossed a newer one. The box's keys and its closed tab are the component. |
+| `comment-delete.spec.ts` | 1 | done (USH-272) |  | 1 |  | 1 |  | Who may delete is a route answer. The question went to the comment component tests as a test of its own, the screen half of the same e2e test. |
+| `comment-edit.spec.ts` | 7 | done (USH-272) | 2 | 4 |  | 1 |  | Keep the save that crossed a newer one. The box's keys and its closed tab are the component. The plan kept 1, but the walk that edits and reaches the other panel carries `@smoke` and stays. |
 | `composer.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | How the composer grows is layout, which Browser Mode has. |
 | `done-when.spec.ts` | 6 | move |  | 1 |  | 5 |  | What frees a blocker and what Ship archives are server answers. |
 | `drop-hidden.spec.ts` | 13 | move | 1 | 5 |  | 7 |  | Keep the writes that land at once. The questions are the panel and the bar; the drops are the routes. |
-| `editing-sign.spec.ts` | 2 | move | 1 | 1 |  |  |  | Keep two editors on one task. The phone line is layout. |
+| `editing-sign.spec.ts` | 2 | done (USH-272) | 1 | 1 |  |  |  | Keep two editors on one task. The phone line is layout; the other tabs speak through the stubbed stream. |
 | `editor-open.spec.ts` | 3 | keep | 2 | 1 |  |  |  | Which chunk loads when needs the production build. |
 | `ended-sprint.spec.ts` | 5 | move |  | 2 | 1 | 2 |  | The header is a component; the read that writes nothing is a route. |
 | `export.spec.ts` | 1 | move |  |  |  | 1 |  | Who may download is a route answer. |
@@ -130,17 +137,17 @@ four workers at most.
 | `github-step.spec.ts` | 3 | keep | 3 |  |  |  |  | A script against a real server; nothing smaller runs it. |
 | `import.spec.ts` | 4 | move | 1 | 1 |  | 2 |  | Keep one Trello file through the page. |
 | `iteration.spec.ts` | 3 | move | 1 | 2 |  |  |  | Keep the walk from grouping to the roadmap. |
-| `links.spec.ts` | 2 | move |  | 2 |  |  |  | The panel and the card draw a link. |
+| `links.spec.ts` | 2 | done (USH-272) |  | 2 |  |  |  | The panel and the card draw a link. |
 | `list.spec.ts` | 19 | done (USH-271) | 4 | 14 |  | 1 |  | Keep the drag the board sees and the order across a reload. The rest is what a list draws. The plan kept 2, but three tests carry `@smoke` and stay, beside the order across a reload. The property a list no longer pins is the route's answer; a view that changes kind and a list on a project with nothing to group by have a route half too. |
 | `listening.spec.ts` | 12 | done (USH-269) | 5 | 2 |  | 5 |  | Keep the stream, the watcher and the harness. The feed and its pages are route answers. |
-| `live-preview.spec.ts` | 16 | move | 1 | 15 |  |  |  | The editor is a component with real layout; keep the chunk fetched as the panel opens. |
+| `live-preview.spec.ts` | 16 | done (USH-272) | 1 | 15 |  |  |  | The editor is a component with real layout; keep the chunk fetched as the panel opens. |
 | `long-title.spec.ts` | 1 | done (USH-271) |  | 1 |  |  |  | A card clamped to three lines is layout. |
 | `mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
 | `markdown-wrap.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | Wrapping is layout. The description and the comment arrive written; typing them is the panel's own test. |
-| `mention.spec.ts` | 4 | move |  | 4 |  |  |  | The @ list is a component. |
+| `mention.spec.ts` | 4 | done (USH-272) |  | 4 |  |  |  | The @ list is a component. |
 | `option-dates.spec.ts` | 12 | move |  | 8 |  | 4 |  | The boxes and their closed tab are Settings; who may write is the route. |
 | `option-names.spec.ts` | 6 | move | 1 | 2 |  | 3 |  | Keep two creates at once, which needs the real database. |
-| `panel-a11y.spec.ts` | 6 | move |  | 6 |  |  |  | Focus and roles are what a component test reads best. |
+| `panel-a11y.spec.ts` | 6 | done (USH-272) | 1 | 5 |  |  |  | Focus and roles are what a component test reads best. The plan moved all six, but the view strip's test carries `@smoke` and stays. |
 | `parents.spec.ts` | 3 | move |  | 2 |  | 1 |  | One level deep is the server's rule. |
 | `password-fill.spec.ts` | 3 | move |  | 3 |  |  |  | A value with no event is a box. |
 | `pick-labels.spec.ts` | 3 | move |  | 2 |  | 1 |  | The bulk route keeps what it did not change. |
@@ -167,8 +174,8 @@ four workers at most.
 | `sprints.spec.ts` | 4 | move | 2 |  |  | 2 |  | Keep the two migrations, which need the real database. |
 | `stamps.spec.ts` | 3 | move | 1 | 1 | 1 |  |  | Keep server and browser reading the same day. |
 | `switcher.spec.ts` | 6 | move |  | 6 |  |  |  | The switcher is a menu. |
-| `task-keys.spec.ts` | 1 | move |  | 1 |  |  |  | A key in Markdown is the page's rule. |
-| `text-save.spec.ts` | 5 | move |  | 4 |  | 1 |  | A conflict is a 409 the fake can answer. |
+| `task-keys.spec.ts` | 1 | done (USH-272) |  | 1 |  |  |  | A key in Markdown is the page's rule. |
+| `text-save.spec.ts` | 5 | done (USH-272) |  | 4 |  | 1 |  | A conflict is a 409 the fake can answer. A tick and a value refusing nothing is the route. |
 | `type-defaults.spec.ts` | 7 | move |  | 3 |  | 4 |  | What a create starts with is the route's answer. |
 | `types.spec.ts` | 4 | move |  | 3 |  | 1 |  | The Types page is a component. |
 | `undo-delete.spec.ts` | 8 | move | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
@@ -177,4 +184,4 @@ four workers at most.
 | `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. |
 | `when.spec.ts` | 7 | move |  | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. |
 | `words.spec.ts` | 4 | move |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. |
-| **80 files** | **460** | | **86** | **254** | **9** | **108** | **3** | |
+| **80 files** | **460** | | **90** | **251** | **9** | **109** | **3** | |
