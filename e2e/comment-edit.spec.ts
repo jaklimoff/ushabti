@@ -80,55 +80,57 @@ async function savedComment(projectId: string) {
 }
 
 test.describe("The author of a comment can edit it", () => {
-  test("the author edits in place, Update saves it, it reads edited, and reaches the other panel", async ({
-    browser,
-  }) => {
-    const { anna, ben, projectId, close } = await oneComment(browser);
-    const [before] = await savedComment(projectId);
-    expect(before.edited_at).toBeNull();
+  test(
+    "the author edits in place, Update saves it, it reads edited, and reaches the other panel",
+    { tag: "@smoke" },
+    async ({ browser }) => {
+      const { anna, ben, projectId, close } = await oneComment(browser);
+      const [before] = await savedComment(projectId);
+      expect(before.edited_at).toBeNull();
 
-    // Only the author is offered the control.
-    await expect(ben.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
+      // Only the author is offered the control.
+      await expect(ben.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
 
-    await anna.getByTestId("comment").hover();
-    await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    const editor = anna.getByTestId("comment-editor");
-    await expect(editor).toHaveValue("The tests are gren");
-    const update = anna.getByRole("button", { name: "Update", exact: true });
-    // Nothing changed yet, so there is nothing to update.
-    await expect(update).toBeDisabled();
-    await editor.fill("The tests are green");
-    await expect(update).toBeEnabled();
-    expect(await statusOf(anna, () => update.click())).toBe(200);
+      await anna.getByTestId("comment").hover();
+      await anna.getByRole("button", { name: "Edit", exact: true }).click();
+      const editor = anna.getByTestId("comment-editor");
+      await expect(editor).toHaveValue("The tests are gren");
+      const update = anna.getByRole("button", { name: "Update", exact: true });
+      // Nothing changed yet, so there is nothing to update.
+      await expect(update).toBeDisabled();
+      await editor.fill("The tests are green");
+      await expect(update).toBeEnabled();
+      expect(await statusOf(anna, () => update.click())).toBe(200);
 
-    await expect(editor).toHaveCount(0);
-    await expect(anna.getByTestId("comment-markdown")).toHaveText("The tests are green");
-    await expect(anna.getByTestId("comment-edited")).toBeVisible();
+      await expect(editor).toHaveCount(0);
+      await expect(anna.getByTestId("comment-markdown")).toHaveText("The tests are green");
+      await expect(anna.getByTestId("comment-edited")).toBeVisible();
 
-    const [after] = await savedComment(projectId);
-    expect(after.body).toBe("The tests are green");
-    expect(after.edited_at).not.toBeNull();
-    expect(after.created_at.getTime()).toBe(before.created_at.getTime());
+      const [after] = await savedComment(projectId);
+      expect(after.body).toBe("The tests are green");
+      expect(after.edited_at).not.toBeNull();
+      expect(after.created_at.getTime()).toBe(before.created_at.getTime());
 
-    // The time of the edit shows on focus, not only under the pointer.
-    const mark = anna.getByTestId("comment-edited");
-    await anna.mouse.move(0, 0);
-    await expect(mark.getByRole("tooltip")).toBeHidden();
-    await mark.focus();
-    await expect(mark.getByRole("tooltip")).toBeVisible();
+      // The time of the edit shows on focus, not only under the pointer.
+      const mark = anna.getByTestId("comment-edited");
+      await anna.mouse.move(0, 0);
+      await expect(mark.getByRole("tooltip")).toBeHidden();
+      await mark.focus();
+      await expect(mark.getByRole("tooltip")).toBeVisible();
 
-    await expect(ben.getByTestId("comment-markdown")).toHaveText("The tests are green", {
-      timeout: 15_000,
-    });
-    await expect(ben.getByTestId("comment-edited")).toBeVisible();
-    await expect(ben.getByTestId("comment")).toHaveCount(1);
+      await expect(ben.getByTestId("comment-markdown")).toHaveText("The tests are green", {
+        timeout: 15_000,
+      });
+      await expect(ben.getByTestId("comment-edited")).toBeVisible();
+      await expect(ben.getByTestId("comment")).toHaveCount(1);
 
-    await anna.getByRole("tab", { name: /^Activity/ }).click();
-    await expect(anna.getByText("Anna Owner edited a comment")).toHaveCount(1);
-    await expect(anna.getByText("Anna Owner left a comment")).toHaveCount(1);
+      await anna.getByRole("tab", { name: /^Activity/ }).click();
+      await expect(anna.getByText("Anna Owner edited a comment")).toHaveCount(1);
+      await expect(anna.getByText("Anna Owner left a comment")).toHaveCount(1);
 
-    await close();
-  });
+      await close();
+    },
+  );
 
   test("Escape puts the old words back, and the same words write nothing", async ({ browser }) => {
     const { anna, projectId, close } = await oneComment(browser);

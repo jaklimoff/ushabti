@@ -27,7 +27,7 @@ async function find(page: Page, words: string) {
 }
 
 test.describe("Finding a task", () => {
-  test("finds a task by words in its title and opens it", async ({ page }) => {
+  test("finds a task by words in its title and opens it", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Finding"));
 
@@ -73,7 +73,7 @@ test.describe("Finding a task", () => {
     await expect(page.getByTestId("task-title")).toHaveValue("Write the login guide");
   });
 
-  test("finds a task by its key, and by the number alone", async ({ page }) => {
+  test("finds a task by its key, and by the number alone", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Keys"));
 

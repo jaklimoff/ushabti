@@ -31,29 +31,33 @@ async function columnNames(page: Page): Promise<string[]> {
 }
 
 test.describe("Custom properties", () => {
-  test("create a property, give it options and group a board by it", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Custom"));
+  test(
+    "create a property, give it options and group a board by it",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      const projectId = await createProject(page, unique("Custom"));
 
-    await gotoSettings(page, projectId);
-    await page.getByLabel("New property name").fill("Risk");
-    await page.getByLabel("Options of the new property").fill("Low\nMedium\nHigh");
-    await page.getByRole("button", { name: "Add property" }).click();
+      await gotoSettings(page, projectId);
+      await page.getByLabel("New property name").fill("Risk");
+      await page.getByLabel("Options of the new property").fill("Low\nMedium\nHigh");
+      await page.getByRole("button", { name: "Add property" }).click();
 
-    const risk = propertyBox(page, "Risk");
-    await expect(risk.getByLabel("Name of the Risk property")).toHaveValue("Risk");
-    await expect(risk.getByLabel("Name of the option Medium")).toHaveValue("Medium");
+      const risk = propertyBox(page, "Risk");
+      await expect(risk.getByLabel("Name of the Risk property")).toHaveValue("Risk");
+      await expect(risk.getByLabel("Name of the option Medium")).toHaveValue("Medium");
 
-    await page.goto(`/p/${projectId}`);
-    await page.getByRole("button", { name: "New view" }).click();
-    await page.getByPlaceholder("View name").fill("By risk");
-    await page.getByRole("button", { name: "Risk", exact: true }).click();
-    await page.getByRole("button", { name: "Create view" }).click();
+      await page.goto(`/p/${projectId}`);
+      await page.getByRole("button", { name: "New view" }).click();
+      await page.getByPlaceholder("View name").fill("By risk");
+      await page.getByRole("button", { name: "Risk", exact: true }).click();
+      await page.getByRole("button", { name: "Create view" }).click();
 
-    for (const name of ["Low", "Medium", "High"]) {
-      await expect(column(page, name)).toBeVisible();
-    }
-  });
+      for (const name of ["Low", "Medium", "High"]) {
+        await expect(column(page, name)).toBeVisible();
+      }
+    },
+  );
 
   for (const [width, height] of [
     [1440, 900],
@@ -133,7 +137,7 @@ test.describe("Custom properties", () => {
     await memberContext.close();
   });
 
-  test("rename an option and the column follows", async ({ page }) => {
+  test("rename an option and the column follows", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Rename"));
 

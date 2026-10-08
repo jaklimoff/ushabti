@@ -62,35 +62,37 @@ async function addRoadmap(page: Page, projectId: string) {
 }
 
 test.describe("A roadmap", () => {
-  test("draws one bar per dated option, with the shipped below, and a line for today", async ({
-    page,
-  }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Roadmap"));
-    const { version } = await versions(page, projectId);
-    await addRoadmap(page, projectId);
+  test(
+    "draws one bar per dated option, with the shipped below, and a line for today",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      const projectId = await createProject(page, unique("Roadmap"));
+      const { version } = await versions(page, projectId);
+      await addRoadmap(page, projectId);
 
-    const rows = page.getByTestId("roadmap-row");
-    await expect(rows).toHaveCount(2);
-    await expect(rows.nth(0)).toContainText("Beta");
-    await expect(rows.nth(0)).toContainText("0 of 0 tasks done");
-    await expect(rows.nth(1)).toContainText("Alpha");
-    await expect(rows.nth(1)).toContainText("Shipped");
-    await expect(page.getByTestId("roadmap-today")).toBeInViewport();
-    await expect(page.getByTestId("roadmap-axis")).toContainText(
-      /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+/,
-    );
+      const rows = page.getByTestId("roadmap-row");
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0)).toContainText("Beta");
+      await expect(rows.nth(0)).toContainText("0 of 0 tasks done");
+      await expect(rows.nth(1)).toContainText("Alpha");
+      await expect(rows.nth(1)).toContainText("Shipped");
+      await expect(page.getByTestId("roadmap-today")).toBeInViewport();
+      await expect(page.getByTestId("roadmap-axis")).toContainText(
+        /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+/,
+      );
 
-    /* The view names its property, as a board does, and holds it. */
-    const board = await boardOf(page, projectId);
-    expect(board.views.find((v) => v.name === "Plan")).toMatchObject({
-      kind: "roadmap",
-      groupById: version.id,
-    });
-    const refused = await page.request.delete(`/api/properties/${version.id}`);
-    expect(refused.status()).toBe(400);
-    expect((await refused.json()).error).toContain('"Plan"');
-  });
+      /* The view names its property, as a board does, and holds it. */
+      const board = await boardOf(page, projectId);
+      expect(board.views.find((v) => v.name === "Plan")).toMatchObject({
+        kind: "roadmap",
+        groupById: version.id,
+      });
+      const refused = await page.request.delete(`/api/properties/${version.id}`);
+      expect(refused.status()).toBe(400);
+      expect((await refused.json()).error).toContain('"Plan"');
+    },
+  );
 
   test("starts the first bar at its oldest task, the next after it, and asks for a select", async ({
     page,
