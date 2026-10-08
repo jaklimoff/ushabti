@@ -35,6 +35,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # The container runs as root and the checkout belongs to the runner, so
+      # git refuses the tests that call it until the folder is trusted.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - uses: actions/setup-node@v7
         with:
           node-version: 24
