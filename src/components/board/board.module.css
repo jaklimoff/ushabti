@@ -1310,6 +1310,10 @@
 }
 
 .cardTitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
   font-size: 12.5px;
   line-height: 1.35;
   color: var(--text-3);
