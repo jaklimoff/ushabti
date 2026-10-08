@@ -1,15 +1,11 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import {
   addFilter,
-  addListView,
   addTask,
   backdateRun,
   card,
   createProject,
   gotoSettings,
-  overflow,
-  pastTheBar,
-  putFilterOnView,
   register,
   unique,
 } from "./helpers";
@@ -79,6 +75,9 @@ async function askTwice(page: Page, request: APIRequestContext, third = false) {
   return { api, older, newer, keyOf };
 }
 
+/* The walk through answering a question from the list, with the count
+   following live. What the list draws for a view rule, a folded column, a
+   list view and a phone is Waiting.test.tsx. */
 test.describe("The questions that wait on a person", () => {
   test("are counted past the filter, listed oldest first, and answered from the list", async ({
     page,
@@ -138,68 +137,5 @@ test.describe("The questions that wait on a person", () => {
     await api.patch(`/api/runs/${older}`, { status: "running", step: "Reading the answer" });
     await expect(count).toHaveCount(0);
     await expect(page).not.toHaveTitle(/^\(/);
-  });
-
-  test("hide from no view rule, folded column or list", async ({ page, request }) => {
-    await askTwice(page, request);
-    const count = page.getByTestId("waiting-count");
-    await expect(count).toHaveText("2 waiting");
-
-    /* A rule on the view, for everybody, hides the older one. */
-    await addFilter(page, "Status", "Todo");
-    await putFilterOnView(page);
-    await expect(card(page, "Older question")).toHaveCount(0);
-    await expect(count).toHaveText("2 waiting");
-
-    /* Folding the column hides the newer one as well. */
-    await page.getByRole("button", { name: "Fold the column Todo" }).click();
-    await expect(card(page, "Newer question")).toHaveCount(0);
-    await expect(count).toHaveText("2 waiting");
-
-    /* A list is the same tasks lying down, and counts the same. */
-    await addListView(page, "Rows");
-    await expect(count).toHaveText("2 waiting");
-    await count.click();
-    await expect(page.getByTestId("waiting-row")).toHaveCount(2);
-  });
-
-  test("keep the highlight on its task when another row goes", async ({ page, request }) => {
-    const { api, older, keyOf } = await askTwice(page, request, true);
-    const count = page.getByTestId("waiting-count");
-    await expect(count).toHaveText("3 waiting");
-    await count.click();
-    const rows = page.getByTestId("waiting-row");
-    await expect(rows).toHaveCount(3);
-    await page.keyboard.press("ArrowDown");
-    await expect(rows.nth(1)).toContainText("Newer question");
-    await expect(rows.nth(1)).toHaveAttribute("aria-selected", "true");
-
-    /* The row above goes. The highlight stays on the question it was on. */
-    await api.patch(`/api/runs/${older}`, { status: "running", step: "Reading the answer" });
-    await expect(rows).toHaveCount(2);
-    await expect(rows.nth(0)).toContainText("Newer question");
-    await expect(rows.nth(0)).toHaveAttribute("aria-selected", "true");
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(new RegExp(`task=${keyOf("Newer question")}$`));
-    await expect(page.getByTestId("comment-box")).toBeFocused();
-  });
-
-  test("fit on a phone", async ({ page, request }) => {
-    await page.setViewportSize({ width: 390, height: 820 });
-    await askTwice(page, request);
-    const count = page.getByTestId("waiting-count");
-    await expect(count).toHaveText("2 waiting");
-    expect(await pastTheBar(page)).toBe(0);
-
-    await count.click();
-    const list = page.getByTestId("waiting-list");
-    await expect(list).toBeVisible();
-    const at = (await list.boundingBox())!;
-    expect(at.x).toBeGreaterThanOrEqual(0);
-    expect(at.x + at.width).toBeLessThanOrEqual(390);
-    expect(await overflow(page)).toBe(0);
-
-    await page.getByTestId("waiting-row").first().click();
-    await expect(page.getByTestId("comment-box")).toBeFocused();
   });
 });

@@ -92,10 +92,10 @@ four workers at most.
 | Spec | Tests | Plan | Stays | Component | Unit | Route | Drop | Why |
 | --- | --: | --- | --: | --: | --: | --: | --: | --- |
 | `account.spec.ts` | 8 | move | 1 | 6 |  | 1 |  | Each face and password box is a component; one walk keeps the menu route and the board following the name. |
-| `agent-face.spec.ts` | 2 | move |  | 1 |  | 1 |  | Who may change a face is the route's answer; the typed emoji is the box. |
-| `agent-rename.spec.ts` | 2 | move | 1 |  |  | 1 |  | The watcher waking on the new name needs the stream and the harness. |
-| `agent-rules.spec.ts` | 2 | move |  | 1 |  | 1 |  | The claim carrying the rules is a route; the closed tab is `pagehide` on the box. |
-| `agents.spec.ts` | 17 | move | 3 | 2 | 2 | 10 |  | Tokens, beats, the lease and the refusals are route answers. Keep the first run on the board, the drag that takes over, and the silent run that closes itself. |
+| `agent-face.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | Who may change a face is the route's answer; the typed emoji is the box. |
+| `agent-rename.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | The watcher waking on the new name needs the stream and the harness. |
+| `agent-rules.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | The claim carrying the rules is a route; the closed tab is `pagehide` on the box. |
+| `agents.spec.ts` | 17 | done (USH-269) | 3 | 2 | 2 | 10 |  | Tokens, beats, the lease and the refusals are route answers. Keep the first run on the board, the drag that takes over, and the silent run that closes itself. |
 | `archive-retry.spec.ts` | 2 | move |  |  |  | 2 |  | Both are what a second archive writes. |
 | `archive.spec.ts` | 12 | move | 2 | 8 |  | 2 |  | Keep archive and put back from the panel, and the archive page. The panel's races are component tests with a held answer. |
 | `ask-mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
@@ -126,7 +126,7 @@ four workers at most.
 | `iteration.spec.ts` | 3 | move | 1 | 2 |  |  |  | Keep the walk from grouping to the roadmap. |
 | `links.spec.ts` | 2 | move |  | 2 |  |  |  | The panel and the card draw a link. |
 | `list.spec.ts` | 19 | move | 2 | 16 |  | 1 |  | Keep the drag the board sees and the order across a reload. The rest is what a list draws. |
-| `listening.spec.ts` | 12 | keep | 5 | 2 |  | 5 |  | Keep the stream, the watcher and the harness. The feed and its pages are route answers. |
+| `listening.spec.ts` | 12 | done (USH-269) | 5 | 2 |  | 5 |  | Keep the stream, the watcher and the harness. The feed and its pages are route answers. |
 | `live-preview.spec.ts` | 16 | move | 1 | 15 |  |  |  | The editor is a component with real layout; keep the chunk fetched as the panel opens. |
 | `long-title.spec.ts` | 1 | move |  | 1 |  |  |  | A card clamped to three lines is layout. |
 | `mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
@@ -141,7 +141,7 @@ four workers at most.
 | `pick.spec.ts` | 18 | move | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. |
 | `presence.spec.ts` | 4 | keep | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. |
 | `progress.spec.ts` | 4 | move |  | 2 | 1 | 1 |  | `progressOf` sums the bar; the header is a component. |
-| `project-waiting.spec.ts` | 2 | move | 1 |  |  | 1 |  | Keep the count that changes live. |
+| `project-waiting.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | Keep the count that changes live. |
 | `properties.spec.ts` | 13 | move | 1 | 10 |  | 2 |  | Keep making a property and grouping a board by it. |
 | `rank.spec.ts` | 1 | move |  |  |  | 1 |  | The mend is the create route; `rank.ts` already has unit tests. |
 | `rate-limit.spec.ts` | 1 | move |  |  |  | 1 |  | The limit is the route's answer. |
@@ -149,7 +149,7 @@ four workers at most.
 | `reveal.spec.ts` | 2 | move |  | 2 |  |  |  | The eye is a box. |
 | `roadmap.spec.ts` | 6 | move |  | 4 | 2 |  |  | `roadmapRows()` says where a bar starts; the rest is the canvas. |
 | `roles.spec.ts` | 3 | move |  | 1 |  | 2 |  | The role rule is the route's; the question before Make owner is a row. |
-| `run-history.spec.ts` | 2 | move |  | 1 |  | 1 |  | Paging is the route; the panel draws the pages. |
+| `run-history.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | Paging is the route; the panel draws the pages. |
 | `search.spec.ts` | 6 | move |  | 6 |  |  |  | The box and its list; `searchTasks()` already has unit tests. |
 | `select-menu.spec.ts` | 3 | move |  | 3 |  |  |  | The menu is a component. |
 | `settings-controls.spec.ts` | 6 | move |  | 6 |  |  |  | Sizes and colours are what a component test measures. |
@@ -167,7 +167,7 @@ four workers at most.
 | `types.spec.ts` | 4 | move |  | 3 |  | 1 |  | The Types page is a component. |
 | `undo-delete.spec.ts` | 8 | move | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
 | `upload.spec.ts` | 4 | keep | 2 | 2 |  |  |  | Keep the two uploads through the bucket. |
-| `waiting.spec.ts` | 4 | move | 1 | 3 |  |  |  | Keep an answer from the list. |
+| `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. |
 | `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. |
 | `when.spec.ts` | 7 | move |  | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. |
 | `words.spec.ts` | 4 | move |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. |

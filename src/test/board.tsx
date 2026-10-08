@@ -5,7 +5,15 @@ import { BoardProvider } from "@/components/board/store";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { defaultCardView } from "@/lib/card-view";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "@/lib/defaults";
-import type { BoardData, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
+import type {
+  AgentRunDTO,
+  BoardData,
+  MemberDTO,
+  PropertyDTO,
+  TaskDetailDTO,
+  TaskDTO,
+  TaskValue,
+} from "@/lib/types";
 
 /*
  * A component test draws a component inside a real board store and answers
@@ -149,8 +157,94 @@ export function withTask(
   return task;
 }
 
+/** A moment this many minutes before now, as the server writes one. */
+export const minutesAgo = (minutes: number) =>
+  new Date(Date.now() - minutes * 60_000).toISOString();
+
+/** An agent among the members. `listeningAt` is when its stream last said it was open. */
+export function withAgent(
+  data: BoardData,
+  name: string,
+  listeningAt: string | null = null,
+): MemberDTO {
+  const agent: MemberDTO = {
+    id: id(),
+    name,
+    email: null,
+    color: "#8b6cd9",
+    emoji: null,
+    role: "member",
+    kind: "agent",
+    listeningAt,
+  };
+  data.members.push(agent);
+  return agent;
+}
+
+/**
+ * A run of `agent` on `task`, started ten minutes ago and running, with its
+ * last report a moment ago, unless `fields` says otherwise. The agent need not be a member: a removed one
+ * still names its runs. It is not on the board; `withRun` puts it there.
+ */
+export function runOn(
+  task: TaskDTO,
+  agent: Pick<MemberDTO, "id" | "name" | "color" | "emoji">,
+  fields: Partial<AgentRunDTO> = {},
+): AgentRunDTO {
+  const now = minutesAgo(0);
+  return {
+    id: id(),
+    taskId: task.id,
+    status: "running",
+    goal: "Do the work",
+    step: "",
+    control: null,
+    startedAt: minutesAgo(10),
+    updatedAt: now,
+    beatAt: now,
+    reportDueAt: null,
+    endedAt: null,
+    agent: { id: agent.id, name: agent.name, color: agent.color, emoji: agent.emoji },
+    stepsTotal: 0,
+    stepsDone: 0,
+    lastLog: null,
+    ...fields,
+  };
+}
+
+/** An open run on the board. The board carries only open runs, one per task. */
+export function withRun(
+  data: BoardData,
+  task: TaskDTO,
+  agent: Pick<MemberDTO, "id" | "name" | "color" | "emoji">,
+  fields: Partial<AgentRunDTO> = {},
+): AgentRunDTO {
+  const run = runOn(task, agent, fields);
+  data.runs.push(run);
+  return run;
+}
+
+/** A task as `GET /api/tasks/{id}` answers it: nothing on it but `more`. */
+export function detailOf(task: TaskDTO, more: Partial<TaskDetailDTO> = {}): TaskDetailDTO {
+  return {
+    ...task,
+    creator: null,
+    links: { blockedBy: [], blocks: [] },
+    parent: null,
+    children: [],
+    checklist: [],
+    comments: [],
+    activity: [],
+    run: null,
+    pastRuns: [],
+    pastRunsTotal: 0,
+    attachments: [],
+    ...more,
+  };
+}
+
 /** One request the component sent, with its body read as JSON. */
-export type Sent = { method: string; path: string; body: unknown };
+export type Sent = { method: string; path: string; query: URLSearchParams; body: unknown };
 
 /** What a request is answered with. Nothing means 200 and `{}`. */
 export type Answer = (sent: Sent) => { status?: number; body?: unknown } | undefined;
@@ -176,6 +270,7 @@ export async function renderWithBoard(
       const sent: Sent = {
         method: init?.method ?? "GET",
         path: url.pathname,
+        query: url.searchParams,
         body: raw ? JSON.parse(raw) : undefined,
       };
       requests.push(sent);
@@ -189,13 +284,16 @@ export async function renderWithBoard(
     }),
   );
 
-  /* The stream is the doorbell, and nobody rings it in a test. */
+  /* The stream is the doorbell. Nobody rings it unless a test calls `ring()`. */
+  const bells: ((event: MessageEvent) => void)[] = [];
   vi.stubGlobal(
     "EventSource",
     class {
       onerror = null;
       onopen = null;
-      addEventListener() {}
+      addEventListener(kind: string, listener: (event: MessageEvent) => void) {
+        if (kind === "change") bells.push(listener);
+      }
       close() {}
     },
   );
@@ -218,5 +316,12 @@ export async function renderWithBoard(
         (!path || path.test(r.path)),
     );
 
-  return { screen, sent };
+  /* Somebody else wrote: the board and an open panel read again, and find
+     whatever the test has put in `data` and `answer` since. */
+  const ring = () => {
+    const event = new MessageEvent("change", { data: JSON.stringify({ clientId: "elsewhere" }) });
+    for (const bell of bells) bell(event);
+  };
+
+  return { screen, sent, ring };
 }
