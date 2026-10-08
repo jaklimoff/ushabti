@@ -7,13 +7,14 @@ import { formatDate } from "@/lib/board";
 import { currentOption, keyName } from "@/lib/filters";
 import { NO_VALUE_KEY } from "@/lib/types";
 import type { FormerDTO, MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
-import { personName, personOf } from "@/lib/people";
+import { personMenu, personName, personOf, personOpeningAt } from "@/lib/people";
 import { openingAt, optionMenu } from "@/lib/option-menu";
 import { pickableOptions } from "@/lib/option-dates";
 import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
 import { Avatar } from "@/components/ui/Avatar";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { walkKeys } from "../Ask";
+import { useBoard } from "../store";
 import styles from "./controls.module.css";
 
 type Props = {
@@ -504,55 +505,34 @@ const NOBODY = (
   />
 );
 
-const LIST_STEPS: Record<string, (at: number, count: number) => number> = {
-  ArrowDown: (at, count) => Math.min(at + 1, count - 1),
-  ArrowUp: (at) => Math.max(at - 1, 0),
-  Home: () => 0,
-  End: (_at, count) => count - 1,
-};
-
 /**
- * A short list of people, so it has no box to type in: the focus goes into
- * the list, onto the person already chosen, and the arrows walk it. Every row
- * is still a button, so Enter and Space pick as they always did. The list is
- * one tab stop, like every listbox: Tab leaves it.
+ * The picker's box and rows, in the shape `OptionMenu` has: the box keeps the
+ * focus and the highlight is `aria-activedescendant`. A member list grows past
+ * the eight rows the menu shows, so finding somebody takes a few keys, and the
+ * reader sits first because they are who is picked most.
  */
 function PersonMenu({ value, members, former = [], onChange, labelId }: Props) {
+  const me = useBoard().user.id;
   const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [rawAt, setAt] = useState(0);
   const triggerId = useId();
+  const listId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
-  const list = useRef<HTMLDivElement>(null);
   const ref = useDismiss<HTMLDivElement>(() => {
     focusBack(trigger.current);
     setOpen(false);
+    setDraft("");
   }, open);
   /* Somebody who left is read as the value and drawn as gone. The rows below
      offer only members, so picking anyone hands the task on. */
   const current = personOf(value, members, former);
 
-  useEffect(() => {
-    if (!open) return;
-    list.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
-  }, [open]);
-
-  function pick(id: string | null) {
-    onChange(id);
-    focusBack(trigger.current);
-    setOpen(false);
-  }
-
-  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    const step = LIST_STEPS[event.key];
-    if (!step || !list.current) return;
-    event.preventDefault();
-    const rows = [...list.current.querySelectorAll<HTMLElement>('[role="option"]')];
-    const at = rows.indexOf(document.activeElement as HTMLElement);
-    rows[step(Math.max(at, 0), rows.length)]?.focus();
-  }
-
+  const people = personMenu(members, me, draft);
+  // A search shows who matches, so the empty row steps aside while somebody types.
   const rows: { id: string | null; name: string; face: React.ReactNode }[] = [
-    { id: null, name: "Unassigned", face: NOBODY },
-    ...members.map((member) => ({
+    ...(draft.trim() ? [] : [{ id: null, name: "Unassigned", face: NOBODY }]),
+    ...people.map((member) => ({
       id: member.id,
       name: member.name,
       face: (
@@ -566,6 +546,21 @@ function PersonMenu({ value, members, former = [], onChange, labelId }: Props) {
       ),
     })),
   ];
+  // Somebody may leave the project under the highlight.
+  const at = Math.min(rawAt, Math.max(rows.length - 1, 0));
+  const menu = useHighlightInView(at, open);
+
+  function pick(id: string | null) {
+    onChange(id);
+    focusBack(trigger.current);
+    setOpen(false);
+    setDraft("");
+  }
+
+  function toggleOpen() {
+    if (!open) setAt(personOpeningAt(people, typeof value === "string" ? value : null, me));
+    setOpen((v) => !v);
+  }
 
   return (
     <div className={styles.wrap} ref={ref}>
@@ -576,7 +571,7 @@ function PersonMenu({ value, members, former = [], onChange, labelId }: Props) {
         aria-haspopup="listbox"
         aria-expanded={open}
         {...named(labelId, triggerId)}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
       >
         {/* The face draws initials as text, and the name is already there. */}
         <span aria-hidden="true" style={{ display: "contents" }}>
@@ -603,40 +598,61 @@ function PersonMenu({ value, members, former = [], onChange, labelId }: Props) {
         </span>
       </button>
       {open && (
-        <div
-          className={styles.menu}
-          style={{ top: 32 }}
-          ref={list}
-          role="listbox"
-          {...(labelId ? { "aria-labelledby": labelId } : { "aria-label": "People" })}
-          onKeyDown={onKeyDown}
-        >
-          {rows.map((row) => {
-            const on = (value ?? null) === row.id;
-            return (
-              <button
-                key={row.id ?? "nobody"}
-                className={`${styles.menuItem} ${on && row.id ? styles.menuItemOn : ""}`}
-                role="option"
-                aria-selected={on}
-                tabIndex={-1}
-                onClick={() => pick(row.id)}
-              >
-                <span aria-hidden="true" style={{ display: "contents" }}>
-                  {row.face}
-                </span>
-                {row.name}
-                <span style={{ flex: 1 }} />
-                <span
-                  className={styles.tick}
-                  aria-hidden="true"
-                  style={{ color: on ? "var(--accent)" : "transparent" }}
+        <div className={styles.menu} style={{ top: 32 }} ref={menu}>
+          <input
+            className={styles.menuInput}
+            autoFocus
+            role="combobox"
+            aria-expanded
+            aria-controls={listId}
+            aria-activedescendant={rows.length ? `${listId}-${at}` : undefined}
+            aria-label="Find a person"
+            value={draft}
+            placeholder="Find…"
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setAt(0);
+            }}
+            onKeyDown={walkKeys(rows.length, at, setAt, (i) => pick(rows[i].id))}
+          />
+          <div
+            className={styles.menuList}
+            role="listbox"
+            id={listId}
+            {...(labelId ? { "aria-labelledby": labelId } : { "aria-label": "People" })}
+          >
+            {rows.map((row, i) => {
+              const on = (value ?? null) === row.id;
+              return (
+                <div
+                  key={row.id ?? "nobody"}
+                  id={`${listId}-${i}`}
+                  className={`${styles.menuItem} ${on && row.id ? styles.menuItemOn : ""} ${
+                    i === at ? styles.menuItemAt : ""
+                  }`}
+                  role="option"
+                  aria-selected={on}
+                  data-at={i === at}
+                  // The box must keep the focus, so the press must not move it.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pick(row.id)}
                 >
-                  ✓
-                </span>
-              </button>
-            );
-          })}
+                  <span aria-hidden="true" style={{ display: "contents" }}>
+                    {row.face}
+                  </span>
+                  {row.name}
+                  <span style={{ flex: 1 }} />
+                  <span
+                    className={styles.tick}
+                    aria-hidden="true"
+                    style={{ color: on ? "var(--accent)" : "transparent" }}
+                  >
+                    ✓
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
