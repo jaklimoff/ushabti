@@ -54,37 +54,41 @@ async function setDue(page: Page, when: string) {
 }
 
 test.describe("Filters inside a view", () => {
-  test("a filter narrows the board and the count says by how much", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Filtering"));
+  test(
+    "a filter narrows the board and the count says by how much",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      await createProject(page, unique("Filtering"));
 
-    await addTask(page, "Todo", "Urgent thing");
-    // The panel opens on the new task, so the priority goes on straight away.
-    await page.getByRole("button", { name: "Urgent", exact: true }).click();
-    await page.getByRole("button", { name: "Close task" }).click();
+      await addTask(page, "Todo", "Urgent thing");
+      // The panel opens on the new task, so the priority goes on straight away.
+      await page.getByRole("button", { name: "Urgent", exact: true }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
 
-    await addTask(page, "Todo", "Ordinary thing");
-    await page.getByRole("button", { name: "Close task" }).click();
+      await addTask(page, "Todo", "Ordinary thing");
+      await page.getByRole("button", { name: "Close task" }).click();
 
-    await expect(page.getByTestId("task-count")).toHaveText("2 tasks");
-    await expect(page.getByTestId("filter-row")).toHaveCount(0);
+      await expect(page.getByTestId("task-count")).toHaveText("2 tasks");
+      await expect(page.getByTestId("filter-row")).toHaveCount(0);
 
-    await addFilter(page, "Priority", "Urgent");
+      await addFilter(page, "Priority", "Urgent");
 
-    await expect(chip(page, "Priority is Urgent")).toBeVisible();
-    await expect(card(page, "Urgent thing")).toBeVisible();
-    await expect(card(page, "Ordinary thing")).toHaveCount(0);
-    await expect(page.getByTestId("task-count")).toHaveText("1 of 2 tasks");
-    await expect(page.getByTestId("filter-button")).toContainText("Filter 1");
+      await expect(chip(page, "Priority is Urgent")).toBeVisible();
+      await expect(card(page, "Urgent thing")).toBeVisible();
+      await expect(card(page, "Ordinary thing")).toHaveCount(0);
+      await expect(page.getByTestId("task-count")).toHaveText("1 of 2 tasks");
+      await expect(page.getByTestId("filter-button")).toContainText("Filter 1");
 
-    // The ✕ on the chip is how a rule goes.
-    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
-      page.getByRole("button", { name: "Remove the filter Priority is Urgent" }).click(),
-    );
-    await expect(card(page, "Ordinary thing")).toBeVisible();
-    await expect(page.getByTestId("task-count")).toHaveText("2 tasks");
-    await expect(page.getByTestId("filter-row")).toHaveCount(0);
-  });
+      // The ✕ on the chip is how a rule goes.
+      await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+        page.getByRole("button", { name: "Remove the filter Priority is Urgent" }).click(),
+      );
+      await expect(card(page, "Ordinary thing")).toBeVisible();
+      await expect(page.getByTestId("task-count")).toHaveText("2 tasks");
+      await expect(page.getByTestId("filter-row")).toHaveCount(0);
+    },
+  );
 
   test("a rule can be changed from its own chip", async ({ page }) => {
     await register(page);
@@ -447,35 +451,39 @@ test.describe("Filters inside a view", () => {
   /* Yours, and the view's                                             */
   /* ---------------------------------------------------------------- */
 
-  test("a rule I add says it is mine, and one press makes it the view's", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Mine"));
+  test(
+    "a rule I add says it is mine, and one press makes it the view's",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      const projectId = await createProject(page, unique("Mine"));
 
-    await addTask(page, "Todo", "Urgent thing");
-    await page.getByRole("button", { name: "Urgent", exact: true }).click();
-    await page.getByRole("button", { name: "Close task" }).click();
+      await addTask(page, "Todo", "Urgent thing");
+      await page.getByRole("button", { name: "Urgent", exact: true }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
 
-    await addFilter(page, "Priority", "Urgent");
+      await addFilter(page, "Priority", "Urgent");
 
-    // The row says who can see it, and offers the one way to change that.
-    await expect(page.getByTestId("filter-mine")).toBeVisible();
-    await expect(page.getByText("Only you see this")).toBeVisible();
-    // Nothing is on the view yet, so there is no divider to draw.
-    await expect(page.getByTestId("filter-divider")).toHaveCount(0);
+      // The row says who can see it, and offers the one way to change that.
+      await expect(page.getByTestId("filter-mine")).toBeVisible();
+      await expect(page.getByText("Only you see this")).toBeVisible();
+      // Nothing is on the view yet, so there is no divider to draw.
+      await expect(page.getByTestId("filter-divider")).toHaveCount(0);
 
-    await putFilterOnView(page);
+      await putFilterOnView(page);
 
-    // The rule is the view's now: the same chip, and nothing left that is mine.
-    await expect(chip(page, "Priority is Urgent")).toBeVisible();
-    await expect(page.getByTestId("filter-mine")).toHaveCount(0);
-    await expect(page.getByTestId("filter-clear")).toHaveCount(0);
-    await expect(page.getByTestId("filter-button")).toContainText("Filter 1");
+      // The rule is the view's now: the same chip, and nothing left that is mine.
+      await expect(chip(page, "Priority is Urgent")).toBeVisible();
+      await expect(page.getByTestId("filter-mine")).toHaveCount(0);
+      await expect(page.getByTestId("filter-clear")).toHaveCount(0);
+      await expect(page.getByTestId("filter-button")).toContainText("Filter 1");
 
-    // And it stays the view's over a reload.
-    await page.goto(`/p/${projectId}`);
-    await expect(chip(page, "Priority is Urgent")).toBeVisible();
-    await expect(page.getByTestId("filter-mine")).toHaveCount(0);
-  });
+      // And it stays the view's over a reload.
+      await page.goto(`/p/${projectId}`);
+      await expect(chip(page, "Priority is Urgent")).toBeVisible();
+      await expect(page.getByTestId("filter-mine")).toHaveCount(0);
+    },
+  );
 
   test("the view's chips come first, then a divider, then mine", async ({ page }) => {
     await register(page);

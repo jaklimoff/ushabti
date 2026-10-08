@@ -153,7 +153,7 @@ test.describe("The panel and the view strip work without a mouse", () => {
     await expect(panel.getByRole("tabpanel", { name: /^Activity/ })).toBeVisible();
   });
 
-  test("the view strip names the view it is on", async ({ page }) => {
+  test("the view strip names the view it is on", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Pills"));
 

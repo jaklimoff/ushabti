@@ -47,16 +47,20 @@ async function aPricedBoard(page: Page) {
 }
 
 test.describe("Ushabti board", () => {
-  test("sign up, create a project and get the default properties", async ({ page }) => {
-    await register(page, "Ada Lovelace");
-    await createProject(page, unique("Roadmap"));
+  test(
+    "sign up, create a project and get the default properties",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page, "Ada Lovelace");
+      await createProject(page, unique("Roadmap"));
 
-    for (const name of ["BACKLOG", "TODO", "IN PROGRESS", "READY", "SHIPPED"]) {
-      await expect(column(page, name)).toBeVisible();
-    }
-    await expect(page.getByRole("button", { name: /^Board/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Phases/ })).toBeVisible();
-  });
+      for (const name of ["BACKLOG", "TODO", "IN PROGRESS", "READY", "SHIPPED"]) {
+        await expect(column(page, name)).toBeVisible();
+      }
+      await expect(page.getByRole("button", { name: /^Board/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Phases/ })).toBeVisible();
+    },
+  );
 
   test("a full column scrolls and its cards keep their height", async ({ page }) => {
     await register(page);
@@ -81,7 +85,7 @@ test.describe("Ushabti board", () => {
     expect(first!.height).toBeGreaterThan(40);
   });
 
-  test("add a task, open it and edit every part", async ({ page }) => {
+  test("add a task, open it and edit every part", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Editing"));
 
@@ -173,35 +177,43 @@ test.describe("Ushabti board", () => {
     await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
   });
 
-  test("set a property from the panel and see it on the card", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Props"));
-    await addTask(page, "Todo", "Priority test");
+  test(
+    "set a property from the panel and see it on the card",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      await createProject(page, unique("Props"));
+      await addTask(page, "Todo", "Priority test");
 
-    await page.getByRole("button", { name: "Urgent" }).click();
-    await page.getByRole("button", { name: "Close task" }).click();
+      await page.getByRole("button", { name: "Urgent" }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
 
-    const square = card(page, "Priority test").getByTestId("card-chip").first();
-    await expect(square).toHaveAttribute("title", "Priority · Urgent");
-  });
+      const square = card(page, "Priority test").getByTestId("card-chip").first();
+      await expect(square).toHaveAttribute("title", "Priority · Urgent");
+    },
+  );
 
-  test("drag a card into another column and it stays there", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Drag"));
-    await addTask(page, "Todo", "Move me across");
-    await page.getByRole("button", { name: "Close task" }).click();
+  test(
+    "drag a card into another column and it stays there",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      const projectId = await createProject(page, unique("Drag"));
+      await addTask(page, "Todo", "Move me across");
+      await page.getByRole("button", { name: "Close task" }).click();
 
-    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(1);
+      await expect(column(page, "Todo").getByTestId("card")).toHaveCount(1);
 
-    await dragCard(page, "Move me across", await centreOf(page, "In Progress"));
+      await dragCard(page, "Move me across", await centreOf(page, "In Progress"));
 
-    await expect(column(page, "In Progress").getByTestId("card")).toHaveCount(1);
-    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(0);
+      await expect(column(page, "In Progress").getByTestId("card")).toHaveCount(1);
+      await expect(column(page, "Todo").getByTestId("card")).toHaveCount(0);
 
-    // and it survives a reload, so the move reached the database
-    await page.goto(`/p/${projectId}`);
-    await expect(column(page, "In Progress").getByText("Move me across")).toBeVisible();
-  });
+      // and it survives a reload, so the move reached the database
+      await page.goto(`/p/${projectId}`);
+      await expect(column(page, "In Progress").getByText("Move me across")).toBeVisible();
+    },
+  );
 
   test("drag a card into an empty column while other columns are full", async ({ page }) => {
     await register(page);
@@ -249,7 +261,7 @@ test.describe("Ushabti board", () => {
     expect(await titles()).toEqual(["Second card", "Third card", "First card"]);
   });
 
-  test("drag reorders cards inside one column", async ({ page }) => {
+  test("drag reorders cards inside one column", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Reorder"));
     for (const title of ["First card", "Second card", "Third card"]) {
@@ -273,37 +285,41 @@ test.describe("Ushabti board", () => {
     expect(await titles()).toEqual(["Third card", "First card", "Second card"]);
   });
 
-  test("checklist and comment counts reach the card and survive a reload", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Counts"));
-    await addTask(page, "Todo", "Counting task");
+  test(
+    "checklist and comment counts reach the card and survive a reload",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      const projectId = await createProject(page, unique("Counts"));
+      await addTask(page, "Todo", "Counting task");
 
-    await page.getByRole("button", { name: "Add item" }).click();
-    const item = page.getByPlaceholder("What has to be true?");
-    await item.fill("First thing");
-    await item.press("Enter");
-    await item.fill("Second thing");
-    await item.press("Enter");
-    await page.getByRole("button", { name: "Mark as done" }).first().click();
+      await page.getByRole("button", { name: "Add item" }).click();
+      const item = page.getByPlaceholder("What has to be true?");
+      await item.fill("First thing");
+      await item.press("Enter");
+      await item.fill("Second thing");
+      await item.press("Enter");
+      await page.getByRole("button", { name: "Mark as done" }).first().click();
 
-    const composer = page.getByPlaceholder("Leave a note…");
-    await composer.fill("A note.");
-    await page.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(page.getByText("A note.")).toBeVisible();
+      const composer = page.getByPlaceholder("Leave a note…");
+      await composer.fill("A note.");
+      await page.getByRole("button", { name: "Comment", exact: true }).click();
+      await expect(page.getByText("A note.")).toBeVisible();
 
-    await page.getByRole("button", { name: "Close task" }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
 
-    // no reload: the card behind the panel already carries the counts
-    const target = card(page, "Counting task").first();
-    await expect(target).toContainText("1/2");
-    await expect(target).toContainText("1");
+      // no reload: the card behind the panel already carries the counts
+      const target = card(page, "Counting task").first();
+      await expect(target).toContainText("1/2");
+      await expect(target).toContainText("1");
 
-    // and again from the board the server draws, which counts them itself
-    await page.goto(`/p/${projectId}`);
-    const drawn = card(page, "Counting task").first();
-    await expect(drawn).toContainText("1/2");
-    await expect(drawn.getByTitle("Comments")).toHaveText("1");
-  });
+      // and again from the board the server draws, which counts them itself
+      await page.goto(`/p/${projectId}`);
+      const drawn = card(page, "Counting task").first();
+      await expect(drawn).toContainText("1/2");
+      await expect(drawn.getByTitle("Comments")).toHaveText("1");
+    },
+  );
 
   /*
    * A field saves when you leave it, and a tab closed on one sends what the
@@ -376,7 +392,7 @@ test.describe("Ushabti board", () => {
     await expect(column(page, "In Progress").getByPlaceholder("What needs doing?")).toBeVisible();
   });
 
-  test("a card moves with the keyboard alone", async ({ page }) => {
+  test("a card moves with the keyboard alone", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Keyboard"));
     await addTask(page, "Todo", "Keyboard move");
@@ -441,7 +457,7 @@ test.describe("Ushabti board", () => {
     await expect(column(page, "Todo").getByText("Goes next door")).toBeVisible();
   });
 
-  test("the arrow keys move the cursor from card to card", async ({ page }) => {
+  test("the arrow keys move the cursor from card to card", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Cursor"));
 
@@ -543,7 +559,7 @@ test.describe("Ushabti board", () => {
       .toBe(Math.round(was + 156));
   });
 
-  test("create a view grouped by another property", async ({ page }) => {
+  test("create a view grouped by another property", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Views"));
     await addTask(page, "Todo", "Grouping test");
@@ -646,77 +662,86 @@ test.describe("Ushabti board", () => {
 /* A board is ordered from a button, because it has no heading to press. What
    the order then means is the list's answer, read by the same file. */
 test.describe("Ordering a board", () => {
-  test("orders every column, and the cards hold still while it is on", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Ordered"));
-    await aPricedBoard(page);
+  test(
+    "orders every column, and the cards hold still while it is on",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      await createProject(page, unique("Ordered"));
+      await aPricedBoard(page);
 
-    expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
+      expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
 
-    // Every column is in the order, and a card with no priority goes last.
-    await sortBoard(page, "Priority");
-    await expect(page.getByTestId("sort-chip")).toContainText("Priority");
-    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+      // Every column is in the order, and a card with no priority goes last.
+      await sortBoard(page, "Priority");
+      await expect(page.getByTestId("sort-chip")).toContainText("Priority");
+      expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
 
-    /* The order the board reads back is not proof on its own: a write that
+      /* The order the board reads back is not proof on its own: a write that
        went out and was then overtaken would read the same. So count what the
        held drags send. A drag moves a card with POST .../move, so every
        method but GET counts. */
-    const writes: string[] = [];
-    await page.route("**/api/tasks/**", (route) => {
-      const asked = route.request();
-      if (asked.method() !== "GET")
-        writes.push(`${asked.method()} ${new URL(asked.url()).pathname}`);
-      return route.continue();
-    });
+      const writes: string[] = [];
+      await page.route("**/api/tasks/**", (route) => {
+        const asked = route.request();
+        if (asked.method() !== "GET")
+          writes.push(`${asked.method()} ${new URL(asked.url()).pathname}`);
+        return route.continue();
+      });
 
-    // A drag inside a column writes a rank, and there is no rank on screen to
-    // write. So the card goes back where the order has it.
-    const beetle = await card(page, "Beetle").boundingBox();
-    await dragCard(page, "Aardvark", { x: beetle!.x + beetle!.width / 2, y: beetle!.y + 10 }, null);
-    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
-    // The drop animates the overlay home; a lift before it lands draws two.
-    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
+      // A drag inside a column writes a rank, and there is no rank on screen to
+      // write. So the card goes back where the order has it.
+      const beetle = await card(page, "Beetle").boundingBox();
+      await dragCard(
+        page,
+        "Aardvark",
+        { x: beetle!.x + beetle!.width / 2, y: beetle!.y + 10 },
+        null,
+      );
+      expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+      // The drop animates the overlay home; a lift before it lands draws two.
+      await expect(page.getByTestId("card-overlay")).toHaveCount(0);
 
-    // Nor do the arrows of a lifted card: they belong to the drag, and inside
-    // a sorted column there is nowhere for them to take it. The drag's own
-    // overlay fades out first, which takes longer on a busy machine.
-    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
-    await card(page, "Aardvark").first().focus();
-    await page.keyboard.press("Space");
-    await expect(page.getByTestId("card-overlay")).toBeVisible();
-    await page.waitForTimeout(150);
-    await page.keyboard.press("ArrowUp");
-    await page.keyboard.press("Space");
-    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
-    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
+      // Nor do the arrows of a lifted card: they belong to the drag, and inside
+      // a sorted column there is nowhere for them to take it. The drag's own
+      // overlay fades out first, which takes longer on a busy machine.
+      await expect(page.getByTestId("card-overlay")).toHaveCount(0);
+      await card(page, "Aardvark").first().focus();
+      await page.keyboard.press("Space");
+      await expect(page.getByTestId("card-overlay")).toBeVisible();
+      await page.waitForTimeout(150);
+      await page.keyboard.press("ArrowUp");
+      await page.keyboard.press("Space");
+      await expect(page.getByTestId("card-overlay")).toHaveCount(0);
+      expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
 
-    // Neither held drag wrote anything at all.
-    expect(writes).toEqual([]);
-    await page.unroute("**/api/tasks/**");
+      // Neither held drag wrote anything at all.
+      expect(writes).toEqual([]);
+      await page.unroute("**/api/tasks/**");
 
-    // Another column still takes the card, because that writes the column's
-    // value and no rank at all — and the order says where it lands, under a
-    // card that was there first.
-    await dragCard(
-      page,
-      "Aardvark",
-      await centreOf(page, "Backlog"),
-      /\/api\/tasks\/[0-9a-f-]+\/values\//,
-    );
-    expect(await columnOrder(page, "Backlog")).toEqual(["Dingo", "Aardvark"]);
-    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Cricket"]);
+      // Another column still takes the card, because that writes the column's
+      // value and no rank at all — and the order says where it lands, under a
+      // card that was there first.
+      await dragCard(
+        page,
+        "Aardvark",
+        await centreOf(page, "Backlog"),
+        /\/api\/tasks\/[0-9a-f-]+\/values\//,
+      );
+      expect(await columnOrder(page, "Backlog")).toEqual(["Dingo", "Aardvark"]);
+      expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Cricket"]);
 
-    // The ✕ gives the board its own order back, and it is the order it always
-    // had: Aardvark is above Dingo again, so nothing the drags did wrote a
-    // rank.
-    await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
-      page.getByTestId("sort-clear").click(),
-    );
-    await expect(page.getByTestId("sort-chip")).toHaveCount(0);
-    expect(await columnOrder(page, "Backlog")).toEqual(["Aardvark", "Dingo"]);
-    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Cricket"]);
-  });
+      // The ✕ gives the board its own order back, and it is the order it always
+      // had: Aardvark is above Dingo again, so nothing the drags did wrote a
+      // rank.
+      await settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
+        page.getByTestId("sort-clear").click(),
+      );
+      await expect(page.getByTestId("sort-chip")).toHaveCount(0);
+      expect(await columnOrder(page, "Backlog")).toEqual(["Aardvark", "Dingo"]);
+      expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Cricket"]);
+    },
+  );
 
   test("the same press turns it around, and it holds across a reload", async ({ page }) => {
     await register(page);

@@ -24,68 +24,76 @@ async function freshPage(browser: Browser) {
 }
 
 test.describe("Two people on one board", () => {
-  test("the owner adds a friend, who then sees the board", async ({ browser }) => {
-    const owner = await freshPage(browser);
-    const friend = await freshPage(browser);
+  test(
+    "the owner adds a friend, who then sees the board",
+    { tag: "@smoke" },
+    async ({ browser }) => {
+      const owner = await freshPage(browser);
+      const friend = await freshPage(browser);
 
-    await register(owner.page, "Owner Person");
-    const projectId = await createProject(owner.page, unique("Shared"));
-    await addTask(owner.page, "Todo", "Shared work");
-    await owner.page.getByRole("button", { name: "Close task" }).click();
+      await register(owner.page, "Owner Person");
+      const projectId = await createProject(owner.page, unique("Shared"));
+      await addTask(owner.page, "Todo", "Shared work");
+      await owner.page.getByRole("button", { name: "Close task" }).click();
 
-    const friendAccount: Account = await register(friend.page, "Friend Person");
+      const friendAccount: Account = await register(friend.page, "Friend Person");
 
-    // the friend cannot reach the project yet
-    await friend.page.goto(`/p/${projectId}`);
-    await expect(friend.page.getByText("This page is not here")).toBeVisible();
+      // the friend cannot reach the project yet
+      await friend.page.goto(`/p/${projectId}`);
+      await expect(friend.page.getByText("This page is not here")).toBeVisible();
 
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+      await gotoSettings(owner.page, projectId, "people");
+      await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
+      await owner.page.getByRole("button", { name: "Add member" }).click();
+      await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
 
-    await friend.page.goto(`/p/${projectId}`);
-    await expect(card(friend.page, "Shared work")).toBeVisible();
+      await friend.page.goto(`/p/${projectId}`);
+      await expect(card(friend.page, "Shared work")).toBeVisible();
 
-    await owner.context.close();
-    await friend.context.close();
-  });
+      await owner.context.close();
+      await friend.context.close();
+    },
+  );
 
-  test("a change by one person reaches the other without a reload", async ({ browser }) => {
-    const owner = await freshPage(browser);
-    const friend = await freshPage(browser);
+  test(
+    "a change by one person reaches the other without a reload",
+    { tag: "@smoke" },
+    async ({ browser }) => {
+      const owner = await freshPage(browser);
+      const friend = await freshPage(browser);
 
-    await register(owner.page, "Owner Person");
-    const projectId = await createProject(owner.page, unique("Live"));
-    const friendAccount = await register(friend.page, "Friend Person");
+      await register(owner.page, "Owner Person");
+      const projectId = await createProject(owner.page, unique("Live"));
+      const friendAccount = await register(friend.page, "Friend Person");
 
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+      await gotoSettings(owner.page, projectId, "people");
+      await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
+      await owner.page.getByRole("button", { name: "Add member" }).click();
+      await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
 
-    await friend.page.goto(`/p/${projectId}`);
-    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
+      await friend.page.goto(`/p/${projectId}`);
+      await expect(friend.page.getByTestId("live-dot")).toBeVisible();
 
-    await owner.page.goto(`/p/${projectId}`);
-    await addTask(owner.page, "Todo", "Arrives by itself");
+      await owner.page.goto(`/p/${projectId}`);
+      await addTask(owner.page, "Todo", "Arrives by itself");
 
-    // no reload on the friend's side
-    await expect(card(friend.page, "Arrives by itself")).toBeVisible({ timeout: 15_000 });
+      // no reload on the friend's side
+      await expect(card(friend.page, "Arrives by itself")).toBeVisible({ timeout: 15_000 });
 
-    // and a move travels too
-    await owner.page.getByRole("button", { name: "Close task" }).click();
-    await dragCard(owner.page, "Arrives by itself", {
-      x: (await column(owner.page, "Ready").boundingBox())!.x + 130,
-      y: 200,
-    });
-    await expect(column(friend.page, "Ready").getByText("Arrives by itself")).toBeVisible({
-      timeout: 15_000,
-    });
+      // and a move travels too
+      await owner.page.getByRole("button", { name: "Close task" }).click();
+      await dragCard(owner.page, "Arrives by itself", {
+        x: (await column(owner.page, "Ready").boundingBox())!.x + 130,
+        y: 200,
+      });
+      await expect(column(friend.page, "Ready").getByText("Arrives by itself")).toBeVisible({
+        timeout: 15_000,
+      });
 
-    await owner.context.close();
-    await friend.context.close();
-  });
+      await owner.context.close();
+      await friend.context.close();
+    },
+  );
 
   test("a remote change does not throw away a comment being written", async ({ browser }) => {
     const owner = await freshPage(browser);

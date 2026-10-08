@@ -87,6 +87,18 @@ the one test SMTP port run one at a time, in the `mail` project of
 `playwright.config.ts`; a new spec that shares state with another file goes
 there too.
 
+About thirty tests carry the tag `@smoke`: one or two per main flow, each the
+test that walks the flow end to end. They answer "is anything big broken?" in
+about a minute, so run them after each change, with the specs you touched:
+
+```bash
+npx playwright test --grep @smoke
+```
+
+The whole suite still runs before a push. A smoke test must pass against the
+dev server on 3050, so none of them reads mail, a webhook or an upload. Tag a
+new one only when it walks a main flow that has none.
+
 The end-to-end tests need a server. Start the dev one with `docker compose up`,
 or let Playwright start one for you. On CI, and whenever `CI` is set, Playwright
 runs `npm run start` instead, so the tests exercise what the image ships.

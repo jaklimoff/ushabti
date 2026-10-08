@@ -30,18 +30,22 @@ async function threeTasks(page: import("@playwright/test").Page) {
 }
 
 test.describe("A list view", () => {
-  test("shows every task the board shows, in the one order they share", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("List"));
-    await threeTasks(page);
+  test(
+    "shows every task the board shows, in the one order they share",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      await createProject(page, unique("List"));
+      await threeTasks(page);
 
-    await addListView(page, "Everything");
+      await addListView(page, "Everything");
 
-    // The columns are gone; the rows are all here, in the board's own order.
-    await expect(page.getByTestId("column")).toHaveCount(0);
-    expect(await listOrder(page)).toEqual(["First thing", "Second thing", "Third thing"]);
-    await expect(page.getByTestId("task-count")).toHaveText("3 tasks");
-  });
+      // The columns are gone; the rows are all here, in the board's own order.
+      await expect(page.getByTestId("column")).toHaveCount(0);
+      expect(await listOrder(page)).toEqual(["First thing", "Second thing", "Third thing"]);
+      await expect(page.getByTestId("task-count")).toHaveText("3 tasks");
+    },
+  );
 
   test("does not ask what to group by, because it groups nothing", async ({ page }) => {
     await register(page);
@@ -114,7 +118,7 @@ test.describe("A list view", () => {
     );
   });
 
-  test("moves a row, and the board sees the same order", async ({ page }) => {
+  test("moves a row, and the board sees the same order", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Order"));
     await threeTasks(page);
@@ -314,37 +318,41 @@ test.describe("A list view", () => {
     await expect(page.getByLabel("Name of the Phase property")).toHaveCount(0);
   });
 
-  test("orders itself by a column, and gives the board's own order back", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Sort"));
+  test(
+    "orders itself by a column, and gives the board's own order back",
+    { tag: "@smoke" },
+    async ({ page }) => {
+      await register(page);
+      await createProject(page, unique("Sort"));
 
-    await addTask(page, "Todo", "Middling");
-    await page.getByRole("button", { name: "Medium", exact: true }).click();
-    await page.getByRole("button", { name: "Close task" }).click();
-    await addTask(page, "Todo", "The worst of it");
-    await page.getByRole("button", { name: "Urgent", exact: true }).click();
-    await page.getByRole("button", { name: "Close task" }).click();
-    await addTask(page, "Todo", "Can wait");
-    await page.getByRole("button", { name: "Low", exact: true }).click();
-    await page.getByRole("button", { name: "Close task" }).click();
+      await addTask(page, "Todo", "Middling");
+      await page.getByRole("button", { name: "Medium", exact: true }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
+      await addTask(page, "Todo", "The worst of it");
+      await page.getByRole("button", { name: "Urgent", exact: true }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
+      await addTask(page, "Todo", "Can wait");
+      await page.getByRole("button", { name: "Low", exact: true }).click();
+      await page.getByRole("button", { name: "Close task" }).click();
 
-    await addListView(page, "Sorted");
-    const asAdded = ["Middling", "The worst of it", "Can wait"];
-    expect(await listOrder(page)).toEqual(asAdded);
+      await addListView(page, "Sorted");
+      const asAdded = ["Middling", "The worst of it", "Can wait"];
+      expect(await listOrder(page)).toEqual(asAdded);
 
-    // Options are ordered by hand and that order is the meaning: Urgent above
-    // Low, not alphabetically.
-    await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
-    expect(await listOrder(page)).toEqual(["The worst of it", "Middling", "Can wait"]);
+      // Options are ordered by hand and that order is the meaning: Urgent above
+      // Low, not alphabetically.
+      await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
+      expect(await listOrder(page)).toEqual(["The worst of it", "Middling", "Can wait"]);
 
-    await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
-    expect(await listOrder(page)).toEqual(["Can wait", "Middling", "The worst of it"]);
+      await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
+      expect(await listOrder(page)).toEqual(["Can wait", "Middling", "The worst of it"]);
 
-    // The third press is the way back to the order a drag can write.
-    await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
-    expect(await listOrder(page)).toEqual(asAdded);
-    await expect(page.getByTestId("sort-chip")).toHaveCount(0);
-  });
+      // The third press is the way back to the order a drag can write.
+      await settles(page, /\/api\/views\//, () => listHead(page, "Priority").click());
+      expect(await listOrder(page)).toEqual(asAdded);
+      await expect(page.getByTestId("sort-chip")).toHaveCount(0);
+    },
+  );
 
   test("names each way of an order as the board's Sort button does", async ({ page }) => {
     await register(page);
