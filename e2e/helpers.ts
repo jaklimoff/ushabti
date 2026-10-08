@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { Client } from "pg";
+import type { SmtpReceiver } from "../src/lib/__tests__/smtp";
 
 /**
  * Opens one client, runs the query, and closes it again.
@@ -81,6 +82,29 @@ export async function gotoSettings(
     | "project" = "properties",
 ) {
   await page.goto(`/p/${projectId}/settings/${section}`);
+}
+
+/**
+ * Waits for a box to belong to React. A fill before that lands in the page
+ * and nowhere else, so the blur that follows has nothing to save. A busy
+ * machine hydrates late enough for a test to get there first.
+ */
+export async function hydrated(box: Locator) {
+  await expect
+    .poll(() => box.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactFiber"))))
+    .toBe(true);
+}
+
+/**
+ * The next letter to `to`. Every spec shares the one test SMTP port, and the
+ * files around a mail spec run at the same time and send mail of their own, so
+ * a mail spec reads only the letters to its own address.
+ */
+export async function letterTo(mail: SmtpReceiver, to: string) {
+  for (;;) {
+    const letter = await mail.next(45_000);
+    if (letter.to.includes(to)) return letter;
+  }
 }
 
 /** A destructive control asks in its own row before it does anything. */

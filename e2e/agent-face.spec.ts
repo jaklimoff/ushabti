@@ -42,6 +42,9 @@ test.describe("The face of an agent", () => {
     await memberPage.goto(`/p/${projectId}`);
     const face = card(memberPage, "Painted by an agent").locator('[title="Painter"]');
     await expect(face).toHaveText("◆");
+    /* The stream has no replay, so a change made before it opens is never
+       heard. Under load the owner's pick can beat it; wait for the dot. */
+    await expect(memberPage.getByTestId("live-dot")).toBeVisible();
     await expect(face.getByTestId("agent-badge")).toHaveCount(0);
 
     /* ---- the owner picks a colour and an emoji ------------------------- */
@@ -50,7 +53,13 @@ test.describe("The face of an agent", () => {
     await agentBox.getByRole("button", { name: "Face of Painter" }).click();
     const colours = agentBox.getByRole("radiogroup", { name: "Colour of Painter" });
     await expect(colours.getByRole("radio")).toHaveCount(11);
-    await pick(page, colours.getByRole("radio", { name: "Colour #2f9e7a" }));
+    /* An agent's first colour comes from the project's id, so one run in
+       eleven it already wears the green, and a click on it saves nothing. */
+    const green = colours.getByRole("radio", { name: "Colour #2f9e7a" });
+    if ((await green.getAttribute("aria-checked")) === "true") {
+      await pick(page, colours.getByRole("radio", { name: "Colour #e0574d" }));
+    }
+    await pick(page, green);
     await expect(colours.getByRole("radio", { name: "Colour #2f9e7a" })).toHaveAttribute(
       "aria-checked",
       "true",

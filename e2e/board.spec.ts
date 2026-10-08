@@ -679,7 +679,9 @@ test.describe("Ordering a board", () => {
     await expect(page.getByTestId("card-overlay")).toHaveCount(0);
 
     // Nor do the arrows of a lifted card: they belong to the drag, and inside
-    // a sorted column there is nowhere for them to take it.
+    // a sorted column there is nowhere for them to take it. The drag's own
+    // overlay fades out first, which takes longer on a busy machine.
+    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
     await card(page, "Aardvark").first().focus();
     await page.keyboard.press("Space");
     await expect(page.getByTestId("card-overlay")).toBeVisible();

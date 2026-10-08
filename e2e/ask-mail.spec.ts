@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addTask, createProject, inDatabase, register, unique } from "./helpers";
-import { smtpReceiver, type SmtpReceiver } from "../src/lib/__tests__/smtp";
+import { addTask, createProject, inDatabase, letterTo, register, unique } from "./helpers";
+import { smtpReceiver } from "../src/lib/__tests__/smtp";
 
 /**
  * A question an agent asked, and nobody answered, is emailed once.
@@ -97,14 +97,6 @@ async function untilTaken(page: Page, projectId: string, runId: string) {
       { timeout: 40_000, intervals: [2_000] },
     )
     .not.toBeNull();
-}
-
-/** The next letter to `to`. Other specs' asks may reach the same receiver. */
-async function letterTo(mail: SmtpReceiver, to: string) {
-  for (;;) {
-    const letter = await mail.next(45_000);
-    if (letter.to.includes(to)) return letter;
-  }
 }
 
 if (smtpPort) mailOn();

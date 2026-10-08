@@ -82,6 +82,11 @@ npm test           # unit tests
 npm run test:e2e   # Playwright
 ```
 
+Playwright runs four files at once, each in order. The specs that listen on
+the one test SMTP port run one at a time, in the `mail` project of
+`playwright.config.ts`; a new spec that shares state with another file goes
+there too.
+
 The end-to-end tests need a server. Start the dev one with `docker compose up`,
 or let Playwright start one for you. On CI, and whenever `CI` is set, Playwright
 runs `npm run start` instead, so the tests exercise what the image ships.

@@ -34,10 +34,22 @@ if (process.env.CI && !process.env.USHABTI_TEST_SMTP_PORT) {
 }
 const smtpPort = process.env.USHABTI_TEST_SMTP_PORT;
 
+// The one SMTP port is one listener at a time, so the specs that open it run
+// in a project of their own, one file after another. Everything else shares
+// nothing but the database, where each test makes its own user and project.
+const serial = /\/(mail|forgot|reset|ask-mail)\.spec\.ts$/;
+
+// "Desktop Chrome" carries a viewport of its own (1280x720) and would quietly
+// replace the size set under `use`, so it goes back on after. Board bugs that
+// only show on a tall window were invisible while it did.
+const chrome = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } };
+
 export default defineConfig({
   testDir: "./e2e",
+  // A file runs in order, on one worker; four files run at once. No file may
+  // count on running after another.
   fullyParallel: false,
-  workers: 1,
+  workers: 4,
   retries: process.env.CI ? 2 : 1,
   timeout: 60_000,
   expect: { timeout: 12_000 },
@@ -77,13 +89,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     viewport: { width: 1440, height: 900 },
   },
-  // The viewport comes last: "Desktop Chrome" carries one of its own (1280x720)
-  // and would otherwise quietly replace the size set above. Board bugs that
-  // only show on a tall window were invisible while it did.
   projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
-    },
+    { name: "chromium", use: chrome, testIgnore: serial },
+    { name: "mail", use: chrome, testMatch: serial, workers: 1 },
   ],
 });

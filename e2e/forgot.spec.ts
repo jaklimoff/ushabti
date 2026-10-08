@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { register, unique, type Account } from "./helpers";
+import { letterTo, register, unique, type Account } from "./helpers";
 import { smtpReceiver } from "../src/lib/__tests__/smtp";
 
 /**
@@ -52,11 +52,11 @@ function forgotOn() {
         const ada = await account(browser, "Ada Lovelace");
 
         // An unknown email reads exactly the same, and nothing is sent.
-        await askFor(page, `${unique("nobody")}@example.com`);
+        const nobody = `${unique("nobody")}@example.com`;
+        await askFor(page, nobody);
 
         await askFor(page, ada.email.toUpperCase());
-        const letter = await mail.next();
-        // The first letter is Ada's: the unknown email sent none.
+        const letter = await letterTo(mail, ada.email);
         expect(letter.to).toEqual([ada.email]);
         expect(letter.text).toContain("Hello Ada Lovelace,");
         expect(letter.text).toContain("It works once, for 24 hours.");
@@ -85,7 +85,10 @@ function forgotOn() {
         await back.waitForURL("**/projects");
         await again.close();
 
-        expect(mail.letters).toHaveLength(1);
+        /* Other files send to this port too, so only the two addresses asked
+           for here are counted: one letter to Ada, and none to nobody. */
+        expect(mail.letters.filter((l) => l.to.includes(ada.email))).toHaveLength(1);
+        expect(mail.letters.filter((l) => l.to.includes(nobody))).toEqual([]);
       } finally {
         await mail.stop();
       }
