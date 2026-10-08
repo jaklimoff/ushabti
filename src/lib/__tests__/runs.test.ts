@@ -230,6 +230,18 @@ describe("the runs of one task", () => {
     expect(open).toHaveProperty("stepsTotal");
   });
 
+  it("reads the tail of the log in the one order every page reads", async () => {
+    fake.holds([run({ id: "run-3", startedAt: at("12:00"), endedAt: null })]);
+
+    await loadTaskRuns("task-1");
+
+    // Lines written in one transaction share a moment, so the id settles the
+    // tie, and a page cut between two of them neither repeats nor loses one.
+    const tail = fake.asked.find((a) => a.limit === 41);
+    expect(tail).toBeDefined();
+    expect(orderOf(tail!)).toBe('"agent_run_log"."created_at" desc, "agent_run_log"."id" desc');
+  });
+
   it("reads nothing a history row does not draw", async () => {
     fake.holds([
       run({ id: "run-2", startedAt: at("11:00"), endedAt: at("11:30") }),

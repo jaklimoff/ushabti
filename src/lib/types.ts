@@ -575,6 +575,8 @@ export type TaskDetailDTO = TaskDTO & {
    * full is `GET /api/runs/{id}`.
    */
   pastRuns: AgentRunRowDTO[];
+  /** How many runs are over, of which `pastRuns` is the newest twenty. */
+  pastRunsTotal: number;
   /** The task's ready files, newest first. Empty while files are off. */
   attachments: AttachmentDTO[];
 };
@@ -678,7 +680,10 @@ export type AgentRunDTO = AgentRunRowDTO & {
 
 export type AgentRunDetailDTO = AgentRunDTO & {
   steps: AgentRunStepDTO[];
+  /** The newest forty lines, oldest first. */
   log: AgentRunLogDTO[];
+  /** Lines older than `log` remain: `GET /api/runs/{id}?before=` reads them. */
+  logMore: boolean;
 };
 
 export type AgentTokenDTO = {

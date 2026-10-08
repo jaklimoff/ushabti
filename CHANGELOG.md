@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A run's whole log and every past run can be read.** The Agent tab shows **Show earlier
+  lines** on a run's log until its first line, and the lines you opened stay while the agent
+  writes new ones. **Earlier runs** says how many there are and shows twenty more at a press.
+  Agents read the same through `GET /api/runs/{id}?before=` and `GET /api/tasks/{id}/runs?before=`.
 - **An admin can delete any comment.** The owner and admins see ✕ on every comment, not only
   their own, so a comment by the project or by somebody who left can be taken down too. Every
   delete now asks first, and names whose comment it is. The Activity tab says who deleted whose

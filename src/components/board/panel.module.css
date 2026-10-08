@@ -1187,6 +1187,23 @@
   word-break: break-word;
 }
 
+/* A quiet line of its own, so the log reads on and the press is still there. */
+.runMore {
+  align-self: flex-start;
+  padding: 2px 0;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.runMore:hover:not(:disabled) {
+  color: var(--text-3);
+}
+
+.runMore:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .runNote {
   font-size: 11.5px;
   line-height: 1.5;
