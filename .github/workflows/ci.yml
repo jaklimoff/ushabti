@@ -68,9 +68,11 @@ jobs:
           path: build.tar
           retention-days: 1
 
-  # The specs share one database and were written to run one after another,
-  # so `workers: 1` stays inside a shard. Three shards each get their own
-  # Postgres and their own server, and no shard sees another's data.
+  # A spec makes its own people and projects, so files run side by side: two
+  # workers in each of three shards, a runner having four cores to share with
+  # the server and Postgres. A file still runs in order, and the mail specs,
+  # which share one SMTP port, run one at a time in a project of their own.
+  # Each shard gets its own Postgres and its own server.
   e2e:
     needs: gate
     runs-on: ubuntu-latest
@@ -154,7 +156,7 @@ jobs:
         run: npm run db:migrate
 
       - name: End to end tests
-        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3 --workers=2
 
       - uses: actions/upload-artifact@v7
         if: failure()

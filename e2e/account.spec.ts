@@ -31,17 +31,19 @@ test.describe("Your own account", () => {
     const swatches = page.getByRole("radiogroup", { name: "Your colour" }).getByRole("radio");
     await expect(swatches).toHaveCount(11);
     await expect(page.getByRole("radio", { name: "Colour #8b8f98" })).toHaveCount(0);
+    /* A new person's colour comes from their email, which is random here, so
+       one run in eleven already wears any colour named in advance. A click on
+       it saves nothing. Take the last one they do not wear. */
+    const other = swatches.and(page.locator('[aria-checked="false"]')).last();
+    const picked = (await other.getAttribute("aria-label")) ?? "";
     const saved = page.waitForResponse(
       (res) => res.url().endsWith("/api/auth/me") && res.request().method() === "PATCH",
     );
-    await swatches.nth(10).click();
-    await expect(swatches.nth(10)).toHaveAttribute("aria-checked", "true");
+    await other.click();
+    await expect(page.getByRole("radio", { name: picked })).toHaveAttribute("aria-checked", "true");
     expect((await saved).status()).toBe(200);
     await page.reload();
-    await expect(page.getByRole("radio", { name: "Colour #3d7fc1" })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
+    await expect(page.getByRole("radio", { name: picked })).toHaveAttribute("aria-checked", "true");
 
     await page.goto(`/p/${projectId}`);
     await expect(page.getByRole("button", { name: /Ada Lovelace/ })).toBeVisible();

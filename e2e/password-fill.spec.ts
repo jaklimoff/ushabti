@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { createProject, gotoSettings, register, signIn, unique } from "./helpers";
+import { createProject, gotoSettings, hydrated, register, signIn, unique } from "./helpers";
 
 /**
  * A password manager that writes straight onto the box, with no event React
@@ -10,16 +10,6 @@ async function fillWithNoEvent(box: Locator, value: string) {
   await box.evaluate((el: HTMLInputElement, v: string) => {
     el.value = v;
   }, value);
-}
-
-/**
- * A fill before React has taken the page over is a different question, so
- * every test waits for the box to belong to React first.
- */
-async function hydrated(box: Locator) {
-  await expect
-    .poll(() => box.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactFiber"))))
-    .toBe(true);
 }
 
 test.describe("A password filled with no event", () => {

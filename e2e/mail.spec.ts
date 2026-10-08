@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createProject, gotoSettings, inDatabase, register, unique } from "./helpers";
+import { createProject, gotoSettings, inDatabase, letterTo, register, unique } from "./helpers";
 import { smtpReceiver } from "../src/lib/__tests__/smtp";
 
 /**
@@ -79,7 +79,7 @@ function mailOn() {
         // The link stays on screen too: an email can still be lost.
         const copied = (await page.locator("code", { hasText: "/register" }).innerText()).trim();
 
-        const letter = await mail.next();
+        const letter = await letterTo(mail, email);
         expect(letter.to).toEqual([email]);
         expect(letter.from).toBe("board@example.com");
         expect(letter.text).toContain(`Owner Person invited you to the project ${projectName}`);
@@ -122,7 +122,7 @@ function mailOn() {
         await expect(box).toContainText("It works once, for 24 hours.");
         await expect(box.locator("code")).toHaveText(answer.link);
 
-        const letter = await mail.next();
+        const letter = await letterTo(mail, account.email);
         expect(letter.to).toEqual([account.email]);
         expect(letter.text).toContain("It works once, for 24 hours.");
         const link = /(https?:\/\/\S+\/reset\/ushr_\S+)/.exec(letter.text)?.[1];

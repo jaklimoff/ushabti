@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { createProject, gotoSettings, propertyBox, register, saved, unique } from "./helpers";
+import {
+  createProject,
+  gotoSettings,
+  hydrated,
+  propertyBox,
+  register,
+  saved,
+  unique,
+} from "./helpers";
 
 type Page = import("@playwright/test").Page;
 
@@ -131,14 +139,7 @@ test.describe("An option carries a plan", () => {
     await datesOn(page, projectId, "Status");
     await gotoSettings(page, projectId);
     const box = propertyBox(page, "Status");
-    // A day typed before the page hydrates sits in the box and is never saved.
-    await expect
-      .poll(() =>
-        box
-          .getByLabel("Start of Todo")
-          .evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactFiber"))),
-      )
-      .toBe(true);
+    await hydrated(box.getByLabel("Start of Todo"));
 
     for (const [label, day] of [
       ["Start of Todo", "2026-10-01"],
