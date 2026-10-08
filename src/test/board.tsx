@@ -5,6 +5,7 @@ import { BoardProvider } from "@/components/board/store";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { defaultCardView } from "@/lib/card-view";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "@/lib/defaults";
+import type { PresenceSaid } from "@/lib/presence";
 import type {
   AgentRunDTO,
   BoardData,
@@ -181,6 +182,26 @@ export function withAgent(
   return agent;
 }
 
+/** A person among the members, a member unless `role` says otherwise. */
+export function withPerson(
+  data: BoardData,
+  name: string,
+  role: MemberDTO["role"] = "member",
+): MemberDTO {
+  const person: MemberDTO = {
+    id: id(),
+    name,
+    email: `${name.toLowerCase().replace(/\W+/g, ".")}@example.com`,
+    color: "#c47a3a",
+    emoji: null,
+    role,
+    kind: "human",
+    listeningAt: null,
+  };
+  data.members.push(person);
+  return person;
+}
+
 /**
  * A run of `agent` on `task`, started ten minutes ago and running, with its
  * last report a moment ago, unless `fields` says otherwise. The agent need not be a member: a removed one
@@ -295,6 +316,7 @@ export async function renderWithBoard(
 
   /* The stream is the doorbell. Nobody rings it unless a test calls `ring()`. */
   const bells: ((event: MessageEvent) => void)[] = [];
+  const voices: ((event: MessageEvent) => void)[] = [];
   vi.stubGlobal(
     "EventSource",
     class {
@@ -302,6 +324,7 @@ export async function renderWithBoard(
       onopen = null;
       addEventListener(kind: string, listener: (event: MessageEvent) => void) {
         if (kind === "change") bells.push(listener);
+        if (kind === "presence") voices.push(listener);
       }
       close() {}
     },
@@ -333,5 +356,11 @@ export async function renderWithBoard(
     for (const bell of bells) bell(event);
   };
 
-  return { screen, sent, ring };
+  /* Another tab said where it is, as the stream relays it. */
+  const hear = (said: PresenceSaid) => {
+    const event = new MessageEvent("presence", { data: JSON.stringify(said) });
+    for (const voice of voices) voice(event);
+  };
+
+  return { screen, sent, ring, hear };
 }
