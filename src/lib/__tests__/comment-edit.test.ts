@@ -18,6 +18,7 @@ const fake = vi.hoisted(() => {
     where: [] as unknown[],
     set: [] as Record<string, unknown>[],
     updates: 0,
+    deletes: 0,
   };
   const chain = (rows: () => Rows) => {
     const node: Record<string, unknown> = {};
@@ -40,6 +41,10 @@ const fake = vi.hoisted(() => {
       return chain(() => state.updated);
     },
     select: () => chain(() => state.read),
+    delete: () => {
+      state.deletes += 1;
+      return chain(() => [{ taskId: "task-1" }]);
+    },
     transaction: <T>(work: (tx: unknown) => Promise<T>): Promise<T> => work(db),
   };
   return { state, db };
@@ -59,7 +64,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   broadcast: vi.fn(async () => undefined),
 }));
 
-import { PATCH } from "@/app/api/comments/[commentId]/route";
+import { DELETE, PATCH } from "@/app/api/comments/[commentId]/route";
 import { broadcast } from "@/lib/api";
 import { logActivity } from "@/lib/queries";
 
@@ -74,6 +79,11 @@ function edit(payload: unknown) {
   return PATCH(req, { params: Promise.resolve({ commentId: COMMENT }) });
 }
 
+function remove() {
+  const req = new Request("http://localhost/api", { method: "DELETE" });
+  return DELETE(req, { params: Promise.resolve({ commentId: COMMENT }) });
+}
+
 /** The condition of the one update, as Postgres would read it. */
 function condition() {
   expect(fake.state.where.length).toBeGreaterThan(0);
@@ -81,7 +91,13 @@ function condition() {
 }
 
 beforeEach(() => {
-  fake.state.comment = { id: COMMENT, taskId: "task-1", authorId: "author", body: "Before" };
+  fake.state.comment = {
+    id: COMMENT,
+    taskId: "task-1",
+    authorId: "author",
+    byProject: false,
+    body: "Before",
+  };
   fake.state.caller = { id: "author", kind: "human" };
   fake.state.role = "member";
   fake.state.updated = [];
@@ -89,6 +105,7 @@ beforeEach(() => {
   fake.state.where = [];
   fake.state.set = [];
   fake.state.updates = 0;
+  fake.state.deletes = 0;
   vi.mocked(logActivity).mockClear();
   vi.mocked(broadcast).mockClear();
 });
@@ -195,5 +212,63 @@ describe("PATCH /api/comments/{id}", () => {
     fake.state.comment = null;
     const res = await edit({ body: "Mine" });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /api/comments/{id}", () => {
+  it("lets the author take back their words and logs who deleted whose comment", async () => {
+    const res = await remove();
+    expect(res.status).toBe(200);
+    expect(fake.state.deletes).toBe(1);
+    expect(logActivity).toHaveBeenCalledTimes(1);
+    expect(logActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        actorId: "author",
+        kind: "comment",
+        data: { commentId: COMMENT, action: "deleted", authorId: "author", byProject: false },
+      }),
+    );
+  });
+
+  it.each(["admin", "owner"])("lets a %s take down somebody's comment", async (role) => {
+    fake.state.caller = { id: "boss", kind: "human" };
+    fake.state.role = role;
+    const res = await remove();
+    expect(res.status).toBe(200);
+    expect(fake.state.deletes).toBe(1);
+    const line = vi.mocked(logActivity).mock.calls[0][0];
+    expect(line.actorId).toBe("boss");
+    expect(line.data).toMatchObject({ action: "deleted", authorId: "author" });
+    // The words are gone on purpose; the line never carries them.
+    expect(JSON.stringify(line)).not.toContain("Before");
+  });
+
+  it("names the project for a comment the project wrote", async () => {
+    fake.state.comment = { ...fake.state.comment!, authorId: null, byProject: true };
+    fake.state.caller = { id: "boss", kind: "human" };
+    fake.state.role = "admin";
+    const res = await remove();
+    expect(res.status).toBe(200);
+    expect(vi.mocked(logActivity).mock.calls[0][0].data).toMatchObject({
+      authorId: null,
+      byProject: true,
+    });
+  });
+
+  it("refuses a member who is not the author, and writes nothing", async () => {
+    fake.state.caller = { id: "someone", kind: "human" };
+    const res = await remove();
+    expect(res.status).toBe(403);
+    expect(fake.state.deletes).toBe(0);
+    expect(logActivity).not.toHaveBeenCalled();
+  });
+
+  it("refuses an agent on somebody else's comment, whatever its row says", async () => {
+    fake.state.caller = { id: "agent", kind: "agent" };
+    fake.state.role = "admin";
+    const res = await remove();
+    expect(res.status).toBe(403);
+    expect(fake.state.deletes).toBe(0);
   });
 });

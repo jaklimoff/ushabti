@@ -1482,10 +1482,15 @@ commands.watch = async function watch() {
       return;
     }
 
-    /* An edit of a comment wakes nobody. The words were read when they were
-       written, and the line cannot say what the edit changed, so waking on it
-       answers the same question twice or starts a second run for one mention. */
-    if (entry.kind === "comment" && entry.data?.action === "edited") return;
+    /* An edit or a delete of a comment wakes nobody. The words were read when
+       they were written, and the line cannot say what the edit changed, so
+       waking on it answers the same question twice or starts a second run for
+       one mention. */
+    if (
+      entry.kind === "comment" &&
+      (entry.data?.action === "edited" || entry.data?.action === "deleted")
+    )
+      return;
 
     if (entry.kind === "comment" && actor.kind === "human") {
       const { task } = await request("GET", `/api/tasks/${entry.taskId}`);

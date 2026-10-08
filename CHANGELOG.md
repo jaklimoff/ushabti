@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An admin can delete any comment.** The owner and admins see ✕ on every comment, not only
+  their own, so a comment by the project or by somebody who left can be taken down too. Every
+  delete now asks first, and names whose comment it is. The Activity tab says who deleted whose
+  comment, never what it said.
 - **The person picker has a Find box.** Type a few letters of a name to narrow the list, and
   press Enter to pick. Your own name comes first, and the menu opens on it when the field is
   empty. The task panel, **Set** on picked cards and a type's **Starts as** all work this way.
