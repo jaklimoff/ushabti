@@ -81,7 +81,7 @@ test("an admin turns sprints on in one press; a member and an agent are refused"
   await gotoSettings(page, projectId, "project");
   const toggle = page.getByRole("switch", { name: "Use sprints" });
   await expect(toggle).not.toBeChecked();
-  await expect(page.getByText(/a property Sprint with Sprint 1/)).toBeVisible();
+  await expect(page.getByText(/a sprint property Sprint with Sprint 1/)).toBeVisible();
   await expect(page.getByText(/a list Backlog of the tasks in no sprint/)).toBeVisible();
 
   const answer = page.waitForResponse((res) => res.url().endsWith("/sprints"));
