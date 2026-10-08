@@ -110,14 +110,14 @@ four workers at most.
 | `blockers.spec.ts` | 4 | move |  | 3 |  | 1 |  | Being over takes the chain off is the board read; the rest is the panel. |
 | `board.spec.ts` | 36 | done (USH-270) | 17 | 19 |  |  |  | Keep the first walk, the four pointer drags, the two keyboard drags, the copy link, the counts, an order across a reload, the finger and the drop onto a folded column. The plan kept 14, but ten tests carry `@smoke` and stay, and the fold's drop is a drag across columns, so its fold half went down alone and its drop stayed. The phone move and the title saved on a closed tab need nothing a component lacks: `pagehide` is counted there, which end to end could not. The small-tablet tests went down, and the builder rule that names them moved with them. |
 | `cadence.spec.ts` | 7 | move | 1 | 4 |  | 2 |  | Keep shipping the last sprint. The layout rows are Settings drawn at two widths. |
-| `card-view.spec.ts` | 10 | move | 1 | 9 |  |  |  | Keep the drag in Settings that moves the card, the panel and the list. |
+| `card-view.spec.ts` | 10 | done (USH-271) | 1 | 9 |  | 1 |  | Keep the drag in Settings that moves the card, the panel and the list. The page and the board share one store in a component test, so a change reaches the card at once. A view's own card view also has a route half: the body with no rows is refused. |
 | `changed.spec.ts` | 4 | move |  | 1 |  | 3 |  | What moves the changed time is the server's write. |
 | `changelog.spec.ts` | 6 | move | 1 | 1 |  | 4 |  | Keep one shipped walk. Public, private and the token are route answers. |
 | `close-sprint.spec.ts` | 1 | move |  |  |  | 1 |  | What a close archives is a route answer. |
 | `collaboration.spec.ts` | 9 | keep | 7 | 1 | 1 |  |  | Two people on one board is what end to end is for. The member list is a component; the shared Me is `applyFilters`. |
 | `comment-delete.spec.ts` | 1 | move |  |  |  | 1 |  | Who may delete is a route answer; the question folds into the comment component tests. |
 | `comment-edit.spec.ts` | 7 | move | 1 | 5 |  | 1 |  | Keep the save that crossed a newer one. The box's keys and its closed tab are the component. |
-| `composer.spec.ts` | 2 | move |  | 2 |  |  |  | How the composer grows is layout, which Browser Mode has. |
+| `composer.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | How the composer grows is layout, which Browser Mode has. |
 | `done-when.spec.ts` | 6 | move |  | 1 |  | 5 |  | What frees a blocker and what Ship archives are server answers. |
 | `drop-hidden.spec.ts` | 13 | move | 1 | 5 |  | 7 |  | Keep the writes that land at once. The questions are the panel and the bar; the drops are the routes. |
 | `editing-sign.spec.ts` | 2 | move | 1 | 1 |  |  |  | Keep two editors on one task. The phone line is layout. |
@@ -131,12 +131,12 @@ four workers at most.
 | `import.spec.ts` | 4 | move | 1 | 1 |  | 2 |  | Keep one Trello file through the page. |
 | `iteration.spec.ts` | 3 | move | 1 | 2 |  |  |  | Keep the walk from grouping to the roadmap. |
 | `links.spec.ts` | 2 | move |  | 2 |  |  |  | The panel and the card draw a link. |
-| `list.spec.ts` | 19 | move | 2 | 16 |  | 1 |  | Keep the drag the board sees and the order across a reload. The rest is what a list draws. |
+| `list.spec.ts` | 19 | done (USH-271) | 4 | 14 |  | 1 |  | Keep the drag the board sees and the order across a reload. The rest is what a list draws. The plan kept 2, but three tests carry `@smoke` and stay, beside the order across a reload. The property a list no longer pins is the route's answer; a view that changes kind and a list on a project with nothing to group by have a route half too. |
 | `listening.spec.ts` | 12 | done (USH-269) | 5 | 2 |  | 5 |  | Keep the stream, the watcher and the harness. The feed and its pages are route answers. |
 | `live-preview.spec.ts` | 16 | move | 1 | 15 |  |  |  | The editor is a component with real layout; keep the chunk fetched as the panel opens. |
-| `long-title.spec.ts` | 1 | move |  | 1 |  |  |  | A card clamped to three lines is layout. |
+| `long-title.spec.ts` | 1 | done (USH-271) |  | 1 |  |  |  | A card clamped to three lines is layout. |
 | `mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
-| `markdown-wrap.spec.ts` | 2 | move |  | 2 |  |  |  | Wrapping is layout. |
+| `markdown-wrap.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | Wrapping is layout. The description and the comment arrive written; typing them is the panel's own test. |
 | `mention.spec.ts` | 4 | move |  | 4 |  |  |  | The @ list is a component. |
 | `option-dates.spec.ts` | 12 | move |  | 8 |  | 4 |  | The boxes and their closed tab are Settings; who may write is the route. |
 | `option-names.spec.ts` | 6 | move | 1 | 2 |  | 3 |  | Keep two creates at once, which needs the real database. |
