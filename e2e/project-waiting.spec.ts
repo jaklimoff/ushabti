@@ -50,38 +50,9 @@ async function askInProject(page: Page, request: APIRequestContext, projectId: s
   return { api, asks };
 }
 
+/* The count that changes live, while the menu is open. The numbers the list
+   and the agent read are runs-route.test.ts. */
 test.describe("How many tasks wait in each project", () => {
-  test("is read by the list, the switcher and the All projects page", async ({ page, request }) => {
-    await register(page, "Many Projects");
-    const asked = unique("Asked");
-    const quiet = unique("Quiet");
-    const askedId = await createProject(page, asked);
-    const quietId = await createProject(page, quiet);
-    const { api } = await askInProject(page, request, askedId);
-
-    /* One ask is left: the archived and the deleted task are on no board, and
-       a hand-over waits for nobody in particular. */
-    const list = await (await page.request.get("/api/projects")).json();
-    const byId = (id: string) => list.projects.find((p: { id: string }) => p.id === id);
-    expect(byId(askedId).waiting).toBe(1);
-    expect(byId(quietId).waiting).toBe(0);
-
-    /* An agent cannot list projects, so it reads the number on its own one. */
-    const me = await (await api.get("/api/agent/me")).json();
-    expect(me.project.waiting).toBe(1);
-
-    await page.goto(`/p/${quietId}`);
-    await page.getByTestId("project-switcher").click();
-    const row = (name: string) => page.getByRole("menuitemradio", { name: new RegExp(name) });
-    await expect(row(asked).getByTestId("project-switcher-waiting")).toHaveText("1 waiting");
-    await expect(row(quiet).getByTestId("project-switcher-waiting")).toHaveCount(0);
-
-    await page.goto("/projects");
-    const card = (name: string) => page.getByRole("link", { name: new RegExp(name) });
-    await expect(card(asked).getByTestId("project-waiting")).toHaveText("1 waiting");
-    await expect(card(quiet).getByTestId("project-waiting")).toHaveCount(0);
-  });
-
   test("reads the top bar's own count for the open project, live", async ({ page, request }) => {
     await register(page, "One Project");
     const name = unique("Open");

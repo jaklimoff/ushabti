@@ -3,28 +3,10 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import {
-  addTask,
-  backdateRun,
-  card,
-  createProject,
-  gotoSettings,
-  register,
-  unique,
-} from "./helpers";
+import { addTask, card, createProject, gotoSettings, register, unique } from "./helpers";
 
 // Playwright runs from the repository root, locally and on CI.
 const BOARD_MJS = path.resolve(process.cwd(), "examples/skill/ushabti/board.mjs");
-
-/** The calls an agent makes, with the token in place of a session cookie. */
-function agentApi(request: APIRequestContext, token: string) {
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-  return {
-    get: (url: string) => request.get(url, { headers }),
-    post: (url: string, data: unknown = {}) => request.post(url, { headers, data }),
-    patch: (url: string, data: unknown = {}) => request.patch(url, { headers, data }),
-  };
-}
 
 /** Makes an agent in Settings -> People and reads its token off the page. */
 async function connectAgent(page: Page, projectId: string, name: string): Promise<string> {
@@ -47,18 +29,6 @@ function boardUrl(): string {
   return base.replace(/\/$/, "");
 }
 
-/** One board.mjs command, run the way an agent runs it. */
-function runBoard(token: string, args: string[]): Promise<{ code: number | null; output: string }> {
-  const child = spawn(process.execPath, [BOARD_MJS, ...args], {
-    env: { ...process.env, USHABTI_URL: boardUrl(), USHABTI_TOKEN: token },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  let output = "";
-  child.stdout.on("data", (chunk) => (output += chunk));
-  child.stderr.on("data", (chunk) => (output += chunk));
-  return new Promise((done) => child.on("exit", (code) => done({ code, output })));
-}
-
 async function taskByTitle(request: APIRequestContext, projectId: string, title: string) {
   const board = await (await request.get(`/api/projects/${projectId}/board`)).json();
   const task = board.tasks.find((t: { title: string }) => t.title === title);
@@ -66,6 +36,13 @@ async function taskByTitle(request: APIRequestContext, projectId: string, title:
   return { board, task };
 }
 
+/*
+ * What needs the stream, the watcher and a harness. The feed, the waiting
+ * run and the hand-over are route answers (`activity-route.test.ts`,
+ * `runs-route.test.ts`), the client's own refusals `skill-check.test.ts`, and
+ * what the panel and the top bar draw `AgentTab.test.tsx` and
+ * `Listening.test.tsx`.
+ */
 test.describe("Agents that wait for work", () => {
   test("an agent holding the stream is listening, and stops when it lets go", async ({ page }) => {
     await register(page, "Presence Owner");
@@ -99,276 +76,6 @@ test.describe("Agents that wait for work", () => {
 
     // A closed socket answers at once. The lease is for a crash.
     await expect(page.getByTestId("listening-agents")).toBeHidden();
-  });
-
-  test("a listening agent says its name on hover and on focus", async ({ page, browser }) => {
-    await register(page, "Tip Owner");
-    const projectId = await createProject(page, unique("Tip"));
-    const token = await connectAgent(page, projectId, "Refiner");
-
-    const socket = new AbortController();
-    const stream = await fetch(`${boardUrl()}/api/projects/${projectId}/stream`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: socket.signal,
-    });
-    expect(stream.ok).toBeTruthy();
-
-    try {
-      await page.goto(`/p/${projectId}`);
-      // A screen reader hears the name, and the face draws no native title.
-      const agent = page.getByRole("img", { name: "Refiner is listening" });
-      await expect(agent).toBeVisible();
-      await expect(agent.locator("[title]")).toHaveCount(0);
-
-      const tip = agent.getByTestId("listening-tip");
-      await expect(tip).toBeHidden();
-      await agent.hover();
-      await expect(tip).toBeVisible({ timeout: 200 });
-      await expect(tip).toContainText("Refiner");
-      await expect(tip).toContainText("Listening. It hears a new task at once.");
-
-      await page.mouse.move(0, 400);
-      await expect(tip).toBeHidden();
-      // A click gives focus too, and the tip must still go with the pointer.
-      await agent.click();
-      await expect(tip).toBeVisible();
-      await page.mouse.move(0, 400);
-      await expect(tip).toBeHidden();
-      await page.getByTestId("search-box").focus();
-      await page.keyboard.press("Tab");
-      await expect(agent).toBeFocused();
-      await expect(tip).toBeVisible();
-      await page.getByTestId("search-box").focus();
-
-      // The tip stays in the window at either end of the bar: near the
-      // right on a wide screen, near the left on a phone.
-      for (const width of [1280, 375]) {
-        await page.setViewportSize({ width, height: 700 });
-        await agent.hover();
-        await expect(tip).toBeVisible();
-        const box = await tip.boundingBox();
-        expect(box).toBeTruthy();
-        expect(box!.x).toBeGreaterThanOrEqual(0);
-        expect(box!.x + box!.width).toBeLessThanOrEqual(width);
-        await page.mouse.move(0, 400);
-      }
-
-      // A phone has no hover, so a tap is how it asks.
-      const phone = await browser.newContext({
-        storageState: await page.context().storageState(),
-        viewport: { width: 375, height: 700 },
-        hasTouch: true,
-        isMobile: true,
-      });
-      try {
-        const small = await phone.newPage();
-        await small.goto(`/p/${projectId}`);
-        expect(await small.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true);
-        const face = small.getByRole("img", { name: "Refiner is listening" });
-        const smallTip = face.getByTestId("listening-tip");
-        await expect(smallTip).toBeHidden();
-        await face.tap();
-        await expect(smallTip).toBeVisible();
-      } finally {
-        await phone.close();
-      }
-    } finally {
-      socket.abort();
-    }
-  });
-
-  test("a waiting run shows its question, keeps its card, and hears the answer", async ({
-    page,
-    request,
-  }) => {
-    await register(page, "Waiting Owner");
-    const projectId = await createProject(page, unique("Waiting"));
-    await addTask(page, "Todo", "Make the queue retry");
-    await page.getByRole("button", { name: "Close task" }).click();
-    const token = await connectAgent(page, projectId, "Asker");
-    const api = agentApi(request, token);
-
-    const { task } = await taskByTitle(page.request, projectId, "Make the queue retry");
-    const since = (await (await api.get(`/api/projects/${projectId}/activity`)).json()).now;
-
-    const { run } = await (
-      await api.post(`/api/tasks/${task.id}/run`, { goal: "Refine it", step: "Reading" })
-    ).json();
-    await api.post(`/api/tasks/${task.id}/comments`, { body: "Which service owns the queue?" });
-    const asked = await api.patch(`/api/runs/${run.id}`, {
-      status: "waiting",
-      step: "Which service owns the queue?",
-    });
-    expect(asked.ok()).toBeTruthy();
-
-    await page.goto(`/p/${projectId}`);
-    const held = card(page, "Make the queue retry").first();
-    await expect(held.getByTestId("card-run-step")).toHaveText("Which service owns the queue?");
-    await expect(held.getByTestId("card-run-time")).toContainText("waiting");
-
-    /* ---- the panel says how to answer, and offers nothing that nobody
-            would read ------------------------------------------------- */
-
-    await held.click();
-    await page.getByTestId("agent-tab").click();
-    const panel = page.getByTestId("panel-run");
-    await expect(page.getByTestId("panel-run-waiting")).toContainText("Answer it in a comment");
-    await expect(panel.getByRole("button", { name: "Pause" })).toBeHidden();
-    await expect(panel.getByRole("button", { name: "Stop" })).toBeHidden();
-    await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible();
-
-    await page.getByRole("tab", { name: /^Comments/ }).click();
-    const composer = page.getByPlaceholder("Answer Asker…");
-    await composer.fill("The billing service.");
-    // The words are in the box before they are on the server, so wait for
-    // the write itself before reading the feed.
-    const posted = page.waitForResponse(
-      (res) => res.url().endsWith(`/api/tasks/${task.id}/comments`) && res.status() === 201,
-    );
-    await page.getByRole("button", { name: "Comment", exact: true }).click();
-    await posted;
-
-    /* ---- the feed carries the answer, and who gave it ---------------- */
-
-    const feed = await (
-      await api.get(`/api/projects/${projectId}/activity?after=${encodeURIComponent(since)}`)
-    ).json();
-    const answer = feed.entries.find(
-      (e: { kind: string; actor: { kind: string } | null }) =>
-        e.kind === "comment" && e.actor?.kind === "human",
-    );
-    expect(answer).toBeTruthy();
-    expect(answer.taskKey).toBe(task.key);
-    expect(answer.data.commentId).toBeTruthy();
-
-    /* ---- silence is the point of waiting, so the lease leaves it ----- */
-
-    await backdateRun(run.id, 45);
-    await page.reload();
-    await expect(held.getByTestId("card-run-step")).toHaveText("Which service owns the queue?");
-
-    const resumed = await api.patch(`/api/runs/${run.id}`, {
-      status: "running",
-      step: "Reading the answer",
-    });
-    expect(resumed.ok()).toBeTruthy();
-  });
-
-  test("a run hands the task on, and the next claim closes it", async ({ page, request }) => {
-    await register(page, "Hand-over Owner");
-    const projectId = await createProject(page, unique("Hand-over"));
-    await addTask(page, "Todo", "Make the queue retry");
-    await page.getByRole("button", { name: "Close task" }).click();
-    await addTask(page, "Todo", "Ship the docs");
-    await page.getByRole("button", { name: "Close task" }).click();
-
-    const builder = await connectAgent(page, projectId, "Builder");
-    const reviewer = await connectAgent(page, projectId, "Reviewer");
-    const { task } = await taskByTitle(page.request, projectId, "Make the queue retry");
-    const { task: second } = await taskByTitle(page.request, projectId, "Ship the docs");
-
-    /* ---- an agent ends its session by handing the task on ------------ */
-
-    for (const key of [task.key, second.key]) {
-      const claimed = await runBoard(builder, ["claim", key, "--goal", "Open the pull request"]);
-      expect(claimed.code, claimed.output).toBe(0);
-    }
-    /* ---- a hand-over to nobody is refused at both doors -------------- */
-
-    const api = agentApi(request, builder);
-    const empty = await runBoard(builder, ["finish", task.key, "--to", ""]);
-    expect(empty.code, empty.output).not.toBe(0);
-    expect(empty.output).toContain("Give who has the task");
-
-    // `--to` with the next flag behind it reads as the word "true", which
-    // would otherwise put "Waiting for true" on somebody's board.
-    const flagged = await runBoard(builder, ["finish", task.key, "--to", "--log", "x"]);
-    expect(flagged.code, flagged.output).not.toBe(0);
-    expect(flagged.output).toContain("Give who has the task");
-
-    const { task: working } = await (await api.get(`/api/tasks/${task.id}`)).json();
-    const bare = await api.patch(`/api/runs/${working.run.id}`, { status: "handed_over" });
-    expect(bare.status()).toBe(400);
-    expect((await bare.json()).error).toContain("who has the task");
-    expect(working.run.status).toBe("running");
-
-    const handed = await runBoard(builder, ["finish", task.key, "--to", "review"]);
-    expect(handed.code, handed.output).toBe(0);
-    expect(handed.output).toContain("waiting for review");
-    await runBoard(builder, ["finish", second.key, "--to", "review"]);
-
-    /* ---- the card says who has it, instead of going quiet ------------ */
-
-    await page.goto(`/p/${projectId}`);
-    const held = card(page, "Make the queue retry").first();
-    await expect(held.getByTestId("card-run-step")).toHaveText("Waiting for review");
-    await expect(held.getByTestId("card-run-time")).toContainText("waiting");
-
-    await held.click();
-    await page.getByTestId("agent-tab").click();
-    const panel = page.getByTestId("panel-run");
-    await expect(page.getByTestId("panel-run-handed-over")).toContainText(
-      "Builder handed the task to review",
-    );
-    await expect(panel.getByRole("button", { name: "Pause" })).toBeHidden();
-    await expect(panel.getByRole("button", { name: "Stop" })).toBeHidden();
-    await expect(panel.getByRole("button", { name: "Take over" })).toBeVisible();
-    await page.getByRole("button", { name: "Close task" }).click();
-
-    /* ---- it stopped on purpose, so the lease leaves it alone --------- */
-
-    const { runs } = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const handOver = runs.find((r: { taskId: string }) => r.taskId === task.id);
-    expect(handOver.status).toBe("handed_over");
-    await backdateRun(handOver.id, 45);
-    await page.reload();
-    await expect(held.getByTestId("card-run-step")).toHaveText("Waiting for review");
-
-    /* ---- the next agent claims: one run closes, the next opens ------- */
-
-    const picked = await runBoard(reviewer, ["claim", task.key, "--goal", "Review the branch"]);
-    expect(picked.code, picked.output).toBe(0);
-
-    const detail = await (
-      await request.get(`/api/tasks/${task.id}`, {
-        headers: { Authorization: `Bearer ${reviewer}` },
-      })
-    ).json();
-    expect(detail.task.run.agent.name).toBe("Reviewer");
-    expect(detail.task.pastRuns[0].agent.name).toBe("Builder");
-    expect(detail.task.pastRuns[0].status).toBe("done");
-
-    await page.reload();
-    await expect(held.getByTestId("card-run")).toContainText("Reviewer");
-
-    /* ---- and Take over still ends one, as it ends any open run ------- */
-
-    await card(page, "Ship the docs").first().click();
-    await page.getByTestId("agent-tab").click();
-    await page.getByRole("button", { name: "Take over" }).click();
-    await expect(page.getByTestId("panel-run")).toBeHidden();
-    await expect(card(page, "Ship the docs").first().getByTestId("card-run")).toBeHidden();
-  });
-
-  test("a comment stays a comment, and offers no way to become the description", async ({
-    page,
-    request,
-  }) => {
-    await register(page, "Draft Owner");
-    const projectId = await createProject(page, unique("Draft"));
-    await addTask(page, "Todo", "Offline queue");
-    await page.getByRole("button", { name: "Close task" }).click();
-    const token = await connectAgent(page, projectId, "Drafter");
-    const api = agentApi(request, token);
-    const { task } = await taskByTitle(page.request, projectId, "Offline queue");
-
-    await api.post(`/api/tasks/${task.id}/comments`, { body: "Queue writes offline." });
-
-    await page.goto(`/p/${projectId}?task=${task.key}`);
-    const comment = page.getByTestId("comment").filter({ hasText: "Queue writes offline." });
-    await comment.hover();
-    await expect(comment).toBeVisible();
-    await expect(comment.getByRole("button", { name: "Use as description" })).toHaveCount(0);
   });
 
   test("the watcher claims an assigned task and runs the harness for it", async ({ page }) => {
@@ -428,57 +135,6 @@ test.describe("Agents that wait for work", () => {
     } finally {
       watcher.kill("SIGTERM");
     }
-  });
-});
-
-test.describe("A line that says whom it is for", () => {
-  /* A watcher decides from the line, so the line has to say it: the type on
-     every value line, the person on a person line, the assignees on a new
-     task. The panel reads the same line and names the person. */
-  test("a value line names its type and its person, and the panel names the person", async ({
-    page,
-  }) => {
-    await register(page, "Line Owner");
-    const projectId = await createProject(page, unique("Lines"));
-    await addTask(page, "Todo", "Hand it over");
-    await page.getByRole("button", { name: "Close task" }).click();
-    const token = await connectAgent(page, projectId, "Reis");
-    const api = agentApi(page.request, token);
-
-    const { board, task } = await taskByTitle(page.request, projectId, "Hand it over");
-    const assignee = board.properties.find((p: { type: string }) => p.type === "person");
-    const status = board.properties.find((p: { type: string }) => p.type === "select");
-    const reis = board.members.find((m: { name: string }) => m.name === "Reis");
-    const since = (await (await api.get(`/api/projects/${projectId}/activity`)).json()).now;
-
-    const put = (propertyId: string, value: unknown) =>
-      page.request.put(`/api/tasks/${task.id}/values/${propertyId}`, { data: { value } });
-    expect((await put(assignee.id, reis.id)).ok()).toBeTruthy();
-    expect((await put(status.id, status.options[1].id)).ok()).toBeTruthy();
-    const made = await page.request.post(`/api/projects/${projectId}/tasks`, {
-      data: { title: "Made for Reis", values: { [assignee.id]: reis.id } },
-    });
-    expect(made.ok()).toBeTruthy();
-
-    type Line = { kind: string; taskKey: string; data: Record<string, unknown> };
-    const { entries } = (await (
-      await api.get(`/api/projects/${projectId}/activity?after=${encodeURIComponent(since)}`)
-    ).json()) as { entries: Line[] };
-    const values = entries.filter((e) => e.kind === "value" && e.taskKey === task.key);
-    expect(values.find((e) => e.data.propertyId === assignee.id)?.data).toMatchObject({
-      type: "person",
-      personId: reis.id,
-    });
-    const drag = values.find((e) => e.data.propertyId === status.id)?.data;
-    expect(drag).toMatchObject({ type: "select" });
-    expect(drag).not.toHaveProperty("personId");
-    const created = entries.find((e) => e.kind === "created");
-    expect(created?.data.assigneeIds).toEqual([reis.id]);
-
-    await page.goto(`/p/${projectId}?task=${task.key}`);
-    await page.getByRole("tab", { name: /^Activity/ }).click();
-    await expect(page.getByText("Line Owner set Assignee to Reis")).toBeVisible();
-    await expect(page.getByText(reis.id)).toHaveCount(0);
   });
 });
 
@@ -549,41 +205,6 @@ test.describe("A write of more than a page of lines", () => {
       ]);
     return { watcher, out, finished };
   }
-
-  test("a feed of 500 lines written at one moment is read whole, 200 at a time", async ({
-    page,
-  }) => {
-    test.setTimeout(240_000);
-    await register(page, "Feed Owner");
-    const projectId = await createProject(page, unique("Burst"));
-    await keepTask(page);
-    const since = await archiveBurst(page.request, projectId, 500);
-
-    const read: FeedEntry[] = [];
-    const pages: number[] = [];
-    let query = `after=${encodeURIComponent(since)}`;
-    for (;;) {
-      const res = await page.request.get(`/api/projects/${projectId}/activity?${query}&limit=200`);
-      expect(res.ok()).toBeTruthy();
-      const { entries } = (await res.json()) as { entries: FeedEntry[] };
-      pages.push(entries.length);
-      read.push(...entries);
-      if (entries.length < 200 || pages.length > 5) break;
-      const last = entries[entries.length - 1];
-      query = `after=${encodeURIComponent(last.createdAt)}&afterId=${last.id}`;
-    }
-
-    expect(pages).toEqual([200, 200, 100]);
-    expect(new Set(read.map((e) => e.id)).size).toBe(500);
-    expect(read.every((e) => e.kind === "archive")).toBe(true);
-    // One write, one moment: the moment alone could not have said where a page ended.
-    expect(new Set(read.map((e) => e.createdAt)).size).toBe(1);
-
-    const bad = await page.request.get(
-      `/api/projects/${projectId}/activity?after=${encodeURIComponent(since)}&afterId=nope`,
-    );
-    expect(bad.status()).toBe(400);
-  });
 
   test("after 300 cards are archived in one write, an assignment that follows wakes the watcher", async ({
     page,
@@ -701,72 +322,5 @@ test.describe("An edited comment", () => {
     } finally {
       watcher.kill("SIGTERM");
     }
-  });
-});
-
-test.describe("An agent's checklist", () => {
-  test("board.mjs adds an item, ticks the one its words name, and refuses to guess or to take an empty term", async ({
-    page,
-  }) => {
-    await register(page, "Checklist Owner");
-    const projectId = await createProject(page, unique("Checklist"));
-    await addTask(page, "Todo", "Make the queue retry");
-    await page.getByRole("button", { name: "Close task" }).click();
-    const token = await connectAgent(page, projectId, "Ticker");
-    const { task } = await taskByTitle(page.request, projectId, "Make the queue retry");
-
-    for (const text of ["A failed send retries five times", "A failed send gives up"]) {
-      const added = await runBoard(token, ["check", task.key, text]);
-      expect(added.code, added.output).toBe(0);
-    }
-
-    /** What the board holds, so the tick is read back through the API. */
-    const state = async () => {
-      const detail = (await (await page.request.get(`/api/tasks/${task.id}`)).json()).task;
-      return Object.fromEntries(
-        detail.checklist.map((i: { text: string; done: boolean }) => [i.text, i.done]),
-      );
-    };
-
-    // The whole text is not needed — one part that fits only one item is.
-    const ticked = await runBoard(token, ["check", task.key, "retries five", "--done"]);
-    expect(ticked.code, ticked.output).toBe(0);
-    expect(await state()).toEqual({
-      "A failed send retries five times": true,
-      "A failed send gives up": false,
-    });
-
-    // Both items carry these words, so they name neither, and nothing moves.
-    const several = await runBoard(token, ["check", task.key, "A failed send", "--done"]);
-    expect(several.code).toBe(1);
-    expect(several.output).toContain("matches 2 items");
-    const none = await runBoard(token, ["check", task.key, "the disk is full", "--done"]);
-    expect(none.code).toBe(1);
-    expect(none.output).toContain("A failed send gives up");
-
-    const back = await runBoard(token, ["check", task.key, "retries five", "--undone"]);
-    expect(back.code, back.output).toBe(0);
-    expect(await state()).toEqual({
-      "A failed send retries five times": false,
-      "A failed send gives up": false,
-    });
-
-    // A switch takes no value, so the flag may stand before the item as well.
-    const flagFirst = await runBoard(token, ["check", task.key, "--done", "gives up"]);
-    expect(flagFirst.code, flagFirst.output).toBe(0);
-    expect(await state()).toEqual({
-      "A failed send retries five times": false,
-      "A failed send gives up": true,
-    });
-
-    // Nothing is inside every item, so a term of only spaces would tick
-    // whatever it found. It is refused like a missing one.
-    const empty = await runBoard(token, ["check", task.key, " ", "--done"]);
-    expect(empty.code).toBe(1);
-    expect(empty.output).toContain("Give the item");
-    expect(await state()).toEqual({
-      "A failed send retries five times": false,
-      "A failed send gives up": true,
-    });
   });
 });
