@@ -11,6 +11,7 @@ export default tseslint.config(
       "drizzle/**",
       "design-reference/**",
       "test-results/**",
+      ".vitest/**",
       "next-env.d.ts",
       // The documentation site is its own package with its own build output.
       "website/dist/**",

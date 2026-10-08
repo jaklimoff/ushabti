@@ -38,6 +38,11 @@ describe(".github/workflows/ci.yml", () => {
     }
   });
 
+  it("runs the unit tests in the same image, because the component tests need its browser", () => {
+    const tag = job("gate").match(/mcr\.microsoft\.com\/playwright:v([\d.]+)-noble/)?.[1];
+    expect(tag).toBe(installed);
+  });
+
   it("installs no browser and no system package", () => {
     expect(workflow).not.toMatch(/playwright install/);
     expect(workflow).not.toMatch(/install-deps|apt(-get)? install/);

@@ -23,6 +23,11 @@ jobs:
   gate:
     runs-on: ubuntu-latest
 
+    # `npm test` draws components in Chromium, so the gate runs in the image
+    # the shards use, which carries the browser.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+
     steps:
       # The whole history: the GitHub step's tests read the board.mjs that
       # `examples/github/ushabti-links.yml` pins with `git show`.

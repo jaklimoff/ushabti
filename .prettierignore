@@ -5,6 +5,7 @@ design-reference
 package-lock.json
 test-results
 playwright-report
+.vitest
 docs
 
 # The documentation site: build output, and the pages built from the files above.
