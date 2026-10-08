@@ -69,6 +69,7 @@ import styles from "./panel.module.css";
 import { hasOptions } from "@/lib/types";
 import { changeAsked, droppedBy, droppedSaid, isShown, withoutHidden } from "@/lib/when";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
+import { canManage } from "@/lib/roles";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -1311,11 +1312,24 @@ function valueSaid(
   return d.value ?? "empty";
 }
 
+/* A deleted comment is named by whose it was, never by its words. */
+function whoseComment(
+  d: { authorId?: string | null; byProject?: boolean },
+  entry: { actor: { id?: string } | null },
+  projectName: string,
+  nameOf: (id: unknown) => string | null,
+): string {
+  if (d.byProject) return `${projectName}'s comment`;
+  if (d.authorId && d.authorId === entry.actor?.id) return "their own comment";
+  const named = nameOf(d.authorId);
+  return named ? `${named}'s comment` : "a comment";
+}
+
 function describeActivity(
   entry: {
     kind: string;
     data: Record<string, unknown>;
-    actor: { name: string } | null;
+    actor: { id?: string; name: string } | null;
   },
   projectName: string,
   nameOf: (id: unknown) => string | null,
@@ -1339,6 +1353,8 @@ function describeActivity(
     name?: string;
     dropped?: string[];
     hidBy?: string | null;
+    authorId?: string | null;
+    byProject?: boolean;
   };
   switch (entry.kind) {
     case "created":
@@ -1355,7 +1371,10 @@ function describeActivity(
     case "checklist":
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;
     case "comment":
-      return d.action === "edited" ? `${who} edited a comment` : `${who} left a comment`;
+      if (d.action === "edited") return `${who} edited a comment`;
+      if (d.action === "deleted")
+        return `${who} deleted ${whoseComment(d, entry, projectName, nameOf)}`;
+      return `${who} left a comment`;
     case "attachment":
       return d.action === "removed"
         ? `${who} removed the file “${d.name ?? ""}”`
@@ -2641,6 +2660,25 @@ function CommentItem({
   const changed = edit !== "" && edit !== base.current && edit !== comment.body;
   /* Files still on their way: Update waits for them, as the composer does. */
   const [uploading, setUploading] = useState(0);
+  /* An owner or an admin may take anybody's comment down, as the route says. */
+  const admin = canManage(data.project.role);
+  const [asking, setAsking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function remove() {
+    // A second press while the first is out deletes nothing twice.
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await counted(() => api.del(`/api/comments/${comment.id}`));
+      await reload();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not delete.");
+      setAsking(false);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   function open() {
     base.current = comment.body;
@@ -2705,30 +2743,30 @@ function CommentItem({
             </span>
           )}
           <span style={{ flex: 1 }} />
-          {mine && !editing && refused === null && (
+          {mine && !editing && refused === null && !asking && (
             <button className={styles.commentUse} title="Edit this comment" onClick={open}>
               Edit
             </button>
           )}
-          {mine && (
+          {(mine || admin) && !asking && (
             <button
               className={styles.commentDelete}
-              aria-label="Delete comment"
+              aria-label={mine ? "Delete comment" : `Delete ${author}'s comment`}
               title="Delete"
-              onClick={async () => {
-                try {
-                  await counted(() => api.del(`/api/comments/${comment.id}`));
-                  await reload();
-                } catch (err) {
-                  onError(err instanceof Error ? err.message : "Could not delete.");
-                }
-              }}
+              onClick={() => setAsking(true)}
             >
               ✕
             </button>
           )}
         </div>
-        {refused !== null ? (
+        {asking ? (
+          <ConfirmRow
+            question={`Delete ${mine ? "this comment" : `${author}'s comment`}? Its words are gone for good.`}
+            pending={deleting}
+            onConfirm={() => void remove()}
+            onCancel={() => setAsking(false)}
+          />
+        ) : refused !== null ? (
           <ChangedWhileTyping
             theirs={comment.body}
             mine={refused}

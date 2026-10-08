@@ -93,6 +93,16 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
       tx,
     );
   });
+  /* The line says who took whose comment down, never what it said: the words
+     are gone on purpose. The author goes by id, so a renamed person reads by
+     the name they have now. */
+  await logActivity({
+    projectId,
+    taskId: row.taskId,
+    actorId: user.id,
+    kind: "comment",
+    data: { commentId, action: "deleted", authorId: row.authorId, byProject: row.byProject },
+  });
   await broadcast({ projectId, scope: "task", taskId: row.taskId, clientId: clientIdOf(req) });
   return json({ ok: true });
 });

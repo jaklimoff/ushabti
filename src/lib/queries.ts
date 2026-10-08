@@ -1523,6 +1523,7 @@ export async function commentRow(commentId: string) {
       id: comments.id,
       taskId: comments.taskId,
       authorId: comments.authorId,
+      byProject: comments.byProject,
       body: comments.body,
       createdAt: comments.createdAt,
       editedAt: comments.editedAt,
