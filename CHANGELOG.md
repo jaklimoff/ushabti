@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The person picker has a Find box.** Type a few letters of a name to narrow the list, and
+  press Enter to pick. Your own name comes first, and the menu opens on it when the field is
+  empty. The task panel, **Set** on picked cards and a type's **Starts as** all work this way.
 - **An admin can rename an agent.** Open **Face** on the agent in Settings → People and change
   its name. Its comments, runs and activity show the new name; text already written, such as an
   old `@mention` or a log line, keeps the old one. Two agents of a project cannot share a name, in

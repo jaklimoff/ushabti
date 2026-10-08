@@ -72,32 +72,40 @@ test.describe("The panel and the view strip work without a mouse", () => {
       "true",
     );
 
-    // The person menu is a list of options, and the arrows walk it.
+    // The person menu has a box that keeps the focus while the arrows walk
+    // the rows. It opens on the reader when the field is empty.
     const assignee = panel.getByRole("button", { name: "Assignee Unassigned", exact: true });
     await assignee.click();
     const people = panel.getByRole("listbox", { name: "Assignee" });
-    await expect(people.getByRole("option", { name: "Unassigned", exact: true })).toBeFocused();
-    await expect(people.getByRole("option", { name: "Unassigned", exact: true })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    await page.keyboard.press("ArrowDown");
-    const me = people.getByRole("option", { name: "Test Person", exact: true });
-    await expect(me).toBeFocused();
-    // The list is one tab stop: the arrows walk it, and one Tab leaves it.
-    await expect(people.locator('[role="option"][tabindex="0"]')).toHaveCount(0);
-    await page.keyboard.press("Tab");
-    await expect(people.locator(":focus")).toHaveCount(0);
+    const find = panel.getByRole("combobox", { name: "Find a person" });
+    const at = people.locator('[role="option"][data-at="true"]');
+    await expect(find).toBeFocused();
+    const rows = people.getByRole("option");
+    await expect(rows.nth(0)).toHaveAccessibleName("Unassigned");
+    await expect(rows.nth(0)).toHaveAttribute("aria-selected", "true");
+    // The reader is the first person, and the highlight sits on them.
+    await expect(rows.nth(1)).toHaveAccessibleName("Test Person");
+    await expect(at).toHaveAccessibleName("Test Person");
+    await expect(find).toHaveAttribute("aria-activedescendant", (await at.getAttribute("id"))!);
+    await page.keyboard.press("ArrowUp");
+    await expect(at).toHaveAccessibleName("Unassigned");
+    await expect(find).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(people).toHaveCount(0);
-    // Pick with Enter, and the field reads the person by name alone.
+    await expect(assignee).toBeFocused();
+    // Typing narrows the rows and hides the empty one; Enter picks.
     await assignee.click();
-    await expect(people.getByRole("option", { name: "Unassigned", exact: true })).toBeFocused();
-    await page.keyboard.press("ArrowDown");
+    await page.keyboard.type("pers");
+    await expect(people.getByRole("option", { name: "Unassigned" })).toHaveCount(0);
+    await expect(at).toHaveAccessibleName("Test Person");
+    await page.keyboard.type("zzz");
+    await expect(people.getByRole("option")).toHaveCount(0);
+    await find.fill("test");
     await page.keyboard.press("Enter");
     const assigned = panel.getByRole("button", { name: "Assignee Test Person", exact: true });
     await expect(assigned).toBeFocused();
     await assigned.click();
+    await expect(at).toHaveAccessibleName("Test Person");
     await page.keyboard.press("Escape");
     await expect(assigned).toBeFocused();
     // The menu took that Escape, so the panel is still open.

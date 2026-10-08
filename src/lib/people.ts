@@ -35,3 +35,40 @@ export function personOf(
 export function personName(person: Person): string {
   return person.gone ? `${person.name} (left)` : person.name;
 }
+
+/**
+ * Whom the person picker offers for what somebody typed: the reader first,
+ * because the person most often picked is the one picking, then everyone
+ * else in the order they came, which is by name. Typing narrows by the rule
+ * a select's menu uses — the exact name first, then any name holding the
+ * words — so the two boxes never answer one word two ways.
+ */
+export function personMenu(
+  members: readonly MemberDTO[],
+  me: string | null,
+  draft: string,
+): MemberDTO[] {
+  const mine = members.filter((m) => m.id === me);
+  const ordered = [...mine, ...members.filter((m) => m.id !== me)];
+  const typed = draft.trim().toLowerCase();
+  if (!typed) return ordered;
+  const same = (m: MemberDTO) => m.name.trim().toLowerCase() === typed;
+  const exact = ordered.filter(same);
+  const partial = ordered.filter((m) => !same(m) && m.name.toLowerCase().includes(typed));
+  return [...exact, ...partial];
+}
+
+/**
+ * Where the highlight sits when the picker opens, in a menu whose first row
+ * is the empty one: on the person the field names, or on the reader when it
+ * names nobody who can still be picked.
+ */
+export function personOpeningAt(
+  rows: readonly MemberDTO[],
+  value: string | null,
+  me: string | null,
+): number {
+  const chosen = rows.findIndex((m) => m.id === value);
+  if (chosen >= 0) return chosen + 1;
+  return rows.findIndex((m) => m.id === me) + 1;
+}

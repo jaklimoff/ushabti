@@ -106,6 +106,35 @@ test.describe("Picking several cards", () => {
     await expect(page.getByTestId("pick-bar")).toHaveCount(0);
   });
 
+  test("Set on Assignee finds a person by typing", async ({ page }) => {
+    await register(page);
+    await createProject(page, unique("Picked people"));
+    await fourCards(page);
+    await pick(page, "Aardvark", "Beetle");
+
+    await page.getByTestId("pick-set").click();
+    const search = page.getByTestId("pick-search");
+    await search.fill("Assignee");
+    await search.press("Enter");
+    const menu = page.getByTestId("pick-menu");
+    await menu.getByRole("button", { name: "Unassigned" }).click();
+
+    /* The box has the focus, and the reader is highlighted on an empty field. */
+    const find = menu.getByRole("combobox", { name: "Find a person" });
+    await expect(find).toBeFocused();
+    await expect(menu.locator('[role="option"][data-at="true"]')).toHaveText(/Test Person/);
+
+    await find.fill("test");
+    await expect(menu.getByRole("option", { name: "Unassigned" })).toHaveCount(0);
+    await settles(page, BULK, () => find.press("Enter"));
+    await page.keyboard.press("Escape");
+
+    for (const title of ["Aardvark", "Beetle"]) {
+      await expect(card(page, title).locator('[title="Test Person"]')).toBeVisible();
+    }
+    await expect(card(page, "Cricket").locator('[title="Test Person"]')).toHaveCount(0);
+  });
+
   test("Escape ends it, and so does the ✕", async ({ page }) => {
     await register(page);
     await createProject(page, unique("Escaped"));
