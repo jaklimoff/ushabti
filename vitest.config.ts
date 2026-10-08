@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
+import { commands } from "./src/test/commands";
 
 const src = (path: string) => fileURLToPath(new URL(`./src/${path}`, import.meta.url));
 
@@ -51,6 +52,7 @@ export default defineConfig({
                reads the same. */
             locators: { exact: false },
             provider: playwright(),
+            commands,
             instances: [{ browser: "chromium" }],
           },
         },

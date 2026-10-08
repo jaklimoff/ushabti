@@ -99,5 +99,7 @@ describe("A write of more than a page of lines", () => {
       `/api/projects/${p.id}/activity?after=${encodeURIComponent(since)}&afterId=nope`,
     );
     expect(bad.status).toBe(400);
-  });
+    /* Five hundred writes take about two seconds, and over five on a machine
+       other agents are using. Vitest's own five would fail it for that. */
+  }, 30_000);
 });

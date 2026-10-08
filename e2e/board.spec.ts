@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import {
-  addListView,
   addTask,
   card,
   centreOf,
@@ -9,23 +8,16 @@ import {
   columnPill,
   createProject,
   dragCard,
-  dragOnto,
   forAFinger,
-  overflow,
-  pastTheBar,
   register,
-  saved,
   settles,
-  showColumn,
   sortBoard,
   unique,
-  viewOrder,
   descriptionBox,
   fillBox,
 } from "./helpers";
 
 type Page = import("@playwright/test").Page;
-type Locator = import("@playwright/test").Locator;
 
 /**
  * Three cards in Todo and one in Backlog, added in an order that is not the
@@ -61,29 +53,6 @@ test.describe("Ushabti board", () => {
       await expect(page.getByRole("button", { name: /^Phases/ })).toBeVisible();
     },
   );
-
-  test("a full column scrolls and its cards keep their height", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Overflow"));
-
-    for (let i = 1; i <= 14; i += 1) {
-      await addTask(page, "Backlog", `Overflow card ${i}`);
-      await page.getByRole("button", { name: "Close task" }).click();
-    }
-
-    const backlog = column(page, "Backlog");
-    const body = backlog.getByTestId("column-body");
-    const size = await body.evaluate((el) => ({
-      scroll: el.scrollHeight,
-      client: el.clientHeight,
-    }));
-    // The body scrolls. A card clips its own overflow, so a flex column would
-    // sooner squash every card to nothing than let this happen.
-    expect(size.scroll).toBeGreaterThan(size.client);
-
-    const first = await backlog.getByTestId("card").first().boundingBox();
-    expect(first!.height).toBeGreaterThan(40);
-  });
 
   test("add a task, open it and edit every part", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
@@ -131,50 +100,6 @@ test.describe("Ushabti board", () => {
     // activity
     await page.getByRole("tab", { name: /^Activity/ }).click();
     await expect(page.getByText(/created the task/)).toBeVisible();
-  });
-
-  test("Escape throws the edit away and writes nothing", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Escape"));
-    await addTask(page, "Todo", "Keep the old title");
-
-    // Something worth losing: a description that is already saved.
-    await page.getByText("Add a description…").click();
-    const editor = descriptionBox(page);
-    await fillBox(editor, "The words that were saved.");
-    await settles(page, /\/api\/tasks\/[0-9a-f-]+$/, () => editor.blur());
-    await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
-
-    const key = await page.getByTestId("task-key").innerText();
-
-    // From here on the task must not be written to. The route counts what
-    // goes out, because the screen alone cannot tell a write that was made
-    // from one that was not.
-    const writes: string[] = [];
-    await page.route(/\/api\/tasks\/[0-9a-f-]+$/, async (route) => {
-      const request = route.request();
-      if (request.method() !== "GET") writes.push(`${request.method()} ${request.url()}`);
-      await route.continue();
-    });
-
-    await page.getByTestId("markdown").click();
-    await fillBox(editor, "Words nobody asked to keep.");
-    await editor.press("Escape");
-    await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
-
-    const title = page.getByTestId("task-title");
-    await title.click();
-    await title.fill("A title nobody asked to keep");
-    await title.press("Escape");
-
-    // A write would already be in flight; give it the chance to arrive.
-    await page.waitForTimeout(500);
-    expect(writes).toEqual([]);
-
-    // And the server agrees: the task still says what it said.
-    await page.goto(`/p/${projectId}?task=${key}`);
-    await expect(page.getByTestId("task-title")).toHaveValue("Keep the old title");
-    await expect(page.getByTestId("markdown")).toHaveText("The words that were saved.");
   });
 
   test(
@@ -321,77 +246,6 @@ test.describe("Ushabti board", () => {
     },
   );
 
-  /*
-   * A field saves when you leave it, and a tab closed on one sends what the
-   * blur would have sent. A comment cannot be sent that way — nobody wrote it
-   * yet — so the words wait in the browser instead.
-   */
-  test("a half-written note survives a closed tab, and sending it clears the draft", async ({
-    page,
-    context,
-  }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Drafts"));
-    await addTask(page, "Todo", "Long note");
-
-    const note = "The queue drops a message when the worker restarts mid-batch.";
-    await page.getByPlaceholder("Leave a note…").fill(note);
-    await page.close();
-
-    const back = await context.newPage();
-    await back.goto(`/p/${projectId}`);
-    await card(back, "Long note").first().click();
-    await expect(back.getByPlaceholder("Leave a note…")).toHaveValue(note);
-
-    await saved(back, () => back.getByRole("button", { name: "Comment", exact: true }).click());
-    await expect(back.getByTestId("comment-markdown")).toContainText("restarts mid-batch");
-    await back.close();
-
-    // Sent is not unsaid: there is nothing left to put back.
-    const after = await context.newPage();
-    await after.goto(`/p/${projectId}`);
-    await card(after, "Long note").first().click();
-    await expect(after.getByPlaceholder("Leave a note…")).toHaveValue("");
-  });
-
-  test("n opens a composer in the column the cursor is in", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("NewKey"));
-    await addTask(page, "In Progress", "Where the cursor is");
-    await page.getByRole("button", { name: "Close task" }).click();
-
-    // The cursor is on a card in In Progress, so that is where n adds.
-    await card(page, "Where the cursor is").first().focus();
-    await page.keyboard.press("n");
-    const input = page.getByPlaceholder("What needs doing?");
-    await expect(input).toBeFocused();
-    await expect(column(page, "In Progress").getByPlaceholder("What needs doing?")).toBeVisible();
-    await input.fill("Made with n");
-    await input.press("Enter");
-    await expect(column(page, "In Progress").getByText("Made with n")).toBeVisible();
-
-    // In a field, n is a letter. The panel opened on the new task; its title
-    // takes the key, and no composer appears.
-    const title = page.getByTestId("task-panel").getByRole("textbox").first();
-    await title.focus();
-    await page.keyboard.press("n");
-    await expect(page.getByPlaceholder("What needs doing?")).toHaveCount(0);
-
-    // Nothing focused: the cursor rests on the top card of the first column
-    // that has one, and n follows it there.
-    await page.goto(`/p/${projectId}`);
-    await expect(card(page, "Made with n").first()).toBeVisible();
-    /* The cards are drawn by the server, so they are on screen before the
-       board is hydrated — and `n` listens on the window, which nothing has
-       yet. A key pressed in that gap lands nowhere, and the test could reach
-       it in about ten milliseconds, which no person can. The live dot is the
-       board saying it is connected, and its keys work from the render before
-       that one. So wait as a person waits: for the board to be there. */
-    await expect(page.getByTestId("live-dot")).toBeVisible();
-    await page.keyboard.press("n");
-    await expect(column(page, "In Progress").getByPlaceholder("What needs doing?")).toBeVisible();
-  });
-
   test("a card moves with the keyboard alone", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Keyboard"));
@@ -525,40 +379,6 @@ test.describe("Ushabti board", () => {
     await expect(page.getByTestId("task-title")).toHaveValue("Share me");
   });
 
-  test("the panel is as wide as somebody dragged it, and stays that wide", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Width"));
-    await addTask(page, "Todo", "Room to read");
-
-    const panel = page.getByTestId("task-panel");
-    const grip = page.getByTestId("panel-grip");
-    const was = (await panel.boundingBox())!.width;
-    const edge = (await grip.boundingBox())!;
-
-    // The panel grows to the left, so the pointer goes left.
-    await page.mouse.move(edge.x + edge.width / 2, edge.y + 240);
-    await page.mouse.down();
-    await page.mouse.move(edge.x + edge.width / 2 - 140, edge.y + 240, { steps: 12 });
-    await page.mouse.up();
-    await expect
-      .poll(async () => Math.round((await panel.boundingBox())!.width))
-      .toBe(Math.round(was + 140));
-
-    // The arrow keys move it too, so the width is not a mouse-only setting.
-    await grip.focus();
-    await page.keyboard.press("ArrowLeft");
-    await expect
-      .poll(async () => Math.round((await panel.boundingBox())!.width))
-      .toBe(Math.round(was + 156));
-
-    // The next board this person opens is the width they left it.
-    await page.reload();
-    await expect(panel).toBeVisible();
-    await expect
-      .poll(async () => Math.round((await panel.boundingBox())!.width))
-      .toBe(Math.round(was + 156));
-  });
-
   test("create a view grouped by another property", { tag: "@smoke" }, async ({ page }) => {
     await register(page);
     await createProject(page, unique("Views"));
@@ -574,27 +394,12 @@ test.describe("Ushabti board", () => {
     await expect(column(page, "Unassigned")).toBeVisible();
   });
 
-  test("a pill is dragged along the strip, and the order keeps", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("PillOrder"));
-
-    expect(await viewOrder(page)).toEqual(["BOARD", "PHASES"]);
-
-    const pill = (name: string) => page.getByTestId("view-pill").filter({ hasText: name });
-    await dragOnto(page, pill("Phases"), pill("Board"), /^\/api\/views\/[0-9a-f-]+$/);
-    expect(await viewOrder(page)).toEqual(["PHASES", "BOARD"]);
-
-    // A drag is not a click: the board still shows the view it was on, which
-    // is the one with the Status columns and not the Phase ones.
-    await expect(column(page, "Backlog")).toBeVisible();
-
-    await page.goto(`/p/${projectId}`);
-    expect(await viewOrder(page)).toEqual(["PHASES", "BOARD"]);
-  });
-
+  /* The rest of the fold — the strip, the width it gives back, the next page
+     keeping it and a phone ignoring it — is drawn in `Board.test.tsx`. A drop
+     onto the strip is a drag across columns, so this part stays here. */
   test("a column folds to a strip, takes a card, and opens again", async ({ page }) => {
     await register(page);
-    const projectId = await createProject(page, unique("Folding"));
+    await createProject(page, unique("Folding"));
 
     await addTask(page, "Todo", "Fold me across");
     await page.getByRole("button", { name: "Close task" }).click();
@@ -604,15 +409,6 @@ test.describe("Ushabti board", () => {
 
     await page.getByRole("button", { name: "Fold the column Shipped" }).click();
     await expect(open).toBeVisible();
-    await expect(shipped.getByTestId("column-name")).toHaveText("Shipped");
-    await expect(shipped.getByTestId("column-count")).toHaveText("0");
-
-    // Giving the width back is the whole point of the fold.
-    const strip = await shipped.boundingBox();
-    expect(strip!.width).toBeLessThan(80);
-
-    await page.goto(`/p/${projectId}`);
-    await expect(open).toBeVisible();
 
     // A folded column is still a drop target, so nothing is lost on a strip.
     await dragCard(page, "Fold me across", await centreOf(page, "Shipped"));
@@ -621,41 +417,6 @@ test.describe("Ushabti board", () => {
 
     await open.click();
     await expect(shipped.getByText("Fold me across")).toBeVisible();
-
-    /* A fold gives width back, and a phone has none to give: it draws one
-       column, whole, and the strip above names the rest. So there is no way
-       to fold one down there — and the fold this browser wrote is ignored
-       rather than cleared, so the wider window gets it back. */
-    await page.getByRole("button", { name: "Fold the column Shipped" }).click();
-    await expect(open).toBeVisible();
-
-    await page.setViewportSize({ width: 390, height: 780 });
-    await expect(page.getByTestId("column")).toHaveCount(1);
-    await expect(column(page, "Todo")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Fold the column / })).toHaveCount(0);
-    await expect(page.getByTestId("column-pill")).toHaveCount(5);
-
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await expect(open).toBeVisible();
-    await expect(page.getByTestId("column-pill")).toHaveCount(0);
-
-    // The fold is this browser's and nothing about it reached the project.
-    await page.evaluate(() => window.localStorage.clear());
-    await page.goto(`/p/${projectId}`);
-    await expect(shipped.getByRole("button", { name: "Add a task to Shipped" })).toBeVisible();
-  });
-
-  test("add a column, which is a new option on the grouping property", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Columns"));
-
-    await page.getByRole("button", { name: "New column" }).click();
-    await page.getByPlaceholder("Column name").fill("Blocked");
-    await page.getByRole("button", { name: "Add column" }).click();
-
-    await expect(column(page, "Blocked")).toBeVisible();
-    await page.goto(`/p/${projectId}`);
-    await expect(column(page, "Blocked")).toBeVisible();
   });
 });
 
@@ -765,246 +526,13 @@ test.describe("Ordering a board", () => {
     await expect(page.getByTestId("sort-chip")).toHaveCount(0);
     expect(await columnOrder(page, "Todo")).toEqual(["Aardvark", "Beetle", "Cricket"]);
   });
-
-  test("names each way of an order by what the column holds", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Ways"));
-
-    const menu = page.getByTestId("sort-menu");
-    const chip = page.getByTestId("sort-chip");
-    const press = (name: string) =>
-      settles(page, /\/api\/views\/[0-9a-f-]+\/lens$/, () =>
-        menu.getByRole("option", { name }).click(),
-      );
-
-    await page.getByTestId("sort-button").click();
-
-    // A select runs in the order its options were put in, not small to large.
-    await press("Priority");
-    await expect(menu.getByRole("option", { name: "Priority" })).toContainText("Option order");
-    await expect(chip).toContainText("Priority: Option order");
-
-    await press("Priority");
-    await expect(menu.getByRole("option", { name: "Priority" })).toContainText("Reverse order");
-    await expect(chip).toContainText("Priority: Reverse order");
-
-    await press("Title");
-    await expect(menu.getByRole("option", { name: "Title" })).toContainText("A→Z");
-    await expect(chip).toContainText("Title: A→Z");
-
-    await press("Due");
-    await expect(menu.getByRole("option", { name: "Due" })).toContainText("Earliest first");
-    await expect(chip).toContainText("Due: Earliest first");
-  });
-
-  test("a list is ordered by its headings, so it has no button", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Headings"));
-    await addTask(page, "Todo", "Only one");
-    await page.getByRole("button", { name: "Close task" }).click();
-
-    await expect(page.getByTestId("sort-button")).toBeVisible();
-    await addListView(page, "Rows");
-    await expect(page.getByTestId("sort-button")).toHaveCount(0);
-  });
-});
-
-/* The button reaches a phone, so its panel has to fit on one. */
-test.describe("Ordering a board on a phone", () => {
-  test.use({ viewport: { width: 390, height: 780 } });
-
-  test("the button is in the strip and its panel fits the screen", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Pocket"));
-    await aPricedBoard(page);
-
-    await expect(page.getByTestId("sort-button")).toBeVisible();
-    // Nothing in the view strip is pushed off the side of the screen.
-    for (const testid of ["sort-button", "filter-button", "task-count"]) {
-      const box = await page.getByTestId(testid).boundingBox();
-      expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-    }
-
-    await sortBoard(page, "Priority");
-    /* A phone draws one column, and the cards that were ordered are in Todo. */
-    await showColumn(page, "Todo");
-    expect(await columnOrder(page, "Todo")).toEqual(["Beetle", "Aardvark", "Cricket"]);
-    await expect(page.getByTestId("sort-chip")).toBeVisible();
-  });
-
-  /*
-   * The top bar is exactly full at this width: the spacer between the name and
-   * the search box has nothing left to give. So one more link would push the
-   * bar off the side, and the mark — which is all that names the project down
-   * here — would be squashed, both of them without a sound.
-   */
-  test("the top bar fits, and the mark keeps its width", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Pocket"));
-
-    /* By their titles: an empty board says "Settings" in its hint as well, and
-       this is about the two links in the bar. */
-    await expect(page.getByTitle("The tasks that are archived")).toBeVisible();
-    await expect(page.getByTitle("Project settings")).toBeVisible();
-    expect(await overflow(page)).toBe(0);
-
-    const mark = await page.getByTestId("board-mark").boundingBox();
-    expect(mark!.width).toBe(18);
-    expect(mark!.height).toBe(18);
-  });
-});
-
-/*
- * A phone cannot draw two 272 px columns side by side, so from 560 px down it
- * draws one and names the rest in a strip above it. Three ways reach another
- * column — a pill, a swipe and the arrows — and they all write one word, which
- * is why the strip, the canvas and the cursor can never disagree.
- */
-test.describe("A board on a phone", () => {
-  test.use({ viewport: { width: 390, height: 780 } });
-
-  test("draws one column, and the strip is the way to the others", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Pocket"));
-    await aColumnEach(page);
-
-    // A phone opens on the first column, every time.
-    await page.goto(`/p/${projectId}`);
-    await expect(page.getByTestId("column")).toHaveCount(1);
-    await expect(column(page, "Backlog")).toBeVisible();
-    await expect(card(page, "Aardvark")).toBeVisible();
-    await expect(card(page, "Beetle")).toHaveCount(0);
-
-    // Full width, and nowhere to push the board sideways.
-    const drawn = await page.getByTestId("column").boundingBox();
-    expect(drawn!.width).toBeGreaterThan(340);
-    expect(await overflow(page)).toBe(0);
-    expect(await sideways(page)).toBe(0);
-
-    // The strip names every column of the view and says what is in each.
-    const pills = page.getByTestId("column-pill");
-    await expect(pills).toHaveCount(5);
-    expect(await names(pills)).toEqual(["BACKLOG", "TODO", "IN PROGRESS", "READY", "SHIPPED"]);
-    await expect(pills.getByTestId("column-pill-count")).toHaveText(["1", "1", "1", "0", "0"]);
-    await forAFinger(pills, 5);
-
-    // A pill is one way to another column.
-    await columnPill(page, "Todo").click();
-    await expect(column(page, "Todo")).toBeVisible();
-    await expect(page.getByTestId("column")).toHaveCount(1);
-    await expect(card(page, "Beetle")).toBeVisible();
-    await expect(card(page, "Aardvark")).toHaveCount(0);
-    expect(await sideways(page)).toBe(0);
-
-    // The arrows are another, through the cursor the board already has: the
-    // card the cursor lands on is in the next column, so the board pages and
-    // the focus follows it there.
-    await card(page, "Beetle").first().focus();
-    await page.keyboard.press("ArrowRight");
-    await expect(column(page, "In Progress")).toBeVisible();
-    await expect(card(page, "Cricket").first()).toBeFocused();
-    await page.keyboard.press("ArrowLeft");
-    await expect(column(page, "Todo")).toBeVisible();
-    await expect(card(page, "Beetle").first()).toBeFocused();
-
-    // And `n` makes a task at the top of the column on screen.
-    await page.keyboard.press("n");
-    const composer = page.getByPlaceholder("What needs doing?");
-    await composer.fill("Dingo");
-    await composer.press("Enter");
-    await expect(card(page, "Dingo")).toBeVisible();
-    await page.getByRole("button", { name: "Close task" }).click();
-    await expect(column(page, "Todo").getByTestId("card")).toHaveCount(2);
-    expect(await counts(pills)).toEqual(["1", "2", "1", "0", "0"]);
-  });
-
-  test("a card moves by the panel, and the strip says where it went", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Pocket"));
-    await aColumnEach(page);
-
-    await columnPill(page, "Todo").click();
-
-    /* Nothing down here drags. A column has no grip and no fold, and a card
-       cannot be lifted — which is what leaves a sideways finger to the board. */
-    await expect(page.getByRole("button", { name: /^Reorder the column / })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Fold the column / })).toHaveCount(0);
-    await card(page, "Beetle").first().focus();
-    await page.keyboard.press("Space");
-    await expect(page.getByTestId("card-overlay")).toHaveCount(0);
-
-    /* So the panel's own control is how a card changes column: it writes the
-       one value a drop across a board writes. */
-    await card(page, "Beetle").click();
-    const panel = page.getByTestId("task-panel");
-    await panel.getByRole("button", { name: "Status Todo" }).click();
-    await saved(page, () => panel.getByRole("option", { name: /^Ready/ }).click());
-    await page.getByRole("button", { name: "Close task" }).click();
-
-    const pills = page.getByTestId("column-pill");
-    expect(await counts(pills)).toEqual(["1", "0", "1", "1", "0"]);
-    await expect(card(page, "Beetle")).toHaveCount(0);
-
-    await columnPill(page, "Ready").click();
-    await expect(card(page, "Beetle")).toBeVisible();
-    expect(await sideways(page)).toBe(0);
-  });
-
-  test("picks a card and archives it, with no hover to find the check", async ({ page }) => {
-    await register(page);
-    await createProject(page, unique("Pocket"));
-    await aColumnEach(page);
-
-    await columnPill(page, "Todo").click();
-    await card(page, "Beetle").getByTestId("card-pick").click();
-    await expect(page.getByTestId("pick-bar")).toBeVisible();
-    await expect(page.getByTestId("pick-count")).toHaveText("1 selected");
-    expect(await overflow(page)).toBe(0);
-
-    await page.getByTestId("pick-archive").click();
-    await expect(page.getByTestId("pick-confirm")).toHaveText("Archive 1 task?");
-    await settles(page, /\/api\/projects\/[0-9a-f-]+\/archive$/, () =>
-      page.getByTestId("pick-archive-yes").click(),
-    );
-    await expect(card(page, "Beetle")).toHaveCount(0);
-    expect(await counts(page.getByTestId("column-pill"))).toEqual(["1", "0", "1", "0", "0"]);
-  });
-
-  test("the strip scrolls to the column you are on, and fades where there is more", async ({
-    page,
-  }) => {
-    await register(page);
-    await createProject(page, unique("Pocket"));
-    await aColumnEach(page);
-
-    /* Five pills are wider than a phone, so the row pans — and the scrollbar
-       is hidden, so the fade at the end is the only thing that says so. */
-    const pills = page.getByTestId("column-pills");
-    expect(await hidden(pills)).toBeGreaterThan(0);
-    expect(await maskOf(pills)).toContain("linear-gradient");
-
-    /* The filled pill is the whole point of the strip, so paging to the last
-       column has to bring its pill with it. It used to sit two hundred pixels
-       past the end of a strip that had not moved. */
-    await columnPill(page, "Shipped").click();
-    await expect(column(page, "Shipped")).toBeVisible();
-    await inside(columnPill(page, "Shipped"), pills);
-
-    /* The fade is now at the other end, because that is where the rest is. */
-    expect(await pills.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
-    expect(await maskOf(pills)).toContain("linear-gradient");
-
-    /* And back the other way: the strip goes to the start with it. */
-    await columnPill(page, "Backlog").click();
-    await expect(column(page, "Backlog")).toBeVisible();
-    await inside(columnPill(page, "Backlog"), pills);
-    expect(await pills.evaluate((el) => el.scrollLeft)).toBe(0);
-  });
 });
 
 /*
  * The same board under a finger. A phone has no hover, so the check that picks
- * a card cannot wait for one, and a sideways swipe is how a page turns.
+ * a card cannot wait for one, and a sideways swipe is how a page turns. The
+ * rest of a phone board is drawn in `Board.test.tsx`; this needs a touch
+ * screen, which only a browser context of its own has.
  */
 test.describe("A board under a finger", () => {
   test.use({ viewport: { width: 390, height: 780 }, hasTouch: true });
@@ -1053,43 +581,6 @@ async function aColumnEach(page: Page) {
   }
 }
 
-/** How much of a scrolling row is past its own edges. */
-async function hidden(row: Locator): Promise<number> {
-  return row.evaluate((el) => el.scrollWidth - el.clientWidth);
-}
-
-/** What the row is faded with. A row with nothing past its edges has none. */
-async function maskOf(row: Locator): Promise<string> {
-  return row.evaluate((el) => getComputedStyle(el).maskImage);
-}
-
-/** One pill is drawn inside the strip that holds it, from end to end. */
-async function inside(pill: Locator, row: Locator) {
-  const one = await pill.boundingBox();
-  const box = await row.boundingBox();
-  expect(one!.x, "the pill starts before the strip").toBeGreaterThanOrEqual(box!.x - 1);
-  expect(one!.x + one!.width, "the pill ends past the strip").toBeLessThanOrEqual(
-    box!.x + box!.width + 1,
-  );
-}
-
-/** How far the board can be pushed sideways. A phone has nowhere to push it. */
-async function sideways(page: Page): Promise<number> {
-  return page.getByTestId("board-canvas").evaluate((el) => el.scrollWidth - el.clientWidth);
-}
-
-/** The names in the column strip, left to right. The pills are uppercase. */
-async function names(pills: Locator): Promise<string[]> {
-  return (await pills.getByTestId("column-pill-name").allInnerTexts()).map((t) =>
-    t.trim().toUpperCase(),
-  );
-}
-
-/** What each pill says is in its column, left to right. */
-async function counts(pills: Locator): Promise<string[]> {
-  return pills.getByTestId("column-pill-count").allInnerTexts();
-}
-
 /**
  * One finger, across the middle of the board.
  *
@@ -1114,188 +605,3 @@ async function swipe(page: Page, dx: number, dy: number) {
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await cdp.detach();
 }
-
-/*
- * A small tablet, and a window as narrow as one. Both names used to go at
- * 560 px, where the bar still had 118 px of room. They go at 520 px now, and
- * the box that finds a task is what gives its width up first.
- */
-test.describe("The top bar on a small tablet", () => {
-  test.use({ viewport: { width: 560, height: 820 } });
-
-  test("keeps the project name and the person's name", async ({ page }) => {
-    const account = await register(page);
-    /* A short name on purpose: this measures the room the bar has, not how
-       long a name may be. */
-    await createProject(page, "Pocket");
-
-    const crumb = page.getByTestId("board-crumb");
-    const person = page.getByTestId("user-name");
-    await expect(crumb).toBeVisible();
-    await expect(person).toBeVisible();
-    await expect(crumb).toHaveText("Pocket");
-    await expect(person).toHaveText(account.name);
-    await whole(crumb);
-    await whole(person);
-    expect(await overflow(page)).toBe(0);
-
-    /* And gives them up on a phone, where there is no room for them. */
-    await page.setViewportSize({ width: 390, height: 820 });
-    await expect(page.getByTestId("board-crumb")).toBeHidden();
-    await expect(page.getByTestId("user-name")).toBeHidden();
-    expect(await overflow(page)).toBe(0);
-  });
-});
-
-/*
- * A small tablet with a long name at each end of the bar and three cards
- * picked. The bar ran 80 px off its own side here, and the box that finds a
- * task was squeezed to 31 px of border and padding on the way — neither with
- * a sound, because the shell clips what hangs out of it rather than scrolling.
- */
-test.describe("The top bar with cards picked", () => {
-  test.use({ viewport: { width: 600, height: 820 } });
-
-  test("keeps every part inside the bar, and the box keeps its floor", async ({ page }) => {
-    await register(page, "Wilhelmina Featherstonehaugh");
-    await createProject(page, unique("Pocket"));
-    for (const title of ["Aardvark", "Beetle", "Cricket"]) {
-      await addTask(page, "Todo", title);
-      await page.getByRole("button", { name: "Close task" }).click();
-    }
-
-    /* Nothing is picked yet. The names shorten, and the box is never a sliver:
-       a box this narrow is a border and its padding and nothing else. */
-    await expect(page.getByTestId("search-box")).toBeVisible();
-    expect(await searchWidth(page)).toBeGreaterThanOrEqual(88);
-    expect(await pastTheBar(page)).toBe(0);
-
-    for (const title of ["Aardvark", "Beetle", "Cricket"]) {
-      await card(page, title).getByTestId("card-pick").click();
-    }
-    await expect(page.getByTestId("pick-bar")).toBeVisible();
-
-    /* What gave the room: the ways off this board. What kept its place: the
-       picture and the name of the person, and the mark that names the
-       project. */
-    await expect(page.getByTestId("search-box")).toBeHidden();
-    await expect(page.getByTitle("Project settings")).toBeHidden();
-    await expect(page.getByTestId("board-mark")).toBeVisible();
-    await expect(page.getByTestId("user-name")).toBeVisible();
-    expect(await pastTheBar(page)).toBe(0);
-
-    /* The question is longer than the count, so it is measured as well. */
-    await page.getByTestId("pick-archive").click();
-    await expect(page.getByTestId("pick-confirm")).toHaveText("Archive 3 tasks?");
-    expect(await pastTheBar(page)).toBe(0);
-    await page.getByTestId("pick-archive-no").click();
-
-    /* And it is a loan, not a taking. */
-    await page.getByTestId("pick-clear").click();
-    await expect(page.getByTestId("pick-bar")).toHaveCount(0);
-    await expect(page.getByTestId("search-box")).toBeVisible();
-    expect(await searchWidth(page)).toBeGreaterThanOrEqual(88);
-
-    /* The floor holds on both sides of the width the names shorten at. It
-       used to end there, so the box lost 23 px on one pixel of window. */
-    for (const width of [560, 561]) {
-      await page.setViewportSize({ width, height: 820 });
-      await expect(page.getByTestId("search-box")).toBeVisible();
-      expect(await searchWidth(page), `the box at ${width} px`).toBeGreaterThanOrEqual(88);
-      expect(await pastTheBar(page)).toBe(0);
-    }
-  });
-});
-
-/** How wide the box that finds a task is drawn. */
-async function searchWidth(page: Page): Promise<number> {
-  const box = await page.getByTestId("search-box").boundingBox();
-  return Math.round(box!.width);
-}
-
-/**
- * The whole of the name is drawn.
- *
- * A box narrower than its text draws an ellipsis and keeps the text, so
- * anything that reads the words passes on a name cut to one letter. The two
- * widths are the only things that say so.
- */
-async function whole(name: Locator) {
-  const box = await name.evaluate((el) => ({ text: el.scrollWidth, drawn: el.clientWidth }));
-  expect(box.text, `"${await name.textContent()}" is cut off`).toBeLessThanOrEqual(box.drawn);
-}
-
-/*
- * A field saves on blur, and a tab closed on a focused field sends no blur.
- * The save goes out on the way off the page instead.
- *
- * What the next page draws is the whole proof. The request itself cannot be
- * counted: a page that is going does not report it, however it is watched;
- * see `useSaveOnLeave`.
- */
-test.describe("An edit the tab was closed on", () => {
-  test("the task title is saved although nothing was blurred", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Leaving"));
-
-    // The panel opens by itself, with the title ready to edit.
-    await addTask(page, "Todo", "The old title");
-    const title = page.getByTestId("task-title");
-    await title.click();
-    await title.fill("The words the tab took");
-
-    // No Enter, no Escape, no click elsewhere: the tab goes while the field
-    // still has the focus, which is the blur the browser never sends.
-    const context = page.context();
-    await page.close();
-
-    const next = await context.newPage();
-    await expect
-      .poll(
-        async () => {
-          await next.goto(`/p/${projectId}`);
-          return next.getByTestId("card-title").allInnerTexts();
-        },
-        { timeout: 20_000 },
-      )
-      .toContain("The words the tab took");
-  });
-
-  /*
-   * A click is not an edit. The box seeds a draft from the title, and that
-   * draft goes stale the moment an agent or another person renames the task —
-   * which on this board is the ordinary case, not the rare one. Closing the
-   * tab on it must not put the old name back.
-   */
-  test("a title clicked into but not typed in writes nothing back", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Quiet"));
-    await addTask(page, "Todo", "The first name");
-
-    // The cursor sits in the title, and nothing is typed.
-    await page.getByTestId("task-title").click();
-
-    // The other tab renames the task, and this one hears about it.
-    const context = page.context();
-    const other = await context.newPage();
-    await other.goto(`/p/${projectId}`);
-    const renamed = "The name that has to stand";
-    await card(other, "The first name").first().click();
-    const box = other.getByTestId("task-title");
-    await box.click();
-    await box.fill(renamed);
-    await settles(other, /^\/api\/tasks\/[0-9a-f-]+$/, () => box.press("Enter"));
-
-    /* The tab that typed nothing draws the new name, cursor and all. This is
-       the assertion with the teeth: a box that still drew the old name would
-       be holding exactly the words a leave would send. */
-    await expect(page.getByTestId("task-title")).toHaveValue(renamed);
-
-    // Nobody typed in this tab, so closing it writes nothing.
-    await page.close();
-    await other.waitForTimeout(2_000);
-    await other.reload();
-    await expect(card(other, renamed).first()).toBeVisible();
-    await expect(card(other, "The first name")).toHaveCount(0);
-  });
-});

@@ -249,6 +249,14 @@ export type Sent = { method: string; path: string; query: URLSearchParams; body:
 /** What a request is answered with. Nothing means 200 and `{}`. */
 export type Answer = (sent: Sent) => { status?: number; body?: unknown } | undefined;
 
+/** How a board is drawn beyond its data. */
+export type Drawing = {
+  /** Who is signed in. `ME` unless a test needs another name. */
+  user?: SessionUser;
+  /** Keep what this browser stored, as the next page of the same tab does. */
+  keepStorage?: boolean;
+};
+
 /**
  * Draws `ui` inside a board store holding `data`, and answers every request
  * with `answer`. A read of the board is answered with `data` unless `answer`
@@ -259,6 +267,7 @@ export async function renderWithBoard(
   ui: ReactNode,
   data: BoardData,
   answer: Answer = () => undefined,
+  { user = ME, keepStorage = false }: Drawing = {},
 ) {
   const requests: Sent[] = [];
 
@@ -299,11 +308,12 @@ export async function renderWithBoard(
   );
 
   /* The last view a person opened is kept per browser, and one test must not
-     open on the view another left. */
-  window.localStorage.clear();
+     open on the view another left. A test that draws the board again, as a
+     reload would, keeps it on purpose. */
+  if (!keepStorage) window.localStorage.clear();
 
   const screen = await render(
-    <BoardProvider initial={data} user={ME}>
+    <BoardProvider initial={data} user={user}>
       {ui}
     </BoardProvider>,
   );
