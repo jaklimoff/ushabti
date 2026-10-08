@@ -177,7 +177,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
         </Strip>
       )}
 
-      <div className={styles.cardTitle} data-testid="card-title">
+      <div className={styles.cardTitle} data-testid="card-title" title={task.title}>
         {task.title}
       </div>
 

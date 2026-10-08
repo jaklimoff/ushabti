@@ -163,7 +163,11 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
             <span key={column.id} {...held} className={`${styles.listTitle} ${held.className}`}>
               {edge}
               {check}
-              <span className={styles.listTitleText} data-testid="list-row-title">
+              <span
+                className={styles.listTitleText}
+                data-testid="list-row-title"
+                title={task.title}
+              >
                 {task.title}
               </span>
               {slots.desc && <span className={styles.listDesc}>{slots.desc}</span>}

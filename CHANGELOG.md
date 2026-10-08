@@ -35,6 +35,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A long title is cut to three lines on a card.** One card no longer towers over its column.
+  The whole title shows when you hover a card or a list row.
+
 - **A watcher knows from the feed whether a change is for it.** A value line now carries the
   property's `type`, and a person line the `personId` it names; a `created` line carries
   `assigneeIds`. `board.mjs watch` decides from those, so a card dragged across a column no
