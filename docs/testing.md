@@ -62,6 +62,12 @@ app router is mounted in a test. The page is 1440 by 900, as in the end to
 end suite; `page.viewport(390, 780)` makes it a phone. Locators match words
 as Playwright's do, so a test moved down reads as it did.
 
+A drag that dnd-kit or a grip has to see is `commands.drag(from, to)`, which
+walks Playwright's own mouse there in small steps; `userEvent.dragAndDrop`
+jumps once and dnd-kit never lifts. A reload is a second `renderWithBoard`
+with `{ keepStorage: true }`, which keeps what the browser stored, and
+`{ user }` signs in somebody other than `ME`.
+
 A test moved down from `e2e/` checks what it checked there, and carries the
 name it had there, or names that test in a comment.
 
@@ -85,7 +91,7 @@ everyone** has a race half and a half where the clash is on screen.
 One line per spec file, with how many of its tests stay end to end and where
 the rest go. **move** means most of it goes down, **keep** that most stays,
 and **drop** a test that a unit test already holds. The kept tests of a file
-may later be folded into one walk. The totals leave 83 tests end to end, and
+may later be folded into one walk. The totals leave 86 tests end to end, and
 the walks still to be written for the main flows bring it to about 100, on
 four workers at most.
 
@@ -102,7 +108,7 @@ four workers at most.
 | `attachments.spec.ts` | 2 | keep | 1 | 1 |  |  |  | An upload through the bucket stays; the 503 sentence is Settings drawing an answer. |
 | `bad-id.spec.ts` | 2 | move |  |  |  | 2 |  | `readId` already has unit tests; one route test per door says the sentence. |
 | `blockers.spec.ts` | 4 | move |  | 3 |  | 1 |  | Being over takes the chain off is the board read; the rest is the panel. |
-| `board.spec.ts` | 36 | move | 14 | 22 |  |  |  | Keep the first walk, the four pointer drags, the two keyboard drags, the copy link, the counts and an order across a reload, the phone move, the finger, and the title saved on a closed tab. The rest is what the board draws. The small-tablet test becomes a component test, and the builder rule that names it moves with it. |
+| `board.spec.ts` | 36 | done (USH-270) | 17 | 19 |  |  |  | Keep the first walk, the four pointer drags, the two keyboard drags, the copy link, the counts, an order across a reload, the finger and the drop onto a folded column. The plan kept 14, but ten tests carry `@smoke` and stay, and the fold's drop is a drag across columns, so its fold half went down alone and its drop stayed. The phone move and the title saved on a closed tab need nothing a component lacks: `pagehide` is counted there, which end to end could not. The small-tablet tests went down, and the builder rule that names them moved with them. |
 | `cadence.spec.ts` | 7 | move | 1 | 4 |  | 2 |  | Keep shipping the last sprint. The layout rows are Settings drawn at two widths. |
 | `card-view.spec.ts` | 10 | move | 1 | 9 |  |  |  | Keep the drag in Settings that moves the card, the panel and the list. |
 | `changed.spec.ts` | 4 | move |  | 1 |  | 3 |  | What moves the changed time is the server's write. |
@@ -171,4 +177,4 @@ four workers at most.
 | `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. |
 | `when.spec.ts` | 7 | move |  | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. |
 | `words.spec.ts` | 4 | move |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. |
-| **80 files** | **460** | | **83** | **257** | **9** | **108** | **3** | |
+| **80 files** | **460** | | **86** | **254** | **9** | **108** | **3** | |
