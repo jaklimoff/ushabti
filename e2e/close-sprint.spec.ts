@@ -46,6 +46,8 @@ async function sprintAndRelease(page: Page) {
   expect(
     (await page.request.patch(`/api/properties/${version.id}`, { data: { dated: true } })).ok(),
   ).toBeTruthy();
+  // The changelog is there only while releases are on, and Version is the releases.
+  expect((await page.request.post(`/api/projects/${projectId}/releases`)).ok()).toBeTruthy();
   expect(
     (await page.request.patch(`/api/options/${v1.id}`, { data: { targetAt: "2026-10-14" } })).ok(),
   ).toBeTruthy();
