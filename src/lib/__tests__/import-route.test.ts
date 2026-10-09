@@ -13,7 +13,7 @@ const { api, board, ok, person, project } = await import("@/test/route");
  * page on a phone is `ImportPanel.test.tsx`.
  */
 
-const FIXTURE = "e2e/fixtures/trello-small.json";
+const FIXTURE = "src/test/fixtures/trello-small.json";
 
 /** The file and the answer, as the page posts them. */
 function form(mapping: Record<string, unknown> = {}) {

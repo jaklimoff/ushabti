@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.21.1 — 2026-10-09
+
+### Fixed
+
+- **The 0.21.0 image did not build.** A test read a file the image leaves out. 0.21.1 is 0.21.0
+  with that mended; nothing else changed.
+
 ## 0.21.0 — 2026-10-09
 
 ### Added
