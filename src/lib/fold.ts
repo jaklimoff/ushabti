@@ -51,8 +51,12 @@ export function setFolded(folded: string[], columnId: string, on: boolean): stri
 const NOTHING: string[] = [];
 const listeners = new Set<() => void>();
 
-/** The same answer for the same writing, because React compares by identity. */
-let cache: { key: string; raw: string | null; value: string[] } | null = null;
+/**
+ * The same answer for the same writing, because React compares by identity.
+ * One entry per view: the project list reads the main view of every project
+ * on one screen, and a single slot would hand each card a new answer.
+ */
+const cache = new Map<string, { raw: string | null; value: string[] }>();
 
 export function subscribeFolded(listener: () => void): () => void {
   listeners.add(listener);
@@ -70,12 +74,14 @@ export function foldedOf(viewId: string): string[] {
   } catch {
     return NOTHING; /* private mode */
   }
-  if (cache && cache.key === key && cache.raw === raw) return cache.value;
+  const held = cache.get(key);
+  if (held && held.raw === raw) return held.value;
   /* A board with nothing folded gives the server's own answer back, word for
      word, so hydrating one costs no extra render. */
   const value = readFolded(raw);
-  cache = { key, raw, value: value.length ? value : NOTHING };
-  return cache.value;
+  const fresh = { raw, value: value.length ? value : NOTHING };
+  cache.set(key, fresh);
+  return fresh.value;
 }
 
 /** What the server draws: a board nobody has folded yet. */

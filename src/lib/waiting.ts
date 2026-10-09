@@ -1,5 +1,5 @@
 import { waitingTasks } from "./filters";
-import { runLine } from "./run-state";
+import { isWaiting, runLine } from "./run-state";
 import { hitNote, type Searchable } from "./search";
 import type { AgentRunDTO } from "./types";
 
@@ -57,12 +57,15 @@ export function waitingRows(
 }
 
 /**
- * The top bar's number, for the switcher's row of the open project. That row
- * reads this and not the list it fetched, which is as old as the menu, so two
- * numbers for one project on one screen cannot differ.
+ * The switcher's number for the open project: the live tasks whose open run
+ * waits for a person, a question or a hand-over. It is the number the project
+ * list reads in SQL, worked out from the board the bar already holds, because
+ * the list the menu fetched is as old as the menu. A hand-over is not a
+ * question, so the top bar's own list leaves it out.
  */
 export function waitingCount(tasks: Searchable[], runs: AgentRunDTO[]): number {
-  return waitingRows(tasks, runs, new Set()).length;
+  const live = new Set(tasks.filter((t) => !t.archivedAt).map((t) => t.id));
+  return runs.filter((run) => isWaiting(run.status) && live.has(run.taskId)).length;
 }
 
 /** The browser tab's title, with the count in front while there is one. */

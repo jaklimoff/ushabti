@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The project list shows how every project is going.** Each card draws its
+  main board as a thin bar with a line of counts under it, as you would see it,
+  filters and your own filters included. A column you folded on that board
+  steps aside to the end of the line. The card says how many tasks wait for
+  you, how many agents work and how many of them are silent, and what changed
+  last. The waiting number there and in the switcher counts hand-overs too.
 - **The changelog is there only while releases are on.** With **Use releases**
   off, the top bar and Settings → Project offer no Changelog link, and the
   member and public pages are not found. Turn releases on again and the same

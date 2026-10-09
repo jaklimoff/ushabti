@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { listProjects } from "@/lib/queries";
+import { listProjectsWithPulse } from "@/lib/queries";
 import { ProjectList } from "@/components/projects/ProjectList";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function ProjectsPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const rows = await listProjects(user.id);
+  const rows = await listProjectsWithPulse(user.id);
   const adding = (await searchParams).new !== undefined;
   return (
     <ProjectList
@@ -27,9 +27,8 @@ export default async function ProjectsPage({
         name: r.name,
         key: r.key,
         role: r.role,
-        taskCount: r.taskCount,
-        memberCount: r.memberCount,
         waiting: r.waiting,
+        pulse: r.pulse,
       }))}
     />
   );

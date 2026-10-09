@@ -60,19 +60,21 @@ test.describe("How many tasks wait in each project", () => {
     const { api, asks } = await askInProject(page, request, projectId);
 
     await page.goto(`/p/${projectId}`);
+    /* The top bar lists questions. The switcher counts what waits for a
+       person, so the hand-over is in its number too. */
     await expect(page.getByTestId("waiting-count")).toHaveText("1 waiting");
     await page.getByTestId("project-switcher").click();
     const mine = page
       .getByRole("menuitemradio", { name: new RegExp(name) })
       .getByTestId("project-switcher-waiting");
-    await expect(mine).toHaveText("1 waiting");
+    await expect(mine).toHaveText("2 waiting");
 
     /* The answer comes while the menu is open. The list was read when it
-       opened, so only the board's own count can take the number away. */
+       opened, so only the board's own runs can take the number down. */
     const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
     const open = board.runs.find((r: { taskId: string }) => r.taskId === asks);
     await api.patch(`/api/runs/${open.id}`, { status: "running", step: "Answered" });
     await expect(page.getByTestId("waiting-count")).toHaveCount(0);
-    await expect(mine).toHaveCount(0);
+    await expect(mine).toHaveText("1 waiting");
   });
 });

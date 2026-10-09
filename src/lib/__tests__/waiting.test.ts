@@ -100,16 +100,19 @@ describe("waitingRows", () => {
 });
 
 describe("waitingCount", () => {
-  it("is the number of rows the top bar lists", () => {
-    const tasks = [1, 2, 3].map((number) => task({ number }));
+  it("counts the questions and the hand-overs on live tasks", () => {
+    const tasks = [1, 2, 3, 4].map((number) => task({ number }));
     const archived = { ...tasks[1], archivedAt: "2026-01-03T00:00:00.000Z" };
     const runs = [
       run("t-1", "waiting", "2026-01-02T12:00:00.000Z"),
       run("t-2", "waiting", "2026-01-02T09:00:00.000Z"),
       run("t-3", "handed_over", "2026-01-02T08:00:00.000Z"),
+      run("t-4", "running", "2026-01-02T08:00:00.000Z"),
     ];
-    expect(waitingCount(tasks, runs)).toBe(2);
-    expect(waitingCount([tasks[0], archived, tasks[2]], runs)).toBe(1);
+    expect(waitingCount(tasks, runs)).toBe(3);
+    expect(waitingCount([tasks[0], archived, tasks[2], tasks[3]], runs)).toBe(2);
+    /* A deleted task is not handed in at all. */
+    expect(waitingCount([tasks[0], tasks[3]], runs)).toBe(1);
     expect(waitingCount(tasks, [])).toBe(0);
   });
 });
