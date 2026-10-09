@@ -25,6 +25,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   the card; they are on the list page. Home is wider, so three lists sit
   across, and every list card is the same height.
 
+### Fixed
+
+- **A chart's bars stay inside their panel.** On Home the thirty bars ran out
+  of the chart and over the next card, and an empty day drew as a full block.
+  They now fill the panel's width, and an empty day is a hairline.
+
 ## 0.22.0 — 2026-10-09
 
 ### Added

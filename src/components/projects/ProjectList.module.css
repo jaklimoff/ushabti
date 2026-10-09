@@ -486,13 +486,15 @@
 
 .barSlot {
   flex: 1;
+  min-width: 0;
   height: 100%;
   display: flex;
   align-items: flex-end;
 }
 
-/* A day with nothing still shows where it is, as a hairline. */
-.bar {
+/* A day with nothing still shows where it is, as a hairline. Not `.bar`:
+   that is the page's top bar, and its height and padding would land here. */
+.chartBar {
   width: 100%;
   min-height: 2px;
   border-radius: 2px 2px 0 0;
