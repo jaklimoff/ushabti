@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
-import { projectMembers, sessions, users } from "@/db/schema";
+import { sessions, users } from "@/db/schema";
+import { joinProject } from "@/lib/membership";
 import { requests } from "./headers";
 
 /**
@@ -145,7 +146,7 @@ export async function project(owner: Caller, name = unique("Board")) {
 
 /** Puts `who` on the project with `role`, as an accepted invite would. */
 export async function join(projectId: string, who: Caller, role: "admin" | "member") {
-  await db.insert(projectMembers).values({ projectId, userId: who.id, role });
+  await db.transaction((tx) => joinProject(tx, { projectId, userId: who.id, role }));
 }
 
 /** An agent added by `owner`, with one token, and the calls it makes with it. */

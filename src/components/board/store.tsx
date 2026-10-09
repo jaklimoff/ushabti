@@ -59,6 +59,7 @@ import { readWhens, withoutHidden, withWhen } from "@/lib/when";
 import type { OptionDates } from "@/lib/option-dates";
 import type { ShipDone, ShipRest } from "@/lib/ship";
 import { personOf } from "@/lib/people";
+import { landedAfter } from "@/lib/landed";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 
@@ -326,25 +327,6 @@ function archivedPart(patch: Partial<TaskDTO>): Partial<ArchivedTaskDTO> {
   if (patch.description !== undefined) next.description = patch.description;
   if (patch.position !== undefined) next.position = patch.position;
   return next;
-}
-
-/**
- * Where a dragged row lands. A drag names what it landed on, so this is the
- * one place that works the neighbour out: the list in its new order, and the
- * row the dragged one now sits behind. That id is null at the front of the
- * list; the whole answer is null when the drag changed nothing.
- */
-function landedAfter<T extends { id: string }>(
-  list: T[],
-  id: string,
-  overId: string,
-): { ordered: T[]; afterId: string | null } | null {
-  const from = list.findIndex((item) => item.id === id);
-  const to = list.findIndex((item) => item.id === overId);
-  if (from < 0 || to < 0 || from === to) return null;
-  const ordered = list.filter((item) => item.id !== id);
-  ordered.splice(to, 0, list[from]);
-  return { ordered, afterId: ordered[to - 1]?.id ?? null };
 }
 
 const BoardContext = createContext<Store | null>(null);

@@ -28,7 +28,7 @@ async function graceLeft(page: Page) {
       [name, `${name}@example.com`],
     );
     await client.query(
-      `insert into project_members (project_id, user_id, role) values ($1, $2, 'member')`,
+      `insert into project_members (project_id, user_id, role, position) values ($1, $2, 'member', 'V')`,
       [projectId, rows[0].id],
     );
     return rows[0].id;
@@ -107,7 +107,7 @@ test("somebody who rejoins reads as a member again", async ({ page }) => {
   const { projectId, graceId, name } = await graceLeft(page);
   await inDatabase((client) =>
     client.query(
-      `insert into project_members (project_id, user_id, role) values ($1, $2, 'member')`,
+      `insert into project_members (project_id, user_id, role, position) values ($1, $2, 'member', 'V')`,
       [projectId, graceId],
     ),
   );

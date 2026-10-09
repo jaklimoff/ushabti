@@ -163,6 +163,12 @@ export const projectMembers = pgTable(
      * manages people, agents and structure. An agent is always a member.
      */
     role: text("role").notNull().default("member"),
+    /**
+     * Where this project sits in this person's own list, as a rank from
+     * `src/lib/rank.ts`. It is the person's and nobody else's, which is why it
+     * lives on the membership. `joinProject` puts a new one at the top.
+     */
+    position: text("position").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

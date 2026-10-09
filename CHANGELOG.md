@@ -8,6 +8,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **Drag your projects into your own order.** On Home, take a project card by
+  the grip in its corner and drop it where you want it, or lift it with Space
+  and move it with the arrow keys. The switcher and every list of projects
+  follow. The order is yours: nobody else's list moves. A project you make or
+  join goes to the top. This release carries a migration, which keeps the
+  order everybody sees today.
+
 ## 0.22.0 — 2026-10-09
 
 ### Added

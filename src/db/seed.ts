@@ -23,6 +23,7 @@ import {
   users,
 } from "./schema";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "../lib/defaults";
+import { joinProject } from "../lib/membership";
 import { rankSequence } from "../lib/rank";
 import { views } from "./schema";
 
@@ -219,13 +220,11 @@ async function main() {
     .values({ name: "Ushabti roadmap", key: "USH", ownerId: owner.id })
     .returning();
 
-  await db.insert(projectMembers).values(
-    people.map((p, i) => ({
-      projectId: project.id,
-      userId: p.id,
-      role: i === 0 ? "owner" : "member",
-    })),
-  );
+  for (const [i, p] of people.entries()) {
+    await db.transaction((tx) =>
+      joinProject(tx, { projectId: project.id, userId: p.id, role: i === 0 ? "owner" : "member" }),
+    );
+  }
 
   const propRanks = rankSequence(DEFAULT_PROPERTIES.length);
   const propByName = new Map<string, string>();
@@ -356,7 +355,7 @@ async function seedAgent(projectId: string, ownerId: string) {
     .values({ name: AGENT.name, kind: "agent", color: AGENT.color })
     .returning({ id: users.id });
 
-  await db.insert(projectMembers).values({ projectId, userId: agent.id, role: "member" });
+  await db.transaction((tx) => joinProject(tx, { projectId, userId: agent.id, role: "member" }));
 
   await db.insert(agentTokens).values({
     agentId: agent.id,

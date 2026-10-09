@@ -2,10 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/client";
+import { landedAfter } from "@/lib/landed";
 import { suggestProjectKey } from "@/lib/defaults";
-import { Button } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
 import { Tag } from "@/components/ui/Layout";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
@@ -55,6 +72,7 @@ export function ProjectList({
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const order = useOrder(projects);
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
@@ -106,32 +124,27 @@ export function ProjectList({
           </p>
         )}
 
+        {order.error && (
+          <div className={styles.error} role="alert">
+            {order.error}
+          </div>
+        )}
+
         <div className={styles.grid}>
-          {projects.map((project) => (
-            <div key={project.id} className={styles.cardWrap}>
-              <Link href={`/p/${project.id}`} className={styles.card}>
-                <div className={styles.cardTop}>
-                  <span className={styles.key}>{project.key}</span>
-                  {canManage(project.role) && <Tag>{project.role}</Tag>}
-                  {project.waiting > 0 && (
-                    <span className={styles.waiting} data-testid="project-waiting">
-                      {project.waiting} waiting for you
-                    </span>
-                  )}
-                </div>
-                <div className={styles.cardName}>{project.name}</div>
-                {project.pulse && <Pulse pulse={project.pulse} />}
-              </Link>
-              <Link
-                href={`/p/${project.id}/settings/properties`}
-                className={styles.cardGear}
-                aria-label={`Settings for ${project.name}`}
-                title="Project settings"
-              >
-                ⚙
-              </Link>
-            </div>
-          ))}
+          {/* Cards of one size in a grid, so dnd-kit's own answers are the
+              right ones, as on the views page. */}
+          <DndContext
+            id="ushabti-projects"
+            sensors={order.sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={order.onDragEnd}
+          >
+            <SortableContext items={order.rows.map((p) => p.id)} strategy={rectSortingStrategy}>
+              {order.rows.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           {adding ? (
             <form className={styles.form} onSubmit={create}>
@@ -184,6 +197,114 @@ export function ProjectList({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * This person's order of their projects. A drag names the project it landed
+ * after and the route makes the rank, as a view's drag does. The moves go out
+ * one after another, so a quick second drag cannot reach the server first and
+ * leave it with an order the screen does not show.
+ */
+function useOrder(projects: ProjectRow[]) {
+  const router = useRouter();
+  const [rows, setRows] = useState(projects);
+  const [given, setGiven] = useState(projects);
+  const [error, setError] = useState<string | null>(null);
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  /* A new read from the server is the truth, and replaces what was dragged. */
+  if (given !== projects) {
+    setGiven(projects);
+    setRows(projects);
+  }
+
+  /* The grip is the only thing that lifts a card, so a click on the card
+     still opens the board. Space lifts, the arrows move, Space puts it down. */
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over) return;
+    const id = String(active.id);
+    const landed = landedAfter(rows, id, String(over.id));
+    if (!landed) return;
+    setRows(landed.ordered);
+    setError(null);
+    queue.current = queue.current.then(async () => {
+      try {
+        await api.patch(`/api/projects/${id}/position`, { afterId: landed.afterId });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not move the project.");
+        router.refresh();
+      }
+    });
+  }
+
+  return { rows, error, sensors, onDragEnd };
+}
+
+function ProjectCard({ project }: { project: ProjectRow }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: project.id,
+    transition: { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={[styles.cardWrap, isDragging ? styles.cardLifted : ""].filter(Boolean).join(" ")}
+      style={{ transform: CSS.Translate.toString(transform), transition: transition ?? undefined }}
+      data-testid="project-card"
+    >
+      <Link href={`/p/${project.id}`} className={styles.card}>
+        <div className={styles.cardTop}>
+          <span className={styles.key}>{project.key}</span>
+          {canManage(project.role) && <Tag>{project.role}</Tag>}
+          {project.waiting > 0 && (
+            <span className={styles.waiting} data-testid="project-waiting">
+              {project.waiting} waiting for you
+            </span>
+          )}
+        </div>
+        <div className={styles.cardName}>{project.name}</div>
+        {project.pulse && <Pulse pulse={project.pulse} />}
+      </Link>
+      <div className={styles.cardTools}>
+        <IconButton
+          ref={setActivatorNodeRef}
+          className={styles.cardGrip}
+          label={`Move the project ${project.name}`}
+          title="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </IconButton>
+        <Link
+          href={`/p/${project.id}/settings/properties`}
+          className={styles.cardGear}
+          aria-label={`Settings for ${project.name}`}
+          title="Project settings"
+        >
+          ⚙
+        </Link>
       </div>
     </div>
   );

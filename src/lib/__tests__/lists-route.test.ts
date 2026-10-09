@@ -98,11 +98,12 @@ describe("A list", () => {
     expect(keysIn(groups)).toEqual([a.key, c.key].sort());
     expect(keysIn(groups)).not.toContain(b.key);
     expect(keysIn(groups)).not.toContain(d.key);
-    // Grouped in project order, each with its rules in words.
-    expect(groups.map((g) => g.projectId)).toEqual([one.id, two.id]);
-    expect(groups[0].rules).toEqual(["Priority is Urgent"]);
-    expect(groups[1].rules).toEqual(["Every task"]);
-    expect(groups[0].rows[0].chip?.text).toBe("Urgent");
+    // Grouped in the person's order of their projects, the newest on top,
+    // each with its rules in words.
+    expect(groups.map((g) => g.projectId)).toEqual([two.id, one.id]);
+    expect(groups[1].rules).toEqual(["Priority is Urgent"]);
+    expect(groups[0].rules).toEqual(["Every task"]);
+    expect(groups[1].rows[0].chip?.text).toBe("Urgent");
   });
 
   it("drops a rule about a deleted property or option, and the source still lists", async () => {

@@ -7,6 +7,7 @@ import { inviteMail, mailIsOn, sendMail } from "@/lib/mail";
 import { originOf } from "@/lib/origin";
 import { limiter, spendMail } from "@/lib/rate-limit";
 import { projectName } from "@/lib/queries";
+import { joinProject } from "@/lib/membership";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -65,7 +66,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     .limit(1);
   if (existing.length) throw new HttpError(409, "That person is already a member.");
 
-  await db.insert(projectMembers).values({ projectId, userId: user.id, role: "member" });
+  await db.transaction((tx) => joinProject(tx, { projectId, userId: user.id, role: "member" }));
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
   return json(
     {
