@@ -122,13 +122,13 @@ four workers at most.
 | `cadence.spec.ts` | 7 | move | 1 | 4 |  | 2 |  | Keep shipping the last sprint. The layout rows are Settings drawn at two widths. |
 | `card-view.spec.ts` | 10 | done (USH-271) | 1 | 9 |  | 1 |  | Keep the drag in Settings that moves the card, the panel and the list. The page and the board share one store in a component test, so a change reaches the card at once. A view's own card view also has a route half: the body with no rows is refused. |
 | `changed.spec.ts` | 4 | move |  | 1 |  | 3 |  | What moves the changed time is the server's write. |
-| `changelog.spec.ts` | 6 | move | 1 | 1 |  | 4 |  | Keep one shipped walk. Public, private and the token are route answers. |
+| `changelog.spec.ts` | 6 | done (USH-280) | 1 | 1 |  | 4 |  | Keep one shipped walk. Public, private and the token are route answers, in `release-route.test.ts`; the public page is `loadPublicChangelog`. Private and public also has a screen half, the button, in `ProjectPanel.test.tsx` beside the phone's way in. |
 | `close-sprint.spec.ts` | 1 | move |  |  |  | 1 |  | What a close archives is a route answer. |
 | `collaboration.spec.ts` | 9 | done (USH-282) | 7 | 1 |  |  | 1 | Two people on one board is what end to end is for. The member list is a component; the shared Me is `applyFilters`. The plan had a unit test for Me, but `filters.test.ts` already holds it, the seed of a task added under it too, so the test was dropped. |
 | `comment-delete.spec.ts` | 1 | done (USH-272) |  | 1 |  | 1 |  | Who may delete is a route answer. The question went to the comment component tests as a test of its own, the screen half of the same e2e test. |
 | `comment-edit.spec.ts` | 7 | done (USH-272) | 2 | 4 |  | 1 |  | Keep the save that crossed a newer one. The box's keys and its closed tab are the component. The plan kept 1, but the walk that edits and reaches the other panel carries `@smoke` and stays. |
 | `composer.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | How the composer grows is layout, which Browser Mode has. |
-| `done-when.spec.ts` | 6 | move |  | 1 |  | 5 |  | What frees a blocker and what Ship archives are server answers. |
+| `done-when.spec.ts` | 6 | done (USH-280) |  | 1 |  | 5 |  | What frees a blocker and what Ship archives are server answers, in `release-route.test.ts`; the ticks are `ProjectPanel.test.tsx`. The file is gone. |
 | `drop-hidden.spec.ts` | 13 | done (USH-277) | 1 | 6 |  | 6 |  | Keep the writes that land at once. The questions are the panel and the bar; the drops are the routes. A rule written in Settings is a component test: its drop is the routes' and already held there, and what is left is the question with the count (USH-277). |
 | `editing-sign.spec.ts` | 2 | done (USH-272) | 1 | 1 |  |  |  | Keep two editors on one task. The phone line is layout; the other tabs speak through the stubbed stream. |
 | `editor-open.spec.ts` | 3 | keep | 2 | 1 |  |  |  | Which chunk loads when needs the production build. |
@@ -163,7 +163,7 @@ four workers at most.
 | `rate-limit.spec.ts` | 1 | move |  |  |  | 1 |  | The limit is the route's answer. |
 | `reset.spec.ts` | 3 | keep | 1 |  |  | 2 |  | Keep the link that works once and signs in. Its count of controls on a dead page reached into the dev server's own shadow root and found Next's button; it asks the document now (USH-283). |
 | `reveal.spec.ts` | 2 | move |  | 2 |  |  |  | The eye is a box. |
-| `roadmap.spec.ts` | 6 | move |  | 4 | 2 |  |  | `roadmapRows()` says where a bar starts; the rest is the canvas. |
+| `roadmap.spec.ts` | 6 | done (USH-280) | 1 | 4 |  | 1 |  | `roadmapRows()` says where a bar starts; the rest is the canvas. The plan kept none, but the first walk carries `@smoke` and stays. The bars of the oldest-task test were already `roadmap.test.ts`, so what it moved is the refused roadmap on a person, a route answer. The archived-start test went to the canvas, with `archivedUnder` as a route half. |
 | `roles.spec.ts` | 3 | move |  | 1 |  | 2 |  | The role rule is the route's; the question before Make owner is a row. |
 | `run-history.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | Paging is the route; the panel draws the pages. |
 | `search.spec.ts` | 6 | done (USH-273) | 2 | 4 |  |  |  | The box and its list; `searchTasks()` already has unit tests. The plan moved all six, but the two that find by title and by key carry `@smoke` and stay. |
@@ -172,7 +172,7 @@ four workers at most.
 | `settings-load.spec.ts` | 4 | move | 1 | 1 |  | 2 |  | Keep a change by somebody else reaching Settings. |
 | `settings-select.spec.ts` | 4 | move |  | 4 |  |  |  | The menu is a component. |
 | `settings.spec.ts` | 21 | move | 2 | 17 |  | 2 |  | Keep the invite that joins on sign-up and the main view the board opens on. |
-| `ship.spec.ts` | 6 | move | 1 | 3 |  | 2 |  | Keep Move, which archives and moves on. |
+| `ship.spec.ts` | 6 | done (USH-280) | 1 | 2 |  | 3 |  | Keep Move, which archives and moves on. Unship from Settings went to the route: its button and question were already `OptionDates.test.tsx`, so what it alone held is that the archived tasks stay archived. Clear has a screen half in `Progress.test.tsx`. |
 | `shipped-iteration.spec.ts` | 5 | move |  | 3 |  | 2 |  | What leaves the board is the read; the fold is Settings. |
 | `sprints.spec.ts` | 4 | move | 2 |  |  | 2 |  | Keep the two migrations, which need the real database. |
 | `stamps.spec.ts` | 3 | done (USH-282) | 1 | 1 |  |  | 1 | Keep server and browser reading the same day. The plan had a unit test for the order by Updated, but `stamps.test.ts` and `sort.test.ts` already hold it and the press on a heading, so it was dropped. |

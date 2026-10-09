@@ -1,7 +1,8 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { newProject, renderWithBoard, type Answer, type Sent } from "@/test/board";
 import { FILES_OFF_NOTE } from "@/lib/attachments";
+import { BoardShell } from "@/components/board/BoardApp";
 import { ProjectPanel } from "./ProjectPanel";
 
 /*
@@ -114,5 +115,103 @@ describe("Export", () => {
     await expect.element(page.getByLabelText("Project name")).toBeVisible();
     expect(page.getByText("Export", { exact: true }).elements()).toHaveLength(0);
     expect(download.elements()).toHaveLength(0);
+  });
+});
+
+/* Was "Settings picks the options with ticks" in `e2e/done-when.spec.ts`.
+   What the server makes of the list, and what it frees and archives, is
+   `release-route.test.ts`. */
+describe("Done when", () => {
+  test("Settings picks the options with ticks", async () => {
+    const data = newProject();
+    const status = data.properties.find((p) => p.name === "Status")!;
+    status.options.push({
+      ...status.options[0],
+      id: "00000000-0000-4000-8000-0000000000aa",
+      name: "Won't do",
+      position: "a9999999",
+    });
+    const id = (name: string) => status.options.find((o) => o.name === name)!.id;
+    const { sent } = await renderWithBoard(
+      <ProjectPanel files={false} />,
+      data,
+      projectRoute(data),
+    );
+    const patches = () => sent("PATCH", PROJECT);
+
+    await page.getByLabelText("The property that says a task is done").click();
+    await page.getByRole("option", { name: "Status" }).click();
+    const ticks = page.getByRole("group", { name: "The options that say a task is done" });
+    const tick = (name: string) => ticks.getByRole("checkbox", { name, exact: true });
+    await expect.poll(() => ticks.getByRole("checkbox").elements()).toHaveLength(6);
+
+    await tick("Shipped").click();
+    await expect.element(tick("Shipped")).toBeChecked();
+    await expect.element(tick("Shipped")).toBeEnabled();
+    await tick("Won't do").click();
+    await expect.element(tick("Won't do")).toBeChecked();
+    await expect.element(tick("Won't do")).toBeEnabled();
+    expect(patches().at(-1)!.body).toEqual({
+      doneWhen: { propertyId: status.id, optionIds: [id("Shipped"), id("Won't do")] },
+    });
+
+    // Taking every tick away leaves archived as the answer.
+    await tick("Shipped").click();
+    await expect.element(tick("Shipped")).toBeEnabled();
+    await tick("Won't do").click();
+    await expect.element(tick("Won't do")).not.toBeChecked();
+    await expect.element(tick("Won't do")).toBeEnabled();
+    expect(patches().at(-1)!.body).toEqual({ doneWhen: null });
+  });
+});
+
+/* The screen half of two tests of `e2e/changelog.spec.ts`. What the
+   changelog holds, for a member, an agent and a stranger, is
+   `release-route.test.ts`; one shipped walk stays end to end. */
+describe("Changelog", () => {
+  afterEach(async () => {
+    await page.viewport(1440, 900);
+  });
+
+  test("is reached from Project settings on a phone", async () => {
+    await page.viewport(390, 844);
+    // The bar is full on a phone, so the link is off it.
+    const data = newProject();
+    const board = await renderWithBoard(<BoardShell initialTask={null} />, data);
+    await expect.element(page.getByTitle("Project settings")).toBeVisible();
+    const off = page.getByTitle("The options that shipped, and their tasks");
+    expect(off.elements()).toHaveLength(1);
+    await expect.element(off).not.toBeVisible();
+    await board.screen.unmount();
+
+    await renderWithBoard(<ProjectPanel files={false} />, data);
+    const link = page.getByRole("link", { name: "Changelog", exact: true });
+    await expect.element(link).toBeVisible();
+    await expect.element(link).toHaveAttribute("href", `/p/${data.project.id}/changelog`);
+  });
+
+  test("is private until somebody makes it public", async () => {
+    const data = newProject();
+    const { sent } = await renderWithBoard(
+      <ProjectPanel files={false} />,
+      data,
+      projectRoute(data),
+    );
+    const patches = () => sent("PATCH", PROJECT);
+
+    // The button is as wide as its words, not as the card.
+    const makePublic = page.getByRole("button", { name: "Make it public" });
+    await expect.element(makePublic).toBeVisible();
+    expect(makePublic.element().getBoundingClientRect().width).toBeLessThan(200);
+    await makePublic.click();
+    await expect
+      .element(page.getByTestId("public-changelog-link"))
+      .toHaveTextContent("/changelog/tst");
+    expect(patches().at(-1)!.body).toEqual({ publicChangelog: true });
+
+    // And off again is off at once.
+    await page.getByRole("button", { name: "Make it private" }).click();
+    await expect.element(page.getByTestId("public-changelog-link")).not.toBeInTheDocument();
+    expect(patches().at(-1)!.body).toEqual({ publicChangelog: false });
   });
 });
