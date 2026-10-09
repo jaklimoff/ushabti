@@ -32,9 +32,13 @@ async function shape(who: Parameters<typeof board>[0], projectId: string) {
   return { property, option };
 }
 
-async function newList(who: Parameters<typeof api>[0]) {
-  const { list } = await ok<{ list: { id: string; name: string } }>(api(who).post("/api/lists"));
-  return list;
+/** A list is made with its first project; that source comes back beside it. */
+async function newList(who: Parameters<typeof api>[0], projectId: string) {
+  const { list } = await ok<{ list: { id: string; name: string } }>(
+    api(who).post("/api/lists", { projectId }),
+  );
+  const [source] = await db.select().from(listSources).where(eq(listSources.listId, list.id));
+  return { ...list, source };
 }
 
 async function addSource(who: Parameters<typeof api>[0], listId: string, projectId: string) {
@@ -53,7 +57,7 @@ const keysIn = (groups: Group[]) => groups.flatMap((g) => g.rows.map((r) => r.ke
 describe("A list", () => {
   it("is named New list, and its name changes", async () => {
     const me = await person("List Maker");
-    const list = await newList(me);
+    const list = await newList(me, (await project(me)).id);
     expect(list.name).toBe("New list");
     await ok(api(me).patch(`/api/lists/${list.id}`, { name: "Mine to do" }));
     const { lists } = await ok<{ lists: { name: string }[] }>(api(me).get("/api/lists"));
@@ -77,8 +81,8 @@ describe("A list", () => {
       }),
     );
 
-    const list = await newList(me);
-    const first = await addSource(me, list.id, one.id);
+    const list = await newList(me, one.id);
+    const first = list.source;
     await addSource(me, list.id, two.id);
     await ok(
       api(me).patch(`/api/lists/${list.id}/sources/${first.id}`, {
@@ -111,8 +115,8 @@ describe("A list", () => {
     const p = await project(me);
     const t = await task(me, p.id, "Still here");
     const { property, option } = await shape(me, p.id);
-    const list = await newList(me);
-    const source = await addSource(me, list.id, p.id);
+    const list = await newList(me, p.id);
+    const source = list.source;
     const priority = property("Priority");
     await ok(
       api(me).patch(`/api/lists/${list.id}/sources/${source.id}`, {
@@ -137,8 +141,8 @@ describe("A list", () => {
     const me = await person("Option Gone");
     const p = await project(me);
     const { property } = await shape(me, p.id);
-    const list = await newList(me);
-    const source = await addSource(me, list.id, p.id);
+    const list = await newList(me, p.id);
+    const source = list.source;
     const { source: kept } = await ok<{ source: { filters: { rules: unknown[] } } }>(
       api(me).patch(`/api/lists/${list.id}/sources/${source.id}`, {
         filters: { rules: [{ propertyId: property("Priority").id, op: "is", values: ["gone"] }] },
@@ -153,8 +157,7 @@ describe("A list", () => {
     const p = await project(owner);
     await join(p.id, me, "member");
     const t = await task(owner, p.id, "Shared work");
-    const list = await newList(me);
-    await addSource(me, list.id, p.id);
+    const list = await newList(me, p.id);
     expect(keysIn(await groupsOf(me, list.id))).toEqual([t.key]);
 
     await ok(api(owner).del(`/api/projects/${p.id}/members/${me.id}`));
@@ -172,8 +175,7 @@ describe("A list", () => {
     const me = await person("Tidy");
     const p = await project(me);
     const t = await task(me, p.id, "Outlives the list");
-    const list = await newList(me);
-    await addSource(me, list.id, p.id);
+    const list = await newList(me, p.id);
     await ok(api(me).del(`/api/lists/${list.id}`));
     expect((await api(me).get(`/api/lists/${list.id}`)).status).toBe(404);
     expect(await db.select().from(tasks).where(eq(tasks.id, t.id))).toHaveLength(1);
@@ -183,8 +185,8 @@ describe("A list", () => {
     const me = await person("Owner Of List");
     const other = await person("Somebody Else");
     const p = await project(me);
-    const list = await newList(me);
-    const source = await addSource(me, list.id, p.id);
+    const list = await newList(me, p.id);
+    const source = list.source;
 
     for (const res of [
       await api(other).get(`/api/lists/${list.id}`),
@@ -200,7 +202,7 @@ describe("A list", () => {
     const bot = await agent(me, p.id);
     for (const res of [
       await bot.api.get("/api/lists"),
-      await bot.api.post("/api/lists"),
+      await bot.api.post("/api/lists", { projectId: p.id }),
       await bot.api.get(`/api/lists/${list.id}`),
       await bot.api.patch(`/api/lists/${list.id}`, { name: "Bot" }),
       await bot.api.del(`/api/lists/${list.id}`),
@@ -213,8 +215,61 @@ describe("A list", () => {
     const me = await person("Outsider");
     const stranger = await person("Stranger");
     const theirs = await project(stranger);
-    const list = await newList(me);
+    const list = await newList(me, (await project(me)).id);
     const res = await api(me).post(`/api/lists/${list.id}/sources`, { projectId: theirs.id });
     expect(res.status).toBe(404);
+    expect((await api(me).post("/api/lists", { projectId: theirs.id })).status).toBe(404);
+  });
+
+  it("is not made without a project, and writes nothing then", async () => {
+    const me = await person("No Project");
+    const before = await ok<{ lists: unknown[] }>(api(me).get("/api/lists"));
+    expect((await api(me).post("/api/lists", {})).status).toBe(400);
+    expect((await api(me).post("/api/lists", { name: "Mine" })).status).toBe(400);
+    const after = await ok<{ lists: unknown[] }>(api(me).get("/api/lists"));
+    expect(after.lists).toHaveLength(before.lists.length);
+  });
+
+  it("is made with its name and its first project in one request", async () => {
+    const me = await person("One Request");
+    const p = await project(me);
+    const t = await task(me, p.id, "Read at once");
+    const { list } = await ok<{ list: { id: string; name: string } }>(
+      api(me).post("/api/lists", { name: "  Picked  ", projectId: p.id }),
+    );
+    expect(list.name).toBe("Picked");
+    expect(keysIn(await groupsOf(me, list.id))).toEqual([t.key]);
+  });
+
+  it("keeps its last project, and lets one go while another stays", async () => {
+    const me = await person("Last One");
+    const one = await project(me);
+    const two = await project(me);
+    const list = await newList(me, one.id);
+    const res = await api(me).del(`/api/lists/${list.id}/sources/${list.source.id}`);
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { error: string }).error).toBe(
+      "A list needs a project. Delete the list to remove it.",
+    );
+    expect(await db.select().from(listSources).where(eq(listSources.listId, list.id))).toHaveLength(
+      1,
+    );
+
+    const second = await addSource(me, list.id, two.id);
+    await ok(api(me).del(`/api/lists/${list.id}/sources/${list.source.id}`));
+    expect((await api(me).del(`/api/lists/${list.id}/sources/${second.id}`)).status).toBe(409);
+  });
+
+  it("stays when the project of its last source is deleted", async () => {
+    const me = await person("Project Gone");
+    const p = await project(me);
+    const list = await newList(me, p.id);
+    await ok(api(me).del(`/api/projects/${p.id}`));
+    expect(await db.select().from(listSources).where(eq(listSources.listId, list.id))).toHaveLength(
+      0,
+    );
+    expect(await groupsOf(me, list.id)).toEqual([]);
+    const { lists } = await ok<{ lists: { id: string }[] }>(api(me).get("/api/lists"));
+    expect(lists.map((l) => l.id)).toContain(list.id);
   });
 });

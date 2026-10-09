@@ -209,3 +209,6 @@ export function summaryOf(list: { id: string; name: string }, groups: ListGroup[
     rows: groups.flatMap((g) => g.rows).slice(0, CARD_ROWS),
   };
 }
+
+/** Why the last project of a list cannot leave it. The route and the button say the same. */
+export const LAST_SOURCE = "A list needs a project. Delete the list to remove it.";

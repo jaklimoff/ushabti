@@ -316,23 +316,6 @@ function ProjectCard({ project }: { project: ProjectRow }) {
  * link around everything, because a row is a link of its own.
  */
 function MyLists({ lists }: { lists: ListSummary[] }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function create() {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const { list } = await api.post<{ list: { id: string } }>("/api/lists", {});
-      router.push(`/lists/${list.id}/edit`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not make the list.");
-      setBusy(false);
-    }
-  }
-
   return (
     <section className={styles.lists} data-testid="my-lists">
       <h2 className={styles.section}>My lists</h2>
@@ -340,23 +323,13 @@ function MyLists({ lists }: { lists: ListSummary[] }) {
         {lists.map((list) => (
           <ListCard key={list.id} list={list} />
         ))}
-        <button
-          className={styles.newCard}
-          data-testid="list-new"
-          disabled={busy}
-          onClick={() => void create()}
-        >
+        <Link href="/lists/new" className={styles.newCard} data-testid="list-new">
           <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
           <span className="label" style={{ color: "inherit" }}>
-            {busy ? "Making…" : "New list"}
+            New list
           </span>
-        </button>
+        </Link>
       </div>
-      {error && (
-        <div className={styles.error} role="alert">
-          {error}
-        </div>
-      )}
     </section>
   );
 }
