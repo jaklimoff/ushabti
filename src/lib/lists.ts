@@ -41,6 +41,8 @@ export type ListRow = {
   key: string;
   title: string;
   projectId: string;
+  /** The project's colour, which its key takes on Home while the row is hovered. */
+  color: string;
   /** Its open run asks a person something. */
   waiting: boolean;
   /** The agent at work on it, if a run is open and not waiting. */
@@ -170,6 +172,7 @@ export function listGroups(
         key: t.key,
         title: t.title,
         projectId: board.project.id,
+        color: board.project.color,
         waiting: waits.get(t.id) ?? false,
         agent: agents.get(t.id) ?? null,
         chip: picked.get(t.id) ?? null,

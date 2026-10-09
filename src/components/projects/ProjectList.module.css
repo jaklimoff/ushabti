@@ -843,6 +843,7 @@
 }
 
 .listRow:hover,
+.listRow:focus-visible,
 .listMore:hover {
   background: var(--bg-hover);
 }
@@ -856,6 +857,23 @@
   letter-spacing: 0.04em;
   color: var(--muted);
   white-space: nowrap;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+/* The tint is worked out over the hovered row's ground, so a focused row
+   takes that ground too. */
+.listRow:hover .listRowKey,
+.listRow:focus-visible .listRowKey {
+  background: var(--key-tint, var(--bg-hover));
+  color: var(--key-tint-ink, var(--muted));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listRowKey {
+    transition: none;
+  }
 }
 
 .listRowTitle {

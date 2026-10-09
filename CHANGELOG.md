@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A task key on Home takes its project's colour on hover.** A key on a
+  row of a list is grey at rest, and while the row is hovered or focused it
+  takes the colour of the task's project, so you see where a task lives as
+  you reach for it.
 - **A project card shows how busy it has been.** A card on Home draws a
   small bar for each of the last fourteen days, cut in the project's zone,
   with today in the accent and the number of changes beside them. A project

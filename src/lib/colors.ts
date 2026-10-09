@@ -149,6 +149,30 @@ export function facePaint(
   return { background: ground, color: ink(ground), boxShadow: `inset 0 0 0 1px ${color}` };
 }
 
+/** The ground of a hovered row on Home. The app has one theme, so this is `--bg-hover`. */
+const ROW_HOVER = "#1b1e24";
+
+function blend(top: string, under: string, share: number): string {
+  const below = channels(under);
+  return `#${channels(top)
+    .map((c, i) =>
+      Math.round(c * share + below[i] * (1 - share))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+/**
+ * A task key on Home while its row is hovered: the project's colour at 18%
+ * over the row, and the colour mixed a quarter toward white for the letters.
+ * Both are worked out here as solid colours, so `key-tint.test.ts` can hold
+ * every project colour to WCAG AA.
+ */
+export function keyTint(hex: string): { background: string; color: string } {
+  return { background: blend(hex, ROW_HOVER, 0.18), color: blend(hex, "#ffffff", 0.75) };
+}
+
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";

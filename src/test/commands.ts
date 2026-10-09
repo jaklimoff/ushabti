@@ -38,10 +38,18 @@ const drag: BrowserCommand<[from: Point, to: Point]> = async (context, from, to)
   await page.mouse.up();
 };
 
-export const commands = { drag };
+/** Turns the page's reduced motion on or off, as the person's system would. */
+const reduceMotion: BrowserCommand<[on: boolean]> = async (context, on) => {
+  if (context.provider.name !== "playwright") throw new Error("reduceMotion needs Playwright.");
+  const { page } = context as unknown as { page: import("playwright").Page };
+  await page.emulateMedia({ reducedMotion: on ? "reduce" : "no-preference" });
+};
+
+export const commands = { drag, reduceMotion };
 
 declare module "vitest/browser" {
   interface BrowserCommands {
     drag: (from: Point, to: Point) => Promise<void>;
+    reduceMotion: (on: boolean) => Promise<void>;
   }
 }

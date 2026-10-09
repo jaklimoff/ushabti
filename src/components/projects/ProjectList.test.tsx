@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
-import { page, userEvent, type Locator } from "vitest/browser";
+import { commands, page, userEvent, type Locator } from "vitest/browser";
 import { ME, newProject, renderWithBoard } from "@/test/board";
+import { keyTint } from "@/lib/colors";
 import type { ListSummary } from "@/lib/lists";
 import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import type { ProjectPulse } from "@/lib/pulse";
@@ -82,6 +83,95 @@ describe("The projects on Home", () => {
       .toEqual([[`/api/projects/${ids[0]}/position`, { afterId: ids[1] }]]);
   });
 
+  test("a key on a list row is grey at rest and takes its project's colour on hover and focus", async () => {
+    const row = (n: number, color: string) => ({
+      id: `00000000-0000-4000-8000-0000000000e${n}`,
+      key: `HAR-${n}`,
+      title: `Task ${n}`,
+      projectId: ids[0],
+      color,
+      waiting: false,
+      agent: null,
+      chip: null,
+      createdAt: "2026-10-01T00:00:00Z",
+    });
+    const lists: ListSummary[] = [
+      {
+        id: "00000000-0000-4000-8000-0000000000d1",
+        name: "Mine",
+        count: 2,
+        rows: [row(1, "#f08a7e"), row(2, "#7aa8f0")],
+      },
+    ];
+    await renderWithBoard(<ProjectList user={ME} projects={rows} lists={lists} />, newProject());
+    const rgb = (hex: string) =>
+      `rgb(${[1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16)).join(", ")})`;
+    const keyOf = (n: number) => page.getByText(`HAR-${n}`).element();
+    const settled = () => pause(200);
+
+    for (const n of [1, 2]) {
+      expect(getComputedStyle(keyOf(n)).color).toBe("rgb(139, 145, 155)");
+      expect(getComputedStyle(keyOf(n)).backgroundColor).toBe("rgb(27, 30, 36)");
+    }
+    expect(getComputedStyle(keyOf(1)).transitionDuration).toBe("0.12s, 0.12s");
+
+    await userEvent.hover(page.getByText("Task 1"));
+    await settled();
+    expect(getComputedStyle(keyOf(1)).backgroundColor).toBe(rgb(keyTint("#f08a7e").background));
+    expect(getComputedStyle(keyOf(1)).color).toBe(rgb(keyTint("#f08a7e").color));
+    // The other row's key, of another colour, stays grey.
+    expect(getComputedStyle(keyOf(2)).color).toBe("rgb(139, 145, 155)");
+
+    await userEvent.unhover(page.getByText("Task 1"));
+    await settled();
+    expect(getComputedStyle(keyOf(1)).color).toBe("rgb(139, 145, 155)");
+
+    (keyOf(1).closest("a") as HTMLElement).focus();
+    await userEvent.keyboard("{Tab}");
+    await settled();
+    expect(document.activeElement).toBe(keyOf(2).closest("a"));
+    expect(getComputedStyle(keyOf(2)).backgroundColor).toBe(rgb(keyTint("#7aa8f0").background));
+    expect(getComputedStyle(keyOf(2)).color).toBe(rgb(keyTint("#7aa8f0").color));
+  });
+
+  test("with reduced motion, a list row's key changes colour without a fade", async () => {
+    const lists: ListSummary[] = [
+      {
+        id: "00000000-0000-4000-8000-0000000000d1",
+        name: "Mine",
+        count: 1,
+        rows: [
+          {
+            id: "00000000-0000-4000-8000-0000000000e1",
+            key: "HAR-1",
+            title: "Fix the quay",
+            projectId: ids[0],
+            color: "#f08a7e",
+            waiting: false,
+            agent: null,
+            chip: null,
+            createdAt: "2026-10-01T00:00:00Z",
+          },
+        ],
+      },
+    ];
+    await commands.reduceMotion(true);
+    try {
+      await renderWithBoard(<ProjectList user={ME} projects={rows} lists={lists} />, newProject());
+      const key = page.getByText("HAR-1").element();
+      const longest = Math.max(
+        ...getComputedStyle(key)
+          .transitionDuration.split(",")
+          .map((d) => parseFloat(d)),
+      );
+      expect(longest).toBeLessThan(0.01);
+      await userEvent.hover(page.getByText("Fix the quay"));
+      expect(getComputedStyle(key).color).toBe("rgb(244, 167, 158)");
+    } finally {
+      await commands.reduceMotion(false);
+    }
+  });
+
   test("Home leads with projects, and lists and charts follow as outlines", async () => {
     const lists: ListSummary[] = [
       {
@@ -94,6 +184,7 @@ describe("The projects on Home", () => {
             key: "HAR-1",
             title: "Fix the quay",
             projectId: ids[0],
+            color: "#7aa8f0",
             waiting: false,
             agent: "Builder",
             chip: null,

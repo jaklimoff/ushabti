@@ -86,6 +86,7 @@ function board(project: string, tasks: TaskDTO[], runs: AgentRunDTO[] = []): Sou
       id: project,
       key: project.toUpperCase(),
       name: `Project ${project}`,
+      color: "#7aa8f0",
       timeZone: "UTC",
     } as BoardData["project"],
     today: "2026-10-09",
@@ -147,6 +148,7 @@ describe("listGroups", () => {
     expect(keys(groups)).toEqual(["A-1"]);
     expect(groups[0].rules).toEqual(["Status is Todo · Owner is Me"]);
     expect(groups[0].rows[0].chip).toEqual({ text: "Todo", color: "#111111" });
+    expect(groups[0].rows[0].color).toBe("#7aa8f0");
   });
 
   it("joins the sources of one project: a task passes any one of them, once", () => {
@@ -252,6 +254,7 @@ describe("rulesSaid and summaryOf", () => {
       key: `A-${i}`,
       title: `Task ${i}`,
       projectId: "a",
+      color: "#7aa8f0",
       waiting: false,
       agent: null,
       chip: null,

@@ -43,7 +43,7 @@ import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import { Charts } from "./Charts";
 import { FirstProjectPanel, HomeSection, QuietPanel, WidePanel } from "./Empty";
 import { useNow } from "@/components/ui/useElapsed";
-import { PROJECT_INK, initials } from "@/lib/colors";
+import { PROJECT_INK, initials, keyTint } from "@/lib/colors";
 import styles from "./ProjectList.module.css";
 
 export type ProjectRow = {
@@ -414,6 +414,12 @@ function MyLists({ lists, canMake }: { lists: ListSummary[]; canMake: boolean })
   );
 }
 
+/** The key reads these only while its row is hovered or focused; at rest it stays grey. */
+function keyTintStyle(color: string): React.CSSProperties {
+  const tint = keyTint(color);
+  return { "--key-tint": tint.background, "--key-tint-ink": tint.color } as React.CSSProperties;
+}
+
 /** Every card is as tall as a full one, so a list that fills does not move the row. */
 function ListCard({ list }: { list: ListSummary }) {
   const more = list.count - list.rows.length;
@@ -438,6 +444,7 @@ function ListCard({ list }: { list: ListSummary }) {
               <Link
                 href={`/p/${row.projectId}?task=${row.key}`}
                 className={styles.listRow}
+                style={keyTintStyle(row.color)}
                 data-testid="list-card-row"
               >
                 <span className={styles.listRowKey}>{row.key}</span>
