@@ -174,7 +174,7 @@ four workers at most.
 | `settings-controls.spec.ts` | 6 | move |  | 6 |  |  |  | Sizes and colours are what a component test measures. |
 | `settings-load.spec.ts` | 4 | move | 1 | 1 |  | 2 |  | Keep a change by somebody else reaching Settings. |
 | `settings-select.spec.ts` | 4 | move |  | 4 |  |  |  | The menu is a component. |
-| `settings.spec.ts` | 21 | move | 2 | 17 |  | 2 |  | Keep the invite that joins on sign-up and the main view the board opens on. |
+| `settings.spec.ts` | 21 | done (USH-274) | 2 | 19 |  | 2 |  | Keep the invite that joins on sign-up and the main view the board opens on. The plan sent the two delete counts to route tests alone, but each also has a screen half, the question held while its count is on the way, so they went to `PropertiesPanel.test.tsx` as well as `properties-route.test.ts`. The label test now draws Project with releases on, since USH-226 shows Public changelog only then. |
 | `ship.spec.ts` | 6 | done (USH-280) | 1 | 2 |  | 3 |  | Keep Move, which archives and moves on. Unship from Settings went to the route: its button and question were already `OptionDates.test.tsx`, so what it alone held is that the archived tasks stay archived. Clear has a screen half in `Progress.test.tsx`. |
 | `shipped-iteration.spec.ts` | 5 | move |  | 3 |  | 2 |  | What leaves the board is the read; the fold is Settings. |
 | `sprints.spec.ts` | 4 | move | 2 |  |  | 2 |  | Keep the two migrations, which need the real database. |
