@@ -187,14 +187,17 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
           </Link>
           {/* The changelog reads the same record the archive does: a ship
               archives what it shipped and dates the option. A phone reaches
-              it from Project settings, because the bar is full there. */}
-          <Link
-            className={`${styles.iconLink} ${styles.changelogLink}`}
-            href={`/p/${data.project.id}/changelog`}
-            title="The options that shipped, and their tasks"
-          >
-            Changelog
-          </Link>
+              it from Project settings, because the bar is full there. With
+              releases off the page is not found, so no link leads to it. */}
+          {data.project.releaseBy && (
+            <Link
+              className={`${styles.iconLink} ${styles.changelogLink}`}
+              href={`/p/${data.project.id}/changelog`}
+              title="The options that shipped, and their tasks"
+            >
+              Changelog
+            </Link>
+          )}
           <Link
             className={styles.iconLink}
             href={`/p/${data.project.id}/settings/properties`}

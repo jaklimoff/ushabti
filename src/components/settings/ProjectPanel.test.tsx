@@ -168,6 +168,13 @@ describe("Done when", () => {
 /* The screen half of two tests of `e2e/changelog.spec.ts`. What the
    changelog holds, for a member, an agent and a stranger, is
    `release-route.test.ts`; one shipped walk stays end to end. */
+/** A board with Use releases on, whose release select is Status. */
+function releasesOn() {
+  const data = newProject();
+  const select = data.properties.find((p) => p.type === "select")!;
+  return { ...data, project: { ...data.project, releaseBy: select.id } };
+}
+
 describe("Changelog", () => {
   afterEach(async () => {
     await page.viewport(1440, 900);
@@ -176,7 +183,7 @@ describe("Changelog", () => {
   test("is reached from Project settings on a phone", async () => {
     await page.viewport(390, 844);
     // The bar is full on a phone, so the link is off it.
-    const data = newProject();
+    const data = releasesOn();
     const board = await renderWithBoard(<BoardShell initialTask={null} />, data);
     await expect.element(page.getByTitle("Project settings")).toBeVisible();
     const off = page.getByTitle("The options that shipped, and their tasks");
@@ -191,7 +198,7 @@ describe("Changelog", () => {
   });
 
   test("is private until somebody makes it public", async () => {
-    const data = newProject();
+    const data = releasesOn();
     const { sent } = await renderWithBoard(
       <ProjectPanel files={false} />,
       data,
@@ -213,5 +220,31 @@ describe("Changelog", () => {
     await page.getByRole("button", { name: "Make it private" }).click();
     await expect.element(page.getByTestId("public-changelog-link")).not.toBeInTheDocument();
     expect(patches().at(-1)!.body).toEqual({ publicChangelog: false });
+  });
+
+  /* With releases off both pages are not found, so nothing leads to them. */
+  test("is offered only while releases are on", async () => {
+    const off = newProject();
+    const bar = await renderWithBoard(<BoardShell initialTask={null} />, off);
+    await expect.element(page.getByTitle("Project settings")).toBeVisible();
+    expect(page.getByTitle("The options that shipped, and their tasks").elements()).toHaveLength(0);
+    await bar.screen.unmount();
+
+    const on = releasesOn();
+    const lit = await renderWithBoard(<BoardShell initialTask={null} />, on);
+    await expect
+      .element(page.getByTitle("The options that shipped, and their tasks"))
+      .toBeVisible();
+    await lit.screen.unmount();
+
+    const panel = await renderWithBoard(<ProjectPanel files={false} />, off);
+    await expect.element(page.getByRole("link", { name: "Download" })).toBeVisible();
+    expect(page.getByRole("link", { name: "Changelog", exact: true }).elements()).toHaveLength(0);
+    expect(page.getByRole("button", { name: "Make it public" }).elements()).toHaveLength(0);
+    await panel.screen.unmount();
+
+    await renderWithBoard(<ProjectPanel files={false} />, on);
+    await expect.element(page.getByRole("link", { name: "Changelog", exact: true })).toBeVisible();
+    await expect.element(page.getByRole("button", { name: "Make it public" })).toBeVisible();
   });
 });
