@@ -9,7 +9,6 @@ import {
   putFilterOnView,
   register,
   saved,
-  savedLens,
   settles,
   unique,
 } from "./helpers";
@@ -57,7 +56,8 @@ async function setDue(page: Page, when: string) {
  * What the strip and the panel draw for a set of rules, and what a press
  * sends, are component tests now: `src/components/board/Filters.test.tsx`.
  * What is left here needs a server, a reload or a second tab, and each test
- * says which. See docs/testing.md.
+ * says which. See docs/testing.md. The four that only called the routes are
+ * `lens-route.test.ts`.
  */
 
 test.describe("Filters inside a view", () => {
@@ -311,177 +311,6 @@ test.describe("Filters inside a view", () => {
       await expect(page.getByTestId("filter-mine")).toHaveCount(0);
     },
   );
-
-  /* The panel cannot see a clash that arrives after my rule does: somebody
-     else puts that property on the view while I hold mine. So the door the
-     team comes through says it again, and writes nothing. */
-  // Stays: a route test — what the server answers and what it keeps.
-  test("Save for everyone refuses a rule about a property the view filters", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("PromoteClash"));
-
-    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const view = board.views[0];
-    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
-    const key = (name: string) =>
-      priority.options.find((o: { name: string }) => o.name === name).id;
-
-    const ofView = { propertyId: priority.id, op: "is", values: [key("Urgent")] };
-    const mine = { propertyId: priority.id, op: "is", values: [key("High")] };
-
-    /* Mine goes on first, when the view asks nothing and there is no clash to
-       see. The view takes that property afterwards, which is the one way the
-       two sets can ever hold one property: both doors refuse it from now on. */
-    const saved = await page.request.put(`/api/views/${view.id}/lens`, {
-      data: { filters: { rules: [mine] } },
-    });
-    expect(saved.ok()).toBeTruthy();
-    await page.request.patch(`/api/views/${view.id}`, { data: { filters: { rules: [ofView] } } });
-
-    const promoted = await page.request.post(`/api/views/${view.id}/lens/promote`);
-    expect(promoted.status()).toBe(409);
-    expect((await promoted.json()).error).toBe(
-      "The view already filters Priority. Remove it for everyone first.",
-    );
-
-    // Nothing moved: the view keeps its one rule, and mine is still mine.
-    const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const kept = after.views.find((v: { id: string }) => v.id === view.id);
-    expect(kept.filters.rules).toEqual([ofView]);
-    expect(kept.lens.rules).toEqual([mine]);
-  });
-
-  /* The panel is not the only way a lens is written. The route is the other
-     door, and it says the same sentence. */
-  // Stays: a route test — what the server answers and what it keeps.
-  test("writing a lens refuses a property the view already filters", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("LensClash"));
-
-    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const view = board.views[0];
-    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
-    const key = (name: string) =>
-      priority.options.find((o: { name: string }) => o.name === name).id;
-
-    const ofView = { propertyId: priority.id, op: "is", values: [key("Urgent")] };
-    const mine = { propertyId: priority.id, op: "is", values: [key("High")] };
-
-    await page.request.patch(`/api/views/${view.id}`, { data: { filters: { rules: [ofView] } } });
-
-    const refused = await page.request.put(`/api/views/${view.id}/lens`, {
-      data: { filters: { rules: [mine] } },
-    });
-    expect(refused.status()).toBe(409);
-    expect((await refused.json()).error).toBe(
-      "The view already filters Priority. Remove it for everyone first.",
-    );
-
-    // Nothing was written, so there is no second rule waiting to be promoted.
-    expect(await savedLens(view.id)).toBeNull();
-
-    // Another property is still mine to ask about.
-    const status = board.properties.find((p: { name: string }) => p.name === "Status");
-    const todo = status.options.find((o: { name: string }) => o.name === "Todo").id;
-    const ok = await page.request.put(`/api/views/${view.id}/lens`, {
-      data: { filters: { rules: [{ propertyId: status.id, op: "is", values: [todo] }] } },
-    });
-    expect(ok.ok()).toBeTruthy();
-  });
-
-  /* ---------------------------------------------------------------- */
-  /* Read afresh, on the way in and on the way out                     */
-  /* ---------------------------------------------------------------- */
-
-  /* A lens is saved once and read for months, so it outlives what it names.
-     Both readings are here: the one on the write, and the one the board does. */
-  // Stays: a route test — the row the server writes and reads.
-  test("a lens drops a rule that names nothing, written and read alike", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("LensAfresh"));
-
-    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const view = board.views[0];
-    const priority = board.properties.find((p: { name: string }) => p.name === "Priority");
-    const urgent = priority.options.find((o: { name: string }) => o.name === "Urgent").id;
-
-    // A property that is gone, an option that is gone, and one live rule.
-    const written = await page.request.put(`/api/views/${view.id}/lens`, {
-      data: {
-        filters: {
-          rules: [
-            { propertyId: "11111111-1111-1111-1111-111111111111", op: "is", values: ["nothing"] },
-            { propertyId: priority.id, op: "is", values: [urgent, "22222222-gone"] },
-          ],
-        },
-      },
-    });
-    expect(written.ok()).toBeTruthy();
-
-    // The write read them first, so the row itself holds only what can be read.
-    expect(await savedLens(view.id)).toEqual({
-      rules: [{ propertyId: priority.id, op: "is", values: [urgent] }],
-    });
-
-    // The board says the same, because it reads the row afresh again.
-    const withLens = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    expect(withLens.views.find((v: { id: string }) => v.id === view.id).lens.rules).toEqual([
-      { propertyId: priority.id, op: "is", values: [urgent] },
-    ]);
-
-    // Now the option goes, under a lens nobody rewrites. The row still names
-    // it; the board must not, or a rule nobody can see keeps hiding cards.
-    const option = await page.request.delete(`/api/options/${urgent}`);
-    expect(option.ok()).toBeTruthy();
-    expect((await savedLens(view.id))?.rules).toHaveLength(1);
-
-    const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    expect(after.views.find((v: { id: string }) => v.id === view.id).lens.rules).toEqual([]);
-  });
-});
-
-/* An order a person picked lives in their lens beside the rules, and is read
-   afresh the same way: a column that is gone must stop ordering anything. */
-test.describe("An order in a lens", () => {
-  // Stays: a route test — the row the server writes and reads.
-  test("is dropped when the column it names is deleted", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("LensSort"));
-    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
-      data: { name: "Effort", type: "number" },
-    });
-    expect(made.ok()).toBeTruthy();
-
-    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const view = board.views[0];
-    const effort = board.properties.find((p: { name: string }) => p.name === "Effort");
-
-    const written = await page.request.put(`/api/views/${view.id}/lens`, {
-      data: { filters: { rules: [] }, sort: { columnId: effort.id, direction: "desc" } },
-    });
-    expect(written.ok()).toBeTruthy();
-    // An order alone is a lens: the row is kept, and the view is not touched.
-    expect(await savedLens(view.id)).toEqual({
-      rules: [],
-      sort: { columnId: effort.id, direction: "desc" },
-    });
-    const mine = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const read = mine.views.find((v: { id: string }) => v.id === view.id);
-    expect(read.lensSort).toEqual({ columnId: effort.id, direction: "desc" });
-    expect(read.sort).toBeNull();
-
-    // The property goes, under a lens nobody rewrites.
-    expect((await page.request.delete(`/api/properties/${effort.id}`)).ok()).toBeTruthy();
-    expect((await savedLens(view.id)) as unknown).toMatchObject({ sort: { columnId: effort.id } });
-
-    const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    expect(after.views.find((v: { id: string }) => v.id === view.id).lensSort).toBeNull();
-
-    // And Save for everyone carries nothing of it to the view.
-    expect((await page.request.post(`/api/views/${view.id}/lens/promote`)).ok()).toBeTruthy();
-    const promoted = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    expect(promoted.views.find((v: { id: string }) => v.id === view.id).sort).toBeNull();
-  });
 });
 
 /*

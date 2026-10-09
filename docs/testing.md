@@ -115,7 +115,7 @@ four workers at most.
 | `archive-retry.spec.ts` | 2 | move |  |  |  | 2 |  | Both are what a second archive writes. |
 | `archive.spec.ts` | 12 | move | 2 | 8 |  | 2 |  | Keep archive and put back from the panel, and the archive page. The panel's races are component tests with a held answer. |
 | `ask-mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
-| `attachments.spec.ts` | 2 | keep | 1 | 1 |  |  |  | An upload through the bucket stays; the 503 sentence is Settings drawing an answer. |
+| `attachments.spec.ts` | 2 | done (USH-282) | 1 | 1 |  |  |  | An upload through the bucket stays; the 503 sentence is Settings drawing an answer. It went to `ProjectPanel.test.tsx`; the 503 itself was already `attachments-route.test.ts`. |
 | `bad-id.spec.ts` | 2 | move |  |  |  | 2 |  | `readId` already has unit tests; one route test per door says the sentence. |
 | `blockers.spec.ts` | 4 | move |  | 3 |  | 1 |  | Being over takes the chain off is the board read; the rest is the panel. |
 | `board.spec.ts` | 36 | done (USH-270) | 17 | 19 |  |  |  | Keep the first walk, the four pointer drags, the two keyboard drags, the copy link, the counts, an order across a reload, the finger and the drop onto a folded column. The plan kept 14, but ten tests carry `@smoke` and stay, and the fold's drop is a drag across columns, so its fold half went down alone and its drop stayed. The phone move and the title saved on a closed tab need nothing a component lacks: `pagehide` is counted there, which end to end could not. The small-tablet tests went down, and the builder rule that names them moved with them. |
@@ -124,7 +124,7 @@ four workers at most.
 | `changed.spec.ts` | 4 | move |  | 1 |  | 3 |  | What moves the changed time is the server's write. |
 | `changelog.spec.ts` | 6 | move | 1 | 1 |  | 4 |  | Keep one shipped walk. Public, private and the token are route answers. |
 | `close-sprint.spec.ts` | 1 | move |  |  |  | 1 |  | What a close archives is a route answer. |
-| `collaboration.spec.ts` | 9 | keep | 7 | 1 | 1 |  |  | Two people on one board is what end to end is for. The member list is a component; the shared Me is `applyFilters`. |
+| `collaboration.spec.ts` | 9 | done (USH-282) | 7 | 1 |  |  | 1 | Two people on one board is what end to end is for. The member list is a component; the shared Me is `applyFilters`. The plan had a unit test for Me, but `filters.test.ts` already holds it, the seed of a task added under it too, so the test was dropped. |
 | `comment-delete.spec.ts` | 1 | done (USH-272) |  | 1 |  | 1 |  | Who may delete is a route answer. The question went to the comment component tests as a test of its own, the screen half of the same e2e test. |
 | `comment-edit.spec.ts` | 7 | done (USH-272) | 2 | 4 |  | 1 |  | Keep the save that crossed a newer one. The box's keys and its closed tab are the component. The plan kept 1, but the walk that edits and reaches the other panel carries `@smoke` and stays. |
 | `composer.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | How the composer grows is layout, which Browser Mode has. |
@@ -133,12 +133,12 @@ four workers at most.
 | `editing-sign.spec.ts` | 2 | done (USH-272) | 1 | 1 |  |  |  | Keep two editors on one task. The phone line is layout; the other tabs speak through the stubbed stream. |
 | `editor-open.spec.ts` | 3 | keep | 2 | 1 |  |  |  | Which chunk loads when needs the production build. |
 | `ended-sprint.spec.ts` | 5 | move |  | 2 | 1 | 2 |  | The header is a component; the read that writes nothing is a route. |
-| `export.spec.ts` | 1 | move |  |  |  | 1 |  | Who may download is a route answer. |
-| `filters.spec.ts` | 12 | move | 8 |  |  | 4 |  | Moved 14 to `Filters.test.tsx` in USH-268. The four that call the API go to route tests. Keep the reloads, the closed tab, the two tabs, the deleted option and the zones. |
+| `export.spec.ts` | 1 | done (USH-282) |  | 1 |  | 1 |  | Who may download is a route answer. The test also has a screen half, the member who sees no Download, which went to `ProjectPanel.test.tsx`. The file is gone. |
+| `filters.spec.ts` | 12 | done (USH-282) | 8 |  |  | 4 |  | Moved 14 to `Filters.test.tsx` in USH-268. The four that call the API go to route tests. Keep the reloads, the closed tab, the two tabs, the deleted option and the zones. The four went to `lens-route.test.ts`. |
 | `forgot.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
 | `former.spec.ts` | 3 | move |  | 1 | 1 | 1 |  | `personOf()` and the board read answer for somebody who left. |
 | `github-step.spec.ts` | 3 | keep | 3 |  |  |  |  | A script against a real server; nothing smaller runs it. |
-| `import.spec.ts` | 4 | move | 1 | 1 |  | 2 |  | Keep one Trello file through the page. |
+| `import.spec.ts` | 4 | done (USH-282) | 1 | 1 |  | 2 |  | Keep one Trello file through the page. The phone is `ImportPanel.test.tsx`, drawn from the planner's own preview of the same file. |
 | `iteration.spec.ts` | 3 | move | 1 | 2 |  |  |  | Keep the walk from grouping to the roadmap. |
 | `links.spec.ts` | 2 | done (USH-272) |  | 2 |  |  |  | The panel and the card draw a link. |
 | `list.spec.ts` | 19 | done (USH-271) | 4 | 14 |  | 1 |  | Keep the drag the board sees and the order across a reload. The rest is what a list draws. The plan kept 2, but three tests carry `@smoke` and stay, beside the order across a reload. The property a list no longer pins is the route's answer; a view that changes kind and a list on a project with nothing to group by have a route half too. |
@@ -155,7 +155,7 @@ four workers at most.
 | `password-fill.spec.ts` | 3 | move |  | 3 |  |  |  | A value with no event is a box. |
 | `pick-labels.spec.ts` | 3 | done (USH-273) |  | 2 |  | 1 |  | The bulk route keeps what it did not change. The bar went to `Pick.test.tsx`, the route to `pick-route.test.ts`, and the file is gone. |
 | `pick.spec.ts` | 18 | done (USH-273) | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283), and the agent's refused archive after them. The list under a finger turns on Chromium's touch emulation, as `hasTouch` did. |
-| `presence.spec.ts` | 4 | keep | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. The phone test said its faces before the owner's tab listened, and the stream has no replay; it waits for the live dot now, and the members join by the route (USH-283). |
+| `presence.spec.ts` | 4 | done (USH-282) | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. The phone's faces went to `Presence.test.tsx`, spoken through the stubbed stream, and the agent's refusal to `presence-route.test.ts`. |
 | `progress.spec.ts` | 4 | done (USH-275) |  | 3 |  | 2 |  | `progressOf` sums the bar; the header is a component. The plan had a unit test, but `progress.test.ts` already holds the sum, so the unit-count test went to the header with the phone width; the unit picked is also kept by the route. The file is gone. |
 | `project-waiting.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | Keep the count that changes live. |
 | `properties.spec.ts` | 13 | done (USH-275) | 2 | 10 |  | 8 |  | Keep making a property and grouping a board by it. The plan kept 1, but the rename of an option carries `@smoke` and stays. Seven component tests that went by a reload have a route half that says what was kept, and the `showOnCard` test went to the route alone. |
@@ -175,16 +175,16 @@ four workers at most.
 | `ship.spec.ts` | 6 | move | 1 | 3 |  | 2 |  | Keep Move, which archives and moves on. |
 | `shipped-iteration.spec.ts` | 5 | move |  | 3 |  | 2 |  | What leaves the board is the read; the fold is Settings. |
 | `sprints.spec.ts` | 4 | move | 2 |  |  | 2 |  | Keep the two migrations, which need the real database. |
-| `stamps.spec.ts` | 3 | move | 1 | 1 | 1 |  |  | Keep server and browser reading the same day. |
+| `stamps.spec.ts` | 3 | done (USH-282) | 1 | 1 |  |  | 1 | Keep server and browser reading the same day. The plan had a unit test for the order by Updated, but `stamps.test.ts` and `sort.test.ts` already hold it and the press on a heading, so it was dropped. |
 | `switcher.spec.ts` | 6 | done (USH-273) |  | 6 |  |  |  | The switcher is a menu. Where a press went is the link it followed or the route it pushed, not the next page. The file is gone. |
 | `task-keys.spec.ts` | 1 | done (USH-272) |  | 1 |  |  |  | A key in Markdown is the page's rule. |
 | `text-save.spec.ts` | 5 | done (USH-272) |  | 4 |  | 1 |  | A conflict is a 409 the fake can answer. A tick and a value refusing nothing is the route. |
 | `type-defaults.spec.ts` | 7 | move |  | 3 |  | 4 |  | What a create starts with is the route's answer. |
 | `types.spec.ts` | 4 | move |  | 3 |  | 1 |  | The Types page is a component. |
 | `undo-delete.spec.ts` | 8 | move | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
-| `upload.spec.ts` | 4 | keep | 2 | 2 |  |  |  | Keep the two uploads through the bucket. |
+| `upload.spec.ts` | 4 | done (USH-282) | 2 | 2 |  |  |  | Keep the two uploads through the bucket. The description's drop and the stopped upload's line went to `Upload.test.tsx`, with the bucket answered in the page. |
 | `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. Its tasks and agent are made by the routes, not the composer and Settings (USH-283). |
-| `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. The dev server runs in Docker, so the receiver is called by `host.docker.internal` there, and the queued delivery of a webhook that is off waits on a second webhook that rings instead of 1.2 seconds (USH-283). |
+| `webhooks.spec.ts` | 6 | done (USH-282) | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. The dev server runs in Docker, so the receiver is called by `host.docker.internal` there, and the queued delivery of a webhook that is off waits on a second webhook that rings instead of 1.2 seconds (USH-283). The refused URL and the phone call nothing, and went to `WebhooksPanel.test.tsx`. |
 | `when.spec.ts` | 7 | done (USH-275) | 1 | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. The plan moved the race of two rules, but it stays: the in-memory database of a route test answers one request at a time, so it cannot lose the race the project lock is for. |
 | `words.spec.ts` | 4 | done (USH-273) |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. The one word for each idea went to `Pick.test.tsx`, and the file is gone. |
-| **80 files** | **460** | | **94** | **253** | **8** | **116** | **3** | |
+| **80 files** | **460** | | **94** | **254** | **6** | **116** | **5** | |

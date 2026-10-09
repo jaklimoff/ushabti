@@ -1,12 +1,14 @@
 import { describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { newProject, renderWithBoard, type Answer, type Sent } from "@/test/board";
+import { FILES_OFF_NOTE } from "@/lib/attachments";
 import { ProjectPanel } from "./ProjectPanel";
 
 /*
  * The Agent rules box of Settings -> Project: what it counts and what it
  * sends. Each test here was a test of `e2e/agent-rules.spec.ts`. Who may write
- * the rules, and that a claim carries them, are the route tests' half.
+ * the rules, and that a claim carries them, are the route tests' half. The
+ * Files and Export rows below name the specs they came from.
  */
 
 const PROJECT = /^\/api\/projects\/[0-9a-f-]+$/;
@@ -73,5 +75,44 @@ describe("Agent rules", () => {
     // Only a keepalive request outlives the page that sent it.
     const leave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(leave?.[1]?.keepalive).toBe(true);
+  });
+});
+
+/* Was "Settings says what to set exactly when the attachment routes answer
+   503" in `e2e/attachments.spec.ts`. That every route answers 503 with one
+   sentence is `attachments-route.test.ts`; the page is told by its server
+   whether there is a bucket, and draws the sentence exactly when there is none. */
+describe("Files", () => {
+  test("Settings says what to set exactly when the attachment routes answer 503", async () => {
+    for (const files of [false, true]) {
+      const { screen } = await renderWithBoard(<ProjectPanel files={files} />, newProject());
+      await expect.element(page.getByRole("textbox", { name: "Project name" })).toBeVisible();
+      expect(page.getByText(FILES_OFF_NOTE).elements()).toHaveLength(files ? 0 : 1);
+      await screen.unmount();
+    }
+  });
+});
+
+/* The screen half of "an admin downloads the project; a member is not offered
+   it and an agent is refused" in `e2e/export.spec.ts`. What the file holds and
+   who the route lets in is `export-route.test.ts`. */
+describe("Export", () => {
+  test("an admin is offered the download, and a member sees no row", async () => {
+    const data = newProject();
+    data.project = { ...data.project, role: "admin" };
+    const admin = await renderWithBoard(<ProjectPanel files={false} />, data);
+    const download = page.getByRole("link", { name: "Download" });
+    await expect
+      .element(download)
+      .toHaveAttribute("href", `/api/projects/${data.project.id}/export`);
+    await expect.element(download).toHaveAttribute("download");
+    await admin.screen.unmount();
+
+    const member = newProject();
+    member.project = { ...member.project, role: "member" };
+    await renderWithBoard(<ProjectPanel files={false} />, member);
+    await expect.element(page.getByLabelText("Project name")).toBeVisible();
+    expect(page.getByText("Export", { exact: true }).elements()).toHaveLength(0);
+    expect(download.elements()).toHaveLength(0);
   });
 });

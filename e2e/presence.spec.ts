@@ -4,7 +4,9 @@ import { addTask, card, createProject, gotoSettings, register, unique } from "./
 
 /*
  * Who else has a task open. Nothing stores it: a tab says where it is, the
- * stream relays it, and every other tab keeps its own room on a lease.
+ * stream relays it, and every other tab keeps its own room on a lease. The
+ * faces on a phone are `Presence.test.tsx` now, and the agent that may not
+ * say it is `presence-route.test.ts`.
  */
 
 async function freshPage(browser: Browser) {
@@ -129,79 +131,5 @@ test.describe("Who else has the task open", () => {
 
     await owner.context.close();
     await friend.context.close();
-  });
-
-  test("three faces fit the header of a phone", async ({ browser }) => {
-    const owner = await freshPage(browser);
-    const others = await Promise.all([1, 2, 3].map(() => freshPage(browser)));
-
-    await register(owner.page, "Owner Person");
-    const projectId = await createProject(owner.page, unique("Phone"));
-    const names = ["Ada Lovelace", "Grace Hopper", "Barbara Liskov"];
-    /* The People screen is not what this checks, so the members join by the
-       route it calls. */
-    await Promise.all(
-      others.map(async (other, i) => {
-        const account = await register(other.page, names[i]);
-        const added = await owner.page.request.post(`/api/projects/${projectId}/members`, {
-          data: { email: account.email },
-        });
-        expect(added.ok()).toBeTruthy();
-      }),
-    );
-
-    await owner.page.goto(`/p/${projectId}`);
-    /* A presence is said once and the stream has no replay, so one said
-       before this tab listens is never heard. */
-    await expect(owner.page.getByTestId("live-dot")).toBeVisible();
-    await addTask(owner.page, "Todo", "Crowded");
-    const taskId = await taskIdOf(owner.page, projectId, "Crowded");
-    await owner.page.setViewportSize({ width: 390, height: 844 });
-    await expect(owner.page.getByTestId("task-key")).toBeVisible();
-
-    for (const other of others) {
-      expect((await sayFrom(other.context, projectId, taskId)).status()).toBe(200);
-    }
-    await expect(faces(owner.page)).toHaveCount(3, { timeout: 2_000 });
-
-    const head = owner.page.getByTestId("task-key").locator("xpath=..");
-    const row = (await head.boundingBox())!;
-    for (const button of ["Task menu", "Close task"]) {
-      const box = (await owner.page.getByRole("button", { name: button }).boundingBox())!;
-      expect(box.x + box.width).toBeLessThanOrEqual(row.x + row.width + 0.5);
-      expect(box.x + box.width).toBeLessThanOrEqual(390);
-    }
-
-    await owner.context.close();
-    for (const other of others) await other.context.close();
-  });
-
-  test("an agent may not say it has a task open", async ({ browser, request }) => {
-    const owner = await freshPage(browser);
-    await register(owner.page, "Owner Person");
-    const projectId = await createProject(owner.page, unique("Agents"));
-
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Name of the new agent").fill("Builder");
-    await owner.page.getByRole("button", { name: "Add agent" }).click();
-    const box = owner.page.getByTestId("agent-box").filter({ hasText: "Builder" });
-    await box.getByRole("button", { name: "Connect" }).click();
-    await box.getByRole("button", { name: "Make token" }).click();
-    const token = (
-      (await owner.page
-        .getByTestId("agent-secret")
-        .first()
-        .locator("code")
-        .first()
-        .textContent()) ?? ""
-    ).trim();
-
-    const res = await request.post(`/api/projects/${projectId}/presence`, {
-      headers: { Authorization: `Bearer ${token}`, "x-ushabti-client": randomUUID() },
-      data: { taskId: null, field: null },
-    });
-    expect(res.status()).toBe(403);
-
-    await owner.context.close();
   });
 });

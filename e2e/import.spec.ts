@@ -6,7 +6,6 @@ import {
   columnOrder,
   createProject,
   gotoSettings,
-  overflow,
   register,
   settles,
   showColumn,
@@ -20,7 +19,8 @@ import {
  * a server is the mapping a browser walks through. What this spec is for is
  * the half a pure test cannot reach: the page is the flow, the owner can
  * point a list somewhere else before anything is written, and pressing the
- * button twice makes nothing twice.
+ * button twice makes nothing twice. What a card brings and what a rule keeps
+ * out are `import-route.test.ts`; the page on a phone is `ImportPanel.test.tsx`.
  */
 const FIXTURE = "e2e/fixtures/trello-small.json";
 
@@ -104,81 +104,4 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   await showColumn(page, "Todo");
   await expect(card(page, "Write the launch note")).toHaveCount(1);
   await expect(page.getByTestId("card")).toHaveCount(4);
-});
-
-test("a card brings its labels, its due date, its checklist and its comments", async ({ page }) => {
-  await register(page, "Ada Lovelace");
-  const projectId = await createProject(page, unique("Import"));
-
-  await openImport(page, projectId);
-  await pick(page);
-  await settles(page, /\/import$/, () =>
-    page.getByRole("button", { name: "Import 4 tasks" }).click(),
-  );
-
-  await page.goto(`/p/${projectId}`);
-  await showColumn(page, "Done");
-  await card(page, "Ship the changelog").click();
-
-  const panel = page.getByTestId("task-panel");
-  await expect(panel).toBeVisible();
-  await expect(panel.getByText("Before: Draft it")).toBeVisible();
-  await expect(panel.getByText("After: Post it")).toBeVisible();
-  /* The panel writes a date the way the board does, in words. */
-  await expect(panel.getByText("Mar 4")).toBeVisible();
-
-  await page.keyboard.press("Escape");
-  await showColumn(page, "To do");
-  await card(page, "Talk to the team").click();
-  await expect(panel.getByText("I will book the room.")).toBeVisible();
-  await expect(panel.getByText("Let us do this after the release.")).toBeVisible();
-});
-
-test("the import page reads on a phone", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 780 });
-  await register(page, "Ada Lovelace");
-  const projectId = await createProject(page, unique("Import"));
-
-  await openImport(page, projectId);
-  await pick(page);
-
-  expect(await overflow(page)).toBe(0);
-});
-
-test("an import brings no value its task does not show", async ({ page }) => {
-  await register(page, "Ada Lovelace");
-  const projectId = await createProject(page, unique("Import"));
-  type Board = {
-    properties: { id: string; name: string; options: { id: string; name: string }[] }[];
-    tasks: { title: string; values: Record<string, unknown> }[];
-  };
-  const read = async (): Promise<Board> =>
-    (await page.request.get(`/api/projects/${projectId}/board`)).json();
-
-  /* Due shows only on a task In Progress, so the due date of a card that
-     lands in Done must not arrive. */
-  const made = await page.request.post(`/api/projects/${projectId}/properties`, {
-    data: { name: "Due", type: "date" },
-  });
-  expect(made.ok()).toBeTruthy();
-  const before = await read();
-  const due = before.properties.find((p) => p.name === "Due")!;
-  const status = before.properties.find((p) => p.name === "Status")!;
-  const doing = status.options.find((o) => o.name === "In Progress")!;
-  const rule = await page.request.patch(`/api/properties/${due.id}`, {
-    data: { when: { propertyId: status.id, optionIds: [doing.id] } },
-  });
-  expect(rule.ok()).toBeTruthy();
-
-  await openImport(page, projectId);
-  await pick(page);
-  await settles(page, /\/import$/, () =>
-    page.getByRole("button", { name: "Import 4 tasks" }).click(),
-  );
-
-  const after = await read();
-  const shipped = after.tasks.find((t) => t.title === "Ship the changelog")!;
-  expect(shipped.values[status.id]).toBeTruthy();
-  expect(shipped.values[status.id]).not.toBe(doing.id);
-  expect(shipped.values).not.toHaveProperty(due.id);
 });

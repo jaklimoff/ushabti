@@ -10,13 +10,18 @@ import {
   gotoSettings,
   putFilterOnView,
   register,
-  saved,
   signIn,
   settles,
   sortBoard,
   unique,
   type Account,
 } from "./helpers";
+
+/*
+ * The person property's member list is `People.test.tsx` now, and the shared
+ * view that says Me is `applyFilters` in `filters.test.ts`. What is left here
+ * needs two people on one board.
+ */
 
 async function freshPage(browser: Browser) {
   const context = await browser.newContext();
@@ -183,34 +188,6 @@ test.describe("Two people on one board", () => {
     await friend.context.close();
   });
 
-  test("a person property lists the members and sticks", async ({ browser }) => {
-    const owner = await freshPage(browser);
-    const friend = await freshPage(browser);
-
-    await register(owner.page, "Owner Person");
-    const projectId = await createProject(owner.page, unique("People"));
-    const friendAccount = await register(friend.page, "Friend Person");
-
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
-
-    await owner.page.goto(`/p/${projectId}`);
-    await addTask(owner.page, "Todo", "Give it to a friend");
-
-    const panel = owner.page.getByTestId("task-panel");
-    await panel.getByRole("button", { name: "Unassigned" }).click();
-    await saved(owner.page, () => panel.getByRole("option", { name: "Friend Person" }).click());
-
-    await owner.page.goto(`/p/${projectId}`);
-    await card(owner.page, "Give it to a friend").click();
-    await expect(panel.getByRole("button", { name: "Friend Person" })).toBeVisible();
-
-    await owner.context.close();
-    await friend.context.close();
-  });
-
   /*
    * The fault this feature exists to fix: a member who filtered to their own
    * name used to re-filter the board for the whole team. So the rule stays on
@@ -372,65 +349,5 @@ test.describe("Columns", () => {
 
     await page.goto(`/p/${projectId}`);
     expect(await names()).toEqual(after);
-  });
-});
-
-test.describe("A shared view that says Me", () => {
-  /*
-   * One shared "My tasks" view. The rule says Me and never a name, so the
-   * same rule shows each person their own cards, and a card added under it
-   * goes to whoever added it.
-   */
-  test("a shared view with Assignee is Me shows each viewer their own", async ({ browser }) => {
-    const owner = await freshPage(browser);
-    const friend = await freshPage(browser);
-
-    await register(owner.page, "Owner Person");
-    const projectId = await createProject(owner.page, unique("Mine"));
-    const friendAccount = await register(friend.page, "Friend Person");
-
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
-
-    await owner.page.goto(`/p/${projectId}`);
-    const panel = owner.page.getByTestId("task-panel");
-    for (const [title, who] of [
-      ["Owner work", "Owner Person"],
-      ["Friend work", "Friend Person"],
-    ]) {
-      await addTask(owner.page, "Todo", title);
-      await panel.getByRole("button", { name: "Unassigned" }).click();
-      await saved(owner.page, () => panel.getByRole("option", { name: who }).click());
-      await owner.page.getByRole("button", { name: "Close task" }).click();
-    }
-
-    await addFilter(owner.page, "Assignee", "Me");
-    await expect(owner.page.getByTestId("filter-chip")).toHaveText("Assignee is Me");
-    await putFilterOnView(owner.page);
-    await expect(card(owner.page, "Owner work")).toBeVisible();
-    await expect(card(owner.page, "Friend work")).toHaveCount(0);
-
-    // The same saved rule, read by the other person.
-    await friend.page.goto(`/p/${projectId}`);
-    await expect(friend.page.getByTestId("filter-chip")).toHaveText("Assignee is Me");
-    await expect(card(friend.page, "Friend work")).toBeVisible();
-    await expect(card(friend.page, "Owner work")).toHaveCount(0);
-
-    await friend.page
-      .getByRole("button", { name: "Add a task to the top of Todo" })
-      .first()
-      .click();
-    await expect(friend.page.getByText("sets Assignee Friend Person")).toBeVisible();
-    const box = friend.page.getByPlaceholder("What needs doing?");
-    await box.fill("Friend adds more");
-    await box.press("Enter");
-    await friend.page.getByRole("button", { name: "Close task" }).click();
-    await expect(card(friend.page, "Friend adds more")).toBeVisible();
-    await expect(card(owner.page, "Friend adds more")).toHaveCount(0);
-
-    await owner.context.close();
-    await friend.context.close();
   });
 });
