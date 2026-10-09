@@ -3,6 +3,7 @@ import { page, type Locator } from "vitest/browser";
 import { BoardShell } from "@/components/board/BoardApp";
 import type { BoardData, CardView } from "@/lib/types";
 import {
+  ME,
   detailOf,
   newProject,
   renderWithBoard,
@@ -10,8 +11,10 @@ import {
   type Answer,
   type Sent,
 } from "@/test/board";
+import { at } from "@/test/next-navigation";
 import { CardViewPanel } from "./CardViewPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
+import { SettingsShell } from "./SettingsShell";
 import { ViewsPanel } from "./ViewsPanel";
 
 /*
@@ -295,5 +298,26 @@ describe("Card view", () => {
     await wrote(() => sent("PATCH", VIEW_CARD), 2);
     expect(sent("PATCH", VIEW_CARD)[1].body).toEqual({ cardView: null });
     await gone(listHead("Status"));
+  });
+});
+
+/* Was "the card view preview in Settings still draws real tasks" in
+   `e2e/settings-load.spec.ts`. Settings is handed the few tasks its loader
+   read, which `settings-route.test.ts` holds, and asks the board for none. */
+describe("Settings reads its own loader", () => {
+  test("the card view preview in Settings still draws real tasks", async () => {
+    const data = newProject();
+    for (let i = 0; i < 3; i++) withTask(data, `Light ${i}`);
+    withTask(data, "Heavy", { Priority: "Urgent" });
+    at.pathname = `/p/${data.project.id}/settings/card`;
+    const { sent } = await renderWithBoard(
+      <SettingsShell initial={data} user={ME} version="0.0.0">
+        <CardViewPanel />
+      </SettingsShell>,
+      data,
+    );
+    await expect.element(page.getByText("Heavy")).toBeVisible();
+    expect(sent("GET", /\/board$/)).toEqual([]);
+    at.pathname = null;
   });
 });
