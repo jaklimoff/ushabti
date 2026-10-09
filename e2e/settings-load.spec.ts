@@ -25,6 +25,13 @@ function reads(page: Page) {
   return seen;
 }
 
+/*
+ * A change by somebody else reaches Settings through the stream, which only
+ * a real server rings. What the loader answers, and that the card view
+ * preview draws it, moved to `settings-route.test.ts` and
+ * `CardViewPanel.test.tsx` (USH-279).
+ */
+
 /** Eight tasks, and one that carries more than the rest. */
 async function eightTasks(page: Page, projectId: string): Promise<string> {
   const answer: Answer = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
@@ -42,24 +49,6 @@ async function eightTasks(page: Page, projectId: string): Promise<string> {
 }
 
 test.describe("Settings reads its own loader", () => {
-  test("opening Settings reads no task", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Load"));
-    await eightTasks(page, projectId);
-
-    const seen = reads(page);
-    await gotoSettings(page, projectId, "project");
-    await expect(page.getByRole("heading", { name: "Project" })).toBeVisible();
-
-    const answer: Answer = await (
-      await page.request.get(`/api/projects/${projectId}/settings`)
-    ).json();
-    // The few the preview draws, and a count of the rest.
-    expect(answer.tasks.length).toBeLessThanOrEqual(4);
-    expect(answer.taskCount).toBe(8);
-    expect(seen).not.toContain("board");
-  });
-
   test("a change by somebody else updates Settings without reading the board", async ({ page }) => {
     await register(page);
     const projectId = await createProject(page, unique("Load"));
@@ -81,55 +70,5 @@ test.describe("Settings reads its own loader", () => {
     await expect(page.getByLabel(`Name of the ${name} property`)).toBeVisible();
     expect(seen).toContain("settings");
     expect(seen).not.toContain("board");
-  });
-
-  test("the card view preview in Settings still draws real tasks", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Load"));
-    const heavy = await eightTasks(page, projectId);
-
-    const seen = reads(page);
-    await gotoSettings(page, projectId, "card");
-    await expect(page.getByText(heavy)).toBeVisible();
-    expect(seen).not.toContain("board");
-  });
-
-  test("a previewed task counts its parts and its blockers as the board does", async ({ page }) => {
-    await register(page);
-    const projectId = await createProject(page, unique("Load"));
-    const heavy = await eightTasks(page, projectId);
-    const make = async (title: string): Promise<string> =>
-      (
-        await (
-          await page.request.post(`/api/projects/${projectId}/tasks`, { data: { title } })
-        ).json()
-      ).task.id;
-
-    const board: Answer = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
-    const heavyId = board.tasks.find((t) => t.title === heavy)!.id;
-    const parent = await make("Parent");
-    const done = await make("Part done");
-    await page.request.put(`/api/tasks/${await make("Part open")}/parent`, {
-      data: { parentId: parent },
-    });
-    await page.request.put(`/api/tasks/${done}/parent`, { data: { parentId: parent } });
-    await page.request.post(`/api/tasks/${done}/archive`);
-    await page.request.post(`/api/tasks/${heavyId}/blockers`, { data: { blockerId: parent } });
-
-    type Card = { id: string; parts: unknown; blockedBy: string[] };
-    const settings: { tasks: Card[] } = await (
-      await page.request.get(`/api/projects/${projectId}/settings`)
-    ).json();
-    const whole: { tasks: Card[] } = await (
-      await page.request.get(`/api/projects/${projectId}/board`)
-    ).json();
-    const ids = settings.tasks.map((t) => t.id);
-    expect(ids).toContain(heavyId);
-    expect(ids).toContain(parent);
-    for (const task of settings.tasks) {
-      expect(task).toEqual(whole.tasks.find((t) => t.id === task.id));
-    }
-    expect(settings.tasks.find((t) => t.id === parent)!.parts).toEqual({ done: 1, total: 2 });
-    expect(settings.tasks.find((t) => t.id === heavyId)!.blockedBy).toHaveLength(1);
   });
 });

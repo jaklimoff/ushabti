@@ -171,9 +171,9 @@ four workers at most.
 | `run-history.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | Paging is the route; the panel draws the pages. |
 | `search.spec.ts` | 6 | done (USH-273) | 2 | 4 |  |  |  | The box and its list; `searchTasks()` already has unit tests. The plan moved all six, but the two that find by title and by key carry `@smoke` and stay. |
 | `select-menu.spec.ts` | 3 | done (USH-273) |  | 3 |  |  |  | The menu is a component. A reload there is the server's copy here, drawn again. The file is gone. |
-| `settings-controls.spec.ts` | 6 | move |  | 6 |  |  |  | Sizes and colours are what a component test measures. |
-| `settings-load.spec.ts` | 4 | move | 1 | 1 |  | 2 |  | Keep a change by somebody else reaching Settings. |
-| `settings-select.spec.ts` | 4 | move |  | 4 |  |  |  | The menu is a component. |
+| `settings-controls.spec.ts` | 6 | done (USH-279) |  | 6 |  |  |  | Sizes and colours are what a component test measures. They went to `SettingsControls.test.tsx`, with the app's own stylesheet, and the file is gone. |
+| `settings-load.spec.ts` | 4 | done (USH-279) | 1 | 1 |  | 2 |  | Keep a change by somebody else reaching Settings. What the loader answers is `settings-route.test.ts`; the preview drawing it is `CardViewPanel.test.tsx`. |
+| `settings-select.spec.ts` | 4 | done (USH-279) |  | 4 |  |  |  | The menu is a component. It went to `SettingsSelect.test.tsx`, and the file is gone. |
 | `settings.spec.ts` | 21 | done (USH-274) | 2 | 19 |  | 2 |  | Keep the invite that joins on sign-up and the main view the board opens on. The plan sent the two delete counts to route tests alone, but each also has a screen half, the question held while its count is on the way, so they went to `PropertiesPanel.test.tsx` as well as `properties-route.test.ts`. The label test now draws Project with releases on, since USH-226 shows Public changelog only then. |
 | `ship.spec.ts` | 6 | done (USH-280) | 1 | 2 |  | 3 |  | Keep Move, which archives and moves on. Unship from Settings went to the route: its button and question were already `OptionDates.test.tsx`, so what it alone held is that the archived tasks stay archived. Clear has a screen half in `Progress.test.tsx`. |
 | `shipped-iteration.spec.ts` | 5 | move |  | 3 |  | 2 |  | What leaves the board is the read; the fold is Settings. |
@@ -182,8 +182,8 @@ four workers at most.
 | `switcher.spec.ts` | 6 | done (USH-273) |  | 6 |  |  |  | The switcher is a menu. Where a press went is the link it followed or the route it pushed, not the next page. The file is gone. |
 | `task-keys.spec.ts` | 1 | done (USH-272) |  | 1 |  |  |  | A key in Markdown is the page's rule. |
 | `text-save.spec.ts` | 5 | done (USH-272) |  | 4 |  | 1 |  | A conflict is a 409 the fake can answer. A tick and a value refusing nothing is the route. |
-| `type-defaults.spec.ts` | 7 | move |  | 3 |  | 4 |  | What a create starts with is the route's answer. |
-| `types.spec.ts` | 4 | move |  | 3 |  | 1 |  | The Types page is a component. |
+| `type-defaults.spec.ts` | 7 | done (USH-279) |  | 3 |  | 5 |  | What a create starts with is the route's answer, in `types-route.test.ts`. The box saved on a closed tab also has a route half, that the server keeps and clears what it sends. The composer and the Types page went to `TypesPanel.test.tsx`, and the file is gone. |
+| `types.spec.ts` | 4 | done (USH-279) |  | 3 |  | 1 |  | The Types page is a component, in `TypesPanel.test.tsx`; which select may be the Type is `types-route.test.ts`. The file is gone. |
 | `undo-delete.spec.ts` | 8 | done (USH-277) | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
 | `upload.spec.ts` | 4 | done (USH-282) | 2 | 2 |  |  |  | Keep the two uploads through the bucket. The description's drop and the stopped upload's line went to `Upload.test.tsx`, with the bucket answered in the page. |
 | `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. Its tasks and agent are made by the routes, not the composer and Settings (USH-283). |
