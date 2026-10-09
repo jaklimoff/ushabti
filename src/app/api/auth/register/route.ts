@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { projectInvites, projectMembers, users } from "@/db/schema";
+import { projectInvites, users } from "@/db/schema";
+import { joinProject } from "@/lib/membership";
 import { createSession, hashPassword, HttpError, refuseIfLimited, signupIsOpen } from "@/lib/auth";
 import { body, broadcast, json, route, str } from "@/lib/api";
 import { pickAvatarColor } from "@/lib/colors";
@@ -71,10 +72,8 @@ async function signUp(req: Request): Promise<Response> {
       .delete(projectInvites)
       .where(eq(projectInvites.email, email))
       .returning({ projectId: projectInvites.projectId });
-    if (joined.length) {
-      await tx
-        .insert(projectMembers)
-        .values(joined.map((i) => ({ projectId: i.projectId, userId: user.id, role: "member" })));
+    for (const invite of joined) {
+      await joinProject(tx, { projectId: invite.projectId, userId: user.id, role: "member" });
     }
     return { user, joined };
   });

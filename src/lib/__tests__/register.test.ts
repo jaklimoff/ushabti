@@ -23,6 +23,8 @@ const fake = vi.hoisted(() => {
       if (outer && inTransaction) throw new Error("a write went past the transaction");
     };
     return {
+      // The lock `joinProject` takes on the person's list.
+      execute: () => Promise.resolve(),
       select: (shape: Record<string, unknown>) => ({
         from: (table: unknown) => ({
           where: () => {
@@ -30,8 +32,10 @@ const fake = vi.hoisted(() => {
             if ((table as Record<symbol, string>)[NAME] === "project_invites") {
               afterInviteRead?.();
             }
+            const limit = (n: number) => Promise.resolve(found.slice(0, n));
             return Object.assign(Promise.resolve(found), {
-              limit: (n: number) => Promise.resolve(found.slice(0, n)),
+              limit,
+              orderBy: () => ({ limit }),
             });
           },
         }),

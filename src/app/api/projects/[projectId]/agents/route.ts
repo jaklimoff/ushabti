@@ -1,4 +1,5 @@
-import { projectMembers, users } from "@/db/schema";
+import { users } from "@/db/schema";
+import { joinProject } from "@/lib/membership";
 import { body, broadcast, clientIdOf, adminOnly, guard, json, route, str } from "@/lib/api";
 import { loadAgents, refuseTakenName } from "@/lib/agents";
 import { pickAvatarColor } from "@/lib/colors";
@@ -46,7 +47,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         createdAt: users.createdAt,
       });
 
-    await tx.insert(projectMembers).values({ projectId, userId: agent.id, role: "member" });
+    await joinProject(tx, { projectId, userId: agent.id, role: "member" });
     return agent;
   });
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });

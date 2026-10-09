@@ -50,6 +50,7 @@ import { loadOpenRuns, loadTaskRuns } from "./runs";
 import { agentsAtWork, mainColumns, type LastChange, type ProjectPulse } from "./pulse";
 import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
+import { joinProject } from "./membership";
 import { kickSender } from "./webhooks";
 import { GROUPABLE_TYPES, isSelect, VIEW_KINDS } from "./types";
 import type {
@@ -184,20 +185,24 @@ export async function agentProject(projectId: string) {
 }
 
 export async function listProjects(userId: string) {
-  return db
-    .select({
-      id: projects.id,
-      name: projects.name,
-      key: projects.key,
-      ownerId: projects.ownerId,
-      role: projectMembers.role,
-      createdAt: projects.createdAt,
-      waiting: waitingIn(),
-    })
-    .from(projectMembers)
-    .innerJoin(projects, eq(projects.id, projectMembers.projectId))
-    .where(eq(projectMembers.userId, userId))
-    .orderBy(asc(projects.createdAt));
+  return (
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        key: projects.key,
+        ownerId: projects.ownerId,
+        role: projectMembers.role,
+        createdAt: projects.createdAt,
+        waiting: waitingIn(),
+      })
+      .from(projectMembers)
+      .innerJoin(projects, eq(projects.id, projectMembers.projectId))
+      .where(eq(projectMembers.userId, userId))
+      /* The one order of a person's projects, which they set by dragging on
+       Home. No screen sorts them again. */
+      .orderBy(byPos(projectMembers.position), desc(projectMembers.createdAt))
+  );
 }
 
 /**
@@ -264,11 +269,7 @@ export async function createProject(userId: string, name: string, key: string) {
       .values({ name, key: key.toUpperCase(), ownerId: userId })
       .returning();
 
-    await tx.insert(projectMembers).values({
-      projectId: project.id,
-      userId,
-      role: "owner",
-    });
+    await joinProject(tx, { projectId: project.id, userId, role: "owner" });
 
     const propRanks = rankSequence(DEFAULT_PROPERTIES.length);
     const byName = new Map<string, string>();

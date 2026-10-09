@@ -77,7 +77,7 @@ export function IconButton({
   className,
   children,
   ...rest
-}: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "aria-label"> & {
+}: Omit<React.ComponentProps<"button">, "aria-label"> & {
   label: string;
   danger?: boolean;
 }) {

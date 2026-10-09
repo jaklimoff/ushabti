@@ -67,7 +67,9 @@ test("a list made on Home opens a task on its own board @smoke", async ({ page }
   await expect(rows.filter({ hasText: "Todo work" })).toBeVisible();
   await expect(rows.filter({ hasText: "Other work" })).toBeVisible();
   await expect(rows.filter({ hasText: "Backlog work" })).toHaveCount(0);
-  await expect(page.getByTestId("list-group").first()).toContainText("Status is Todo");
+  await expect(page.getByTestId("list-group").filter({ hasText: oneKey }).first()).toContainText(
+    "Status is Todo",
+  );
 
   await rows.filter({ hasText: "Todo work" }).click();
   await page.waitForURL(new RegExp(`/p/${one}\\?task=${oneKey}-`));

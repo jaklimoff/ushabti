@@ -124,10 +124,14 @@ and what is easy to get wrong.
   card view, the main view is the one that says which property the columns are.
 - **A view is dragged by naming what it landed on, never a rank.** The strip
   and the settings page write the same one order, so `landedAfter` in
-  `store.tsx` is the only place that works the neighbour out and the route is
-  the only place that makes a rank, under the project lock. A property in
-  Settings is dragged the same way: `moveProperty` takes what it landed on and
-  asks that one helper.
+  `src/lib/landed.ts` is the only place that works the neighbour out and the
+  route is the only place that makes a rank, under the project lock. A
+  property in Settings is dragged the same way: `moveProperty` takes what it
+  landed on and asks that one helper. So is a project on Home, with one
+  difference: the order is the person's, a `position` on their membership, so
+  its route reads only their memberships and locks their user row instead of
+  a project. `joinProject` in `src/lib/membership.ts` writes every membership,
+  at the top of that person's list.
   A pill is a button first: the drag starts after five pixels and dnd-kit
   swallows the click that follows, so picking a view and moving one cannot
   happen at once. The pill's colour follows the view and not its place, because
