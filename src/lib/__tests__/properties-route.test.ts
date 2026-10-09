@@ -151,3 +151,43 @@ describe("Custom properties", () => {
     expect(values[made["Blocked"]]).toBe(true);
   });
 });
+
+/*
+ * The server's half of two tests of `e2e/settings.spec.ts`. The question the
+ * delete row asks while the count is on its way, and a late count that must
+ * not name the next option, are `PropertiesPanel.test.tsx`.
+ */
+describe("Settings", () => {
+  it("the delete row counts the values, and the board read does not", async () => {
+    const { owner, project: p, me, property } = await setUp();
+    const made = await task(owner, p.id, "One task with a status");
+    const status = await property("Status");
+    const todo = status.options.find((o) => o.name === "Todo")!;
+    await ok(me.put(`/api/tasks/${made.id}/values/${status.id}`, { value: todo.id }));
+
+    /* The count used to ride on every board read. Nothing carries it now, so
+       the daily read no longer pays for a number the owner reads once. */
+    expect(await board(owner, p.id)).not.toHaveProperty("valueCounts");
+
+    const count = await ok<{ values: number }>(me.get(`/api/properties/${status.id}/count`));
+    expect(count.values).toBe(1);
+  });
+
+  it("an option count names its own option, and counts a label list", async () => {
+    const { owner, project: p, me, property } = await setUp();
+    const made = await task(owner, p.id, "Holds bug and ux");
+    const labels = await property("Labels");
+    const idOf = (name: string) => labels.options.find((o) => o.name === name)!.id;
+
+    /* A multi-select holds its options in a list, so the count reads the list. */
+    await ok(
+      me.put(`/api/tasks/${made.id}/values/${labels.id}`, { value: [idOf("bug"), idOf("ux")] }),
+    );
+
+    const count = (name: string) =>
+      ok<{ tasks: number }>(me.get(`/api/options/${idOf(name)}/count`));
+    expect((await count("ux")).tasks).toBe(1);
+    expect((await count("bug")).tasks).toBe(1);
+    expect((await count("feature")).tasks).toBe(0);
+  });
+});

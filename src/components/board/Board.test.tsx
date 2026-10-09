@@ -741,3 +741,23 @@ describe("The top bar with cards picked", () => {
     }
   });
 });
+
+/* Was "a new board says where its columns come from" in `e2e/settings.spec.ts`. */
+describe("A new board", () => {
+  test("a new board says where its columns come from", async () => {
+    const data = newProject();
+    const { sent } = await draw(data);
+    const hint = page.getByText(/every field on a task is yours to rename/i);
+    await expect.element(hint).toBeVisible();
+
+    await page.getByRole("button", { name: "Add a task to Todo" }).first().click();
+    const input = page.getByPlaceholder("What needs doing?");
+    await input.fill("Now it is a real board");
+    await userEvent.keyboard("{Enter}");
+    await wrote(() => sent("POST", TASKS), 1);
+
+    // It is guidance for an empty board, not furniture.
+    await gone(hint);
+    await expect.element(column("Todo")).toBeVisible();
+  });
+});

@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
-import { newProject, renderWithBoard, type Answer, type Sent } from "@/test/board";
+import { ME, newProject, renderWithBoard, withTask, type Answer, type Sent } from "@/test/board";
 import { FILES_OFF_NOTE } from "@/lib/attachments";
 import { BoardShell } from "@/components/board/BoardApp";
 import { ProjectPanel } from "./ProjectPanel";
+import { SettingsShell } from "./SettingsShell";
+import { TypesPanel } from "./TypesPanel";
 
 /*
  * The Agent rules box of Settings -> Project: what it counts and what it
@@ -248,3 +250,145 @@ describe("Changelog", () => {
     await expect.element(page.getByRole("button", { name: "Make it public" })).toBeVisible();
   });
 });
+
+/* Each test below was a test of `e2e/settings.spec.ts`, and its name is the
+   name it had there. */
+describe("Settings", () => {
+  test("changing the project key warns about the tasks it renames", async () => {
+    const data = newProject();
+    withTask(data, "Named after the key", { Status: "Todo" });
+    await renderWithBoard(<ProjectPanel files={false} />, data);
+
+    await page.getByLabelText("Project key", { exact: true }).fill("ZZZ");
+    await expect.element(page.getByText(/1 task is called .*today/)).toBeVisible();
+  });
+
+  test("the project delete asks for the key", async () => {
+    const data = newProject();
+    const { sent } = await renderWithBoard(<ProjectPanel files={false} />, data);
+
+    await page.getByRole("button", { name: "Delete project" }).click();
+    const go = page.getByRole("button", { name: "Delete for good" });
+    await expect.element(go).toBeDisabled();
+
+    await page.getByLabelText("Type the project key to confirm").fill(data.project.key);
+    await expect.element(go).toBeEnabled();
+    expect(sent("DELETE")).toEqual([]);
+    await go.click();
+    await wrote(() => sent("DELETE", PROJECT), 1);
+    expect(sent("DELETE", PROJECT)[0].path).toBe(`/api/projects/${data.project.id}`);
+  });
+});
+
+/*
+ * A field saves on blur, and a tab closed on a focused field sends no blur.
+ * The save goes out on the way off the page instead. A closed tab raises
+ * pagehide, which is what these tests raise; that the server keeps the zone
+ * is the project route's own.
+ */
+describe("An edit the tab was closed on", () => {
+  test("the time zone is saved although nothing was blurred", async () => {
+    const { patches } = await draw();
+    const zone = page.getByLabelText("The time zone this project's day is worked out in");
+    await zone.fill("Europe/Berlin");
+
+    // The box still has the focus. Closing the tab here is the lost edit.
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    await wrote(patches, 1);
+    expect(patches()[0].body).toEqual({ timeZone: "Europe/Berlin" });
+    const leave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(leave?.[1]?.keepalive).toBe(true);
+  });
+
+  /*
+   * A box mirrors what is saved, and the mirror goes stale the moment another
+   * tab changes it. Leaving on that mirror would put the old words back, which
+   * is not a lost edit being saved but a saved edit being lost.
+   */
+  test("a tab that typed nothing writes nothing back", async () => {
+    const data = newProject();
+    const server = structuredClone(data);
+    const { sent, ring } = await renderWithBoard(
+      <SettingsShell initial={data} user={ME} version="0.0.0">
+        <ProjectPanel files={false} />
+      </SettingsShell>,
+      data,
+      ({ method, path }) =>
+        method === "GET" && /\/(settings|board)$/.test(path) ? { body: server } : undefined,
+    );
+    await expect.element(page.getByLabelText("Project name")).toBeVisible();
+
+    // The other tab renames the project, and this one hears about it.
+    server.project = { ...server.project, name: "Renamed elsewhere" };
+    ring();
+    /* The bar of this tab, and not the answer to its read: the tab is still
+       holding the name it was born with until the read lands. */
+    await expect
+      .element(page.getByTestId("project-switcher"))
+      .toHaveAccessibleName("Renamed elsewhere");
+
+    // Nobody typed in this tab, so closing it writes nothing.
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sent("PATCH")).toEqual([]);
+  });
+});
+
+describe("Settings on a laptop", () => {
+  test("the project page groups its cards under headings, the danger zone last", async () => {
+    // "Files" shows only on a server with no bucket, so this one has a bucket.
+    await renderWithBoard(<ProjectPanel files />, newProject());
+    await expect
+      .poll(() =>
+        page
+          .getByRole("heading", { level: 2 })
+          .elements()
+          .map((h) => h.textContent),
+      )
+      .toEqual([
+        "Name and key",
+        "Dates and progress",
+        "Agents",
+        "Releases and sprints",
+        "Sharing and export",
+        "Danger zone",
+      ]);
+  });
+
+  /* "Public changelog" is drawn only while releases are on (USH-226), so the
+     page is drawn with them on; the spec had not caught up. */
+  test("no inline label breaks onto a second line", async () => {
+    const data = releasesOn();
+    const project = await renderWithBoard(<ProjectPanel files />, data);
+    await expect.element(page.getByLabelText("Project name")).toBeVisible();
+    for (const label of [
+      "Name",
+      "Key",
+      "Time zone",
+      "Done when",
+      "Count progress by",
+      "Releases",
+      "Sprints",
+      "Public changelog",
+      "Export",
+    ]) {
+      expect(linesOf(label), `"${label}" takes ${linesOf(label)} lines`).toBe(1);
+    }
+    await project.screen.unmount();
+
+    await renderWithBoard(<TypesPanel />, newProject());
+    await expect.element(page.getByLabelText("Types come from")).toBeVisible();
+    expect(linesOf("Types come from")).toBe(1);
+  });
+});
+
+/** The lines the words of the one span that reads `label` fill. */
+function linesOf(label: string): number {
+  const spans = [...document.querySelectorAll("span")].filter(
+    (el) => el.childNodes.length === 1 && el.textContent === label,
+  );
+  expect(spans, `one span reads "${label}"`).toHaveLength(1);
+  const range = document.createRange();
+  range.selectNodeContents(spans[0].firstChild!);
+  return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+}

@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { commands, page, userEvent, type Locator } from "vitest/browser";
 import { BoardShell } from "@/components/board/BoardApp";
 import type { BoardData } from "@/lib/types";
 import {
   newProject,
+  optionOf,
   propertyOf,
   renderWithBoard,
   withTask,
@@ -417,3 +418,172 @@ describe("Custom properties", () => {
     ]);
   });
 });
+
+/** Wraps `fetch` once more, so a test can hold one answer until it lets go. */
+function around(
+  hook: (path: string, pass: () => Promise<Response>) => Promise<Response> | undefined,
+) {
+  const before = globalThis.fetch;
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const pass = () => before(input, init);
+    return hook(new URL(String(input), location.origin).pathname, pass) ?? pass();
+  });
+}
+
+/** A promise held until `release` is called. */
+function holding() {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  return { held, release };
+}
+
+/* Each test below was a test of `e2e/settings.spec.ts`, and its name is the
+   name it had there. What the counts answer on a real database is
+   `properties-route.test.ts`. */
+describe("Settings", () => {
+  /* The moment worth testing is the one a fast machine never shows: the
+     question is on screen and does not yet name its cost. It must not be
+     answerable in that moment. That the board read carries no count is the
+     route test's half. */
+  test("the delete row counts the values, and the board read does not", async () => {
+    const data = newProject();
+    withTask(data, "One task with a status", { Status: "Todo" });
+    const status = propertyOf(data, "Status");
+    await renderWithBoard(<PropertiesPanel />, data, ({ method, path }) =>
+      method === "GET" && path === `/api/properties/${status.id}/count`
+        ? { body: { values: 1 } }
+        : undefined,
+    );
+    const { held, release } = holding();
+    around((path, pass) => (path.endsWith("/count") ? held.then(pass) : undefined));
+
+    await propertyBox("Status").getByRole("button", { name: "Delete the property Status" }).click();
+    const yes = page.getByRole("button", { name: "Yes, delete" });
+    await expect
+      .element(page.getByText("Delete Status? Counting what goes with it…"))
+      .toBeVisible();
+    await expect.element(yes).toBeDisabled();
+
+    release();
+    await expect.element(yes).toBeEnabled();
+    await expect
+      .element(page.getByText("Delete Status? 5 options and 1 value go with it."))
+      .toBeVisible();
+  });
+
+  test("deleting an option asks first, and names the tasks that lose it", async () => {
+    const data = newProject();
+    withTask(data, "Holds urgent", { Status: "Todo", Priority: "Urgent" });
+    const urgent = optionOf(data, "Priority", "Urgent");
+    // The server's board, which loses the option when the delete lands.
+    const server = structuredClone(data);
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, ({ method, path }) => {
+      if (method === "DELETE" && path === `/api/options/${urgent}`) {
+        const priority = propertyOf(server, "Priority");
+        priority.options = priority.options.filter((o) => o.id !== urgent);
+        return { body: { ok: true } };
+      }
+      if (method === "GET" && path.endsWith("/board")) return { body: server };
+      if (method !== "GET" || !path.endsWith("/count")) return undefined;
+      return { body: { tasks: path === `/api/options/${urgent}/count` ? 1 : 0 } };
+    });
+    const box = propertyBox("Priority");
+    const chipOf = box.getByLabelText("Name of the option Urgent");
+
+    await box.getByRole("button", { name: "Delete the option Urgent" }).click();
+    await expect.element(page.getByText("Delete Urgent? 1 task loses it.")).toBeVisible();
+
+    // Nothing goes until the question is answered.
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect.element(chipOf).toBeVisible();
+    expect(sent("DELETE")).toEqual([]);
+
+    await box.getByRole("button", { name: "Delete the option Urgent" }).click();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await wrote(() => sent("DELETE", OPTION), 1);
+    expect(sent("DELETE", OPTION)[0].path).toBe(`/api/options/${urgent}`);
+    await gone(chipOf);
+
+    // An option nobody holds says so, rather than a count of nought.
+    await box.getByRole("button", { name: "Delete the option Low" }).click();
+    await expect.element(page.getByText("Delete Low? No task holds it.")).toBeVisible();
+  });
+
+  /* The first count is held, and the person moves on to another option before
+     it lands. The late answer must not name the second option's cost. */
+  test("an option count names its own option, and counts a label list", async () => {
+    const data = newProject();
+    withTask(data, "Holds bug and ux", { Status: "Todo", Labels: ["bug", "ux"] });
+    const feature = optionOf(data, "Labels", "feature");
+    await renderWithBoard(<PropertiesPanel />, data, ({ method, path }) => {
+      if (method !== "GET" || !path.endsWith("/count")) return undefined;
+      return { body: { tasks: path === `/api/options/${feature}/count` ? 0 : 1 } };
+    });
+    const { held, release } = holding();
+    let late: Promise<Response> | null = null;
+    around((path, pass) => {
+      if (path !== `/api/options/${feature}/count`) return undefined;
+      late = held.then(pass);
+      return late;
+    });
+
+    const box = propertyBox("Labels");
+    await box.getByRole("button", { name: "Delete the option feature" }).click();
+    await expect
+      .element(page.getByText("Delete feature? Counting the tasks that hold it…"))
+      .toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await box.getByRole("button", { name: "Delete the option ux" }).click();
+    await expect.element(page.getByText("Delete ux? 1 task loses it.")).toBeVisible();
+
+    release();
+    await late;
+    await pause(50);
+    await expect.element(page.getByText("Delete ux? 1 task loses it.")).toBeVisible();
+    expect(page.getByText(/^Delete feature\?/).elements()).toHaveLength(0);
+  });
+});
+
+describe("Settings on a phone", () => {
+  afterEach(() => page.viewport(1440, 900));
+
+  test("the properties page fits the screen, down to the option marks", async () => {
+    await page.viewport(390, 780);
+    await renderWithBoard(<PropertiesPanel />, newProject());
+
+    await expect.element(page.getByRole("heading", { name: "Properties" })).toBeVisible();
+    // Seven properties of the new project, five of them with options.
+    await expect.poll(() => byTestId("property-box").elements()).toHaveLength(7);
+
+    const doc = document.documentElement;
+    expect(Math.max(doc.scrollWidth - doc.clientWidth, 0)).toBe(0);
+    // Every box draws the whole of its own text.
+    const names = [
+      ...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" property"]'),
+    ];
+    expect(names).toHaveLength(7);
+    for (const name of names) {
+      const cut = name.scrollWidth - name.clientWidth;
+      expect(cut, `"${name.value}" is cut off by ${cut} px`).toBeLessThanOrEqual(0);
+    }
+    // The option grips say "Move" too, so the property grips are named in full.
+    const words = names.map((b) => b.value);
+    forAFinger(page.getByRole("button", { name: new RegExp(`^Move (${words.join("|")})$`) }), 7);
+    forAFinger(page.getByRole("button", { name: /^Colour of / }), 24);
+    forAFinger(page.getByRole("button", { name: /^Delete the option / }), 24);
+    forAFinger(page.getByRole("button", { name: /^Move the option / }), 24);
+  });
+});
+
+/** A finger needs 24 px each way, whatever a mouse would settle for. */
+function forAFinger(targets: Locator, count: number) {
+  const all = targets.elements();
+  expect(all).toHaveLength(count);
+  for (const target of all) {
+    const label = target.getAttribute("aria-label");
+    const at = target.getBoundingClientRect();
+    expect(at.width, `${label} is ${at.width} px wide`).toBeGreaterThanOrEqual(24);
+    expect(at.height, `${label} is ${at.height} px tall`).toBeGreaterThanOrEqual(24);
+  }
+}
