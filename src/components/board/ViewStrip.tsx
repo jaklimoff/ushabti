@@ -24,6 +24,7 @@ import {
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useEdgeFade } from "./edges";
 import { FilterButton, SortButton } from "./Filters";
+import { copyText } from "@/lib/clipboard";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 
@@ -284,6 +285,11 @@ export function ViewStrip({
  * description and a line of instructions for a keyboard drag, and this strip
  * has no keyboard sensor to keep that promise. Those two are dropped, and the
  * tooltip names the view, because a long name is cut short on the pill.
+ *
+ * The open view carries a second button beside it that copies its link. It is
+ * a button of its own and not a menu on the pill, so a click still picks, a
+ * drag still moves, and Tab reaches it. It shows on hover and focus, and
+ * always on a screen without a pointer to hover with.
  */
 function ViewPill({
   view,
@@ -294,6 +300,7 @@ function ViewPill({
   active: boolean;
   onPick: () => void;
 }) {
+  const { data, notify } = useBoard();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: view.id,
     transition: { duration: 190, easing: "cubic-bezier(0.2, 0, 0, 1)" },
@@ -305,32 +312,60 @@ function ViewPill({
     ...buttonAttributes
   } = attributes;
 
+  /* The same words as a task's link, and the same shape as the address bar's,
+     built from wherever the board is served. */
+  async function copyLink() {
+    const link = `${window.location.origin}/p/${data.project.id}?view=${view.id}`;
+    if (await copyText(link)) notify("Link copied", "info");
+    else notify("The link did not copy. The address bar holds it.");
+  }
+
   return (
-    <button
+    <span
       ref={setNodeRef}
-      className={[styles.pill, active ? styles.pillActive : "", isDragging ? styles.pillLifted : ""]
-        .filter(Boolean)
-        .join(" ")}
-      data-testid="view-pill"
-      title={view.name}
-      aria-current={active ? "true" : undefined}
+      className={[styles.pillWrap, isDragging ? styles.pillLifted : ""].filter(Boolean).join(" ")}
       style={{
         transform: CSS.Translate.toString(transform),
         transition: transition ?? undefined,
       }}
-      onClick={onPick}
-      {...buttonAttributes}
-      {...listeners}
     >
-      {/* The one place the two kinds sit side by side, so the mark earns its
+      <button
+        className={[styles.pill, active ? styles.pillActive : ""].filter(Boolean).join(" ")}
+        data-testid="view-pill"
+        title={view.name}
+        aria-current={active ? "true" : undefined}
+        onClick={onPick}
+        {...buttonAttributes}
+        {...listeners}
+      >
+        {/* The one place the two kinds sit side by side, so the mark earns its
           pixels. */}
-      {view.kind !== "board" ? (
-        <ViewKindMark kind={view.kind} on={active} color={color} />
-      ) : (
-        <span className={styles.pillDot} style={{ background: color }} />
+        {view.kind !== "board" ? (
+          <ViewKindMark kind={view.kind} on={active} color={color} />
+        ) : (
+          <span className={styles.pillDot} style={{ background: color }} />
+        )}
+        {view.name}
+      </button>
+      {active && (
+        <button
+          className={styles.pillLink}
+          aria-label={`Copy link to ${view.name}`}
+          title="Copy link"
+          onClick={() => void copyLink()}
+        >
+          <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" focusable="false">
+            <path
+              d="M5 7l2-2M4.2 5.6L3 6.8a1.7 1.7 0 0 0 2.4 2.4L6.4 8M7.8 6.4L9 5.2A1.7 1.7 0 0 0 6.6 2.8L5.6 4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
       )}
-      {view.name}
-    </button>
+    </span>
   );
 }
 

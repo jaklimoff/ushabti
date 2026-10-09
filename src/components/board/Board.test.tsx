@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { commands, page, userEvent, type Locator } from "vitest/browser";
 import type { BoardData, TaskDTO } from "@/lib/types";
 import {
@@ -301,6 +301,79 @@ describe("Ushabti board", () => {
     // A drag is not a click: the board still shows the view it was on, which
     // is the one with the Status columns and not the Phase ones.
     await expect.element(column("Backlog")).toBeVisible();
+  });
+
+  test("a link with ?view= opens that view over the remembered one", async () => {
+    const data = newProject();
+    const [main, phases] = data.views;
+    window.localStorage.setItem(`ushabti:view:${data.project.id}`, phases.id);
+    window.history.replaceState(null, "", `?view=${main.id}`);
+    await draw(data, { keepStorage: true });
+
+    const pills = byTestId("view-pill");
+    await expect
+      .element(pills.filter({ hasText: "Board" }))
+      .toHaveAttribute("aria-current", "true");
+    await expect.element(column("Backlog")).toBeVisible();
+    // Landing on a link is not a pick, so the browser still remembers its own.
+    expect(window.localStorage.getItem(`ushabti:view:${data.project.id}`)).toBe(phases.id);
+  });
+
+  test("a link to a view this project lacks opens the remembered one", async () => {
+    const data = newProject();
+    const phases = data.views[1];
+    window.localStorage.setItem(`ushabti:view:${data.project.id}`, phases.id);
+    window.history.replaceState(null, "", "?view=00000000-0000-4000-8000-000000000000");
+    await draw(data, { keepStorage: true });
+
+    await expect
+      .element(byTestId("view-pill").filter({ hasText: "Phases" }))
+      .toHaveAttribute("aria-current", "true");
+  });
+
+  test("a pick after landing on a link rewrites the address, so a reload keeps it", async () => {
+    const data = newProject();
+    const [main, phases] = data.views;
+    window.history.replaceState(null, "", `?view=${phases.id}`);
+    const first = await draw(data);
+    const pill = (name: string) => byTestId("view-pill").filter({ hasText: name });
+    await expect.element(pill("Phases")).toHaveAttribute("aria-current", "true");
+
+    await pill("Board").click();
+    await expect.element(pill("Board")).toHaveAttribute("aria-current", "true");
+    expect(new URL(window.location.href).searchParams.get("view")).toBe(main.id);
+
+    await first.screen.unmount();
+    await draw(data, { keepStorage: true });
+    await expect.element(pill("Board")).toHaveAttribute("aria-current", "true");
+  });
+
+  test("the open pill copies its link, and the keyboard reaches it", async () => {
+    const data = newProject();
+    const phases = data.views[1];
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    await draw(data);
+    const pill = (name: string) => byTestId("view-pill").filter({ hasText: name });
+
+    await pill("Phases").click();
+    await expect.element(pill("Phases")).toHaveAttribute("aria-current", "true");
+    // Only the open view carries one.
+    expect(page.getByRole("button", { name: /^Copy link to / }).elements()).toHaveLength(1);
+
+    const copy = page.getByRole("button", { name: "Copy link to Phases" });
+    html(pill("Phases")).focus();
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(copy.element());
+    expect(box(copy).width).toBeGreaterThan(0);
+
+    await userEvent.keyboard("{Enter}");
+    await expect.element(byTestId("toast")).toHaveTextContent("Link copied");
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/p/${data.project.id}?view=${phases.id}`,
+    );
+    // The copy picked nothing and moved nothing.
+    await expect.element(pill("Phases")).toHaveAttribute("aria-current", "true");
+    writeText.mockRestore();
   });
 
   /* Was "a column folds to a strip, takes a card, and opens again". The drop

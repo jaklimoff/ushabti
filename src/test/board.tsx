@@ -337,8 +337,15 @@ export async function renderWithBoard(
      reload would, keeps it on purpose. */
   if (!keepStorage) window.localStorage.clear();
 
+  /* The page reads `?view=` once, as a load does. It is taken out of the
+     address here so that the next test does not land on it. */
+  const address = new URL(window.location.href);
+  const initialView = address.searchParams.get("view");
+  address.searchParams.delete("view");
+  window.history.replaceState(null, "", address.toString());
+
   const screen = await render(
-    <BoardProvider initial={data} user={user}>
+    <BoardProvider initial={data} user={user} initialView={initialView}>
       {ui}
     </BoardProvider>,
   );
