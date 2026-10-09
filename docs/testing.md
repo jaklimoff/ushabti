@@ -67,8 +67,11 @@ walks Playwright's own mouse there in small steps; `userEvent.dragAndDrop`
 jumps once and dnd-kit never lifts. A reload is a second `renderWithBoard`
 with `{ keepStorage: true }`, which keeps what the browser stored, and
 `{ user }` signs in somebody other than `ME`.
-`commands.touch(true)` makes the page a touch screen, which answers
-`(hover: none)` as `hasTouch` did end to end; turn it off after. A route
+A finger test goes in a `*.touch.test.tsx` file. The `browser (touch)`
+instance draws it in a page made with `hasTouch`, so it answers
+`(hover: none)` as a phone does. No other file may switch touch on: Chromium
+cannot turn `(hover: none)` back off in a page, and every later file in that
+page loses its hover. A route
 pushed is written in `pushed` of `src/test/next-navigation.ts`.
 
 The task panel reads and writes more than the board. `serving()` in
@@ -154,7 +157,7 @@ four workers at most.
 | `parents.spec.ts` | 3 | move |  | 2 |  | 1 |  | One level deep is the server's rule. |
 | `password-fill.spec.ts` | 3 | move |  | 3 |  |  |  | A value with no event is a box. |
 | `pick-labels.spec.ts` | 3 | done (USH-273) |  | 2 |  | 1 |  | The bulk route keeps what it did not change. The bar went to `Pick.test.tsx`, the route to `pick-route.test.ts`, and the file is gone. |
-| `pick.spec.ts` | 18 | done (USH-273) | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283), and the agent's refused archive after them. The list under a finger turns on Chromium's touch emulation, as `hasTouch` did. |
+| `pick.spec.ts` | 18 | done (USH-273) | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283), and the agent's refused archive after them. The list under a finger went to `Pick.touch.test.tsx`, drawn in a page made with `hasTouch`. |
 | `presence.spec.ts` | 4 | done (USH-282) | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. The phone's faces went to `Presence.test.tsx`, spoken through the stubbed stream, and the agent's refusal to `presence-route.test.ts`. |
 | `progress.spec.ts` | 4 | done (USH-275) |  | 3 |  | 2 |  | `progressOf` sums the bar; the header is a component. The plan had a unit test, but `progress.test.ts` already holds the sum, so the unit-count test went to the header with the phone width; the unit picked is also kept by the route. The file is gone. |
 | `project-waiting.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | Keep the count that changes live. |

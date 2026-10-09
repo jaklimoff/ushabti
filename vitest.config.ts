@@ -1,7 +1,10 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
 import { commands } from "./src/test/commands";
+
+/* The tests drawn in a page with touch. */
+const TOUCH = "src/**/*.touch.test.tsx";
 
 const src = (path: string) => fileURLToPath(new URL(`./src/${path}`, import.meta.url));
 
@@ -53,7 +56,19 @@ export default defineConfig({
             locators: { exact: false },
             provider: playwright(),
             commands,
-            instances: [{ browser: "chromium" }],
+            /* A page with touch answers `(hover: none)`, as a phone does, and
+               Chromium cannot turn that back off in a page. So a finger test
+               lives in a `.touch.test.tsx` file, drawn in pages made with
+               touch, and no other file lands in a page with no hover. */
+            instances: [
+              { browser: "chromium", exclude: [...configDefaults.exclude, TOUCH] },
+              {
+                browser: "chromium",
+                name: "browser (touch)",
+                include: [TOUCH],
+                provider: playwright({ contextOptions: { hasTouch: true } }),
+              },
+            ],
           },
         },
       },

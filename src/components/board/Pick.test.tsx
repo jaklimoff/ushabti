@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "vitest";
-import { commands, page, userEvent, type Locator } from "vitest/browser";
+import { page, userEvent, type Locator } from "vitest/browser";
 import type { BoardData } from "@/lib/types";
 import {
   ME,
@@ -119,7 +119,6 @@ async function setProperty(property: string) {
 }
 
 afterEach(async () => {
-  await commands.touch(false);
   await page.viewport(1440, 900);
 });
 
@@ -549,35 +548,6 @@ describe("/ while cards are picked", () => {
     await expect.element(byTestId("search-box")).toHaveFocus();
     /* The key opened the box; it did not land in it. */
     await expect.element(byTestId("search-box")).toHaveValue("");
-  });
-});
-
-/*
- * The check in a list gutter under a finger. It was a 14 px square in a 28 px
- * gutter on a 32 px row, and a miss opened the task.
- */
-describe("Picking on a list under a finger", () => {
-  test("gives the check a finger's room, and draws the same check", async () => {
-    await page.viewport(390, 780);
-    await commands.touch(true);
-    expect(matchMedia("(hover: none)").matches).toBe(true);
-    const data = newProject();
-    withTask(data, "Aardvark", { Status: "Todo" });
-    withList(data, "Everything");
-    await draw(data);
-
-    const pickCheck = listRow("Aardvark").getByTestId("list-pick");
-    await expect.element(pickCheck).toBeInTheDocument();
-    /* It stands there without a hover, because a finger has none. */
-    expect(getComputedStyle(pickCheck.element()).opacity).toBe("1");
-    const at = pickCheck.element().getBoundingClientRect();
-    expect(at.width).toBeGreaterThanOrEqual(24);
-    expect(at.height).toBeGreaterThanOrEqual(24);
-
-    /* The button grew around the box, so the check reads as it always did. */
-    const box = pickCheck.getByTestId("list-pick-box").element().getBoundingClientRect();
-    expect(Math.round(box.width)).toBe(14);
-    expect(Math.round(box.height)).toBe(14);
   });
 });
 

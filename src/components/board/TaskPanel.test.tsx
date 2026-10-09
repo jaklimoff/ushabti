@@ -70,6 +70,8 @@ function boxValue(): string {
 
 /** The e2e helper `fillBox`: everything in the box, replaced by these words. */
 async function fillBox(text: string) {
+  /* The editor is a lazy chunk, so the click that opens it draws it later. */
+  await expect.element(byTestId("live-editor")).toBeInTheDocument();
   (byTestId("live-editor").element() as HTMLElement).focus();
   await userEvent.keyboard("{ControlOrMeta>}a{/ControlOrMeta}");
   await userEvent.keyboard(text);
