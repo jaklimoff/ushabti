@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.21.0 — 2026-10-09
+
 ### Added
 
 - **A run's whole log and every past run can be read.** The Agent tab shows **Show earlier
@@ -37,7 +39,6 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **A long title is cut to three lines on a card.** One card no longer towers over its column.
   The whole title shows when you hover a card or a list row.
-
 - **A watcher knows from the feed whether a change is for it.** A value line now carries the
   property's `type`, and a person line the `personId` it names; a `created` line carries
   `assigneeIds`. `board.mjs watch` decides from those, so a card dragged across a column no
@@ -62,6 +63,23 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   page shows **Add type** to every person on the project, not only the owner and the admins.
   Deleting a property, an option or a type stays an admin's. An agent token that tries to create
   a property gets `403 Only a person can do this.`
+- **Tasks of a person who left keep their name, marked as gone.** A card, a list row and the panel
+  show "Ada (left)" with a faded face, where they used to show nobody. A board grouped by a person
+  gives them a column of their own until their tasks are handed on, so Unassigned on the board and
+  in the filter mean the same thing. The filter lists them under **Left the project**; the picker
+  shows them as the value but never offers them. Somebody who rejoins is a member again.
+- **Releases and sprints are switches in Settings.** Settings → Project has **Use releases** and
+  **Use sprints** in place of **Set up sprints**. Use releases adds a dated property Release and a
+  Roadmap on it; Use sprints asks for the length and the first day and makes what Set up sprints
+  made. Off asks first, says what stays in numbers, and deletes nothing; on again makes nothing
+  twice. The **Options carry dates** switch is gone from Properties, and a select dated before keeps
+  its dates. A project that dated a select or had an iteration has its switches on after the
+  upgrade.
+- **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
+  **Close**: it ends the sprint and moves its unfinished tasks to the next one or leaves them, and
+  the finished tasks stay on the board. A task in a closed sprint and an open release stays until
+  the release ships. The changelog lists releases only, and a closed sprint's line in the feed says
+  `closed` where a release's says `shipped`.
 
 ### Fixed
 
@@ -84,27 +102,6 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **Settings opens without reading every task.** It reads the project, its properties, views and
   people, and only the few tasks the card view preview draws. A change somebody else makes reloads
   only that, so Settings stays quick on a project of thousands of tasks.
-
-### Changed
-
-- **Tasks of a person who left keep their name, marked as gone.** A card, a list row and the panel
-  show "Ada (left)" with a faded face, where they used to show nobody. A board grouped by a person
-  gives them a column of their own until their tasks are handed on, so Unassigned on the board and
-  in the filter mean the same thing. The filter lists them under **Left the project**; the picker
-  shows them as the value but never offers them. Somebody who rejoins is a member again.
-
-- **Releases and sprints are switches in Settings.** Settings → Project has **Use releases** and
-  **Use sprints** in place of **Set up sprints**. Use releases adds a dated property Release and a
-  Roadmap on it; Use sprints asks for the length and the first day and makes what Set up sprints
-  made. Off asks first, says what stays in numbers, and deletes nothing; on again makes nothing
-  twice. The **Options carry dates** switch is gone from Properties, and a select dated before keeps
-  its dates. A project that dated a select or had an iteration has its switches on after the
-  upgrade.
-- **Closing a sprint archives nothing; only shipping a release does.** A sprint's button is now
-  **Close**: it ends the sprint and moves its unfinished tasks to the next one or leaves them, and
-  the finished tasks stay on the board. A task in a closed sprint and an open release stays until
-  the release ships. The changelog lists releases only, and a closed sprint's line in the feed says
-  `closed` where a release's says `shipped`.
 
 ## 0.20.0 — 2026-10-07
 
