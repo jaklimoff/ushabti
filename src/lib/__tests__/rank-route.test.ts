@@ -1,36 +1,35 @@
-import { expect, test } from "@playwright/test";
-import { createProject, register, unique } from "./helpers";
-import { RANK_CAP } from "../src/lib/rank";
+import { describe, expect, it, vi } from "vitest";
+import { RANK_CAP } from "@/lib/rank";
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/db", () => import("@/test/db"));
+vi.mock("next/headers", () => import("@/test/headers"));
+
+const { api, board, ok, person, project } = await import("@/test/route");
 
 /** The rewrite lands at about the 187th append. This walks a little past it. */
 const APPENDS = 220;
 
-/**
+/*
  * The end of a list only ever climbs.
  *
  * Each task added to the end halves the room above the one before it, so a
  * rank grows a character every sixth append and a board that is only ever
  * appended to runs out of room at about the 190th. The next append mends the
  * tail instead of growing past the cap: one spread, one statement, under the
- * project lock.
- *
- * There is no screen for this. A person adding tasks sees nothing move,
- * because the order is kept, so the path is walked through the API and what
- * it promises is read back off the board.
+ * project lock. There is no screen for this, so it was always walked through
+ * the create route; it was `e2e/rank.spec.ts`.
  */
-test.describe("Adding tasks to the end of a board", () => {
-  test("mends the ranks when they run out of room", async ({ page }) => {
-    test.setTimeout(120_000);
-    await register(page);
-    const projectId = await createProject(page, unique("Ranks"));
+describe("Adding tasks to the end of a board", { timeout: 30_000 }, () => {
+  it("mends the ranks when they run out of room", async () => {
+    const owner = await person();
+    const p = await project(owner);
 
     const answered: string[] = [];
     for (let i = 0; i < APPENDS; i += 1) {
-      const made = await page.request.post(`/api/projects/${projectId}/tasks`, {
-        data: { title: `Rank ${i + 1}` },
-      });
-      expect(made.status()).toBe(201);
-      answered.push(((await made.json()) as { task: { position: string } }).task.position);
+      const made = await api(owner).post(`/api/projects/${p.id}/tasks`, { title: `Rank ${i + 1}` });
+      expect(made.status).toBe(201);
+      answered.push((await ok<{ task: { position: string } }>(made)).task.position);
     }
 
     // The ranks really did climb to the cap, and then one append answered with
@@ -39,10 +38,8 @@ test.describe("Adding tasks to the end of a board", () => {
     const mended = answered.findIndex((r, i) => i > 0 && r.length < answered[i - 1].length);
     expect(mended).toBeGreaterThan(0);
 
-    const board = (await (await page.request.get(`/api/projects/${projectId}/board`)).json()) as {
-      tasks: { title: string; position: string }[];
-    };
-    const ours = board.tasks.filter((t) => t.title.startsWith("Rank "));
+    const read = (await board(owner, p.id)) as { tasks: { title: string; position: string }[] };
+    const ours = read.tasks.filter((t) => t.title.startsWith("Rank "));
     expect(ours).toHaveLength(APPENDS);
 
     /* Sorted by the order they were added, not by the rank, so the ranks have

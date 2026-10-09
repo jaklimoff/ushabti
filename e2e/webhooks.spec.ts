@@ -24,6 +24,15 @@ type Receiver = {
   stop: () => Promise<void>;
 };
 
+/**
+ * The name the server calls this machine by. The receiver listens on this
+ * machine's loopback, which is the server's own only when Playwright started
+ * it, as on CI. The reused dev server runs in Docker, where 127.0.0.1 is the
+ * container, so there it calls the name Docker gives the host.
+ */
+const HOOK_HOST =
+  process.env.USHABTI_TEST_HOOK_HOST || (process.env.CI ? "127.0.0.1" : "host.docker.internal");
+
 async function receiver(answer = 200): Promise<Receiver> {
   const rings: Ring[] = [];
   let waiting: ((ring: Ring) => void) | null = null;
@@ -44,7 +53,7 @@ async function receiver(answer = 200): Promise<Receiver> {
   const port = (server.address() as { port: number }).port;
 
   return {
-    url: `http://127.0.0.1:${port}/hook`,
+    url: `http://${HOOK_HOST}:${port}/hook`,
     rings,
     next: (ms = 20_000) =>
       new Promise<Ring>((done, fail) => {
@@ -240,12 +249,12 @@ test.describe("Webhooks", () => {
         );
         return rows[0].id;
       });
-      const queue = () =>
+      const queue = (webhookId: string) =>
         inDatabase(async (client) => {
           await client.query(
             `insert into webhook_deliveries (webhook_id, body, next_try_at)
              values ($1, $2::jsonb, now())`,
-            [hookId, JSON.stringify({ delivery: "x", kind: "test" })],
+            [webhookId, JSON.stringify({ delivery: "x", kind: "test" })],
           );
         });
 
@@ -253,20 +262,45 @@ test.describe("Webhooks", () => {
       const jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
       /* The board read is where the sender is started, so this is the whole
          of what a drain looks like from outside. */
-      const drain = async () => {
-        await request.get(`/api/projects/${projectId}/board`, { headers: { cookie: jar } });
-        await page.waitForTimeout(1200);
-      };
+      const drain = () =>
+        request.get(`/api/projects/${projectId}/board`, { headers: { cookie: jar } });
 
-      await queue();
-      await drain();
-      expect(hook.rings).toHaveLength(0);
+      /* A second webhook that stays on says when a drain has been: one drain
+         takes every due row of a hook that is on, so once its delivery,
+         queued behind the other, has rung, the drain has passed the one that
+         is off. */
+      const witness = await receiver();
+      try {
+        const made = await request.post(`/api/projects/${projectId}/webhooks`, {
+          headers: { cookie: jar },
+          data: { url: witness.url },
+        });
+        expect(made.ok()).toBeTruthy();
+        const witnessId = ((await made.json()) as { webhook: { id: string } }).webhook.id;
+
+        await queue(hookId);
+        await queue(witnessId);
+        await expect
+          .poll(async () => {
+            await drain();
+            return witness.rings.length;
+          })
+          .toBeGreaterThan(0);
+        expect(hook.rings).toHaveLength(0);
+      } finally {
+        await witness.stop();
+      }
 
       // Back on, and the one that was waiting goes out.
+      // The witness is on, so the one button that turns a webhook on is ours.
       await page.getByRole("button", { name: "Turn on" }).click();
-      await expect(page.getByRole("button", { name: "Turn off" })).toBeVisible();
-      await drain();
-      expect(hook.rings.length).toBeGreaterThan(0);
+      await expect(page.getByRole("button", { name: "Turn on" })).toHaveCount(0);
+      await expect
+        .poll(async () => {
+          await drain();
+          return hook.rings.length;
+        })
+        .toBeGreaterThan(0);
     } finally {
       await hook.stop();
     }

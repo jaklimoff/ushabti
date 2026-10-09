@@ -138,12 +138,22 @@ test.describe("Who else has the task open", () => {
     await register(owner.page, "Owner Person");
     const projectId = await createProject(owner.page, unique("Phone"));
     const names = ["Ada Lovelace", "Grace Hopper", "Barbara Liskov"];
-    for (const [i, other] of others.entries()) {
-      const account = await register(other.page, names[i]);
-      await addMember(owner.page, projectId, account.email);
-    }
+    /* The People screen is not what this checks, so the members join by the
+       route it calls. */
+    await Promise.all(
+      others.map(async (other, i) => {
+        const account = await register(other.page, names[i]);
+        const added = await owner.page.request.post(`/api/projects/${projectId}/members`, {
+          data: { email: account.email },
+        });
+        expect(added.ok()).toBeTruthy();
+      }),
+    );
 
     await owner.page.goto(`/p/${projectId}`);
+    /* A presence is said once and the stream has no replay, so one said
+       before this tab listens is never heard. */
+    await expect(owner.page.getByTestId("live-dot")).toBeVisible();
     await addTask(owner.page, "Todo", "Crowded");
     const taskId = await taskIdOf(owner.page, projectId, "Crowded");
     await owner.page.setViewportSize({ width: 390, height: 844 });

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
@@ -145,13 +145,44 @@ test.describe("A write of more than a page of lines", () => {
 
   type FeedEntry = { id: string; kind: string; createdAt: string; taskKey: string | null };
 
+  /** A page of the feed is 200 lines, so a burst of this many is one page and a bit. */
+  const BURST = 210;
+
+  /** The lines a watcher has read, as its `--state` file names them. */
+  function readSeen(file: string): string[] {
+    try {
+      return (JSON.parse(readFileSync(file, "utf8")) as { seen: string[] }).seen;
+    } catch {
+      return [];
+    }
+  }
+
+  /** A new file for a watcher's `--state`. */
+  const stateFile = () =>
+    path.join(mkdtempSync(path.join(os.tmpdir(), "ushabti-state-")), "watch.json");
+
+  /** Every line the feed holds after `since`, read page by page as the watcher does. */
+  async function linesAfter(request: APIRequestContext, projectId: string, since: string) {
+    const lines: FeedEntry[] = [];
+    let page = `after=${encodeURIComponent(since)}`;
+    for (;;) {
+      const { entries } = (await (
+        await request.get(`/api/projects/${projectId}/activity?${page}&limit=200`)
+      ).json()) as { entries: FeedEntry[] };
+      lines.push(...entries);
+      if (entries.length < 200) return lines;
+      const last = entries[entries.length - 1];
+      page = `after=${encodeURIComponent(last.createdAt)}&afterId=${last.id}`;
+    }
+  }
+
   /** Makes `count` tasks with no value in a select, and archives that column in one write. */
   async function archiveBurst(request: APIRequestContext, projectId: string, count: number) {
     const { board } = await taskByTitle(request, projectId, "Keep me");
     const select = board.properties.find((p: { type: string }) => p.type === "select");
-    for (let made = 0; made < count; made += 10) {
+    for (let made = 0; made < count; made += 25) {
       await Promise.all(
-        Array.from({ length: Math.min(10, count - made) }, (_, i) =>
+        Array.from({ length: Math.min(25, count - made) }, (_, i) =>
           request
             .post(`/api/projects/${projectId}/tasks`, { data: { title: `Burst ${made + i}` } })
             .then((res) => expect(res.ok()).toBeTruthy()),
@@ -206,7 +237,7 @@ test.describe("A write of more than a page of lines", () => {
     return { watcher, out, finished };
   }
 
-  test("after 300 cards are archived in one write, an assignment that follows wakes the watcher", async ({
+  test("after more than a page of cards is archived in one write, an assignment that follows wakes the watcher", async ({
     page,
   }) => {
     test.setTimeout(240_000);
@@ -215,14 +246,26 @@ test.describe("A write of more than a page of lines", () => {
     await keepTask(page);
     const token = await connectAgent(page, projectId, "Refiner");
 
-    const { watcher, out, finished } = watch(token, []);
+    const state = stateFile();
+    const { watcher, out, finished } = watch(token, ["--state", state]);
     try {
       await page.goto(`/p/${projectId}`);
       await expect(page.getByTestId("listening-agent")).toBeVisible();
 
-      await archiveBurst(page.request, projectId, 300);
-      // The watcher reads the burst before the assignment arrives.
-      await page.waitForTimeout(3_000);
+      const since = await archiveBurst(page.request, projectId, BURST);
+      /* The watcher reads the whole burst before the assignment arrives. Its
+         state file names every line it has read. */
+      const burst = (await linesAfter(page.request, projectId, since)).map((e) => e.id);
+      expect(burst).toHaveLength(BURST);
+      await expect
+        .poll(
+          () => {
+            const seen = new Set(readSeen(state));
+            return burst.filter((id) => !seen.has(id)).length;
+          },
+          { timeout: 30_000 },
+        )
+        .toBe(0);
       const key = await assignTo(page.request, projectId, "Refiner");
 
       expect(await finished(), out.text).toBe(0);
@@ -239,7 +282,7 @@ test.describe("A write of more than a page of lines", () => {
     const projectId = await createProject(page, unique("Stuck"));
     await keepTask(page);
     const token = await connectAgent(page, projectId, "Refiner");
-    const since = await archiveBurst(page.request, projectId, 300);
+    const since = await archiveBurst(page.request, projectId, BURST);
 
     /* What a watcher of the old release left behind: its cursor on the
        burst's moment, and the first page of the burst seen. */
@@ -251,7 +294,7 @@ test.describe("A write of more than a page of lines", () => {
       ).json()
     ).entries as FeedEntry[];
     expect(first).toHaveLength(200);
-    const state = path.join(mkdtempSync(path.join(os.tmpdir(), "ushabti-state-")), "watch.json");
+    const state = stateFile();
     writeFileSync(
       state,
       JSON.stringify({ projectId, cursor: first[0].createdAt, seen: first.map((e) => e.id) }),

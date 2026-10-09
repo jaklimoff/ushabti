@@ -1,14 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import {
-  addFilter,
-  addTask,
-  backdateRun,
-  card,
-  createProject,
-  gotoSettings,
-  register,
-  unique,
-} from "./helpers";
+import { addFilter, backdateRun, card, createProject, register, unique } from "./helpers";
 
 /** The calls an agent makes, with the token in place of a session cookie. */
 function agentApi(request: APIRequestContext, token: string) {
@@ -20,18 +11,18 @@ function agentApi(request: APIRequestContext, token: string) {
   };
 }
 
+/** An agent with one token, made by the routes Settings -> People calls. */
 async function connectAgent(page: Page, projectId: string, name: string): Promise<string> {
-  await gotoSettings(page, projectId, "people");
-  await page.getByLabel("Name of the new agent").fill(name);
-  await page.getByRole("button", { name: "Add agent" }).click();
-  const box = page.getByTestId("agent-box").filter({ hasText: name });
-  await box.getByRole("button", { name: "Connect" }).click();
-  await box.getByRole("button", { name: "Make token" }).click();
-  const token = (
-    (await page.getByTestId("agent-secret").first().locator("code").first().textContent()) ?? ""
-  ).trim();
-  expect(token).toMatch(/^ush_/);
-  return token;
+  const made = await page.request.post(`/api/projects/${projectId}/agents`, { data: { name } });
+  expect(made.ok()).toBeTruthy();
+  const { agent } = (await made.json()) as { agent: { id: string } };
+  const minted = await page.request.post(`/api/projects/${projectId}/agents/${agent.id}/tokens`, {
+    data: {},
+  });
+  expect(minted.ok()).toBeTruthy();
+  const { secret } = (await minted.json()) as { secret: string };
+  expect(secret).toMatch(/^ush_/);
+  return secret;
 }
 
 /**
@@ -41,12 +32,25 @@ async function connectAgent(page: Page, projectId: string, name: string): Promis
 async function askTwice(page: Page, request: APIRequestContext, third = false) {
   await register(page, "Waited On");
   const projectId = await createProject(page, unique("Waiting"));
-  await addTask(page, "Backlog", "Older question");
-  await page.getByRole("button", { name: "Close task" }).click();
+  /* The tasks are made by the route the composer calls: the list is what
+     this checks, and five trips through the composer were most of its time. */
+  const made = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+  const status = made.properties.find((p: { name: string }) => p.name === "Status");
+  const option = (name: string) =>
+    status.options.find((o: { name: string }) => o.name === name).id as string;
   const more = third ? ["Newest question"] : [];
-  for (const title of ["Newer question", "Hands it over", "Just works", ...more]) {
-    await addTask(page, "Todo", title);
-    await page.getByRole("button", { name: "Close task" }).click();
+  const columns: [string, string][] = [
+    ["Older question", "Backlog"],
+    ...["Newer question", "Hands it over", "Just works", ...more].map((title): [string, string] => [
+      title,
+      "Todo",
+    ]),
+  ];
+  for (const [title, column] of columns) {
+    const res = await page.request.post(`/api/projects/${projectId}/tasks`, {
+      data: { title, values: { [status.id]: option(column) } },
+    });
+    expect(res.status()).toBe(201);
   }
   const api = agentApi(request, await connectAgent(page, projectId, "Asker"));
   const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
