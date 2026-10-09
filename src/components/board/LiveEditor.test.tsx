@@ -363,8 +363,14 @@ describe("The live description on a phone", () => {
     await page.viewport(390, 844);
     await openDescription();
     const long = "https://example.com/" + "a-very-long-path-segment/".repeat(12);
-    for (let i = 0; i < 25; i++)
-      await userEvent.keyboard(`${i === 3 ? long : `line ${i} of a long description`}{Enter}`);
+    /* Each line goes in as one insertion, as `fillBox` puts words in, and the
+       Enter between them is pressed. A key press per letter was a thousand
+       presses, and under load they outran the test's time and went on typing
+       into the next test in the same page. */
+    for (let i = 0; i < 25; i++) {
+      document.execCommand("insertText", false, i === 3 ? long : `line ${i} of a long description`);
+      await userEvent.keyboard("{Enter}");
+    }
     await userEvent.keyboard("the end");
     await expect.poll(boxValue).toContain("the end");
 

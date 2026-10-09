@@ -320,7 +320,11 @@ export function boxValue(): string {
  * so a line break is a line and not an Enter the box would answer.
  */
 export async function fillBox(text: string) {
-  (page.getByTestId("live-editor").element() as HTMLElement).focus();
+  /* The editor is a lazy chunk, so a click that opens it draws it later, and
+     under load later than the next line. */
+  const box = page.getByTestId("live-editor");
+  await expect.element(box).toBeInTheDocument();
+  (box.element() as HTMLElement).focus();
   await userEvent.keyboard("{ControlOrMeta>}a{/ControlOrMeta}");
   if (text === "") await userEvent.keyboard("{Backspace}");
   else document.execCommand("insertText", false, text);

@@ -25,9 +25,9 @@ function tapRule(face: Element, tip: Element): CSSStyleRule | null {
 
 describe("A listening agent", () => {
   /* Was e2e/listening.spec.ts "a listening agent says its name on hover and on
-     focus". The tap on a phone is the one part a component test cannot do:
-     Browser Mode cannot make a page with no hover, so the test reads the rule
-     a tap relies on instead. */
+     focus". The tap on a phone is not done here: this page has hover, and only
+     a `.touch.test.tsx` file is drawn in one without. So the test reads the
+     rule a tap relies on instead. */
   test("a listening agent says its name on hover and on focus", async () => {
     const data = newProject();
     withAgent(data, "Refiner", minutesAgo(0));

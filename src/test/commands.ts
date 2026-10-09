@@ -38,26 +38,10 @@ const drag: BrowserCommand<[from: Point, to: Point]> = async (context, from, to)
   await page.mouse.up();
 };
 
-/* A page with touch on answers `(hover: none)`, as a phone does, which is how
-   Playwright's `hasTouch` reaches the CSS. One session per page, kept, so the
-   setting holds until the test turns it off. */
-const sessions = new WeakMap<object, import("playwright").CDPSession>();
-const touch: BrowserCommand<[on: boolean]> = async (context, on) => {
-  if (context.provider.name !== "playwright") throw new Error("touch needs Playwright.");
-  const { page } = context as unknown as { page: import("playwright").Page };
-  let session = sessions.get(page);
-  if (!session) {
-    session = await page.context().newCDPSession(page);
-    sessions.set(page, session);
-  }
-  await session.send("Emulation.setTouchEmulationEnabled", { enabled: on, maxTouchPoints: 1 });
-};
-
-export const commands = { drag, touch };
+export const commands = { drag };
 
 declare module "vitest/browser" {
   interface BrowserCommands {
     drag: (from: Point, to: Point) => Promise<void>;
-    touch: (on: boolean) => Promise<void>;
   }
 }
