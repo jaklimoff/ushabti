@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **Home shows three projects to a row, as lists and charts do.** The three
+  sections share one column, so their cards line up, and a project card has
+  more room.
+
 ### Fixed
 
 - **A chart's bars fill the width of its panel again.** Since the project
