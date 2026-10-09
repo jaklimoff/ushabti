@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
-import type { BoardData, FilterRule } from "@/lib/types";
+import { NO_VALUE_KEY, type BoardData, type FilterRule } from "@/lib/types";
 import {
   newProject,
   optionOf,
   propertyOf,
   renderWithBoard,
+  withPerson,
   withTask,
   type Answer,
   type Sent,
@@ -126,6 +127,21 @@ async function addFilter(property: string, value: string) {
   await userEvent.keyboard("{Enter}");
   await userEvent.keyboard("{Escape}");
   await gone(byTestId("filter-menu"));
+}
+
+/** The element lies wholly inside the box it scrolls in. */
+function inSight(row: Element, list: Element): boolean {
+  const r = row.getBoundingClientRect();
+  const l = list.getBoundingClientRect();
+  return r.top >= l.top - 0.5 && r.bottom <= l.bottom + 0.5;
+}
+
+/** The row the box's highlight names. */
+function highlighted(): Element {
+  const id = byTestId("filter-box").element().getAttribute("aria-activedescendant");
+  const row = id && document.getElementById(id);
+  if (!row) throw new Error("Nothing is highlighted.");
+  return row;
 }
 
 /** A rule as the board stores it: an option set, named by option names. */
@@ -498,6 +514,60 @@ describe("Filters inside a view", () => {
     await byTestId("filter-promote").click();
     await expect.element(byTestId("toast")).toHaveTextContent(CLASH);
     expect(sent("POST", PROMOTE)).toEqual([]);
+  });
+});
+
+/* The box keeps the focus, so the browser never scrolls the list for the
+   highlight. Rows does, or Enter would pick a row nobody can see. */
+describe("A long list of values", () => {
+  test("ArrowDown to the 20th of 50 people keeps it visible", async () => {
+    const data = newProject();
+    for (let i = 1; i <= 50; i++) withPerson(data, `Person ${String(i).padStart(2, "0")}`);
+    await draw(data);
+    const scroll = window.scrollY;
+
+    await byTestId("filter-button").click();
+    await byTestId("filter-search").fill("Assignee");
+    await userEvent.keyboard("{Enter}");
+    await expect.element(byTestId("filter-box")).toHaveFocus();
+    const list = byTestId("filter-menu").getByRole("listbox").element();
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+
+    for (let i = 0; i < 20; i++) await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => highlighted().id).toMatch(/-20$/);
+    await expect.poll(() => inSight(highlighted(), list)).toBe(true);
+    expect(list.scrollTop).toBeGreaterThan(0);
+    // `nearest` moves the list and nothing behind the panel.
+    expect(window.scrollY).toBe(scroll);
+  });
+
+  test("ArrowUp from the first row wraps to the last, scrolls to it, and Enter picks it", async () => {
+    const data = newProject();
+    for (let i = 1; i <= 50; i++) withPerson(data, `Person ${String(i).padStart(2, "0")}`);
+    const { lensWrites } = await draw(data);
+
+    await byTestId("filter-button").click();
+    await byTestId("filter-search").fill("Assignee");
+    await userEvent.keyboard("{Enter}");
+    const list = byTestId("filter-menu").getByRole("listbox").element();
+    const rows = list.querySelectorAll('[role="option"]');
+    const last = rows[rows.length - 1];
+
+    await userEvent.keyboard("{ArrowUp}");
+    await expect.poll(() => highlighted()).toBe(last);
+    await expect.poll(() => inSight(last, list)).toBe(true);
+
+    // And round again: the first row comes back into sight at the top.
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => inSight(rows[0], list)).toBe(true);
+    expect(list.scrollTop).toBe(0);
+
+    await userEvent.keyboard("{ArrowUp}");
+    await expect.poll(() => inSight(last, list)).toBe(true);
+    await userEvent.keyboard("{Enter}");
+    await wrote(lensWrites, 1);
+    // A person's last row is "Nothing yet", after every member.
+    expect(rulesOf(lensWrites())[0].values).toEqual([NO_VALUE_KEY]);
   });
 });
 

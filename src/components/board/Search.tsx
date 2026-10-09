@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { hitNote, searchTasks, type Searchable, type SearchHit } from "@/lib/search";
 import { useDismiss } from "@/components/ui/useDismiss";
+import { useHighlightInView } from "./Ask";
 import { useShortcut } from "./keys";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
@@ -63,6 +64,7 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
      highlight that was near the bottom of a longer list. */
   const highlighted = hits.length ? Math.min(at, hits.length - 1) : 0;
   const listOpen = open && query.trim() !== "";
+  const list = useHighlightInView(highlighted, listOpen);
 
   const note = (hit: SearchHit) => hitNote(hit.task, shown.has(hit.task.id));
 
@@ -132,13 +134,14 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
           {hits.length === 0 ? (
             <span className={styles.filterNote}>No task by those words.</span>
           ) : (
-            <div className={styles.searchList} role="listbox" id="board-search-hits">
+            <div className={styles.searchList} role="listbox" id="board-search-hits" ref={list}>
               {hits.map((hit, i) => (
                 <div
                   key={hit.task.id}
                   id={`board-search-hits-${i}`}
                   role="option"
                   aria-selected={i === highlighted}
+                  data-at={i === highlighted}
                   data-testid="search-hit"
                   className={`${styles.searchItem} ${i === highlighted ? styles.searchItemAt : ""}`}
                   // The box keeps the focus, exactly as the filter panel does.

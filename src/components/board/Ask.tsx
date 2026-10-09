@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
 import type { PropertyDTO } from "@/lib/types";
 import styles from "./board.module.css";
@@ -45,10 +45,18 @@ export function Rows({
   empty: string;
   onPick: (row: Row) => void;
 }) {
+  const list = useRef<HTMLDivElement>(null);
+  /* The box keeps the focus, so the browser never scrolls the list for us.
+     Looked up inside this list, so two lists on one screen never mix. */
+  useEffect(() => {
+    const row = list.current?.querySelector<HTMLElement>(`[id="${listId}-${at}"]`);
+    row?.scrollIntoView?.({ block: "nearest" });
+  }, [at, listId, rows.length]);
+
   if (rows.length === 0) return <span className={styles.filterNote}>{empty}</span>;
 
   return (
-    <div className={styles.filterList} role="listbox" id={listId}>
+    <div className={styles.filterList} role="listbox" id={listId} ref={list}>
       {rows.map((row, i) => (
         <Fragment key={row.id}>
           {row.group && row.group !== rows[i - 1]?.group && (
@@ -84,6 +92,16 @@ export function Rows({
       ))}
     </div>
   );
+}
+
+/** A menu taller than its box scrolls, and the highlight must stay in sight. */
+export function useHighlightInView(at: number, open: boolean) {
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const row = menu.current?.querySelector<HTMLElement>('[data-at="true"]');
+    row?.scrollIntoView?.({ block: "nearest" });
+  }, [at, open]);
+  return menu;
 }
 
 /** Where an arrow key takes the highlight. It wraps; a short list is a ring. */
