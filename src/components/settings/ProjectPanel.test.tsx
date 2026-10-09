@@ -388,7 +388,7 @@ describe("Settings on a laptop", () => {
           .map((h) => h.textContent),
       )
       .toEqual([
-        "Name and key",
+        "Name, key and colour",
         "Dates and progress",
         "Agents",
         "Releases and sprints",
@@ -434,3 +434,32 @@ function linesOf(label: string): number {
   range.selectNodeContents(spans[0].firstChild!);
   return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
 }
+
+describe("Project colour", () => {
+  test("an admin picks a swatch, and it saves at once", async () => {
+    const data = newProject();
+    data.project.role = "admin";
+    const drawn = await renderWithBoard(<ProjectPanel files />, data, projectRoute(data));
+    const colours = page.getByRole("radiogroup", { name: "Project colour" });
+    await expect
+      .element(colours.getByRole("radio", { name: "Colour #7aa8f0" }))
+      .toHaveAttribute("aria-checked", "true");
+
+    await colours.getByRole("radio", { name: "Colour #ec8fb8" }).click();
+    await wrote(() => drawn.sent("PATCH", PROJECT), 1);
+    expect(drawn.sent("PATCH", PROJECT)[0].body).toEqual({ color: "#ec8fb8" });
+    await expect
+      .element(colours.getByRole("radio", { name: "Colour #ec8fb8" }))
+      .toHaveAttribute("aria-checked", "true");
+    await expect
+      .element(colours.getByRole("radio", { name: "Colour #7aa8f0" }))
+      .toHaveAttribute("aria-checked", "false");
+  });
+
+  test("a member sees the colour and cannot pick one", async () => {
+    const data = newProject();
+    data.project.role = "member";
+    await renderWithBoard(<ProjectPanel files />, data, projectRoute(data));
+    await expect.element(page.getByRole("radio", { name: "Colour #ec8fb8" })).toBeDisabled();
+  });
+});

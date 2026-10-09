@@ -723,6 +723,8 @@ export type ProjectDTO = {
   id: string;
   name: string;
   key: string;
+  /** The colour the project is drawn by, one of `PROJECT_COLORS`. */
+  color: string;
   ownerId: string;
   role: string;
   /**

@@ -16,6 +16,7 @@ import {
 } from "@/lib/api";
 import { logActivity } from "@/lib/activity";
 import { AGENT_RULES_MAX } from "@/lib/agent-rules";
+import { PROJECT_COLORS } from "@/lib/colors";
 import { rulesHash } from "@/lib/agent-rules-hash";
 import { isTimeZone, zoneRefused } from "@/lib/day";
 import { doneWhenRefused, readDoneWhen } from "@/lib/links";
@@ -33,6 +34,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const input = await body<{
     name?: string;
     key?: string;
+    color?: unknown;
     doneWhen?: unknown;
     progressBy?: unknown;
     typeBy?: unknown;
@@ -48,6 +50,14 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .replace(/[^A-Z0-9]/g, "");
     if (!key) throw new HttpError(400, "The project key needs at least one letter or digit.");
     patch.key = key;
+  }
+  /* Only a colour of the palette: each one keeps the key readable in dark
+     ink, and a hex from elsewhere might not. */
+  if (input.color !== undefined) {
+    if (!PROJECT_COLORS.includes(input.color as (typeof PROJECT_COLORS)[number])) {
+      throw new HttpError(400, "Pick one of the project colours.");
+    }
+    patch.color = input.color;
   }
   /*
    * What this project calls done, which is what makes a blocker stop

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { AVATAR_COLORS, facePaint, initials } from "@/lib/colors";
+import { AVATAR_COLORS, PROJECT_COLORS, PROJECT_INK, facePaint, initials } from "@/lib/colors";
 import { FACE_EMOJI, isOneEmoji } from "@/lib/emoji";
 import {
   placeMenu,
@@ -386,6 +386,43 @@ export function ColorSwatches({
           onClick={() => onPick(color)}
         >
           {mark}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The colour of a project. Each swatch carries the key as Home draws it, in
+ * dark ink on the colour, so the pick shows the square people will know.
+ */
+export function ProjectColorSwatches({
+  projectKey,
+  value,
+  disabled = false,
+  onPick,
+}: {
+  projectKey: string;
+  value: string;
+  disabled?: boolean;
+  onPick: (color: string) => void;
+}) {
+  return (
+    <div className={styles.swatches} role="radiogroup" aria-label="Project colour">
+      {PROJECT_COLORS.map((color) => (
+        <button
+          key={color}
+          type="button"
+          role="radio"
+          aria-checked={color === value}
+          aria-label={`Colour ${color}`}
+          title={color}
+          disabled={disabled}
+          className={`${styles.swatch} ${styles.swatchKey} ${color === value ? styles.swatchOn : ""}`}
+          style={{ backgroundColor: color, color: PROJECT_INK }}
+          onClick={() => onPick(color)}
+        >
+          {projectKey}
         </button>
       ))}
     </div>
