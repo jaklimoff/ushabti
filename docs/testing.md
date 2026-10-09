@@ -67,10 +67,13 @@ walks Playwright's own mouse there in small steps; `userEvent.dragAndDrop`
 jumps once and dnd-kit never lifts. A reload is a second `renderWithBoard`
 with `{ keepStorage: true }`, which keeps what the browser stored, and
 `{ user }` signs in somebody other than `ME`.
+`commands.touch(true)` makes the page a touch screen, which answers
+`(hover: none)` as `hasTouch` did end to end; turn it off after. A route
+pushed is written in `pushed` of `src/test/next-navigation.ts`.
 
 The task panel reads and writes more than the board. `serving()` in
 `src/test/panel.ts` answers it: the tasks, their comments, checklists and
-feed, with a text save refused by 409 when its base moved, as the routes
+feed, a set and an archive of picked cards, and a new option, with a text save refused by 409 when its base moved, as the routes
 refuse it. `wrote()` puts somebody else's save in first. `hear()` from
 `renderWithBoard` is another tab speaking on the stream, for a face or an
 editing sign.
@@ -98,7 +101,7 @@ everyone** has a race half and a half where the clash is on screen.
 One line per spec file, with how many of its tests stay end to end and where
 the rest go. **move** means most of it goes down, **keep** that most stays,
 and **drop** a test that a unit test already holds. The kept tests of a file
-may later be folded into one walk. The totals leave 90 tests end to end, and
+may later be folded into one walk. The totals leave 92 tests end to end, and
 the walks still to be written for the main flows bring it to about 100, on
 four workers at most.
 
@@ -150,8 +153,8 @@ four workers at most.
 | `panel-a11y.spec.ts` | 6 | done (USH-272) | 1 | 5 |  |  |  | Focus and roles are what a component test reads best. The plan moved all six, but the view strip's test carries `@smoke` and stays. |
 | `parents.spec.ts` | 3 | move |  | 2 |  | 1 |  | One level deep is the server's rule. |
 | `password-fill.spec.ts` | 3 | move |  | 3 |  |  |  | A value with no event is a box. |
-| `pick-labels.spec.ts` | 3 | move |  | 2 |  | 1 |  | The bulk route keeps what it did not change. |
-| `pick.spec.ts` | 18 | move | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283). |
+| `pick-labels.spec.ts` | 3 | done (USH-273) |  | 2 |  | 1 |  | The bulk route keeps what it did not change. The bar went to `Pick.test.tsx`, the route to `pick-route.test.ts`, and the file is gone. |
+| `pick.spec.ts` | 18 | done (USH-273) | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283), and the agent's refused archive after them. The list under a finger turns on Chromium's touch emulation, as `hasTouch` did. |
 | `presence.spec.ts` | 4 | keep | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. The phone test said its faces before the owner's tab listened, and the stream has no replay; it waits for the live dot now, and the members join by the route (USH-283). |
 | `progress.spec.ts` | 4 | move |  | 2 | 1 | 1 |  | `progressOf` sums the bar; the header is a component. |
 | `project-waiting.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | Keep the count that changes live. |
@@ -163,8 +166,8 @@ four workers at most.
 | `roadmap.spec.ts` | 6 | move |  | 4 | 2 |  |  | `roadmapRows()` says where a bar starts; the rest is the canvas. |
 | `roles.spec.ts` | 3 | move |  | 1 |  | 2 |  | The role rule is the route's; the question before Make owner is a row. |
 | `run-history.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | Paging is the route; the panel draws the pages. |
-| `search.spec.ts` | 6 | move |  | 6 |  |  |  | The box and its list; `searchTasks()` already has unit tests. |
-| `select-menu.spec.ts` | 3 | move |  | 3 |  |  |  | The menu is a component. |
+| `search.spec.ts` | 6 | done (USH-273) | 2 | 4 |  |  |  | The box and its list; `searchTasks()` already has unit tests. The plan moved all six, but the two that find by title and by key carry `@smoke` and stay. |
+| `select-menu.spec.ts` | 3 | done (USH-273) |  | 3 |  |  |  | The menu is a component. A reload there is the server's copy here, drawn again. The file is gone. |
 | `settings-controls.spec.ts` | 6 | move |  | 6 |  |  |  | Sizes and colours are what a component test measures. |
 | `settings-load.spec.ts` | 4 | move | 1 | 1 |  | 2 |  | Keep a change by somebody else reaching Settings. |
 | `settings-select.spec.ts` | 4 | move |  | 4 |  |  |  | The menu is a component. |
@@ -173,7 +176,7 @@ four workers at most.
 | `shipped-iteration.spec.ts` | 5 | move |  | 3 |  | 2 |  | What leaves the board is the read; the fold is Settings. |
 | `sprints.spec.ts` | 4 | move | 2 |  |  | 2 |  | Keep the two migrations, which need the real database. |
 | `stamps.spec.ts` | 3 | move | 1 | 1 | 1 |  |  | Keep server and browser reading the same day. |
-| `switcher.spec.ts` | 6 | move |  | 6 |  |  |  | The switcher is a menu. |
+| `switcher.spec.ts` | 6 | done (USH-273) |  | 6 |  |  |  | The switcher is a menu. Where a press went is the link it followed or the route it pushed, not the next page. The file is gone. |
 | `task-keys.spec.ts` | 1 | done (USH-272) |  | 1 |  |  |  | A key in Markdown is the page's rule. |
 | `text-save.spec.ts` | 5 | done (USH-272) |  | 4 |  | 1 |  | A conflict is a 409 the fake can answer. A tick and a value refusing nothing is the route. |
 | `type-defaults.spec.ts` | 7 | move |  | 3 |  | 4 |  | What a create starts with is the route's answer. |
@@ -183,5 +186,5 @@ four workers at most.
 | `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. Its tasks and agent are made by the routes, not the composer and Settings (USH-283). |
 | `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. The dev server runs in Docker, so the receiver is called by `host.docker.internal` there, and the queued delivery of a webhook that is off waits on a second webhook that rings instead of 1.2 seconds (USH-283). |
 | `when.spec.ts` | 7 | move |  | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. |
-| `words.spec.ts` | 4 | move |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. |
-| **80 files** | **460** | | **90** | **251** | **9** | **109** | **3** | |
+| `words.spec.ts` | 4 | done (USH-273) |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. The one word for each idea went to `Pick.test.tsx`, and the file is gone. |
+| **80 files** | **460** | | **92** | **249** | **9** | **109** | **3** | |
