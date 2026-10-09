@@ -581,7 +581,7 @@ function Activity({ days, last, now }: { days: number[]; last: string | null; no
         {days.map((n, i) => (
           <span
             key={i}
-            className={styles.bar}
+            className={styles.dayBar}
             data-today={(i === days.length - 1 && n > 0) || undefined}
             style={{ height: n > 0 ? Math.max(2, Math.round((n / busiest) * BAR_HEIGHT)) : 2 }}
             data-testid="project-day"

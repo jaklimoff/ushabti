@@ -71,6 +71,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A chart's bars stay inside their panel.** On Home the thirty bars ran out
   of the chart and over the next card, and an empty day drew as a full block.
   They now fill the panel's width, and an empty day is a hairline.
+- **Home fits a phone again.** The fourteen day bars on a project card were
+  each 32 pixels wide, so on a phone the card ran past the screen and the
+  page scrolled sideways. They now share the width of the card.
 
 ## 0.22.0 — 2026-10-09
 
