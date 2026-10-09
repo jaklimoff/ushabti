@@ -192,6 +192,27 @@ test.describe("The project list shows how every project is going", () => {
     await expect(card.getByTestId("project-last")).toHaveText("just now");
   });
 
+  test("the fourth row counts the last fourteen days, today in the accent", async ({ page }) => {
+    await register(page, "Pulse Watcher");
+    const projectId = await createProject(page, unique("Pulse"));
+    for (const title of ["One", "Two", "Three"]) {
+      expect(
+        (await page.request.post(`/api/projects/${projectId}/tasks`, { data: { title } })).ok(),
+      ).toBeTruthy();
+    }
+
+    await page.goto("/projects");
+    const card = page.locator(`a[href="/p/${projectId}"]`);
+    const bars = card.getByTestId("project-day");
+    await expect(bars).toHaveCount(14);
+    await expect(bars.last()).toHaveAttribute("data-today", "true");
+    await expect(bars.first()).not.toHaveAttribute("data-today");
+    await expect(card.getByTestId("project-changes")).toHaveText(/^\d+ changes, 14 days$/);
+    await expect(
+      card.getByRole("img", { name: /changes in 14 days\. The busiest day was today/ }),
+    ).toBeVisible();
+  });
+
   test("the second row reads the latest change, then the sprint, then the release", async ({
     page,
   }) => {

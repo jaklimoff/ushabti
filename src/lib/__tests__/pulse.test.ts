@@ -6,9 +6,13 @@ import {
   headingOf,
   isQuiet,
   mainColumns,
+  pulseDays,
+  pulseLabel,
+  quietFor,
   splitFolded,
   type LastChange,
 } from "../pulse";
+import { todayIn } from "../day";
 import type {
   AgentRunDTO,
   BoardData,
@@ -229,6 +233,56 @@ describe("isQuiet", () => {
     expect(isQuiet(at(22), now)).toBe(true);
     expect(isQuiet(at(20), now)).toBe(false);
     expect(isQuiet(null, now)).toBe(false);
+  });
+});
+
+describe("pulseDays", () => {
+  it("counts fourteen days ending on the project's today, oldest first", () => {
+    const rows = [
+      { day: "2026-10-09", count: 4 },
+      { day: "2026-09-26", count: 1 },
+      // The day before the first bar, and one after today: neither is drawn.
+      { day: "2026-09-25", count: 7 },
+      { day: "2026-10-10", count: 7 },
+    ];
+    expect(pulseDays(rows, "2026-10-09")).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4]);
+  });
+
+  it("ends on the day the project's zone has reached, across midnight", () => {
+    // 23:30 in UTC is already the next morning in Tokyo.
+    const moment = new Date("2026-10-09T23:30:00Z");
+    const rows = [
+      { day: "2026-10-09", count: 2 },
+      { day: "2026-10-10", count: 3 },
+    ];
+    const utc = pulseDays(rows, todayIn("UTC", moment));
+    const tokyo = pulseDays(rows, todayIn("Asia/Tokyo", moment));
+    expect(utc.slice(-2)).toEqual([0, 2]);
+    expect(tokyo.slice(-2)).toEqual([2, 3]);
+  });
+});
+
+describe("quietFor", () => {
+  const now = Date.parse("2026-10-09T12:00:00Z");
+  const ago = (days: number) => new Date(now - days * 86_400_000).toISOString();
+
+  it("counts weeks first, then months and years", () => {
+    expect(quietFor(ago(15), now)).toBe("2 weeks");
+    expect(quietFor(ago(21), now)).toBe("3 weeks");
+    expect(quietFor(ago(7), now)).toBe("1 week");
+    expect(quietFor(ago(75), now)).toBe("2 months");
+    expect(quietFor(ago(800), now)).toBe("2 years");
+  });
+});
+
+describe("pulseLabel", () => {
+  it("reads the total and the busiest day, the newest of two equal ones", () => {
+    const days = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 5, 1];
+    expect(pulseLabel(days)).toBe("11 changes in 14 days. The busiest day was yesterday, with 5.");
+    expect(pulseLabel([...Array(13).fill(0), 1])).toBe(
+      "1 change in 14 days. The busiest day was today, with 1.",
+    );
+    expect(pulseLabel(Array(14).fill(0))).toBe("0 changes in 14 days");
   });
 });
 
