@@ -296,8 +296,9 @@
   gap: 10px;
 }
 
-/* One height on every card, so the rows of a grid read level. */
-.bars {
+/* One height on every card, so the rows of a grid read level. Not `.bars`:
+   a chart's strip once shared the name and took this width. */
+.dayBars {
   flex: 1 1 auto;
   max-width: 140px;
   height: 32px;
@@ -957,7 +958,7 @@
   background: var(--bg-hover);
 }
 
-.bars {
+.chartBars {
   display: flex;
   align-items: flex-end;
   gap: 2px;
@@ -965,7 +966,7 @@
   border-radius: 3px;
 }
 
-.bars:focus-visible {
+.chartBars:focus-visible {
   outline: 1px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -1005,11 +1006,11 @@
   background: var(--accent);
 }
 
-.bars[data-lit] .chartBar {
+.chartBars[data-lit] .chartBar {
   opacity: 0.2;
 }
 
-.bars[data-lit] .barSlot[data-lit] .chartBar {
+.chartBars[data-lit] .barSlot[data-lit] .chartBar {
   opacity: 1;
 }
 

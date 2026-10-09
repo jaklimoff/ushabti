@@ -577,7 +577,7 @@ function Activity({ days, last, now }: { days: number[]; last: string | null; no
   const busiest = Math.max(1, ...days);
   return (
     <div className={`${styles.cardRow} ${styles.activity}`} data-testid="project-activity">
-      <div className={styles.bars} role="img" aria-label={pulseLabel(days)}>
+      <div className={styles.dayBars} role="img" aria-label={pulseLabel(days)}>
         {days.map((n, i) => (
           <span
             key={i}
