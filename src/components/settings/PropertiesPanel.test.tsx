@@ -122,6 +122,26 @@ function edgeRoom(root: Element): number {
 }
 
 /** The settings page above the board, both drawing from the one store. */
+/* A moved option is read back with the board right after the move. A server
+   that answered with the old order would put it back, and under load that read
+   lands before the test looks (CI, 2026-10-09). So the move is kept here, as
+   the route keeps it. */
+function keepsOptionMoves(data: BoardData): Answer {
+  return ({ method, path, body }) => {
+    const { afterId } = (body ?? {}) as { afterId?: string | null };
+    if (method !== "PATCH" || !OPTION.test(path) || afterId === undefined) return undefined;
+    const id = path.split("/").pop();
+    data.properties = data.properties.map((p) => {
+      const moved = p.options.find((o) => o.id === id);
+      if (!moved) return p;
+      const rest = p.options.filter((o) => o !== moved);
+      rest.splice(afterId === null ? 0 : rest.findIndex((o) => o.id === afterId) + 1, 0, moved);
+      return { ...p, options: rest };
+    });
+    return undefined;
+  };
+}
+
 async function draw(data: BoardData, settings = <PropertiesPanel />, answer?: Answer) {
   return renderWithBoard(
     <>
@@ -293,7 +313,7 @@ describe("Custom properties", () => {
     withTask(data, "Beetle", { Status: "Todo", Priority: "Urgent" });
     const priority = propertyOf(data, "Priority");
     data.views[0].sort = { columnId: priority.id, direction: "asc" };
-    const { sent } = await draw(data);
+    const { sent } = await draw(data, undefined, keepsOptionMoves(data));
     await expect.poll(() => columnOrder("Todo")).toEqual(["Beetle", "Aardvark"]);
 
     const prop = propertyBox("Priority");
@@ -315,9 +335,10 @@ describe("Custom properties", () => {
 
   test("the keyboard moves an option, and the columns follow it", async () => {
     const data = newProject();
-    const { sent } = await draw(data);
+    const { sent } = await draw(data, undefined, keepsOptionMoves(data));
     await expect.poll(() => columnNames().slice(0, 2)).toEqual(["BACKLOG", "TODO"]);
 
+    const todo = propertyOf(data, "Status").options[1].id;
     const status = propertyBox("Status");
     const grip = status.getByRole("button", { name: "Move the option Backlog" });
     (grip.element() as HTMLElement).focus();
@@ -328,9 +349,7 @@ describe("Custom properties", () => {
 
     await expect.poll(() => optionOrder(status).slice(0, 2)).toEqual(["Todo", "Backlog"]);
     await wrote(() => sent("PATCH", OPTION), 1);
-    expect(sent("PATCH", OPTION)[0].body).toEqual({
-      afterId: propertyOf(data, "Status").options[1].id,
-    });
+    expect(sent("PATCH", OPTION)[0].body).toEqual({ afterId: todo });
     await expect.poll(() => columnNames().slice(0, 2)).toEqual(["TODO", "BACKLOG"]);
   });
 
