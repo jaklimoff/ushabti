@@ -37,14 +37,17 @@ export function BoardApp({
   initial,
   user,
   initialTask,
+  initialView = null,
 }: {
   initial: BoardData;
   user: SessionUser;
   /** What the query said: a task key, or the uuid an older link carries. */
   initialTask: string | null;
+  /** The view the link names. One this project does not have is ignored. */
+  initialView?: string | null;
 }) {
   return (
-    <BoardProvider initial={initial} user={user}>
+    <BoardProvider initial={initial} user={user} initialView={initialView}>
       <BoardShell initialTask={initialTask} />
     </BoardProvider>
   );

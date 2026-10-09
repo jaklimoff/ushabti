@@ -26,6 +26,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A view has its own link.** The open view's pill carries a small Copy link
+  button, shown on hover and focus, and the address bar names the open view
+  with `?view=`. A link opens on that view, over the one this browser
+  remembers, and does not change what it remembers.
+
 - **A run's whole log and every past run can be read.** The Agent tab shows **Show earlier
   lines** on a run's log until its first line, and the lines you opened stay while the agent
   writes new ones. **Earlier runs** says how many there are and shows twenty more at a press.

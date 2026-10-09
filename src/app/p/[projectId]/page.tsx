@@ -28,13 +28,13 @@ export default async function BoardPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ task?: string }>;
+  searchParams: Promise<{ task?: string; view?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { projectId } = await params;
-  const { task } = await searchParams;
+  const { task, view } = await searchParams;
 
   let role: string;
   try {
@@ -45,5 +45,12 @@ export default async function BoardPage({
   }
 
   const board = await loadBoard(projectId, role, user.id);
-  return <BoardApp initial={board} user={user} initialTask={task ?? null} />;
+  return (
+    <BoardApp
+      initial={board}
+      user={user}
+      initialTask={task ?? null}
+      initialView={typeof view === "string" ? view : null}
+    />
+  );
 }

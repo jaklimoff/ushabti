@@ -377,6 +377,49 @@
     color 140ms var(--ease);
 }
 
+/* The pill and, on the open view, its link button. The two move as one. */
+.pillWrap {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 5px;
+}
+
+/* Hidden but still in the tab order, so focus is what shows it. No width
+   until then, so the top bar measures the same as before. */
+.pillLink {
+  display: grid;
+  place-items: center;
+  width: 0;
+  height: 22px;
+  overflow: hidden;
+  opacity: 0;
+  border-radius: 5px;
+  color: var(--muted);
+  transition:
+    opacity 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.pillWrap:hover .pillLink,
+.pillLink:focus-visible {
+  width: 22px;
+  opacity: 1;
+}
+
+.pillLink:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* A touch screen has no hover to show it with. */
+@media (hover: none) {
+  .pillLink {
+    width: 22px;
+    opacity: 1;
+  }
+}
+
 /* The pill under the pointer while the order is being changed. */
 .pillLifted {
   z-index: 2;

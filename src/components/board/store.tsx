@@ -542,16 +542,26 @@ function watchLastView(tell: () => void) {
 /** On the server nobody has picked one, so the board opens on the main view. */
 const noLastView = () => null;
 
+/** The open view, in the address bar, so the link to it is ready to paste. */
+function writeViewAddress(id: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("view", id);
+  window.history.replaceState(null, "", url.toString());
+}
+
 export function BoardProvider({
   initial,
   user,
   reads = "board",
+  initialView = null,
   children,
 }: {
   initial: BoardData;
   user: SessionUser;
   /** What a read asks for. Settings reads its own loader, never the board. */
   reads?: "board" | "settings";
+  /** The view the link named, if any. Only a board page has one. */
+  initialView?: string | null;
   children: React.ReactNode;
 }) {
   const [data, setData] = useState<BoardData>(initial);
@@ -566,8 +576,17 @@ export function BoardProvider({
     useCallback(() => readLastView(projectId), [projectId]),
     noLastView,
   );
+  /* A link names the view somebody else was looking at. It wins over the
+     view this browser remembers until a view is picked here, and it writes
+     nothing to the browser: what is remembered is this person's own answer. */
+  const [linked, setLinked] = useState(initialView);
+  const named = (id: string | null) => (id && data.views.some((v) => v.id === id) ? id : null);
   const viewId =
-    lastViewId || (initial.views.find((v) => v.isDefault)?.id ?? initial.views[0]?.id ?? "");
+    named(linked) ??
+    named(lastViewId) ??
+    data.views.find((v) => v.isDefault)?.id ??
+    data.views[0]?.id ??
+    "";
 
   /* What is picked belongs to the board on screen, so moving to another view
      ends it. The ids are kept as they were picked, and what the view draws is
@@ -580,9 +599,13 @@ export function BoardProvider({
     (id: string) => {
       setPickedRaw([]);
       anchor.current = null;
+      setLinked(null);
       writeLastView(projectId, id);
+      /* A link read on landing would win again on a reload, so the address
+         now names the view that was picked. */
+      if (reads === "board") writeViewAddress(id);
     },
-    [projectId],
+    [projectId, reads],
   );
 
   /*
