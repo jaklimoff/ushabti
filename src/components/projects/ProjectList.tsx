@@ -24,7 +24,6 @@ import { landedAfter } from "@/lib/landed";
 import { suggestProjectKey } from "@/lib/defaults";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
-import { Tag } from "@/components/ui/Layout";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { canManage } from "@/lib/roles";
 import { longAgo } from "@/lib/board";
@@ -35,12 +34,14 @@ import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import { Charts } from "./Charts";
 import { FirstProjectPanel, HomeSection, QuietPanel, WidePanel } from "./Empty";
 import { useNow } from "@/components/ui/useElapsed";
+import { PROJECT_INK, initials } from "@/lib/colors";
 import styles from "./ProjectList.module.css";
 
 export type ProjectRow = {
   id: string;
   name: string;
   key: string;
+  color: string;
   role: string;
   /** Questions and hand-overs, the switcher's number. */
   waiting: number;
@@ -253,6 +254,11 @@ function useOrder(projects: ProjectRow[]) {
   return { rows, error, sensors, onDragEnd };
 }
 
+/**
+ * A project in five rows that line up with the cards beside it: the project,
+ * its goal line, how its board is shared out, its activity, and who is on it.
+ * The project's colour is the only colour, besides what needs the person.
+ */
 function ProjectCard({ project }: { project: ProjectRow }) {
   const {
     attributes,
@@ -270,48 +276,81 @@ function ProjectCard({ project }: { project: ProjectRow }) {
     <div
       ref={setNodeRef}
       className={[styles.cardWrap, isDragging ? styles.cardLifted : ""].filter(Boolean).join(" ")}
-      style={{ transform: CSS.Translate.toString(transform), transition: transition ?? undefined }}
+      style={
+        {
+          transform: CSS.Translate.toString(transform),
+          transition: transition ?? undefined,
+          "--project": project.color,
+          "--project-ink": PROJECT_INK,
+        } as React.CSSProperties
+      }
+      data-quiet={project.pulse?.quiet || undefined}
       data-testid="project-card"
     >
       <Link href={`/p/${project.id}`} className={styles.card}>
         <div className={styles.cardTop}>
           <span className={styles.key}>{project.key}</span>
-          {canManage(project.role) && <Tag>{project.role}</Tag>}
+          <span className={styles.cardName}>{project.name}</span>
+          {canManage(project.role) && <span className={styles.role}>{project.role}</span>}
           {project.waiting > 0 && (
             <span className={styles.waiting} data-testid="project-waiting">
               {project.waiting} waiting for you
             </span>
           )}
+          {/* The gear's place, held so nothing moves when it fades in. */}
+          <span className={styles.gearPlace} aria-hidden="true" />
         </div>
-        <div className={styles.cardName}>{project.name}</div>
+        <div className={styles.cardRow} data-testid="project-goal" />
         {project.pulse && <Pulse pulse={project.pulse} />}
       </Link>
-      <div className={styles.cardTools}>
-        <IconButton
-          ref={setActivatorNodeRef}
-          className={styles.cardGrip}
-          label={`Move the project ${project.name}`}
-          title="Drag to reorder"
-          {...attributes}
-          {...listeners}
-        >
+      <IconButton
+        ref={setActivatorNodeRef}
+        className={styles.cardGrip}
+        label={`Move the project ${project.name}`}
+        title="Drag to reorder"
+        {...attributes}
+        {...listeners}
+      >
+        <span className={styles.gripSize} aria-hidden="true">
+          {project.key}
+        </span>
+        <span className={styles.gripDots}>
           <span />
           <span />
           <span />
           <span />
           <span />
           <span />
-        </IconButton>
-        <Link
-          href={`/p/${project.id}/settings/properties`}
-          className={styles.cardGear}
-          aria-label={`Settings for ${project.name}`}
-          title="Project settings"
-        >
-          ⚙
-        </Link>
-      </div>
+        </span>
+      </IconButton>
+      <Link
+        href={`/p/${project.id}/settings/properties`}
+        className={styles.cardGear}
+        aria-label={`Settings for ${project.name}`}
+        title="Project settings"
+      >
+        <Cog />
+      </Link>
     </div>
+  );
+}
+
+function Cog() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
   );
 }
 
@@ -421,10 +460,11 @@ function ListCard({ list }: { list: ListSummary }) {
 
 /**
  * How the project is going: its main view's columns as a bar and a line of
- * counts, then who works on it and the last thing that changed. The line names
- * every column with its count, because a colour must never carry the meaning
- * alone. What this person folded on that view is read here, after the page
- * draws, exactly as the board reads it: the server cannot know a browser.
+ * counts, then who is on it and either who works or when it last changed. The
+ * line names every column with its count, because a shade must never carry
+ * the meaning alone. What this person folded on that view is read here, after
+ * the page draws, exactly as the board reads it: the server cannot know a
+ * browser.
  */
 function Pulse({ pulse }: { pulse: ProjectPulse }) {
   const folded = useSyncExternalStore(subscribeFolded, () => foldedOf(pulse.viewId ?? ""), noFolds);
@@ -432,21 +472,50 @@ function Pulse({ pulse }: { pulse: ProjectPulse }) {
   const agents = agentsLine(pulse.agents);
   return (
     <>
-      {pulse.columns && <Columns columns={pulse.columns} folded={folded} />}
-      {(agents || pulse.last) && (
-        <div className={styles.cardFoot} data-testid="project-foot">
-          {agents && <span data-testid="project-agents">{agents}</span>}
-          {pulse.last && (
-            <span className={styles.last} data-testid="project-last">
-              <span suppressHydrationWarning>{longAgo(pulse.last.at, now)}</span>
-              {pulse.last.who && <> · {pulse.last.who}</>}
-              {pulse.last.taskKey && <> · {pulse.last.taskKey}</>}
-            </span>
-          )}
+      {pulse.columns ? (
+        <Columns columns={pulse.columns} folded={folded} />
+      ) : (
+        <div className={`${styles.cardRow} ${styles.noColumns}`} data-testid="project-no-columns">
+          The main view draws no columns.
         </div>
       )}
+      <div className={styles.cardRow} data-testid="project-activity" />
+      <div className={styles.cardFoot} data-testid="project-foot">
+        <span className={styles.people} data-testid="project-people">
+          {pulse.people.map((p) => (
+            <span
+              key={p.id}
+              className={styles.face}
+              data-kind={p.kind}
+              title={p.name}
+              aria-label={p.name}
+              role="img"
+            >
+              {initials(p.name)}
+            </span>
+          ))}
+        </span>
+        {agents ? (
+          <span className={styles.working} data-testid="project-agents">
+            <span className={styles.workingDot} aria-hidden="true" />
+            {agents}
+          </span>
+        ) : (
+          pulse.last && (
+            <span className={styles.last} data-testid="project-last" suppressHydrationWarning>
+              {longAgo(pulse.last.at, now)}
+            </span>
+          )
+        )}
+      </div>
     </>
   );
+}
+
+/** The first column darkest, the last lightest: a shade says where, the words say what. */
+function shadeOf(index: number, count: number): string {
+  const light = count <= 1 ? 50 : Math.round((index / (count - 1)) * 100);
+  return `color-mix(in srgb, var(--text-4) ${light}%, var(--faint-3))`;
 }
 
 function Columns({ columns, folded }: { columns: PulseColumn[]; folded: readonly string[] }) {
@@ -457,20 +526,26 @@ function Columns({ columns, folded }: { columns: PulseColumn[]; folded: readonly
       {/* The words under it say the same, so the bar is not read out twice. */}
       <div className={styles.track} aria-hidden="true" data-testid="project-bar">
         {total > 0 &&
-          open
-            .filter((c) => c.count > 0)
-            .map((c) => (
-              <span
-                key={c.id}
-                className={styles.share}
-                style={{ flexGrow: c.count, background: c.color }}
-                data-column={c.name}
-              />
-            ))}
+          open.map(
+            (c, i) =>
+              c.count > 0 && (
+                <span
+                  key={c.id}
+                  className={styles.share}
+                  style={{ flexGrow: c.count, background: shadeOf(i, open.length) }}
+                  data-column={c.name}
+                />
+              ),
+          )}
       </div>
       <div className={styles.counts} data-testid="project-columns">
-        {open.map((c) => (
+        {open.map((c, i) => (
           <span key={c.id} className={styles.count} data-testid="project-column">
+            <span
+              className={styles.countDot}
+              style={{ background: shadeOf(i, open.length) }}
+              aria-hidden="true"
+            />
             {c.name} {c.count}
           </span>
         ))}

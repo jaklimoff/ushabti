@@ -114,6 +114,14 @@ test.describe("The project list shows how every project is going", () => {
     await page.goto("/projects");
     const card = page.locator(`a[href="/p/${projectId}"]`);
     await expect(card.getByTestId("project-waiting")).toHaveText("2 waiting for you");
+    /* The grip lies on the colour square and frames it exactly. */
+    const keyBox = card.getByText(key, { exact: true });
+    await expect(keyBox).toBeVisible();
+    const square = await keyBox.boundingBox();
+    await card.hover();
+    const grip = await page.getByRole("button", { name: `Move the project ${name}` }).boundingBox();
+    expect(square && Math.round(square.width)).toBe(22);
+    expect(grip).toEqual(square);
     await expect(card.getByTestId("project-column")).toHaveText([
       "Todo 2",
       "In Progress 1",
@@ -122,15 +130,21 @@ test.describe("The project list shows how every project is going", () => {
     ]);
     const bar = card.getByTestId("project-bar");
     await expect(bar.locator("[data-column]")).toHaveCount(3);
-    await expect(bar.locator('[data-column="Todo"]')).toHaveCSS(
-      "background-color",
-      "rgb(154, 160, 170)",
+    /* Greys, lighter from the first column to the last, each the shade of its dot. */
+    const shade = (el: Element) => getComputedStyle(el).backgroundColor;
+    const todo = await bar.locator('[data-column="Todo"]').evaluate(shade);
+    const shippedShade = await bar.locator('[data-column="Shipped"]').evaluate(shade);
+    expect(todo).not.toBe(shippedShade);
+    expect(await card.getByTestId("project-column").first().locator("span").evaluate(shade)).toBe(
+      todo,
     );
     await expect(card.getByTestId("project-folded")).toHaveCount(0);
-    await expect(card.getByTestId("project-agents")).toHaveText("1 agent working");
-    await expect(card.getByTestId("project-last")).toHaveText(
-      `just now · ${me.name} · ${key}-${shipped.number}`,
-    );
+    await expect(card.getByTestId("project-agents")).toHaveText("Worker working");
+    await expect(card.getByTestId("project-last")).toHaveCount(0);
+    const people = card.getByTestId("project-people");
+    await expect(people.getByRole("img", { name: me.name })).toHaveCSS("border-radius", "50%");
+    await expect(people.getByRole("img", { name: "Worker" })).toHaveCSS("border-radius", "4px");
+    await expect(people.getByRole("img", { name: "Worker" })).toHaveText("WO");
 
     /* Shipped folded on the main board leaves the bar and reads last, muted. */
     await page.evaluate(
@@ -156,6 +170,13 @@ test.describe("The project list shows how every project is going", () => {
     expect(
       (await page.request.patch(`/api/views/${main.id}`, { data: { kind: "list" } })).ok(),
     ).toBeTruthy();
+    expect(
+      (
+        await page.request.post(`/api/projects/${projectId}/tasks`, {
+          data: { title: "A change" },
+        })
+      ).ok(),
+    ).toBeTruthy();
 
     await page.goto("/projects");
     const card = page.locator(`a[href="/p/${projectId}"]`);
@@ -163,5 +184,11 @@ test.describe("The project list shows how every project is going", () => {
     await expect(card.getByTestId("project-columns")).toHaveCount(0);
     await expect(card.getByTestId("project-bar")).toHaveCount(0);
     await expect(card.getByTestId("project-waiting")).toHaveCount(0);
+    await expect(card.getByTestId("project-no-columns")).toHaveText(
+      "The main view draws no columns.",
+    );
+    /* Nobody works, so the footer says when it last changed. */
+    await expect(card.getByTestId("project-agents")).toHaveCount(0);
+    await expect(card.getByTestId("project-last")).toHaveText("just now");
   });
 });

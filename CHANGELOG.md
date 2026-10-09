@@ -32,6 +32,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A project card reads in rows that line up.** Each card on Home opens with
+  the project's colour square and its key, then the name and your role. Its
+  board is a bar of greys with every column named and counted, and its foot
+  shows who is on it and which agent is working, or when it last changed.
+  Cards side by side keep their rows level, the gear fades in on hover, and
+  a project quiet for three weeks reads dimmed.
 - **Home leads with your projects.** Projects come first, then your lists and
   charts, in quiet outlined panels. Each heading has a small "+ New" button
   in place of the dashed card. Colour is kept for what needs you or is
