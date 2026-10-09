@@ -311,8 +311,9 @@ function ProjectCard({ project }: { project: ProjectRow }) {
 }
 
 /**
- * The lists this person made. A card says what the list holds before it is
- * opened: how many, from where, and by which rules.
+ * The lists this person made. A card is a short copy of the list page: its
+ * first rows in the page's order, and how many more there are. It is not one
+ * link around everything, because a row is a link of its own.
  */
 function MyLists({ lists }: { lists: ListSummary[] }) {
   const router = useRouter();
@@ -335,34 +336,9 @@ function MyLists({ lists }: { lists: ListSummary[] }) {
   return (
     <section className={styles.lists} data-testid="my-lists">
       <h2 className={styles.section}>My lists</h2>
-      <div className={styles.grid}>
+      <div className={`${styles.grid} ${styles.listGrid}`}>
         {lists.map((list) => (
-          <Link
-            key={list.id}
-            href={`/lists/${list.id}`}
-            className={styles.card}
-            data-testid="list-card"
-          >
-            <div className={styles.cardTop}>
-              <span className={styles.cardName}>{list.name}</span>
-              <span className={styles.listCount} data-testid="list-count">
-                {list.count}
-              </span>
-            </div>
-            {list.projects.length > 0 ? (
-              <div className={styles.listFrom}>
-                {list.projects.map((p) => (
-                  <div key={p.key} className={styles.listSource} data-testid="list-source">
-                    <span className={styles.key}>{p.key}</span>
-                    <span className={styles.count}>{p.count}</span>
-                    <span className={styles.listRules}>{p.rules.join(" or ")}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <span className={styles.hint}>No project yet.</span>
-            )}
-          </Link>
+          <ListCard key={list.id} list={list} />
         ))}
         <button
           className={styles.newCard}
@@ -382,6 +358,60 @@ function MyLists({ lists }: { lists: ListSummary[] }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** Every card is as tall as a full one, so a list that fills does not move the row. */
+function ListCard({ list }: { list: ListSummary }) {
+  const more = list.count - list.rows.length;
+  return (
+    <div className={`${styles.card} ${styles.listCard}`} data-testid="list-card">
+      <div className={styles.cardTop}>
+        <Link href={`/lists/${list.id}`} className={styles.listName} data-testid="list-name-link">
+          {list.name}
+        </Link>
+        <span className={styles.listCount} data-testid="list-count">
+          {list.count}
+        </span>
+      </div>
+      {list.rows.length === 0 ? (
+        <span className={styles.listEmpty} data-testid="list-empty">
+          Nothing here.
+        </span>
+      ) : (
+        <ul className={styles.listRows}>
+          {list.rows.map((row) => (
+            <li key={row.id}>
+              <Link
+                href={`/p/${row.projectId}?task=${row.key}`}
+                className={styles.listRow}
+                data-testid="list-card-row"
+              >
+                <span className={styles.listRowKey}>{row.key}</span>
+                <span className={styles.listRowTitle}>{row.title}</span>
+                {row.waiting && <span className={styles.listWaiting}>Waiting for you</span>}
+                {row.agent && (
+                  <span className={styles.listAgent} title="At work on it">
+                    {row.agent}
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+          {more > 0 && (
+            <li>
+              <Link
+                href={`/lists/${list.id}`}
+                className={styles.listMore}
+                data-testid="list-card-more"
+              >
+                +{more} more
+              </Link>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
 

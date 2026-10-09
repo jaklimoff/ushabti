@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ME_KEY } from "../filters";
 import {
+  CARD_ROWS,
   EVERY_TASK,
   listGroups,
   rulesSaid,
@@ -231,7 +232,7 @@ describe("rulesSaid and summaryOf", () => {
     expect(rulesSaid({ rules: [] }, one)).toBe(EVERY_TASK);
   });
 
-  it("counts the whole list and each project", () => {
+  it("keeps the total and the first rows in the list page's order", () => {
     const groups = listGroups(
       [
         { id: "s1", projectId: "a", filters: { rules: [todo("a")] } },
@@ -240,14 +241,35 @@ describe("rulesSaid and summaryOf", () => {
       [one, two],
       "u-me",
     );
-    expect(summaryOf({ id: "l", name: "Next" }, groups)).toEqual({
-      id: "l",
-      name: "Next",
-      count: 4,
-      projects: [
-        { key: "A", count: 2, rules: ["Status is Todo"] },
-        { key: "B", count: 2, rules: [EVERY_TASK] },
-      ],
-    });
+    const summary = summaryOf({ id: "l", name: "Next" }, groups);
+    expect(summary).toMatchObject({ id: "l", name: "Next", count: 4 });
+    expect(summary.rows.map((r) => r.key)).toEqual(groups.flatMap((g) => g.rows.map((r) => r.key)));
+  });
+
+  it("cuts the rows at five and counts them all", () => {
+    const rows = Array.from({ length: 7 }, (_, i) => ({
+      id: `t${i}`,
+      key: `A-${i}`,
+      title: `Task ${i}`,
+      projectId: "a",
+      waiting: false,
+      agent: null,
+      chip: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    }));
+    const groups = [
+      { projectId: "a", key: "A", name: "A", count: 3, rules: [], rows: rows.slice(0, 3) },
+      { projectId: "b", key: "B", name: "B", count: 4, rules: [], rows: rows.slice(3) },
+    ];
+    const summary = summaryOf({ id: "l", name: "Next" }, groups);
+    expect(CARD_ROWS).toBe(5);
+    expect(summary.count).toBe(7);
+    expect(summary.rows.map((r) => r.key)).toEqual(["A-0", "A-1", "A-2", "A-3", "A-4"]);
+  });
+
+  it("holds no rows when the sources match nothing or their projects are gone", () => {
+    expect(summaryOf({ id: "l", name: "Next" }, [])).toMatchObject({ count: 0, rows: [] });
+    const none = [{ projectId: "a", key: "A", name: "A", count: 0, rules: [], rows: [] }];
+    expect(summaryOf({ id: "l", name: "Next" }, none)).toMatchObject({ count: 0, rows: [] });
   });
 });
