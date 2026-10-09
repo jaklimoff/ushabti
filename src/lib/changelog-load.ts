@@ -5,15 +5,24 @@ import { projects } from "@/db/schema";
 import { readShipped, shippedTasks } from "./changelog-read";
 import { buildChangelog, publicChangelog, type Changelog, type PublicChangelog } from "./changelog";
 import { loadProperties } from "./queries";
+import { readReleaseBy } from "./releases";
 
 /**
  * The changelog of one project. Archived tasks are read with the live ones,
  * because a ship archives what it shipped; a deleted task was a mistake and
  * stays out.
+ *
+ * With releases off there is no changelog, and both pages answer not found.
+ * Off clears only the pointer, so on again brings the same entries back.
  */
 export async function loadChangelog(projectId: string): Promise<Changelog | null> {
   const [project] = await db
-    .select({ id: projects.id, name: projects.name, key: projects.key })
+    .select({
+      id: projects.id,
+      name: projects.name,
+      key: projects.key,
+      releaseBy: projects.releaseBy,
+    })
     .from(projects)
     .where(eq(projects.id, projectId));
   if (!project) return null;
@@ -22,7 +31,9 @@ export async function loadChangelog(projectId: string): Promise<Changelog | null
     loadProperties(projectId),
     readShipped(db, projectId),
   ]);
-  return buildChangelog({ project, properties: props, tasks: shippedTasks(shippedRows) });
+  const { releaseBy, ...named } = project;
+  if (!readReleaseBy(releaseBy, props)) return null;
+  return buildChangelog({ project: named, properties: props, tasks: shippedTasks(shippedRows) });
 }
 
 /**

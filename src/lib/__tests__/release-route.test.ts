@@ -8,7 +8,7 @@ const { sql } = await import("drizzle-orm");
 const { db } = await import("@/db");
 const { buildChangelog } = await import("@/lib/changelog");
 const { readShipped, shippedTasks } = await import("@/lib/changelog-read");
-const { loadPublicChangelog } = await import("@/lib/changelog-load");
+const { loadChangelog, loadPublicChangelog } = await import("@/lib/changelog-load");
 const { agent, api, board, ok, person, project, unique } = await import("@/test/route");
 
 /*
@@ -361,6 +361,9 @@ async function shippedProject() {
     (x) => x.name === "Version",
   )!;
   const [v1, v2, v3] = version.options;
+  // Use releases takes the dated select there is, so Version is the releases.
+  await ok(me.patch(`/api/properties/${version.id}`, { dated: true }));
+  await ok(me.post(`/api/projects/${p.id}/releases`));
   await ok(
     me.patch(`/api/options/${v1.id}`, { shippedAt: "2026-09-01", note: "The **first** one." }),
   );
@@ -417,6 +420,29 @@ describe("The changelog", () => {
     // And off again is off at once.
     await ok(me.patch(`/api/projects/${p.id}`, { publicChangelog: false }));
     expect(await loadPublicChangelog(slug)).toBeNull();
+  });
+
+  /* Off clears the pointer and nothing else, so on again finds the same
+     entries. The pages answer not found for null; an agent reads an empty list. */
+  it("is there only while releases are on", async () => {
+    const { owner, project: p, me, key } = await shippedProject();
+    const slug = key.toLowerCase();
+    await ok(me.patch(`/api/projects/${p.id}`, { publicChangelog: true }));
+    const before = await loadChangelog(p.id);
+    expect(before!.entries.map((e) => [e.name, e.note])).toEqual([
+      ["v2", null],
+      ["v1", "The **first** one."],
+    ]);
+
+    await ok(me.del(`/api/projects/${p.id}/releases`));
+    expect(await loadChangelog(p.id)).toBeNull();
+    expect(await loadPublicChangelog(slug)).toBeNull();
+    const builder = await agent(owner, p.id);
+    expect(await ok(builder.api.get(`/api/projects/${p.id}/changelog`))).toEqual({ changelog: [] });
+
+    await ok(me.post(`/api/projects/${p.id}/releases`));
+    expect(await loadChangelog(p.id)).toEqual(before);
+    expect((await loadPublicChangelog(slug))!.entries.map((e) => e.name)).toEqual(["v2", "v1"]);
   });
 
   it("reads only the shipped tasks, and builds the same changelog as a read of every task", async () => {

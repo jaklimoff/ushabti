@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **The changelog is there only while releases are on.** With **Use releases**
+  off, the top bar and Settings → Project offer no Changelog link, and the
+  member and public pages are not found. Turn releases on again and the same
+  entries are back.
+
 ## 0.21.1 — 2026-10-09
 
 ### Fixed

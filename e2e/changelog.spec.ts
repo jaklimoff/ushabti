@@ -32,6 +32,11 @@ async function shippedProject(page: Page) {
   const board: Board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
   const version = board.properties.find((p) => p.name === "Version")!;
   const [v1, v2, v3] = version.options;
+  // The changelog is there only while releases are on, and Version is the releases.
+  expect(
+    (await page.request.patch(`/api/properties/${version.id}`, { data: { dated: true } })).ok(),
+  ).toBe(true);
+  expect((await page.request.post(`/api/projects/${projectId}/releases`)).ok()).toBe(true);
 
   const ship = async (id: string, data: Record<string, unknown>) =>
     expect((await page.request.patch(`/api/options/${id}`, { data })).ok()).toBeTruthy();

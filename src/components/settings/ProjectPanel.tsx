@@ -533,79 +533,86 @@ export function ProjectPanel({ files }: { files: boolean }) {
         </Section>
       )}
 
-      <Section title="Sharing and export">
-        {/*
-         * The changelog, for people with no account. Off until somebody turns
-         * it on, because it shows the titles of the shipped tasks to anyone
-         * who has the address. The address is the key, so a project whose key
-         * another public project already has is refused, with that sentence.
-         */}
-        <Card>
-          <Row>
-            <Field
-              label="Public changelog"
-              inline
-              note={
-                data.project.publicChangelog ? (
-                  <>
-                    Anyone with the address reads the shipped options and the titles of their tasks,
-                    with no keys and no people:{" "}
-                    <a
-                      href={`/changelog/${changelogSlug(data.project.key)}`}
-                      data-testid="public-changelog-link"
-                    >
-                      /changelog/{changelogSlug(data.project.key)}
-                    </a>
-                  </>
-                ) : (
-                  "Only the members of this project read its changelog."
-                )
-              }
-            >
-              <Button
-                variant="ghost"
-                disabled={!canEdit || flipping}
-                onClick={() => void flipPublic()}
-              >
-                {data.project.publicChangelog ? "Make it private" : "Make it public"}
-              </Button>
-            </Field>
-          </Row>
-          <Row>
-            <a href={`/p/${data.project.id}/changelog`}>Changelog</a>
-          </Row>
-          {!canEdit && (
-            <Row>
-              <Note>Only the owner or an admin can make the changelog public.</Note>
-            </Row>
-          )}
-        </Card>
-
-        {/*
-         * The file holds every member's email, so it is an admin's, as the
-         * route says. The server answers with an attachment, so following it
-         * saves the file and leaves this page where it is.
-         */}
-        {canEdit && (
-          <Card>
-            <Row>
-              <Field label="Export" inline>
-                <ButtonLink
-                  variant="ghost"
-                  href={`/api/projects/${data.project.id}/export`}
-                  download
+      {/* A member with releases off has nothing here, so no empty heading. */}
+      {(data.project.releaseBy || canEdit) && (
+        <Section title="Sharing and export">
+          {/*
+           * The changelog, for people with no account. Off until somebody turns
+           * it on, because it shows the titles of the shipped tasks to anyone
+           * who has the address. The address is the key, so a project whose key
+           * another public project already has is refused, with that sentence.
+           * With releases off both pages are not found, so the block goes too;
+           * the flag stays stored and comes back with releases.
+           */}
+          {data.project.releaseBy && (
+            <Card>
+              <Row>
+                <Field
+                  label="Public changelog"
+                  inline
+                  note={
+                    data.project.publicChangelog ? (
+                      <>
+                        Anyone with the address reads the shipped options and the titles of their
+                        tasks, with no keys and no people:{" "}
+                        <a
+                          href={`/changelog/${changelogSlug(data.project.key)}`}
+                          data-testid="public-changelog-link"
+                        >
+                          /changelog/{changelogSlug(data.project.key)}
+                        </a>
+                      </>
+                    ) : (
+                      "Only the members of this project read its changelog."
+                    )
+                  }
                 >
-                  Download
-                </ButtonLink>
-                <Note>
-                  One JSON file with the properties, views, members, and every live and archived
-                  task with its values, checklist and comments.
-                </Note>
-              </Field>
-            </Row>
-          </Card>
-        )}
-      </Section>
+                  <Button
+                    variant="ghost"
+                    disabled={!canEdit || flipping}
+                    onClick={() => void flipPublic()}
+                  >
+                    {data.project.publicChangelog ? "Make it private" : "Make it public"}
+                  </Button>
+                </Field>
+              </Row>
+              <Row>
+                <a href={`/p/${data.project.id}/changelog`}>Changelog</a>
+              </Row>
+              {!canEdit && (
+                <Row>
+                  <Note>Only the owner or an admin can make the changelog public.</Note>
+                </Row>
+              )}
+            </Card>
+          )}
+
+          {/*
+           * The file holds every member's email, so it is an admin's, as the
+           * route says. The server answers with an attachment, so following it
+           * saves the file and leaves this page where it is.
+           */}
+          {canEdit && (
+            <Card>
+              <Row>
+                <Field label="Export" inline>
+                  <ButtonLink
+                    variant="ghost"
+                    href={`/api/projects/${data.project.id}/export`}
+                    download
+                  >
+                    Download
+                  </ButtonLink>
+                  <Note>
+                    One JSON file with the properties, views, members, and every live and archived
+                    task with its values, checklist and comments.
+                  </Note>
+                </Field>
+              </Row>
+            </Card>
+          )}
+        </Section>
+      )}
 
       {!files && (
         <Section title="Files">
