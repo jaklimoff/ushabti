@@ -42,14 +42,24 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       or(eq(checklistItems.text, baseText), eq(checklistItems.text, patch.text as string))!,
     );
 
-  const item = await db.transaction(async (tx) => {
+  const { item, before } = await db.transaction(async (tx) => {
+    // The old words are read under a row lock, so the feed names what the
+    // edit replaced and not what a second edit left behind.
+    const [old] =
+      patch.text === undefined
+        ? []
+        : await tx
+            .select({ text: checklistItems.text })
+            .from(checklistItems)
+            .where(eq(checklistItems.id, itemId))
+            .for("update");
     const [row] = await tx
       .update(checklistItems)
       .set(patch)
       .where(and(...unchanged))
       .returning();
     if (row) await touchTasks([taskId], tx);
-    return row;
+    return { item: row, before: old?.text };
   });
 
   if (!item) {
@@ -71,21 +81,41 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       data: { text: item.text, action: input.done ? "checked" : "unchecked" },
     });
   }
+  if (before !== undefined && before !== item.text) {
+    await logActivity({
+      projectId,
+      taskId,
+      actorId: user.id,
+      kind: "checklist",
+      data: { text: item.text, from: before, action: "renamed" },
+    });
+  }
   await broadcast({ projectId, scope: "task", taskId, clientId: clientIdOf(req) });
   return json({ item });
 });
 
+/** A removed item leaves its words in the feed, so a check nobody met cannot vanish unseen. */
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { itemId } = await ctx.params;
   const { taskId, projectId } = await locate(itemId);
-  await guard(projectId);
-  await db.transaction(async (tx) => {
-    const gone = await tx
+  const { user } = await guard(projectId);
+  const gone = await db.transaction(async (tx) => {
+    const rows = await tx
       .delete(checklistItems)
       .where(eq(checklistItems.id, itemId))
-      .returning({ id: checklistItems.id });
-    if (gone.length) await touchTasks([taskId], tx);
+      .returning({ text: checklistItems.text });
+    if (rows.length) await touchTasks([taskId], tx);
+    return rows[0];
   });
+  if (gone) {
+    await logActivity({
+      projectId,
+      taskId,
+      actorId: user.id,
+      kind: "checklist",
+      data: { text: gone.text, action: "removed" },
+    });
+  }
   await broadcast({ projectId, scope: "task", taskId, clientId: clientIdOf(req) });
   return json({ ok: true });
 });

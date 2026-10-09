@@ -16,11 +16,13 @@ const fake = vi.hoisted(() => {
     where: [] as unknown[],
     updates: 0,
   };
-  const chain = (rows: () => Rows) => {
+  /* Only an update's condition is remembered: the checklist route also reads
+     the old words under a lock first, and that read guards nothing. */
+  const chain = (rows: () => Rows, remember = false) => {
     const node: Record<string, unknown> = {};
-    for (const step of ["set", "returning", "from", "limit"]) node[step] = () => node;
+    for (const step of ["set", "returning", "from", "limit", "for"]) node[step] = () => node;
     node.where = (condition: unknown) => {
-      state.where.push(condition);
+      if (remember) state.where.push(condition);
       return node;
     };
     node.then = (ok: (rows: Rows) => unknown, fail?: (error: unknown) => unknown) =>
@@ -30,7 +32,7 @@ const fake = vi.hoisted(() => {
   const db = {
     update: () => {
       state.updates += 1;
-      return chain(() => state.updated);
+      return chain(() => state.updated, true);
     },
     select: () => chain(() => state.read),
     transaction: <T>(work: (tx: unknown) => Promise<T>): Promise<T> => work(db),

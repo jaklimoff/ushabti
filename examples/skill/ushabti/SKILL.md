@@ -80,6 +80,16 @@ panel; leave it out and the `--say` line is logged instead.
 the whole text, or one part of it that fits only that item; `--undone` puts it
 back. It refuses to guess, and lists the items instead.
 
+`--remove` takes away the item that text names, and `--rename "<new words>"`
+rewords it; `check-rm USH-14 2` and `check-edit USH-14 2 "<new words>"` do the
+same by the number `task` prints before each item. Remove an item that is
+wrong or that another item replaced. Reword one that says the right thing
+badly. A reword that a person's edit beat writes nothing and prints what the
+item says now: read it before you try again. **Never remove or reword a check
+because it is hard to meet** — that makes a task pass that is not done. Leave
+it open and `ask`, or say so in a comment. The feed keeps the words of every
+item you remove or reword, under your name.
+
 `node board.mjs archive USH-14` takes a task off every board and list and keeps
 its history, its comments and its link; `restore` puts it back. Archive is how
 a task that is over goes away — say _archived_ and _put back_, never "closed"
