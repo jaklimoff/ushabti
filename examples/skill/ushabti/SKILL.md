@@ -15,6 +15,10 @@ Everything goes through one command. `SKILL_DIR` is the folder this file is in.
 node "$SKILL_DIR/board.mjs" help
 ```
 
+`node board.mjs update` fetches `board.mjs` and this file from the board it
+talks to and writes them over the copies here. Run it when a command this file
+names is missing. A failed download changes nothing.
+
 It needs `USHABTI_TOKEN` in the environment, and `USHABTI_URL` if the board is
 not at `http://localhost:3000`. If the token is missing, stop and ask for one:
 the owner or an admin issues it in **Settings → People**, with the **Connect** button.
@@ -78,7 +82,9 @@ panel; leave it out and the `--say` line is logged instead.
 
 `check` adds a checklist item, and `--done` ticks the one that text names —
 the whole text, or one part of it that fits only that item; `--undone` puts it
-back. It refuses to guess, and lists the items instead.
+back. It refuses to guess, and lists the items instead. `check-add USH-14
+"<item>"` adds one as well, and `check-set USH-14 2 --done true|false` ticks or
+unticks an item by the number `task` prints.
 
 `--remove` takes away the item that text names, and `--rename "<new words>"`
 rewords it; `check-rm USH-14 2` and `check-edit USH-14 2 "<new words>"` do the
@@ -134,8 +140,8 @@ agent can start without asking anything.
    a person scanning the board understands without opening the card: "Retries
    stop after five tries", not "retries" and not "@Ada fix the queue thing".
    Keep it under about 70 characters, with no key, no tag and no @Name.
-   `node board.mjs retitle <key> "<title>"`. A refined task always leaves
-   with a title you wrote.
+   `node board.mjs retitle <key> "<title>"`, or `rename`, which is the same.
+   A refined task always leaves with a title you wrote.
 3. **Set only what you are sure of.** A label the title names, an estimate the
    work makes obvious. Leave a property empty rather than guess. Never set a
    person property: who does the work is the people's decision.
@@ -146,7 +152,10 @@ agent can start without asking anything.
    what is wanted, why, what is out of scope, and where in the code it lives if
    you can find out. If a person already wrote one, do not write over it —
    `describe` refuses anyway. Post your version with `comment --file`, and the
-   person can copy what they want into the description.
+   person can copy what they want into the description. When a person has
+   said yes to your rewrite, and only then, `describe <key> --replace --file
+draft.md` writes over it. It posts the old description as a comment first,
+   so nothing the person wrote is lost.
 6. **If you cannot go on without an answer, `ask`**, and stop. One question,
    the one that matters, answerable in a sentence. Do not ask what you could
    find out by reading the code.
@@ -214,6 +223,7 @@ two writers at the same moment can lose one link. `task` prints each link.
 - **Do not create properties or delete tasks.** You may create tasks, edit
   them, comment and move them.
 - **Do not write over a person's description.** Propose yours in a comment.
+  `describe --replace` is only for a rewrite a person said yes to.
 - **A question is a comment and a wait.** `ask` posts the question, marks the
   run as waiting and tells you to end the session. The board does not close a
   waiting run for silence, and the watcher wakes you when a person answers.

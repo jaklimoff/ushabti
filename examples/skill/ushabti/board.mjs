@@ -9,8 +9,9 @@
  */
 
 import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, extname } from "node:path";
+import { createHash } from "node:crypto";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { basename, dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const BASE = (process.env.USHABTI_URL ?? "http://localhost:3000").replace(/\/$/, "");
@@ -142,7 +143,7 @@ const flags = {};
  * then asks for the item it was handed. A person should not have to remember
  * an order.
  */
-const SWITCHES = ["done", "undone", "remove", "held", "free", "once"];
+const SWITCHES = ["done", "undone", "remove", "held", "free", "once", "replace"];
 
 for (let i = 1; i < argv.length; i += 1) {
   const arg = argv[i];
@@ -506,10 +507,18 @@ const commands = {
                                       reword an item that says the right thing badly
   check-rm <key> <n>                  the same remove, by the number task prints
   check-edit <key> <n> "<new words>"  the same reword, by the number task prints
+  check-add <key> "<item>"            add an item, as check does
+  check-set <key> <n> --done true|false
+                                      tick or untick item n, as task numbers them
                                       Never remove or reword a check because it is
                                       hard to meet: ask the person instead.
   describe <key> "<markdown>"         write the description, if it is empty or yours
+  describe <key> --replace "<markdown>"
+                                      write over a person's description. Only for a
+                                      rewrite a person said yes to. The old text is
+                                      posted as a comment first.
   retitle <key> "<title>"             give the task a title that says what it is
+  rename <key> "<title>"              the same as retitle
   unmention <key>                     take your own @Name out of the title and description
   ask <key> "<question>"              ask a person, wait, and end your session
   pause <key> [--for 5]               answer a Pause: stop, wait for Resume, go on
@@ -519,6 +528,9 @@ const commands = {
   watch --run "<command>" [--on assigned,mention,created] [--goal "<job>"]
         [--jobs 1] [--timeout 30] [--state <file>] [--once]
                                       wait for work and start a harness for it
+
+  update                              fetch board.mjs and SKILL.md from this board
+                                      and write them over the files beside this one
 
 A long text can come from a file: --file notes.md, or --file - for stdin.
 
@@ -913,11 +925,38 @@ http://localhost:3000.`);
     await rewordItem(task, item, positional[2]);
   },
 
+  async "check-add"() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const text = positional[1];
+    if (!text?.trim()) fail('Give the item: check-add USH-14 "Retries stop after five tries"');
+    await call("POST", `/api/tasks/${task.id}/checklist`, { text });
+    console.log(`${task.key}: checklist item added`);
+  },
+
+  /* `--done` is a switch, so the true or false after it arrives as a word. */
+  async "check-set"() {
+    const word = positional[2] ?? (flags.undone !== undefined ? "false" : flags.done && "true");
+    if (word !== "true" && word !== "false")
+      fail("Say --done true or --done false: check-set USH-14 2 --done true");
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const { checklist } = (await call("GET", `/api/tasks/${task.id}`)).task;
+    const item = itemAt(task, checklist, positional[1]);
+    const done = word === "true";
+    await call("PATCH", `/api/checklist/${item.id}`, { done });
+    console.log(`${task.key}:${itemLine({ ...item, done })}`);
+  },
+
   /**
    * The description is the one field an agent may not write over. A person
    * who wrote one meant it; an agent that disagrees posts a comment, and the
    * person takes from it what they want. What the agent wrote
    * itself, it may write again.
+   *
+   * `--replace` is for a rewrite a person said yes to. The feed keeps no old
+   * text, so the old description goes up as a comment first, and the write
+   * names it as its base: a person who edits it meanwhile is not written over.
    */
   async describe() {
     const data = await board();
@@ -928,14 +967,37 @@ http://localhost:3000.`);
     const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
     const lastEdit = detail.activity.find((a) => a.kind === "description");
     const mine = lastEdit?.actor?.id === data.me.agent.id;
-    if (detail.description.trim() && !mine) {
-      fail(
-        `${task.key} already has a description that a person wrote. Do not write over it. ` +
-          `Post your draft as a comment instead: comment ${task.key} --file draft.md`,
-      );
+    const old = detail.description;
+    if (flags.replace === undefined) {
+      if (old.trim() && !mine) {
+        fail(
+          `${task.key} already has a description that a person wrote. Do not write over it. ` +
+            `Post your draft as a comment instead: comment ${task.key} --file draft.md. ` +
+            `If a person said yes to your rewrite, use describe ${task.key} --replace.`,
+        );
+      }
+      await call("PATCH", `/api/tasks/${task.id}`, { description: text });
+      console.log(`${task.key}: description written`);
+      return;
     }
-    await call("PATCH", `/api/tasks/${task.id}`, { description: text });
-    console.log(`${task.key}: description written`);
+
+    if (old.trim() && old !== text) {
+      await call("POST", `/api/tasks/${task.id}/comments`, {
+        body: `The description was replaced. It said:\n\n${old}`,
+      });
+    }
+    try {
+      await request("PATCH", `/api/tasks/${task.id}`, { description: text, baseDescription: old });
+    } catch (err) {
+      if (err.status === 409) {
+        fail(
+          `${task.key}: the description changed meanwhile, and nothing was written. Read it again with task ${task.key}.`,
+          9,
+        );
+      }
+      fail(err.status ? err.message : `The board at ${BASE} did not answer: ${err.message}`);
+    }
+    console.log(`${task.key}: description replaced; the old one is in a comment`);
   },
 
   /**
@@ -984,6 +1046,49 @@ http://localhost:3000.`);
     if (!title) fail('Give the title: retitle USH-14 "Retries stop after five tries"');
     await call("PATCH", `/api/tasks/${task.id}`, { title });
     console.log(`${task.key}: title is now "${title}"`);
+  },
+
+  /* The Mnemes copy's name for retitle. */
+  async rename() {
+    await commands.retitle();
+  },
+
+  /**
+   * Brings this copy up to date from the board it talks to, so every project
+   * runs the board.mjs its board serves. Both files are fetched before either
+   * is written, so a failed download leaves both as they were. A file is
+   * written beside and then renamed over, so a crash leaves no half a file.
+   * The version is the start of the file's SHA-256: nothing to bump by hand.
+   */
+  async update() {
+    const files = ["board.mjs", "SKILL.md"];
+    const fresh = {};
+    for (const file of files) {
+      try {
+        const res = await fetch(`${BASE}/skill/${file}`);
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        fresh[file] = await res.text();
+      } catch (err) {
+        fail(`Could not fetch ${BASE}/skill/${file}: ${err.message}. Nothing changed.`);
+      }
+      if (!fresh[file].trim()) fail(`${BASE}/skill/${file} came back empty. Nothing changed.`);
+    }
+    if (!fresh["board.mjs"].startsWith("#!/usr/bin/env node"))
+      fail(`${BASE}/skill/board.mjs is not board.mjs. Nothing changed.`);
+
+    const version = (text) => createHash("sha256").update(text).digest("hex").slice(0, 12);
+    const had = version(readFileSync(fileURLToPath(import.meta.url), "utf8"));
+    const now = version(fresh["board.mjs"]);
+    for (const file of files) {
+      const target = join(SKILL_DIR, file);
+      writeFileSync(`${target}.new`, fresh[file]);
+      renameSync(`${target}.new`, target);
+    }
+    console.log(
+      had === now
+        ? `board.mjs ${now} is already the board's. SKILL.md written again.`
+        : `board.mjs ${had} -> ${now}, and SKILL.md, from ${BASE}`,
+    );
   },
 
   /**

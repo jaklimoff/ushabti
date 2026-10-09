@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **`board.mjs update` brings a copy up to date from its board.** It fetches
+  `board.mjs` and `SKILL.md` from `/skill/` and says which version it had and
+  which it has now; a failed download changes nothing. The skill also takes
+  `rename`, `check-add` and `check-set`, and `describe --replace` writes over
+  a description a person approved a rewrite of, after posting the old one as
+  a comment.
 - **The time zone is picked from a list.** The box in Settings → Project
   offers the zone names as you type, so "Berlin" offers `Europe/Berlin`. A
   name off the list is still sent, and the server still decides.
