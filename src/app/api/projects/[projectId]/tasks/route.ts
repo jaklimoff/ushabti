@@ -6,7 +6,7 @@ import { loadProperties, rankOnTheEnd, withProjectLock } from "@/lib/queries";
 import { byPos } from "@/lib/order";
 import { rankBefore, rankBetween } from "@/lib/rank";
 import type { TaskValue } from "@/lib/types";
-import { coerceValue, loadProperty } from "@/lib/values";
+import { coerceValue, loadProperty, optionsOf } from "@/lib/values";
 import { readDefaults, readTypeBy, startsWith, withoutHidden } from "@/lib/when";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -116,7 +116,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
           taskId: task.id,
           actorId: user.id,
           kind: "created",
-          data: { title, assigneeIds },
+          data: { title, assigneeIds, options: optionsOf(shown, props) },
         },
       ],
     });

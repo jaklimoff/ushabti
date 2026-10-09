@@ -311,3 +311,81 @@
   text-overflow: ellipsis;
   color: var(--faint-2);
 }
+
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 15px 13px;
+  background: var(--bg-column);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.chartName {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.chartName b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chartDelete {
+  color: var(--faint);
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.chartDelete:hover,
+.chartDelete:focus-visible {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 64px;
+}
+
+.barSlot {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* A day with nothing still shows where it is, as a hairline. */
+.bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+}
+
+.chartFoot {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chartFoot b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chartRange {
+  margin-left: auto;
+  color: var(--faint);
+}

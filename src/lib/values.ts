@@ -6,7 +6,7 @@ import { readId } from "./api";
 import { HttpError } from "./auth";
 import type { PropertyType, TaskValue } from "./types";
 import { LinkError, readLinks } from "./web-links";
-import { hasOptions } from "./types";
+import { hasOptions, isSelect } from "./types";
 
 export type PropertyRow = {
   id: string;
@@ -116,7 +116,30 @@ export function valueLine(
     value: described,
   };
   if (prop.type === "person") line.personId = typeof value === "string" && value ? value : null;
+  /* A chart counts by the id, because a renamed option keeps its id. */
+  if (isSelect(prop.type)) line.optionId = typeof value === "string" && value ? value : null;
+  if (prop.type === "multi_select") {
+    line.optionIds = Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
+  }
   return line;
+}
+
+/** The options a new task starts with, by property id, for its `created`
+    line: a chart counts a task made in a column as having entered it. */
+export function optionsOf(
+  values: Record<string, TaskValue>,
+  props: Pick<PropertyRow, "id" | "type">[],
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const p of props) {
+    if (!hasOptions(p.type)) continue;
+    const v = values[p.id];
+    const ids = (Array.isArray(v) ? v : [v]).filter(
+      (x): x is string => typeof x === "string" && x !== "",
+    );
+    if (ids.length) out[p.id] = ids;
+  }
+  return out;
 }
 
 /** Human-readable text for one value. Used by the activity log. */

@@ -821,3 +821,29 @@ export const listSources = pgTable(
   },
   (t) => [index("list_sources_list_idx").on(t.listId)],
 );
+
+/* ------------------------------------------------------------------ */
+/* Charts                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One person's chart on Home: how many tasks entered one option a day. The
+ * property and the option carry no foreign key on purpose: a chart whose
+ * option is gone is not drawn, and nothing deletes it, as a filter rule.
+ */
+export const charts = pgTable(
+  "charts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    propertyId: uuid("property_id").notNull(),
+    optionId: uuid("option_id").notNull(),
+    position: text("position").notNull(),
+  },
+  (t) => [index("charts_user_idx").on(t.userId)],
+);

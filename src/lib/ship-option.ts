@@ -201,6 +201,7 @@ export async function shipOptionIn(
         propertyId,
         type: option.type,
         value: next && to ? next.name : "empty",
+        optionId: to,
         shipId,
       },
     })),

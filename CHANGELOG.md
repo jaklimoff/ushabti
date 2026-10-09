@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A chart on Home counts the tasks that entered a column each day.** Under
+  Charts, pick a project, a select and one of its options in place. The chart
+  draws the last 30 days in the project's zone, with today's number and the
+  average a day. A task made in the column counts too. The feed now names a
+  select's option by id, and older lines get theirs once, by today's name.
 - **A search says how many tasks it found.** When the list under the top-bar
   box shows fewer than it found, a line under it reads `12 of 60`.
 - **`board.mjs update` brings a copy up to date from its board.** It fetches

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { listProjects, listProjectsWithPulse } from "@/lib/queries";
 import { boardsOnce, listSummaries } from "@/lib/lists-load";
+import { loadCharts } from "@/lib/charts-load";
 import { ProjectList } from "@/components/projects/ProjectList";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +20,10 @@ export default async function ProjectsPage({
 
   const projects = await listProjects(user.id);
   const boardOf = boardsOnce(user.id);
-  const [rows, lists] = await Promise.all([
+  const [rows, lists, charts] = await Promise.all([
     listProjectsWithPulse(user.id, projects, boardOf),
     listSummaries(user.id, projects, boardOf),
+    loadCharts(user.id, projects, boardOf),
   ]);
   const adding = (await searchParams).new !== undefined;
   return (
@@ -29,6 +31,8 @@ export default async function ProjectsPage({
       user={user}
       adding={adding}
       lists={lists}
+      charts={charts.charts}
+      chartChoices={charts.choices}
       projects={rows.map((r) => ({
         id: r.id,
         name: r.name,

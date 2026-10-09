@@ -29,7 +29,7 @@ To close an instance once your team is in, set `USHABTI_SIGNUP=closed`. See
 
 ## Projects
 
-One project is one board. `/projects` is Home: your lists first, then your projects, each with its
+One project is one board. `/projects` is Home: your lists first, then your charts, then your projects, each with its
 key and name. On a project, the project name in the top bar is the way to another one: press it and
 pick. Your lists sit under the projects, and it ends with **New project**, which opens
 `/projects?new` with the form below already open, and **Home**.
@@ -47,6 +47,15 @@ that project's properties and options. A task is on the list when it passes any 
 archived tasks are left out. The list groups its tasks by project, and a row opens the task on its
 own board. A source of a project you left brings nothing until you rejoin, and nothing deletes it.
 Deleting a list deletes no task.
+
+## Charts
+
+A chart counts the tasks that entered one column each day, over the last 30 days in the project's
+zone. **+ New chart** on Home asks for a project, a select and one of its options, in place. A task
+counts on the day it was set to the option or made with it, so one moved out and back the same day
+counts twice. The bar of today is in full colour; under the bars are today's number, the average a
+day and the dates. A chart is yours alone. One whose option or property is gone, or whose project you
+left, is not drawn, and nothing deletes it. **✕** asks before it deletes the chart; the tasks stay.
 
 ## Adding somebody
 
