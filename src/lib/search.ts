@@ -109,7 +109,22 @@ export function hitNote(task: Searchable, shown: boolean): string | null {
   return shown ? null : "not in this view";
 }
 
+/** What a search found: the hits the box draws, and how many there were. */
+export type SearchResult = { hits: SearchHit[]; total: number };
+
 export function searchTasks(
+  tasks: Searchable[],
+  query: string,
+  doneWhen: DoneWhen | null = null,
+  limit: number = SEARCH_LIMIT,
+  leaveOut: ReadonlySet<string> = new Set(),
+): SearchHit[] {
+  return searchCounted(tasks, query, doneWhen, limit, leaveOut).hits;
+}
+
+/* The total is taken after leaveOut and before the cut, so it counts what
+   could be picked, not what fits in the box. */
+export function searchCounted(
   tasks: Searchable[],
   query: string,
   doneWhen: DoneWhen | null = null,
@@ -118,9 +133,9 @@ export function searchTasks(
      go before the cut, or twelve of them would fill the box and hide a
      thirteenth that could be picked. */
   leaveOut: ReadonlySet<string> = new Set(),
-): SearchHit[] {
+): SearchResult {
   const whole = query.trim().toLowerCase();
-  if (!whole) return [];
+  if (!whole) return { hits: [], total: 0 };
   const words = whole.split(/\s+/);
 
   const found: { rank: number; standing: number; hit: SearchHit }[] = [];
@@ -139,7 +154,7 @@ export function searchTasks(
     });
   }
 
-  return found
+  const hits = found
     .sort((a, b) => {
       if (a.rank !== b.rank) return a.rank - b.rank;
       /* Two equally good hits put open work first and then the newest: a
@@ -158,4 +173,5 @@ export function searchTasks(
     })
     .slice(0, limit)
     .map((f) => f.hit);
+  return { hits, total: found.length };
 }

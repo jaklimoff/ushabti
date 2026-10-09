@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitNote, searchTasks } from "../search";
+import { hitNote, searchCounted, searchTasks } from "../search";
 import type { TaskDTO } from "../types";
 
 const WHEN = "2026-02-01T00:00:00.000Z";
@@ -239,5 +239,28 @@ describe("The word on a hit", () => {
     /* No view draws an archived task, so the flag the caller worked out from
        the view it is on must not be able to change the word. */
     expect(hitNote(gone, true)).toBe("archived");
+  });
+});
+
+describe("searchCounted", () => {
+  const many = Array.from({ length: 20 }, (_, i) => task({ number: i + 1, title: "Checkout" }));
+
+  it("counts every hit before the cut", () => {
+    const { hits, total } = searchCounted(many, "checkout");
+    expect(hits).toHaveLength(12);
+    expect(total).toBe(20);
+    // The wrapper hands back the same hits and nothing else.
+    expect(searchTasks(many, "checkout")).toEqual(hits);
+  });
+
+  it("does not count what was left out", () => {
+    const taken = new Set(many.slice(0, 5).map((t) => t.id));
+    expect(searchCounted(many, "checkout", null, 12, taken).total).toBe(15);
+  });
+
+  it("counts a short list in full", () => {
+    const { hits, total } = searchCounted(many.slice(0, 3), "checkout");
+    expect(hits).toHaveLength(3);
+    expect(total).toBe(3);
   });
 });

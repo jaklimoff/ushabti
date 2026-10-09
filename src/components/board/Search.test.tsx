@@ -153,4 +153,27 @@ describe("Finding a task", () => {
     await expect.poll(inSight).toBe(true);
     expect(list.scrollTop).toBe(0);
   });
+
+  test("a list cut short says how many it found, and a narrower word takes the line away", async () => {
+    const data = newProject();
+    for (let i = 1; i <= 60; i++) {
+      withTask(data, `Batch ${i <= 8 ? "alpha" : "beta"} ${i}`, { Status: "Todo" });
+    }
+    await draw(data);
+
+    await find("batch");
+    await hitCount(12);
+    await expect.element(byTestId("search-count")).toHaveTextContent("12 of 60");
+    // The line sits outside the scroller, so it never scrolls away.
+    expect(
+      byTestId("search-hits")
+        .getByRole("listbox")
+        .element()
+        .contains(byTestId("search-count").element()),
+    ).toBe(false);
+
+    await find("batch alpha");
+    await hitCount(8);
+    await gone(byTestId("search-count"));
+  });
 });

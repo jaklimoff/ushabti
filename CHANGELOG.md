@@ -10,6 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A search says how many tasks it found.** When the list under the top-bar
+  box shows fewer than it found, a line under it reads `12 of 60`.
 - **`board.mjs update` brings a copy up to date from its board.** It fetches
   `board.mjs` and `SKILL.md` from `/skill/` and says which version it had and
   which it has now; a failed download changes nothing. The skill also takes
