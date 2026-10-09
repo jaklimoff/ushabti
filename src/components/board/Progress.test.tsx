@@ -197,3 +197,152 @@ describe("A dated column reads as a release", () => {
     expect(Math.max(doc.scrollWidth - doc.clientWidth, 0)).toBe(0);
   });
 });
+
+/*
+ * Ship on the same header: who is offered it, and the question it asks. Each
+ * test was a test of `e2e/ship.spec.ts` and carries its name. What a ship
+ * writes, and who the route refuses, is `release-route.test.ts`; Move stays
+ * end to end.
+ */
+
+/* The spec's board: grouped by Version, v1 due with three tasks over and one
+   not, v2 undated, and v3 the last option, dated, with one of each. */
+function shipBoard(): BoardData {
+  const data = newProject();
+  const option = (
+    name: string,
+    position: string,
+    dates: Partial<PropertyDTO["options"][number]>,
+  ) => ({
+    id: crypto.randomUUID(),
+    name,
+    color: "#3fb0c8",
+    position,
+    startAt: null,
+    targetAt: null,
+    shippedAt: null,
+    note: null,
+    ...dates,
+  });
+  data.properties.push({
+    id: crypto.randomUUID(),
+    name: "Version",
+    type: "select",
+    position: "a",
+    config: { dated: true },
+    options: [
+      option("v1", "a", { targetAt: "2026-10-14" }),
+      option("v2", "b", {}),
+      option("v3", "c", { targetAt: "2026-10-14" }),
+    ],
+  });
+  data.views.find((v) => v.isDefault)!.groupById = propertyOf(data, "Version").id;
+  data.project.doneWhen = {
+    propertyId: propertyOf(data, "Status").id,
+    optionIds: [optionOf(data, "Status", "Shipped")],
+  };
+  withTask(data, "Alpha", { Version: "v1", Status: "Shipped" });
+  withTask(data, "Bravo", { Version: "v1", Status: "Shipped" });
+  withTask(data, "Charlie", { Version: "v1", Status: "Backlog" });
+  withTask(data, "Delta", { Version: "v1", Status: "Shipped" });
+  withTask(data, "Echo", { Version: "v3", Status: "Shipped" });
+  withTask(data, "Foxtrot", { Version: "v3", Status: "Backlog" });
+  return data;
+}
+
+const buttons = (name: string) =>
+  page
+    .getByRole("alertdialog", { name })
+    .getByRole("button")
+    .elements()
+    .map((b) => b.textContent);
+
+describe("Ship on a column", () => {
+  test("only a dated column offers it, and it names both numbers", async () => {
+    const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, shipBoard());
+
+    // The undated column is on screen, with its own buttons and no Ship.
+    const v2 = column("v2");
+    await expect.element(v2.getByRole("button", { name: "Fold the column v2" })).toBeVisible();
+    await gone(v2.getByTestId("column-ship"));
+    await expect.element(column("v1").getByTestId("column-ship")).toBeVisible();
+    await expect.element(column("v3").getByTestId("column-ship")).toBeVisible();
+
+    await column("v1").getByRole("button", { name: "Ship v1" }).click();
+    // The header becomes the question, so the column is found by it.
+    const ask = page.getByRole("alertdialog", { name: "Ship v1" });
+    await expect
+      .element(ask.getByTestId("ship-confirm"))
+      .toHaveTextContent(
+        "Ship v1? 3 tasks are over and will be archived. 1 task is not over. What happens to them?",
+      );
+    expect(buttons("Ship v1")).toEqual([
+      "Move to the next option",
+      "Leave them",
+      "Clear the value",
+      "Cancel",
+    ]);
+
+    // Cancel asks nothing of the server.
+    await ask.getByRole("button", { name: "Cancel" }).click();
+    await gone(ask);
+    await expect.element(page.getByText("Alpha", { exact: true })).toBeVisible();
+    expect(sent("POST", /\/ship$/)).toHaveLength(0);
+
+    // The last option has no next one, so Move is not offered.
+    await column("v3").getByRole("button", { name: "Ship v3" }).click();
+    await expect.element(page.getByRole("alertdialog", { name: "Ship v3" })).toBeVisible();
+    expect(buttons("Ship v3")).toEqual(["Leave them", "Clear the value", "Cancel"]);
+  });
+
+  /* The screen half of "Clear takes the value away; Leave keeps it": the
+     press sends Clear, and the shipped column folds. What Clear and Leave
+     write is the route test. */
+  test("Clear sends its word, and the shipped column folds", async () => {
+    const data = shipBoard();
+    const version = propertyOf(data, "Version");
+    const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, (s) => {
+      if (s.method !== "POST" || !s.path.endsWith("/ship")) return;
+      version.options[2].shippedAt = "2026-10-09";
+      data.tasks = data.tasks.filter((t) => t.title !== "Echo");
+      delete data.tasks.find((t) => t.title === "Foxtrot")!.values[version.id];
+      return {
+        body: { archived: 1, moved: 0, rest: "clear", shippedAt: "2026-10-09" },
+      };
+    });
+
+    await column("v3").getByRole("button", { name: "Ship v3" }).click();
+    await page
+      .getByRole("alertdialog", { name: "Ship v3" })
+      .getByRole("button", { name: "Clear the value" })
+      .click();
+
+    await expect.element(byTestId("column-strip").filter({ hasText: "v3" })).toBeVisible();
+    const ships = sent("POST", /\/ship$/);
+    expect(ships).toHaveLength(1);
+    expect(ships[0].path).toBe(`/api/options/${version.options[2].id}/ship`);
+    expect(ships[0].body).toEqual({ rest: "clear" });
+  });
+
+  test("a filter or a member's role takes Ship away", async () => {
+    const owner = await renderWithBoard(<BoardShell initialTask={null} />, shipBoard());
+
+    /* Under a rule the cards on screen are not the whole column, so the
+       numbers in the question would not be the numbers that go. */
+    await expect.element(column("v1").getByTestId("column-ship")).toBeVisible();
+    await addFilter("Status", "Backlog");
+    await expect
+      .element(column("v1").getByRole("button", { name: "Fold the column v1" }))
+      .toBeVisible();
+    await gone(column("v1").getByTestId("column-ship"));
+    await owner.screen.unmount();
+
+    // A member sees the dated column and no Ship: the route would refuse it.
+    const data = shipBoard();
+    data.project = { ...data.project, role: "member" };
+    await renderWithBoard(<BoardShell initialTask={null} />, data);
+    const v1 = column("v1");
+    await expect.element(v1.getByTestId("column-date")).toBeVisible();
+    await gone(v1.getByTestId("column-ship"));
+  });
+});
