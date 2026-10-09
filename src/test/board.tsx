@@ -296,12 +296,14 @@ export async function renderWithBoard(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input), window.location.origin);
-      const raw = init?.body ? String(init.body) : "";
+      /* A file goes as a form, which is kept as it was sent. */
+      const form = init?.body instanceof FormData ? init.body : null;
+      const raw = init?.body && !form ? String(init.body) : "";
       const sent: Sent = {
         method: init?.method ?? "GET",
         path: url.pathname,
         query: url.searchParams,
-        body: raw ? JSON.parse(raw) : undefined,
+        body: form ?? (raw ? JSON.parse(raw) : undefined),
       };
       requests.push(sent);
       const said =

@@ -79,10 +79,12 @@ export async function call(
   const { load, params } = find(url.pathname);
   const handler = (await load())[method];
   if (!handler) return new Response(null, { status: 405 });
+  /* A form carries a file, and sets its own type with the boundary in it. */
+  const form = data instanceof FormData;
   const req = new Request(url, {
     method,
-    headers: { "content-type": "application/json", ...caller?.headers },
-    body: data === undefined ? undefined : JSON.stringify(data),
+    headers: { ...(form ? {} : { "content-type": "application/json" }), ...caller?.headers },
+    body: form ? data : data === undefined ? undefined : JSON.stringify(data),
   });
   return requests.run(req, () => handler(req, { params: Promise.resolve(params) }));
 }

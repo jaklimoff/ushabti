@@ -1,42 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import {
-  addListView,
-  addTask,
-  card,
-  createProject,
-  gotoSettings,
-  inDatabase,
-  listHead,
-  listOrder,
-  register,
-  saved,
-  settles,
-  unique,
-} from "./helpers";
+import { card, createProject, inDatabase, register, unique } from "./helpers";
 
 /**
  * Created and Updated are two rows of the card view, two words a filter asks
  * about and two orders a view can run in. Every task has both, so neither is
- * drawn until somebody asks for it.
+ * drawn until somebody asks for it. That they wait to be turned on is
+ * `Stamps.test.tsx`; the order by Updated is `stamps.test.ts`.
  */
-
-/** The row of the card view page that names one row. */
-function row(page: Page, name: string) {
-  return page.getByTestId("card-row").filter({
-    has: page.getByRole("button", { name: new RegExp(`^${name} on the card`) }),
-  });
-}
-
-async function turnOn(page: Page, projectId: string, name: string) {
-  await gotoSettings(page, projectId, "card");
-  await row(page, name)
-    .getByRole("button", { name: new RegExp(`^${name} on the card`) })
-    .click();
-  await saved(page, () =>
-    page.getByRole("button", { name: `Put ${name} in the footer left` }).click(),
-  );
-  await expect(row(page, name)).toHaveAttribute("data-place", "footerL");
-}
 
 async function makeTask(page: Page, projectId: string, title: string) {
   const made = await page.request.post(`/api/projects/${projectId}/tasks`, { data: { title } });
@@ -51,29 +21,6 @@ async function stamp(taskId: string, at: string) {
 }
 
 const DAYS = 86_400_000;
-
-test("Created and Updated wait to be turned on, then read on the card and in a list", async ({
-  page,
-}) => {
-  await register(page);
-  const projectId = await createProject(page, unique("Stamps"));
-  await addTask(page, "Todo", "Stamped");
-  await page.getByRole("button", { name: "Close task" }).click();
-
-  const chips = card(page, "Stamped").getByTestId("card-chip");
-  await expect(chips.filter({ hasText: /^Created|^Updated/ })).toHaveCount(0);
-  await expect(card(page, "Stamped").locator('[title^="Updated"]')).toHaveCount(0);
-  await expect(card(page, "Stamped").locator('[title^="Created"]')).toHaveCount(0);
-
-  await turnOn(page, projectId, "Updated");
-  await page.goto(`/p/${projectId}`);
-  await expect(card(page, "Stamped").locator('[title^="Updated · "]')).toHaveCount(1);
-  await expect(card(page, "Stamped").locator('[title^="Created"]')).toHaveCount(0);
-
-  await addListView(page, "Rows");
-  await expect(listHead(page, "Updated")).toHaveCount(1);
-  await expect(listHead(page, "Created")).toHaveCount(0);
-});
 
 /*
  * The browser is never on the project's day: Kiritimati is UTC+14 and the
@@ -145,34 +92,4 @@ test.describe("Updated within the last 30 days", () => {
 
     expect(noise).toEqual([]);
   });
-});
-
-test("sorting by Updated, newest first, puts the task just changed first", async ({ page }) => {
-  await register(page);
-  const projectId = await createProject(page, unique("Newest"));
-  const first = await makeTask(page, projectId, "Not changed for days");
-  const second = await makeTask(page, projectId, "Changed yesterday");
-  const third = await makeTask(page, projectId, "Changed last week");
-  await stamp(first, new Date(Date.now() - 9 * DAYS).toISOString());
-  await stamp(second, new Date(Date.now() - 1 * DAYS).toISOString());
-  await stamp(third, new Date(Date.now() - 7 * DAYS).toISOString());
-
-  const changed = await page.request.patch(`/api/tasks/${first}`, {
-    data: { title: "Changed just now" },
-  });
-  expect(changed.ok()).toBeTruthy();
-
-  await turnOn(page, projectId, "Updated");
-  await page.goto(`/p/${projectId}`);
-  await addListView(page, "By change");
-
-  await settles(page, /\/api\/views\//, () => listHead(page, "Updated").click());
-  await expect
-    .poll(() => listOrder(page))
-    .toEqual(["Changed last week", "Changed yesterday", "Changed just now"]);
-  await settles(page, /\/api\/views\//, () => listHead(page, "Updated").click());
-  await expect
-    .poll(() => listOrder(page))
-    .toEqual(["Changed just now", "Changed yesterday", "Changed last week"]);
-  await expect(listHead(page, "Updated")).toHaveAttribute("aria-label", /newest first/);
 });

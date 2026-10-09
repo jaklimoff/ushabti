@@ -1235,6 +1235,8 @@ describe("a person rule that says Me", () => {
     task("c", {}),
   ];
 
+  /* Holds "a shared view with Assignee is Me shows each viewer their own",
+     which was a test of `e2e/collaboration.spec.ts`. */
   it("means whoever reads the view, so one shared rule is each viewer's own", () => {
     const ids = (viewer: string | null) =>
       applyFilters(tasks, { rules: [me] }, properties, TODAY, viewer, NONE, "UTC").map((t) => t.id);

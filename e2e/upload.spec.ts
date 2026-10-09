@@ -1,21 +1,14 @@
 /* eslint-disable playwright/no-skipped-test -- a server with no bucket cannot run these, and says so. */
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import {
-  addTask,
-  createProject,
-  register,
-  unique,
-  descriptionBox,
-  expectBoxValue,
-  hydrated,
-} from "./helpers";
+import { addTask, createProject, register, unique, hydrated } from "./helpers";
 
 /**
  * A file dropped on the markdown box uploads, says how far it got where the
  * cursor was, and becomes its markdown. These need a bucket, so a server with
  * no S3_BUCKET skips them; USH-181 brings an object store to CI and to the dev
  * stack. The routes themselves are tested with the bucket stubbed, in
- * `attachments-route.test.ts`.
+ * `attachments-route.test.ts`, and the description's drop and the draft a
+ * stopped upload left are `Upload.test.tsx`.
  */
 
 // A real 1×1 PNG: the ready route reads an image's size from its bytes.
@@ -135,44 +128,4 @@ test("a video draws a player, a refused file says why, and the strip removes one
   await expect(page.getByRole("alertdialog")).toContainText("Remove pixel.png?");
   await page.getByRole("button", { name: "Yes, remove" }).click();
   await expect(files).toHaveText([/clip\.mp4/]);
-});
-
-test("the description takes a dropped file in the same box", async ({ page }) => {
-  await register(page, "Owner Person");
-  await createProject(page, unique("Files"));
-  test.skip(!(await filesOn(page)), NO_BUCKET);
-  await addTask(page, "Todo", "Described with a picture");
-
-  await page.getByText("Add a description…").click();
-  const editor = descriptionBox(page);
-  await drop(page, editor, [{ name: "pixel.png", mime: "image/png", base64: PNG }]);
-  await expectBoxValue(editor, LINE);
-  await editor.blur();
-  await expect(page.getByTestId("markdown").locator("img")).toHaveAttribute(
-    "src",
-    /^\/api\/attachments\//,
-  );
-  await expect(page.getByTestId("files").getByTestId("file")).toHaveCount(1);
-});
-
-test("a line a stopped upload left in the composer draft is not shown again", async ({
-  page,
-  context,
-}) => {
-  await register(page, "Owner Person");
-  const projectId = await createProject(page, unique("Files"));
-  await addTask(page, "Todo", "Left a line");
-
-  // The draft a tab closed mid-upload leaves behind: the words and the line.
-  await hydrated(page.getByTestId("comment-box"));
-  await page.getByTestId("comment-box").fill("Kept words\nUploading shot.png… 40%");
-  await expect(page.getByTestId("comment-box")).toHaveValue("Kept words");
-  await page.close();
-
-  const back = await context.newPage();
-  await back.goto(`/p/${projectId}`);
-  await back.getByText("Left a line").first().click();
-  await expect(back.getByTestId("comment-box")).toHaveValue("Kept words");
-  await back.getByRole("button", { name: "Comment", exact: true }).click();
-  await expect(back.getByTestId("comment-markdown")).toHaveText("Kept words");
 });
