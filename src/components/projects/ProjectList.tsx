@@ -14,6 +14,8 @@ import { longAgo } from "@/lib/board";
 import { foldedOf, noFolds, subscribeFolded } from "@/lib/fold";
 import { agentsLine, splitFolded, type ProjectPulse, type PulseColumn } from "@/lib/pulse";
 import type { ListSummary } from "@/lib/lists";
+import type { ChartChoice, ChartDTO } from "@/lib/charts";
+import { Charts } from "./Charts";
 import { useNow } from "@/components/ui/useElapsed";
 import styles from "./ProjectList.module.css";
 
@@ -35,11 +37,15 @@ export function ProjectList({
   user,
   projects,
   lists = [],
+  charts = [],
+  chartChoices = [],
   adding: asked = false,
 }: {
   user: SessionUser;
   projects: ProjectRow[];
   lists?: ListSummary[];
+  charts?: ChartDTO[];
+  chartChoices?: ChartChoice[];
   adding?: boolean;
 }) {
   const router = useRouter();
@@ -82,6 +88,8 @@ export function ProjectList({
         </div>
 
         {!first && <MyLists lists={lists} />}
+
+        {!first && <Charts charts={charts} choices={chartChoices} />}
 
         <h2 className={styles.section}>Projects</h2>
 
