@@ -26,9 +26,16 @@ import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { canManage } from "@/lib/roles";
-import { longAgo } from "@/lib/board";
+import { formatDate, longAgo } from "@/lib/board";
 import { foldedOf, noFolds, subscribeFolded } from "@/lib/fold";
-import { agentsLine, splitFolded, type ProjectPulse, type PulseColumn } from "@/lib/pulse";
+import {
+  agentsLine,
+  daysSaid,
+  splitFolded,
+  type Heading,
+  type ProjectPulse,
+  type PulseColumn,
+} from "@/lib/pulse";
 import type { ListSummary } from "@/lib/lists";
 import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import { Charts } from "./Charts";
@@ -300,7 +307,9 @@ function ProjectCard({ project }: { project: ProjectRow }) {
           {/* The gear's place, held so nothing moves when it fades in. */}
           <span className={styles.gearPlace} aria-hidden="true" />
         </div>
-        <div className={styles.cardRow} data-testid="project-goal" />
+        <div className={styles.cardRow} data-testid="project-goal">
+          {project.pulse?.heading && <Goal heading={project.pulse.heading} />}
+        </div>
         {project.pulse && <Pulse pulse={project.pulse} />}
       </Link>
       <IconButton
@@ -454,6 +463,40 @@ function ListCard({ list }: { list: ListSummary }) {
           )}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * Where the project is heading: the release or sprint that is on, or the
+ * newest change. The fill is grey, because progress asks nothing of anybody.
+ */
+function Goal({ heading }: { heading: Heading }) {
+  if (heading.kind === "change") {
+    return (
+      <div className={styles.goal} data-testid="project-change">
+        <span className={styles.goalText}>
+          {heading.who} {heading.verb}
+          {heading.taskKey && <span className={styles.goalKey}> {heading.taskKey}</span>}
+          {heading.taskTitle && ` ${heading.taskTitle}`}
+        </span>
+        {heading.to && <span className={styles.goalTo}>→ {heading.to}</span>}
+      </div>
+    );
+  }
+  const share = heading.total > 0 ? Math.min(1, heading.done / heading.total) : 0;
+  return (
+    <div className={styles.goal} data-testid={`project-${heading.kind}`}>
+      <span className={styles.goalText}>
+        {heading.property} <strong className={styles.goalName}>{heading.name}</strong> ·{" "}
+        {heading.kind === "release" ? `ships ${formatDate(heading.day)}` : daysSaid(heading.left)}
+      </span>
+      <span className={styles.goalTrack} aria-hidden="true">
+        <span className={styles.goalFill} style={{ width: `${share * 100}%` }} />
+      </span>
+      <span className={styles.goalCount}>
+        {heading.done} / {heading.total}
+      </span>
     </div>
   );
 }

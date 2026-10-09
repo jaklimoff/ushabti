@@ -243,7 +243,16 @@ const pulseOf = (over: Partial<ProjectPulse> = {}): ProjectPulse => ({
     { id: "c4", name: "Shipped", color: "#6d5bd0", count: 12 },
   ],
   agents: { names: [], silent: 0 },
-  last: { at: new Date().toISOString(), who: null, taskKey: null },
+  last: {
+    at: new Date().toISOString(),
+    who: null,
+    taskKey: null,
+    taskTitle: null,
+    kind: "title",
+    propertyId: null,
+    value: null,
+  },
+  heading: null,
   people: [
     { id: "u1", name: "Ada Lovelace", kind: "human" },
     { id: "u2", name: "Builder", kind: "agent" },
@@ -405,5 +414,73 @@ describe("A project card", () => {
     expect(opacity("HAR")).toBe("0.45");
     expect(opacity("Lighthouse")).toBe("1");
     expect(opacity("LIG")).toBe("1");
+  });
+});
+
+describe("A project card's second row", () => {
+  test("reads the release, its ship day and a grey bar of done over total", async () => {
+    const heading = {
+      kind: "release" as const,
+      property: "Release",
+      name: "0.23",
+      day: "2026-10-14",
+      left: 5,
+      done: 12,
+      total: 18,
+    };
+    const harbour = { ...rows[0], pulse: pulseOf({ heading }) };
+    await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
+    const row = page.getByTestId("project-release");
+    await expect.element(row).toHaveTextContent("Release 0.23 · ships Oct 1412 / 18");
+    const bar = row.element().querySelector("[aria-hidden]")!;
+    expect(Math.round(bar.getBoundingClientRect().width)).toBeLessThanOrEqual(120);
+    const fill = bar.firstElementChild!;
+    expect(getComputedStyle(fill).backgroundColor).toBe("rgb(164, 170, 179)");
+    expect(fill.getBoundingClientRect().width / bar.getBoundingClientRect().width).toBeCloseTo(
+      12 / 18,
+      1,
+    );
+  });
+
+  test("reads the sprint and the days it has left", async () => {
+    const heading = {
+      kind: "sprint" as const,
+      property: "Sprint",
+      name: "14",
+      day: "2026-10-12",
+      left: 3,
+      done: 1,
+      total: 2,
+    };
+    const harbour = { ...rows[0], pulse: pulseOf({ heading }) };
+    await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
+    await expect
+      .element(page.getByTestId("project-sprint"))
+      .toHaveTextContent("Sprint 14 · 3 days left1 / 2");
+  });
+
+  test("reads who did what to which task, and the column it went to", async () => {
+    const heading = {
+      kind: "change" as const,
+      who: "Jack",
+      verb: "moved",
+      taskKey: "MC-120",
+      taskTitle: "Cards table keeps the side pane open",
+      to: "Review",
+    };
+    const harbour = { ...rows[0], pulse: pulseOf({ heading }) };
+    await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
+    const row = page.getByTestId("project-change");
+    await expect
+      .element(row)
+      .toHaveTextContent("Jack moved MC-120 Cards table keeps the side pane open→ Review");
+    const key = page.getByText("MC-120").element();
+    expect(getComputedStyle(key).fontFamily).toMatch(/mono/i);
+  });
+
+  test("stays empty on a project with no activity", async () => {
+    const harbour = { ...rows[0], pulse: pulseOf({ last: null, heading: null }) };
+    await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
+    expect(page.getByTestId("project-goal").element().childElementCount).toBe(0);
   });
 });

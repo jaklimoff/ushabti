@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { agentsAtWork, agentsLine, isQuiet, mainColumns, splitFolded } from "../pulse";
+import {
+  agentsAtWork,
+  agentsLine,
+  daysSaid,
+  headingOf,
+  isQuiet,
+  mainColumns,
+  splitFolded,
+  type LastChange,
+} from "../pulse";
 import type {
   AgentRunDTO,
   BoardData,
@@ -210,11 +219,225 @@ describe("isQuiet", () => {
     at: new Date(now - days * 24 * 60 * 60 * 1000).toISOString(),
     who: null,
     taskKey: null,
+    taskTitle: null,
+    kind: "title",
+    propertyId: null,
+    value: null,
   });
 
   it("reads a project quiet after three weeks without a change", () => {
     expect(isQuiet(at(22), now)).toBe(true);
     expect(isQuiet(at(20), now)).toBe(false);
     expect(isQuiet(null, now)).toBe(false);
+  });
+});
+
+function dated(
+  id: string,
+  name: string,
+  startAt: string | null,
+  targetAt: string | null,
+): PropertyOptionDTO {
+  return { ...option(id, name, "#444444", id), startAt, targetAt };
+}
+
+const release: PropertyDTO = {
+  id: "p-release",
+  name: "Release",
+  type: "select",
+  position: "X",
+  config: { dated: true },
+  options: [
+    dated("o-022", "0.22", "2026-09-01", "2026-09-30"),
+    dated("o-023", "0.23", "2026-10-01", "2026-10-14"),
+  ],
+};
+
+const sprint: PropertyDTO = {
+  id: "p-sprint",
+  name: "Sprint",
+  type: "iteration",
+  position: "Y",
+  config: {},
+  options: [dated("o-s14", "14", "2026-10-05", "2026-10-12")],
+};
+
+function project(over: Partial<BoardData["project"]>): BoardData["project"] {
+  return {
+    timeZone: "UTC",
+    doneWhen: { propertyId: phase.id, optionIds: ["o-shipped"] },
+    progressBy: null,
+    releaseBy: null,
+    sprintBy: null,
+    ...over,
+  } as BoardData["project"];
+}
+
+const work = [
+  task(1, { [release.id]: "o-023", [sprint.id]: "o-s14", [phase.id]: "o-shipped" }),
+  task(2, { [release.id]: "o-023", [sprint.id]: "o-s14", [phase.id]: "o-build" }),
+  task(3, { [release.id]: "o-023", [phase.id]: "o-shipped" }),
+  task(4, { [release.id]: "o-022", [phase.id]: "o-build" }),
+];
+
+function headed(over: Partial<BoardData["project"]>, last: LastChange | null = null) {
+  return headingOf(
+    {
+      project: project(over),
+      today: "2026-10-09",
+      properties: [phase, owner, release, sprint],
+      views: [view({})],
+      tasks: work,
+    },
+    last,
+  );
+}
+
+function change(over: Partial<LastChange>): LastChange {
+  return {
+    at: "2026-10-09T10:00:00.000Z",
+    who: "Jack",
+    taskKey: "MC-120",
+    taskTitle: "Cards table keeps the side pane open",
+    kind: "value",
+    propertyId: phase.id,
+    value: "Build",
+    ...over,
+  };
+}
+
+describe("headingOf", () => {
+  it("reads the current release, its day and its tasks over against all of them", () => {
+    expect(headed({ releaseBy: release.id, sprintBy: sprint.id }, change({}))).toEqual({
+      kind: "release",
+      property: "Release",
+      name: "0.23",
+      day: "2026-10-14",
+      left: 5,
+      done: 2,
+      total: 3,
+    });
+  });
+
+  it("counts by the project's number property, as the column header does", () => {
+    const points: PropertyDTO = { ...owner, id: "p-points", type: "number" };
+    const heading = headingOf(
+      {
+        project: project({ releaseBy: release.id, progressBy: points.id }),
+        today: "2026-10-09",
+        properties: [phase, release, points],
+        views: [view({})],
+        tasks: [
+          task(1, { [release.id]: "o-023", [phase.id]: "o-shipped", [points.id]: 3 }),
+          task(2, { [release.id]: "o-023", [points.id]: 5 }),
+        ],
+      },
+      null,
+    );
+    expect(heading).toMatchObject({ done: 3, total: 8 });
+  });
+
+  it("reads the current sprint when releases are off", () => {
+    expect(headed({ sprintBy: sprint.id }, change({}))).toEqual({
+      kind: "sprint",
+      property: "Sprint",
+      name: "14",
+      day: "2026-10-12",
+      left: 3,
+      done: 1,
+      total: 2,
+    });
+  });
+
+  it("asks the pointer and never a name: a select named Release with releases off is a select", () => {
+    expect(headed({}, change({}))?.kind).toBe("change");
+  });
+
+  it("falls through to the change when no release is current", () => {
+    const later = { ...release, options: [dated("o-1", "1.0", "2026-11-01", "2026-11-30")] };
+    const heading = headingOf(
+      {
+        project: project({ releaseBy: later.id }),
+        today: "2026-10-09",
+        properties: [phase, later],
+        views: [view({})],
+        tasks: work,
+      },
+      change({}),
+    );
+    expect(heading?.kind).toBe("change");
+  });
+
+  it("says a value change of the main view's grouping property moved the task there", () => {
+    expect(headed({}, change({}))).toEqual({
+      kind: "change",
+      who: "Jack",
+      verb: "moved",
+      taskKey: "MC-120",
+      taskTitle: "Cards table keeps the side pane open",
+      to: "Build",
+    });
+  });
+
+  it("says any other value change changed the task, with no column", () => {
+    expect(headed({}, change({ propertyId: owner.id, value: "Me" }))).toMatchObject({
+      verb: "changed",
+      to: null,
+    });
+  });
+
+  it("reads a value change as a move only on a main view that is a board", () => {
+    const heading = headingOf(
+      {
+        project: project({}),
+        today: "2026-10-09",
+        properties: [phase],
+        views: [view({ kind: "list" })],
+        tasks: [],
+      },
+      change({}),
+    );
+    expect(heading).toMatchObject({ verb: "changed", to: null });
+  });
+
+  it("names no column when the task was moved out of every one", () => {
+    expect(headed({}, change({ value: "empty" }))).toMatchObject({ verb: "moved", to: null });
+  });
+
+  it.each([
+    ["comment", "commented on"],
+    ["created", "created"],
+    ["title", "changed"],
+    ["description", "changed"],
+    ["checklist", "changed"],
+    ["archive", "changed"],
+    ["link", "changed"],
+    ["run", "changed"],
+    ["deleted", "changed"],
+  ])("says a %s line as %s", (kind, verb) => {
+    expect(headed({}, change({ kind, propertyId: null, value: null }))).toMatchObject({
+      verb,
+      to: null,
+    });
+  });
+
+  it("names somebody when the actor is gone", () => {
+    expect(headed({}, change({ who: null }))).toMatchObject({ who: "Somebody" });
+  });
+
+  it("leaves the row empty on a project with no activity", () => {
+    expect(headed({}, null)).toBeNull();
+  });
+});
+
+describe("daysSaid", () => {
+  it("counts the days a sprint has, and the days it ran over", () => {
+    expect([3, 1, 0, -1, -4].map(daysSaid)).toEqual([
+      "3 days left",
+      "1 day left",
+      "last day",
+      "1 day over",
+      "4 days over",
+    ]);
   });
 });

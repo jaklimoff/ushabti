@@ -1,5 +1,7 @@
 import { buildColumns } from "./board";
-import { allowedColumns, applyFilters, mergeFilters, waitingTasks } from "./filters";
+import { allowedColumns, applyFilters, currentOption, mergeFilters, waitingTasks } from "./filters";
+import { progressOf } from "./progress";
+import { dayNumber } from "./roadmap";
 import { isWaiting, lifeOf } from "./run-state";
 import type { AgentRunRowDTO, BoardData } from "./types";
 
@@ -16,7 +18,44 @@ export type PulseColumn = { id: string; name: string; color: string; count: numb
 /** The names of the agents that report, in the order their runs came. */
 export type AgentsAtWork = { names: string[]; silent: number };
 
-export type LastChange = { at: string; who: string | null; taskKey: string | null };
+/** The newest line of the feed, with what the card's sentence needs of it. */
+export type LastChange = {
+  at: string;
+  who: string | null;
+  taskKey: string | null;
+  taskTitle: string | null;
+  kind: string;
+  /** The property a value line changed, and the value it says it took. */
+  propertyId: string | null;
+  value: string | null;
+};
+
+/**
+ * Where the project is heading, as the card's second row reads it: the
+ * current release, else the current sprint, else the newest change.
+ */
+export type Heading =
+  | {
+      kind: "release" | "sprint";
+      /** The property's own name, so a select called Version reads Version. */
+      property: string;
+      name: string;
+      /** The day it ends, as YYYY-MM-DD. */
+      day: string;
+      /** Days from today to that day; below zero once it is past. */
+      left: number;
+      done: number;
+      total: number;
+    }
+  | {
+      kind: "change";
+      who: string;
+      verb: string;
+      taskKey: string | null;
+      taskTitle: string | null;
+      /** The column a move took the task to, or null when it was no move. */
+      to: string | null;
+    };
 
 /** Somebody on the project, as the card's footer draws them. */
 export type PulsePerson = { id: string; name: string; kind: "human" | "agent" };
@@ -31,6 +70,7 @@ export type ProjectPulse = {
   columns: PulseColumn[] | null;
   agents: AgentsAtWork;
   last: LastChange | null;
+  heading: Heading | null;
   people: PulsePerson[];
   /** No change for three weeks. Worked out where the page is drawn, so it hydrates. */
   quiet: boolean;
@@ -41,6 +81,11 @@ type BoardPart = Pick<
   "project" | "today" | "members" | "former" | "properties" | "views" | "tasks" | "runs"
 >;
 
+/** The view a board opens on when nobody picked one. */
+function mainView(board: Pick<BoardData, "views">) {
+  return board.views.find((v) => v.isDefault) ?? board.views[0];
+}
+
 /**
  * The columns of the main view, with the cards this person would see in each.
  *
@@ -49,7 +94,7 @@ type BoardPart = Pick<
  * back to another view would count a board the person does not open.
  */
 export function mainColumns(board: BoardPart, viewer: string | null): PulseColumn[] | null {
-  const view = board.views.find((v) => v.isDefault) ?? board.views[0];
+  const view = mainView(board);
   if (!view || view.kind !== "board" || !view.groupById) return null;
   const property = board.properties.find((p) => p.id === view.groupById);
   if (!property) return null;
@@ -125,4 +170,65 @@ export function splitFolded(
     open: columns.filter((c) => !folded.includes(c.id)),
     aside: columns.filter((c) => folded.includes(c.id)),
   };
+}
+
+/**
+ * The second row of the card. "Are releases on?" asks the pointer and never a
+ * name, as the board does. The numbers are the column header's own, over every
+ * live task in the option, because the card shows no filter to explain fewer.
+ * Releases on with nothing current falls through, so the row still says
+ * something on a project that has had work.
+ */
+export function headingOf(
+  board: Pick<BoardData, "project" | "today" | "properties" | "views" | "tasks">,
+  last: LastChange | null,
+): Heading | null {
+  for (const [kind, id] of [
+    ["release", board.project.releaseBy],
+    ["sprint", board.project.sprintBy],
+  ] as const) {
+    const property = id ? board.properties.find((p) => p.id === id) : undefined;
+    if (!property) continue;
+    const option = property.options.find((o) => o.id === currentOption(property, board.today));
+    if (!option?.targetAt) continue;
+    const { done, total } = progressOf(
+      board.tasks.filter((t) => t.values[property.id] === option.id),
+      board.project.doneWhen,
+      board.project.progressBy,
+    );
+    return {
+      kind,
+      property: property.name,
+      name: option.name,
+      day: option.targetAt,
+      left: dayNumber(option.targetAt) - dayNumber(board.today),
+      done,
+      total,
+    };
+  }
+  if (!last) return null;
+  const view = mainView(board);
+  const moved =
+    last.kind === "value" &&
+    !!last.propertyId &&
+    view?.kind === "board" &&
+    view.groupById === last.propertyId;
+  return {
+    kind: "change",
+    who: last.who ?? "Somebody",
+    verb: moved ? "moved" : (VERBS[last.kind] ?? "changed"),
+    taskKey: last.taskKey,
+    taskTitle: last.taskTitle,
+    to: moved && last.value && last.value !== "empty" ? last.value : null,
+  };
+}
+
+const VERBS: Record<string, string> = { comment: "commented on", created: "created" };
+
+/** How long a sprint has: it counts days where a release names its day. */
+export function daysSaid(left: number): string {
+  if (left > 1) return `${left} days left`;
+  if (left === 1) return "1 day left";
+  if (left === 0) return "last day";
+  return left === -1 ? "1 day over" : `${-left} days over`;
 }

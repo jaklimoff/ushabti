@@ -191,4 +191,85 @@ test.describe("The project list shows how every project is going", () => {
     await expect(card.getByTestId("project-agents")).toHaveCount(0);
     await expect(card.getByTestId("project-last")).toHaveText("just now");
   });
+
+  test("the second row reads the latest change, then the sprint, then the release", async ({
+    page,
+  }) => {
+    const me = await register(page, "Goal Reader");
+    const projectId = await createProject(page, unique("Goal"));
+    const { key, status, opt } = await shapeOf(page, projectId);
+    const card = page.locator(`a[href="/p/${projectId}"]`);
+
+    /* No activity yet: the row is there and says nothing. */
+    await page.goto("/projects");
+    await expect(card.getByTestId("project-goal")).toBeEmpty();
+
+    const make = async (title: string, values: Record<string, string>) => {
+      const made = await page.request.post(`/api/projects/${projectId}/tasks`, {
+        data: { title, values },
+      });
+      expect(made.ok()).toBeTruthy();
+      return (await made.json()).task as { id: string; number: number };
+    };
+    const task = await make("Cards table keeps the side pane open", {
+      [status.id]: opt(status, "Todo"),
+    });
+    const moved = await page.request.put(`/api/tasks/${task.id}/values/${status.id}`, {
+      data: { value: opt(status, "In Progress") },
+    });
+    expect(moved.ok()).toBeTruthy();
+    await page.goto("/projects");
+    await expect(card.getByTestId("project-change")).toHaveText(
+      `${me.name} moved ${key}-${task.number} Cards table keeps the side pane open→ In Progress`,
+    );
+
+    /* Sprints on: the current sprint and the days it has. */
+    const sprints = await page.request.post(`/api/projects/${projectId}/sprints`, {
+      data: { length: 14 },
+    });
+    expect(sprints.status()).toBe(201);
+    await page.reload();
+    await expect(card.getByTestId("project-sprint")).toHaveText(
+      /^Sprint .+ · (\d+ days? left|last day)\d+ \/ \d+$/,
+    );
+
+    /* Releases on win over sprints, and count done by the project's own rule. */
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Version", type: "select", options: ["0.23"] },
+    });
+    expect(made.ok()).toBeTruthy();
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    const version = board.properties.find((p: Property) => p.name === "Version") as Property;
+    expect(
+      (await page.request.patch(`/api/properties/${version.id}`, { data: { dated: true } })).ok(),
+    ).toBeTruthy();
+    expect((await page.request.post(`/api/projects/${projectId}/releases`)).ok()).toBeTruthy();
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const dated = await page.request.patch(`/api/options/${version.options[0].id}`, {
+      data: { startAt: day(-1), targetAt: day(5) },
+    });
+    expect(dated.ok()).toBeTruthy();
+    const doneWhen = await page.request.patch(`/api/projects/${projectId}`, {
+      data: { doneWhen: { propertyId: status.id, optionId: opt(status, "Shipped") } },
+    });
+    expect(doneWhen.ok()).toBeTruthy();
+    const put = await page.request.put(`/api/tasks/${task.id}/values/${version.id}`, {
+      data: { value: version.options[0].id },
+    });
+    expect(put.ok()).toBeTruthy();
+    await make("Already out", {
+      [status.id]: opt(status, "Shipped"),
+      [version.id]: version.options[0].id,
+    });
+
+    const months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+    const target = new Date(`${day(5)}T00:00:00`);
+    await page.reload();
+    const release = card.getByTestId("project-release");
+    await expect(release).toHaveText(
+      `Version 0.23 · ships ${months[target.getMonth()]} ${target.getDate()}1 / 2`,
+    );
+    await expect(card.getByTestId("project-sprint")).toHaveCount(0);
+  });
 });
