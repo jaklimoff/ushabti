@@ -28,7 +28,7 @@ import { HttpError } from "./auth";
 import { mainBoardGroupById, ownCardView, PREVIEW_COUNT, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
-import { readFilters, WAITS } from "./filters";
+import { readFilters } from "./filters";
 import { readTimeZone, todayIn } from "./day";
 import {
   BLOCKS,
@@ -47,6 +47,8 @@ import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
+import { agentsAtWork, mainColumns, type LastChange, type ProjectPulse } from "./pulse";
+import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
 import { kickSender } from "./webhooks";
 import { GROUPABLE_TYPES, isSelect, VIEW_KINDS } from "./types";
@@ -156,13 +158,19 @@ export async function rankOnTheEnd(
 /* ------------------------------------------------------------------ */
 
 /**
- * The top bar's count, `waitingTasks()`, over the tasks a board loads: an open
- * run that waits, on a task neither archived nor deleted. One task holds one
- * open run, so a plain count is a count of tasks. It is a subquery on the
- * project row, so a list of projects is still one query.
+ * The tasks waiting for a person: an open run in `WAITING_STATUSES`, a
+ * question or a hand-over, on a task neither archived nor deleted. A hand-over
+ * counts because it waits as surely as a question does, and a list that left it
+ * out let it wait unseen. `waitingCount()` is the same number for the open
+ * project. One task holds one open run, so a plain count is a count of tasks.
+ * It is a subquery on the project row, so a list of projects is still one query.
  */
 function waitingIn() {
-  return sql<number>`(select count(*)::int from ${agentRuns} r join ${tasks} t on t.id = r.task_id where r.project_id = ${projects}.id and r.ended_at is null and r.status = ${WAITS} and t.archived_at is null and t.deleted_at is null)`;
+  const statuses = sql.join(
+    WAITING_STATUSES.map((s) => sql`${s}`),
+    sql`, `,
+  );
+  return sql<number>`(select count(*)::int from ${agentRuns} r join ${tasks} t on t.id = r.task_id where r.project_id = ${projects}.id and r.ended_at is null and r.status in (${statuses}) and t.archived_at is null and t.deleted_at is null)`;
 }
 
 /** The one project an agent token opens, with the same waiting number. */
@@ -184,14 +192,64 @@ export async function listProjects(userId: string) {
       ownerId: projects.ownerId,
       role: projectMembers.role,
       createdAt: projects.createdAt,
-      taskCount: sql<number>`(select count(*)::int from ${tasks} t where t.project_id = ${projects}.id)`,
-      memberCount: sql<number>`(select count(*)::int from ${projectMembers} pm where pm.project_id = ${projects}.id)`,
       waiting: waitingIn(),
     })
     .from(projectMembers)
     .innerJoin(projects, eq(projects.id, projectMembers.projectId))
     .where(eq(projectMembers.userId, userId))
     .orderBy(asc(projects.createdAt));
+}
+
+/**
+ * The projects with how each is going, for the project list.
+ *
+ * Each pulse is read off the board this person would open, through
+ * `loadBoard` and the board's own readers, so the card and the board cannot
+ * disagree about a count. It costs a board per project, which is why the
+ * switcher and `GET /api/projects` ask `listProjects` alone.
+ */
+export async function listProjectsWithPulse(userId: string) {
+  const rows = await listProjects(userId);
+  const now = Date.now();
+  return Promise.all(
+    rows.map(async (row) => {
+      const [board, last] = await Promise.all([
+        loadBoard(row.id, row.role, userId),
+        lastChange(row.id),
+      ]);
+      const pulse: ProjectPulse = {
+        viewId: (board.views.find((v) => v.isDefault) ?? board.views[0])?.id ?? null,
+        columns: mainColumns(board, userId),
+        agents: agentsAtWork(board.runs, now),
+        last,
+      };
+      return { ...row, pulse };
+    }),
+  );
+}
+
+/** The newest row of the activity feed: when, who and on which task. */
+async function lastChange(projectId: string): Promise<LastChange | null> {
+  const [row] = await db
+    .select({
+      createdAt: activity.createdAt,
+      who: users.name,
+      taskNumber: tasks.number,
+      projectKey: projects.key,
+    })
+    .from(activity)
+    .innerJoin(projects, eq(projects.id, activity.projectId))
+    .leftJoin(tasks, eq(tasks.id, activity.taskId))
+    .leftJoin(users, eq(users.id, activity.actorId))
+    .where(eq(activity.projectId, projectId))
+    .orderBy(desc(activity.createdAt), desc(activity.id))
+    .limit(1);
+  if (!row) return null;
+  return {
+    at: row.createdAt.toISOString(),
+    who: row.who,
+    taskKey: row.taskNumber === null ? null : `${row.projectKey}-${row.taskNumber}`,
+  };
 }
 
 /** Creates the project, its default property set and its default views. */

@@ -203,15 +203,15 @@ describe("How many tasks wait in each project", () => {
     await ok(api(owner).post(`/api/tasks/${archived}/archive`));
     await ok(api(owner).del(`/api/tasks/${deleted}`));
 
-    /* One ask is left: the archived and the deleted task are on no board, and
-       a hand-over waits for nobody in particular. The switcher and the All
-       projects page draw this number as it comes. */
+    /* One ask and one hand-over are left: the archived and the deleted task
+       are on no board, and a hand-over waits for a person as a question does.
+       The switcher and the project list draw this number as it comes. */
     const { projects } = await ok(api(owner).get("/api/projects"));
     const byId = (id: string) => projects.find((x: { id: string }) => x.id === id);
-    expect(byId(asked.id).waiting).toBe(1);
+    expect(byId(asked.id).waiting).toBe(2);
     expect(byId(quiet.id).waiting).toBe(0);
 
     // An agent cannot list projects, so it reads the number on its own one.
-    expect((await ok(bot.api.get("/api/agent/me"))).project.waiting).toBe(1);
+    expect((await ok(bot.api.get("/api/agent/me"))).project.waiting).toBe(2);
   });
 });

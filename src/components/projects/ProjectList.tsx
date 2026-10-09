@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { api } from "@/lib/client";
 import { suggestProjectKey } from "@/lib/defaults";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/Form";
 import { Tag } from "@/components/ui/Layout";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { canManage } from "@/lib/roles";
+import { longAgo } from "@/lib/board";
+import { foldedOf, noFolds, subscribeFolded } from "@/lib/fold";
+import { agentsLine, splitFolded, type ProjectPulse, type PulseColumn } from "@/lib/pulse";
+import { useNow } from "@/components/ui/useElapsed";
 import styles from "./ProjectList.module.css";
 
 export type ProjectRow = {
@@ -17,9 +21,9 @@ export type ProjectRow = {
   name: string;
   key: string;
   role: string;
-  taskCount: number;
-  memberCount: number;
+  /** Questions and hand-overs, the switcher's number. */
   waiting: number;
+  pulse?: ProjectPulse;
 };
 
 export function ProjectList({
@@ -90,20 +94,14 @@ export function ProjectList({
                 <div className={styles.cardTop}>
                   <span className={styles.key}>{project.key}</span>
                   {canManage(project.role) && <Tag>{project.role}</Tag>}
-                </div>
-                <div className={styles.cardName}>{project.name}</div>
-                <div className={styles.cardMeta}>
-                  {project.taskCount} {project.taskCount === 1 ? "task" : "tasks"} ·{" "}
-                  {project.memberCount} {project.memberCount === 1 ? "member" : "members"}
                   {project.waiting > 0 && (
-                    <>
-                      {" · "}
-                      <span className={styles.waiting} data-testid="project-waiting">
-                        {project.waiting} waiting
-                      </span>
-                    </>
+                    <span className={styles.waiting} data-testid="project-waiting">
+                      {project.waiting} waiting for you
+                    </span>
                   )}
                 </div>
+                <div className={styles.cardName}>{project.name}</div>
+                {project.pulse && <Pulse pulse={project.pulse} />}
               </Link>
               <Link
                 href={`/p/${project.id}/settings/properties`}
@@ -167,6 +165,71 @@ export function ProjectList({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * How the project is going: its main view's columns as a bar and a line of
+ * counts, then who works on it and the last thing that changed. The line names
+ * every column with its count, because a colour must never carry the meaning
+ * alone. What this person folded on that view is read here, after the page
+ * draws, exactly as the board reads it: the server cannot know a browser.
+ */
+function Pulse({ pulse }: { pulse: ProjectPulse }) {
+  const folded = useSyncExternalStore(subscribeFolded, () => foldedOf(pulse.viewId ?? ""), noFolds);
+  const now = useNow(false);
+  const agents = agentsLine(pulse.agents);
+  return (
+    <>
+      {pulse.columns && <Columns columns={pulse.columns} folded={folded} />}
+      {(agents || pulse.last) && (
+        <div className={styles.cardFoot} data-testid="project-foot">
+          {agents && <span data-testid="project-agents">{agents}</span>}
+          {pulse.last && (
+            <span className={styles.last} data-testid="project-last">
+              <span suppressHydrationWarning>{longAgo(pulse.last.at, now)}</span>
+              {pulse.last.who && <> · {pulse.last.who}</>}
+              {pulse.last.taskKey && <> · {pulse.last.taskKey}</>}
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+function Columns({ columns, folded }: { columns: PulseColumn[]; folded: readonly string[] }) {
+  const { open, aside } = splitFolded(columns, folded);
+  const total = open.reduce((sum, c) => sum + c.count, 0);
+  return (
+    <div className={styles.pulse}>
+      {/* The words under it say the same, so the bar is not read out twice. */}
+      <div className={styles.track} aria-hidden="true" data-testid="project-bar">
+        {total > 0 &&
+          open
+            .filter((c) => c.count > 0)
+            .map((c) => (
+              <span
+                key={c.id}
+                className={styles.share}
+                style={{ flexGrow: c.count, background: c.color }}
+                data-column={c.name}
+              />
+            ))}
+      </div>
+      <div className={styles.counts} data-testid="project-columns">
+        {open.map((c) => (
+          <span key={c.id} className={styles.count} data-testid="project-column">
+            {c.name} {c.count}
+          </span>
+        ))}
+        {aside.map((c) => (
+          <span key={c.id} className={styles.aside} data-testid="project-folded">
+            + {c.name} {c.count}
+          </span>
+        ))}
       </div>
     </div>
   );
