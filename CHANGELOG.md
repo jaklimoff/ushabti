@@ -23,6 +23,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Home leads with your projects.** Projects come first, then your lists and
+  charts, in quiet outlined panels. Each heading has a small "+ New" button
+  in place of the dashed card. Colour is kept for what needs you or is
+  happening now: a chart's bars are grey and only today is lit.
 - **A list on Home shows its first tasks.** Each list card names its first
   five tasks, in the list page's order, and a click opens one on its board.
   "+N more" opens the whole list. The rules and the counts per project left

@@ -143,6 +143,48 @@ describe("A chart on Home", () => {
     await expect.element(bars()).not.toHaveFocus();
   });
 
+  test("every day is one grey and only today wears the accent", async () => {
+    await draw();
+    const accent = getComputedStyle(document.body).getPropertyValue("--accent").trim();
+    const probe = document.createElement("span");
+    probe.style.color = accent;
+    document.body.append(probe);
+    const accentRgb = getComputedStyle(probe).color;
+    probe.remove();
+    const fills = page
+      .getByTestId("chart-bar")
+      .elements()
+      .map((el) => getComputedStyle(el.firstElementChild!));
+    expect(new Set(fills.slice(0, 29).map((f) => f.backgroundColor)).size).toBe(1);
+    expect(fills[0].backgroundColor).not.toBe(accentRgb);
+    expect(fills[29].backgroundColor).toBe(accentRgb);
+    expect(fills.map((f) => f.opacity)).toEqual(Array(30).fill("1"));
+    expect(box(bars().element()).height).toBe(44);
+    await hoverDay(4);
+    const swatch = tip().element().querySelector("span")!;
+    expect(getComputedStyle(swatch).backgroundColor).toBe(accentRgb);
+  });
+
+  test("New chart opens the picker in the first slot, and waits for a select", async () => {
+    const choices = [
+      {
+        id: chart.project.id,
+        key: "HAR",
+        name: "Harbour",
+        properties: [{ id: "p", name: "Status", options: [{ id: "o", name: "Todo" }] }],
+      },
+    ];
+    await render(<Charts charts={[chart]} choices={choices} />);
+    await page.getByRole("button", { name: "+ New chart" }).click();
+    const slots = document.querySelector('[data-testid="chart-picker"]')!.parentElement!.children;
+    expect(slots[0].getAttribute("data-testid")).toBe("chart-picker");
+    cleanup();
+    await draw();
+    const none = page.getByTestId("chart-new");
+    await expect.element(none).toBeDisabled();
+    await expect.element(none).toHaveAttribute("title", "No project has a select to count yet.");
+  });
+
   test("the day is said in a live region", async () => {
     await draw();
     const said = page.getByTestId("chart-said");

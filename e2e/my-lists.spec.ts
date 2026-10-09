@@ -28,9 +28,12 @@ test("a list made on Home opens a task on its own board @smoke", async ({ page }
   await page.goto("/projects");
   await expect(page).toHaveTitle("Home · Ushabti");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Home");
-  const lists = await page.getByRole("heading", { name: "My lists" }).boundingBox();
-  const projects = await page.getByRole("heading", { name: "Projects" }).boundingBox();
-  expect(lists!.y).toBeLessThan(projects!.y);
+  /* Projects lead; lists and charts follow. */
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+    "Projects",
+    "My lists",
+    "Charts",
+  ]);
 
   await page.getByTestId("list-new").click();
   await page.waitForURL(/\/lists\/new$/);
@@ -187,12 +190,7 @@ test("a list card shows its first five tasks and opens each one", async ({ page 
   const body = await page.getByTestId("my-lists").boundingBox();
   expect(body!.width).toBeGreaterThan(1100);
   expect(body!.width).toBeLessThanOrEqual(1200);
-  const cards = [
-    full,
-    listCard(page, "Matches none"),
-    listCard(page, "From nowhere"),
-    page.getByTestId("list-new"),
-  ];
+  const cards = [full, listCard(page, "Matches none"), listCard(page, "From nowhere")];
   const boxes = await Promise.all(cards.map(async (c) => (await c.boundingBox())!));
   const across = boxes.filter((b) => Math.abs(b.y - boxes[0].y) < 1);
   expect(across).toHaveLength(3);
