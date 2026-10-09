@@ -12,7 +12,7 @@ export default function Loading() {
       />
       <div
         style={{
-          maxWidth: 760,
+          maxWidth: 1200,
           margin: "0 auto",
           padding: "40px 20px",
           display: "flex",

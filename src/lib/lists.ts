@@ -187,12 +187,18 @@ export function listGroups(
   return groups;
 }
 
-/** A list as its card on Home reads it. */
+/** How many rows a list's card on Home shows before "+N more". */
+export const CARD_ROWS = 5;
+
+/**
+ * A list as its card on Home reads it: the first rows in the list page's own
+ * order, and the total. The rules stay on the list page.
+ */
 export type ListSummary = {
   id: string;
   name: string;
   count: number;
-  projects: { key: string; count: number; rules: string[] }[];
+  rows: ListRow[];
 };
 
 export function summaryOf(list: { id: string; name: string }, groups: ListGroup[]): ListSummary {
@@ -200,6 +206,6 @@ export function summaryOf(list: { id: string; name: string }, groups: ListGroup[
     id: list.id,
     name: list.name,
     count: groups.reduce((sum, g) => sum + g.count, 0),
-    projects: groups.map((g) => ({ key: g.key, count: g.count, rules: g.rules })),
+    rows: groups.flatMap((g) => g.rows).slice(0, CARD_ROWS),
   };
 }

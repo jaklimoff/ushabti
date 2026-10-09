@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { addTask, card, createProject, register, settles, unique } from "./helpers";
+import { addTask, card, createProject, overflow, register, settles, unique } from "./helpers";
 
 /*
  * A list is one person's tasks from several projects. This walks the whole
@@ -113,4 +113,105 @@ test("a list keeps a name typed before the tab went, and goes without its tasks"
 
   await page.goto(`/p/${one}`);
   await expect(card(page, "Survives the list")).toBeVisible();
+});
+
+async function newList(page: Page, name: string, projectIds: string[]): Promise<string> {
+  const { list } = await (await page.request.post("/api/lists", { data: {} })).json();
+  await page.request.patch(`/api/lists/${list.id}`, { data: { name } });
+  for (const projectId of projectIds) {
+    await page.request.post(`/api/lists/${list.id}/sources`, { data: { projectId } });
+  }
+  return list.id as string;
+}
+
+async function addTasks(page: Page, projectId: string, titles: string[]) {
+  for (const title of titles) {
+    const res = await page.request.post(`/api/projects/${projectId}/tasks`, { data: { title } });
+    expect(res.ok()).toBe(true);
+  }
+}
+
+test("a list card shows its first five tasks and opens each one", async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 1000 });
+  await register(page, "List Reader");
+  /* A new project joins the top of Home, so the one made last lists first. */
+  const two = await createProject(page, unique("More"));
+  await addTasks(page, two, ["Five", "Six", "Seven"]);
+  const one = await createProject(page, unique("Rows"));
+  await addTasks(page, one, ["One", "Two", "Three", "Four"]);
+  const empty = await createProject(page, unique("Bare"));
+  const gone = await createProject(page, unique("Gone"));
+  const oneKey = await keyOf(page, one);
+  const twoKey = await keyOf(page, two);
+  const seven = await newList(page, "Seven tasks", [one, two]);
+  await newList(page, "Matches none", [empty]);
+  await newList(page, "From nowhere", [gone]);
+  expect((await page.request.delete(`/api/projects/${gone}`)).ok()).toBe(true);
+
+  await page.goto("/projects");
+  const full = listCard(page, "Seven tasks");
+  await expect(full).toBeVisible();
+  await expect(full.getByTestId("list-count")).toHaveText("7");
+  const rows = full.getByTestId("list-card-row");
+  await expect(rows).toHaveText([
+    `${oneKey}-1One`,
+    `${oneKey}-2Two`,
+    `${oneKey}-3Three`,
+    `${oneKey}-4Four`,
+    `${twoKey}-1Five`,
+  ]);
+  await expect(full.getByTestId("list-card-more")).toHaveText("+2 more");
+  await expect(full.getByTestId("list-source")).toHaveCount(0);
+  await expect(listCard(page, "Matches none").getByTestId("list-empty")).toHaveText(
+    "Nothing here.",
+  );
+  await expect(listCard(page, "Matches none").getByTestId("list-count")).toHaveText("0");
+  await expect(listCard(page, "From nowhere").getByTestId("list-empty")).toHaveText(
+    "Nothing here.",
+  );
+  await expect(page.locator('[data-testid="list-card"] a a')).toHaveCount(0);
+  await expect(page.locator('a [data-testid="list-card"], a[data-testid="list-card"]')).toHaveCount(
+    0,
+  );
+
+  /* The column is 1200 wide, and three list cards of at least 340 sit across. */
+  const body = await page.getByTestId("my-lists").boundingBox();
+  expect(body!.width).toBeGreaterThan(1100);
+  expect(body!.width).toBeLessThanOrEqual(1200);
+  const cards = [
+    full,
+    listCard(page, "Matches none"),
+    listCard(page, "From nowhere"),
+    page.getByTestId("list-new"),
+  ];
+  const boxes = await Promise.all(cards.map(async (c) => (await c.boundingBox())!));
+  const across = boxes.filter((b) => Math.abs(b.y - boxes[0].y) < 1);
+  expect(across).toHaveLength(3);
+  for (const b of boxes) {
+    expect(b.width).toBeGreaterThanOrEqual(340);
+    expect(Math.round(b.height)).toBe(Math.round(boxes[0].height));
+  }
+
+  await rows.filter({ hasText: "Two" }).click();
+  await page.waitForURL(new RegExp(`/p/${one}\\?task=${oneKey}-2$`));
+  await expect(page.getByTestId("task-panel")).toContainText("Two");
+
+  await page.goto("/projects");
+  await listCard(page, "Seven tasks").getByTestId("list-card-more").click();
+  await page.waitForURL(new RegExp(`/lists/${seven}$`));
+  await expect(page.getByTestId("list-row")).toHaveCount(7);
+
+  await page.goto("/projects");
+  await listCard(page, "Seven tasks").getByTestId("list-name-link").click();
+  await page.waitForURL(new RegExp(`/lists/${seven}$`));
+
+  /* A phone stacks every section to one column, and nothing scrolls sideways. */
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/projects");
+  await expect(full).toBeVisible();
+  await expect(full.getByTestId("list-card-row")).toHaveCount(5);
+  expect(await overflow(page)).toBe(0);
+  const a = (await full.boundingBox())!;
+  const b = (await listCard(page, "Matches none").boundingBox())!;
+  expect(b.y).toBeGreaterThan(a.y + a.height - 1);
 });

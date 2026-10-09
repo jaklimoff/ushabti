@@ -17,6 +17,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   join goes to the top. This release carries a migration, which keeps the
   order everybody sees today.
 
+### Changed
+
+- **A list on Home shows its first tasks.** Each list card names its first
+  five tasks, in the list page's order, and a click opens one on its board.
+  "+N more" opens the whole list. The rules and the counts per project left
+  the card; they are on the list page. Home is wider, so three lists sit
+  across, and every list card is the same height.
+
 ## 0.22.0 — 2026-10-09
 
 ### Added
