@@ -14,6 +14,33 @@ async function pick(page: Page, label: string, option: string | RegExp) {
   await expect(picker.getByRole("combobox", { name: label })).toContainText(option);
 }
 
+/*
+ * Every bar lies inside the chart's box, and an empty day is a hairline. The
+ * chart's bar once shared a class with the top bar and ran across the next card.
+ */
+async function barsInside(page: Page) {
+  const chart = page.getByTestId("chart");
+  const box = await chart.boundingBox();
+  if (!box) throw new Error("the chart has no box");
+  const bars = await chart.getByTestId("chart-bar").evaluateAll((slots) =>
+    slots.map((slot) => {
+      const r = slot.getBoundingClientRect();
+      const fill = slot.firstElementChild!.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, fill: fill.height };
+    }),
+  );
+  expect(bars).toHaveLength(30);
+  for (const b of bars) {
+    expect(b.left).toBeGreaterThanOrEqual(box.x);
+    expect(b.right).toBeLessThanOrEqual(box.x + box.width);
+    expect(b.top).toBeGreaterThanOrEqual(box.y);
+    expect(b.bottom).toBeLessThanOrEqual(box.y + box.height);
+  }
+  // The first day is a month before the project existed, so it counts nothing.
+  expect(bars[0].fill).toBeLessThanOrEqual(2);
+  expect(bars[29].fill).toBeGreaterThan(40);
+}
+
 test("a chart added on Home shows the tasks that entered a column today", async ({ page }) => {
   await register(page, "Chart Person");
   const name = unique("Pace");
@@ -41,6 +68,10 @@ test("a chart added on Home shows the tasks that entered a column today", async 
   await expect(bars.last()).toHaveAttribute("title", /: 2$/);
   await expect(chart.getByTestId("chart-today")).toHaveText("2");
   await expect(chart.getByTestId("chart-foot")).toContainText("0.1 a day");
+  await barsInside(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await barsInside(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
 
   await chart.getByRole("button", { name: "Delete the chart Entered Todo" }).click();
   const ask = page.getByRole("alertdialog");

@@ -95,7 +95,7 @@ function Chart({ chart }: { chart: ChartDTO }) {
             data-count={d.count}
           >
             <span
-              className={styles.bar}
+              className={styles.chartBar}
               style={{
                 height: d.count ? `${(d.count / max) * 100}%` : undefined,
                 background: chart.color,
