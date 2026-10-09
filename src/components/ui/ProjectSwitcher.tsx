@@ -20,6 +20,7 @@ import styles from "./ProjectSwitcher.module.css";
 /* `waiting` comes only with the list: the bar hands in the open project
    without it, and its own count instead. */
 type Project = { id: string; key: string; name: string; waiting?: number };
+type List = { id: string; name: string };
 
 /* A project row carries its key, which draws its mark; an action row carries
    a glyph in the same place, so the two read apart and the words still line
@@ -32,6 +33,8 @@ type Row = {
   projectKey?: string;
   glyph?: string;
   waiting?: number;
+  /** A list of the person's own, drawn under the projects. */
+  list?: boolean;
 };
 
 /** Past this many projects the list is long enough to want a box. */
@@ -68,6 +71,7 @@ export function ProjectSwitcher({
   const menuId = useId();
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([project]);
+  const [lists, setLists] = useState<List[]>([]);
   const [query, setQuery] = useState("");
   const [atKey, setAtKey] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -97,6 +101,14 @@ export function ProjectSwitcher({
       .catch(() => {
         /* The menu still holds this project and the two ways out. */
       });
+    /* The person's own lists sit under the projects. An agent has none, and
+       a refusal leaves the menu as it was. */
+    api
+      .get<{ lists?: List[] }>("/api/lists")
+      .then(({ lists: rows }) => {
+        if (ask === asked.current && Array.isArray(rows)) setLists(rows);
+      })
+      .catch(() => {});
   }
 
   const many = projects.length > MANY;
@@ -116,8 +128,15 @@ export function ProjectSwitcher({
       projectKey: p.key,
       waiting: p.id === project.id && waiting !== undefined ? waiting : p.waiting,
     })),
+    ...(words ? [] : lists).map((l) => ({
+      key: `list-${l.id}`,
+      label: l.name,
+      href: `/lists/${l.id}`,
+      glyph: "≡",
+      list: true,
+    })),
     { key: "_new", label: "New project", href: "/projects?new", glyph: "+" },
-    { key: "_all", label: "All projects", href: "/projects", glyph: "→" },
+    { key: "_all", label: "Home", href: "/projects", glyph: "→" },
   ];
 
   /* The highlight follows a row and not a place, so the list arriving or
@@ -228,9 +247,10 @@ export function ProjectSwitcher({
                   role={isProject ? "menuitemradio" : "menuitem"}
                   aria-checked={isProject ? !!row.current : undefined}
                   tabIndex={-1}
-                  className={`${styles.item} ${isProject ? "" : styles.itemAction} ${
+                  data-testid={row.list ? "project-switcher-list" : undefined}
+                  className={`${styles.item} ${isProject || row.list ? "" : styles.itemAction} ${
                     row.current ? styles.itemCurrent : ""
-                  } ${i === at ? styles.itemAt : ""} ${row.key === "_new" ? styles.itemRule : ""}`}
+                  } ${i === at ? styles.itemAt : ""} ${row.key === "_new" || (row.list && rows[i - 1]?.projectKey) ? styles.itemRule : ""}`}
                   // The menu keeps the focus, so the press must not move it.
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={(e) => {

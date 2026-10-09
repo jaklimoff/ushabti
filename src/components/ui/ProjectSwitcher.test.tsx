@@ -105,7 +105,7 @@ describe("The project switcher", () => {
       .element(page.getByRole("menuitemradio", { name: "Harbour" }))
       .toHaveAttribute("aria-checked", "false");
     await expect.element(page.getByRole("menuitem", { name: "New project" })).toBeVisible();
-    await expect.element(page.getByRole("menuitem", { name: "All projects" })).toBeVisible();
+    await expect.element(page.getByRole("menuitem", { name: "Home" })).toBeVisible();
     /* Eight projects or fewer need no box. */
     await gone(byTestId("project-switcher-find"));
 
@@ -116,8 +116,33 @@ describe("The project switcher", () => {
     /* The user menu no longer holds a second way to the same place. */
     await byTestId("user-name").click();
     await expect.element(page.getByRole("menuitem", { name: "Account" })).toBeVisible();
-    await gone(page.getByRole("menuitem", { name: "All projects" }));
+    await gone(page.getByRole("menuitem", { name: "Home" }));
     await userEvent.keyboard("{Escape}");
+  });
+
+  test("lists my own lists under the projects, and opens the one I pick", async () => {
+    const { data, harbour } = twoProjects();
+    const mine = { id: other(9), name: "Mine to do" };
+    const projects = listing(data, [harbour]);
+    const answer: Answer = (req) =>
+      req.method === "GET" && req.path === "/api/lists"
+        ? { body: { lists: [mine] } }
+        : projects(req);
+    await renderWithBoard(<BoardShell initialTask={null} />, data, answer);
+
+    await switcher().click();
+    const row = page.getByRole("menuitem", { name: "Mine to do" });
+    await expect.element(row).toBeVisible();
+    /* Under the projects, above the ways out. */
+    const items = Array.from(document.querySelectorAll('[role="menu"] a')).map(
+      (a) => a.textContent ?? "",
+    );
+    const at = items.findIndex((t) => t.includes("Mine to do"));
+    expect(items.findIndex((t) => t.includes("Harbour"))).toBeLessThan(at);
+    expect(items.findIndex((t) => t.includes("New project"))).toBeGreaterThan(at);
+
+    await row.click();
+    expect(went()).toBe(`/lists/${mine.id}`);
   });
 
   test("walks with the arrow keys, opens with Enter and gives the focus back", async () => {

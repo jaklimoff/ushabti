@@ -29,15 +29,24 @@ To close an instance once your team is in, set `USHABTI_SIGNUP=closed`. See
 
 ## Projects
 
-One project is one board. `/projects` lists yours with the key, the name and `12 tasks · 3 members`.
-On a project, the project name in the top bar is the way to another one: press it and pick. It ends
-with **New project**, which opens `/projects?new` with the form below already open, and **All
-projects**.
+One project is one board. `/projects` is Home: your lists first, then your projects, each with its
+key and name. On a project, the project name in the top bar is the way to another one: press it and
+pick. Your lists sit under the projects, and it ends with **New project**, which opens
+`/projects?new` with the form below already open, and **Home**.
 
 **New project** asks for a name and a key. The key is suggested from the name — the initials of up to
 three words, or the first three letters of one — and stays editable. A new project arrives with
 [seven properties and two views](/ushabti/start/first-board/#what-you-start-with), all of them
 ordinary rows.
+
+## Lists
+
+A list is yours alone: nobody else on a project sees it, and an agent has none. **+ New list** on
+Home makes one. Each source on it is one project plus the board's own filter chips, so a rule names
+that project's properties and options. A task is on the list when it passes any one source, and
+archived tasks are left out. The list groups its tasks by project, and a row opens the task on its
+own board. A source of a project you left brings nothing until you rejoin, and nothing deletes it.
+Deleting a list deletes no task.
 
 ## Adding somebody
 

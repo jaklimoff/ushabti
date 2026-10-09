@@ -13,6 +13,7 @@ import { canManage } from "@/lib/roles";
 import { longAgo } from "@/lib/board";
 import { foldedOf, noFolds, subscribeFolded } from "@/lib/fold";
 import { agentsLine, splitFolded, type ProjectPulse, type PulseColumn } from "@/lib/pulse";
+import type { ListSummary } from "@/lib/lists";
 import { useNow } from "@/components/ui/useElapsed";
 import styles from "./ProjectList.module.css";
 
@@ -26,13 +27,19 @@ export type ProjectRow = {
   pulse?: ProjectPulse;
 };
 
+/**
+ * Home: the person's own lists, then their projects. It keeps the address
+ * the project list always had, so sign-in still lands here.
+ */
 export function ProjectList({
   user,
   projects,
+  lists = [],
   adding: asked = false,
 }: {
   user: SessionUser;
   projects: ProjectRow[];
+  lists?: ListSummary[];
   adding?: boolean;
 }) {
   const router = useRouter();
@@ -71,8 +78,12 @@ export function ProjectList({
 
       <div className={styles.body}>
         <div className={styles.heading}>
-          <h1 className={styles.title}>Projects</h1>
+          <h1 className={styles.title}>Home</h1>
         </div>
+
+        {!first && <MyLists lists={lists} />}
+
+        <h2 className={styles.section}>Projects</h2>
 
         {/*
          * This sentence used to be written and unreachable: `adding` starts
@@ -167,6 +178,81 @@ export function ProjectList({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The lists this person made. A card says what the list holds before it is
+ * opened: how many, from where, and by which rules.
+ */
+function MyLists({ lists }: { lists: ListSummary[] }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function create() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { list } = await api.post<{ list: { id: string } }>("/api/lists", {});
+      router.push(`/lists/${list.id}/edit`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not make the list.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={styles.lists} data-testid="my-lists">
+      <h2 className={styles.section}>My lists</h2>
+      <div className={styles.grid}>
+        {lists.map((list) => (
+          <Link
+            key={list.id}
+            href={`/lists/${list.id}`}
+            className={styles.card}
+            data-testid="list-card"
+          >
+            <div className={styles.cardTop}>
+              <span className={styles.cardName}>{list.name}</span>
+              <span className={styles.listCount} data-testid="list-count">
+                {list.count}
+              </span>
+            </div>
+            {list.projects.length > 0 ? (
+              <div className={styles.listFrom}>
+                {list.projects.map((p) => (
+                  <div key={p.key} className={styles.listSource} data-testid="list-source">
+                    <span className={styles.key}>{p.key}</span>
+                    <span className={styles.count}>{p.count}</span>
+                    <span className={styles.listRules}>{p.rules.join(" or ")}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className={styles.hint}>No project yet.</span>
+            )}
+          </Link>
+        ))}
+        <button
+          className={styles.newCard}
+          data-testid="list-new"
+          disabled={busy}
+          onClick={() => void create()}
+        >
+          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
+          <span className="label" style={{ color: "inherit" }}>
+            {busy ? "Making…" : "New list"}
+          </span>
+        </button>
+      </div>
+      {error && (
+        <div className={styles.error} role="alert">
+          {error}
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -8,6 +8,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **Home holds your own lists of tasks from several projects.** The project
+  list is now called Home, and My lists sits above the projects. A list takes
+  one or more projects, each with the board's own filter chips, and shows the
+  tasks that pass any of them, grouped by project. A row opens the task on its
+  own board. Only you see your lists, and the switcher lists them under the
+  projects.
+
 ### Changed
 
 - **The project list shows how every project is going.** Each card draws its
