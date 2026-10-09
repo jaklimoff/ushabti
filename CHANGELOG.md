@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A chart's bars fill the width of its panel again.** Since the project
+  cards gained their own strip of days, a chart's thirty bars stopped at
+  140px and left the right of the panel empty.
+
 ## 0.23.0 — 2026-10-09
 
 ### Added

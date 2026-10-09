@@ -211,7 +211,7 @@ function ChartBars({ chart, max }: { chart: ChartDTO; max: number }) {
           browser's own late tooltip never shows over this one. */}
       <div
         ref={bars}
-        className={styles.bars}
+        className={styles.chartBars}
         data-testid="chart-bars"
         data-lit={lit === null ? undefined : ""}
         tabIndex={0}

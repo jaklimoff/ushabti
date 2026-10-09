@@ -30,6 +30,15 @@ async function barsInside(page: Page) {
     }),
   );
   expect(bars).toHaveLength(30);
+  // The strip spans the chart's content box. It once shared a class with the
+  // card's strip and stopped at 140px.
+  const fit = await chart.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const inner = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const strip = el.querySelector('[data-testid="chart-bars"]')!.getBoundingClientRect();
+    return { inner, strip: strip.width };
+  });
+  expect(fit.strip).toBeGreaterThanOrEqual(fit.inner - 1);
   for (const b of bars) {
     expect(b.left).toBeGreaterThanOrEqual(box.x);
     expect(b.right).toBeLessThanOrEqual(box.x + box.width);
@@ -50,6 +59,11 @@ test("a chart added on Home shows the tasks that entered a column today", async 
   await addTask(page, "Backlog", "Not in Todo");
 
   await page.goto("/projects");
+  /* The card's own strip keeps its size beside the chart's. */
+  const strip = page.getByTestId("project-activity").first().getByRole("img").first();
+  const card = await strip.boundingBox();
+  expect(card?.height).toBe(32);
+  expect(card!.width).toBeLessThanOrEqual(140);
   /* No chart yet: the wide panel makes the first. */
   const charts = page.getByTestId("my-charts");
   await expect(charts.getByTestId("panel-shapes")).toHaveAttribute("aria-hidden", "true");
