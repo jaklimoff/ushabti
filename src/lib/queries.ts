@@ -208,15 +208,19 @@ export async function listProjects(userId: string) {
  * disagree about a count. It costs a board per project, which is why the
  * switcher and `GET /api/projects` ask `listProjects` alone.
  */
-export async function listProjectsWithPulse(userId: string) {
-  const rows = await listProjects(userId);
+export async function listProjectsWithPulse(
+  userId: string,
+  given?: Awaited<ReturnType<typeof listProjects>>,
+  /* Home reads a list's tasks off the same boards, so it hands in one loader
+     that reads each board once. */
+  boardOf: (row: { id: string; role: string }) => Promise<BoardData> = (row) =>
+    loadBoard(row.id, row.role, userId),
+) {
+  const rows = given ?? (await listProjects(userId));
   const now = Date.now();
   return Promise.all(
     rows.map(async (row) => {
-      const [board, last] = await Promise.all([
-        loadBoard(row.id, row.role, userId),
-        lastChange(row.id),
-      ]);
+      const [board, last] = await Promise.all([boardOf(row), lastChange(row.id)]);
       const pulse: ProjectPulse = {
         viewId: (board.views.find((v) => v.isDefault) ?? board.views[0])?.id ?? null,
         columns: mainColumns(board, userId),

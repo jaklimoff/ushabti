@@ -367,9 +367,9 @@ export const OP_LABEL: Record<FilterOp, string> = {
  * The value of a task, as the set of keys a rule can match. A select gives one
  * key, a multi-select gives one per option, a checkbox gives "true" or "false",
  * and anything with nothing in it gives NO_VALUE_KEY. This is what lets one
- * operator serve four types.
+ * operator serve four types. A list draws its chip from the same reading.
  */
-function keysOf(value: TaskValue, type: PropertyType): string[] {
+export function keysOf(value: TaskValue, type: PropertyType): string[] {
   if (type === "checkbox") return [value === true ? "true" : "false"];
   if (Array.isArray(value)) return value.length ? value.map(String) : [NO_VALUE_KEY];
   if (value === null || value === undefined || value === "") return [NO_VALUE_KEY];

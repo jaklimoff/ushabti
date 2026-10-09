@@ -777,3 +777,47 @@ export const webhookDeliveries = pgTable(
       .where(sql`${t.nextTryAt} is not null`),
   ],
 );
+
+/* ------------------------------------------------------------------ */
+/* Lists                                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One person's list of tasks from several projects. It is theirs alone: no
+ * project knows about it, and an agent has none, as it has no lens.
+ */
+export const lists = pgTable(
+  "lists",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: text("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("lists_user_idx").on(t.userId)],
+);
+
+/**
+ * One project and the rules that pick its tasks for a list. The rules are a
+ * view's `{ rules: FilterRule[] }`, read through `readFilters` against the
+ * project on every read, so nothing cleans them up. A source whose project
+ * the person left stays, and brings nothing until they rejoin.
+ */
+export const listSources = pgTable(
+  "list_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => lists.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    filters: jsonb("filters").notNull().default({ rules: [] }),
+    position: text("position").notNull(),
+  },
+  (t) => [index("list_sources_list_idx").on(t.listId)],
+);

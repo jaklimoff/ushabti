@@ -428,10 +428,85 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
      must not re-answer it for everybody. The way onto the view is one press in
      the strip, and it is named. */
   const { data, view, filters, viewFilters, lens, setLens } = useBoard();
+
+  const close = () => setOpen(false);
+  const ref = useDismiss<HTMLDivElement>(close, open);
+
+  // Every rule that hides a card on this screen, the view's and mine alike:
+  // the pill says what the board is doing, not who asked for it.
+  const count = filters.rules.length;
+
+  return (
+    <div className={styles.filterAnchor} ref={ref}>
+      <button
+        className={`${styles.pill} ${count ? styles.filterOn : ""}`}
+        data-testid="filter-button"
+        aria-expanded={open}
+        title={count ? "Change what this view shows" : "Show only some of the tasks"}
+        onClick={() => setOpen(!open)}
+      >
+        <span className={styles.filterMark} aria-hidden />
+        Filter{count ? ` ${count}` : ""}
+      </button>
+
+      {open && (
+        <PickRule
+          properties={data.properties}
+          members={data.members}
+          former={data.former}
+          rules={lens.rules}
+          shown={filters.rules}
+          /*
+           * The view already asks about this property, and a rule of mine may
+           * only narrow. A second rule beside it would empty the board with two
+           * chips that fight each other, so the panel says so and writes
+           * nothing. The view's rule is not mine to change from here: the ✕ on
+           * its own chip is the way out, and it asks for everybody before it
+           * goes.
+           */
+          refuse={(property) => (asksAbout(viewFilters, property.id) ? clashSaid(property) : null)}
+          onRules={(rules) => void setLens(rules)}
+          owed={(rules) => (view ? lensSend(view, rules) : null)}
+          onClose={close}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The panel that makes one rule: which property, then what about it. The rule
+ * reaches `onRules` on the first answer and not before. It holds no store, so
+ * the board's Filter and a list's **+ Rule** are the same panel.
+ */
+function PickRule({
+  properties,
+  members,
+  former,
+  rules,
+  shown = rules,
+  refuse,
+  onRules,
+  owed,
+  onClose,
+}: {
+  properties: PropertyDTO[];
+  members: MemberDTO[];
+  former: FormerDTO[];
+  /** The set a rule made here lands in. */
+  rules: FilterRule[];
+  /** Every rule on the screen, for the note beside a property. */
+  shown?: FilterRule[];
+  /** The sentence that refuses a property, or null to take it. */
+  refuse?: (property: PropertyDTO) => string | null;
+  onRules: (rules: FilterRule[]) => void;
+  owed: (rules: FilterRule[]) => LeaveSend | null;
+  onClose: () => void;
+}) {
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
-  /** Where in the view the rule went, or null while it has no answer yet. */
+  /** Where in the set the rule went, or null while it has no answer yet. */
   const [slot, setSlot] = useState<number | null>(null);
   const [draft, setDraft] = useState<FilterRule | null>(null);
   /** The line that says why a property was not taken, or null. */
@@ -446,34 +521,24 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
     setRefused(null);
   }
 
-  function close() {
-    setOpen(false);
-    reset();
-  }
-
-  const ref = useDismiss<HTMLDivElement>(close, open);
-
-  // Every rule that hides a card on this screen, the view's and mine alike:
-  // the pill says what the board is doing, not who asked for it.
-  const count = filters.rules.length;
   // The property may have been deleted by somebody else while the panel is
   // open, in which case there is nothing left to ask about.
   /* The project's properties, and the words that are not properties. A link
      and a run are not fields, so "Blocked" and "Agent waiting" have no
      property to be — each is a fixed word, the way a card's key is a fixed
      row. */
-  const askable = useMemo(() => filterProperties(data.properties), [data.properties]);
+  const askable = useMemo(() => filterProperties(properties), [properties]);
   const picked = pickedId ? (askable.find((p) => p.id === pickedId) ?? null) : null;
-  const rule = picked ? ((slot !== null ? lens.rules[slot] : null) ?? draft) : null;
+  const rule = picked ? ((slot !== null ? rules[slot] : null) ?? draft) : null;
 
   const summary = useMemo(() => {
     const map = new Map<string, string>();
-    for (const r of filters.rules) {
+    for (const r of shown) {
       const property = askable.find((p) => p.id === r.propertyId);
-      if (property) map.set(r.propertyId, describeRule(r, property, data.members, data.former));
+      if (property) map.set(r.propertyId, describeRule(r, property, members, former));
     }
     return map;
-  }, [askable, data.members, data.former, filters.rules]);
+  }, [askable, members, former, shown]);
 
   const rows: Row[] = useMemo(() => {
     const wanted = query.trim().toLowerCase();
@@ -490,15 +555,9 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
   function pick(propertyId: string) {
     const property = askable.find((p) => p.id === propertyId);
     if (!property) return;
-    /*
-     * The view already asks about this property, and a rule of mine may only
-     * narrow. A second rule beside it would empty the board with two chips
-     * that fight each other, so the panel says so and writes nothing. The
-     * view's rule is not mine to change from here: the ✕ on its own chip is
-     * the way out, and it asks for everybody before it goes.
-     */
-    if (asksAbout(viewFilters, property.id)) {
-      setRefused(clashSaid(property));
+    const no = refuse?.(property) ?? null;
+    if (no) {
+      setRefused(no);
       return;
     }
     /*
@@ -506,106 +565,164 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
      * picking it again opens the rule that is already there. A date is left
      * alone: "after March" and "before June" are two rules on purpose.
      */
-    const found = lens.rules.findIndex((r) => r.propertyId === property.id && isSetOp(r.op));
+    const found = rules.findIndex((r) => r.propertyId === property.id && isSetOp(r.op));
     setSlot(found >= 0 ? found : null);
-    setDraft(found >= 0 ? lens.rules[found] : emptyRule(property));
+    setDraft(found >= 0 ? rules[found] : emptyRule(property));
     setPickedId(property.id);
     setQuery("");
     setAt(0);
     setRefused(null);
   }
 
-  /* What my lens would hold with this rule answered, or with the answer taken
+  /* What the set would hold with this rule answered, or with the answer taken
      back. The write and the leave both ask it, so they cannot disagree. */
-  function lensAfter(next: FilterRule): FilterRule[] {
+  function rulesAfter(next: FilterRule): FilterRule[] {
     if (!hasAnswer(next)) {
-      return slot === null ? lens.rules : lens.rules.filter((_, i) => i !== slot);
+      return slot === null ? rules : rules.filter((_, i) => i !== slot);
     }
-    if (slot === null) return [...lens.rules, next];
-    return lens.rules.map((r, i) => (i === slot ? next : r));
+    if (slot === null) return [...rules, next];
+    return rules.map((r, i) => (i === slot ? next : r));
   }
 
-  /* The one place a rule arrives, changes or goes. It lands in my lens. */
+  /* The one place a rule arrives, changes or goes. */
   function change(next: FilterRule) {
     setDraft(next);
     if (hasAnswer(next)) {
-      if (slot === null) setSlot(lens.rules.length);
-      void setLens(lensAfter(next));
+      if (slot === null) setSlot(rules.length);
+      onRules(rulesAfter(next));
       return;
     }
     // The answer was taken back, so the rule goes with it.
     if (slot !== null) {
-      void setLens(lensAfter(next));
+      onRules(rulesAfter(next));
       setSlot(null);
     }
   }
 
   return (
-    <div className={styles.filterAnchor} ref={ref}>
-      <button
-        className={`${styles.pill} ${count ? styles.filterOn : ""}`}
-        data-testid="filter-button"
-        aria-expanded={open}
-        title={count ? "Change what this view shows" : "Show only some of the tasks"}
-        onClick={() => (open ? close() : setOpen(true))}
-      >
-        <span className={styles.filterMark} aria-hidden />
-        Filter{count ? ` ${count}` : ""}
-      </button>
-
-      {open && (
-        <div className={`${styles.popover} ${styles.filterPop}`} data-testid="filter-menu">
-          {picked && rule ? (
-            <Ask
-              key={picked.id}
-              property={picked}
-              rule={rule}
-              members={data.members}
-              former={data.former}
-              onChange={change}
-              owed={(next) => (view ? lensSend(view, lensAfter(next)) : null)}
-              onBack={reset}
-              onClose={close}
-            />
-          ) : (
-            <>
-              <span className="label">Show only tasks where</span>
-              {/* The same box in the same place as step two, so picking a
-                  property reads as the box moving on rather than swapping. */}
-              <AskBox
-                query={query}
-                onQuery={(value) => {
-                  setQuery(value);
-                  // Looking for another property is the answer to the line.
-                  setRefused(null);
-                }}
-                rows={rows}
-                at={at}
-                setAt={setAt}
-                onPick={(row) => pick(row.id)}
-                listId="filter-properties"
-                label="Find a property to filter by"
-                placeholder="Which property?"
-                testId="filter-search"
-              />
-              {/* The list stays where it is, so the next property is one
-                  press away and nothing on the board has moved. */}
-              {refused && (
-                <span className={styles.filterNote} role="status" data-testid="filter-refused">
-                  {refused}
-                </span>
-              )}
-              <Rows
-                rows={rows}
-                at={at}
-                listId="filter-properties"
-                empty="No property by that name."
-                onPick={(row) => pick(row.id)}
-              />
-            </>
+    <div className={`${styles.popover} ${styles.filterPop}`} data-testid="filter-menu">
+      {picked && rule ? (
+        <Ask
+          key={picked.id}
+          property={picked}
+          rule={rule}
+          members={members}
+          former={former}
+          onChange={change}
+          owed={(next) => owed(rulesAfter(next))}
+          onBack={reset}
+          onClose={onClose}
+        />
+      ) : (
+        <>
+          <span className="label">Show only tasks where</span>
+          {/* The same box in the same place as step two, so picking a
+              property reads as the box moving on rather than swapping. */}
+          <AskBox
+            query={query}
+            onQuery={(value) => {
+              setQuery(value);
+              // Looking for another property is the answer to the line.
+              setRefused(null);
+            }}
+            rows={rows}
+            at={at}
+            setAt={setAt}
+            onPick={(row) => pick(row.id)}
+            listId="filter-properties"
+            label="Find a property to filter by"
+            placeholder="Which property?"
+            testId="filter-search"
+          />
+          {/* The list stays where it is, so the next property is one
+              press away and nothing on the board has moved. */}
+          {refused && (
+            <span className={styles.filterNote} role="status" data-testid="filter-refused">
+              {refused}
+            </span>
           )}
-        </div>
+          <Rows
+            rows={rows}
+            at={at}
+            listId="filter-properties"
+            empty="No property by that name."
+            onPick={(row) => pick(row.id)}
+          />
+        </>
       )}
+    </div>
+  );
+}
+
+/**
+ * A set of rules drawn as the board draws a lens: a chip for each, and
+ * **+ Rule** to add one. It holds no store, so a list's source asks its
+ * project with the very chips a board does.
+ */
+export function RuleChips({
+  properties,
+  members,
+  former,
+  rules,
+  onRules,
+  owed,
+}: {
+  properties: PropertyDTO[];
+  members: MemberDTO[];
+  former: FormerDTO[];
+  rules: FilterRule[];
+  onRules: (rules: FilterRule[]) => void;
+  owed: (rules: FilterRule[]) => LeaveSend | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  const ref = useDismiss<HTMLDivElement>(close, open);
+  const askable = filterProperties(properties);
+
+  function edited(at: number, next: FilterRule | null): FilterRule[] {
+    if (!next || !hasAnswer(next)) return rules.filter((_, i) => i !== at);
+    return rules.map((r, i) => (i === at ? next : r));
+  }
+
+  return (
+    <div className={styles.filterRow} data-testid="rule-chips">
+      {rules.map((rule, i) => {
+        const property = askable.find((p) => p.id === rule.propertyId);
+        if (!property) return null;
+        return (
+          <Chip
+            key={`${rule.propertyId}-${i}`}
+            rule={rule}
+            property={property}
+            members={members}
+            former={former}
+            onChange={(next) => onRules(edited(i, next))}
+            owed={(next) => owed(edited(i, next))}
+            onRemove={() => onRules(edited(i, null))}
+          />
+        );
+      })}
+      <div className={styles.filterAnchor} ref={ref}>
+        <button
+          className={styles.pill}
+          data-testid="rule-add"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          + Rule
+        </button>
+        {open && (
+          <PickRule
+            properties={properties}
+            members={members}
+            former={former}
+            rules={rules}
+            onRules={onRules}
+            owed={owed}
+            onClose={close}
+          />
+        )}
+      </div>
     </div>
   );
 }
