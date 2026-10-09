@@ -50,6 +50,9 @@ test("a chart added on Home shows the tasks that entered a column today", async 
   await addTask(page, "Backlog", "Not in Todo");
 
   await page.goto("/projects");
+  /* No chart yet: the wide panel makes the first. */
+  const charts = page.getByTestId("my-charts");
+  await expect(charts.getByTestId("panel-shapes")).toHaveAttribute("aria-hidden", "true");
   await page.getByTestId("chart-new").click();
   await pick(page, "Project", name);
   await pick(page, "Property", "Status");
@@ -68,6 +71,9 @@ test("a chart added on Home shows the tasks that entered a column today", async 
   await expect(bars.last()).toHaveAttribute("title", /: 2$/);
   await expect(chart.getByTestId("chart-today")).toHaveText("2");
   await expect(chart.getByTestId("chart-foot")).toContainText("0.1 a day");
+  /* The first chart hands making the next one to the heading. */
+  await expect(charts.getByTestId("panel-shapes")).toHaveCount(0);
+  await expect(page.getByTestId("chart-new")).toHaveText("+ New chart");
   await barsInside(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await barsInside(page);

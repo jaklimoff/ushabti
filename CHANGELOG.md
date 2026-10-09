@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An empty Home says what to make first.** With no projects, Home shows one
+  panel that explains a project and makes one, while lists and charts say
+  they wait for it. With a project and no lists or charts, each shows a wide
+  panel that makes the first. Once a section holds one thing, its panel goes
+  and the small button in the heading takes over.
 - **Drag your projects into your own order.** On Home, take a project card by
   the grip in its corner and drop it where you want it, or lift it with Space
   and move it with the arrow keys. The switcher and every list of projects

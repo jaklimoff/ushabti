@@ -201,15 +201,190 @@
   color: var(--danger-text);
 }
 
-.empty {
-  padding: 26px;
-  border: 1px dashed var(--line-dash);
+/* An empty section shows one dashed panel in place of its items. Only a
+   panel that makes something reacts to the pointer, in the accent tint. */
+.firstPanel,
+.quietPanel,
+.widePanel {
+  --panel-line: var(--line-dash);
+  --panel-shape: var(--line);
+  border: 1px dashed var(--panel-line);
   border-radius: var(--r-lg);
-  color: var(--muted);
+  transition:
+    border-color 150ms var(--ease),
+    background 150ms var(--ease);
+}
+
+.firstPanel:hover,
+.widePanel:hover:not(:disabled),
+.widePanel:focus-visible {
+  --panel-line: color-mix(in srgb, var(--accent) 55%, transparent);
+  --panel-shape: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.firstPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 26px;
+  text-align: center;
+}
+
+.firstPanel .panelLine {
+  max-width: 440px;
+  margin-bottom: 6px;
+}
+
+.panelPlus {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px dashed var(--panel-line);
+  border-radius: var(--r-md);
+  color: var(--accent-soft);
+  font-size: 18px;
+  line-height: 1;
+  transition: border-color 150ms var(--ease);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--t-ui);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panelLine {
+  margin: 0;
   font-size: var(--t-body);
   line-height: 1.6;
-  margin: 0;
+  color: var(--muted);
   text-wrap: pretty;
+}
+
+.quietPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 20px;
+}
+
+.quietPanel .panelTitle {
+  color: var(--muted);
+}
+
+.quietPanel .panelLine {
+  color: var(--faint);
+}
+
+.widePanel {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  min-height: 120px;
+  padding: 18px 20px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.widePanel:disabled {
+  cursor: default;
+}
+
+.widePanel:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.wideWords {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wideLabel {
+  font-size: var(--t-ui);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.widePanel:disabled .wideLabel {
+  color: var(--muted);
+}
+
+.wideHint {
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.wideShapes {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.shapeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shapeKey,
+.shapeLine,
+.shapeBar {
+  background: var(--panel-shape);
+  border-radius: 3px;
+  transition: background 150ms var(--ease);
+}
+
+.shapeKey {
+  width: 36px;
+  height: 12px;
+}
+
+.shapeLine {
+  height: 8px;
+}
+
+.shapeBars {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 5px;
+  height: 64px;
+}
+
+.shapeBar {
+  flex: 1 1 0;
+  border-radius: 2px 2px 0 0;
+}
+
+/* On a phone the words come first and the shapes sit under them. */
+@media (max-width: 560px) {
+  .widePanel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .wideShapes {
+    flex: none;
+    max-width: none;
+  }
 }
 
 .hint {

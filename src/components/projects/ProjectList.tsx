@@ -33,6 +33,7 @@ import { agentsLine, splitFolded, type ProjectPulse, type PulseColumn } from "@/
 import type { ListSummary } from "@/lib/lists";
 import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import { Charts } from "./Charts";
+import { FirstProjectPanel, HomeSection, QuietPanel, WidePanel } from "./Empty";
 import { useNow } from "@/components/ui/useElapsed";
 import styles from "./ProjectList.module.css";
 
@@ -67,7 +68,7 @@ export function ProjectList({
 }) {
   const router = useRouter();
   const first = projects.length === 0;
-  const [adding, setAdding] = useState(first || asked);
+  const [adding, setAdding] = useState(asked);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -106,11 +107,13 @@ export function ProjectList({
         </div>
 
         <div className={styles.sections}>
-          <section className={styles.lists}>
-            <div className={styles.sectionHead}>
-              <h2 className={styles.sectionLead}>Projects</h2>
-              {!first && <span className={styles.sectionCount}>{projects.length}</span>}
-              {!adding && (
+          <HomeSection
+            title="Projects"
+            lead
+            count={projects.length}
+            adding={adding}
+            create={
+              !adding && (
                 <Button
                   variant="text"
                   className={styles.headButton}
@@ -118,93 +121,86 @@ export function ProjectList({
                 >
                   + New project
                 </Button>
-              )}
-            </div>
-
-            {/*
-             * This sentence used to be written and unreachable: `adding` starts
-             * true when there are no projects, and the copy only rendered when it
-             * was false. It now sits above the form, where it answers the question
-             * the form asks.
-             */}
-            {first && (
-              <p className={styles.empty}>
-                A project is one board. It arrives with a full set of properties — Status, Priority,
-                Assignee and the rest — and every one of them is yours to rename or delete.
-              </p>
-            )}
-
+              )
+            }
+            empty={<FirstProjectPanel onCreate={() => setAdding(true)} />}
+          >
             {order.error && (
               <div className={styles.error} role="alert">
                 {order.error}
               </div>
             )}
 
-            <div className={styles.grid}>
-              {/* Cards of one size in a grid, so dnd-kit's own answers are the
+            {(!first || adding) && (
+              <div className={styles.grid}>
+                {/* Cards of one size in a grid, so dnd-kit's own answers are the
               right ones, as on the views page. */}
-              <DndContext
-                id="ushabti-projects"
-                sensors={order.sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={order.onDragEnd}
-              >
-                <SortableContext items={order.rows.map((p) => p.id)} strategy={rectSortingStrategy}>
-                  {order.rows.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
-                  ))}
-                </SortableContext>
-              </DndContext>
+                <DndContext
+                  id="ushabti-projects"
+                  sensors={order.sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={order.onDragEnd}
+                >
+                  <SortableContext
+                    items={order.rows.map((p) => p.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    {order.rows.map((project) => (
+                      <ProjectCard key={project.id} project={project} />
+                    ))}
+                  </SortableContext>
+                </DndContext>
 
-              {adding && (
-                <form className={styles.form} onSubmit={create}>
-                  <span className="label">New project</span>
-                  <Input
-                    block
-                    autoFocus
-                    value={name}
-                    aria-label="Project name"
-                    placeholder="Project name"
-                    onChange={(e) => setName(e.target.value)}
-                    onBlur={() => {
-                      // A suggestion you can edit beats one that flickers in grey
-                      // as you type and looks disabled.
-                      if (!key && name.trim()) setKey(suggestProjectKey(name));
-                    }}
-                  />
-                  <Input
-                    block
-                    value={key}
-                    aria-label="Project key"
-                    placeholder="Key, e.g. USH"
-                    maxLength={6}
-                    invalid={error !== null}
-                    onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                  />
-                  <span className={styles.hint}>Task keys look like {key || "USH"}-14.</span>
-                  {error && (
-                    <div className={styles.error} role="alert">
-                      {error}
-                    </div>
-                  )}
-                  <div className={styles.row}>
-                    <Button type="submit" disabled={busy}>
-                      {busy ? "Creating…" : "Create project"}
-                    </Button>
-                    {projects.length > 0 && (
+                {adding && (
+                  <form className={styles.form} onSubmit={create}>
+                    <span className="label">New project</span>
+                    <Input
+                      block
+                      autoFocus
+                      value={name}
+                      aria-label="Project name"
+                      placeholder="Project name"
+                      onChange={(e) => setName(e.target.value)}
+                      onBlur={() => {
+                        // A suggestion you can edit beats one that flickers in grey
+                        // as you type and looks disabled.
+                        if (!key && name.trim()) setKey(suggestProjectKey(name));
+                      }}
+                    />
+                    <Input
+                      block
+                      value={key}
+                      aria-label="Project key"
+                      placeholder="Key, e.g. USH"
+                      maxLength={6}
+                      invalid={error !== null}
+                      onChange={(e) =>
+                        setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
+                      }
+                    />
+                    <span className={styles.hint}>Task keys look like {key || "USH"}-14.</span>
+                    {error && (
+                      <div className={styles.error} role="alert">
+                        {error}
+                      </div>
+                    )}
+                    <div className={styles.row}>
+                      <Button type="submit" disabled={busy}>
+                        {busy ? "Creating…" : "Create project"}
+                      </Button>
                       <Button variant="ghost" onClick={() => setAdding(false)}>
                         Cancel
                       </Button>
-                    )}
-                  </div>
-                </form>
-              )}
-            </div>
-          </section>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+          </HomeSection>
 
-          {!first && <MyLists lists={lists} />}
+          <MyLists lists={lists} canMake={!first} />
 
-          {!first && <Charts charts={charts} choices={chartChoices} />}
+          <Charts charts={charts} choices={chartChoices} canMake={!first} />
         </div>
       </div>
     </div>
@@ -324,11 +320,13 @@ function ProjectCard({ project }: { project: ProjectRow }) {
  * first rows in the page's order, and how many more there are. It is not one
  * link around everything, because a row is a link of its own.
  */
-function MyLists({ lists }: { lists: ListSummary[] }) {
+function MyLists({ lists, canMake }: { lists: ListSummary[]; canMake: boolean }) {
   return (
-    <section className={styles.lists} data-testid="my-lists">
-      <div className={styles.sectionHead}>
-        <h2 className={styles.section}>My lists</h2>
+    <HomeSection
+      title="My lists"
+      count={lists.length}
+      data-testid="my-lists"
+      create={
         <ButtonPageLink
           href="/lists/new"
           variant="text"
@@ -337,13 +335,32 @@ function MyLists({ lists }: { lists: ListSummary[] }) {
         >
           + New list
         </ButtonPageLink>
-      </div>
-      <div className={`${styles.grid} ${styles.listGrid}`}>
-        {lists.map((list) => (
-          <ListCard key={list.id} list={list} />
-        ))}
-      </div>
-    </section>
+      }
+      empty={
+        canMake ? (
+          <WidePanel
+            label="+ New list"
+            hint="Tasks from any of your projects in one place, picked by rules, such as everything in Todo."
+            shapes="rows"
+            href="/lists/new"
+            data-testid="list-new"
+          />
+        ) : (
+          <QuietPanel
+            title="Lists"
+            line="Gather tasks from your projects in one place. Create a project first."
+          />
+        )
+      }
+    >
+      {lists.length > 0 && (
+        <div className={`${styles.grid} ${styles.listGrid}`}>
+          {lists.map((list) => (
+            <ListCard key={list.id} list={list} />
+          ))}
+        </div>
+      )}
+    </HomeSection>
   );
 }
 
