@@ -37,6 +37,7 @@ export default async function ProjectsPage({
         id: r.id,
         name: r.name,
         key: r.key,
+        color: r.color,
         role: r.role,
         waiting: r.waiting,
         pulse: r.pulse,

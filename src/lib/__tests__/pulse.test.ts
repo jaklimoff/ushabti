@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentsAtWork, agentsLine, mainColumns, splitFolded } from "../pulse";
+import { agentsAtWork, agentsLine, isQuiet, mainColumns, splitFolded } from "../pulse";
 import type {
   AgentRunDTO,
   BoardData,
@@ -189,12 +189,32 @@ describe("agentsAtWork", () => {
       run("d", "handed_over", 600),
     ];
     /* a has one run that reports, so a is there; b has said nothing for an hour. */
-    expect(agentsAtWork(runs, now)).toEqual({ working: 2, silent: 1 });
+    expect(agentsAtWork(runs, now)).toEqual({ names: ["a"], silent: 1 });
   });
 
-  it("says it in words, and nothing when nobody works", () => {
-    expect(agentsLine({ working: 3, silent: 1 })).toBe("3 agents working, 1 silent");
-    expect(agentsLine({ working: 1, silent: 0 })).toBe("1 agent working");
-    expect(agentsLine({ working: 0, silent: 0 })).toBeNull();
+  it("names who works, and says nothing when nobody does", () => {
+    expect(agentsLine({ names: ["Builder"], silent: 0 })).toBe("Builder working");
+    expect(agentsLine({ names: ["Builder", "Scout"], silent: 0 })).toBe(
+      "Builder and Scout working",
+    );
+    expect(agentsLine({ names: ["Builder", "Scout", "Fixer"], silent: 1 })).toBe(
+      "Builder and 2 more working",
+    );
+    expect(agentsLine({ names: [], silent: 2 })).toBeNull();
+  });
+});
+
+describe("isQuiet", () => {
+  const now = Date.parse("2026-10-09T12:00:00Z");
+  const at = (days: number) => ({
+    at: new Date(now - days * 24 * 60 * 60 * 1000).toISOString(),
+    who: null,
+    taskKey: null,
+  });
+
+  it("reads a project quiet after three weeks without a change", () => {
+    expect(isQuiet(at(22), now)).toBe(true);
+    expect(isQuiet(at(20), now)).toBe(false);
+    expect(isQuiet(null, now)).toBe(false);
   });
 });

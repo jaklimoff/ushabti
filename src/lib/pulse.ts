@@ -13,9 +13,16 @@ import type { AgentRunRowDTO, BoardData } from "./types";
 
 export type PulseColumn = { id: string; name: string; color: string; count: number };
 
-export type AgentsAtWork = { working: number; silent: number };
+/** The names of the agents that report, in the order their runs came. */
+export type AgentsAtWork = { names: string[]; silent: number };
 
 export type LastChange = { at: string; who: string | null; taskKey: string | null };
+
+/** Somebody on the project, as the card's footer draws them. */
+export type PulsePerson = { id: string; name: string; kind: "human" | "agent" };
+
+/** Three weeks with nothing written, and a card reads quiet. */
+export const QUIET_AFTER = 21 * 24 * 60 * 60 * 1000;
 
 export type ProjectPulse = {
   /** The main view, so the browser can read what this person folded on it. */
@@ -24,6 +31,9 @@ export type ProjectPulse = {
   columns: PulseColumn[] | null;
   agents: AgentsAtWork;
   last: LastChange | null;
+  people: PulsePerson[];
+  /** No change for three weeks. Worked out where the page is drawn, so it hydrates. */
+  quiet: boolean;
 };
 
 type BoardPart = Pick<
@@ -73,22 +83,34 @@ export function agentsAtWork(
   runs: Pick<AgentRunRowDTO, "status" | "updatedAt" | "beatAt" | "agent">[],
   now: number = Date.now(),
 ): AgentsAtWork {
-  const heard = new Map<string, boolean>();
+  const heard = new Map<string, { name: string; alive: boolean }>();
   for (const run of runs) {
     if (isWaiting(run.status)) continue;
     const alive = lifeOf(run, now) !== "silent";
-    heard.set(run.agent.id, (heard.get(run.agent.id) ?? false) || alive);
+    const seen = heard.get(run.agent.id);
+    heard.set(run.agent.id, { name: run.agent.name, alive: (seen?.alive ?? false) || alive });
   }
-  let silent = 0;
-  for (const alive of heard.values()) if (!alive) silent += 1;
-  return { working: heard.size, silent };
+  const all = [...heard.values()];
+  return {
+    names: all.filter((a) => a.alive).map((a) => a.name),
+    silent: all.filter((a) => !a.alive).length,
+  };
 }
 
-/** "3 agents working, 1 silent", or null when nobody works. */
-export function agentsLine({ working, silent }: AgentsAtWork): string | null {
-  if (working === 0) return null;
-  const head = `${working} ${working === 1 ? "agent" : "agents"} working`;
-  return silent > 0 ? `${head}, ${silent} silent` : head;
+/**
+ * "Builder working", "Builder and Scout working", "Builder and 2 more
+ * working", or null when no agent reports. A silent agent is not at work, so
+ * the card shows the last change instead.
+ */
+export function agentsLine({ names }: AgentsAtWork): string | null {
+  if (names.length === 0) return null;
+  if (names.length === 1) return `${names[0]} working`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} working`;
+  return `${names[0]} and ${names.length - 1} more working`;
+}
+
+export function isQuiet(last: LastChange | null, now: number): boolean {
+  return last !== null && now - Date.parse(last.at) > QUIET_AFTER;
 }
 
 /**

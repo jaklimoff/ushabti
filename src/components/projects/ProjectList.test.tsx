@@ -3,6 +3,7 @@ import { page, userEvent, type Locator } from "vitest/browser";
 import { ME, newProject, renderWithBoard } from "@/test/board";
 import type { ListSummary } from "@/lib/lists";
 import type { ChartChoice, ChartDTO } from "@/lib/charts";
+import type { ProjectPulse } from "@/lib/pulse";
 import { ProjectList, type ProjectRow } from "./ProjectList";
 
 /*
@@ -17,6 +18,7 @@ const rows: ProjectRow[] = ["Harbour", "Lighthouse", "Quay"].map((name, i) => ({
   id: ids[i],
   name,
   key: name.slice(0, 3).toUpperCase(),
+  color: "#7aa8f0",
   role: "member",
   waiting: 0,
 }));
@@ -229,5 +231,179 @@ describe("An empty section on Home", () => {
     const panel = page.getByRole("button", { name: "+ New chart" });
     await expect.element(panel).toBeDisabled();
     await expect.element(panel).toHaveAttribute("title", "No project has a select to count yet.");
+  });
+});
+
+const pulseOf = (over: Partial<ProjectPulse> = {}): ProjectPulse => ({
+  viewId: null,
+  columns: [
+    { id: "c1", name: "Todo", color: "#e0574d", count: 9 },
+    { id: "c2", name: "In Progress", color: "#3fb0c8", count: 3 },
+    { id: "c3", name: "Ready", color: "#4f8a5b", count: 0 },
+    { id: "c4", name: "Shipped", color: "#6d5bd0", count: 12 },
+  ],
+  agents: { names: [], silent: 0 },
+  last: { at: new Date().toISOString(), who: null, taskKey: null },
+  people: [
+    { id: "u1", name: "Ada Lovelace", kind: "human" },
+    { id: "u2", name: "Builder", kind: "agent" },
+  ],
+  quiet: false,
+  ...over,
+});
+
+const rectOf = (el: Element) => el.getBoundingClientRect();
+
+/* The grip carries an unseen copy of the key, so the square is the one outside it. */
+const squareOf = (key: string) =>
+  page
+    .getByText(key, { exact: true })
+    .elements()
+    .find((el) => !el.closest("button"))!;
+
+describe("A project card", () => {
+  test("reads the colour square, the name, the role, the badge and a gear that holds its place", async () => {
+    await page.viewport(1280, 800);
+    const harbour = { ...rows[0], role: "admin", waiting: 2, pulse: pulseOf() };
+    await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
+    const card = page.getByTestId("project-card");
+
+    const key = squareOf("HAR");
+    expect(getComputedStyle(key).backgroundColor).toBe("rgb(122, 168, 240)");
+    expect(getComputedStyle(key).color).toBe("rgb(20, 22, 26)");
+    expect(Math.round(rectOf(key).height)).toBe(22);
+    const name = page.getByText("Harbour", { exact: true }).element();
+    expect(getComputedStyle(name).fontSize).toBe("15px");
+    expect(getComputedStyle(name).fontWeight).toBe("600");
+    await expect.element(page.getByText("admin", { exact: true })).toBeVisible();
+    await expect
+      .element(card.getByTestId("project-waiting"))
+      .toHaveTextContent("2 waiting for you");
+
+    const gear = page.getByRole("link", { name: "Settings for Harbour" });
+    await expect.element(gear).toHaveAttribute("title", "Project settings");
+    expect(gear.element().querySelector("svg")).not.toBeNull();
+    expect(Math.round(rectOf(gear.element()).width)).toBe(26);
+    expect(getComputedStyle(gear.element()).opacity).toBe("0");
+
+    const grip = page.getByRole("button", { name: "Move the project Harbour" });
+    expect(getComputedStyle(grip.element()).opacity).toBe("0");
+    /* The grip lies on the colour square. */
+    const [g, k] = [rectOf(grip.element()), rectOf(key)];
+    expect(Math.round(g.left)).toBe(Math.round(k.left));
+    expect(Math.round(g.top)).toBe(Math.round(k.top));
+    /* 22px wide in the app's mono, which e2e/project-card.spec.ts measures. */
+    expect(g.width).toBe(k.width);
+    expect(g.height).toBe(k.height);
+
+    const before = [name, gear.element(), card.getByTestId("project-waiting").element()].map((el) =>
+      rectOf(el).toJSON(),
+    );
+    await userEvent.hover(page.getByTestId("project-columns"));
+    await expect.poll(() => getComputedStyle(gear.element()).opacity).toBe("1");
+    await expect.poll(() => getComputedStyle(grip.element()).opacity).toBe("1");
+    const after = [name, gear.element(), card.getByTestId("project-waiting").element()].map((el) =>
+      rectOf(el).toJSON(),
+    );
+    expect(after).toEqual(before);
+
+    /* The gear's own hover: the cog turns and takes the accent. */
+    await userEvent.hover(gear);
+    await expect.poll(() => getComputedStyle(gear.element()).color).toBe("rgb(63, 176, 200)");
+    await expect
+      .poll(() => getComputedStyle(gear.element().querySelector("svg")!).transform)
+      .not.toBe("none");
+  });
+
+  test("shares the board out in greys, each count named, and the footer names who is on it", async () => {
+    const harbour = { ...rows[0], pulse: pulseOf({ agents: { names: ["Builder"], silent: 0 } }) };
+    await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
+    const counts = page.getByTestId("project-column").elements();
+    expect(counts.map((c) => c.textContent)).toEqual([
+      "Todo 9",
+      "In Progress 3",
+      "Ready 0",
+      "Shipped 12",
+    ]);
+    const shares = page.getByTestId("project-bar").element().querySelectorAll("[data-column]");
+    expect(shares).toHaveLength(3);
+    const light = (el: Element) => {
+      const parts = getComputedStyle(el)
+        .backgroundColor.match(/[\d.]+/g)!
+        .map(Number);
+      return parts[0] + parts[1] + parts[2];
+    };
+    expect(light(shares[0])).toBeLessThan(light(shares[1]));
+    expect(light(shares[1])).toBeLessThan(light(shares[2]));
+    /* No column colour reaches the card. */
+    expect(getComputedStyle(shares[0]).backgroundColor).not.toBe("rgb(224, 87, 77)");
+    expect(getComputedStyle(counts[0].firstElementChild!).backgroundColor).toBe(
+      getComputedStyle(shares[0]).backgroundColor,
+    );
+
+    const ada = page.getByRole("img", { name: "Ada Lovelace" });
+    await expect.element(ada).toHaveTextContent("AL");
+    await expect.element(ada).toHaveAttribute("title", "Ada Lovelace");
+    expect(getComputedStyle(ada.element()).borderRadius).toBe("50%");
+    const agent = page.getByRole("img", { name: "Builder" });
+    expect(getComputedStyle(agent.element()).borderRadius).toBe("4px");
+    await expect.element(page.getByTestId("project-agents")).toHaveTextContent("Builder working");
+    expect(page.getByTestId("project-last").elements()).toHaveLength(0);
+  });
+
+  test("lines up its rows with the card beside it", async () => {
+    await page.viewport(1280, 800);
+    const many = Array.from({ length: 9 }, (_, i) => ({
+      id: `c${i}`,
+      name: `Column number ${i}`,
+      color: "#3fb0c8",
+      count: i,
+    }));
+    const projects = [
+      { ...rows[0], pulse: pulseOf({ columns: many }) },
+      { ...rows[1], pulse: pulseOf({ columns: null }) },
+    ];
+    await renderWithBoard(<ProjectList user={ME} projects={projects} />, newProject());
+    const tops = (id: string) =>
+      page
+        .getByTestId(id)
+        .elements()
+        .map((el) => rectOf(el).top);
+    const [a, b] = tops("project-foot");
+    expect(page.getByTestId("project-card").elements()).toHaveLength(2);
+    /* The long one really is longer, so the test proves the line-up. */
+    expect(rectOf(page.getByTestId("project-columns").element()).height).toBeGreaterThan(40);
+    expect(Math.round(a)).toBe(Math.round(b));
+    const [c, d] = tops("project-activity");
+    expect(Math.round(c)).toBe(Math.round(d));
+    await expect
+      .element(page.getByTestId("project-no-columns"))
+      .toHaveTextContent("The main view draws no columns.");
+    await expect.element(page.getByTestId("project-last").first()).toHaveTextContent("just now");
+  });
+
+  test("a long key widens the square, and the grip with it", async () => {
+    const wide = { ...rows[0], key: "HARBOR" };
+    await renderWithBoard(<ProjectList user={ME} projects={[wide]} />, newProject());
+    const key = squareOf("HARBOR");
+    const grip = page.getByRole("button", { name: "Move the project Harbour" }).element();
+    const [k, g] = [rectOf(key), rectOf(grip)];
+    expect(k.width).toBeGreaterThan(30);
+    expect(key.scrollWidth).toBeLessThanOrEqual(key.clientWidth);
+    expect(g.width).toBe(k.width);
+    expect(Math.round(g.left)).toBe(Math.round(k.left));
+  });
+
+  test("reads dimmed after three weeks without a change", async () => {
+    const projects = [
+      { ...rows[0], pulse: pulseOf({ quiet: true }) },
+      { ...rows[1], pulse: pulseOf() },
+    ];
+    await renderWithBoard(<ProjectList user={ME} projects={projects} />, newProject());
+    const opacity = (text: string) => getComputedStyle(squareOf(text)).opacity;
+    expect(opacity("Harbour")).toBe("0.45");
+    expect(opacity("HAR")).toBe("0.45");
+    expect(opacity("Lighthouse")).toBe("1");
+    expect(opacity("LIG")).toBe("1");
   });
 });

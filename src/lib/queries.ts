@@ -48,7 +48,7 @@ import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
-import { agentsAtWork, mainColumns, type LastChange, type ProjectPulse } from "./pulse";
+import { agentsAtWork, isQuiet, mainColumns, type LastChange, type ProjectPulse } from "./pulse";
 import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
 import { joinProject } from "./membership";
@@ -233,6 +233,8 @@ export async function listProjectsWithPulse(
         columns: mainColumns(board, userId),
         agents: agentsAtWork(board.runs, now),
         last,
+        people: board.members.map((m) => ({ id: m.id, name: m.name, kind: m.kind })),
+        quiet: isQuiet(last, now),
       };
       return { ...row, pulse };
     }),
