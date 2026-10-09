@@ -1,4 +1,5 @@
 import { buildColumns } from "./board";
+import { chartDays, type ChartDay } from "./charts";
 import { allowedColumns, applyFilters, currentOption, mergeFilters, waitingTasks } from "./filters";
 import { progressOf } from "./progress";
 import { dayNumber } from "./roadmap";
@@ -74,7 +75,49 @@ export type ProjectPulse = {
   people: PulsePerson[];
   /** No change for three weeks. Worked out where the page is drawn, so it hydrates. */
   quiet: boolean;
+  /** Lines of the feed on each of the last fourteen days in the project's zone, today last. */
+  days: number[];
 };
+
+/** How far back the card's row of bars reaches. */
+export const PULSE_DAYS = 14;
+
+/**
+ * The fourteen counts the card draws, oldest first. The rows are already cut
+ * by the day in the project's zone, and `today` is the board's own, so the
+ * last bar is the day the people of the project call today.
+ */
+export function pulseDays(rows: ChartDay[], today: string): number[] {
+  return chartDays(rows, today, PULSE_DAYS).map((d) => d.count);
+}
+
+/**
+ * How long a project with nothing in the bars has been quiet: "3 weeks",
+ * "2 months". In weeks first, because the bars already cover two of them.
+ */
+export function quietFor(at: string, now: number): string {
+  const days = Math.max(0, Math.floor((now - Date.parse(at)) / 86_400_000));
+  const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  if (days < 7) return count(days, "day");
+  if (days < 60) return count(Math.floor(days / 7), "week");
+  if (days < 365) return count(Math.floor(days / 30), "month");
+  return count(Math.floor(days / 365), "year");
+}
+
+/**
+ * What the bars say to somebody who cannot see them: the total, and the
+ * busiest day with how far back it was. The newest of two equal days wins.
+ */
+export function pulseLabel(days: number[]): string {
+  const total = days.reduce((sum, n) => sum + n, 0);
+  const said = `${total} ${total === 1 ? "change" : "changes"} in ${days.length} days`;
+  if (total === 0) return said;
+  let busiest = days.length - 1;
+  for (let i = days.length - 1; i >= 0; i--) if (days[i] > days[busiest]) busiest = i;
+  const back = days.length - 1 - busiest;
+  const when = back === 0 ? "today" : back === 1 ? "yesterday" : `${back} days ago`;
+  return `${said}. The busiest day was ${when}, with ${days[busiest]}.`;
+}
 
 type BoardPart = Pick<
   BoardData,

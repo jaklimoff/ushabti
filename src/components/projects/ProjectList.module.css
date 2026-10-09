@@ -290,6 +290,48 @@
   color: var(--faint-2);
 }
 
+.activity {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* One height on every card, so the rows of a grid read level. */
+.bars {
+  flex: 1 1 auto;
+  max-width: 140px;
+  height: 32px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+/* One grey, never a column's shade: the bars say how much, not where. */
+.bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  border-radius: 1px;
+  background: var(--faint-3);
+}
+
+.bar[data-today] {
+  background: var(--accent);
+}
+
+.activityText {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint-2);
+  white-space: nowrap;
+}
+
+.activityText strong {
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .cardFoot {
   display: flex;
   align-items: center;

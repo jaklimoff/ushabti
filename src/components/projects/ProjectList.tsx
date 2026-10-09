@@ -31,6 +31,8 @@ import { foldedOf, noFolds, subscribeFolded } from "@/lib/fold";
 import {
   agentsLine,
   daysSaid,
+  pulseLabel,
+  quietFor,
   splitFolded,
   type Heading,
   type ProjectPulse,
@@ -522,7 +524,7 @@ function Pulse({ pulse }: { pulse: ProjectPulse }) {
           The main view draws no columns.
         </div>
       )}
-      <div className={styles.cardRow} data-testid="project-activity" />
+      <Activity days={pulse.days} last={pulse.last?.at ?? null} now={now} />
       <div className={styles.cardFoot} data-testid="project-foot">
         <span className={styles.people} data-testid="project-people">
           {pulse.people.map((p) => (
@@ -552,6 +554,53 @@ function Pulse({ pulse }: { pulse: ProjectPulse }) {
         )}
       </div>
     </>
+  );
+}
+
+/** The tallest bar: the project's own busiest day reaches it. */
+const BAR_HEIGHT = 32;
+
+/**
+ * Fourteen days as fourteen bars, scaled to this project's busiest day, and
+ * the total beside them. The bars stand in a box of one height on every card,
+ * so a row of cards reads level whatever each one did.
+ */
+function Activity({ days, last, now }: { days: number[]; last: string | null; now: number }) {
+  const total = days.reduce((sum, n) => sum + n, 0);
+  const busiest = Math.max(1, ...days);
+  return (
+    <div className={`${styles.cardRow} ${styles.activity}`} data-testid="project-activity">
+      <div className={styles.bars} role="img" aria-label={pulseLabel(days)}>
+        {days.map((n, i) => (
+          <span
+            key={i}
+            className={styles.bar}
+            data-today={(i === days.length - 1 && n > 0) || undefined}
+            style={{ height: n > 0 ? Math.max(2, Math.round((n / busiest) * BAR_HEIGHT)) : 2 }}
+            data-testid="project-day"
+          />
+        ))}
+      </div>
+      {total > 0 ? (
+        <span className={styles.activityText} data-testid="project-changes">
+          <strong>{total}</strong> {total === 1 ? "change" : "changes"}, {days.length} days
+        </span>
+      ) : (
+        <span
+          className={styles.activityText}
+          data-testid="project-changes"
+          suppressHydrationWarning
+        >
+          {last ? (
+            <>
+              <strong>Quiet</strong> for {quietFor(last, now)}
+            </>
+          ) : (
+            <>No changes yet</>
+          )}
+        </span>
+      )}
+    </div>
   );
 }
 

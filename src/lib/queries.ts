@@ -53,9 +53,12 @@ import {
   headingOf,
   isQuiet,
   mainColumns,
+  PULSE_DAYS,
+  pulseDays,
   type LastChange,
   type ProjectPulse,
 } from "./pulse";
+import type { ChartDay } from "./charts";
 import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
 import { joinProject } from "./membership";
@@ -232,9 +235,10 @@ export async function listProjectsWithPulse(
 ) {
   const rows = given ?? (await listProjects(userId));
   const now = Date.now();
+  const recent = activityDays(rows.map((r) => r.id));
   return Promise.all(
     rows.map(async (row) => {
-      const [board, last] = await Promise.all([boardOf(row), lastChange(row.id)]);
+      const [board, last, days] = await Promise.all([boardOf(row), lastChange(row.id), recent]);
       const pulse: ProjectPulse = {
         viewId: (board.views.find((v) => v.isDefault) ?? board.views[0])?.id ?? null,
         columns: mainColumns(board, userId),
@@ -243,10 +247,41 @@ export async function listProjectsWithPulse(
         heading: headingOf(board, last),
         people: board.members.map((m) => ({ id: m.id, name: m.name, kind: m.kind })),
         quiet: isQuiet(last, now),
+        days: pulseDays(days.get(row.id) ?? [], board.today),
       };
       return { ...row, pulse };
     }),
   );
+}
+
+/**
+ * How many lines of the feed each project wrote on each recent day, by the
+ * day in its own zone, as the charts cut them. One query for every project on
+ * Home, over the feed's index by project and time. It reaches a day further
+ * back than the bars, because no zone is more than fourteen hours from UTC;
+ * `pulseDays` drops what falls before the first bar.
+ */
+async function activityDays(projectIds: string[]): Promise<Map<string, ChartDay[]>> {
+  const byProject = new Map<string, ChartDay[]>();
+  if (projectIds.length === 0) return byProject;
+  const day = sql<string>`to_char(${activity.createdAt} at time zone ${projects.timeZone}, 'YYYY-MM-DD')`;
+  const rows = await db
+    .select({ projectId: activity.projectId, day, count: sql<number>`count(*)::int` })
+    .from(activity)
+    .innerJoin(projects, eq(projects.id, activity.projectId))
+    .where(
+      and(
+        inArray(activity.projectId, projectIds),
+        gte(activity.createdAt, sql`now() - make_interval(days => ${PULSE_DAYS + 1})`),
+      ),
+    )
+    .groupBy(activity.projectId, day);
+  for (const { projectId, day, count } of rows) {
+    const list = byProject.get(projectId) ?? [];
+    list.push({ day, count });
+    byProject.set(projectId, list);
+  }
+  return byProject;
 }
 
 /**

@@ -50,13 +50,14 @@ export function chartFrom(today: string): string {
 /**
  * Thirty days ending on `today`, each with its count. A day with no row is
  * a day nobody entered the option, which is a zero and not a gap; a row
- * outside the range is ignored.
+ * outside the range is ignored. A project card's pulse asks the same for
+ * fewer days.
  */
-export function chartDays(rows: ChartDay[], today: string): ChartDay[] {
+export function chartDays(rows: ChartDay[], today: string, length = CHART_DAYS): ChartDay[] {
   const counts = new Map<string, number>();
   for (const r of rows) counts.set(r.day, (counts.get(r.day) ?? 0) + Number(r.count));
   const days: ChartDay[] = [];
-  for (let n = CHART_DAYS - 1; n >= 0; n--) {
+  for (let n = length - 1; n >= 0; n--) {
     const day = dayBefore(today, n);
     days.push({ day, count: counts.get(day) ?? 0 });
   }

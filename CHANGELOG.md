@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A project card shows how busy it has been.** A card on Home draws a
+  small bar for each of the last fourteen days, cut in the project's zone,
+  with today in the accent and the number of changes beside them. A project
+  with nothing in those days says how long it has been quiet.
 - **A project card says where it is heading.** Under the name, a card on
   Home shows the current release with its ship day and how many of its tasks
   are done, or the current sprint and the days it has left. A project with

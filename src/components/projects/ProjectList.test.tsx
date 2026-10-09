@@ -258,6 +258,7 @@ const pulseOf = (over: Partial<ProjectPulse> = {}): ProjectPulse => ({
     { id: "u2", name: "Builder", kind: "agent" },
   ],
   quiet: false,
+  days: [0, 2, 0, 0, 5, 1, 0, 0, 0, 3, 0, 8, 0, 4],
   ...over,
 });
 
@@ -414,6 +415,64 @@ describe("A project card", () => {
     expect(opacity("HAR")).toBe("0.45");
     expect(opacity("Lighthouse")).toBe("1");
     expect(opacity("LIG")).toBe("1");
+  });
+});
+
+describe("A project card's fourteen days", () => {
+  test("draws a grey bar a day, today in the accent, and the total beside them", async () => {
+    await page.viewport(1280, 800);
+    const projects = [
+      { ...rows[0], pulse: pulseOf() },
+      { ...rows[1], pulse: pulseOf({ days: [...Array(13).fill(0), 1] }) },
+    ];
+    await renderWithBoard(<ProjectList user={ME} projects={projects} />, newProject());
+    const bars = page.getByTestId("project-day").elements();
+    expect(bars).toHaveLength(28);
+    const harbour = bars.slice(0, 14).map((el) => rectOf(el).height);
+    expect(Math.max(...harbour)).toBe(32);
+    // A day with nothing is a hairline.
+    expect(harbour[0]).toBe(2);
+    expect(harbour[13]).toBe(16);
+    const fill = (el: Element) => getComputedStyle(el).backgroundColor;
+    expect(fill(bars[13])).not.toBe(fill(bars[11]));
+    expect(fill(bars[11])).toBe(fill(bars[9]));
+
+    const [a, b] = page
+      .getByTestId("project-day")
+      .elements()
+      .filter((_, i) => i === 0 || i === 14)
+      .map((el) => rectOf(el).bottom);
+    expect(Math.round(a)).toBe(Math.round(b));
+    const said = page.getByTestId("project-changes").elements();
+    expect(said[0].textContent).toBe("23 changes, 14 days");
+    expect(said[1].textContent).toBe("1 change, 14 days");
+    await expect
+      .element(
+        page.getByRole("img", {
+          name: "23 changes in 14 days. The busiest day was 2 days ago, with 8.",
+        }),
+      )
+      .toBeVisible();
+  });
+
+  test("today's bar stays grey when it has nothing", async () => {
+    const harbour = { ...rows[0], pulse: pulseOf({ days: [...Array(13).fill(1), 0] }) };
+    await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
+    const bars = page.getByTestId("project-day").elements();
+    expect(bars[13].hasAttribute("data-today")).toBe(false);
+  });
+
+  test("reads quiet for the time since the last change when the fourteen days are empty", async () => {
+    const at = new Date(Date.now() - 22 * 86_400_000).toISOString();
+    const last = { ...pulseOf().last!, at };
+    const projects = [
+      { ...rows[0], pulse: pulseOf({ days: Array(14).fill(0), last }) },
+      { ...rows[1], pulse: pulseOf({ days: Array(14).fill(0), last: null }) },
+    ];
+    await renderWithBoard(<ProjectList user={ME} projects={projects} />, newProject());
+    const said = page.getByTestId("project-changes").elements();
+    expect(said[0].textContent).toBe("Quiet for 3 weeks");
+    expect(said[1].textContent).toBe("No changes yet");
   });
 });
 
