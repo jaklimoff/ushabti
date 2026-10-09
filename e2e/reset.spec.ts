@@ -44,6 +44,15 @@ async function guesser(browser: Browser): Promise<Page> {
   return context.newPage();
 }
 
+/**
+ * How many things on the page a person could use. Asked of the document and
+ * not through a locator, which reaches into shadow roots: the dev server
+ * draws its own button in one, and the page under test has no say in it.
+ */
+function controls(page: Page): Promise<number> {
+  return page.evaluate(() => document.querySelectorAll("form, input, button, a").length);
+}
+
 type FeedEntry = {
   kind: string;
   taskId: string | null;
@@ -162,12 +171,12 @@ test.describe("A forgotten password", () => {
        no way on — and nothing that says whether an account exists. */
     await stranger.goto(second);
     await expect(stranger.getByTestId("reset-dead")).toHaveText(DEAD);
-    await expect(stranger.locator("form, input, button, a")).toHaveCount(0);
+    expect(await controls(stranger)).toBe(0);
 
     // An invented token reads exactly the same.
     await stranger.goto("/reset/ushr_nothing-was-ever-made-with-this");
     await expect(stranger.getByTestId("reset-dead")).toHaveText(DEAD);
-    await expect(stranger.locator("form, input, button, a")).toHaveCount(0);
+    expect(await controls(stranger)).toBe(0);
 
     // And the new password is the password now.
     await signIn(them, { ...member, password: "a-second-secret" });

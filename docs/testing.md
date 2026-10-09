@@ -139,7 +139,7 @@ four workers at most.
 | `iteration.spec.ts` | 3 | move | 1 | 2 |  |  |  | Keep the walk from grouping to the roadmap. |
 | `links.spec.ts` | 2 | done (USH-272) |  | 2 |  |  |  | The panel and the card draw a link. |
 | `list.spec.ts` | 19 | done (USH-271) | 4 | 14 |  | 1 |  | Keep the drag the board sees and the order across a reload. The rest is what a list draws. The plan kept 2, but three tests carry `@smoke` and stay, beside the order across a reload. The property a list no longer pins is the route's answer; a view that changes kind and a list on a project with nothing to group by have a route half too. |
-| `listening.spec.ts` | 12 | done (USH-269) | 5 | 2 |  | 5 |  | Keep the stream, the watcher and the harness. The feed and its pages are route answers. |
+| `listening.spec.ts` | 12 | done (USH-269) | 5 | 2 |  | 5 |  | Keep the stream, the watcher and the harness. The feed and its pages are route answers. The two bursts stay, because the watcher is what they check; they archive 210 cards rather than 300, one page and a bit, and the first waits on the watcher's `--state` file instead of three seconds (USH-283). |
 | `live-preview.spec.ts` | 16 | done (USH-272) | 1 | 15 |  |  |  | The editor is a component with real layout; keep the chunk fetched as the panel opens. |
 | `long-title.spec.ts` | 1 | done (USH-271) |  | 1 |  |  |  | A card clamped to three lines is layout. |
 | `mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
@@ -151,14 +151,14 @@ four workers at most.
 | `parents.spec.ts` | 3 | move |  | 2 |  | 1 |  | One level deep is the server's rule. |
 | `password-fill.spec.ts` | 3 | move |  | 3 |  |  |  | A value with no event is a box. |
 | `pick-labels.spec.ts` | 3 | move |  | 2 |  | 1 |  | The bulk route keeps what it did not change. |
-| `pick.spec.ts` | 18 | move | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. |
-| `presence.spec.ts` | 4 | keep | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. |
+| `pick.spec.ts` | 18 | move | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283). |
+| `presence.spec.ts` | 4 | keep | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. The phone test said its faces before the owner's tab listened, and the stream has no replay; it waits for the live dot now, and the members join by the route (USH-283). |
 | `progress.spec.ts` | 4 | move |  | 2 | 1 | 1 |  | `progressOf` sums the bar; the header is a component. |
 | `project-waiting.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | Keep the count that changes live. |
 | `properties.spec.ts` | 13 | move | 1 | 10 |  | 2 |  | Keep making a property and grouping a board by it. |
-| `rank.spec.ts` | 1 | move |  |  |  | 1 |  | The mend is the create route; `rank.ts` already has unit tests. |
+| `rank.spec.ts` | 1 | done (USH-283) |  |  |  | 1 |  | The mend is the create route; `rank.ts` already has unit tests. It went to `rank-route.test.ts`. |
 | `rate-limit.spec.ts` | 1 | move |  |  |  | 1 |  | The limit is the route's answer. |
-| `reset.spec.ts` | 3 | keep | 1 |  |  | 2 |  | Keep the link that works once and signs in. |
+| `reset.spec.ts` | 3 | keep | 1 |  |  | 2 |  | Keep the link that works once and signs in. Its count of controls on a dead page reached into the dev server's own shadow root and found Next's button; it asks the document now (USH-283). |
 | `reveal.spec.ts` | 2 | move |  | 2 |  |  |  | The eye is a box. |
 | `roadmap.spec.ts` | 6 | move |  | 4 | 2 |  |  | `roadmapRows()` says where a bar starts; the rest is the canvas. |
 | `roles.spec.ts` | 3 | move |  | 1 |  | 2 |  | The role rule is the route's; the question before Make owner is a row. |
@@ -180,8 +180,8 @@ four workers at most.
 | `types.spec.ts` | 4 | move |  | 3 |  | 1 |  | The Types page is a component. |
 | `undo-delete.spec.ts` | 8 | move | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
 | `upload.spec.ts` | 4 | keep | 2 | 2 |  |  |  | Keep the two uploads through the bucket. |
-| `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. |
-| `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. |
+| `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. Its tasks and agent are made by the routes, not the composer and Settings (USH-283). |
+| `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. The dev server runs in Docker, so the receiver is called by `host.docker.internal` there, and the queued delivery of a webhook that is off waits on a second webhook that rings instead of 1.2 seconds (USH-283). |
 | `when.spec.ts` | 7 | move |  | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. |
 | `words.spec.ts` | 4 | move |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. |
 | **80 files** | **460** | | **90** | **251** | **9** | **109** | **3** | |
