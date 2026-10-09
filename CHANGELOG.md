@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.22.0 — 2026-10-09
+
 ### Added
 
 - **A chart on Home counts the tasks that entered a column each day.** Under
