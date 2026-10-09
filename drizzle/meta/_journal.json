@@ -225,6 +225,13 @@
       "when": 1791571109602,
       "tag": "0031_project_order",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791577500714,
+      "tag": "0032_project_color",
+      "breakpoints": true
     }
   ]
 }

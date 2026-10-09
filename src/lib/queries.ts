@@ -1,5 +1,6 @@
 import "server-only";
 import { byPos } from "@/lib/order";
+import { pickProjectColor } from "@/lib/colors";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -191,6 +192,7 @@ export async function listProjects(userId: string) {
         id: projects.id,
         name: projects.name,
         key: projects.key,
+        color: projects.color,
         ownerId: projects.ownerId,
         role: projectMembers.role,
         createdAt: projects.createdAt,
@@ -266,7 +268,12 @@ export async function createProject(userId: string, name: string, key: string) {
   return db.transaction(async (tx) => {
     const [project] = await tx
       .insert(projects)
-      .values({ name, key: key.toUpperCase(), ownerId: userId })
+      .values({
+        name,
+        key: key.toUpperCase(),
+        color: pickProjectColor(key.toUpperCase()),
+        ownerId: userId,
+      })
       .returning();
 
     await joinProject(tx, { projectId: project.id, userId, role: "owner" });
@@ -1091,6 +1098,7 @@ async function loadProject(
       id: projectRow.id,
       name: projectRow.name,
       key: projectRow.key,
+      color: projectRow.color,
       ownerId: projectRow.ownerId,
       role,
       doneWhen,

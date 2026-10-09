@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A project has a colour.** Each project gets one of ten colours, picked
+  from its key, and every existing project gets one too. The owner or an
+  admin changes it in Settings → Project, where each swatch shows the key on
+  the colour. Home will draw projects by it next.
 - **An empty Home says what to make first.** With no projects, Home shows one
   panel that explains a project and makes one, while lists and charts say
   they wait for it. With a project and no lists or charts, each shows a wide

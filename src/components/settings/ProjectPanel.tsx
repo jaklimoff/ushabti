@@ -12,7 +12,14 @@ import { CADENCE_DEFAULT } from "@/lib/cadence";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { Checkbox, Field, Input, Select, TextArea } from "@/components/ui/Form";
+import {
+  Checkbox,
+  Field,
+  Input,
+  ProjectColorSwatches,
+  Select,
+  TextArea,
+} from "@/components/ui/Form";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
@@ -77,6 +84,9 @@ export function ProjectPanel({ files }: { files: boolean }) {
   /* A press waits for its answer before it counts again: a second press on a
      switch that has not answered yet would flip it back. */
   const [flipping, setFlipping] = useState(false);
+  /* The colour on its way out shows as picked until the answer lands, and a
+     second pick waits for it. */
+  const [sendingColor, setSendingColor] = useState<string | null>(null);
 
   /* Every task of the project, archived ones too: a rename renames their keys
      as well, and a delete takes them with it. */
@@ -145,6 +155,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
   async function save(patch: {
     name?: string;
     key?: string;
+    color?: string;
     doneWhen?: DoneWhen | null;
     progressBy?: string | null;
     timeZone?: string;
@@ -196,6 +207,16 @@ export function ProjectPanel({ files }: { files: boolean }) {
     }
   }
 
+  async function pickColor(color: string) {
+    if (sendingColor || color === data.project.color) return;
+    setSendingColor(color);
+    try {
+      await save({ color });
+    } finally {
+      setSendingColor(null);
+    }
+  }
+
   async function remove() {
     try {
       await send.del(`/api/projects/${data.project.id}`);
@@ -209,7 +230,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
     <>
       <PageHead title="Project" note="The name on the board and the prefix on every task key." />
 
-      <Section title="Name and key">
+      <Section title="Name, key and colour">
         <Card>
           <Row>
             <Field label="Name" inline>
@@ -251,6 +272,16 @@ export function ProjectPanel({ files }: { files: boolean }) {
               <Note>Task keys look like {key || "USH"}-14.</Note>
             </Field>
           </Row>
+          <Row>
+            <Field label="Colour" inline>
+              <ProjectColorSwatches
+                projectKey={data.project.key}
+                value={sendingColor ?? data.project.color}
+                disabled={!canEdit}
+                onPick={(color) => void pickColor(color)}
+              />
+            </Field>
+          </Row>
           {/*
            * A task key is built from this prefix, never stored. Changing it
            * renames every task at once, which breaks every link somebody pasted
@@ -267,7 +298,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
           )}
           {!canEdit && (
             <Row>
-              <Note>Only the owner or an admin can change the name and the key.</Note>
+              <Note>Only the owner or an admin can change the name, the key and the colour.</Note>
             </Row>
           )}
         </Card>

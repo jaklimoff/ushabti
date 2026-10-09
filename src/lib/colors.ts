@@ -30,6 +30,41 @@ export function pickAvatarColor(seed: string): string {
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
 }
 
+/**
+ * The colours a project may wear, behind its key in dark ink. Lighter than
+ * the palette above, so the key keeps WCAG AA on every one and the square
+ * still reads on the dark theme. Migration 0032 copied this list to colour
+ * the projects that were already there; `project-color.test.ts` holds the two
+ * together.
+ */
+export const PROJECT_COLORS = [
+  "#f08a7e",
+  "#f0a860",
+  "#e3c55a",
+  "#b5cf66",
+  "#7cc48a",
+  "#5cc5b0",
+  "#63c3dc",
+  "#7aa8f0",
+  "#a99af0",
+  "#ec8fb8",
+] as const;
+
+/** The ink of a project's key. Dark on every project colour, so it never flips. */
+export const PROJECT_INK = "#14161a";
+
+/**
+ * The colour a new project starts with, picked from its key. Keys made one
+ * after another tend to differ in their last letter, and the last letter moves
+ * the pick by one, so neighbours rarely match. The migration does the same sum
+ * in SQL: walk the key by code point, never by UTF-16 unit.
+ */
+export function pickProjectColor(key: string): string {
+  let h = 0;
+  for (const ch of key) h = (h * 31 + ch.codePointAt(0)!) % PROJECT_COLORS.length;
+  return PROJECT_COLORS[h];
+}
+
 export function nextPaletteColor(used: string[]): string {
   const free = PALETTE.find((c) => !used.includes(c));
   return free ?? PALETTE[used.length % PALETTE.length];

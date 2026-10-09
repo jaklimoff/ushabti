@@ -675,6 +675,19 @@
   line-height: 1;
 }
 
+/* A project's key is up to six letters, so its swatch is a square that grows
+   rather than a round face. */
+.swatchKey {
+  width: auto;
+  min-width: 26px;
+  padding: 0 5px;
+  border-radius: 6px;
+}
+
+.swatchKey:disabled {
+  cursor: default;
+}
+
 .faces {
   display: flex;
   flex-direction: column;

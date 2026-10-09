@@ -79,6 +79,7 @@ export function newProject(): BoardData {
       id: id(),
       name: "Testing",
       key: "TST",
+      color: "#7aa8f0",
       ownerId: ME.id,
       role: "owner",
       doneWhen: null,

@@ -1,4 +1,5 @@
 import { desc, sql } from "drizzle-orm";
+import { PROJECT_COLORS } from "../lib/colors";
 import {
   boolean,
   date,
@@ -63,6 +64,13 @@ export const projects = pgTable(
     name: text("name").notNull(),
     /** Short prefix for task keys, e.g. "USH" gives USH-14. */
     key: text("key").notNull(),
+    /**
+     * The colour Home draws the project by, one of `PROJECT_COLORS`. Picked
+     * from the key when the project is made and stored, so renaming the key
+     * keeps the colour people know it by. Every insert names one; the default
+     * is there for code that predates the column.
+     */
+    color: text("color").notNull().default(PROJECT_COLORS[0]),
     ownerId: uuid("owner_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
