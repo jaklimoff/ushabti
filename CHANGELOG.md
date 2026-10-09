@@ -44,6 +44,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   member and public pages are not found. Turn releases on again and the same
   entries are back.
 
+### Fixed
+
+- **The arrow keys keep the highlighted row in sight in a long list.** The
+  lists of the filter panel, the sort panel, **Set…**, the link picker and the
+  top-bar search scroll with the highlight, so Enter never picks a row you
+  cannot see.
+
 ## 0.21.1 — 2026-10-09
 
 ### Fixed

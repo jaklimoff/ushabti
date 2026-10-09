@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { tint } from "@/lib/colors";
 import { formatDate } from "@/lib/board";
@@ -13,7 +13,7 @@ import { pickableOptions } from "@/lib/option-dates";
 import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
 import { Avatar } from "@/components/ui/Avatar";
 import { useDismiss } from "@/components/ui/useDismiss";
-import { walkKeys } from "../Ask";
+import { useHighlightInView, walkKeys } from "../Ask";
 import { useBoard } from "../store";
 import styles from "./controls.module.css";
 
@@ -146,16 +146,6 @@ type Entry =
 function entryKey(entry: Entry): string {
   if (entry.kind === "option") return entry.option.id;
   return entry.kind;
-}
-
-/** A menu taller than its box scrolls, and the highlight must stay in sight. */
-function useHighlightInView(at: number, open: boolean) {
-  const menu = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const row = menu.current?.querySelector<HTMLElement>('[data-at="true"]');
-    row?.scrollIntoView?.({ block: "nearest" });
-  }, [at, open]);
-  return menu;
 }
 
 /**

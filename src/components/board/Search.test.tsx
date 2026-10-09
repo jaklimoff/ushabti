@@ -123,4 +123,34 @@ describe("Finding a task", () => {
     await hitCount(0);
     await says(byTestId("search-hits"), "No task by those words.");
   });
+  /* The box keeps the focus, so the browser never scrolls the list for the
+     highlight. */
+  test("the arrows keep the highlighted hit in sight past the 8th", async () => {
+    const data = newProject();
+    // A hit in the words draws the line it is on, which makes each row taller.
+    for (let i = 1; i <= 12; i++) {
+      withTask(data, `Part ${i}`, { Status: "Todo" }).description = `The plan for part ${i}.`;
+    }
+    await draw(data);
+
+    await find("plan");
+    await hitCount(12);
+    const list = byTestId("search-hits").getByRole("listbox").element();
+    expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
+
+    const inSight = () => {
+      const id = box().element().getAttribute("aria-activedescendant");
+      const row = document.getElementById(id ?? "")!.getBoundingClientRect();
+      const edge = list.getBoundingClientRect();
+      return row.top >= edge.top - 0.5 && row.bottom <= edge.bottom + 0.5;
+    };
+    for (let i = 0; i < 11; i++) await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => box().element().getAttribute("aria-activedescendant")).toMatch(/-11$/);
+    await expect.poll(inSight).toBe(true);
+
+    // A wrap goes back to the top.
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(inSight).toBe(true);
+    expect(list.scrollTop).toBe(0);
+  });
 });
