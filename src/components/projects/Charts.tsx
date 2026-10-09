@@ -7,6 +7,7 @@ import { chartSummary, type ChartChoice, type ChartDTO } from "@/lib/charts";
 import { Button } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { Select } from "@/components/ui/Form";
+import { HomeSection, QuietPanel, WidePanel } from "./Empty";
 import styles from "./ProjectList.module.css";
 
 /* A calendar day has no zone, so it is written in UTC: the server and the
@@ -23,30 +24,63 @@ const longDayName = (day: string) =>
  * The person's charts: how many tasks entered one column a day. A chart is
  * added and deleted right here, with no dialog.
  */
-export function Charts({ charts, choices }: { charts: ChartDTO[]; choices: ChartChoice[] }) {
+export function Charts({
+  charts,
+  choices,
+  canMake = true,
+}: {
+  charts: ChartDTO[];
+  choices: ChartChoice[];
+  canMake?: boolean;
+}) {
   const [adding, setAdding] = useState(false);
+  const nothing = choices.length === 0 ? "No project has a select to count yet." : undefined;
   return (
-    <section className={styles.lists} data-testid="my-charts">
-      <div className={styles.sectionHead}>
-        <h2 className={styles.section}>Charts</h2>
+    <HomeSection
+      title="Charts"
+      count={charts.length}
+      adding={adding}
+      data-testid="my-charts"
+      create={
         <Button
           variant="text"
           className={styles.headButton}
           data-testid="chart-new"
           disabled={adding || choices.length === 0}
-          title={choices.length === 0 ? "No project has a select to count yet." : undefined}
+          title={nothing}
           onClick={() => setAdding(true)}
         >
           + New chart
         </Button>
-      </div>
-      <div className={styles.charts}>
-        {adding && <ChartPicker choices={choices} onDone={() => setAdding(false)} />}
-        {charts.map((chart) => (
-          <Chart key={chart.id} chart={chart} />
-        ))}
-      </div>
-    </section>
+      }
+      empty={
+        canMake ? (
+          <WidePanel
+            label="+ New chart"
+            hint="Counts the tasks that enter a column each day, such as how many shipped."
+            shapes="bars"
+            disabled={choices.length === 0}
+            title={nothing}
+            onClick={() => setAdding(true)}
+            data-testid="chart-new"
+          />
+        ) : (
+          <QuietPanel
+            title="Charts"
+            line="Count how many tasks enter a column each day. Create a project first."
+          />
+        )
+      }
+    >
+      {(adding || charts.length > 0) && (
+        <div className={styles.charts}>
+          {adding && <ChartPicker choices={choices} onDone={() => setAdding(false)} />}
+          {charts.map((chart) => (
+            <Chart key={chart.id} chart={chart} />
+          ))}
+        </div>
+      )}
+    </HomeSection>
   );
 }
 
