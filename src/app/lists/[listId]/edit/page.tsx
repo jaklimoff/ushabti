@@ -32,6 +32,7 @@ export default async function EditListRoute({ params }: { params: Promise<{ list
       user={user}
       list={list}
       sources={shapes}
+      hidden={sources.length - shapes.length}
       projects={projects.map((p) => ({ id: p.id, key: p.key, name: p.name }))}
     />
   );

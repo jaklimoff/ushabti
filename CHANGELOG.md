@@ -24,6 +24,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   "+N more" opens the whole list. The rules and the counts per project left
   the card; they are on the list page. Home is wider, so three lists sit
   across, and every list card is the same height.
+- **A list always has a project.** New list opens an editor that saves
+  nothing until you pick a project; the list is made with it. Leave before
+  that and no empty list is left on Home. The last project of a list cannot be
+  removed: delete the list instead. `POST /api/lists` now needs a
+  `projectId`.
 
 ### Fixed
 

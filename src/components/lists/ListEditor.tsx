@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { editedText, type LeaveSend } from "@/lib/leave";
+import { LAST_SOURCE } from "@/lib/lists";
 import type { SourceShape } from "@/lib/lists-load";
 import type { FilterRule } from "@/lib/types";
 import { RuleChips } from "@/components/board/Filters";
@@ -21,21 +22,28 @@ type Project = { id: string; key: string; name: string };
  * A list's name and its sources. The name saves on blur, as every field
  * does; each source is a project and the board's own filter chips. Deleting
  * the list asks in place, and takes no task with it.
+ *
+ * With no `list` it is a list nobody has saved: nothing is written until the
+ * first project is picked, and that one request writes the list, its name
+ * and the project together. `hidden` counts the sources of projects the
+ * person left, which are not drawn but still keep the list from emptying.
  */
 export function ListEditor({
   user,
   list,
   sources: initial,
+  hidden = 0,
   projects,
 }: {
   user: SessionUser;
-  list: { id: string; name: string };
+  list: { id: string; name: string } | null;
   sources: SourceShape[];
+  hidden?: number;
   projects: Project[];
 }) {
   const router = useRouter();
-  const [name, setName] = useState(list.name);
-  const [saved, setSaved] = useState(list.name);
+  const [name, setName] = useState(list?.name ?? "New list");
+  const [saved, setSaved] = useState(list?.name ?? "New list");
   /* Only what somebody typed here is owed on a closed tab. */
   const [typed, setTyped] = useState(false);
   const [sources, setSources] = useState(initial);
@@ -48,6 +56,7 @@ export function ListEditor({
   const writes = useRef(new Map<string, number>());
 
   const nameSend = (): LeaveSend | null => {
+    if (!list) return null;
     const text = editedText(name, saved);
     return text ? { method: "PATCH", url: `/api/lists/${list.id}`, body: { name: text } } : null;
   };
@@ -57,6 +66,10 @@ export function ListEditor({
   async function saveName() {
     const send = nameSend();
     setTyped(false);
+    if (!list) {
+      setName(name.trim() || saved);
+      return;
+    }
     if (!send) {
       if (!name.trim()) setName(saved);
       return;
@@ -74,7 +87,7 @@ export function ListEditor({
   function rulesSend(sourceId: string, rules: FilterRule[]): LeaveSend {
     return {
       method: "PATCH",
-      url: `/api/lists/${list.id}/sources/${sourceId}`,
+      url: `/api/lists/${list?.id}/sources/${sourceId}`,
       body: { filters: { rules } },
     };
   }
@@ -94,10 +107,14 @@ export function ListEditor({
   }
 
   async function removeSource(sourceId: string) {
+    if (!list) return;
+    const before = sources;
     setSources((all) => all.filter((s) => s.id !== sourceId));
     try {
       await api.del(`/api/lists/${list.id}/sources/${sourceId}`);
     } catch (err) {
+      /* The server keeps the last project; put back what it kept. */
+      setSources(before);
       setError(err instanceof Error ? err.message : "Could not remove the project.");
     }
   }
@@ -106,6 +123,20 @@ export function ListEditor({
     if (adding) return;
     setAdding(true);
     setError(null);
+    if (!list) {
+      try {
+        const made = await api.post<{ list: { id: string } }>("/api/lists", {
+          name: name.trim() || saved,
+          projectId,
+        });
+        /* The buttons stay held until the saved list's editor replaces this one. */
+        router.replace(`/lists/${made.list.id}/edit`);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not make the list.");
+        setAdding(false);
+      }
+      return;
+    }
     try {
       const { source } = await api.post<{ source: SourceShape }>(`/api/lists/${list.id}/sources`, {
         projectId,
@@ -119,7 +150,7 @@ export function ListEditor({
   }
 
   async function deleteList() {
-    if (deleting) return;
+    if (deleting || !list) return;
     setDeleting(true);
     try {
       await api.del(`/api/lists/${list.id}`);
@@ -131,17 +162,20 @@ export function ListEditor({
   }
 
   const offered = projects.filter((p) => !sources.some((s) => s.projectId === p.id));
+  const last = sources.length + hidden <= 1;
 
   return (
     <div className={styles.page}>
       <ListBar user={user} />
       <div className={styles.body}>
         <div className={styles.heading}>
-          <h1 className={styles.title}>Edit list</h1>
+          <h1 className={styles.title}>{list ? "Edit list" : "New list"}</h1>
           <span className={styles.spacer} />
-          <ButtonPageLink variant="ghost" href={`/lists/${list.id}`} data-testid="list-open">
-            Open list
-          </ButtonPageLink>
+          {list && (
+            <ButtonPageLink variant="ghost" href={`/lists/${list.id}`} data-testid="list-open">
+              Open list
+            </ButtonPageLink>
+          )}
         </div>
 
         <Field label="Name">
@@ -177,6 +211,9 @@ export function ListEditor({
                 <span className={styles.spacer} />
                 <IconButton
                   label={`Remove ${source.name} from the list`}
+                  title={last ? LAST_SOURCE : undefined}
+                  disabled={last}
+                  data-testid="list-source-remove"
                   onClick={() => void removeSource(source.id)}
                 >
                   ✕
@@ -199,8 +236,19 @@ export function ListEditor({
 
         <div className={styles.add}>
           <span className="label">Add a project</span>
+          {sources.length + hidden === 0 && (
+            <span className={styles.none} data-testid="list-needs-project">
+              {list
+                ? "This list reads no project. Pick one."
+                : "Pick a project, and the list is made with it."}
+            </span>
+          )}
           {offered.length === 0 ? (
-            <span className={styles.none}>Every project of yours is on this list.</span>
+            <span className={styles.none}>
+              {projects.length === 0
+                ? "You are on no project yet."
+                : "Every project of yours is on this list."}
+            </span>
           ) : (
             <div className={styles.addRow}>
               {offered.map((p) => (
@@ -218,20 +266,22 @@ export function ListEditor({
           )}
         </div>
 
-        <div className={styles.danger}>
-          {asking.asking ? (
-            <ConfirmRow
-              question={`Delete ${saved}? The tasks stay; only the list goes.`}
-              confirmLabel="Delete list"
-              onConfirm={() => asking.confirm(() => void deleteList())}
-              onCancel={asking.cancel}
-            />
-          ) : (
-            <Button variant="danger" disabled={deleting} onClick={asking.ask}>
-              Delete list
-            </Button>
-          )}
-        </div>
+        {list && (
+          <div className={styles.danger}>
+            {asking.asking ? (
+              <ConfirmRow
+                question={`Delete ${saved}? The tasks stay; only the list goes.`}
+                confirmLabel="Delete list"
+                onConfirm={() => asking.confirm(() => void deleteList())}
+                onCancel={asking.cancel}
+              />
+            ) : (
+              <Button variant="danger" disabled={deleting} onClick={asking.ask}>
+                Delete list
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

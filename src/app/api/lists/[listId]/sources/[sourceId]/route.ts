@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { listSources } from "@/db/schema";
+import { listSources, lists } from "@/db/schema";
 import { body, json, readId, route } from "@/lib/api";
 import { HttpError, requireMembership } from "@/lib/auth";
 import { readFilters } from "@/lib/filters";
+import { LAST_SOURCE } from "@/lib/lists";
 import { ownList } from "@/lib/lists-load";
 import { loadProperties } from "@/lib/queries";
 
@@ -37,9 +38,21 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   return json({ source: { id: source.id, projectId: source.projectId, filters } });
 });
 
-/** The project leaves the list. Its tasks stay where they are. */
+/**
+ * The project leaves the list. Its tasks stay where they are. The last one
+ * stays: a list reads at least one project. The list row is locked so two
+ * removals at once cannot each see the other's source and take both.
+ */
 export const DELETE = route<Ctx>(async (_req, ctx) => {
   const { source } = await ownSource(ctx);
-  await db.delete(listSources).where(eq(listSources.id, source.id));
+  await db.transaction(async (tx) => {
+    await tx.select({ id: lists.id }).from(lists).where(eq(lists.id, source.listId)).for("update");
+    const rest = await tx
+      .select({ id: listSources.id })
+      .from(listSources)
+      .where(and(eq(listSources.listId, source.listId), ne(listSources.id, source.id)));
+    if (rest.length === 0) throw new HttpError(409, LAST_SOURCE);
+    await tx.delete(listSources).where(eq(listSources.id, source.id));
+  });
   return json({ ok: true });
 });

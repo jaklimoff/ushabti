@@ -33,15 +33,18 @@ test("a list made on Home opens a task on its own board @smoke", async ({ page }
   expect(lists!.y).toBeLessThan(projects!.y);
 
   await page.getByTestId("list-new").click();
-  await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
+  await page.waitForURL(/\/lists\/new$/);
   const name = page.getByTestId("list-name");
   await expect(name).toHaveValue("New list");
   await name.fill("My todo");
-  await settles(page, /\/api\/lists\/[0-9a-f-]+$/, () => name.press("Tab"));
+  await name.press("Tab");
 
-  await settles(page, /\/sources$/, () =>
+  /* The first project writes the list, its name and the project in one request. */
+  await settles(page, /\/api\/lists$/, () =>
     page.getByTestId("list-add-project").filter({ hasText: oneKey }).click(),
   );
+  await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
+  await expect(name).toHaveValue("My todo");
   const source = page.getByTestId("list-source-edit").filter({ hasText: oneKey });
   await source.getByTestId("rule-add").click();
   const search = page.getByTestId("filter-search");
@@ -90,8 +93,12 @@ test("a list keeps a name typed before the tab went, and goes without its tasks"
   const one = await createProject(page, unique("Gamma"));
   await addTask(page, "Todo", "Survives the list");
 
+  const oneKey = await keyOf(page, one);
+
   await page.goto("/projects");
   await page.getByTestId("list-new").click();
+  await page.waitForURL(/\/lists\/new$/);
+  await page.getByTestId("list-add-project").filter({ hasText: oneKey }).click();
   await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
   const editUrl = page.url();
   const name = page.getByTestId("list-name");
@@ -116,9 +123,11 @@ test("a list keeps a name typed before the tab went, and goes without its tasks"
 });
 
 async function newList(page: Page, name: string, projectIds: string[]): Promise<string> {
-  const { list } = await (await page.request.post("/api/lists", { data: {} })).json();
-  await page.request.patch(`/api/lists/${list.id}`, { data: { name } });
-  for (const projectId of projectIds) {
+  const [first, ...rest] = projectIds;
+  const res = await page.request.post("/api/lists", { data: { name, projectId: first } });
+  expect(res.status()).toBe(201);
+  const { list } = await res.json();
+  for (const projectId of rest) {
     await page.request.post(`/api/lists/${list.id}/sources`, { data: { projectId } });
   }
   return list.id as string;
@@ -214,4 +223,59 @@ test("a list card shows its first five tasks and opens each one", async ({ page 
   const a = (await full.boundingBox())!;
   const b = (await listCard(page, "Matches none").boundingBox())!;
   expect(b.y).toBeGreaterThan(a.y + a.height - 1);
+});
+
+test("a new list is written only with its first project, and keeps its last one", async ({
+  page,
+}) => {
+  await register(page, "List Keeper");
+  const one = await createProject(page, unique("Kept"));
+  const two = await createProject(page, unique("Extra"));
+  const oneKey = await keyOf(page, one);
+  const twoKey = await keyOf(page, two);
+  const lists = async () =>
+    ((await (await page.request.get("/api/lists")).json()).lists as unknown[]).length;
+
+  /* Leaving the unsaved editor writes nothing, whatever was typed. */
+  await page.goto("/projects");
+  const before = await page.getByTestId("list-card").count();
+  await page.getByTestId("list-new").click();
+  await page.waitForURL(/\/lists\/new$/);
+  await expect(page.getByTestId("list-needs-project")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete list" })).toHaveCount(0);
+  await page.getByTestId("list-name").fill("Never saved");
+  await page.getByTestId("list-name").press("Tab");
+  await page.goto("/projects");
+  await expect(page.getByTestId("list-card")).toHaveCount(before);
+  await expect(listCard(page, "Never saved")).toHaveCount(0);
+  expect(await lists()).toBe(0);
+
+  await page.getByTestId("list-new").click();
+  await page.waitForURL(/\/lists\/new$/);
+  await settles(page, /\/api\/lists$/, () =>
+    page.getByTestId("list-add-project").filter({ hasText: oneKey }).click(),
+  );
+  await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
+  expect(await lists()).toBe(1);
+
+  /* The only project cannot leave, and the button says why. */
+  const remove = page.getByTestId("list-source-remove");
+  await expect(remove).toHaveCount(1);
+  await expect(remove).toBeDisabled();
+  await expect(remove).toHaveAttribute(
+    "title",
+    "A list needs a project. Delete the list to remove it.",
+  );
+
+  await settles(page, /\/sources$/, () =>
+    page.getByTestId("list-add-project").filter({ hasText: twoKey }).click(),
+  );
+  await expect(remove).toHaveCount(2);
+  await expect(remove.first()).toBeEnabled();
+  await settles(page, /\/sources\/[0-9a-f-]+$/, () => remove.first().click());
+  await expect(remove).toHaveCount(1);
+  await expect(remove).toBeDisabled();
+
+  await page.reload();
+  await expect(page.getByTestId("list-source-edit")).toHaveCount(1);
 });
