@@ -22,7 +22,7 @@ import {
  * button twice makes nothing twice. What a card brings and what a rule keeps
  * out are `import-route.test.ts`; the page on a phone is `ImportPanel.test.tsx`.
  */
-const FIXTURE = "e2e/fixtures/trello-small.json";
+const FIXTURE = "src/test/fixtures/trello-small.json";
 
 /**
  * Opens the page and waits until it can take a file.

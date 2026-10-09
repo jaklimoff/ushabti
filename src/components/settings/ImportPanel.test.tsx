@@ -3,7 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import { planImport, previewOf } from "@/lib/import/plan";
 import { readTrello } from "@/lib/import/trello";
 import { ME, newProject, renderWithBoard } from "@/test/board";
-import trello from "../../../e2e/fixtures/trello-small.json";
+import trello from "@/test/fixtures/trello-small.json";
 import { ImportPanel } from "./ImportPanel";
 import { SettingsShell } from "./SettingsShell";
 
