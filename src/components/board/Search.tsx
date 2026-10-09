@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { hitNote, searchTasks, type Searchable, type SearchHit } from "@/lib/search";
+import { hitNote, searchCounted, type Searchable, type SearchHit } from "@/lib/search";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useHighlightInView } from "./Ask";
 import { useShortcut } from "./keys";
@@ -33,8 +33,8 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
 
   /* The archived tasks join the live ones here and nowhere else on the board.
      A search is what makes an archived task reachable again. */
-  const hits = useMemo(
-    () => searchTasks([...data.tasks, ...data.archived], query, data.project.doneWhen),
+  const { hits, total } = useMemo(
+    () => searchCounted([...data.tasks, ...data.archived], query, data.project.doneWhen),
     [data.archived, data.tasks, data.project.doneWhen, query],
   );
   /* Which hits the view is drawing. A search reaches past the filter, so it
@@ -134,40 +134,49 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
           {hits.length === 0 ? (
             <span className={styles.filterNote}>No task by those words.</span>
           ) : (
-            <div className={styles.searchList} role="listbox" id="board-search-hits" ref={list}>
-              {hits.map((hit, i) => (
-                <div
-                  key={hit.task.id}
-                  id={`board-search-hits-${i}`}
-                  role="option"
-                  aria-selected={i === highlighted}
-                  data-at={i === highlighted}
-                  data-testid="search-hit"
-                  className={`${styles.searchItem} ${i === highlighted ? styles.searchItemAt : ""}`}
-                  // The box keeps the focus, exactly as the filter panel does.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => openHit(hit)}
-                >
-                  <span className={styles.searchLine}>
-                    <span className={styles.searchKey}>{hit.task.key}</span>
-                    <span className={styles.searchTitle}>{hit.task.title}</span>
-                    {note(hit) && (
-                      <span
-                        className={styles.searchAway}
-                        title={
-                          hit.task.archivedAt
-                            ? "It is archived. Open it to put it back."
-                            : "A filter on this view hides it"
-                        }
-                      >
-                        {note(hit)}
-                      </span>
-                    )}
-                  </span>
-                  {hit.snippet && <span className={styles.searchSnippet}>{hit.snippet}</span>}
-                </div>
-              ))}
-            </div>
+            <>
+              <div className={styles.searchList} role="listbox" id="board-search-hits" ref={list}>
+                {hits.map((hit, i) => (
+                  <div
+                    key={hit.task.id}
+                    id={`board-search-hits-${i}`}
+                    role="option"
+                    aria-selected={i === highlighted}
+                    data-at={i === highlighted}
+                    data-testid="search-hit"
+                    className={`${styles.searchItem} ${i === highlighted ? styles.searchItemAt : ""}`}
+                    // The box keeps the focus, exactly as the filter panel does.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => openHit(hit)}
+                  >
+                    <span className={styles.searchLine}>
+                      <span className={styles.searchKey}>{hit.task.key}</span>
+                      <span className={styles.searchTitle}>{hit.task.title}</span>
+                      {note(hit) && (
+                        <span
+                          className={styles.searchAway}
+                          title={
+                            hit.task.archivedAt
+                              ? "It is archived. Open it to put it back."
+                              : "A filter on this view hides it"
+                          }
+                        >
+                          {note(hit)}
+                        </span>
+                      )}
+                    </span>
+                    {hit.snippet && <span className={styles.searchSnippet}>{hit.snippet}</span>}
+                  </div>
+                ))}
+              </div>
+              {/* Outside the scroller, or it scrolls out of sight. It is the
+                last thing in the popover, so it is read after the hits. */}
+              {total > hits.length && (
+                <span className={styles.filterNote} data-testid="search-count" aria-live="polite">
+                  {hits.length} of {total}
+                </span>
+              )}
+            </>
           )}
         </div>
       )}
