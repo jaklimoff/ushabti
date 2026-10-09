@@ -148,17 +148,17 @@ four workers at most.
 | `mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
 | `markdown-wrap.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | Wrapping is layout. The description and the comment arrive written; typing them is the panel's own test. |
 | `mention.spec.ts` | 4 | done (USH-272) |  | 4 |  |  |  | The @ list is a component. |
-| `option-dates.spec.ts` | 12 | move |  | 8 |  | 4 |  | The boxes and their closed tab are Settings; who may write is the route. |
-| `option-names.spec.ts` | 6 | move | 1 | 2 |  | 3 |  | Keep two creates at once, which needs the real database. |
+| `option-dates.spec.ts` | 12 | done (USH-275) |  | 11 |  | 4 |  | The boxes and their closed tab are Settings; who may write is the route. Three tests also have a screen half: the multi-select with no boxes, the member who sees no Unship, and the select dated before. The file is gone. |
+| `option-names.spec.ts` | 6 | done (USH-275) | 1 | 2 |  | 3 |  | Keep two creates at once, which needs the real database. |
 | `panel-a11y.spec.ts` | 6 | done (USH-272) | 1 | 5 |  |  |  | Focus and roles are what a component test reads best. The plan moved all six, but the view strip's test carries `@smoke` and stays. |
 | `parents.spec.ts` | 3 | move |  | 2 |  | 1 |  | One level deep is the server's rule. |
 | `password-fill.spec.ts` | 3 | move |  | 3 |  |  |  | A value with no event is a box. |
 | `pick-labels.spec.ts` | 3 | done (USH-273) |  | 2 |  | 1 |  | The bulk route keeps what it did not change. The bar went to `Pick.test.tsx`, the route to `pick-route.test.ts`, and the file is gone. |
 | `pick.spec.ts` | 18 | done (USH-273) | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283), and the agent's refused archive after them. The list under a finger turns on Chromium's touch emulation, as `hasTouch` did. |
 | `presence.spec.ts` | 4 | keep | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. The phone test said its faces before the owner's tab listened, and the stream has no replay; it waits for the live dot now, and the members join by the route (USH-283). |
-| `progress.spec.ts` | 4 | move |  | 2 | 1 | 1 |  | `progressOf` sums the bar; the header is a component. |
+| `progress.spec.ts` | 4 | done (USH-275) |  | 3 |  | 2 |  | `progressOf` sums the bar; the header is a component. The plan had a unit test, but `progress.test.ts` already holds the sum, so the unit-count test went to the header with the phone width; the unit picked is also kept by the route. The file is gone. |
 | `project-waiting.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | Keep the count that changes live. |
-| `properties.spec.ts` | 13 | move | 1 | 10 |  | 2 |  | Keep making a property and grouping a board by it. |
+| `properties.spec.ts` | 13 | done (USH-275) | 2 | 10 |  | 8 |  | Keep making a property and grouping a board by it. The plan kept 1, but the rename of an option carries `@smoke` and stays. Seven component tests that went by a reload have a route half that says what was kept, and the `showOnCard` test went to the route alone. |
 | `rank.spec.ts` | 1 | done (USH-283) |  |  |  | 1 |  | The mend is the create route; `rank.ts` already has unit tests. It went to `rank-route.test.ts`. |
 | `rate-limit.spec.ts` | 1 | move |  |  |  | 1 |  | The limit is the route's answer. |
 | `reset.spec.ts` | 3 | keep | 1 |  |  | 2 |  | Keep the link that works once and signs in. Its count of controls on a dead page reached into the dev server's own shadow root and found Next's button; it asks the document now (USH-283). |
@@ -185,6 +185,6 @@ four workers at most.
 | `upload.spec.ts` | 4 | keep | 2 | 2 |  |  |  | Keep the two uploads through the bucket. |
 | `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. Its tasks and agent are made by the routes, not the composer and Settings (USH-283). |
 | `webhooks.spec.ts` | 6 | keep | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. The dev server runs in Docker, so the receiver is called by `host.docker.internal` there, and the queued delivery of a webhook that is off waits on a second webhook that rings instead of 1.2 seconds (USH-283). |
-| `when.spec.ts` | 7 | move |  | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. |
+| `when.spec.ts` | 7 | done (USH-275) | 1 | 5 |  | 2 |  | The rule in words is Settings; who may set it is the route. The plan moved the race of two rules, but it stays: the in-memory database of a route test answers one request at a time, so it cannot lose the race the project lock is for. |
 | `words.spec.ts` | 4 | done (USH-273) |  | 1 |  |  | 3 | The send hint is `mod-key`, which already has unit tests. The one word for each idea went to `Pick.test.tsx`, and the file is gone. |
-| **80 files** | **460** | | **92** | **249** | **9** | **109** | **3** | |
+| **80 files** | **460** | | **94** | **253** | **8** | **116** | **3** | |
