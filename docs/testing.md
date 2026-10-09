@@ -112,8 +112,8 @@ four workers at most.
 | `agent-rename.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | The watcher waking on the new name needs the stream and the harness. |
 | `agent-rules.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | The claim carrying the rules is a route; the closed tab is `pagehide` on the box. |
 | `agents.spec.ts` | 17 | done (USH-269) | 3 | 2 | 2 | 10 |  | Tokens, beats, the lease and the refusals are route answers. Keep the first run on the board, the drag that takes over, and the silent run that closes itself. |
-| `archive-retry.spec.ts` | 2 | move |  |  |  | 2 |  | Both are what a second archive writes. |
-| `archive.spec.ts` | 12 | move | 2 | 8 |  | 2 |  | Keep archive and put back from the panel, and the archive page. The panel's races are component tests with a held answer. |
+| `archive-retry.spec.ts` | 2 | done (USH-277) |  |  |  | 2 |  | Both are what a second archive writes. The file is gone; they are `archive-route.test.ts`. |
+| `archive.spec.ts` | 12 | done (USH-277) | 2 | 9 |  | 1 |  | Keep archive and put back from the panel, and the archive page. The panel's races are component tests with a held answer. The column sweep is a component test and not a route one: what it writes is the bulk archive route `pick-route.test.ts` already holds, and what is left is the question and the toast (USH-277). |
 | `ask-mail.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
 | `attachments.spec.ts` | 2 | done (USH-282) | 1 | 1 |  |  |  | An upload through the bucket stays; the 503 sentence is Settings drawing an answer. It went to `ProjectPanel.test.tsx`; the 503 itself was already `attachments-route.test.ts`. |
 | `bad-id.spec.ts` | 2 | move |  |  |  | 2 |  | `readId` already has unit tests; one route test per door says the sentence. |
@@ -129,7 +129,7 @@ four workers at most.
 | `comment-edit.spec.ts` | 7 | done (USH-272) | 2 | 4 |  | 1 |  | Keep the save that crossed a newer one. The box's keys and its closed tab are the component. The plan kept 1, but the walk that edits and reaches the other panel carries `@smoke` and stays. |
 | `composer.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | How the composer grows is layout, which Browser Mode has. |
 | `done-when.spec.ts` | 6 | move |  | 1 |  | 5 |  | What frees a blocker and what Ship archives are server answers. |
-| `drop-hidden.spec.ts` | 13 | move | 1 | 5 |  | 7 |  | Keep the writes that land at once. The questions are the panel and the bar; the drops are the routes. |
+| `drop-hidden.spec.ts` | 13 | done (USH-277) | 1 | 6 |  | 6 |  | Keep the writes that land at once. The questions are the panel and the bar; the drops are the routes. A rule written in Settings is a component test: its drop is the routes' and already held there, and what is left is the question with the count (USH-277). |
 | `editing-sign.spec.ts` | 2 | done (USH-272) | 1 | 1 |  |  |  | Keep two editors on one task. The phone line is layout; the other tabs speak through the stubbed stream. |
 | `editor-open.spec.ts` | 3 | keep | 2 | 1 |  |  |  | Which chunk loads when needs the production build. |
 | `ended-sprint.spec.ts` | 5 | move |  | 2 | 1 | 2 |  | The header is a component; the read that writes nothing is a route. |
@@ -181,7 +181,7 @@ four workers at most.
 | `text-save.spec.ts` | 5 | done (USH-272) |  | 4 |  | 1 |  | A conflict is a 409 the fake can answer. A tick and a value refusing nothing is the route. |
 | `type-defaults.spec.ts` | 7 | move |  | 3 |  | 4 |  | What a create starts with is the route's answer. |
 | `types.spec.ts` | 4 | move |  | 3 |  | 1 |  | The Types page is a component. |
-| `undo-delete.spec.ts` | 8 | move | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
+| `undo-delete.spec.ts` | 8 | done (USH-277) | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
 | `upload.spec.ts` | 4 | done (USH-282) | 2 | 2 |  |  |  | Keep the two uploads through the bucket. The description's drop and the stopped upload's line went to `Upload.test.tsx`, with the bucket answered in the page. |
 | `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. Its tasks and agent are made by the routes, not the composer and Settings (USH-283). |
 | `webhooks.spec.ts` | 6 | done (USH-282) | 4 | 2 |  |  |  | A request that leaves the server is what end to end is for. The dev server runs in Docker, so the receiver is called by `host.docker.internal` there, and the queued delivery of a webhook that is off waits on a second webhook that rings instead of 1.2 seconds (USH-283). The refused URL and the phone call nothing, and went to `WebhooksPanel.test.tsx`. |
