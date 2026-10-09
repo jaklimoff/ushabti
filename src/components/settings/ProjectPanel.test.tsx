@@ -81,6 +81,38 @@ describe("Agent rules", () => {
   });
 });
 
+/* The native popup cannot be driven, so the list it is drawn from is the
+   check. That the browser offers Europe/Berlin for "Berlin" is its own. */
+describe("Time zone", () => {
+  const zone = () => page.getByLabelText("The time zone this project's day is worked out in");
+
+  test("the box offers the zone names, UTC among them", async () => {
+    await draw();
+    const input = zone().element() as HTMLInputElement;
+    await expect.poll(() => input.list?.options.length ?? 0).toBeGreaterThan(100);
+    const names = [...input.list!.options].map((o) => o.value);
+    expect(names).toContain("Europe/Berlin");
+    expect(names).toContain("UTC");
+    expect(names.filter((n) => n.includes("Berlin"))).toEqual(["Europe/Berlin"]);
+  });
+
+  test("a typed zone saves once on blur, and a name off the list is still sent", async () => {
+    const { patches } = await draw();
+    const input = zone().element() as HTMLInputElement;
+    await zone().fill("Asia/Kolkata");
+    expect(patches()).toHaveLength(0);
+
+    input.blur();
+    await wrote(patches, 1);
+    expect(patches()[0].body).toEqual({ timeZone: "Asia/Kolkata" });
+
+    input.focus();
+    input.blur();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(patches()).toHaveLength(1);
+  });
+});
+
 /* Was "Settings says what to set exactly when the attachment routes answer
    503" in `e2e/attachments.spec.ts`. That every route answers 503 with one
    sentence is `attachments-route.test.ts`; the page is told by its server
@@ -298,6 +330,16 @@ describe("An edit the tab was closed on", () => {
     expect(patches()[0].body).toEqual({ timeZone: "Europe/Berlin" });
     const leave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(leave?.[1]?.keepalive).toBe(true);
+  });
+
+  test("a zone off the list is still sent on the way off the page", async () => {
+    const { patches } = await draw();
+    await page
+      .getByLabelText("The time zone this project's day is worked out in")
+      .fill("Asia/Kolkata");
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    await wrote(patches, 1);
+    expect(patches()[0].body).toEqual({ timeZone: "Asia/Kolkata" });
   });
 
   /*

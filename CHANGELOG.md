@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **The time zone is picked from a list.** The box in Settings → Project
+  offers the zone names as you type, so "Berlin" offers `Europe/Berlin`. A
+  name off the list is still sent, and the server still decides.
+
 - **Home holds your own lists of tasks from several projects.** The project
   list is now called Home, and My lists sits above the projects. A list takes
   one or more projects, each with the board's own filter chips, and shows the
