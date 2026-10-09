@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => import("@/test/db"));
 vi.mock("next/headers", () => import("@/test/headers"));
 
-const { api, board, ok, person, project, task } = await import("@/test/route");
+const { agent, api, board, ok, person, project, task } = await import("@/test/route");
 
 /*
  * Picking more than one call holds. The route takes two hundred ids at most,
@@ -118,5 +118,86 @@ describe("Picking more than one call holds", { timeout: 30_000 }, () => {
         (t: { values: Record<string, unknown> }) => t.values[priority.id] === urgent,
       ),
     ).toHaveLength(500);
+  });
+});
+
+/*
+ * Taking a handful of cards off the board is a decision about the board, so
+ * the widened route is a person's exactly as the column sweep was. From
+ * `e2e/pick.spec.ts`, where the token was made in Settings.
+ */
+describe("Archiving what is picked", () => {
+  it("an agent may not archive the tasks a person picked", async () => {
+    const owner = await person("Token Owner");
+    const p = await project(owner);
+    const made = await task(owner, p.id, "Not for a machine");
+    const sweeper = await agent(owner, p.id, "Sweeper");
+
+    const named = await sweeper.api.post(`/api/projects/${p.id}/archive`, { taskIds: [made.id] });
+    expect(named.status).toBe(403);
+
+    /* And it archived nothing: the one task is still live. */
+    const after = await board(owner, p.id);
+    expect(after.tasks.map((t: { id: string }) => t.id)).toContain(made.id);
+
+    /* The task route is the agent's own way, and it still works. */
+    const one = await sweeper.api.post(`/api/tasks/${made.id}/archive`, {});
+    expect(one.status).toBe(200);
+  });
+});
+
+/* From `e2e/pick-labels.spec.ts`. What the bar says and sends is
+   `Pick.test.tsx`'s. */
+describe("Set on a multi-select", () => {
+  it("the route changes one option and writes nothing on a task it leaves as it was", async () => {
+    const owner = await person();
+    const p = await project(owner);
+    const read = await board(owner, p.id);
+    type Property = { id: string; name: string; options: { id: string; name: string }[] };
+    const of = (n: string) => read.properties.find((x: Property) => x.name === n) as Property;
+    const option = (x: Property, n: string) => x.options.find((o) => o.name === n)!.id;
+    const status = of("Status");
+    const labels = of("Labels");
+    const [bug, infra, ux, docs] = ["bug", "infra", "ux", "docs"].map((n) => option(labels, n));
+
+    /* Thirty tasks: the even ones carry infra, the odd ones ux and docs, and
+       every fifth one bug already. */
+    const had: Record<string, string[]> = {};
+    for (let i = 0; i < 30; i++) {
+      const title = `Task ${String(i).padStart(2, "0")}`;
+      const list = i % 2 ? [ux, docs] : [infra];
+      if (i % 5 === 0) list.push(bug);
+      await ok(
+        api(owner).post(`/api/projects/${p.id}/tasks`, {
+          title,
+          values: { [status.id]: option(status, "Todo"), [labels.id]: list },
+        }),
+      );
+      had[title] = list;
+    }
+    const ids = (await board(owner, p.id)).tasks.map((t: { id: string }) => t.id);
+
+    const res = await post(owner, `/api/projects/${p.id}/tasks/values`, {
+      taskIds: ids,
+      propertyId: labels.id,
+      value: bug,
+      change: "add",
+    });
+    /* Six carried it already, so twenty-four change. */
+    expect(res.set).toBe(24);
+
+    const after = await board(owner, p.id);
+    for (const t of after.tasks as { title: string; values: Record<string, string[]> }[]) {
+      expect(new Set(t.values[labels.id])).toEqual(new Set([...had[t.title], bug]));
+    }
+
+    /* A change on a property that is not a multi-select is refused. */
+    const refused = await api(owner).post(`/api/projects/${p.id}/tasks/values`, {
+      taskIds: ids,
+      propertyId: status.id,
+      value: status.options[0].id,
+      change: "add",
+    });
+    expect(refused.status).toBe(400);
   });
 });

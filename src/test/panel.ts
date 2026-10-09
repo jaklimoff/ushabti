@@ -1,6 +1,7 @@
 import { expect } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SessionUser } from "@/components/ui/UserMenu";
+import { changed, type Change } from "@/lib/bulk";
 import type {
   ActivityDTO,
   BoardData,
@@ -8,12 +9,14 @@ import type {
   CommentDTO,
   MemberDTO,
   TaskDTO,
+  TaskValue,
 } from "@/lib/types";
 import { detailOf, ME, type Answer } from "./board";
 
 /*
  * The server, as far as the task panel reads and writes it: the board, the
- * tasks, their comments, checklists and feed. A text save that carries a base
+ * tasks, their comments, checklists and feed, a set and an archive of the
+ * picked cards, and a new option. A text save that carries a base
  * is refused with 409 when the words moved, as the routes refuse it, so a
  * test can put somebody else's save in first with `wrote()`.
  *
@@ -36,6 +39,9 @@ const CHECKLIST = /^\/api\/tasks\/([0-9a-f-]+)\/checklist$/;
 const ITEM = /^\/api\/checklist\/([0-9a-f-]+)$/;
 const NEW_TASK = /^\/api\/projects\/[0-9a-f-]+\/tasks$/;
 const VALUE = /^\/api\/tasks\/([0-9a-f-]+)\/values\/([0-9a-f-]+)$/;
+const BULK = /^\/api\/projects\/[0-9a-f-]+\/tasks\/values$/;
+const ARCHIVE = /^\/api\/projects\/[0-9a-f-]+\/archive$/;
+const OPTIONS = /^\/api\/properties\/([0-9a-f-]+)\/options$/;
 
 const refused = (current: string, field?: string) => ({
   status: 409,
@@ -226,6 +232,49 @@ export function serving(data: BoardData, user: SessionUser = ME, archived: TaskD
       const task = taskOf(m[1])!;
       task.values = { ...task.values, [m[2]]: sent.value as never };
       return { body: { ok: true } };
+    }
+
+    /* The picked cards, in one call each. */
+    if (method === "POST" && BULK.test(path)) {
+      const ids = new Set(sent.taskIds as string[]);
+      const propertyId = String(sent.propertyId);
+      const change = sent.change as Change | undefined;
+      let set = 0;
+      for (const task of server.tasks.filter((t) => ids.has(t.id))) {
+        const had = task.values[propertyId] ?? null;
+        const now = change ? changed(had, change, String(sent.value)) : (sent.value as TaskValue);
+        if (JSON.stringify(now) === JSON.stringify(had)) continue;
+        task.values = { ...task.values, [propertyId]: now };
+        set += 1;
+      }
+      return { body: { set } };
+    }
+    if (method === "POST" && ARCHIVE.test(path)) {
+      const ids = new Set(sent.taskIds as string[]);
+      const going = server.tasks.filter((t) => ids.has(t.id));
+      server.tasks = server.tasks.filter((t) => !ids.has(t.id));
+      const archivedAt = new Date().toISOString();
+      for (const t of going) {
+        const { id, number, key, title, description, position } = t;
+        server.archived.push({ id, number, key, title, description, position, archivedAt });
+      }
+      return { body: { archived: going.length } };
+    }
+    m = OPTIONS.exec(path);
+    if (m && method === "POST") {
+      const property = server.properties.find((p) => p.id === m![1])!;
+      const option = {
+        id: id(),
+        name: String(sent.name),
+        color: "#888888",
+        position: `z${property.options.length}`,
+        startAt: null,
+        targetAt: null,
+        shippedAt: null,
+        note: null,
+      };
+      property.options.push(option);
+      return { status: 201, body: { option } };
     }
   };
 
