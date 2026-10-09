@@ -1329,7 +1329,7 @@ function whoseComment(
   return named ? `${named}'s comment` : "a comment";
 }
 
-function describeActivity(
+export function describeActivity(
   entry: {
     kind: string;
     data: Record<string, unknown>;
@@ -1347,6 +1347,7 @@ function describeActivity(
     personId?: string | null;
     title?: string;
     text?: string;
+    from?: string;
     action?: string;
     by?: string;
     forName?: string;
@@ -1373,6 +1374,8 @@ function describeActivity(
       if (d.dropped?.length) return droppedSaid(d.hidBy ?? null, d.dropped);
       return `${who} set ${d.property ?? "a property"} to ${valueSaid(d, nameOf)}`;
     case "checklist":
+      if (d.action === "removed") return `${who} removed the checklist item “${d.text ?? ""}”`;
+      if (d.action === "renamed") return `${who} reworded “${d.from ?? ""}” to “${d.text ?? ""}”`;
       return `${who} ${d.action ?? "changed"} “${d.text ?? ""}”`;
     case "comment":
       if (d.action === "edited") return `${who} edited a comment`;

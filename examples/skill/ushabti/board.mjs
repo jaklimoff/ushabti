@@ -73,6 +73,7 @@ async function requestOnce(method, path, payload) {
   if (!res.ok) {
     const error = new Error(`${res.status}: ${data?.error ?? text}`);
     error.status = res.status;
+    error.data = data;
     throw error;
   }
   return data;
@@ -141,7 +142,7 @@ const flags = {};
  * then asks for the item it was handed. A person should not have to remember
  * an order.
  */
-const SWITCHES = ["done", "undone", "held", "free", "once"];
+const SWITCHES = ["done", "undone", "remove", "held", "free", "once"];
 
 for (let i = 1; i < argv.length; i += 1) {
   const arg = argv[i];
@@ -231,10 +232,22 @@ function findItem(task, checklist, wanted) {
   const part = whole.length ? whole : checklist.filter((i) => i.text.toLowerCase().includes(term));
   if (part.length === 1) return part[0];
 
-  const lines = (items) => items.map(itemLine).join("\n");
+  const lines = (items) => items.map((i) => itemLine(i, checklist.indexOf(i) + 1)).join("\n");
   if (!part.length)
     fail(`No item of ${task.key} matches "${wanted}". It has:\n${lines(checklist)}`);
   fail(`"${wanted}" matches ${part.length} items of ${task.key}:\n${lines(part)}`);
+}
+
+/**
+ * A checklist item by its number, counted from 1 as `task` prints them. A
+ * number past the end is refused with the list, never taken as the last one.
+ */
+function itemAt(task, checklist, wanted) {
+  const n = Number(String(wanted ?? "").trim());
+  if (!checklist.length) fail(`${task.key} has no checklist items.`);
+  if (Number.isInteger(n) && n >= 1 && n <= checklist.length) return checklist[n - 1];
+  const lines = checklist.map((i, at) => itemLine(i, at + 1)).join("\n");
+  fail(`${task.key} has no item ${wanted ?? ""}. It has:\n${lines}`);
 }
 
 function findProperty(data, wanted) {
@@ -336,7 +349,7 @@ function optionId(property, wanted) {
 /* Printing                                                            */
 /* ------------------------------------------------------------------ */
 
-const itemLine = (item) => `  [${item.done ? "x" : " "}] ${item.text}`;
+const itemLine = (item, n) => `  ${n ? `${n}. ` : ""}[${item.done ? "x" : " "}] ${item.text}`;
 
 function valueText(data, property, value) {
   if (
@@ -488,6 +501,13 @@ const commands = {
   beat <key> [--every 120] [--for 60]  say "still here" until the session ends
   step <key> --say "<now>" [--index 2] [--log "<line>"] [--for 45]
   check <key> "<item>" [--done]       add an item, or tick one; --undone unticks
+  check <key> "<item>" --remove       remove the item that is wrong or replaced
+  check <key> "<item>" --rename "<new words>"
+                                      reword an item that says the right thing badly
+  check-rm <key> <n>                  the same remove, by the number task prints
+  check-edit <key> <n> "<new words>"  the same reword, by the number task prints
+                                      Never remove or reword a check because it is
+                                      hard to meet: ask the person instead.
   describe <key> "<markdown>"         write the description, if it is empty or yours
   retitle <key> "<title>"             give the task a title that says what it is
   unmention <key>                     take your own @Name out of the title and description
@@ -585,7 +605,7 @@ http://localhost:3000.`);
     linkLines("Parent", detail.parent ? [detail.parent] : []);
     linkLines("Children", detail.children);
     if (detail.description.trim()) console.log(`\n${detail.description.trim()}\n`);
-    for (const item of detail.checklist) console.log(itemLine(item));
+    detail.checklist.forEach((item, at) => console.log(itemLine(item, at + 1)));
     for (const c of detail.comments) console.log(`  ${c.author?.name ?? "?"}: ${c.body}`);
     if (detail.run) {
       console.log(`  run ${detail.run.id} — ${detail.run.agent.name}, ${detail.run.status}`);
@@ -849,6 +869,7 @@ http://localhost:3000.`);
   /**
    * One verb for the checklist. `check` with the text adds the item; with
    * `--done` it ticks the item that text names, and `--undone` puts it back.
+   * `--remove` and `--rename` find the item the same way, and refuse to guess.
    * A second command for the same noun would be two ways to say one thing.
    */
   async check() {
@@ -859,17 +880,37 @@ http://localhost:3000.`);
     const text = positional[1];
     if (!text?.trim()) fail('Give the item: check USH-14 "Retries stop after five tries"');
 
-    if (flags.done === undefined && flags.undone === undefined) {
+    const changes = flags.remove !== undefined || flags.rename !== undefined;
+    if (!changes && flags.done === undefined && flags.undone === undefined) {
       await call("POST", `/api/tasks/${task.id}/checklist`, { text });
       console.log(`${task.key}: checklist item added`);
       return;
     }
 
-    const done = flags.done !== undefined;
     const { checklist } = (await call("GET", `/api/tasks/${task.id}`)).task;
     const item = findItem(task, checklist, text);
+    if (flags.remove !== undefined) return removeItem(task, item);
+    if (flags.rename !== undefined) return rewordItem(task, item, flags.rename);
+
+    const done = flags.done !== undefined;
     await call("PATCH", `/api/checklist/${item.id}`, { done });
     console.log(`${task.key}:${itemLine({ ...item, done })}`);
+  },
+
+  /* The Mnemes copy's names for the same two changes, by number. */
+  async "check-rm"() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const { checklist } = (await call("GET", `/api/tasks/${task.id}`)).task;
+    await removeItem(task, itemAt(task, checklist, positional[1]));
+  },
+
+  async "check-edit"() {
+    const data = await board();
+    const task = findTask(data, positional[0]);
+    const { checklist } = (await call("GET", `/api/tasks/${task.id}`)).task;
+    const item = itemAt(task, checklist, positional[1]);
+    await rewordItem(task, item, positional[2]);
   },
 
   /**
@@ -1065,6 +1106,34 @@ http://localhost:3000.`);
     console.log(`${task.key}: run ${status}`);
   },
 };
+
+async function removeItem(task, item) {
+  await call("DELETE", `/api/checklist/${item.id}`);
+  console.log(`${task.key}: removed${itemLine(item)}`);
+}
+
+/**
+ * The words are sent with the words they replace, so an edit a person made in
+ * the meantime is not written over. The board then answers with what the item
+ * says now, and that is printed for the agent to read again.
+ */
+async function rewordItem(task, item, words) {
+  // `--rename` with nothing after it reads as the word "true".
+  if (!words?.trim() || words === "true")
+    fail('Give the new words: check-edit USH-14 2 "A failed send retries five times"');
+  try {
+    await request("PATCH", `/api/checklist/${item.id}`, { text: words, baseText: item.text });
+  } catch (err) {
+    if (err.status === 409 && err.data?.current !== undefined) {
+      fail(
+        `${task.key}: the item changed meanwhile, and nothing was written. It now says:\n  ${err.data.current}`,
+        9,
+      );
+    }
+    fail(err.status ? err.message : `The board at ${BASE} did not answer: ${err.message}`);
+  }
+  console.log(`${task.key}: reworded${itemLine({ ...item, text: words })}`);
+}
 
 /** A text argument, or the file `--file` names, or stdin for `--file -`. */
 function textArgument(inline) {

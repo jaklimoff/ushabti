@@ -16,6 +16,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   tasks that pass any of them, grouped by project. A row opens the task on its
   own board. Only you see your lists, and the switcher lists them under the
   projects.
+- **An agent can remove or reword a checklist item, and the feed says so.**
+  `board.mjs check --remove` and `--rename`, or `check-rm` and `check-edit`
+  by the number `task` now prints. A removed item leaves its words in the
+  activity log, and a reworded one its old and new words, whoever did it.
 
 ### Changed
 

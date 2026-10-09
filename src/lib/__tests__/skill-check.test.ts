@@ -39,16 +39,28 @@ async function fakeBoard(): Promise<{ url: string; seen: Seen; items: Item[] }> 
       else if (url === "/api/projects/p1/board") {
         answer = {
           project: { id: "p1", name: "Demo", key: "T" },
+          properties: [],
           tasks: [{ id: "t1", key: "T-1" }],
           runs: [{ id: "r1", taskId: "t1", status: "running" }],
           archived: [],
         };
-      } else if (url === "/api/tasks/t1") answer = { task: { checklist: items } };
-      else if (req.method === "POST" && url === "/api/tasks/t1/checklist") {
+      } else if (url === "/api/tasks/t1") {
+        const task = { title: "Ship", description: "", values: {}, comments: [], checklist: items };
+        answer = { task };
+      } else if (req.method === "POST" && url === "/api/tasks/t1/checklist") {
         items.push({ id: `i${items.length + 1}`, text: body.text, done: false });
+      } else if (req.method === "DELETE" && url.startsWith("/api/checklist/")) {
+        const at = items.findIndex((i) => url.endsWith(`/${i.id}`));
+        if (at >= 0) items.splice(at, 1);
       } else if (req.method === "PATCH" && url.startsWith("/api/checklist/")) {
         const item = items.find((i) => url.endsWith(`/${i.id}`));
-        if (item) item.done = body.done;
+        if (item && body.baseText !== undefined && body.baseText !== item.text) {
+          res.writeHead(409, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "This changed while you typed.", current: item.text }));
+          return;
+        }
+        if (item && body.done !== undefined) item.done = body.done;
+        if (item && body.text !== undefined) item.text = body.text;
       }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(answer));
@@ -114,6 +126,98 @@ describe("An agent's checklist", () => {
     expect(empty.code).toBe(1);
     expect(empty.output).toContain("Give the item");
     expect(state()["A failed send gives up"]).toBe(true);
+  });
+});
+
+describe("Removing and rewording an item", () => {
+  const add = async (url: string, ...texts: string[]) => {
+    for (const text of texts) expect((await runBoard(url, "check", "T-1", text)).code).toBe(0);
+  };
+
+  it("task prints the checklist numbered from 1", async () => {
+    const { url, items } = await fakeBoard();
+    await add(url, "A failed send retries five times", "A failed send gives up");
+    items[1].done = true;
+    const shown = await runBoard(url, "task", "T-1");
+    expect(shown.code, shown.output).toBe(0);
+    expect(shown.output).toContain(
+      "  1. [ ] A failed send retries five times\n  2. [x] A failed send gives up\n",
+    );
+  });
+
+  it("check --remove deletes the one item its words name, and refuses to guess", async () => {
+    const { url, items, seen } = await fakeBoard();
+    await add(url, "A failed send retries five times", "A failed send gives up");
+
+    const several = await runBoard(url, "check", "T-1", "A failed send", "--remove");
+    expect(several.code).toBe(1);
+    expect(several.output).toContain("matches 2 items");
+    expect(seen.filter((s) => s.method === "DELETE")).toEqual([]);
+
+    const removed = await runBoard(url, "check", "T-1", "--remove", "gives up");
+    expect(removed.code, removed.output).toBe(0);
+    expect(removed.output).toContain("removed");
+    expect(items.map((i) => i.text)).toEqual(["A failed send retries five times"]);
+  });
+
+  it("check-rm deletes item n, and refuses a number it does not have", async () => {
+    const { url, items } = await fakeBoard();
+    await add(url, "First", "Second", "Third");
+
+    const past = await runBoard(url, "check-rm", "T-1", "4");
+    expect(past.code).toBe(1);
+    expect(past.output).toContain("  3. [ ] Third");
+    expect(items).toHaveLength(3);
+
+    const removed = await runBoard(url, "check-rm", "T-1", "2");
+    expect(removed.code, removed.output).toBe(0);
+    expect(items.map((i) => i.text)).toEqual(["First", "Third"]);
+  });
+
+  it("check --rename rewords an item, sending the words it replaces", async () => {
+    const { url, items, seen } = await fakeBoard();
+    await add(url, "Retries work", "It gives up");
+
+    const renamed = await runBoard(
+      url,
+      "check",
+      "T-1",
+      "Retries",
+      "--rename",
+      "A failed send retries five times",
+    );
+    expect(renamed.code, renamed.output).toBe(0);
+    expect(items.map((i) => i.text)).toEqual(["A failed send retries five times", "It gives up"]);
+    expect(seen.at(-1)).toMatchObject({
+      method: "PATCH",
+      body: { text: "A failed send retries five times", baseText: "Retries work" },
+    });
+
+    const empty = await runBoard(url, "check", "T-1", "gives up", "--rename");
+    expect(empty.code).toBe(1);
+    expect(empty.output).toContain("Give the new words");
+  });
+
+  it("check-edit answers with the current words when a person changed the item meanwhile", async () => {
+    const { url, items, seen } = await fakeBoard();
+    await add(url, "Retries work");
+    // The person's edit lands between the agent's read and its write.
+    const realPush = seen.push.bind(seen);
+    seen.push = (...rows) => {
+      if (rows[0].method === "PATCH") items[0].text = "Retries stop after five tries";
+      return realPush(...rows);
+    };
+
+    const refused = await runBoard(url, "check-edit", "T-1", "1", "A failed send retries");
+    expect(refused.code).toBe(9);
+    expect(refused.output).toContain("nothing was written");
+    expect(refused.output).toContain("Retries stop after five tries");
+    expect(items[0].text).toBe("Retries stop after five tries");
+
+    seen.push = realPush;
+    const edited = await runBoard(url, "check-edit", "T-1", "1", "A failed send retries");
+    expect(edited.code, edited.output).toBe(0);
+    expect(items[0].text).toBe("A failed send retries");
   });
 });
 
