@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
@@ -19,6 +19,25 @@ import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 import { isSelect } from "@/lib/types";
 import { FILES_OFF_NOTE } from "@/lib/attachments";
+import { DEFAULT_TIME_ZONE } from "@/lib/day";
+import { tellNobody } from "@/lib/mounted";
+
+/*
+ * The zone names the browser knows, offered as the owner types. They only
+ * suggest: this is CLDR's list, which lacks names the server takes, such as
+ * Asia/Kolkata and UTC, so the server alone decides. The server draws none,
+ * because its list and the browser's can differ, and an older browser has no
+ * list at all and keeps a plain box.
+ */
+const NO_ZONES: string[] = [];
+let zoneNames: string[] | null = null;
+function zonesInBrowser(): string[] {
+  if (zoneNames) return zoneNames;
+  if (typeof Intl.supportedValuesOf !== "function") return (zoneNames = NO_ZONES);
+  const names = Intl.supportedValuesOf("timeZone");
+  return (zoneNames = names.includes(DEFAULT_TIME_ZONE) ? names : [DEFAULT_TIME_ZONE, ...names]);
+}
+const zonesOnServer = () => NO_ZONES;
 
 /** `files` is whether the server has a bucket for attachments; off, the page says what to set. */
 export function ProjectPanel({ files }: { files: boolean }) {
@@ -38,6 +57,8 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const [typedName, setTypedName] = useState(false);
   const [typedKey, setTypedKey] = useState(false);
   const [typedZone, setTypedZone] = useState(false);
+  const zones = useSyncExternalStore(tellNobody, zonesInBrowser, zonesOnServer);
+  const zoneList = useId();
   /* A person always reads the rules on the board; only an agent's is null. */
   const savedRules = data.project.agentRules ?? "";
   const [rules, setRules] = useState(savedRules);
@@ -269,6 +290,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
               <Input
                 width="long"
                 aria-label="The time zone this project's day is worked out in"
+                list={zones.length ? zoneList : undefined}
                 value={zone}
                 disabled={!canEdit}
                 onChange={(e) => {
@@ -281,6 +303,13 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   if (zoneEdit) void save({ timeZone: zoneEdit });
                 }}
               />
+              {zones.length > 0 && (
+                <datalist id={zoneList}>
+                  {zones.map((z) => (
+                    <option key={z} value={z} />
+                  ))}
+                </datalist>
+              )}
               <Note>
                 Today is {data.today} here. A filter that says <b>Due this week</b> or{" "}
                 <b>Overdue</b> is worked out in this zone, for everybody on the board.
