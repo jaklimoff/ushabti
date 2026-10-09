@@ -73,7 +73,7 @@ export function Charts({
       }
     >
       {(adding || charts.length > 0) && (
-        <div className={styles.charts}>
+        <div className={styles.grid}>
           {adding && <ChartPicker choices={choices} onDone={() => setAdding(false)} />}
           {charts.map((chart) => (
             <Chart key={chart.id} chart={chart} />
