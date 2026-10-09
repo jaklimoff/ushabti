@@ -29,6 +29,25 @@ const PROJECT_CARD = /^\/api\/projects\/[0-9a-f-]+\/card-view$/;
 
 const byTestId = (id: string) => page.getByTestId(id);
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/* A keyboard drag waits for the lift and for the move, not for a fixed time
+   alone: a slow runner took longer than 120 ms to lift (CI, 2026-10-09). The
+   short pause is the frame in which dnd-kit measures the rows after the lift,
+   which nothing on the page says. */
+async function keyboardDrag(grip: Locator, arrow: string) {
+  await userEvent.keyboard(" ");
+  await expect.element(grip).toHaveAttribute("aria-pressed", "true");
+  await pause(50);
+  const before = (grip.element() as HTMLElement).getBoundingClientRect();
+  await userEvent.keyboard(arrow);
+  await expect
+    .poll(() => {
+      const now = (grip.element() as HTMLElement).getBoundingClientRect();
+      return Math.abs(now.x - before.x) + Math.abs(now.y - before.y);
+    })
+    .toBeGreaterThan(8);
+  await userEvent.keyboard(" ");
+}
 const box = (locator: Locator) => locator.element().getBoundingClientRect();
 
 /** The box of one property on the page. */
@@ -257,16 +276,11 @@ describe("Custom properties", () => {
   test("the keyboard moves a property as well as the pointer", async () => {
     const data = newProject();
     const { sent } = await renderWithBoard(<PropertiesPanel />, data);
-    (page.getByRole("button", { name: "Move Status" }).element() as HTMLElement).focus();
+    const grip = page.getByRole("button", { name: "Move Status" });
+    (grip.element() as HTMLElement).focus();
 
     // Space lifts the row, the arrows move it, Space puts it down.
-    await userEvent.keyboard(" ");
-    // dnd-kit measures the rows after the lift, so the first arrow needs the
-    // frame that comes with it.
-    await pause(120);
-    await userEvent.keyboard("{ArrowDown}");
-    await pause(120);
-    await userEvent.keyboard(" ");
+    await keyboardDrag(grip, "{ArrowDown}");
 
     await expect.poll(() => propertyOrder().slice(0, 2)).toEqual(["Priority", "Status"]);
     await wrote(() => sent("PATCH", PROPERTY), 1);
@@ -305,17 +319,12 @@ describe("Custom properties", () => {
     await expect.poll(() => columnNames().slice(0, 2)).toEqual(["BACKLOG", "TODO"]);
 
     const status = propertyBox("Status");
-    (
-      status.getByRole("button", { name: "Move the option Backlog" }).element() as HTMLElement
-    ).focus();
+    const grip = status.getByRole("button", { name: "Move the option Backlog" });
+    (grip.element() as HTMLElement).focus();
 
     /* Space lifts the option, the arrows move it, Space puts it down. Status
        carries no dates, so its options sit in a row and move right. */
-    await userEvent.keyboard(" ");
-    await pause(120);
-    await userEvent.keyboard("{ArrowRight}");
-    await pause(120);
-    await userEvent.keyboard(" ");
+    await keyboardDrag(grip, "{ArrowRight}");
 
     await expect.poll(() => optionOrder(status).slice(0, 2)).toEqual(["Todo", "Backlog"]);
     await wrote(() => sent("PATCH", OPTION), 1);
