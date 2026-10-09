@@ -306,15 +306,16 @@
   gap: 2px;
 }
 
-/* One grey, never a column's shade: the bars say how much, not where. */
-.bar {
+/* One grey, never a column's shade: the bars say how much, not where. Not
+   `.bar`: that is the page's top bar, and its padding made each day 32px wide. */
+.dayBar {
   flex: 1 1 0;
   min-width: 2px;
   border-radius: 1px;
   background: var(--faint-3);
 }
 
-.bar[data-today] {
+.dayBar[data-today] {
   background: var(--accent);
 }
 
