@@ -22,7 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/client";
 import { landedAfter } from "@/lib/landed";
 import { suggestProjectKey } from "@/lib/defaults";
-import { Button, IconButton } from "@/components/ui/Button";
+import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
 import { Tag } from "@/components/ui/Layout";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
@@ -47,7 +47,7 @@ export type ProjectRow = {
 };
 
 /**
- * Home: the person's own lists, then their projects. It keeps the address
+ * Home: the person's projects, then their lists and charts. It keeps the address
  * the project list always had, so sign-in still lands here.
  */
 export function ProjectList({
@@ -105,97 +105,106 @@ export function ProjectList({
           <h1 className={styles.title}>Home</h1>
         </div>
 
-        {!first && <MyLists lists={lists} />}
-
-        {!first && <Charts charts={charts} choices={chartChoices} />}
-
-        <h2 className={styles.section}>Projects</h2>
-
-        {/*
-         * This sentence used to be written and unreachable: `adding` starts
-         * true when there are no projects, and the copy only rendered when it
-         * was false. It now sits above the form, where it answers the question
-         * the form asks.
-         */}
-        {first && (
-          <p className={styles.empty}>
-            A project is one board. It arrives with a full set of properties — Status, Priority,
-            Assignee and the rest — and every one of them is yours to rename or delete.
-          </p>
-        )}
-
-        {order.error && (
-          <div className={styles.error} role="alert">
-            {order.error}
-          </div>
-        )}
-
-        <div className={styles.grid}>
-          {/* Cards of one size in a grid, so dnd-kit's own answers are the
-              right ones, as on the views page. */}
-          <DndContext
-            id="ushabti-projects"
-            sensors={order.sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={order.onDragEnd}
-          >
-            <SortableContext items={order.rows.map((p) => p.id)} strategy={rectSortingStrategy}>
-              {order.rows.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </SortableContext>
-          </DndContext>
-
-          {adding ? (
-            <form className={styles.form} onSubmit={create}>
-              <span className="label">New project</span>
-              <Input
-                block
-                autoFocus
-                value={name}
-                aria-label="Project name"
-                placeholder="Project name"
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => {
-                  // A suggestion you can edit beats one that flickers in grey
-                  // as you type and looks disabled.
-                  if (!key && name.trim()) setKey(suggestProjectKey(name));
-                }}
-              />
-              <Input
-                block
-                value={key}
-                aria-label="Project key"
-                placeholder="Key, e.g. USH"
-                maxLength={6}
-                invalid={error !== null}
-                onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-              />
-              <span className={styles.hint}>Task keys look like {key || "USH"}-14.</span>
-              {error && (
-                <div className={styles.error} role="alert">
-                  {error}
-                </div>
-              )}
-              <div className={styles.row}>
-                <Button type="submit" disabled={busy}>
-                  {busy ? "Creating…" : "Create project"}
+        <div className={styles.sections}>
+          <section className={styles.lists}>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionLead}>Projects</h2>
+              {!first && <span className={styles.sectionCount}>{projects.length}</span>}
+              {!adding && (
+                <Button
+                  variant="text"
+                  className={styles.headButton}
+                  onClick={() => setAdding(true)}
+                >
+                  + New project
                 </Button>
-                {projects.length > 0 && (
-                  <Button variant="ghost" onClick={() => setAdding(false)}>
-                    Cancel
-                  </Button>
-                )}
+              )}
+            </div>
+
+            {/*
+             * This sentence used to be written and unreachable: `adding` starts
+             * true when there are no projects, and the copy only rendered when it
+             * was false. It now sits above the form, where it answers the question
+             * the form asks.
+             */}
+            {first && (
+              <p className={styles.empty}>
+                A project is one board. It arrives with a full set of properties — Status, Priority,
+                Assignee and the rest — and every one of them is yours to rename or delete.
+              </p>
+            )}
+
+            {order.error && (
+              <div className={styles.error} role="alert">
+                {order.error}
               </div>
-            </form>
-          ) : (
-            <button className={styles.newCard} onClick={() => setAdding(true)}>
-              <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-              <span className="label" style={{ color: "inherit" }}>
-                New project
-              </span>
-            </button>
-          )}
+            )}
+
+            <div className={styles.grid}>
+              {/* Cards of one size in a grid, so dnd-kit's own answers are the
+              right ones, as on the views page. */}
+              <DndContext
+                id="ushabti-projects"
+                sensors={order.sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={order.onDragEnd}
+              >
+                <SortableContext items={order.rows.map((p) => p.id)} strategy={rectSortingStrategy}>
+                  {order.rows.map((project) => (
+                    <ProjectCard key={project.id} project={project} />
+                  ))}
+                </SortableContext>
+              </DndContext>
+
+              {adding && (
+                <form className={styles.form} onSubmit={create}>
+                  <span className="label">New project</span>
+                  <Input
+                    block
+                    autoFocus
+                    value={name}
+                    aria-label="Project name"
+                    placeholder="Project name"
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={() => {
+                      // A suggestion you can edit beats one that flickers in grey
+                      // as you type and looks disabled.
+                      if (!key && name.trim()) setKey(suggestProjectKey(name));
+                    }}
+                  />
+                  <Input
+                    block
+                    value={key}
+                    aria-label="Project key"
+                    placeholder="Key, e.g. USH"
+                    maxLength={6}
+                    invalid={error !== null}
+                    onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  />
+                  <span className={styles.hint}>Task keys look like {key || "USH"}-14.</span>
+                  {error && (
+                    <div className={styles.error} role="alert">
+                      {error}
+                    </div>
+                  )}
+                  <div className={styles.row}>
+                    <Button type="submit" disabled={busy}>
+                      {busy ? "Creating…" : "Create project"}
+                    </Button>
+                    {projects.length > 0 && (
+                      <Button variant="ghost" onClick={() => setAdding(false)}>
+                        Cancel
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+          </section>
+
+          {!first && <MyLists lists={lists} />}
+
+          {!first && <Charts charts={charts} choices={chartChoices} />}
         </div>
       </div>
     </div>
@@ -318,17 +327,21 @@ function ProjectCard({ project }: { project: ProjectRow }) {
 function MyLists({ lists }: { lists: ListSummary[] }) {
   return (
     <section className={styles.lists} data-testid="my-lists">
-      <h2 className={styles.section}>My lists</h2>
+      <div className={styles.sectionHead}>
+        <h2 className={styles.section}>My lists</h2>
+        <ButtonPageLink
+          href="/lists/new"
+          variant="text"
+          className={styles.headButton}
+          data-testid="list-new"
+        >
+          + New list
+        </ButtonPageLink>
+      </div>
       <div className={`${styles.grid} ${styles.listGrid}`}>
         {lists.map((list) => (
           <ListCard key={list.id} list={list} />
         ))}
-        <Link href="/lists/new" className={styles.newCard} data-testid="list-new">
-          <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-          <span className="label" style={{ color: "inherit" }}>
-            New list
-          </span>
-        </Link>
       </div>
     </section>
   );
@@ -365,6 +378,7 @@ function ListCard({ list }: { list: ListSummary }) {
                 {row.waiting && <span className={styles.listWaiting}>Waiting for you</span>}
                 {row.agent && (
                   <span className={styles.listAgent} title="At work on it">
+                    <span className={styles.listAgentDot} aria-hidden="true" />
                     {row.agent}
                   </span>
                 )}

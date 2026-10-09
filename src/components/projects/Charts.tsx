@@ -27,27 +27,24 @@ export function Charts({ charts, choices }: { charts: ChartDTO[]; choices: Chart
   const [adding, setAdding] = useState(false);
   return (
     <section className={styles.lists} data-testid="my-charts">
-      <h2 className={styles.section}>Charts</h2>
+      <div className={styles.sectionHead}>
+        <h2 className={styles.section}>Charts</h2>
+        <Button
+          variant="text"
+          className={styles.headButton}
+          data-testid="chart-new"
+          disabled={adding || choices.length === 0}
+          title={choices.length === 0 ? "No project has a select to count yet." : undefined}
+          onClick={() => setAdding(true)}
+        >
+          + New chart
+        </Button>
+      </div>
       <div className={styles.charts}>
+        {adding && <ChartPicker choices={choices} onDone={() => setAdding(false)} />}
         {charts.map((chart) => (
           <Chart key={chart.id} chart={chart} />
         ))}
-        {adding ? (
-          <ChartPicker choices={choices} onDone={() => setAdding(false)} />
-        ) : (
-          <button
-            className={styles.newCard}
-            data-testid="chart-new"
-            disabled={choices.length === 0}
-            title={choices.length === 0 ? "No project has a select to count yet." : undefined}
-            onClick={() => setAdding(true)}
-          >
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-            <span className="label" style={{ color: "inherit" }}>
-              New chart
-            </span>
-          </button>
-        )}
       </div>
     </section>
   );
@@ -203,10 +200,7 @@ function ChartBars({ chart, max }: { chart: ChartDTO; max: number }) {
           >
             <span
               className={styles.chartBar}
-              style={{
-                height: d.count ? `${(d.count / max) * 100}%` : undefined,
-                background: chart.color,
-              }}
+              style={{ height: d.count ? `${(d.count / max) * 100}%` : undefined }}
             />
           </span>
         ))}
@@ -215,7 +209,7 @@ function ChartBars({ chart, max }: { chart: ChartDTO; max: number }) {
         <div ref={tip} className={styles.chartTip} data-testid="chart-tip" aria-hidden>
           <div className={styles.chartTipDay}>{words}</div>
           <div className={styles.chartTipRow}>
-            <span className={styles.chartTipSwatch} style={{ background: chart.color }} />
+            <span className={styles.chartTipSwatch} />
             Entered {chart.option}
             <b>{day.count}</b>
           </div>
