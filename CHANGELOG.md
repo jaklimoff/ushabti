@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A project card says where it is heading.** Under the name, a card on
+  Home shows the current release with its ship day and how many of its tasks
+  are done, or the current sprint and the days it has left. A project with
+  neither shows its newest change instead: who did what to which task, and
+  the column it moved to.
 - **A project has a colour.** Each project gets one of ten colours, picked
   from its key, and every existing project gets one too. The owner or an
   admin changes it in Settings → Project, where each swatch shows the key on

@@ -172,6 +172,66 @@
   min-width: 0;
 }
 
+.goal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
+.goalText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goalName {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.goalKey {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.goalTo,
+.goalCount {
+  flex: none;
+  white-space: nowrap;
+}
+
+.goalTo {
+  margin-left: auto;
+}
+
+.goalCount {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint-2);
+}
+
+/* Grey, never the accent: progress asks nothing of anybody. */
+.goalTrack {
+  flex: 1 1 auto;
+  max-width: 120px;
+  min-width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.goalFill {
+  display: block;
+  height: 100%;
+  background: var(--text-4);
+}
+
 .noColumns {
   font-size: var(--t-small);
   color: var(--faint);

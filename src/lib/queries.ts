@@ -48,7 +48,14 @@ import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadTaskRuns } from "./runs";
-import { agentsAtWork, isQuiet, mainColumns, type LastChange, type ProjectPulse } from "./pulse";
+import {
+  agentsAtWork,
+  headingOf,
+  isQuiet,
+  mainColumns,
+  type LastChange,
+  type ProjectPulse,
+} from "./pulse";
 import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
 import { joinProject } from "./membership";
@@ -233,6 +240,7 @@ export async function listProjectsWithPulse(
         columns: mainColumns(board, userId),
         agents: agentsAtWork(board.runs, now),
         last,
+        heading: headingOf(board, last),
         people: board.members.map((m) => ({ id: m.id, name: m.name, kind: m.kind })),
         quiet: isQuiet(last, now),
       };
@@ -241,7 +249,10 @@ export async function listProjectsWithPulse(
   );
 }
 
-/** The newest row of the activity feed: when, who and on which task. */
+/**
+ * The newest row of the activity feed: when, who, what and on which task. A
+ * deleted task's line names it in its data, because its row is gone.
+ */
 async function lastChange(projectId: string): Promise<LastChange | null> {
   const [row] = await db
     .select({
@@ -249,6 +260,11 @@ async function lastChange(projectId: string): Promise<LastChange | null> {
       who: users.name,
       taskNumber: tasks.number,
       projectKey: projects.key,
+      title: sql<string | null>`coalesce(${tasks.title}, ${activity.data}->>'title')`,
+      key: sql<string | null>`${activity.data}->>'key'`,
+      kind: activity.kind,
+      propertyId: sql<string | null>`${activity.data}->>'propertyId'`,
+      value: sql<string | null>`${activity.data}->>'value'`,
     })
     .from(activity)
     .innerJoin(projects, eq(projects.id, activity.projectId))
@@ -261,7 +277,11 @@ async function lastChange(projectId: string): Promise<LastChange | null> {
   return {
     at: row.createdAt.toISOString(),
     who: row.who,
-    taskKey: row.taskNumber === null ? null : `${row.projectKey}-${row.taskNumber}`,
+    taskKey: row.taskNumber === null ? row.key : `${row.projectKey}-${row.taskNumber}`,
+    taskTitle: row.title,
+    kind: row.kind,
+    propertyId: row.propertyId,
+    value: row.value,
   };
 }
 
