@@ -16,6 +16,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   follow. The order is yours: nobody else's list moves. A project you make or
   join goes to the top. This release carries a migration, which keeps the
   order everybody sees today.
+- **Read one day of a chart exactly.** Point at a bar of a chart on Home and
+  that day lights up, with a tooltip that names the day and its count. Tab to
+  the chart and walk the days with the arrow keys, Home and End; a screen
+  reader says each one.
 
 ### Changed
 
