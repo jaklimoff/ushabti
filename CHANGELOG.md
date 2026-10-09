@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.23.0 — 2026-10-09
+
 ### Added
 
 - **A task key on Home takes its project's colour on hover.** A key on a
