@@ -57,10 +57,14 @@ test("an empty Home offers the first project, then the first list", async ({ pag
   /* The first list takes the panel away and puts the heading button back. */
   await panel.click();
   await page.waitForURL(/\/lists\/new$/);
-  await settles(page, /\/api\/lists$/, () =>
-    page.getByTestId("list-add-project").filter({ hasText: name }).click(),
+  await expect(page.getByTestId("list-tile").filter({ hasText: name })).toHaveAttribute(
+    "aria-pressed",
+    "true",
   );
-  await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
+  await settles(page, /\/api\/lists$/, () =>
+    page.getByRole("button", { name: "Create list" }).click(),
+  );
+  await page.waitForURL(/\/lists\/[0-9a-f-]{36}$/);
   await page.goto("/projects");
   await expect(lists.getByTestId("list-card")).toHaveCount(1);
   await expect(lists.getByTestId("panel-shapes")).toHaveCount(0);
