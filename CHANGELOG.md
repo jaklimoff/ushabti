@@ -17,6 +17,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   tiles; each picked one shows its rules and how many tasks it gives, and
   nothing is written until **Create list**. A list left unnamed is named after
   its projects.
+- **A new chart shows labelled fields and a live preview.** Its columns are
+  pills, it starts on one you do not chart yet, and it draws the chart it will
+  add before you add it. The same chart cannot be added twice.
 
 ### Fixed
 

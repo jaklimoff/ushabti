@@ -68,9 +68,18 @@ test("a chart added on Home shows the tasks that entered a column today", async 
   const charts = page.getByTestId("my-charts");
   await expect(charts.getByTestId("panel-shapes")).toHaveAttribute("aria-hidden", "true");
   await page.getByTestId("chart-new").click();
+  const picker = page.getByTestId("chart-picker");
   await pick(page, "Project", name);
   await pick(page, "Property", "Status");
-  await pick(page, "Option", "Todo");
+  await picker.getByRole("button", { name: "Todo", exact: true }).click();
+  await expect(picker.getByRole("button", { name: "Todo", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  /* The preview is the chart it will be, counted by the server. */
+  const preview = page.getByTestId("chart-preview");
+  await expect(preview).toContainText("Entered Todo");
+  await expect(preview.getByTestId("chart-today")).toHaveText("2");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await settles(page, /\/api\/charts$/, () =>
     page.getByRole("button", { name: "Add chart" }).click(),
@@ -92,6 +101,16 @@ test("a chart added on Home shows the tasks that entered a column today", async 
   await page.setViewportSize({ width: 390, height: 844 });
   await barsInside(page);
   await page.setViewportSize({ width: 1280, height: 800 });
+
+  /* The same chart cannot be added twice. */
+  await page.getByTestId("chart-new").click();
+  await pick(page, "Project", name);
+  await pick(page, "Property", "Status");
+  await picker.getByRole("button", { name: "Todo", exact: true }).click();
+  await expect(picker).toContainText("You already have this chart. Pick another column.");
+  await expect(page.getByRole("button", { name: "Add chart" })).toBeDisabled();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(picker).toHaveCount(0);
 
   await chart.getByRole("button", { name: "Delete the chart Entered Todo" }).click();
   const ask = page.getByRole("alertdialog");

@@ -68,6 +68,28 @@ export function ButtonPageLink({
 }
 
 /**
+ * One of a few choices, pressed in place, with the press said by
+ * `aria-pressed`. A quiet pill is still pressable; it reads as already used.
+ */
+export function Pill({
+  on,
+  quiet = false,
+  className,
+  ...rest
+}: Omit<React.ComponentProps<"button">, "aria-pressed"> & { on: boolean; quiet?: boolean }) {
+  return (
+    <button
+      type="button"
+      {...rest}
+      aria-pressed={on}
+      className={[styles.pill, quiet ? styles.pillQuiet : "", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+    />
+  );
+}
+
+/**
  * A square glyph button. The label is required: the view pill used to carry a
  * bare ✕ that announced as nothing at all.
  */
