@@ -12,9 +12,11 @@ import {
   type ChartChoice,
   type ChartDay,
   type ChartDTO,
+  type StoredChart,
 } from "./charts";
 import type { BoardOf, ProjectRow } from "./lists-load";
 import { byPos } from "./order";
+import type { BoardData } from "./types";
 
 /**
  * The server half of a chart: whose it is, and the one query that counts it.
@@ -35,8 +37,8 @@ export async function ownChart(chartId: string) {
   return { user, chart };
 }
 
-export async function chartsOf(userId: string) {
-  return db
+export async function chartsOf(userId: string, tx: Pick<typeof db, "select"> = db) {
+  return tx
     .select({
       id: charts.id,
       projectId: charts.projectId,
@@ -90,6 +92,25 @@ export async function countEntered(a: {
 }
 
 /**
+ * One chart as Home draws it, off the board of its project. A saved chart
+ * and the picker's preview both come through here, so the two cannot count
+ * apart. Null when its property or option is gone.
+ */
+export async function drawChart(
+  chart: StoredChart,
+  board: Pick<BoardData, "project" | "properties" | "today">,
+): Promise<ChartDTO | null> {
+  const shape = chartShape(chart, board);
+  if (!shape) return null;
+  const rows = await countEntered({
+    ...chart,
+    timeZone: board.project.timeZone,
+    from: chartFrom(board.today),
+  });
+  return { ...shape, days: chartDays(rows, board.today) };
+}
+
+/**
  * The person's charts as Home draws them, and what can be charted. A chart
  * whose project they left finds no board, and one whose property or option
  * is gone has no shape; neither is drawn, and nothing deletes it.
@@ -103,16 +124,9 @@ export async function loadCharts(
   const byId = new Map(boards.map((b) => [b.project.id, b]));
   const stored = await chartsOf(userId);
   const drawn = await Promise.all(
-    stored.map(async (chart) => {
+    stored.map((chart) => {
       const board = byId.get(chart.projectId);
-      const shape = board ? chartShape(chart, board) : null;
-      if (!board || !shape) return null;
-      const rows = await countEntered({
-        ...chart,
-        timeZone: board.project.timeZone,
-        from: chartFrom(board.today),
-      });
-      return { ...shape, days: chartDays(rows, board.today) };
+      return board ? drawChart(chart, board) : null;
     }),
   );
   return {

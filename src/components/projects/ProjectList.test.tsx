@@ -27,6 +27,8 @@ const rows: ProjectRow[] = ["Harbour", "Lighthouse", "Quay"].map((name, i) => ({
 const chart: ChartDTO = {
   id: "00000000-0000-4000-8000-0000000000f1",
   project: { id: ids[0], key: "HAR", name: "Harbour" },
+  propertyId: "p",
+  optionId: "o",
   property: "Status",
   option: "Todo",
   color: "#3fb0c8",

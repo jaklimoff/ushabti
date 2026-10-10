@@ -1,12 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { chartSummary, type ChartChoice, type ChartDTO } from "@/lib/charts";
-import { Button } from "@/components/ui/Button";
+import {
+  CHART_TWICE,
+  chartSummary,
+  firstUncharted,
+  type ChartChoice,
+  type ChartDTO,
+} from "@/lib/charts";
+import { Button, Pill } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
-import { Select } from "@/components/ui/Form";
+import { Field, Select } from "@/components/ui/Form";
 import { HomeSection, QuietPanel, WidePanel } from "./Empty";
 import styles from "./ProjectList.module.css";
 
@@ -74,7 +80,13 @@ export function Charts({
     >
       {(adding || charts.length > 0) && (
         <div className={styles.grid}>
-          {adding && <ChartPicker choices={choices} onDone={() => setAdding(false)} />}
+          {adding && (
+            <ChartPicker
+              choices={choices}
+              charted={new Set(charts.map((c) => c.optionId))}
+              onDone={() => setAdding(false)}
+            />
+          )}
           {charts.map((chart) => (
             <Chart key={chart.id} chart={chart} />
           ))}
@@ -88,10 +100,6 @@ function Chart({ chart }: { chart: ChartDTO }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [error, setError] = useState<string | null>(null);
-  const max = Math.max(1, ...chart.days.map((d) => d.count));
-  const { today, average } = chartSummary(chart.days);
-  const from = chart.days[0]?.day;
-  const to = chart.days.at(-1)?.day;
 
   async function remove() {
     setError(null);
@@ -105,12 +113,7 @@ function Chart({ chart }: { chart: ChartDTO }) {
 
   return (
     <div className={styles.chart} data-testid="chart">
-      <div className={styles.cardTop}>
-        <span className={styles.key}>{chart.project.key}</span>
-        <span className={styles.chartName}>
-          Entered <b>{chart.option}</b>
-        </span>
-        <span className={styles.spacer} />
+      <ChartFace chart={chart}>
         <button
           className={styles.chartDelete}
           aria-label={`Delete the chart Entered ${chart.option}`}
@@ -119,17 +122,7 @@ function Chart({ chart }: { chart: ChartDTO }) {
         >
           ✕
         </button>
-      </div>
-      <ChartBars chart={chart} max={max} />
-      <div className={styles.chartFoot} data-testid="chart-foot">
-        <span>
-          Today <b data-testid="chart-today">{today}</b>
-        </span>
-        <span>{average} a day</span>
-        <span className={styles.chartRange}>
-          {from && to && `${dayName(from)} – ${dayName(to)}`}
-        </span>
-      </div>
+      </ChartFace>
       <span className={styles.hint}>
         {chart.property} in {chart.project.name}
       </span>
@@ -146,6 +139,40 @@ function Chart({ chart }: { chart: ChartDTO }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * What a chart shows: the key and the option, the bars and the words under
+ * them. A saved chart and the picker's preview both draw through here, so the
+ * preview is the chart it becomes. `children` sits at the top right.
+ */
+function ChartFace({ chart, children }: { chart: ChartDTO; children?: React.ReactNode }) {
+  const max = Math.max(1, ...chart.days.map((d) => d.count));
+  const { today, average } = chartSummary(chart.days);
+  const from = chart.days[0]?.day;
+  const to = chart.days.at(-1)?.day;
+  return (
+    <>
+      <div className={styles.cardTop}>
+        <span className={styles.key}>{chart.project.key}</span>
+        <span className={styles.chartName}>
+          Entered <b>{chart.option}</b>
+        </span>
+        <span className={styles.spacer} />
+        {children}
+      </div>
+      <ChartBars chart={chart} max={max} />
+      <div className={styles.chartFoot} data-testid="chart-foot">
+        <span>
+          Today <b data-testid="chart-today">{today}</b>
+        </span>
+        <span>{average} a day</span>
+        <span className={styles.chartRange}>
+          {from && to && `${dayName(from)} – ${dayName(to)}`}
+        </span>
+      </div>
+    </>
   );
 }
 
@@ -256,36 +283,53 @@ function ChartBars({ chart, max }: { chart: ChartDTO; max: number }) {
   );
 }
 
-/** Project, then select, then option, each picked in place. */
-function ChartPicker({ choices, onDone }: { choices: ChartChoice[]; onDone: () => void }) {
+type ChartPick = { projectId: string; propertyId: string; optionId: string };
+
+/**
+ * Project, then select, then option, each picked in place, with the chart it
+ * will draw under them. The option starts on the last one the person does not
+ * chart yet; one they do chart can be pressed, and says why it cannot be added.
+ */
+function ChartPicker({
+  choices,
+  charted,
+  onDone,
+}: {
+  choices: ChartChoice[];
+  charted: ReadonlySet<string>;
+  onDone: () => void;
+}) {
   const router = useRouter();
-  const [projectId, setProjectId] = useState(choices[0]?.id ?? "");
-  const project = choices.find((c) => c.id === projectId);
-  const [propertyId, setPropertyId] = useState(project?.properties[0]?.id ?? "");
-  const property = project?.properties.find((p) => p.id === propertyId);
-  const [optionId, setOptionId] = useState(property?.options.at(-1)?.id ?? "");
+  const startOf = (projectId: string, propertyId?: string): ChartPick => {
+    const project = choices.find((c) => c.id === projectId);
+    const property = project?.properties.find((p) => p.id === propertyId) ?? project?.properties[0];
+    return {
+      projectId,
+      propertyId: property?.id ?? "",
+      optionId: firstUncharted(property?.options ?? [], charted),
+    };
+  };
+  const [pick, setPick] = useState<ChartPick>(() => startOf(choices[0]?.id ?? ""));
+  const project = choices.find((c) => c.id === pick.projectId);
+  const property = project?.properties.find((p) => p.id === pick.propertyId);
+  const taken = charted.has(pick.optionId);
+  const preview = usePreview(pick);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const said = useId();
 
-  function pickProject(id: string) {
-    setProjectId(id);
-    const first = choices.find((c) => c.id === id)?.properties[0];
-    setPropertyId(first?.id ?? "");
-    setOptionId(first?.options.at(-1)?.id ?? "");
-  }
-
-  function pickProperty(id: string) {
-    setPropertyId(id);
-    setOptionId(project?.properties.find((p) => p.id === id)?.options.at(-1)?.id ?? "");
+  function choose(next: ChartPick) {
+    setPick(next);
+    setError(null);
   }
 
   async function add(event: React.FormEvent) {
     event.preventDefault();
-    if (busy || !optionId) return;
+    if (busy || !pick.optionId || taken) return;
     setBusy(true);
     setError(null);
     try {
-      await api.post("/api/charts", { projectId, propertyId, optionId });
+      await api.post("/api/charts", pick);
       router.refresh();
       onDone();
     } catch (err) {
@@ -297,35 +341,76 @@ function ChartPicker({ choices, onDone }: { choices: ChartChoice[]; onDone: () =
   return (
     <form className={styles.form} onSubmit={add} data-testid="chart-picker">
       <span className="label">New chart</span>
-      <Select
-        block
-        aria-label="Project"
-        value={projectId}
-        onChange={pickProject}
-        options={choices.map((c) => ({ value: c.id, label: `${c.key} · ${c.name}` }))}
-      />
-      <Select
-        block
-        aria-label="Property"
-        value={propertyId}
-        onChange={pickProperty}
-        options={(project?.properties ?? []).map((p) => ({ value: p.id, label: p.name }))}
-      />
-      <Select
-        block
-        aria-label="Option"
-        value={optionId}
-        onChange={setOptionId}
-        options={(property?.options ?? []).map((o) => ({ value: o.id, label: o.name }))}
-      />
-      <span className={styles.hint}>Counts the tasks that entered it each day.</span>
-      {error && (
+      <div className={styles.chartFields}>
+        <Field label="Project">
+          <Select
+            block
+            aria-label="Project"
+            value={pick.projectId}
+            onChange={(id) => choose(startOf(id))}
+            options={choices.map((c) => ({ value: c.id, label: c.name }))}
+          />
+        </Field>
+        <Field label="Property">
+          {project && project.properties.length === 1 ? (
+            <span className={styles.chartOnly} data-testid="chart-property">
+              {project.properties[0].name}
+            </span>
+          ) : (
+            <Select
+              block
+              aria-label="Property"
+              value={pick.propertyId}
+              onChange={(id) => choose(startOf(pick.projectId, id))}
+              options={(project?.properties ?? []).map((p) => ({ value: p.id, label: p.name }))}
+            />
+          )}
+        </Field>
+      </div>
+      <div className={styles.chartPick} role="group" aria-labelledby={said}>
+        <span className={styles.chartAsk} id={said}>
+          Count the tasks that enter
+        </span>
+        <div className={styles.chartPills}>
+          {(property?.options ?? []).map((o) => (
+            <Pill
+              key={o.id}
+              on={o.id === pick.optionId}
+              quiet={charted.has(o.id)}
+              title={charted.has(o.id) ? "You already have this chart" : undefined}
+              data-testid="chart-option"
+              onClick={() => choose({ ...pick, optionId: o.id })}
+            >
+              {o.name}
+            </Pill>
+          ))}
+        </div>
+      </div>
+      <div
+        className={`${styles.chart} ${styles.chartPreview}`}
+        data-testid="chart-preview"
+        aria-busy={preview ? undefined : true}
+      >
+        {preview ? (
+          <ChartFace chart={preview}>
+            <span className="label">Preview</span>
+          </ChartFace>
+        ) : (
+          <div className={styles.chartWaiting} />
+        )}
+      </div>
+      {taken && (
+        <div className={styles.error} role="alert" data-testid="chart-taken">
+          {CHART_TWICE}
+        </div>
+      )}
+      {error && !taken && (
         <div className={styles.error} role="alert">
           {error}
         </div>
       )}
       <div className={styles.row}>
-        <Button type="submit" disabled={busy || !optionId}>
+        <Button type="submit" disabled={busy || !pick.optionId || taken}>
           {busy ? "Adding…" : "Add chart"}
         </Button>
         <Button variant="ghost" onClick={onDone}>
@@ -334,4 +419,30 @@ function ChartPicker({ choices, onDone }: { choices: ChartChoice[]; onDone: () =
       </div>
     </form>
   );
+}
+
+/**
+ * The chart a pick would draw, counted by the server as a saved one is. Only
+ * the answer to the latest pick lands; an older one is dropped on the way in,
+ * and none is shown while the latest is out.
+ */
+function usePreview(pick: ChartPick): ChartDTO | null {
+  const [shown, setShown] = useState<{ for: string; chart: ChartDTO } | null>(null);
+  const asked = useRef(0);
+  const key = `${pick.projectId}/${pick.propertyId}/${pick.optionId}`;
+  useEffect(() => {
+    if (!pick.optionId) return;
+    const n = ++asked.current;
+    api
+      .post<{ chart: ChartDTO }>("/api/charts/preview", pick)
+      .then(({ chart }) => {
+        if (asked.current === n) setShown({ for: key, chart });
+      })
+      .catch(() => {
+        if (asked.current === n) setShown(null);
+      });
+    // The key names the pick; the object is new on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return shown?.for === key ? shown.chart : null;
 }

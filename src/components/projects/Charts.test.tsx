@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
-import type { ChartDTO } from "@/lib/charts";
+import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import { Charts } from "./Charts";
 
 /*
@@ -9,7 +9,10 @@ import { Charts } from "./Charts";
  * chart counts is route tested; this says what the bars show of it.
  */
 
-afterEach(() => cleanup());
+afterEach(async () => {
+  await cleanup();
+  vi.unstubAllGlobals();
+});
 
 /* Thirty days to Fri 9 Oct 2026, each counting its own place. */
 const days = Array.from({ length: 30 }, (_, i) => ({
@@ -19,6 +22,8 @@ const days = Array.from({ length: 30 }, (_, i) => ({
 const chart: ChartDTO = {
   id: "00000000-0000-4000-8000-000000000001",
   project: { id: "00000000-0000-4000-8000-000000000002", key: "HAR", name: "Harbour" },
+  propertyId: "p",
+  optionId: "o",
   property: "Status",
   option: "Todo",
   color: "#3fb0c8",
@@ -178,7 +183,7 @@ describe("A chart on Home", () => {
     await page.getByRole("button", { name: "+ New chart" }).click();
     const slots = document.querySelector('[data-testid="chart-picker"]')!.parentElement!.children;
     expect(slots[0].getAttribute("data-testid")).toBe("chart-picker");
-    cleanup();
+    await cleanup();
     await draw();
     const none = page.getByTestId("chart-new");
     await expect.element(none).toBeDisabled();
@@ -192,5 +197,196 @@ describe("A chart on Home", () => {
     await expect.element(tip()).not.toBeInTheDocument();
     await hoverDay(3);
     await expect.poll(() => text("chart-said")).toMatch(/Sun, 13 Sept: 3 entered Todo/);
+  });
+});
+
+/* Two projects: Harbour has two selects, Quay one. */
+const opt = (id: string, name: string) => ({ id, name });
+const choices: ChartChoice[] = [
+  {
+    id: chart.project.id,
+    key: "HAR",
+    name: "Harbour",
+    properties: [
+      {
+        id: "p",
+        name: "Status",
+        options: [opt("o", "Todo"), opt("o2", "Doing"), opt("o3", "Done")],
+      },
+      { id: "q", name: "Priority", options: [opt("q1", "Low"), opt("q2", "High")] },
+    ],
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000003",
+    key: "QUA",
+    name: "Quay",
+    properties: [{ id: "r", name: "Stage", options: [opt("r1", "Open"), opt("r2", "Closed")] }],
+  },
+];
+
+type Sent = { path: string; body: { projectId: string; propertyId: string; optionId: string } };
+
+/**
+ * Answers a preview with a chart that counts the option's place in its
+ * select on today, and holds the answer for `slow` while it names that option.
+ */
+function serve({ slow = "", status = 201, error = "" } = {}) {
+  const sent: Sent[] = [];
+  const held: (() => void)[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(input), window.location.origin).pathname;
+      const body = JSON.parse(String(init?.body ?? "{}")) as Sent["body"];
+      sent.push({ path, body });
+      if (path === "/api/charts")
+        return new Response(JSON.stringify(error ? { error } : {}), { status });
+      const project = choices.find((c) => c.id === body.projectId)!;
+      const property = project.properties.find((p) => p.id === body.propertyId)!;
+      const at = property.options.findIndex((o) => o.id === body.optionId);
+      const drawn: ChartDTO = {
+        ...chart,
+        id: "",
+        project: { id: project.id, key: project.key, name: project.name },
+        propertyId: property.id,
+        optionId: body.optionId,
+        property: property.name,
+        option: property.options[at].name,
+        days: days.map((d, i) => ({ ...d, count: i === 29 ? at + 1 : 0 })),
+      };
+      if (body.optionId === slow) await new Promise<void>((go) => held.push(go));
+      return new Response(JSON.stringify({ chart: drawn }), { status: 200 });
+    }),
+  );
+  return { sent, release: () => held.splice(0).forEach((go) => go()) };
+}
+
+const picker = () => page.getByTestId("chart-picker");
+const preview = () => page.getByTestId("chart-preview");
+const pill = (name: string) => picker().getByRole("button", { name, exact: true });
+const pressed = () =>
+  page
+    .getByTestId("chart-option")
+    .elements()
+    .filter((el) => el.getAttribute("aria-pressed") === "true")
+    .map((el) => el.textContent);
+const add = () => page.getByRole("button", { name: "Add chart" });
+
+async function openPicker(charts: ChartDTO[] = []) {
+  await render(
+    <div style={{ width: 420 }}>
+      <Charts charts={charts} choices={choices} />
+    </div>,
+  );
+  await page.getByTestId("chart-new").first().click();
+}
+
+async function pickIn(label: string, name: string) {
+  await picker().getByRole("combobox", { name: label }).click();
+  await page.getByRole("option", { name }).click();
+}
+
+describe("A new chart", () => {
+  test("names Project and Property, and a project with one select names it in place", async () => {
+    serve();
+    await openPicker();
+    const labels = [...picker().element().querySelectorAll("span")]
+      .map((el) => el.textContent)
+      .filter((t) => t === "Project" || t === "Property");
+    expect(labels).toEqual(["Project", "Property"]);
+    await expect.element(picker().getByRole("combobox", { name: "Property" })).toBeVisible();
+    await expect.element(picker().getByText("Count the tasks that enter")).toBeVisible();
+
+    await pickIn("Project", "Quay");
+    await expect
+      .element(picker().getByRole("combobox", { name: "Property" }))
+      .not.toBeInTheDocument();
+    await expect.element(page.getByTestId("chart-property")).toHaveTextContent("Stage");
+    expect(pressed()).toEqual(["Closed"]);
+  });
+
+  test("offers the options as pills, one pressed, starting on the last one not charted", async () => {
+    serve();
+    await openPicker([{ ...chart, optionId: "o3", option: "Done" }]);
+    await expect.poll(pressed).toEqual(["Doing"]);
+    await expect.element(pill("Done")).toHaveAttribute("aria-pressed", "false");
+    await pill("Todo").click();
+    expect(pressed()).toEqual(["Todo"]);
+    await expect.element(add()).toBeEnabled();
+  });
+
+  test("starts on the last option when every option is charted, and says why it cannot add", async () => {
+    serve({ status: 409 });
+    const all = ["o", "o2", "o3"].map((optionId) => ({ ...chart, optionId }));
+    await openPicker(all);
+    expect(pressed()).toEqual(["Done"]);
+    const quiet = getComputedStyle(pill("Done").element()).opacity;
+    await pickIn("Property", "Priority");
+    const fresh = getComputedStyle(pill("High").element()).opacity;
+    expect(Number(quiet)).toBeLessThan(Number(fresh));
+    await expect.element(page.getByTestId("chart-taken")).not.toBeInTheDocument();
+    await pickIn("Property", "Status");
+    await expect
+      .element(page.getByTestId("chart-taken"))
+      .toHaveTextContent("You already have this chart. Pick another column.");
+    await expect.element(add()).toBeDisabled();
+  });
+
+  test("the preview follows the project, the property and the option, and drops a late answer", async () => {
+    const { sent, release } = serve({ slow: "o2" });
+    await openPicker();
+    const face = () => preview().element().textContent ?? "";
+    await expect.poll(face).toMatch(/HAREntered Done/);
+    await expect.element(preview().getByTestId("chart-today")).toHaveTextContent("3");
+    expect(face()).toMatch(/HAREntered DonePreview/);
+    expect(preview().getByTestId("chart-bar").elements()).toHaveLength(30);
+
+    // Doing is held; Todo answers first, and Doing's late answer must not land on it.
+    await pill("Doing").click();
+    await expect.element(preview()).toHaveAttribute("aria-busy", "true");
+    await pill("Todo").click();
+    await expect.poll(face).toMatch(/Entered Todo/);
+    release();
+    await new Promise((go) => setTimeout(go, 50));
+    expect(face()).toMatch(/Entered Todo/);
+
+    await pickIn("Property", "Priority");
+    await expect.poll(face).toMatch(/Entered High/);
+    await pickIn("Project", "Quay");
+    await expect.poll(face).toMatch(/QUAEntered Closed/);
+    await expect.element(preview().getByTestId("chart-today")).toHaveTextContent("2");
+    expect(
+      sent.filter((s) => s.path === "/api/charts/preview").map((s) => s.body.optionId),
+    ).toEqual(["o3", "o2", "o", "q2", "r2"]);
+  });
+
+  test("the preview is drawn dimmer than a saved chart, with today in the accent", async () => {
+    serve();
+    await openPicker([chart]);
+    await expect.element(preview().getByTestId("chart-bars")).toBeInTheDocument();
+    const bars = preview().getByTestId("chart-bars").element();
+    expect(Number(getComputedStyle(bars).opacity)).toBeLessThan(1);
+    const saved = page.getByTestId("chart").getByTestId("chart-bars").element();
+    expect(getComputedStyle(saved).opacity).toBe("1");
+    const fills = [...bars.children].map((el) => getComputedStyle(el.firstElementChild!));
+    expect(fills[29].backgroundColor).not.toBe(fills[0].backgroundColor);
+  });
+
+  test("Add chart sends the pick, and Cancel closes the form", async () => {
+    const { sent } = serve();
+    await openPicker();
+    await pill("Doing").click();
+    await add().click();
+    await expect
+      .poll(() => sent.find((s) => s.path === "/api/charts")?.body)
+      .toEqual({
+        projectId: chart.project.id,
+        propertyId: "p",
+        optionId: "o2",
+      });
+    await expect.element(picker()).not.toBeInTheDocument();
+    await page.getByTestId("chart-new").first().click();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect.element(picker()).not.toBeInTheDocument();
   });
 });

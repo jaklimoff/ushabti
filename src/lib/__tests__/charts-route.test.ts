@@ -12,7 +12,8 @@ const { agent, api, board, join, ok, person, project, task } = await import("@/t
 const { loadCharts } = await import("@/lib/charts-load");
 const { boardsOnce } = await import("@/lib/lists-load");
 const { listProjects } = await import("@/lib/queries");
-const { dayBefore } = await import("@/lib/charts");
+const { CHART_TWICE, dayBefore } = await import("@/lib/charts");
+type ChartDTO = import("@/lib/charts").ChartDTO;
 
 /*
  * What a chart counts, and whom it answers. It counts the feed by option id
@@ -198,6 +199,71 @@ describe("A chart", () => {
       me.id,
     ]);
     expect((kept.rows[0] as { n: number }).n).toBe(4);
+  });
+});
+
+describe("A new chart", () => {
+  it("is refused with 409 when the person already has it, and not for somebody else", async () => {
+    const me = await person("Twice Asker");
+    const other = await person("Same Chart Too");
+    const p = await project(me);
+    await join(p.id, other, "member");
+    const { property, option } = await shape(me, p.id);
+    const status = property("Status").id;
+    const shipped = option("Status", "Shipped");
+    await addChart(me, p.id, status, shipped);
+
+    const again = await api(me).post("/api/charts", {
+      projectId: p.id,
+      propertyId: status,
+      optionId: shipped,
+    });
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as { error: string }).error).toBe(CHART_TWICE);
+    // Another column of the same select, and the same chart for another person, are new.
+    await addChart(me, p.id, status, option("Status", "Todo"));
+    await addChart(other, p.id, status, shipped);
+    expect(await chartsFor(me)).toHaveLength(2);
+  });
+
+  it("is previewed with the very days the saved chart then draws", async () => {
+    const me = await person("Previewer");
+    const p = await project(me);
+    const { property, option, today } = await shape(me, p.id);
+    const status = property("Status").id;
+    const doing = option("Status", "In Progress");
+    const t = await task(me, p.id, "Moves along");
+    await set(me, t.id, status, doing);
+    await set(me, t.id, status, option("Status", "Todo"));
+    await set(me, t.id, status, doing);
+
+    const pick = { projectId: p.id, propertyId: status, optionId: doing };
+    const { chart: preview } = await ok<{ chart: ChartDTO }>(
+      api(me).post("/api/charts/preview", pick),
+    );
+    expect(preview.days.at(-1)).toEqual({ day: today, count: 2 });
+    expect(await chartsFor(me)).toEqual([]);
+
+    const made = await addChart(me, p.id, status, doing);
+    const [saved] = await chartsFor(me);
+    expect({ ...preview, id: made.id }).toEqual(saved);
+  });
+
+  it("is previewed only for a person in the project, and never for an agent", async () => {
+    const me = await person("Preview Owner");
+    const stranger = await person("Preview Stranger");
+    const p = await project(me);
+    const { property, option } = await shape(me, p.id);
+    const pick = {
+      projectId: p.id,
+      propertyId: property("Status").id,
+      optionId: option("Status", "Todo"),
+    };
+    expect((await api(stranger).post("/api/charts/preview", pick)).status).toBe(404);
+    const bot = await agent(me, p.id);
+    expect((await bot.api.post("/api/charts/preview", pick)).status).toBe(403);
+    const crossed = { ...pick, optionId: option("Priority", "High") };
+    expect((await api(me).post("/api/charts/preview", crossed)).status).toBe(400);
   });
 });
 

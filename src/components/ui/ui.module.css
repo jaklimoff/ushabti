@@ -105,6 +105,44 @@
   outline-offset: 0;
 }
 
+/* A choice of one among a few, pressed in place: an option of a select. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--line-ghost);
+  border-radius: 999px;
+  font-size: var(--t-small);
+  color: var(--muted);
+  white-space: nowrap;
+  transition:
+    background 140ms var(--ease),
+    border-color 140ms var(--ease),
+    color 140ms var(--ease),
+    opacity 140ms var(--ease);
+}
+
+.pill:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+.pill[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pillQuiet {
+  opacity: 0.5;
+}
+
+.pillQuiet[aria-pressed="true"] {
+  opacity: 0.75;
+}
+
 .iconBtn {
   width: 24px;
   height: 24px;

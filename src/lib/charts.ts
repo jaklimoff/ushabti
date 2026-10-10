@@ -9,6 +9,9 @@ import { isSelect } from "./types";
 
 export const CHART_DAYS = 30;
 
+/** Said by the picker and by the route, so the two never word it apart. */
+export const CHART_TWICE = "You already have this chart. Pick another column.";
+
 export type StoredChart = {
   id: string;
   projectId: string;
@@ -21,6 +24,8 @@ export type ChartDay = { day: string; count: number };
 export type ChartDTO = {
   id: string;
   project: { id: string; key: string; name: string };
+  propertyId: string;
+  optionId: string;
   property: string;
   option: string;
   color: string;
@@ -87,6 +92,8 @@ export function chartShape(
   return {
     id: chart.id,
     project: { id: board.project.id, key: board.project.key, name: board.project.name },
+    propertyId: property.id,
+    optionId: option.id,
     property: property.name,
     option: option.name,
     color: option.color,
@@ -107,4 +114,13 @@ export function chartChoice(board: Pick<BoardData, "project" | "properties">): C
         options: p.options.map((o) => ({ id: o.id, name: o.name })),
       })),
   };
+}
+
+/**
+ * The option a new chart starts on: the last one the person does not chart
+ * yet, since the last column is usually the one that means done. When they
+ * chart them all, the last one, which the picker then says is taken.
+ */
+export function firstUncharted(options: { id: string }[], charted: ReadonlySet<string>): string {
+  return options.findLast((o) => !charted.has(o.id))?.id ?? options.at(-1)?.id ?? "";
 }
