@@ -55,10 +55,11 @@ async function groupsOf(who: Parameters<typeof api>[0], listId: string): Promise
 const keysIn = (groups: Group[]) => groups.flatMap((g) => g.rows.map((r) => r.key)).sort();
 
 describe("A list", () => {
-  it("is named New list, and its name changes", async () => {
+  it("is named after its project when nobody named it, and its name changes", async () => {
     const me = await person("List Maker");
-    const list = await newList(me, (await project(me)).id);
-    expect(list.name).toBe("New list");
+    const p = await project(me, "Named After");
+    const list = await newList(me, p.id);
+    expect(list.name).toBe("Named After");
     await ok(api(me).patch(`/api/lists/${list.id}`, { name: "Mine to do" }));
     const { lists } = await ok<{ lists: { name: string }[] }>(api(me).get("/api/lists"));
     expect(lists.map((l) => l.name)).toEqual(["Mine to do"]);
@@ -271,5 +272,128 @@ describe("A list", () => {
     expect(await groupsOf(me, list.id)).toEqual([]);
     const { lists } = await ok<{ lists: { id: string }[] }>(api(me).get("/api/lists"));
     expect(lists.map((l) => l.id)).toContain(list.id);
+  });
+
+  it("is made with every picked project and its rules in one request", async () => {
+    const me = await person("All At Once");
+    const one = await project(me, "First Picked");
+    const two = await project(me, "Second Picked");
+    const a = await task(me, one.id, "Urgent here");
+    await task(me, one.id, "Quiet here");
+    const c = await task(me, two.id, "All of two");
+    const { property, option } = await shape(me, one.id);
+    await ok(
+      api(me).put(`/api/tasks/${a.id}/values/${property("Priority").id}`, {
+        value: option("Priority", "Urgent"),
+      }),
+    );
+    const urgent = {
+      propertyId: property("Priority").id,
+      op: "is",
+      values: [option("Priority", "Urgent")],
+    };
+    const { list } = await ok<{ list: { id: string; name: string } }>(
+      api(me).post("/api/lists", {
+        name: "   ",
+        sources: [
+          { projectId: one.id, filters: { rules: [urgent] } },
+          { projectId: two.id, filters: { rules: [] } },
+        ],
+      }),
+    );
+    // Named after its projects in the order picked, not the person's order.
+    expect(list.name).toBe("First Picked · Second Picked");
+    const sources = await db.select().from(listSources).where(eq(listSources.listId, list.id));
+    expect(
+      sources.sort((x, y) => (x.position < y.position ? -1 : 1)).map((s) => s.projectId),
+    ).toEqual([one.id, two.id]);
+    expect(keysIn(await groupsOf(me, list.id))).toEqual([a.key, c.key].sort());
+  });
+
+  it("cuts a name made of its projects to 80 characters", async () => {
+    const me = await person("Long Names");
+    const names = ["A".repeat(50), "B".repeat(50)];
+    const one = await project(me, names[0]);
+    const two = await project(me, names[1]);
+    const { list } = await ok<{ list: { name: string } }>(
+      api(me).post("/api/lists", {
+        sources: [{ projectId: one.id }, { projectId: two.id }],
+      }),
+    );
+    expect(list.name).toBe(`${names[0]} · ${names[1]}`.slice(0, 80));
+  });
+
+  it("writes nothing when one picked project is not the person's", async () => {
+    const me = await person("Half Mine");
+    const stranger = await person("Not Mine");
+    const mine = await project(me);
+    const theirs = await project(stranger);
+    const before = await ok<{ lists: unknown[] }>(api(me).get("/api/lists"));
+    const res = await api(me).post("/api/lists", {
+      sources: [{ projectId: mine.id }, { projectId: theirs.id }],
+    });
+    expect(res.status).toBe(404);
+    expect((await api(me).post("/api/lists", { sources: [] })).status).toBe(400);
+    expect(
+      (
+        await api(me).post("/api/lists", {
+          sources: [{ projectId: mine.id }, { projectId: mine.id }],
+        })
+      ).status,
+    ).toBe(400);
+    const after = await ok<{ lists: unknown[] }>(api(me).get("/api/lists"));
+    expect(after.lists).toHaveLength(before.lists.length);
+  });
+});
+
+describe("A list's preview", () => {
+  it("counts what the list would show under the rules, and writes nothing", async () => {
+    const me = await person("Previewer");
+    const p = await project(me);
+    const a = await task(me, p.id, "Urgent one");
+    await task(me, p.id, "Plain one");
+    const gone = await task(me, p.id, "Archived one");
+    await ok(api(me).post(`/api/tasks/${gone.id}/archive`));
+    const { property, option } = await shape(me, p.id);
+    await ok(
+      api(me).put(`/api/tasks/${a.id}/values/${property("Priority").id}`, {
+        value: option("Priority", "Urgent"),
+      }),
+    );
+    const rule = (name: string) => ({
+      propertyId: property("Priority").id,
+      op: "is",
+      values: [option("Priority", name)],
+    });
+    const before = await ok<{ lists: unknown[] }>(api(me).get("/api/lists"));
+    const count = async (rules: unknown[]) =>
+      (
+        await ok<{ count: number; source: { key: string } }>(
+          api(me).post("/api/lists/preview", { projectId: p.id, filters: { rules } }),
+        )
+      ).count;
+    expect(await count([])).toBe(2);
+    expect(await count([rule("Urgent")])).toBe(1);
+    expect(await count([rule("Low")])).toBe(0);
+    const after = await ok<{ lists: unknown[] }>(api(me).get("/api/lists"));
+    expect(after.lists).toHaveLength(before.lists.length);
+
+    // The count is the list page's own: a list made with the rule shows that many.
+    const { list } = await ok<{ list: { id: string } }>(
+      api(me).post("/api/lists", {
+        sources: [{ projectId: p.id, filters: { rules: [rule("Urgent")] } }],
+      }),
+    );
+    expect(keysIn(await groupsOf(me, list.id))).toEqual([a.key]);
+  });
+
+  it("answers only a person, and only on their own project", async () => {
+    const me = await person("Preview Owner");
+    const stranger = await person("Preview Stranger");
+    const p = await project(me);
+    const theirs = await project(stranger);
+    expect((await api(me).post("/api/lists/preview", { projectId: theirs.id })).status).toBe(404);
+    const bot = await agent(me, p.id);
+    expect((await bot.api.post("/api/lists/preview", { projectId: p.id })).status).toBe(403);
   });
 });

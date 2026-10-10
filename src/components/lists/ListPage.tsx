@@ -102,13 +102,27 @@ export function ListPage({
 }
 
 /** The bar of a list page: the way home, and who is signed in. */
-export function ListBar({ user }: { user: SessionUser }) {
+/** With `here`, the bar says where the page sits: Ushabti / Home / here. */
+export function ListBar({ user, here }: { user: SessionUser; here?: string }) {
   return (
     <div className={styles.bar}>
-      <Link href="/projects" className={styles.home} data-testid="list-home">
-        <span className={styles.mark}>U</span>
-        <span className={styles.brand}>Home</span>
-      </Link>
+      {here ? (
+        <nav className={styles.home} aria-label="Where you are">
+          <span className={styles.mark}>U</span>
+          <span className={styles.brand}>Ushabti</span>
+          <span className={styles.crumbSep}>/</span>
+          <Link href="/projects" className={styles.crumb} data-testid="list-home">
+            Home
+          </Link>
+          <span className={styles.crumbSep}>/</span>
+          <span className={styles.crumbHere}>{here}</span>
+        </nav>
+      ) : (
+        <Link href="/projects" className={styles.home} data-testid="list-home">
+          <span className={styles.mark}>U</span>
+          <span className={styles.brand}>Home</span>
+        </Link>
+      )}
       <span className={styles.spacer} />
       <UserMenu user={user} />
     </div>

@@ -215,3 +215,23 @@ export function summaryOf(list: { id: string; name: string }, groups: ListGroup[
 
 /** Why the last project of a list cannot leave it. The route and the button say the same. */
 export const LAST_SOURCE = "A list needs a project. Delete the list to remove it.";
+
+/** The longest name a list takes. The route and the name box say the same. */
+export const NAME_MAX = 80;
+
+/**
+ * The name of a list nobody named: its projects, in the order they were
+ * picked. It is cut rather than refused, since nobody typed it.
+ */
+export function namedAfter(projects: string[]): string {
+  return projects.join(" · ").slice(0, NAME_MAX).trim();
+}
+
+/**
+ * How many tasks one project gives a list under these rules. It is the count
+ * the list page draws, read by the same `listGroups`, so the two cannot differ.
+ */
+export function sourceCount(filters: unknown, board: SourceBoard, viewer: string | null): number {
+  const source = { id: "", projectId: board.project.id, filters };
+  return listGroups([source], [board], viewer)[0]?.count ?? 0;
+}

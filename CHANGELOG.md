@@ -13,6 +13,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **Home shows three projects to a row, as lists and charts do.** The three
   sections share one column, so their cards line up, and a project card has
   more room.
+- **A new list is picked, previewed and made on one page.** Its projects are
+  tiles; each picked one shows its rules and how many tasks it gives, and
+  nothing is written until **Create list**. A list left unnamed is named after
+  its projects.
 
 ### Fixed
 

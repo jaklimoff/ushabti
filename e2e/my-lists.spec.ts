@@ -38,33 +38,31 @@ test("a list made on Home opens a task on its own board @smoke", async ({ page }
   await page.getByTestId("list-new").click();
   await page.waitForURL(/\/lists\/new$/);
   const name = page.getByTestId("list-name");
-  await expect(name).toHaveValue("New list");
+  await expect(name).toHaveValue("");
   await name.fill("My todo");
-  await name.press("Tab");
+  const create = page.getByRole("button", { name: "Create list" });
+  await expect(create).toBeDisabled();
 
-  /* The first project writes the list, its name and the project in one request. */
-  await settles(page, /\/api\/lists$/, () =>
-    page.getByTestId("list-add-project").filter({ hasText: oneKey }).click(),
-  );
-  await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
-  await expect(name).toHaveValue("My todo");
+  /* Picking and narrowing write nothing; each card counts what it gives. */
+  await page.getByTestId("list-tile").filter({ hasText: oneKey }).click();
   const source = page.getByTestId("list-source-edit").filter({ hasText: oneKey });
+  await expect(source.getByTestId("list-source-count")).toHaveText("2 tasks");
   await source.getByTestId("rule-add").click();
   const search = page.getByTestId("filter-search");
   await search.fill("Status");
   await search.press("Enter");
   const box = page.getByTestId("filter-box");
   await box.fill("Todo");
-  await settles(page, /\/sources\/[0-9a-f-]+$/, () => box.press("Enter"));
+  await box.press("Enter");
   await page.keyboard.press("Escape");
   await expect(source.getByTestId("filter-chip")).toHaveText("Status is Todo");
+  await expect(source.getByTestId("list-source-count")).toHaveText("1 task");
+  await page.getByTestId("list-tile").filter({ hasText: twoKey }).click();
+  await expect(page.getByTestId("list-summary")).toHaveText("2 projects · 1 rule · 2 tasks");
+  expect((await (await page.request.get("/api/lists")).json()).lists as unknown[]).toHaveLength(0);
 
-  await settles(page, /\/sources$/, () =>
-    page.getByTestId("list-add-project").filter({ hasText: twoKey }).click(),
-  );
-  await expect(page.getByTestId("list-add-project")).toHaveCount(0);
-
-  await page.getByTestId("list-open").click();
+  /* One press writes the list, both projects and the rule, and opens it. */
+  await settles(page, /\/api\/lists$/, () => create.click());
   await page.waitForURL(/\/lists\/[0-9a-f-]{36}$/);
   const listUrl = page.url();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("My todo");
@@ -93,19 +91,21 @@ test("a list keeps a name typed before the tab went, and goes without its tasks"
   page,
 }) => {
   await register(page, "List Leaver");
-  const one = await createProject(page, unique("Gamma"));
+  const oneName = unique("Gamma");
+  const one = await createProject(page, oneName);
   await addTask(page, "Todo", "Survives the list");
-
-  const oneKey = await keyOf(page, one);
 
   await page.goto("/projects");
   await page.getByTestId("list-new").click();
   await page.waitForURL(/\/lists\/new$/);
-  await page.getByTestId("list-add-project").filter({ hasText: oneKey }).click();
+  /* The only project is picked already, and an empty name takes its name. */
+  await page.getByRole("button", { name: "Create list" }).click();
+  await page.waitForURL(/\/lists\/[0-9a-f-]{36}$/);
+  await page.getByRole("link", { name: "Edit list" }).click();
   await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
   const editUrl = page.url();
   const name = page.getByTestId("list-name");
-  await expect(name).toHaveValue("New list");
+  await expect(name).toHaveValue(oneName);
   // No blur: the page goes with the cursor still in the box.
   await name.fill("Typed and left");
   await page.goto("/projects");
@@ -223,9 +223,7 @@ test("a list card shows its first five tasks and opens each one", async ({ page 
   expect(b.y).toBeGreaterThan(a.y + a.height - 1);
 });
 
-test("a new list is written only with its first project, and keeps its last one", async ({
-  page,
-}) => {
+test("a new list is written only by Create, and keeps its last one", async ({ page }) => {
   await register(page, "List Keeper");
   const one = await createProject(page, unique("Kept"));
   const two = await createProject(page, unique("Extra"));
@@ -234,27 +232,44 @@ test("a new list is written only with its first project, and keeps its last one"
   const lists = async () =>
     ((await (await page.request.get("/api/lists")).json()).lists as unknown[]).length;
 
-  /* Leaving the unsaved editor writes nothing, whatever was typed. */
+  const three = await createProject(page, unique("Third"));
+  /* The oldest goes to the top of Home, by the route a drag there sends. */
+  await page.request.patch(`/api/projects/${one}/position`, { data: { afterId: null } });
+  const threeKey = await keyOf(page, three);
+  /* The oldest on top, then the newest first. */
+  const order = [oneKey, threeKey, twoKey];
+
+  /* Leaving the new list's page writes nothing, whatever was typed or picked. */
   await page.goto("/projects");
   const before = await page.getByTestId("list-card").count();
+  const home = await page.getByTestId("project-card").allTextContents();
+  expect(home.map((h, i) => h.includes(order[i]))).toEqual([true, true, true]);
   await page.getByTestId("list-new").click();
   await page.waitForURL(/\/lists\/new$/);
+  /* The tiles come in the person's own Home order. */
+  const tiles = await page.getByTestId("list-tile").allTextContents();
+  expect(tiles.map((t, i) => t.startsWith(order[i]))).toEqual([true, true, true]);
   await expect(page.getByTestId("list-needs-project")).toBeVisible();
   await expect(page.getByRole("button", { name: "Delete list" })).toHaveCount(0);
   await page.getByTestId("list-name").fill("Never saved");
+  await page.getByTestId("list-tile").filter({ hasText: oneKey }).click();
   await page.getByTestId("list-name").press("Tab");
-  await page.goto("/projects");
+  await page.getByRole("link", { name: "Cancel" }).click();
+  await page.waitForURL("**/projects");
   await expect(page.getByTestId("list-card")).toHaveCount(before);
   await expect(listCard(page, "Never saved")).toHaveCount(0);
   expect(await lists()).toBe(0);
 
   await page.getByTestId("list-new").click();
   await page.waitForURL(/\/lists\/new$/);
+  await page.getByTestId("list-tile").filter({ hasText: oneKey }).click();
   await settles(page, /\/api\/lists$/, () =>
-    page.getByTestId("list-add-project").filter({ hasText: oneKey }).click(),
+    page.getByRole("button", { name: "Create list" }).click(),
   );
-  await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
+  await page.waitForURL(/\/lists\/[0-9a-f-]{36}$/);
   expect(await lists()).toBe(1);
+  await page.getByRole("link", { name: "Edit list" }).click();
+  await page.waitForURL(/\/lists\/[0-9a-f-]{36}\/edit$/);
 
   /* The only project cannot leave, and the button says why. */
   const remove = page.getByTestId("list-source-remove");
