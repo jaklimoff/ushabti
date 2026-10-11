@@ -87,6 +87,9 @@ export default defineConfig({
   use: {
     baseURL: url,
     trace: "retain-on-failure",
+    // Every test ends on a screenshot. .setmaat/shots.sh hands the ones of
+    // the specs a task changed to the loop's reviewer (USH-308).
+    screenshot: "on",
     viewport: { width: 1440, height: 900 },
   },
   projects: [
