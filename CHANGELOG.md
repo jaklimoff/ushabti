@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.24.0 — 2026-10-11
+
 ### Changed
 
 - **Home shows three projects to a row, as lists and charts do.** The three
