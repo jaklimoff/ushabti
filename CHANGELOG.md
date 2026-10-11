@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **Uploads on the Docker dev stack survive a crash of the dev server.** A crash stopped the app
+  container, and RustFS stayed on the old container's network, so every upload failed until
+  somebody recreated it. The dev server now starts again inside the same container.
+
 ## 0.24.0 — 2026-10-11
 
 ### Changed

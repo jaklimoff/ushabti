@@ -72,7 +72,9 @@ describe("the dev server's route watcher", () => {
 
   it("is started beside the dev server by the Docker dev compose file", () => {
     const compose = readFileSync(new URL("../../../docker-compose.yml", import.meta.url), "utf8");
-    expect(compose).toMatch(/node scripts\/dev-route-watch\.mjs & exec npm run dev/);
+    expect(compose).toMatch(
+      /node scripts\/dev-route-watch\.mjs & exec node scripts\/dev-server\.mjs/,
+    );
   });
 
   it("polls through Watchpack, and sets nothing that nobody reads", () => {

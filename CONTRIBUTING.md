@@ -30,6 +30,9 @@ network of `app`, so it is
 at <http://localhost:9050> both inside the container and on your machine: a
 signed URL names the host it was signed for, and the server and the browser
 must reach the bucket by the same one. `app` gets the `S3_*` values for it.
+`scripts/dev-server.mjs` starts `next dev` again when it crashes, so the
+container keeps its network. If you restart `app` by hand, recreate `rustfs`
+too: `docker compose up -d --force-recreate rustfs`.
 Unset `S3_BUCKET` in a `docker-compose.override.yml` to work with attachments
 off. The variables are in [README.md](README.md#files-on-a-task).
 
