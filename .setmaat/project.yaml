@@ -27,8 +27,8 @@ loop:
       refined: Refined
       size: Estimate
   # The fast checks, then the @smoke tests and the specs the task changed,
-  # against the dev server, at low priority (.setmaat/check.sh, the owner,
-  # 2026-10-08). The whole suite runs once a batch, before the push (.setmaat/e2e.sh).
+  # on a throwaway server of the task's own build (.setmaat/e2e.sh), at low
+  # priority (.setmaat/check.sh, the owner, 2026-10-08). The whole suite runs once a batch, before the push (.setmaat/e2e.sh).
   check: sh .setmaat/check.sh
   # Lands on the local main and pushes nothing: the owner pushes once the batch
   # is done, after .setmaat/e2e.sh, so CI runs once and not once a task

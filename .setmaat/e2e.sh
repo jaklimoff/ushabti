@@ -29,6 +29,11 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 e2e_lock "e2e.sh $(git rev-parse --abbrev-ref HEAD 2>/dev/null || pwd)"
 
+# The lock means no other e2e.sh runs, so a ushabti-e2e container left now
+# belongs to a run that was killed past its trap (kill -9).
+left=$(docker ps -a --format '{{.Names}}' | grep '^ushabti-e2e-' || true)
+[ -z "$left" ] || { echo "e2e: removing $(echo $left)"; docker rm -f $left >/dev/null; }
+
 db=$(free)
 s3=$(free)
 port=$(free)
