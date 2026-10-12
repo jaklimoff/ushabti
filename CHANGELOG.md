@@ -13,6 +13,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A board reads itself once when its live connection opens, not twice.** Every connect and
   reconnect downloaded the whole board two times and threw one copy away, which on a phone was
   slow at the moment the connection was busiest.
+- **The API's answers are compressed.** The board read went over the wire as raw JSON, over half
+  a megabyte on a working project, on every load and every change. It now goes gzip or Brotli
+  when the browser or the agent accepts it, about a tenth of the size.
 
 ## 0.24.1 — 2026-10-12
 
