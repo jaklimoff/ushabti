@@ -1,4 +1,4 @@
-# Local only, sourced. One end to end run on this Mac at a time (USH-310): two
+# Sourced. One end to end run on this Mac at a time (USH-310): two
 # checks at once overloaded the host, timed out unit tests and crashed the dev
 # server. A directory is the lock, because mkdir either makes it or fails, in
 # one step. The holder's PID sits inside, so a waiter can name it, and a lock

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Local only. loop.review.shots: the screenshots of the specs that the task
+# loop.review.shots: the screenshots of the specs that the task
 # changed, from the last Playwright run (the check's), for the reviewer
 # (USH-308). Playwright saves one at the end of every test; a spec whose end
 # state is not the screen saves `seen-<name>.png` itself, and that one wins.
