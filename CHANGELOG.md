@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A board reads itself once when its live connection opens, not twice.** Every connect and
+  reconnect downloaded the whole board two times and threw one copy away, which on a phone was
+  slow at the moment the connection was busiest.
+
 ## 0.24.1 — 2026-10-12
 
 ### Fixed

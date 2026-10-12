@@ -672,15 +672,15 @@ export function BoardProvider({
      * That gap is small but real, and it grows whenever hydration is slower —
      * a loading boundary, a cold cache, a slow phone. Ask once on connect, and
      * the same line re-syncs after every reconnect: a network blip, a laptop
-     * waking up.
+     * waking up. Only `ready` asks: it comes after the server subscribed, and
+     * `open` comes on every connect too, so asking on both read the whole
+     * board twice and threw one copy away.
      */
-    const opened = () => {
+    source.addEventListener("ready", () => {
       setLive(true);
       void refreshRef.current();
       presence.announce();
-    };
-
-    source.addEventListener("ready", opened);
+    });
     source.addEventListener("change", (event) => {
       const payload = JSON.parse((event as MessageEvent).data) as { clientId?: string };
       if (payload.clientId === CLIENT_ID) return;
@@ -696,7 +696,7 @@ export function BoardProvider({
       presence.heard(JSON.parse((event as MessageEvent).data) as PresenceSaid);
     });
     source.onerror = () => setLive(false);
-    source.onopen = opened;
+    source.onopen = () => setLive(true);
 
     return () => {
       if (timer) clearTimeout(timer);
