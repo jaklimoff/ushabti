@@ -39,7 +39,9 @@ loop:
   # specs it changed, from the check's Playwright run (USH-308).
   review:
     shots: sh .setmaat/shots.sh
-  workdir: checkout # the dev server on port 3050 serves this checkout (decision 92)
+  # Each task is built in its own worktree, so the main checkout stays on main.
+  # node_modules is an APFS clone of the main checkout's: nearly free.
+  setup: cp -Rc "$SETMAAT_ROOT/node_modules" node_modules
 programs:
   # The release program of Setmaat, started by `setmaat up` (USH-311).
   release: "setmaat:examples/release.mjs"
