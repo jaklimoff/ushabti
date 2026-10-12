@@ -320,14 +320,20 @@ export async function renderWithBoard(
   /* The stream is the doorbell. Nobody rings it unless a test calls `ring()`. */
   const bells: ((event: MessageEvent) => void)[] = [];
   const voices: ((event: MessageEvent) => void)[] = [];
+  const readies: ((event: MessageEvent) => void)[] = [];
+  const sources: { onopen: ((event: Event) => void) | null }[] = [];
   vi.stubGlobal(
     "EventSource",
     class {
       onerror = null;
       onopen = null;
+      constructor() {
+        sources.push(this);
+      }
       addEventListener(kind: string, listener: (event: MessageEvent) => void) {
         if (kind === "change") bells.push(listener);
         if (kind === "presence") voices.push(listener);
+        if (kind === "ready") readies.push(listener);
       }
       close() {}
     },
@@ -372,5 +378,19 @@ export async function renderWithBoard(
     for (const voice of voices) voice(event);
   };
 
-  return { screen, sent, ring, hear };
+  /* The stream connected, as a browser says it: `open` first, then the
+     server's `ready` once it has subscribed. */
+  const open = () => {
+    for (const source of sources) source.onopen?.(new Event("open"));
+  };
+  const ready = () => {
+    const event = new MessageEvent("ready", { data: "{}" });
+    for (const listener of readies) listener(event);
+  };
+
+  /* What `sent()` leaves out: the tab saying it is here. */
+  const announced = () =>
+    requests.filter((r) => r.method === "POST" && r.path.endsWith("/presence"));
+
+  return { screen, sent, ring, hear, open, ready, announced };
 }
