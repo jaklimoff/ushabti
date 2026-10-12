@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.24.1 — 2026-10-12
+
 ### Fixed
 
 - **Uploads on the Docker dev stack survive a crash of the dev server.** A crash stopped the app
