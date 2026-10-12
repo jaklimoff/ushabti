@@ -1,5 +1,5 @@
 #!/bin/sh
-# Local only. The loop's check for one task (the owner, 2026-10-08): the fast
+# The loop's check for one task (the owner, 2026-10-08): the fast
 # checks, then the @smoke tests and every spec the task changed, on a throwaway
 # server of this checkout's own build (.setmaat/e2e.sh), so a worktree checks
 # its own code. Under five minutes is the goal; the whole suite runs once per

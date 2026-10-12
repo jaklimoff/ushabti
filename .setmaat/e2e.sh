@@ -1,5 +1,5 @@
 #!/bin/sh
-# Local only. The end to end half of the loop's check: the CI way, on this Mac.
+# The end to end half of the loop's check: the CI way, on this Mac.
 # The loop lands straight on main (the owner, 2026-10-07), so nothing red may
 # reach it, and Playwright is what CI would have caught.
 #
