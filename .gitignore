@@ -12,3 +12,6 @@ playwright-report
 .vitest
 *.tsbuildinfo
 .claude/settings.local.json
+
+# Written by the loop's builder in each task folder.
+.setmaat/report.md
