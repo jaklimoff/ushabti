@@ -260,6 +260,17 @@ the pair now takes under three.
 Versions follow [semantic versioning](https://semver.org/). Until 1.0.0 a minor
 bump may break something.
 
+The usual way is the **Release** button of the Setmaat dashboard. It ships the
+tasks in Ready: Setmaat's release program pauses the loop, runs
+`.setmaat/e2e.sh`, and shows the SQL of each new migration and waits for a yes.
+Then `.setmaat/release/tag.sh` does steps 1 to 4 below and pushes `main` with
+the tag. `.setmaat/release/deploy.sh` waits for the image on Docker Hub, backs
+the database up and deploys. The tasks move to Shipped. The bump is minor
+unless the press names another. The `release:` block of `.setmaat/project.yaml`
+holds the commands.
+
+When Setmaat is not running, do it by hand:
+
 1. Move the entries under "Unreleased" in `CHANGELOG.md` into a new
    `## X.Y.Z — YYYY-MM-DD` heading.
 2. Set the same number in `package.json`.
