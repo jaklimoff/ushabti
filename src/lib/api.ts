@@ -1,4 +1,6 @@
 import "server-only";
+import { promisify } from "node:util";
+import zlib from "node:zlib";
 import { NextResponse } from "next/server";
 import { HttpError, requireActor, requireMembership, requireUser } from "./auth";
 import { publish, type BoardEvent } from "./events";
@@ -6,6 +8,9 @@ import { isId, notAnId } from "./ids";
 import { canManage, isOwner, outranks, roleChangeRefusal } from "./roles";
 
 export { HttpError };
+
+const gzip = promisify(zlib.gzip);
+const brotli = promisify(zlib.brotliCompress);
 
 export function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
@@ -18,14 +23,65 @@ export function fail(status: number, message: string, headers?: Record<string, s
 /** Wraps a route handler so thrown HttpErrors become clean JSON responses. */
 export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response>) {
   return async (req: Request, ctx: Ctx): Promise<Response> => {
+    let res: Response;
     try {
-      return await handler(req, ctx);
+      res = await handler(req, ctx);
     } catch (err) {
-      if (err instanceof HttpError) return fail(err.status, err.message, err.headers);
-      console.error("[ushabti] route error", err);
-      return fail(500, "Something went wrong on the server.");
+      if (err instanceof HttpError) res = fail(err.status, err.message, err.headers);
+      else {
+        console.error("[ushabti] route error", err);
+        res = fail(500, "Something went wrong on the server.");
+      }
     }
+    return squeeze(req, res);
   };
+}
+
+/* Below this a packed answer is hardly smaller, and costs a pass of zlib. */
+const SMALL = 1024;
+
+/**
+ * Packs a JSON answer when the caller accepts it. Next packs the pages but
+ * leaves the route handlers' JSON raw, and the board read is over half a
+ * megabyte. Only JSON: the stream must not pass through a packer, which holds
+ * an event back until it has enough to pack.
+ */
+async function squeeze(req: Request, res: Response): Promise<Response> {
+  const type = res.headers.get("content-type") ?? "";
+  if (!type.startsWith("application/json") || !res.body || res.headers.has("content-encoding"))
+    return res;
+  const headers = new Headers(res.headers);
+  headers.append("Vary", "Accept-Encoding");
+  const plain = Buffer.from(await res.arrayBuffer());
+  const encoding =
+    plain.length < SMALL ? null : acceptedEncoding(req.headers.get("accept-encoding"));
+  let sent: Buffer = plain;
+  if (encoding === "br") {
+    sent = await brotli(plain, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 } });
+  } else if (encoding === "gzip") {
+    sent = await gzip(plain);
+  }
+  if (encoding) headers.set("Content-Encoding", encoding);
+  headers.set("Content-Length", String(sent.length));
+  return new Response(new Uint8Array(sent), {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
+}
+
+/** Brotli first, then gzip; a coding with `q=0` is refused. */
+export function acceptedEncoding(header: string | null): "br" | "gzip" | null {
+  const accepted = new Set<string>();
+  for (const part of (header ?? "").split(",")) {
+    const [name, ...params] = part.trim().toLowerCase().split(";");
+    const q = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+    if (q && Number(q.slice(2)) === 0) continue;
+    accepted.add(name.trim());
+  }
+  if (accepted.has("br")) return "br";
+  if (accepted.has("gzip")) return "gzip";
+  return null;
 }
 
 export async function body<T = Record<string, unknown>>(req: Request): Promise<T> {
