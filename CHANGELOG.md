@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.24.2 — 2026-10-12
+
 ### Fixed
 
 - **A board reads itself once when its live connection opens, not twice.** Every connect and
