@@ -1,0 +1,64 @@
+# The config of Setmaat for this project.
+name: ushabti
+agents:
+  builder:
+    model: claude-opus-5-5
+    tools: [Bash, Edit, Write, NotebookEdit, WebFetch, WebSearch]
+  reviewer:
+    model: claude-opus-5-5
+    tools: [Read, Grep, Glob, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"]
+loop:
+  board:
+    kind: ushabti
+    url_env: USHABTI_URL
+    project: USH
+    token_env: USHABTI_TOKEN
+    map:
+      stage:
+        {
+          backlog: Backlog,
+          ready: Todo,
+          in_progress: In Progress,
+          review: In review,
+          done: Ready,
+          released: Shipped,
+        }
+      priority: Priority
+      refined: Refined
+      size: Estimate
+  # The fast checks, then the @smoke tests and the specs the task changed,
+  # against the dev server, at low priority (.setmaat/check.sh, the owner,
+  # 2026-10-08). The whole suite runs once a batch, before the push (.setmaat/e2e.sh).
+  check: sh .setmaat/check.sh
+  # Lands on the local main and pushes nothing: the owner pushes once the batch
+  # is done, after .setmaat/e2e.sh, so CI runs once and not once a task
+  # (the owner, 2026-10-08). The admin role passes the main ruleset.
+  land: { mode: fast-forward, push: false, squash: true }
+  brief: .setmaat/brief.md
+  # The reviewer sees the screens the task changed: the screenshots of the
+  # specs it changed, from the check's Playwright run (USH-308).
+  review:
+    shots: sh .setmaat/shots.sh
+  workdir: checkout # the dev server on port 3050 serves this checkout (decision 92)
+programs:
+  # The release program of Setmaat, started by `setmaat up` (USH-311).
+  release: "setmaat:examples/release.mjs"
+# A release ships what is in Ready: the check, the tag, the push, the deploy,
+# then the tasks move to Shipped (docs/RELEASE-PROGRAM.md in Setmaat).
+release:
+  # Only a press of Release: the owner decides when, so no cron, and no role,
+  # because every task was reviewed before it landed.
+  button: true
+  # Until 1.0.0 a minor bump may break something (CONTRIBUTING.md).
+  bump: minor
+  # The whole suite the CI way, as before the push after a batch: the loop
+  # lands on main and pushes nothing, so this push is the one CI sees.
+  check: sh .setmaat/e2e.sh
+  # A new migration cannot be undone by a rollback, so its SQL waits for a yes.
+  confirm: sh .setmaat/release/migrations.sh
+  # The changelog heading and package.json must match the tag (release.yml).
+  tag: sh .setmaat/release/tag.sh
+  # No build: docker.yml builds the image on the tag. The deploy waits for it.
+  deploy: sh .setmaat/release/deploy.sh
+  # For each command: the whole suite is long, and the deploy waits up to 45 min.
+  timeout: 90m
