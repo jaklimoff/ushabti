@@ -43,20 +43,18 @@ import { startsWith } from "@/lib/when";
 import { isOpenOption } from "@/lib/option-dates";
 import { foldedOf, noFolds, setFolded, subscribeFolded, writeFolded } from "@/lib/fold";
 import { isPhone, notPhone, subscribePhone, swipeStep } from "@/lib/phone";
-import { canManage } from "@/lib/roles";
-import { closes, endedSaid, nextOpenOption, shipSaid } from "@/lib/ship";
-import { readCadence, sprintAfter } from "@/lib/cadence";
+import { endedSaid } from "@/lib/ship";
 import { sortTasks } from "@/lib/sort";
 import type { PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
 import { useAddOption } from "./useAddOption";
+import { useShipOffer } from "./useShipOffer";
 import {
   COLUMN_PREFIX,
   CONTAINER_PREFIX,
   Column,
   type ComposerPlace,
   type ProgressRule,
-  type ShipOffer,
 } from "./Column";
 import { ColumnStrip } from "./ColumnStrip";
 import { useCursorBack, useShortcut } from "./keys";
@@ -258,7 +256,6 @@ export function BoardCanvas({
     togglePick,
     pickTo,
     archiveColumn,
-    shipOption,
     patchOption,
     runOf,
     controlRun,
@@ -395,40 +392,10 @@ export function BoardCanvas({
    */
   const sweepable = !!groupProperty && filters.rules.length === 0;
 
-  /*
-   * A dated column may ship only where it may be swept, and only for the
-   * people the route lets through: a ship is a sweep and more, and a button
-   * the route would refuse is a button that lies. The fold is this browser's,
-   * so it happens here, once the server has said yes.
-   */
-  const canShip = sweepable && canManage(data.project.role);
-  const shipOffer = (column: BoardColumn): ShipOffer | null => {
-    if (!canShip || !isSelect(groupProperty?.type ?? "")) return null;
-    /* An iteration's ship makes the next sprint when there is none, so the
-       question names the one it will make. */
-    const nextName =
-      nextOpenOption(groupProperty, groupProperty.options, column.id)?.name ??
-      (groupProperty.type === "iteration"
-        ? (sprintAfter(
-            groupProperty.options,
-            column.id,
-            readCadence(groupProperty.config),
-            data.today,
-          )?.name ?? null)
-        : null);
-    const closing = closes(groupProperty);
-    return {
-      nextName,
-      closing,
-      onShip: async (rest) => {
-        const done = await shipOption(column.id, rest);
-        if (!done) return false;
-        fold(column.id, true);
-        notify(shipSaid(column.name, done, nextName, closing), "info");
-        return true;
-      },
-    };
-  };
+  /* The fold is this browser's, so it happens here, once the server has
+     said yes. */
+  const offerShip = useShipOffer();
+  const shipOffer = (column: BoardColumn) => offerShip(column, () => fold(column.id, true));
 
   /* Only a select option carries dates, so only a select board shows them.
      The unit is a number property the owner named, read afresh on the

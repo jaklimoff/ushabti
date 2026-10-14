@@ -140,3 +140,76 @@ test.describe("Ship on a column", () => {
     expect(again.status()).toBe(409);
   });
 });
+
+/* The same ship, from where releases are seen. The question and the refusals
+   are `Roadmap.test.tsx`; this walk is what the route writes. */
+test.describe("Ship on a roadmap row", () => {
+  async function openPlan(page: Page, projectId: string, versionId: string) {
+    const made = await page.request.post(`/api/projects/${projectId}/views`, {
+      data: { name: "Plan", kind: "roadmap", groupById: versionId },
+    });
+    expect(made.status()).toBe(201);
+    await page.getByTestId("view-pill").filter({ hasText: "Plan" }).click();
+    await expect(page.getByTestId("roadmap-row")).toHaveCount(2);
+  }
+  const row = (page: Page, name: string) =>
+    page.getByTestId("roadmap-row").filter({ hasText: name });
+
+  test("Ship archives what is over and marks the option shipped", async ({ page }, testInfo) => {
+    const { projectId, read, version, v1 } = await releaseBoard(page);
+    await openPlan(page, projectId, version.id);
+
+    await row(page, "v1").getByRole("button", { name: "Ship v1" }).click();
+    const ask = page.getByRole("alertdialog", { name: "Ship v1" });
+    await expect(ask.getByTestId("ship-confirm")).toHaveText(
+      "Ship v1? 3 tasks are over and will be archived. 1 task is not over. What happens to them?",
+    );
+    await page.screenshot({ path: testInfo.outputPath("seen-roadmap-ship.png") });
+    await ask.getByRole("button", { name: "Leave them" }).click();
+
+    await expect(row(page, "v1")).toContainText("3 tasks archived");
+    await expect(row(page, "v1").getByTestId("roadmap-ship")).toHaveCount(0);
+    await expect(row(page, "v3").getByTestId("roadmap-ship")).toBeVisible();
+
+    const board = await read();
+    expect(board.tasks.map((t) => t.title).sort()).toEqual(["Charlie", "Echo", "Foxtrot"]);
+    const shipped = board.properties
+      .find((p) => p.id === version.id)!
+      .options.find((o) => o.id === v1.id)!;
+    expect(shipped.shippedAt).toBe(today());
+  });
+
+  test("with no Done when, the row and the column say why nothing ships", async ({
+    page,
+  }, testInfo) => {
+    const { projectId, read, version } = await releaseBoard(page);
+    const cleared = await page.request.patch(`/api/projects/${projectId}`, {
+      data: { doneWhen: null },
+    });
+    expect(cleared.ok()).toBeTruthy();
+    const said = "Nothing counts as over yet. Say which Status means done in Settings → Project.";
+
+    await page.reload();
+    await column(page, "v1").getByRole("button", { name: "Ship v1" }).click();
+    await expect(
+      page.getByRole("alertdialog", { name: "Ship v1" }).getByTestId("ship-confirm"),
+    ).toHaveText(said);
+
+    await openPlan(page, projectId, version.id);
+    await row(page, "v1").getByRole("button", { name: "Ship v1" }).click();
+    const ask = page.getByRole("alertdialog", { name: "Ship v1" });
+    await expect(ask.getByTestId("ship-confirm")).toHaveText(said);
+    await expect(ask.getByRole("link", { name: "Open Settings" })).toHaveAttribute(
+      "href",
+      `/p/${projectId}/settings/project`,
+    );
+    await page.screenshot({ path: testInfo.outputPath("seen-roadmap-no-done-when.png") });
+    await expect(ask.getByRole("button", { name: /Leave them|Move|Clear|Yes/ })).toHaveCount(0);
+
+    const board = await read();
+    expect(board.tasks).toHaveLength(6);
+    expect(
+      board.properties.find((p) => p.id === version.id)!.options.every((o) => !o.shippedAt),
+    ).toBe(true);
+  });
+});

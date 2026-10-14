@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Fragment,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -14,6 +15,9 @@ import { allowedColumns } from "@/lib/filters";
 import { daysIn, roadmapAxis, roadmapRows, type RoadmapRow } from "@/lib/roadmap";
 import { useBoard } from "./store";
 import { useAddOption } from "./useAddOption";
+import { ShipQuestion } from "./Column";
+import { useShipOffer } from "./useShipOffer";
+import { shipWord } from "@/lib/ship";
 import styles from "./board.module.css";
 import { isSelect } from "@/lib/types";
 
@@ -97,8 +101,13 @@ export function RoadmapCanvas({
   openOptionId: string | null;
   onOpenOption: (optionId: string) => void;
 }) {
-  const { data, view, groupProperty } = useBoard();
+  const { data, view, groupProperty, visibleTasks } = useBoard();
   const { rows, drawn, countBy } = useRoadmap();
+  const offerShip = useShipOffer();
+  /* One row asks at a time, and a ship is one press: while it is out, the
+     button stays away. */
+  const [asking, setAsking] = useState<string | null>(null);
+  const [shipping, setShipping] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
 
@@ -169,43 +178,78 @@ export function RoadmapCanvas({
             const left = at(row.start);
             const width = at(row.end) - left + DAY_PX;
             const end = endOf(row);
+            /* A row has a target or it is not drawn, so only a shipped one
+               offers nothing. */
+            const ship = row.shippedAt ? null : offerShip(row);
             return (
-              <div
-                key={row.id}
-                className={`${styles.roadmapRow} ${row.shippedAt ? styles.roadmapShipped : ""}`}
-                data-testid="roadmap-row"
-              >
-                <div className={styles.roadmapName}>
-                  <span className={styles.roadmapSwatch} style={{ background: row.color }} />
-                  <span className={styles.roadmapWords}>
-                    <span className={styles.roadmapTitle} title={row.name}>
-                      {row.name}
+              <Fragment key={row.id}>
+                <div
+                  className={`${styles.roadmapRow} ${row.shippedAt ? styles.roadmapShipped : ""}`}
+                  data-testid="roadmap-row"
+                >
+                  <div className={styles.roadmapName}>
+                    <span className={styles.roadmapSwatch} style={{ background: row.color }} />
+                    <span className={styles.roadmapWords}>
+                      <span className={styles.roadmapTitle} title={row.name}>
+                        {row.name}
+                      </span>
+                      <span className={styles.roadmapCount}>{said}</span>
                     </span>
-                    <span className={styles.roadmapCount}>{said}</span>
-                  </span>
+                    {ship && shipping !== row.id && (
+                      <button
+                        type="button"
+                        className={styles.roadmapShip}
+                        data-testid="roadmap-ship"
+                        aria-label={`${shipWord(ship.closing)} ${row.name}`}
+                        aria-expanded={asking === row.id}
+                        onClick={() => setAsking(asking === row.id ? null : row.id)}
+                      >
+                        {shipWord(ship.closing)}
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.roadmapTrack}>
+                    <button
+                      type="button"
+                      className={styles.roadmapBar}
+                      style={{ left, width, borderColor: row.color }}
+                      aria-label={`${row.name}: ${formatDate(row.start)} to ${end}, ${said}`}
+                      title={`${formatDate(row.start)} – ${end}`}
+                      aria-expanded={openOptionId === row.id}
+                      data-testid="roadmap-bar"
+                      data-option={row.id}
+                      onClick={() => onOpenOption(row.id)}
+                    >
+                      <span
+                        className={styles.roadmapFill}
+                        style={{ width: `${row.share * 100}%`, background: row.color }}
+                      />
+                    </button>
+                    <span className={styles.roadmapEnd} style={{ left: left + width + 6 }}>
+                      {end}
+                    </span>
+                  </div>
                 </div>
-                <div className={styles.roadmapTrack}>
-                  <button
-                    type="button"
-                    className={styles.roadmapBar}
-                    style={{ left, width, borderColor: row.color }}
-                    aria-label={`${row.name}: ${formatDate(row.start)} to ${end}, ${said}`}
-                    title={`${formatDate(row.start)} – ${end}`}
-                    aria-expanded={openOptionId === row.id}
-                    data-testid="roadmap-bar"
-                    data-option={row.id}
-                    onClick={() => onOpenOption(row.id)}
-                  >
-                    <span
-                      className={styles.roadmapFill}
-                      style={{ width: `${row.share * 100}%`, background: row.color }}
-                    />
-                  </button>
-                  <span className={styles.roadmapEnd} style={{ left: left + width + 6 }}>
-                    {end}
-                  </span>
-                </div>
-              </div>
+                {/* The board has no dialogs, so the question opens in place,
+                  under the row it is about. */}
+                {ship && asking === row.id && (
+                  <ShipQuestion
+                    name={row.name}
+                    tasks={visibleTasks.filter((t) => t.values[groupProperty.id] === row.id)}
+                    doneWhen={data.project.doneWhen}
+                    ship={ship}
+                    className={`${styles.roadmapAsk} ${styles.colHeadAsking}`}
+                    onCancel={() => setAsking(null)}
+                    onPick={(rest) => {
+                      setAsking(null);
+                      setShipping(row.id);
+                      /* The board is read again before the answer comes, so a
+                       shipped row already hides the button by its date. */
+                      void ship.onShip(rest).finally(() => setShipping(null));
+                    }}
+                  />
+                )}
+              </Fragment>
             );
           })}
 
