@@ -1,19 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import {
-  column,
-  createProject,
-  edgeRoom,
-  fromName,
-  gotoSettings,
-  propertyBox,
-  register,
-  unique,
-} from "./helpers";
+import { column, createProject, register, unique } from "./helpers";
 
 /**
  * An iteration's cadence makes the next sprint. The unit tests hold the names
- * and the dates; this walks the three doors: Use sprints, Ship, and the
- * length box in Settings.
+ * and the dates. Use sprints, the length box in Settings and what the routes
+ * write are `sprint-route.test.ts` and the two `Sprints.test.tsx`; this walks
+ * the one door that needs the whole system: Close on the last sprint.
  */
 
 type Option = {
@@ -55,45 +47,6 @@ async function sprintsFrom(page: Page, startAt: string, length = 14) {
   expect(res.status()).toBe(201);
   return projectId;
 }
-
-test("Use sprints asks for the length and the first day, and makes two sprints", async ({
-  page,
-}) => {
-  await register(page);
-  const projectId = await createProject(page, unique("Cadence"));
-  await gotoSettings(page, projectId, "project");
-
-  await expect(page.getByLabel("Sprint length in days")).toHaveValue("14");
-  await page.getByLabel("Sprint length in days").fill("7");
-  await page.getByLabel("First day of the first sprint").fill("2036-11-02");
-  const answer = page.waitForResponse((res) => res.url().endsWith("/sprints"));
-  await page.getByRole("switch", { name: "Use sprints" }).click();
-  expect((await answer).status()).toBe(201);
-  await expect(page.getByRole("switch", { name: "Use sprints" })).toBeChecked();
-  /* On, the questions are answered and go. */
-  await expect(page.getByLabel("Sprint length in days")).toHaveCount(0);
-
-  const sprint = await sprintOf(page, projectId);
-  expect(sprint.config.cadence).toEqual({ length: 7 });
-  expect(sprint.options.map(dates)).toEqual([
-    ["Sprint 1", "2036-11-02", "2036-11-08"],
-    ["Sprint 2", "2036-11-09", "2036-11-15"],
-  ]);
-
-  /* With nothing asked, the route takes 14 days from the project's today. */
-  const other = await createProject(page, unique("Plain cadence"));
-  expect((await page.request.post(`/api/projects/${other}/sprints`)).status()).toBe(201);
-  const plain = await sprintOf(page, other);
-  const today = new Date().toISOString().slice(0, 10);
-  expect(plain.options[0].startAt).toBe(today);
-  expect(plain.options).toHaveLength(2);
-
-  /* A length that cannot be one is refused, and nothing is made. */
-  const third = await createProject(page, unique("Bad cadence"));
-  const bad = await page.request.post(`/api/projects/${third}/sprints`, { data: { length: 0 } });
-  expect(bad.status()).toBe(400);
-  expect((await board(page, third)).properties.map((p) => p.name)).not.toContain("Sprint");
-});
 
 test("shipping the last sprint makes the next one, and Move takes the rest there", async ({
   page,
@@ -140,98 +93,4 @@ test("shipping the last sprint makes the next one, and Move takes the rest there
   const names = (await sprintOf(page, projectId)).options.map((o) => o.name);
   expect(names.filter((n) => n === "Sprint 4")).toHaveLength(1);
   expect(names).toEqual(["Sprint 1", "Sprint 2", "Sprint 3", "Sprint 4"]);
-});
-
-test("the cadence fills in after what an admin did by hand", async ({ page }) => {
-  const projectId = await sprintsFrom(page, "2036-10-05");
-  const [first, second] = (await sprintOf(page, projectId)).options;
-
-  expect((await page.request.delete(`/api/options/${second.id}`)).ok()).toBeTruthy();
-  expect(
-    (
-      await page.request.patch(`/api/options/${first.id}`, {
-        data: { name: "Kickoff", targetAt: "2036-10-10" },
-      })
-    ).ok(),
-  ).toBeTruthy();
-  const shipped = await page.request.post(`/api/options/${first.id}/ship`, {
-    data: { rest: "leave" },
-  });
-  expect(shipped.ok()).toBeTruthy();
-
-  expect((await sprintOf(page, projectId)).options.map(dates)).toEqual([
-    ["Kickoff", "2036-10-05", "2036-10-10"],
-    ["Kickoff 2", "2036-10-11", "2036-10-24"],
-  ]);
-});
-
-test("Settings shows the cadence, saved on blur and on leave", async ({ page, browser }) => {
-  const projectId = await sprintsFrom(page, "2036-10-05");
-  await gotoSettings(page, projectId);
-
-  const box = propertyBox(page, "Sprint");
-  const length = box.getByLabel("Sprint length in days of Sprint");
-  await expect(length).toHaveValue("14");
-  await expect(box.getByLabel("Sprints kept ahead of Sprint")).toHaveCount(0);
-
-  /* A fill before React owns the box reaches no handler. */
-  await expect
-    .poll(() => length.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactFiber"))))
-    .toBe(true);
-  const blur = page.waitForResponse((res) => res.request().method() === "PATCH");
-  await length.fill("7");
-  await length.blur();
-  expect((await blur).ok()).toBeTruthy();
-  await expect
-    .poll(async () => (await sprintOf(page, projectId)).config.cadence)
-    .toEqual({ length: 7 });
-
-  await length.fill("10");
-  await expect(length).toBeFocused();
-  await page.goto("about:blank");
-  await expect
-    .poll(async () => (await sprintOf(page, projectId)).config.cadence)
-    .toEqual({ length: 10 });
-
-  /* A member writes values, never the cadence. */
-  const memberContext = await browser.newContext();
-  const memberPage = await memberContext.newPage();
-  const member = await register(memberPage, "Bob Member");
-  await page.request.post(`/api/projects/${projectId}/members`, {
-    data: { email: member.email },
-  });
-  const sprint = await sprintOf(page, projectId);
-  const refused = await memberPage.request.patch(`/api/properties/${sprint.id}`, {
-    data: { cadence: { length: 3 } },
-  });
-  expect(refused.status()).toBe(403);
-  await memberContext.close();
-});
-
-for (const [width, height] of [
-  [1440, 900],
-  [390, 844],
-] as const) {
-  test(`the cadence keeps off the card edge at ${width} px`, async ({ page }) => {
-    await page.setViewportSize({ width, height });
-    const projectId = await sprintsFrom(page, "2036-10-05");
-    await gotoSettings(page, projectId);
-    const box = propertyBox(page, "Sprint");
-    const length = box.getByLabel("Sprint length in days of Sprint");
-    await expect(length).toHaveValue("14");
-    await expect(length).toBeVisible();
-
-    /* A refresh can hide the page for a moment, so the measure waits. */
-    await expect.poll(() => edgeRoom(box)).toBeGreaterThanOrEqual(12);
-  });
-}
-
-test("the cadence starts where the property's name does", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  const projectId = await sprintsFrom(page, "2036-10-05");
-  await gotoSettings(page, projectId);
-  const box = propertyBox(page, "Sprint");
-  const length = box.getByLabel("Sprint length in days of Sprint");
-  await expect(length).toBeVisible();
-  await expect.poll(() => fromName(box, length)).toBeLessThanOrEqual(3);
 });
