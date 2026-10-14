@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import { formatDate } from "@/lib/board";
 import { allowedColumns } from "@/lib/filters";
 import { daysIn, roadmapAxis, roadmapRows, type RoadmapRow } from "@/lib/roadmap";
 import { useBoard } from "./store";
+import { useAddOption } from "./useAddOption";
 import styles from "./board.module.css";
 import { isSelect } from "@/lib/types";
 
@@ -31,9 +39,18 @@ export function useRoadmap() {
             { doneWhen: data.project.doneWhen, countBy: countBy?.id ?? null },
             data.project.timeZone,
             data.archivedUnder,
+            data.today,
           )
         : [],
-    [groupProperty, data.tasks, visibleTasks, data.project, countBy, data.archivedUnder],
+    [
+      groupProperty,
+      data.tasks,
+      visibleTasks,
+      data.project,
+      countBy,
+      data.archivedUnder,
+      data.today,
+    ],
   );
   /* A filter on the roadmap's own property takes its rows with it, exactly as
      it takes a board's columns: a row it excludes could only read 0 of 0. */
@@ -201,13 +218,78 @@ export function RoadmapCanvas({
           />
         </div>
 
-        {rows.length === 0 && (
+        {/* A sprint comes from the cadence, so a sprint roadmap offers none. */}
+        {groupProperty.type === "select" && <AddRelease key={view?.id} first={rows.length === 0} />}
+        {rows.length === 0 && groupProperty.options.length > 0 && (
           <div className={styles.roadmapBlank}>
-            No option of {groupProperty.name} has a target date yet. Give one a date in{" "}
+            Or give an option of {groupProperty.name} a target date in{" "}
             <Link href={settings}>Settings</Link>.
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A release made where releases are seen. It is the board's new column with a
+ * target date: the same route, and Enter, as a column is added. A row needs a
+ * target to be drawn, so both boxes are asked for.
+ */
+function AddRelease({ first }: { first: boolean }) {
+  const add = useAddOption();
+  const [name, setName] = useState("");
+  const [target, setTarget] = useState("");
+  const saving = useRef(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const targetRef = useRef<HTMLInputElement>(null);
+
+  async function commit() {
+    if (saving.current) return;
+    const trimmed = name.trim();
+    if (!trimmed) return nameRef.current?.focus();
+    if (!target) return targetRef.current?.focus();
+    saving.current = true;
+    try {
+      if (await add(trimmed, { targetAt: target })) {
+        setName("");
+        setTarget("");
+        nameRef.current?.focus();
+      }
+    } finally {
+      saving.current = false;
+    }
+  }
+
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void commit();
+    }
+  };
+
+  return (
+    <div className={styles.roadmapAdd} data-testid="roadmap-add">
+      <span className={styles.roadmapAddSaid}>{first ? "No release yet" : "Add a release"}</span>
+      <input
+        ref={nameRef}
+        className={styles.roadmapAddBox}
+        aria-label="Name of the release"
+        placeholder="Name"
+        maxLength={40}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={onKeyDown}
+      />
+      <input
+        ref={targetRef}
+        type="date"
+        className={styles.roadmapAddBox}
+        aria-label="Target date of the release"
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+        onKeyDown={onKeyDown}
+      />
     </div>
   );
 }

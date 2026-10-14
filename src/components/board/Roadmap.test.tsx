@@ -34,8 +34,8 @@ function plus(day: string, days: number): string {
 }
 
 /*
- * The spec's Version select: Ghost has a target and nothing to start it by,
- * Beta is open around today, Alpha shipped, and Someday has no target. The
+ * The spec's Version select, less Ghost's target: Beta is open around today,
+ * Alpha shipped, and Ghost and Someday have no target. The
  * view open is a roadmap of it, called Plan.
  */
 function versions(): BoardData {
@@ -63,7 +63,7 @@ function versions(): BoardData {
     position: "a",
     config: {},
     options: [
-      option("Ghost", "a", { targetAt: plus(today, 30) }),
+      option("Ghost", "a", {}),
       option("Beta", "b", { startAt: plus(today, -10), targetAt: plus(today, 20) }),
       option("Alpha", "c", {
         startAt: plus(today, -40),
@@ -117,7 +117,6 @@ describe("A roadmap", () => {
      `roadmap.test.ts`, and what the board sends of it the route test. */
   test("a shipped option keeps its start in its archived work, and a filter takes rows away", async () => {
     const data = versions();
-    versionOf(data, "Ghost").targetAt = null;
     versionOf(data, "Alpha").startAt = null;
     archivedUnder(data, "Alpha", "Done work");
     const { ring } = await renderWithBoard(<BoardShell initialTask={null} />, data);
@@ -269,5 +268,83 @@ describe("A roadmap", () => {
     expect(overflow()).toBe(0);
     await panel().getByRole("button", { name: "Close Beta" }).click();
     await gone(panel());
+  });
+
+  /* A release is made where releases are seen, with Enter, as a column is. */
+  describe("a release made on the roadmap", () => {
+    const OPTIONS = /^\/api\/properties\/[0-9a-f-]+\/options$/;
+    /** Answers the option route as the server does, with the option it made. */
+    const made: Parameters<typeof renderWithBoard>[2] = ({ method, path, body }) => {
+      if (method !== "POST" || !OPTIONS.test(path)) return;
+      const { name, targetAt } = body as { name: string; targetAt: string };
+      const option = {
+        id: crypto.randomUUID(),
+        name,
+        color: "#3fb0c8",
+        position: "z",
+        startAt: null,
+        targetAt,
+        shippedAt: null,
+        note: null,
+      };
+      return { status: 201, body: { option } };
+    };
+    const nameBox = () => page.getByRole("textbox", { name: "Name of the release" });
+    const targetBox = () => page.getByLabelText("Target date of the release");
+
+    async function addRelease(name: string, target: string) {
+      await nameBox().fill(name);
+      await targetBox().fill(target);
+      await userEvent.keyboard("{Enter}");
+    }
+
+    test("a roadmap with no release shows No release yet, and Enter makes one", async () => {
+      const data = versions();
+      propertyOf(data, "Version").options = [];
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, made);
+
+      await says(byTestId("roadmap-add"), "No release yet");
+      expect(rows().elements()).toHaveLength(0);
+      const target = plus(data.today, 14);
+      await addRelease("1.0", target);
+
+      await expect.poll(() => rows().elements()).toHaveLength(1);
+      await says(rows().first(), "1.0");
+      const posts = sent("POST", OPTIONS);
+      expect(posts).toHaveLength(1);
+      expect(posts[0].body).toEqual({ name: "1.0", targetAt: target });
+      // The row it drew takes the place of the blank: the next one is added below.
+      await says(byTestId("roadmap-add"), "Add a release");
+      await expect.element(nameBox()).toHaveValue("");
+    });
+
+    test("a roadmap with releases ends with Add a release, for a member too", async () => {
+      const data = versions();
+      data.project.role = "member";
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, made);
+
+      await expect.poll(() => rows().elements()).toHaveLength(2);
+      await says(byTestId("roadmap-add"), "Add a release");
+      // A name with no date would draw no row, so Enter asks for the date.
+      await nameBox().fill("2.0");
+      await userEvent.keyboard("{Enter}");
+      await expect.element(targetBox()).toHaveFocus();
+      expect(sent("POST", OPTIONS)).toHaveLength(0);
+
+      await targetBox().fill(plus(data.today, 60));
+      await userEvent.keyboard("{Enter}");
+      await expect.poll(() => rows().elements()).toHaveLength(3);
+      await says(rows().filter({ hasText: "2.0" }), "0 of 0");
+      expect(sent("POST", OPTIONS)).toHaveLength(1);
+    });
+
+    test("a sprint roadmap offers no add row", async () => {
+      const data = versions();
+      propertyOf(data, "Version").type = "iteration";
+      await renderWithBoard(<BoardShell initialTask={null} />, data, made);
+
+      await expect.poll(() => rows().elements()).toHaveLength(2);
+      await gone(byTestId("roadmap-add"));
+    });
   });
 });

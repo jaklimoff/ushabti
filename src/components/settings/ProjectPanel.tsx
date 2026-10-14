@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
@@ -75,6 +76,10 @@ export function ProjectPanel({ files }: { files: boolean }) {
   /* A press waits for its answer, so a second press cannot flip it back. */
   const [switching, setSwitching] = useState(false);
   const release = data.properties.find((p) => p.id === data.project.releaseBy) ?? null;
+  /* Where releases are seen, and made: a roadmap drawn by the release select. */
+  const roadmap = release
+    ? data.views.find((v) => v.kind === "roadmap" && v.groupById === release.id)
+    : undefined;
   const sprint = data.properties.find((p) => p.id === data.project.sprintBy) ?? null;
   const releasesOff = useConfirm();
   const sprintsOff = useConfirm();
@@ -510,6 +515,16 @@ export function ProjectPanel({ files }: { files: boolean }) {
                       <>
                         Releases are the options of <b>{release.name}</b>. Each one has dates,
                         ships, and has a bar on the roadmap.
+                        {roadmap && (
+                          <>
+                            {" "}
+                            Add them on{" "}
+                            <Link href={`/p/${data.project.id}?view=${roadmap.id}`}>
+                              {roadmap.name}
+                            </Link>
+                            .
+                          </>
+                        )}
                       </>
                     ) : (
                       <>

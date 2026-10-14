@@ -209,6 +209,23 @@ function releasesOn() {
   return { ...data, project: { ...data.project, releaseBy: select.id } };
 }
 
+test("the note under Use releases, when on, links to the roadmap", async () => {
+  const data = releasesOn();
+  const roadmap = {
+    ...data.views[0],
+    id: crypto.randomUUID(),
+    name: "Roadmap",
+    kind: "roadmap" as const,
+    groupById: data.project.releaseBy,
+    isDefault: false,
+  };
+  data.views.push(roadmap);
+  await renderWithBoard(<ProjectPanel files={false} />, data);
+  const link = page.getByRole("link", { name: "Roadmap", exact: true });
+  await expect.element(link).toBeVisible();
+  await expect.element(link).toHaveAttribute("href", `/p/${data.project.id}?view=${roadmap.id}`);
+});
+
 describe("Changelog", () => {
   afterEach(async () => {
     await page.viewport(1440, 900);

@@ -289,7 +289,12 @@ type Store = {
    */
   moveView: (viewId: string, overId: string) => Promise<void>;
 
-  addOption: (propertyId: string, name: string) => Promise<string | null>;
+  /** Makes an option. A release made on the roadmap sends its target with it. */
+  addOption: (
+    propertyId: string,
+    name: string,
+    dates?: { targetAt: string },
+  ) => Promise<string | null>;
   patchOption: (
     optionId: string,
     patch: { name?: string; color?: string; afterId?: string | null } & Partial<OptionDates>,
@@ -1553,11 +1558,11 @@ export function BoardProvider({
 
   /* --- properties and options ----------------------------------------- */
   const addOption = useCallback<Store["addOption"]>(
-    async (propertyId, name) => {
+    async (propertyId, name, dates) => {
       try {
         const { option } = await tracked.post<{ option: PropertyDTO["options"][number] }>(
           `/api/properties/${propertyId}/options`,
-          { name },
+          { name, ...dates },
         );
         setData((current) => ({
           ...current,

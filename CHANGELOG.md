@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A release is made on the roadmap.** A roadmap with no release says so and asks for a
+  name and a target date; Enter makes it. A roadmap with releases ends with an Add a release
+  row. The note under Use releases links to the roadmap. A sprint roadmap offers none, since
+  its sprints come from the cadence. A first release with no start and no task now starts
+  today, so it draws the moment it is made.
+
 ## 0.24.2 — 2026-10-12
 
 ### Fixed

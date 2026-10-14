@@ -47,8 +47,9 @@ import { canManage } from "@/lib/roles";
 import { closes, endedSaid, nextOpenOption, shipSaid } from "@/lib/ship";
 import { readCadence, sprintAfter } from "@/lib/cadence";
 import { sortTasks } from "@/lib/sort";
-import type { FilterRule, PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
+import type { PropertyDTO, TaskDTO, TaskValue } from "@/lib/types";
 import { useBoard } from "./store";
+import { useAddOption } from "./useAddOption";
 import {
   COLUMN_PREFIX,
   CONTAINER_PREFIX,
@@ -888,7 +889,8 @@ export function BoardCanvas({
 }
 
 function AddColumn() {
-  const { groupProperty, viewFilters, lens, addOption, setFilters, setLens } = useBoard();
+  const { groupProperty } = useBoard();
+  const add = useAddOption();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
@@ -898,30 +900,7 @@ function AddColumn() {
     const trimmed = name.trim();
     setName("");
     setAdding(false);
-    if (!trimmed || !groupProperty) return;
-    const optionId = await addOption(groupProperty.id, trimmed);
-
-    /*
-     * A rule about the grouping property decides the columns, so a column made
-     * under one would fail it and vanish the moment it was named. Nobody makes
-     * a column in order not to see it: the new option joins the rule instead.
-     *
-     * Whichever set the rule is in is the set that is written. A rule of the
-     * view is the team's, so the column joins it for everybody; a rule of mine
-     * is mine, and the view is not touched.
-     */
-    if (!optionId) return;
-    const join = (rules: FilterRule[]) =>
-      rules.map((rule) =>
-        rule.propertyId === groupProperty.id && rule.op === "is"
-          ? { ...rule, values: [...(rule.values ?? []), optionId] }
-          : rule,
-      );
-
-    const onView = join(viewFilters.rules);
-    if (onView.some((rule, i) => rule !== viewFilters.rules[i])) await setFilters(onView);
-    const mine = join(lens.rules);
-    if (mine.some((rule, i) => rule !== lens.rules[i])) await setLens(mine);
+    if (trimmed) await add(trimmed);
   }
 
   return (

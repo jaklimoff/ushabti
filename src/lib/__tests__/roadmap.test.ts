@@ -49,11 +49,13 @@ describe("roadmapRows", () => {
     expect(roadmapRows(property, tasks, tasks, rule, "Europe/Berlin")[0].start).toBe("2026-09-05");
   });
 
-  it("leaves out a dated option with no start and no task", () => {
+  it("starts a dated option with no start and no task today, or at its target if sooner", () => {
     const property = release([option("v1", { targetAt: "2026-09-30" })]);
-    expect(roadmapRows(property, [task("v2", "2026-09-01T00:00:00Z")], [], rule, "UTC")).toEqual(
-      [],
-    );
+    const tasks = [task("v2", "2026-09-01T00:00:00Z")];
+    const [row] = roadmapRows(property, tasks, [], rule, "UTC", {}, "2026-09-10");
+    expect([row.start, row.end]).toEqual(["2026-09-10", "2026-09-30"]);
+    const [late] = roadmapRows(property, tasks, [], rule, "UTC", {}, "2026-10-10");
+    expect([late.start, late.end]).toEqual(["2026-09-30", "2026-09-30"]);
   });
 
   it("fills by the progress of the tasks the filters left", () => {
@@ -159,8 +161,12 @@ describe("a shipped option, whose work the ship archived", () => {
     expect(rows.find((r) => r.id === "v1")?.start).toBe("2026-08-20");
   });
 
-  it("is not drawn without them, while the option after it starts from its target", () => {
-    expect(roadmapRows(property, [], [], rule, "UTC").map((r) => r.id)).toEqual(["v2"]);
+  it("is one day on its ship day without them, and the option after it starts from its target", () => {
+    const rows = roadmapRows(property, [], [], rule, "UTC", {}, "2026-10-14");
+    expect(rows.map((r) => [r.id, r.start, r.end])).toEqual([
+      ["v2", "2026-10-01", "2026-10-31"],
+      ["v1", "2026-09-29", "2026-09-29"],
+    ]);
   });
 });
 
