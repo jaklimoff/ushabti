@@ -2937,6 +2937,39 @@ button.listHeadCell:focus-visible {
   text-overflow: ellipsis;
 }
 
+/* Ship sits at the end of the name, where the release is read. */
+.roadmapShip {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: var(--t-micro);
+  color: var(--muted);
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.roadmapShip:hover,
+.roadmapShip[aria-expanded="true"] {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* The question opens under its row. It is held at the left as the names
+   are, so a roadmap scrolled to next month still shows it whole. */
+.roadmapAsk {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  width: min(560px, 100%);
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--line-faint);
+}
+
 .roadmapTrack {
   position: relative;
   flex: 0 0 var(--rm-track);

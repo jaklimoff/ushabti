@@ -15,6 +15,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   row. The note under Use releases links to the roadmap. A sprint roadmap offers none, since
   its sprints come from the cadence. A first release with no start and no task now starts
   today, so it draws the moment it is made.
+- **Ship sits on the roadmap row too.** An open release with a target offers Ship on its
+  row, to the same people and with the same question as the column header. When the
+  project has no Done when, both say that nothing counts as over yet and point to
+  Settings → Project, instead of offering to archive nothing.
 
 ## 0.24.2 — 2026-10-12
 

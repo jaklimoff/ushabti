@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDroppable } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -24,6 +25,7 @@ import type { PropertyOptionDTO, TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { MentionList, useMentions } from "./Mentions";
 import { TaskCard } from "./TaskCard";
+import { useBoard } from "./store";
 import styles from "./board.module.css";
 
 export const COLUMN_PREFIX = "column:";
@@ -289,9 +291,11 @@ export function Column({
           screen behind it: they are what the number counts. */}
       {shipAsk.asking && ship ? (
         <ShipQuestion
-          column={column}
-          rule={rule}
+          name={column.name}
+          tasks={column.tasks}
+          doneWhen={rule.doneWhen}
           ship={ship}
+          className={`${styles.colHead} ${styles.colHeadAsking}`}
           onCancel={shipAsk.cancel}
           onPick={(rest) =>
             shipAsk.confirm(() => {
@@ -487,36 +491,53 @@ export function Column({
 }
 
 /**
- * The header become the question a ship asks. It names both numbers from the
- * cards on screen, which are the whole column, and each answer about the rest
- * is its own button, so one press both answers and confirms.
+ * The question a ship asks, where the ship was pressed: the column header or
+ * the roadmap row becomes it. It names both numbers from the tasks of the
+ * option, which are all of them, and each answer about the rest is its own
+ * button, so one press both answers and confirms. With no Done when nothing
+ * can be over, so it says so and offers the way to Settings instead.
  */
-function ShipQuestion({
-  column,
-  rule,
+export function ShipQuestion({
+  name,
+  tasks,
+  doneWhen,
   ship,
+  className,
   onPick,
   onCancel,
 }: {
-  column: BoardColumn;
-  rule: ProgressRule;
+  name: string;
+  tasks: TaskDTO[];
+  doneWhen: DoneWhen | null;
   ship: ShipOffer;
+  className: string;
   onPick: (rest: ShipRest) => void;
   onCancel: () => void;
 }) {
-  const { over, rest } = splitShip(column.tasks, rule.doneWhen);
+  const { data } = useBoard();
+  const { over, rest } = splitShip(tasks, doneWhen);
+  const counts = !!doneWhen || ship.closing;
   /* With nothing left over there is nothing to decide about it. */
-  const answers: ShipRest[] = rest.length ? shipRestsFor(ship.nextName !== null) : ["leave"];
+  const answers: ShipRest[] = !counts
+    ? []
+    : rest.length
+      ? shipRestsFor(ship.nextName !== null)
+      : ["leave"];
   return (
-    <div
-      className={`${styles.colHead} ${styles.colHeadAsking}`}
-      role="alertdialog"
-      aria-label={`${shipWord(ship.closing)} ${column.name}`}
-    >
+    <div className={className} role="alertdialog" aria-label={`${shipWord(ship.closing)} ${name}`}>
       <span className={styles.colConfirm} data-testid="ship-confirm">
-        {shipQuestion(column.name, over.length, rest.length, ship.closing)}
-        {rest.length > 0 && " What happens to them?"}
+        {shipQuestion(name, over.length, rest.length, ship.closing, counts)}
+        {counts && rest.length > 0 && " What happens to them?"}
       </span>
+      {!counts && (
+        <Link
+          className={`${styles.colConfirmYes} ${styles.colShipAnswer}`}
+          href={`/p/${data.project.id}/settings/project`}
+          autoFocus
+        >
+          Open Settings
+        </Link>
+      )}
       {answers.map((answer, i) => (
         <button
           key={answer}

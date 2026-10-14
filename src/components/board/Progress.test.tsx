@@ -324,6 +324,28 @@ describe("Ship on a column", () => {
     expect(ships[0].body).toEqual({ rest: "clear" });
   });
 
+  test("with no Done when, the header says nothing counts as over and sends no ship", async () => {
+    const data = shipBoard();
+    data.project.doneWhen = null;
+    const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+
+    await column("v1").getByRole("button", { name: "Ship v1" }).click();
+    const ask = page.getByRole("alertdialog", { name: "Ship v1" });
+    await expect
+      .element(ask.getByTestId("ship-confirm"))
+      .toHaveTextContent(
+        "Nothing counts as over yet. Say which Status means done in Settings → Project.",
+      );
+    // No answer is offered, so nothing can ship from here.
+    expect(buttons("Ship v1")).toEqual(["Cancel"]);
+    await expect
+      .element(ask.getByRole("link", { name: "Open Settings" }))
+      .toHaveAttribute("href", `/p/${data.project.id}/settings/project`);
+    await ask.getByRole("button", { name: "Cancel" }).click();
+    await gone(ask);
+    expect(sent("POST", /\/ship$/)).toHaveLength(0);
+  });
+
   test("a filter or a member's role takes Ship away", async () => {
     const owner = await renderWithBoard(<BoardShell initialTask={null} />, shipBoard());
 

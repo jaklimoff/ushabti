@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
 import type { BoardData, PropertyDTO } from "@/lib/types";
-import { detailOf, newProject, propertyOf, renderWithBoard, withTask } from "@/test/board";
+import { shipQuestion } from "@/lib/ship";
+import {
+  detailOf,
+  newProject,
+  optionOf,
+  propertyOf,
+  renderWithBoard,
+  withTask,
+} from "@/test/board";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -345,6 +353,118 @@ describe("A roadmap", () => {
 
       await expect.poll(() => rows().elements()).toHaveLength(2);
       await gone(byTestId("roadmap-add"));
+    });
+  });
+
+  /*
+   * Ship where the release is seen. The question, the answers and the route
+   * are the column header's; what a ship writes is `release-route.test.ts`,
+   * and the end to end walk is `e2e/ship.spec.ts`.
+   */
+  describe("Ship on a roadmap row", () => {
+    /* Beta holds two tasks that are over and one that is not, and the
+       project says Shipped means done. */
+    function shipPlan(): BoardData {
+      const data = versions();
+      data.project.doneWhen = {
+        propertyId: propertyOf(data, "Status").id,
+        optionIds: [optionOf(data, "Status", "Shipped")],
+      };
+      withTask(data, "Alpha task", { Version: "Beta", Status: "Shipped" });
+      withTask(data, "Bravo task", { Version: "Beta", Status: "Shipped" });
+      withTask(data, "Charlie task", { Version: "Beta", Status: "Backlog" });
+      return data;
+    }
+    const row = (name: string) => rows().filter({ hasText: name });
+    const ask = (name: string) => page.getByRole("alertdialog", { name: `Ship ${name}` });
+    const answers = (name: string) =>
+      ask(name)
+        .getByRole("button")
+        .elements()
+        .map((b) => b.textContent);
+
+    test("an open row offers Ship and asks the column's question; a shipped row offers none", async () => {
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, shipPlan());
+
+      await expect.element(row("Beta").getByTestId("roadmap-ship")).toBeVisible();
+      await gone(row("Alpha").getByTestId("roadmap-ship"));
+
+      await row("Beta").getByRole("button", { name: "Ship Beta" }).click();
+      await expect
+        .element(ask("Beta").getByTestId("ship-confirm"))
+        .toHaveTextContent(`${shipQuestion("Beta", 2, 1)} What happens to them?`);
+      // Someday is the next option, so Move is offered, as on the column.
+      expect(answers("Beta")).toEqual([
+        "Move to the next option",
+        "Leave them",
+        "Clear the value",
+        "Cancel",
+      ]);
+      await ask("Beta").getByRole("button", { name: "Cancel" }).click();
+      await gone(ask("Beta"));
+      expect(sent("POST", /\/ship$/)).toHaveLength(0);
+    });
+
+    test("a press sends the column's route, and the shipped row offers no Ship", async () => {
+      const data = shipPlan();
+      const beta = versionOf(data, "Beta");
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, (s) => {
+        if (s.method !== "POST" || !s.path.endsWith("/ship")) return;
+        beta.shippedAt = data.today;
+        data.tasks = data.tasks.filter((t) => t.title !== "Alpha task" && t.title !== "Bravo task");
+        return { body: { archived: 2, moved: 0, rest: "leave", shippedAt: data.today } };
+      });
+
+      await row("Beta").getByRole("button", { name: "Ship Beta" }).click();
+      await ask("Beta").getByRole("button", { name: "Leave them" }).click();
+
+      await expect.poll(() => sent("POST", /\/ship$/).length).toBe(1);
+      const ship = sent("POST", /\/ship$/)[0];
+      expect(ship.path).toBe(`/api/options/${beta.id}/ship`);
+      expect(ship.body).toEqual({ rest: "leave" });
+      await says(row("Beta"), "Shipped");
+      await gone(row("Beta").getByTestId("roadmap-ship"));
+    });
+
+    test("with no Done when, the row says nothing counts as over and sends no ship", async () => {
+      const data = shipPlan();
+      data.project.doneWhen = null;
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+
+      await row("Beta").getByRole("button", { name: "Ship Beta" }).click();
+      await expect
+        .element(ask("Beta").getByTestId("ship-confirm"))
+        .toHaveTextContent(
+          "Nothing counts as over yet. Say which Status means done in Settings → Project.",
+        );
+      expect(answers("Beta")).toEqual(["Cancel"]);
+      await expect
+        .element(ask("Beta").getByRole("link", { name: "Open Settings" }))
+        .toHaveAttribute("href", `/p/${data.project.id}/settings/project`);
+      expect(sent("POST", /\/ship$/)).toHaveLength(0);
+    });
+
+    test("a member or a filter takes Ship away", async () => {
+      const data = shipPlan();
+      data.project = { ...data.project, role: "member" };
+      const member = await renderWithBoard(<BoardShell initialTask={null} />, data);
+      await says(row("Beta"), "Beta");
+      await gone(row("Beta").getByTestId("roadmap-ship"));
+      await member.screen.unmount();
+
+      const filtered = shipPlan();
+      filtered.views.find((v) => v.name === "Plan")!.filters = {
+        rules: [
+          {
+            propertyId: propertyOf(filtered, "Status").id,
+            op: "is",
+            values: [optionOf(filtered, "Status", "Shipped")],
+          },
+        ],
+      };
+      await renderWithBoard(<BoardShell initialTask={null} />, filtered);
+      await says(row("Beta"), "Beta");
+      await gone(row("Beta").getByTestId("roadmap-ship"));
     });
   });
 });

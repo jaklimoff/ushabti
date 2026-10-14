@@ -90,8 +90,26 @@ export function splitShip<T extends OverTask & { id: string }>(
   return { over, rest };
 }
 
-/** The question the column header asks, in real numbers. */
-export function shipQuestion(name: string, over: number, rest: number, closing = false): string {
+/**
+ * What a ship says when the project has no Done when. Nothing can be over
+ * then, so the question would offer to archive nothing.
+ */
+export const NOTHING_OVER =
+  "Nothing counts as over yet. Say which Status means done in Settings → Project.";
+
+/**
+ * The question a ship asks, in real numbers. `counts` is false when the
+ * project has no Done when: a release then says why it would archive nothing
+ * instead of asking. A sprint archives nothing anyway, so it still asks.
+ */
+export function shipQuestion(
+  name: string,
+  over: number,
+  rest: number,
+  closing = false,
+  counts = true,
+): string {
+  if (!closing && !counts) return NOTHING_OVER;
   const tasks = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;
   const left = rest === 0 ? "" : ` ${tasks(rest)} ${rest === 1 ? "is" : "are"} not over.`;
   if (closing) {

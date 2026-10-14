@@ -107,6 +107,16 @@ describe("the question", () => {
     );
     expect(shipQuestion("Sprint 14", 0, 1, true)).toBe("Close Sprint 14? 1 task is not over.");
   });
+
+  it("says nothing counts as over when the project has no Done when", () => {
+    expect(shipQuestion("v1", 0, 4, false, false)).toBe(
+      "Nothing counts as over yet. Say which Status means done in Settings → Project.",
+    );
+    /* A sprint archives nothing, so it still asks. */
+    expect(shipQuestion("Sprint 14", 0, 1, true, false)).toBe(
+      "Close Sprint 14? 1 task is not over.",
+    );
+  });
 });
 
 describe("a sprint closes; a release ships", () => {
