@@ -16,6 +16,7 @@ before you change the code.
 - A change that a person sees adds or changes an e2e spec that opens that screen: the loop's reviewer sees the screenshots of the specs the task changed. When the end state of the test is not the screen, the spec saves it with `page.screenshot({ path: testInfo.outputPath("seen-<name>.png") })`.
 - Find the place with `grep -n` first, then read only the lines you need. Do not read a file of more than about 300 lines whole.
 - Never touch `infra/`, production or a deploy.
+- Keep your plan in meta. At the start, run `setmaat meta set plan="[ ] step one; [ ] step two; ..."` with at most 8 steps. Each time you finish a step, set the whole plan again with that step as `[x]`. The dashboard shows it as a live checklist.
 
 ## When you prove it
 
