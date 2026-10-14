@@ -1,14 +1,14 @@
 import { describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { AgentDTO, BoardData } from "@/lib/types";
-import { newProject, renderWithBoard, type Answer, type Sent } from "@/test/board";
+import { newProject, renderWithBoard, withPerson, type Answer, type Sent } from "@/test/board";
 import { PeoplePanel } from "./PeoplePanel";
 
 /*
- * What the Agents part of Settings -> People draws, and what a press sends.
- * Each test here was a test of `e2e/agents.spec.ts`, `e2e/agent-face.spec.ts`
- * or `e2e/agent-rename.spec.ts`. Who may make each change, and what the server
- * keeps, are the route tests' half.
+ * What Settings -> People draws, and what a press sends. Each test here was a
+ * test of `e2e/agents.spec.ts`, `e2e/agent-face.spec.ts`,
+ * `e2e/agent-rename.spec.ts` or, for the members, `e2e/roles.spec.ts`. Who may
+ * make each change, and what the server keeps, are the route tests' half.
  */
 
 const AGENT = /^\/api\/projects\/[0-9a-f-]+\/agents\/[0-9a-f-]+$/;
@@ -241,5 +241,54 @@ describe("Agents in Settings -> People", () => {
     // Only a keepalive request outlives the page that sent it.
     const leave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(leave?.[1]?.keepalive).toBe(true);
+  });
+});
+
+describe("Members in Settings -> People", () => {
+  /* The screen half of e2e/roles.spec.ts "make owner asks first and leaves the
+     old owner an admin". What the hand-over writes is `people-route.test.ts`. */
+  test("make owner asks first, and the page holds still at phone width", async () => {
+    const data = newProject();
+    const nia = withPerson(data, "Nia Next");
+    const { sent } = await renderWithBoard(
+      <PeoplePanel mail={false} />,
+      data,
+      ({ method, path }) => {
+        if (path.endsWith("/agents")) return { body: { agents: [] } };
+        // The hand-over as the server makes it, read back by the refresh.
+        if (method === "PATCH" && path.endsWith(`/members/${nia.id}`)) {
+          nia.role = "owner";
+          data.members[0].role = "admin";
+          data.project.role = "admin";
+          data.project.ownerId = nia.id;
+          return { body: {} };
+        }
+      },
+    );
+
+    // The page holds still at phone width with a select on the row.
+    await page.viewport(375, 740);
+    try {
+      const role = page.getByLabelText("Role of Nia Next");
+      await expect.element(role).toBeVisible();
+      const doc = document.documentElement;
+      expect(doc.scrollWidth - doc.clientWidth).toBeLessThanOrEqual(0);
+      await expect.element(page.getByLabelText("Role of Ada Tester")).not.toBeInTheDocument();
+
+      await role.click();
+      await page.getByRole("option", { name: "owner", exact: true }).click();
+      await expect
+        .element(page.getByText("Make Nia Next the owner? You become an admin."))
+        .toBeVisible();
+      expect(sent("PATCH")).toEqual([]);
+      await page.getByRole("button", { name: "Yes, make owner" }).click();
+      await expect.poll(() => sent("PATCH").map((s) => s.body)).toEqual([{ role: "owner" }]);
+
+      // Nobody can change the owner's role, and the old owner cannot change their own.
+      await expect.element(page.getByLabelText("Role of Nia Next")).not.toBeInTheDocument();
+      await expect.element(page.getByLabelText("Role of Ada Tester")).not.toBeInTheDocument();
+    } finally {
+      await page.viewport(1440, 900);
+    }
   });
 });
