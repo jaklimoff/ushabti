@@ -181,8 +181,8 @@ export function TaskPanel({
   /*
    * An archived task has no card, and its panel still opens: a link and a
    * search hit both end here. The board carries every task either way — a card
-   * in `tasks`, or the lighter row in `archived` that holds the key, the title
-   * and the description.
+   * in `tasks`, or the lighter row in `archived` that holds the key and the
+   * title.
    *
    * So the panel asks the board first and the answer it fetched second. The
    * board is the part the stream keeps fresh, which settles both halves of
@@ -207,8 +207,9 @@ export function TaskPanel({
     return {
       key: row.key,
       title: row.title,
-      description: row.description,
-      /* An archived row carries no values. The detail does. */
+      /* An archived row carries no values and no description. The detail
+         does. */
+      description: liveTask?.description ?? detail?.description ?? "",
       values: boardTask?.values ?? {},
       archivedAt: row.archivedAt ?? null,
     };

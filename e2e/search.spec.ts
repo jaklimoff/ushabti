@@ -60,3 +60,47 @@ test.describe("Finding a task", () => {
     await expect(hits(page).first()).toContainText("The one we want");
   });
 });
+
+/*
+ * The board read carries an archived task without its description, and the
+ * server looks through those words instead. Only a real database runs the
+ * query, so this one stays end to end.
+ */
+test("finds an archived task by a word in its description", async ({ page }, testInfo) => {
+  await register(page);
+  const projectId = await createProject(page, unique("Shelf"));
+
+  const make = async (title: string, description: string) => {
+    const made = await page.request.post(`/api/projects/${projectId}/tasks`, {
+      data: { title, description, values: {} },
+    });
+    expect(made.ok()).toBeTruthy();
+    return (await made.json()).task as { id: string };
+  };
+  await make("Open work on the queue", "");
+  const old = await make("Long gone", "First line.\nThe queue survives a reload.");
+  await make("Also gone", "Nothing to see.");
+  expect((await page.request.post(`/api/tasks/${old.id}/archive`)).ok()).toBeTruthy();
+
+  const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+  const shelved = board.archived.find((t: { id: string }) => t.id === old.id);
+  expect(shelved.title).toBe("Long gone");
+  expect(shelved).not.toHaveProperty("description");
+
+  await page.reload();
+  await find(page, "queue survives");
+  await expect(hits(page)).toHaveCount(1);
+  await expect(hits(page).first()).toContainText("Long gone");
+  await expect(hits(page).first()).toContainText("archived");
+  await expect(hits(page).first()).toContainText("The queue survives a reload.");
+
+  // The open task the title answers comes first; the archived one joins below.
+  await find(page, "queue");
+  await expect(hits(page)).toHaveCount(2);
+  await expect(hits(page).nth(0)).toContainText("Open work on the queue");
+  await expect(hits(page).nth(1)).toContainText("Long gone");
+  await page.screenshot({ path: testInfo.outputPath("seen-archived-search.png") });
+
+  await hits(page).nth(1).click();
+  await expect(page.getByTestId("task-title")).toHaveValue("Long gone");
+});

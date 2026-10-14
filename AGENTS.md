@@ -262,7 +262,11 @@ and what is easy to get wrong.
   sent them — paste it in, open the task — stops working on any filtered
   board. What is owed instead is a word on the row: a hit the view is not
   drawing says so. The box sits in the top bar and not in the view strip for
-  the same reason; the strip holds what belongs to a view.
+  the same reason; the strip holds what belongs to a view. The board carries
+  an archived task without its description, so `searchArchived()` looks
+  through those on the server, and `joinArchived()` puts what it finds under
+  the browser's hits: a description-only archived hit is the last rank there
+  is, so it can arrive late without moving the row under the cursor.
 - **A filter is read afresh, never cleaned up.** Nothing rewrites a view when
   the property or the option one of its rules names is deleted, so a saved rule
   can point at nothing. `readFilters()` throws those away every time the board

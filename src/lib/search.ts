@@ -8,16 +8,22 @@ import type { TaskDTO, TaskValue } from "./types";
  * carries no `updatedAt`, because its `archivedAt` is the last thing that
  * happened to it, and no `values`, because it is over whatever they say.
  */
-export type Searchable = Pick<
-  TaskDTO,
-  "id" | "number" | "key" | "title" | "description" | "position"
-> & { archivedAt?: string | null; updatedAt?: string; values?: Record<string, TaskValue> };
+export type Searchable = Pick<TaskDTO, "id" | "number" | "key" | "title" | "position"> & {
+  /* An archived task comes without one. Its words are searched on the
+     server, by `searchArchived`, and join the list below. */
+  description?: string;
+  archivedAt?: string | null;
+  updatedAt?: string;
+  values?: Record<string, TaskValue>;
+};
 
 /**
  * Finding one task by its key, its title or its words.
  *
- * The whole board is already in the browser — every task, with its description
- * — so nothing is asked of the server and the answer arrives on the keystroke.
+ * The whole board is already in the browser — every live task with its
+ * description, and every archived one without — so the answer arrives on the
+ * keystroke. The descriptions of the archived tasks stay on the server, and
+ * `joinArchived` puts what the server finds in them at the bottom of the list.
  *
  * A search is not a filter, and this is the difference: a filter says which
  * tasks a view shows and everybody sees it, while a search hides nothing,
@@ -87,7 +93,7 @@ function lastChanged(task: Searchable): number {
 }
 
 /** The first line of the description that carries one of the words. */
-function lineWith(description: string, words: string[]): string | null {
+export function lineWith(description: string, words: string[]): string | null {
   for (const line of description.split("\n")) {
     const said = line.trim();
     if (!said) continue;
@@ -141,7 +147,7 @@ export function searchCounted(
   const found: { rank: number; standing: number; hit: SearchHit }[] = [];
   for (const task of tasks) {
     if (leaveOut.has(task.id)) continue;
-    const haystack = `${task.key}\n${task.title}\n${task.description}`.toLowerCase();
+    const haystack = `${task.key}\n${task.title}\n${task.description ?? ""}`.toLowerCase();
     /* Every word has to be somewhere, exactly as every filter rule has to
        pass. A second word narrows the answer; it never widens it. */
     if (!words.every((word) => haystack.includes(word))) continue;
@@ -150,7 +156,7 @@ export function searchCounted(
     found.push({
       rank,
       standing: standing(task, doneWhen),
-      hit: { task, snippet: rank === 4 ? lineWith(task.description, words) : null },
+      hit: { task, snippet: rank === 4 ? lineWith(task.description ?? "", words) : null },
     });
   }
 
@@ -174,4 +180,42 @@ export function searchCounted(
     .slice(0, limit)
     .map((f) => f.hit);
   return { hits, total: found.length };
+}
+
+/** The words of a query, as both halves of a search read them. */
+export function wordsOf(query: string): string[] {
+  const whole = query.trim().toLowerCase();
+  return whole ? whole.split(/\s+/) : [];
+}
+
+/**
+ * What the server found in the descriptions of the archived tasks: only the
+ * ones the browser could not find by the key and the title alone, newest
+ * first, and how many there were in all.
+ */
+export type ArchivedFound = { hits: SearchHit[]; total: number };
+
+/**
+ * The server's half, put under the browser's.
+ *
+ * Every hit the server sends is an archived task found only through its
+ * description, which is the weakest rank and the last standing there is, so
+ * the bottom of the list is exactly where the sort would have put it. That is
+ * also why it can come late: it joins below what is already listed, and the
+ * row under the cursor never moves. A task the browser already lists is not
+ * listed twice, and the count takes in all of them.
+ */
+export function joinArchived(
+  local: SearchResult,
+  found: ArchivedFound | null,
+  limit: number = SEARCH_LIMIT,
+): SearchResult {
+  if (!found || found.total === 0) return local;
+  const listed = new Set(local.hits.map((hit) => hit.task.id));
+  const fresh = found.hits.filter((hit) => !listed.has(hit.task.id));
+  const room = Math.max(0, limit - local.hits.length);
+  return {
+    hits: [...local.hits, ...fresh.slice(0, room)],
+    total: local.total + found.total - (found.hits.length - fresh.length),
+  };
 }

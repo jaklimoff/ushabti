@@ -180,8 +180,11 @@ export type TaskDTO = {
  * It is deliberately not a `TaskDTO`: no values, no checklist and no comment
  * counts. Nothing draws an archived task, so loading those on every board read
  * would be work nobody sees, and a type of its own means no screen can pass one
- * where a card is wanted. What is here is what a search reads — the key, the
- * title and the description — plus the rank it keeps and the moment it went.
+ * where a card is wanted. What is here is what a search reads at once — the
+ * key and the title — plus the rank it keeps and the moment it went. The
+ * description stays on the server: a project with hundreds of archived tasks
+ * sent every one of them on every board read, only for a search to look
+ * through. `GET /api/projects/{id}/search` looks through them there instead.
  * Everything else comes from `GET /api/tasks/{id}`, which the panel asks for
  * anyway.
  */
@@ -190,7 +193,6 @@ export type ArchivedTaskDTO = {
   number: number;
   key: string;
   title: string;
-  description: string;
   position: string;
   archivedAt: string;
 };

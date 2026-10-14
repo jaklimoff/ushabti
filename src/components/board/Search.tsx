@@ -1,8 +1,16 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { hitNote, searchCounted, type Searchable, type SearchHit } from "@/lib/search";
+import { api } from "@/lib/client";
+import {
+  hitNote,
+  joinArchived,
+  searchCounted,
+  type ArchivedFound,
+  type Searchable,
+  type SearchHit,
+} from "@/lib/search";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useHighlightInView } from "./Ask";
 import { useShortcut } from "./keys";
@@ -33,10 +41,55 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
 
   /* The archived tasks join the live ones here and nowhere else on the board.
      A search is what makes an archived task reachable again. */
-  const { hits, total } = useMemo(
+  const local = useMemo(
     () => searchCounted([...data.tasks, ...data.archived], query, data.project.doneWhen),
     [data.archived, data.tasks, data.project.doneWhen, query],
   );
+
+  /*
+   * The board carries an archived task without its description, so the words
+   * in those are asked of the server. The answer is held beside the words it
+   * answers: an answer to words the box no longer holds matches nothing and
+   * is never drawn.
+   */
+  const asked = query.trim().toLowerCase();
+  const askArchive = asked !== "" && data.archived.length > 0;
+  const [found, setFound] = useState<{ asked: string; result: ArchivedFound } | null>(null);
+  useEffect(() => {
+    if (!askArchive) return;
+    let gone = false;
+    /* A short wait, so a word typed fast asks once rather than per key. */
+    const wait = setTimeout(() => {
+      api
+        .get<ArchivedFound>(
+          `/api/projects/${data.project.id}/search?q=${encodeURIComponent(asked)}`,
+        )
+        .catch(() => null)
+        .then((result) => {
+          /* A failed ask finds nothing more; the browser's half still stands. */
+          const sure = Array.isArray(result?.hits) ? result : { hits: [], total: 0 };
+          if (!gone) setFound({ asked, result: sure });
+        });
+    }, 150);
+    return () => {
+      gone = true;
+      clearTimeout(wait);
+    };
+  }, [askArchive, asked, data.project.id]);
+  const answered = askArchive ? (found?.asked === asked ? found.result : null) : null;
+  const looking = askArchive && found?.asked !== asked;
+
+  /* A task put back or deleted since the server answered is no longer an
+     archived hit. */
+  const { hits, total } = useMemo(() => {
+    if (!answered) return local;
+    const still = new Set(data.archived.map((t) => t.id));
+    const kept = answered.hits.filter((hit) => still.has(hit.task.id));
+    return joinArchived(local, {
+      hits: kept,
+      total: answered.total - (answered.hits.length - kept.length),
+    });
+  }, [answered, data.archived, local]);
   /* Which hits the view is drawing. A search reaches past the filter, so it
      owes the person a word about the ones the board behind it is not showing. */
   const shown = useMemo(() => new Set(visibleTasks.map((t) => t.id)), [visibleTasks]);
@@ -132,7 +185,9 @@ export function Search({ onOpenTask }: { onOpenTask: (task: Searchable) => void 
       {listOpen && (
         <div className={`${styles.popover} ${styles.searchPop}`} data-testid="search-hits">
           {hits.length === 0 ? (
-            <span className={styles.filterNote}>No task by those words.</span>
+            <span className={styles.filterNote}>
+              {looking ? "Looking through the archive…" : "No task by those words."}
+            </span>
           ) : (
             <>
               <div className={styles.searchList} role="listbox" id="board-search-hits" ref={list}>

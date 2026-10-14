@@ -34,7 +34,6 @@ test("a key in a description and in a comment opens its task", async () => {
     number: old.number,
     key: old.key,
     title: old.title,
-    description: old.description,
     position: old.position,
     archivedAt: old.archivedAt,
   });

@@ -20,6 +20,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   project has no Done when, both say that nothing counts as over yet and point to
   Settings → Project, instead of offering to archive nothing.
 
+### Changed
+
+- **The board read no longer carries the descriptions of archived tasks.** A project with
+  hundreds of them sent every one on every load and every change. Search still finds an archived
+  task by a word in its description: the server looks, and the hit joins the bottom of the list
+  a moment later, with the line it was found on.
+
 ## 0.24.2 — 2026-10-12
 
 ### Fixed
