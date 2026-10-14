@@ -3016,6 +3016,39 @@ button.listHeadCell:focus-visible {
   pointer-events: none;
 }
 
+/* Held at the left, as the names are, so it never scrolls away with the axis. */
+.roadmapAdd {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: 100%;
+  padding: 10px 14px;
+}
+
+.roadmapAddSaid {
+  font-size: var(--t-body);
+  color: var(--muted);
+}
+
+.roadmapAddBox {
+  border: 0;
+  border-bottom: 1px solid var(--line-menu);
+  outline: 0;
+  padding: 3px 2px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-body);
+}
+
+.roadmapAddBox:focus {
+  border-color: #38505a;
+}
+
 .roadmapBlank {
   padding: 24px 14px;
   font-size: var(--t-body);
@@ -3030,5 +3063,9 @@ button.listHeadCell:focus-visible {
   .roadmapName,
   .roadmapCorner {
     padding: 0 8px 0 10px;
+  }
+
+  .roadmapAdd {
+    padding: 10px;
   }
 }

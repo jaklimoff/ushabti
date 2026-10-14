@@ -24,7 +24,7 @@ function plus(day: string, days: number): string {
  * A Version select with four options: one with a target and nothing to start
  * it by, one open around today, one shipped, and one with no target date.
  * Ghost comes first, because an option after a dated one starts when that one
- * ends; only the first dated option waits for a task to start it.
+ * ends; only the first dated option starts at its oldest task, or today.
  */
 async function versions(page: Page, projectId: string) {
   const made = await page.request.post(`/api/projects/${projectId}/properties`, {
@@ -77,11 +77,12 @@ test.describe("A roadmap", () => {
       await addRoadmap(page, projectId);
 
       const rows = page.getByTestId("roadmap-row");
-      await expect(rows).toHaveCount(2);
-      await expect(rows.nth(0)).toContainText("Beta");
-      await expect(rows.nth(0)).toContainText("0 of 0 tasks done");
-      await expect(rows.nth(1)).toContainText("Alpha");
-      await expect(rows.nth(1)).toContainText("Shipped");
+      await expect(rows).toHaveCount(3);
+      await expect(rows.nth(0)).toContainText("Ghost");
+      await expect(rows.nth(1)).toContainText("Beta");
+      await expect(rows.nth(1)).toContainText("0 of 0 tasks done");
+      await expect(rows.nth(2)).toContainText("Alpha");
+      await expect(rows.nth(2)).toContainText("Shipped");
       await expect(page.getByTestId("roadmap-today")).toBeInViewport();
       await expect(page.getByTestId("roadmap-axis")).toContainText(
         /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+/,
@@ -98,4 +99,33 @@ test.describe("A roadmap", () => {
       expect((await refused.json()).error).toContain('"Plan"');
     },
   );
+});
+
+/*
+ * A release is made where releases are seen. The walk a new project takes:
+ * Use releases, the note's link to the roadmap, and the first release with
+ * Enter. What the row sends, the next row, a member and a sprint roadmap are
+ * `Roadmap.test.tsx`.
+ */
+test("the first release is made on the roadmap the note links to", async ({ page }, testInfo) => {
+  await register(page);
+  const projectId = await createProject(page, unique("Releases"));
+  await page.goto(`/p/${projectId}/settings/project`);
+  await page.getByRole("switch", { name: "Use releases" }).click();
+  await page.getByRole("link", { name: "Roadmap", exact: true }).click();
+
+  await expect(page.getByTestId("roadmap-add")).toContainText("No release yet");
+  const { today } = await boardOf(page, projectId);
+  await page.getByRole("textbox", { name: "Name of the release" }).fill("1.0");
+  await page.getByLabel("Target date of the release").fill(plus(today, 21));
+  await page.getByLabel("Target date of the release").press("Enter");
+
+  const rows = page.getByTestId("roadmap-row");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("1.0");
+  await expect(page.getByTestId("roadmap-add")).toContainText("Add a release");
+  await page.screenshot({ path: testInfo.outputPath("seen-first-release.png") });
+
+  const release = (await boardOf(page, projectId)).properties.find((p) => p.name === "Release")!;
+  expect(release.options.map((o) => o.name)).toEqual(["1.0"]);
 });
