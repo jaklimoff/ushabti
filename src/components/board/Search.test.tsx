@@ -177,3 +177,135 @@ describe("Finding a task", () => {
     await gone(byTestId("search-count"));
   });
 });
+
+/*
+ * The board carries an archived task without its description, so the words in
+ * those are asked of the server, and what it finds joins the bottom of the
+ * list. `held` keeps that answer back until the test lets it go, which is how
+ * an answer arrives late.
+ */
+describe("Finding an archived task", () => {
+  const SEARCH = /^\/api\/projects\/[0-9a-f-]+\/search$/;
+
+  function archive(data: BoardData, title: string) {
+    const number = data.tasks.length + data.archived.length + 1;
+    const row = {
+      id: crypto.randomUUID(),
+      number,
+      key: `${data.project.key}-${number}`,
+      title,
+      position: `a${number}`,
+      archivedAt: "2026-09-01T10:00:00.000Z",
+    };
+    data.archived.push(row);
+    return row;
+  }
+
+  async function drawWith(
+    data: BoardData,
+    found: (q: string) => { hits: { task: unknown; snippet: string | null }[]; total: number },
+  ) {
+    const served = serving(data).answer;
+    let release = () => {};
+    const held = new Promise<void>((done) => (release = done));
+    const asked: string[] = [];
+    const drawn = await renderWithBoard(<BoardShell initialTask={null} />, data, (sent) =>
+      SEARCH.test(sent.path) ? { body: found(sent.query.get("q") ?? "") } : served(sent),
+    );
+    const inner = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (SEARCH.test(new URL(String(input), window.location.origin).pathname)) {
+        asked.push(String(input));
+        await held;
+      }
+      return inner(input, init);
+    };
+    return { drawn, release, asked };
+  }
+
+  test("an archived task is found by its key or its title before the server answers", async () => {
+    const data = newProject();
+    withTask(data, "Open work", { Status: "Todo" });
+    const old = archive(data, "Old passkey work");
+    await drawWith(data, () => ({ hits: [], total: 0 }));
+
+    // The server is held, and the title still finds it.
+    await find("passkey");
+    await hitCount(1);
+    await says(hit("Old passkey work"), "archived");
+
+    await find(old.key);
+    await says(hits().first(), "Old passkey work");
+  });
+
+  test("a word in an archived description is found on the server, with its line", async () => {
+    const data = newProject();
+    const old = archive(data, "Nothing in the title");
+    const { release, asked } = await drawWith(data, (q) => ({
+      hits: q.includes("queue")
+        ? [
+            {
+              task: { ...old },
+              snippet: "The queue survives a reload.",
+            },
+          ]
+        : [],
+      total: q.includes("queue") ? 1 : 0,
+    }));
+
+    await find("queue");
+    await says(byTestId("search-hits"), "Looking through the archive…");
+    release();
+    await hitCount(1);
+    await says(hits().first(), "Nothing in the title");
+    await says(hits().first(), "archived");
+    await says(hits().first(), "The queue survives a reload.");
+    expect(asked.some((url) => url.includes("q=queue"))).toBe(true);
+  });
+
+  test("archived hits from the server sit below the rest, and the count takes them in", async () => {
+    const data = newProject();
+    for (let i = 1; i <= 12; i++) withTask(data, `Queue part ${i}`, { Status: "Todo" });
+    const old = archive(data, "Long gone");
+    const { release } = await drawWith(data, () => ({
+      hits: [{ task: { ...old }, snippet: "the queue" }],
+      total: 3,
+    }));
+
+    await find("queue");
+    await hitCount(12);
+    release();
+    await expect.element(byTestId("search-count")).toHaveTextContent("12 of 15");
+    // The box is full of better hits, so the archived one is counted, not drawn.
+    await gone(hit("Long gone"));
+  });
+
+  test("a late archived hit joins below, and the highlighted row stays where it is", async () => {
+    const data = newProject();
+    withTask(data, "Queue one", { Status: "Todo" });
+    withTask(data, "Queue two", { Status: "Done" });
+    const old = archive(data, "Long gone");
+    const { release } = await drawWith(data, () => ({
+      hits: [{ task: { ...old }, snippet: "the queue" }],
+      total: 1,
+    }));
+
+    await find("queue");
+    await hitCount(2);
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => box().element().getAttribute("aria-activedescendant")).toMatch(/-1$/);
+    await says(hits().nth(1), "Queue two");
+
+    release();
+    await hitCount(3);
+    // Open, then done, then archived.
+    await says(hits().nth(0), "Queue one");
+    await says(hits().nth(1), "Queue two");
+    await says(hits().nth(2), "Long gone");
+    expect(box().element().getAttribute("aria-activedescendant")).toMatch(/-1$/);
+    expect(hits().nth(1).element().getAttribute("aria-selected")).toBe("true");
+
+    await userEvent.keyboard("{Enter}");
+    await expect.element(byTestId("task-title")).toHaveValue("Queue two");
+  });
+});

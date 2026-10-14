@@ -150,8 +150,8 @@ export function linking(data: BoardData) {
       const archivedAt = new Date().toISOString();
       task.archivedAt = archivedAt;
       server.tasks = server.tasks.filter((t) => t.id !== task.id);
-      const { id, number, key, title, description, position } = task;
-      server.archived.push({ id, number, key, title, description, position, archivedAt });
+      const { id, number, key, title, position } = task;
+      server.archived.push({ id, number, key, title, position, archivedAt });
       return { body: { ok: true } };
     }
 

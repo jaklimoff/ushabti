@@ -697,7 +697,6 @@ function archivedTaskRows(projectId: string) {
       id: tasks.id,
       number: tasks.number,
       title: tasks.title,
-      description: tasks.description,
       position: tasks.position,
       archivedAt: tasks.archivedAt,
     })
@@ -1134,7 +1133,6 @@ async function loadProject(
     number: t.number,
     key: `${projectRow.key}-${t.number}`,
     title: t.title,
-    description: t.description,
     position: t.position,
     archivedAt: (t.archivedAt as Date).toISOString(),
   }));

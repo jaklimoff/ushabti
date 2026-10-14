@@ -329,7 +329,6 @@ type Store = {
 function archivedPart(patch: Partial<TaskDTO>): Partial<ArchivedTaskDTO> {
   const next: Partial<ArchivedTaskDTO> = {};
   if (patch.title !== undefined) next.title = patch.title;
-  if (patch.description !== undefined) next.description = patch.description;
   if (patch.position !== undefined) next.position = patch.position;
   return next;
 }
@@ -1050,7 +1049,6 @@ export function BoardProvider({
               number: task.number,
               key: task.key,
               title: task.title,
-              description: task.description,
               position: task.position,
               archivedAt: at,
             },

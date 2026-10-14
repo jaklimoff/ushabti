@@ -106,7 +106,6 @@ function archivedUnder(data: BoardData, option: string, title: string) {
     number,
     key: `${data.project.key}-${number}`,
     title,
-    description: "",
     position: "z",
     archivedAt: "2026-09-25T10:00:00.000Z",
   });

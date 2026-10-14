@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hitNote, searchCounted, searchTasks } from "../search";
+import { hitNote, joinArchived, searchCounted, searchTasks } from "../search";
 import type { TaskDTO } from "../types";
 
 const WHEN = "2026-02-01T00:00:00.000Z";
@@ -262,5 +262,38 @@ describe("searchCounted", () => {
     const { hits, total } = searchCounted(many.slice(0, 3), "checkout");
     expect(hits).toHaveLength(3);
     expect(total).toBe(3);
+  });
+});
+
+describe("joinArchived", () => {
+  const local = searchCounted(TASKS, "the");
+  const gone = (number: number) => ({
+    task: { id: `old-${number}`, number, key: `DP-${number}`, title: "Old", position: "z" },
+    snippet: "the line",
+  });
+
+  it("puts the server's hits under the browser's, and counts them", () => {
+    const joined = joinArchived(local, { hits: [gone(90), gone(91)], total: 5 });
+    expect(joined.hits.slice(0, local.hits.length)).toEqual(local.hits);
+    expect(joined.hits.slice(local.hits.length).map((h) => h.task.key)).toEqual(["DP-90", "DP-91"]);
+    expect(joined.total).toBe(local.total + 5);
+  });
+
+  it("never lists one task twice", () => {
+    const twice = { task: local.hits[0].task, snippet: null };
+    const joined = joinArchived(local, { hits: [twice, gone(90)], total: 2 });
+    expect(joined.hits.filter((h) => h.task.id === twice.task.id)).toHaveLength(1);
+    expect(joined.total).toBe(local.total + 1);
+  });
+
+  it("keeps to the limit, and leaves the browser's half alone without an answer", () => {
+    const full = joinArchived(
+      local,
+      { hits: [gone(90), gone(91)], total: 2 },
+      local.hits.length + 1,
+    );
+    expect(full.hits.map((h) => h.task.key).slice(-1)).toEqual(["DP-90"]);
+    expect(full.total).toBe(local.total + 2);
+    expect(joinArchived(local, null)).toBe(local);
   });
 });

@@ -166,7 +166,6 @@ describe("The drawer on a phone", () => {
       number: archived.number,
       key: archived.key,
       title: archived.title,
-      description: archived.description,
       position: archived.position,
       archivedAt: new Date(Date.now() - 60_000).toISOString(),
     });

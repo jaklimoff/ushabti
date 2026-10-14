@@ -70,7 +70,6 @@ function archive(data: BoardData, ...tasks: TaskDTO[]): TaskDTO[] {
       number: t.number,
       key: t.key,
       title: t.title,
-      description: t.description,
       position: t.position,
       archivedAt,
     });
@@ -97,7 +96,6 @@ function drawing(data: BoardData, shelf: TaskDTO[] = []) {
         number: task.number,
         key: task.key,
         title: task.title,
-        description: task.description,
         position: task.position,
         archivedAt: now,
       });

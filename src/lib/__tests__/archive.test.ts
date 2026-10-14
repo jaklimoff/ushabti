@@ -7,7 +7,6 @@ function row(over: Partial<ArchivedTaskDTO> & { number: number }): ArchivedTaskD
     id: `t-${over.number}`,
     key: `DP-${over.number}`,
     title: "",
-    description: "",
     position: String(over.number).padStart(3, "0"),
     archivedAt: "2026-02-01T00:00:00.000Z",
     ...over,
@@ -63,13 +62,6 @@ describe("narrowArchive", () => {
   it("narrows with every word given", () => {
     expect(keys(narrowArchive(ROWS, "login"))).toEqual(["DP-14"]);
     expect(keys(narrowArchive(ROWS, "login passkey"))).toEqual([]);
-  });
-
-  /* The row draws the key and the title. A hit on a word nobody can see on
-     the page would read as a fault. */
-  it("does not read the description", () => {
-    const rows = [row({ number: 2, title: "Ship it", description: "It needs a passkey." })];
-    expect(keys(narrowArchive(rows, "passkey"))).toEqual([]);
   });
 
   it("keeps the order it was given", () => {
