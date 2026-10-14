@@ -110,7 +110,7 @@ four workers at most.
 
 | Spec | Tests | Plan | Stays | Component | Unit | Route | Drop | Why |
 | --- | --: | --- | --: | --: | --: | --: | --: | --- |
-| `account.spec.ts` | 8 | move | 1 | 6 |  | 1 |  | Each face and password box is a component; one walk keeps the menu route and the board following the name. |
+| `account.spec.ts` | 8 | done (USH-278) | 1 | 7 |  | 3 |  | Each face and password box is a component; one walk keeps the menu route and the board following the name. The two walks became that one. The plan had one route test, but three tests have a server half: the face the API keeps and refuses, the board carrying a face, and the wrong old password. They went to `account-route.test.ts`, the screens to `Account.test.tsx`. |
 | `agent-face.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | Who may change a face is the route's answer; the typed emoji is the box. |
 | `agent-rename.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | The watcher waking on the new name needs the stream and the harness. |
 | `agent-rules.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | The claim carrying the rules is a route; the closed tab is `pagehide` on the box. |
@@ -139,7 +139,7 @@ four workers at most.
 | `export.spec.ts` | 1 | done (USH-282) |  | 1 |  | 1 |  | Who may download is a route answer. The test also has a screen half, the member who sees no Download, which went to `ProjectPanel.test.tsx`. The file is gone. |
 | `filters.spec.ts` | 12 | done (USH-282) | 8 |  |  | 4 |  | Moved 14 to `Filters.test.tsx` in USH-268. The four that call the API go to route tests. Keep the reloads, the closed tab, the two tabs, the deleted option and the zones. The four went to `lens-route.test.ts`. |
 | `forgot.spec.ts` | 1 | keep | 1 |  |  |  |  | Mail runs on the server's environment. |
-| `former.spec.ts` | 3 | move |  | 1 | 1 | 1 |  | `personOf()` and the board read answer for somebody who left. |
+| `former.spec.ts` | 3 | done (USH-278) |  | 2 |  | 2 |  | `personOf()` and the board read answer for somebody who left. The plan had a unit test, but `former.test.ts` already held the columns, the chip and the rejoin; what was left of the filter test is the menu's "Left the project", so it went to `Former.test.tsx` beside the picker. The board read that sends her as former, and again as a member once she rejoins, is `people-route.test.ts`. The file is gone. |
 | `github-step.spec.ts` | 3 | keep | 3 |  |  |  |  | A script against a real server; nothing smaller runs it. |
 | `import.spec.ts` | 4 | done (USH-282) | 1 | 1 |  | 2 |  | Keep one Trello file through the page. The phone is `ImportPanel.test.tsx`, drawn from the planner's own preview of the same file. |
 | `iteration.spec.ts` | 3 | done (USH-276) | 1 | 2 |  |  |  | Keep the walk from grouping to the roadmap. The plan had no route test, but the "is current" rule grouping adds is written by the view route, so that half went to `sprint-route.test.ts`; the picker went to `board/Sprints.test.tsx` and the new Sprint type to `settings/Sprints.test.tsx`. |
@@ -155,7 +155,7 @@ four workers at most.
 | `option-names.spec.ts` | 6 | done (USH-275) | 1 | 2 |  | 3 |  | Keep two creates at once, which needs the real database. |
 | `panel-a11y.spec.ts` | 6 | done (USH-272) | 1 | 5 |  |  |  | Focus and roles are what a component test reads best. The plan moved all six, but the view strip's test carries `@smoke` and stays. |
 | `parents.spec.ts` | 3 | done (USH-281) |  | 2 |  | 2 |  | One level deep is the server's rule, in `links-route.test.ts`; the panel is `TaskLinks.test.tsx`. The plan had one route test, but the count of parts is worked out by the board read, so that test has a server half beside its screen half. The file is gone. |
-| `password-fill.spec.ts` | 3 | move |  | 3 |  |  |  | A value with no event is a box. |
+| `password-fill.spec.ts` | 3 | done (USH-278) | 1 | 2 |  |  |  | A value with no event is a box. The plan moved all three, but the sign-in page's test carries `@smoke` and stays. The reset page went to `AuthForms.test.tsx`, the account page to `Account.test.tsx`. |
 | `pick-labels.spec.ts` | 3 | done (USH-273) |  | 2 |  | 1 |  | The bulk route keeps what it did not change. The bar went to `Pick.test.tsx`, the route to `pick-route.test.ts`, and the file is gone. |
 | `pick.spec.ts` | 18 | done (USH-273) | 1 | 13 |  | 4 |  | Keep one Set on several cards. The 500s and the refusals are route answers. The three 500s, the refused batch among them, went to `pick-route.test.ts` (USH-283), and the agent's refused archive after them. The list under a finger went to `Pick.touch.test.tsx`, drawn in a page made with `hasTouch`. |
 | `presence.spec.ts` | 4 | done (USH-282) | 2 | 1 |  | 1 |  | Two people and a dying tab need the stream. The phone's faces went to `Presence.test.tsx`, spoken through the stubbed stream, and the agent's refusal to `presence-route.test.ts`. |
@@ -163,11 +163,11 @@ four workers at most.
 | `project-waiting.spec.ts` | 2 | done (USH-269) | 1 |  |  | 1 |  | Keep the count that changes live. |
 | `properties.spec.ts` | 13 | done (USH-275) | 2 | 10 |  | 8 |  | Keep making a property and grouping a board by it. The plan kept 1, but the rename of an option carries `@smoke` and stays. Seven component tests that went by a reload have a route half that says what was kept, and the `showOnCard` test went to the route alone. |
 | `rank.spec.ts` | 1 | done (USH-283) |  |  |  | 1 |  | The mend is the create route; `rank.ts` already has unit tests. It went to `rank-route.test.ts`. |
-| `rate-limit.spec.ts` | 1 | move |  |  |  | 1 |  | The limit is the route's answer. |
-| `reset.spec.ts` | 3 | keep | 1 |  |  | 2 |  | Keep the link that works once and signs in. Its count of controls on a dead page reached into the dev server's own shadow root and found Next's button; it asks the document now (USH-283). |
-| `reveal.spec.ts` | 2 | move |  | 2 |  |  |  | The eye is a box. |
+| `rate-limit.spec.ts` | 1 | done (USH-278) |  |  |  | 1 |  | The limit is the route's answer. It went to `account-route.test.ts`. The file is gone. |
+| `reset.spec.ts` | 3 | done (USH-278) | 1 |  |  | 2 |  | Keep the link that works once and signs in. Its count of controls on a dead page reached into the dev server's own shadow root and found Next's button; it asks the document now (USH-283). The sweep of the rows and the feed's record went to `account-route.test.ts`. |
+| `reveal.spec.ts` | 2 | done (USH-278) |  | 2 |  |  |  | The eye is a box. Both went to `AuthForms.test.tsx`. The file is gone. |
 | `roadmap.spec.ts` | 6 | done (USH-280) | 1 | 4 |  | 1 |  | `roadmapRows()` says where a bar starts; the rest is the canvas. The plan kept none, but the first walk carries `@smoke` and stays. The bars of the oldest-task test were already `roadmap.test.ts`, so what it moved is the refused roadmap on a person, a route answer. The archived-start test went to the canvas, with `archivedUnder` as a route half. |
-| `roles.spec.ts` | 3 | move |  | 1 |  | 2 |  | The role rule is the route's; the question before Make owner is a row. |
+| `roles.spec.ts` | 3 | done (USH-278) | 1 | 1 |  | 2 |  | The role rule is the route's; the question before Make owner is a row. The plan moved all three, but the member who deletes nothing carries `@smoke` and stays. The admin's test and the hand-over's rows went to `people-route.test.ts`; the question, at phone width, to `PeoplePanel.test.tsx`. |
 | `run-history.spec.ts` | 2 | done (USH-269) |  | 1 |  | 1 |  | Paging is the route; the panel draws the pages. |
 | `search.spec.ts` | 6 | done (USH-273) | 2 | 4 |  |  |  | The box and its list; `searchTasks()` already has unit tests. The plan moved all six, but the two that find by title and by key carry `@smoke` and stay. |
 | `select-menu.spec.ts` | 3 | done (USH-273) |  | 3 |  |  |  | The menu is a component. A reload there is the server's copy here, drawn again. The file is gone. |
