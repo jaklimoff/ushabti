@@ -119,21 +119,24 @@ describe("The projects on Home", () => {
 
     await userEvent.hover(page.getByText("Task 1"));
     await settled();
-    expect(getComputedStyle(keyOf(1)).backgroundColor).toBe(rgb(keyTint("#f08a7e").background));
-    expect(getComputedStyle(keyOf(1)).color).toBe(rgb(keyTint("#f08a7e").color));
+    await expect
+      .poll(() => getComputedStyle(keyOf(1)).backgroundColor)
+      .toBe(rgb(keyTint("#f08a7e").background));
+    await expect.poll(() => getComputedStyle(keyOf(1)).color).toBe(rgb(keyTint("#f08a7e").color));
     // The other row's key, of another colour, stays grey.
     expect(getComputedStyle(keyOf(2)).color).toBe("rgb(139, 145, 155)");
 
     await userEvent.unhover(page.getByText("Task 1"));
-    await settled();
-    expect(getComputedStyle(keyOf(1)).color).toBe("rgb(139, 145, 155)");
+    await expect.poll(() => getComputedStyle(keyOf(1)).color).toBe("rgb(139, 145, 155)");
 
     (keyOf(1).closest("a") as HTMLElement).focus();
     await userEvent.keyboard("{Tab}");
     await settled();
     expect(document.activeElement).toBe(keyOf(2).closest("a"));
-    expect(getComputedStyle(keyOf(2)).backgroundColor).toBe(rgb(keyTint("#7aa8f0").background));
-    expect(getComputedStyle(keyOf(2)).color).toBe(rgb(keyTint("#7aa8f0").color));
+    await expect
+      .poll(() => getComputedStyle(keyOf(2)).backgroundColor)
+      .toBe(rgb(keyTint("#7aa8f0").background));
+    await expect.poll(() => getComputedStyle(keyOf(2)).color).toBe(rgb(keyTint("#7aa8f0").color));
   });
 
   test("with reduced motion, a list row's key changes colour without a fade", async () => {

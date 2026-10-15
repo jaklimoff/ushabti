@@ -1,7 +1,7 @@
 import { configDefaults, defineConfig } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
-import { commands } from "./src/test/commands";
+import { commands } from "./src/test/commands.ts";
 
 /* The tests drawn in a page with touch. */
 const TOUCH = "src/**/*.touch.test.tsx";
