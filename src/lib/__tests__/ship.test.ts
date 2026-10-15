@@ -10,6 +10,7 @@ import {
   shipSaid,
   shipRestsFor,
   splitShip,
+  straysQuestion,
 } from "../ship";
 
 const done = { propertyId: "status", optionIds: ["done"] };
@@ -25,7 +26,7 @@ describe("a ship splits the column by the done rule", () => {
       ],
       done,
     );
-    expect(split).toEqual({ over: ["a", "d"], rest: ["b", "c"] });
+    expect(split).toEqual({ over: ["a", "d"], rest: ["b", "c"], strays: [] });
   });
 
   it("puts every option the project calls done on the over side", () => {
@@ -37,12 +38,47 @@ describe("a ship splits the column by the done rule", () => {
       ],
       { propertyId: "status", optionIds: ["done", "wont"] },
     );
-    expect(split).toEqual({ over: ["a", "b"], rest: ["c"] });
+    expect(split).toEqual({ over: ["a", "b"], rest: ["c"], strays: [] });
   });
 
   it("with no done rule, nothing on the board is over", () => {
     const split = splitShip([{ id: "a", archivedAt: null, values: { status: "done" } }], null);
-    expect(split).toEqual({ over: [], rest: ["a"] });
+    expect(split).toEqual({ over: [], rest: ["a"], strays: [] });
+  });
+
+  it("over the whole board, finds the over tasks in no release, and only those", () => {
+    const split = splitShip(
+      [
+        { id: "a", archivedAt: null, values: { status: "done", version: "v1" } },
+        { id: "b", archivedAt: null, values: { status: "doing", version: "v1" } },
+        { id: "c", archivedAt: null, values: { status: "done" } },
+        { id: "d", archivedAt: null, values: { status: "done", version: null } },
+        { id: "e", archivedAt: null, values: { status: "doing" } },
+        { id: "f", archivedAt: null, values: { status: "done", version: "v2" } },
+        { id: "g", archivedAt: "2026-10-01T00:00:00Z", values: { status: "done" } },
+      ],
+      done,
+      { propertyId: "version", optionId: "v1" },
+    );
+    expect(split).toEqual({ over: ["a"], rest: ["b"], strays: ["c", "d"] });
+  });
+});
+
+describe("the tasks in no release", () => {
+  it("are offered by count, and not at all when there are none", () => {
+    expect(straysQuestion(6)).toBe("6 more are over and in no release. Take them too?");
+    expect(straysQuestion(1)).toBe("1 more is over and in no release. Take it too?");
+    expect(straysQuestion(0)).toBeNull();
+  });
+
+  it("are never offered by a sprint, which archives nothing", () => {
+    expect(straysQuestion(6, true)).toBeNull();
+  });
+
+  it("are counted in what the board says once a ship went through", () => {
+    expect(
+      shipSaid("v1", { archived: 5, moved: 0, rest: "leave", shippedAt: "x", taken: 2 }, null),
+    ).toBe("Shipped v1: archived 5 tasks (2 from no release).");
   });
 });
 

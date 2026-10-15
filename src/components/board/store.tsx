@@ -190,7 +190,7 @@ type Store = {
    * rest where `rest` says and writes the day. It answers the server's
    * numbers, or null when the ship was refused.
    */
-  shipOption: (optionId: string, rest: ShipRest) => Promise<ShipDone | null>;
+  shipOption: (optionId: string, rest: ShipRest, strays?: boolean) => Promise<ShipDone | null>;
   moveTask: (input: {
     taskId: string;
     beforeId: string | null;
@@ -1104,9 +1104,12 @@ export function BoardProvider({
   );
 
   const shipOption = useCallback<Store["shipOption"]>(
-    async (optionId, rest) => {
+    async (optionId, rest, strays = false) => {
       try {
-        const res = await tracked.post<ShipDone>(`/api/options/${optionId}/ship`, { rest });
+        const res = await tracked.post<ShipDone>(`/api/options/${optionId}/ship`, {
+          rest,
+          ...(strays ? { strays } : {}),
+        });
         await refresh();
         return res;
       } catch (err) {

@@ -634,3 +634,93 @@ describe("A roadmap", () => {
     expect(under.firstAt.slice(0, 10) <= today).toBe(true);
   });
 });
+
+/*
+ * The over tasks that are in no release. Ship takes them with `strays: true`:
+ * they get the option, go with the rest, and the changelog names them. The
+ * tick that sends it is `Roadmap.test.tsx`, and the walk is `e2e/ship.spec.ts`.
+ */
+describe("Ship takes the over tasks in no release", () => {
+  type Line = { taskId: string | null; kind: string; data: Record<string, unknown> };
+
+  async function withStrays() {
+    const made = await releaseBoard();
+    const { project: p, me, read } = made;
+    const status = (await read()).properties.find((x) => x.name === "Status")!;
+    const named = (name: string) => status.options.find((o) => o.name === name)!.id;
+    const task = (title: string, values: Record<string, unknown>) =>
+      ok(me.post(`/api/projects/${p.id}/tasks`, { title, values }));
+    await task("Golf", { [status.id]: named("Shipped") });
+    await task("Hotel", { [status.id]: named("Shipped") });
+    await task("India", { [status.id]: named("Backlog") });
+    await task("Juliet", { [made.version.id]: made.v2.id, [status.id]: named("Shipped") });
+    await ok(me.post(`/api/projects/${p.id}/releases`));
+    const cursor = (await ok<{ now: string }>(me.get(`/api/projects/${p.id}/activity`))).now;
+    const feed = async () =>
+      (
+        await ok<{ entries: Line[] }>(
+          me.get(`/api/projects/${p.id}/activity?after=${encodeURIComponent(cursor)}`),
+        )
+      ).entries;
+    return { ...made, feed };
+  }
+
+  it("with the tick on, they are archived under the release, the changelog lists them, and their lines carry the shipId", async () => {
+    const { project: p, me, read, v1, feed } = await withStrays();
+
+    const done = await ok(me.post(`/api/options/${v1.id}/ship`, { rest: "leave", strays: true }));
+    expect(done).toMatchObject({ archived: 5, taken: 2, moved: 0 });
+
+    const b = await read();
+    expect(b.archived.map((t) => t.title).sort()).toEqual([
+      "Alpha",
+      "Bravo",
+      "Delta",
+      "Golf",
+      "Hotel",
+    ]);
+    // Not over, or in another release: they belong where they are.
+    expect(b.tasks.map((t) => t.title)).toEqual(expect.arrayContaining(["India", "Juliet"]));
+
+    const log = await loadChangelog(p.id);
+    const v1Entry = log!.entries.find((e) => e.name === "v1")!;
+    expect(v1Entry.tasks.map((t) => t.title)).toEqual(expect.arrayContaining(["Golf", "Hotel"]));
+    expect(v1Entry.tasks.map((t) => t.title)).not.toContain("India");
+
+    const lines = await feed();
+    const shipped = lines.find((l) => l.taskId === null && l.data.action === "shipped")!;
+    const shipId = shipped.data.shipId;
+    expect(shipped.data).toMatchObject({ archived: 5, taken: 2 });
+    const ids = Object.fromEntries(b.archived.map((t) => [t.id, t.title]));
+    const taken = lines.filter((l) => ["Golf", "Hotel"].includes(ids[l.taskId ?? ""]));
+    expect(taken.map((l) => l.kind).sort()).toEqual(["archive", "archive", "value", "value"]);
+    for (const line of taken) expect(line.data.shipId).toBe(shipId);
+  });
+
+  it("with the tick off, they stay where they were", async () => {
+    const { me, read, version, v1 } = await withStrays();
+
+    const done = await ok(me.post(`/api/options/${v1.id}/ship`, { rest: "leave" }));
+    expect(done).toMatchObject({ archived: 3, taken: 0 });
+
+    const b = await read();
+    for (const title of ["Golf", "Hotel"]) {
+      const t = b.tasks.find((x) => x.title === title)!;
+      expect(t.values[version.id] ?? null).toBeNull();
+    }
+  });
+
+  it("a sprint close takes none, even when asked", async () => {
+    const { project: p, me, read } = await withStrays();
+    await ok(me.post(`/api/projects/${p.id}/sprints`));
+    const sprint = (await read()).properties.find((x) => x.name === "Sprint")!;
+
+    const done = await ok(
+      me.post(`/api/options/${sprint.options[0].id}/ship`, { rest: "leave", strays: true }),
+    );
+    expect(done).toMatchObject({ archived: 0, taken: 0 });
+    const b = await read();
+    expect(b.archived).toEqual([]);
+    expect(b.tasks.find((t) => t.title === "Golf")!.values[sprint.id] ?? null).toBeNull();
+  });
+});

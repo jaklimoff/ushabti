@@ -20,7 +20,14 @@ export const SHIP_RESTS = ["next", "leave", "clear"] as const;
 export type ShipRest = (typeof SHIP_RESTS)[number];
 
 /** What the route answers: the numbers that really went, and the day. */
-export type ShipDone = { archived: number; moved: number; rest: ShipRest; shippedAt: string };
+export type ShipDone = {
+  archived: number;
+  moved: number;
+  rest: ShipRest;
+  shippedAt: string;
+  /** How many of the archived were in no release and taken along. */
+  taken?: number;
+};
 
 /** The words of each answer, as the column offers them. */
 export const SHIP_REST_LABEL: Record<ShipRest, string> = {
@@ -79,15 +86,45 @@ export function shipRestsFor(hasNext: boolean): ShipRest[] {
   return SHIP_RESTS.filter((rest) => rest !== "next" || hasNext);
 }
 
-/** The tasks of the column, split by the project's done rule. */
+/** The body of a ship may also ask to take the over tasks in no release. */
+export function readShipStrays(input: { strays?: unknown }): boolean {
+  return input.strays === true;
+}
+
+/**
+ * The tasks of the column, split by the project's done rule.
+ *
+ * With `at`, the tasks are the whole board and the split also finds the
+ * strays: live tasks that are over and carry no value at all for the property
+ * being shipped. A task in another option is in neither side, and an archived
+ * one is already gone. Without `at`, every task is in the column.
+ */
 export function splitShip<T extends OverTask & { id: string }>(
   tasks: T[],
   doneWhen: DoneWhen | null,
-): { over: string[]; rest: string[] } {
+  at?: { propertyId: string; optionId: string },
+): { over: string[]; rest: string[]; strays: string[] } {
   const over: string[] = [];
   const rest: string[] = [];
-  for (const task of tasks) (isOver(task, doneWhen) ? over : rest).push(task.id);
-  return { over, rest };
+  const strays: string[] = [];
+  for (const task of tasks) {
+    const value = at ? task.values[at.propertyId] : undefined;
+    if (at && value !== at.optionId) {
+      if (isEmpty(value) && !task.archivedAt && isOver(task, doneWhen)) strays.push(task.id);
+      continue;
+    }
+    (isOver(task, doneWhen) ? over : rest).push(task.id);
+  }
+  return { over, rest, strays };
+}
+
+function isEmpty(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    value === "" ||
+    (Array.isArray(value) && value.length === 0)
+  );
 }
 
 /**
@@ -119,6 +156,17 @@ export function shipQuestion(
   return `Ship ${name}? ${tasks(over)} ${over === 1 ? "is" : "are"} over and will be archived.${left}`;
 }
 
+/**
+ * The second line of the same question, beside its tick: the over tasks that
+ * are in no release, or null when there are none. Setting the release before
+ * Ship is the habit a small team forgets. A sprint archives nothing, so a
+ * close never asks.
+ */
+export function straysQuestion(strays: number, closing = false): string | null {
+  if (closing || strays === 0) return null;
+  return `${strays} more ${strays === 1 ? "is" : "are"} over and in no release. Take ${strays === 1 ? "it" : "them"} too?`;
+}
+
 /** The day a ship writes. A date is a day, so it is the day in UTC. */
 export function shipDay(now: Date): string {
   return now.toISOString().slice(0, 10);
@@ -146,6 +194,7 @@ export function shipSaid(
 ): string {
   const tasks = (n: number) => `${n} ${n === 1 ? "task" : "tasks"}`;
   const parts = closing ? [] : [`archived ${tasks(done.archived)}`];
+  if (!closing && done.taken) parts[0] += ` (${done.taken} from no release)`;
   if (done.moved > 0) {
     parts.push(
       done.rest === "next" && nextName

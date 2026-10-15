@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
 import type { BoardData, PropertyDTO } from "@/lib/types";
-import { shipQuestion } from "@/lib/ship";
+import { shipQuestion, straysQuestion } from "@/lib/ship";
 import {
   detailOf,
   newProject,
@@ -464,6 +464,79 @@ describe("A roadmap", () => {
       await renderWithBoard(<BoardShell initialTask={null} />, filtered);
       await says(row("Beta"), "Beta");
       await gone(row("Beta").getByTestId("roadmap-ship"));
+    });
+
+    /* Golf and Hotel are over and in no release; India is in none and not
+       over, and Juliet is over in another. Only the first two are offered. */
+    function withStrays(): BoardData {
+      const data = shipPlan();
+      withTask(data, "Golf task", { Status: "Shipped" });
+      withTask(data, "Hotel task", { Status: "Shipped" });
+      withTask(data, "India task", { Status: "Backlog" });
+      withTask(data, "Juliet task", { Version: "Alpha", Status: "Shipped" });
+      return data;
+    }
+    const tick = (name: string) => ask(name).getByRole("checkbox");
+
+    test("the question counts the over tasks in no release and takes them by default", async () => {
+      const data = withStrays();
+      const beta = versionOf(data, "Beta");
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, (s) => {
+        if (s.method !== "POST" || !s.path.endsWith("/ship")) return;
+        return { body: { archived: 4, moved: 0, rest: "leave", shippedAt: data.today, taken: 2 } };
+      });
+
+      await row("Beta").getByRole("button", { name: "Ship Beta" }).click();
+      await expect
+        .element(ask("Beta").getByTestId("ship-confirm"))
+        .toHaveTextContent(`${shipQuestion("Beta", 2, 1)} What happens to them?`);
+      // The tick carries the sentence, and starts on.
+      await expect
+        .element(ask("Beta").getByRole("checkbox", { name: straysQuestion(2)! }))
+        .toBeChecked();
+      await ask("Beta").getByRole("button", { name: "Leave them" }).click();
+
+      await expect.poll(() => sent("POST", /\/ship$/).length).toBe(1);
+      const ship = sent("POST", /\/ship$/)[0];
+      expect(ship.path).toBe(`/api/options/${beta.id}/ship`);
+      expect(ship.body).toEqual({ rest: "leave", strays: true });
+    });
+
+    test("with the tick off, the ship leaves them where they were", async () => {
+      const { sent } = await renderWithBoard(
+        <BoardShell initialTask={null} />,
+        withStrays(),
+        (s) => {
+          if (s.method !== "POST" || !s.path.endsWith("/ship")) return;
+          return { body: { archived: 2, moved: 0, rest: "leave", shippedAt: "2026-10-15" } };
+        },
+      );
+
+      await row("Beta").getByRole("button", { name: "Ship Beta" }).click();
+      await tick("Beta").click();
+      await expect.element(tick("Beta")).not.toBeChecked();
+      await ask("Beta").getByRole("button", { name: "Leave them" }).click();
+
+      await expect.poll(() => sent("POST", /\/ship$/).length).toBe(1);
+      expect(sent("POST", /\/ship$/)[0].body).toEqual({ rest: "leave" });
+    });
+
+    test("with none in no release, nothing more is said", async () => {
+      await renderWithBoard(<BoardShell initialTask={null} />, shipPlan());
+      await row("Beta").getByRole("button", { name: "Ship Beta" }).click();
+      await expect.element(ask("Beta")).toBeVisible();
+      await gone(tick("Beta"));
+    });
+
+    test("a sprint close offers nothing", async () => {
+      const data = withStrays();
+      propertyOf(data, "Version").type = "iteration";
+      await renderWithBoard(<BoardShell initialTask={null} />, data);
+      await row("Beta").getByRole("button", { name: "Close Beta" }).click();
+      const close = page.getByRole("alertdialog", { name: "Close Beta" });
+      await expect.element(close).toBeVisible();
+      await expect.element(close).not.toHaveTextContent("in no release");
+      await gone(close.getByRole("checkbox"));
     });
   });
 });

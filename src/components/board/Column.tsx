@@ -19,6 +19,7 @@ import {
   shipRestsFor,
   shipWord,
   splitShip,
+  straysQuestion,
   type ShipRest,
 } from "@/lib/ship";
 import type { PropertyOptionDTO, TaskDTO } from "@/lib/types";
@@ -124,8 +125,9 @@ export type ShipOffer = {
   nextName: string | null;
   /** A sprint closes and archives nothing; a release ships. */
   closing: boolean;
-  /** Settles once the ship is answered and the board read again. */
-  onShip: (rest: ShipRest) => Promise<boolean>;
+  /** Settles once the ship is answered and the board read again. `strays`
+      takes the over tasks in no release along. */
+  onShip: (rest: ShipRest, strays: boolean) => Promise<boolean>;
 };
 
 export function Column({
@@ -292,18 +294,18 @@ export function Column({
       {shipAsk.asking && ship ? (
         <ShipQuestion
           name={column.name}
-          tasks={column.tasks}
+          optionId={column.id}
           doneWhen={rule.doneWhen}
           ship={ship}
           className={`${styles.colHead} ${styles.colHeadAsking}`}
           onCancel={shipAsk.cancel}
-          onPick={(rest) =>
+          onPick={(rest, strays) =>
             shipAsk.confirm(() => {
               setShipping(true);
               /* The board is read again before the answer comes, so a ship
                  that went through already hides the button by its date. Let
                  go either way, or an Unship would find it still held. */
-              void ship.onShip(rest).finally(() => setShipping(false));
+              void ship.onShip(rest, strays).finally(() => setShipping(false));
             })
           }
         />
@@ -496,10 +498,13 @@ export function Column({
  * option, which are all of them, and each answer about the rest is its own
  * button, so one press both answers and confirms. With no Done when nothing
  * can be over, so it says so and offers the way to Settings instead.
+ *
+ * A release also counts the over tasks that are in no release, from the same
+ * split, and offers to take them with a tick that starts on.
  */
 export function ShipQuestion({
   name,
-  tasks,
+  optionId,
   doneWhen,
   ship,
   className,
@@ -507,16 +512,23 @@ export function ShipQuestion({
   onCancel,
 }: {
   name: string;
-  tasks: TaskDTO[];
+  optionId: string;
   doneWhen: DoneWhen | null;
   ship: ShipOffer;
   className: string;
-  onPick: (rest: ShipRest) => void;
+  onPick: (rest: ShipRest, strays: boolean) => void;
   onCancel: () => void;
 }) {
-  const { data } = useBoard();
-  const { over, rest } = splitShip(tasks, doneWhen);
+  const { data, groupProperty } = useBoard();
+  const [take, setTake] = useState(true);
+  /* A ship is offered only with no filter, so the live tasks are the board. */
+  const { over, rest, strays } = splitShip(
+    data.tasks.filter((t) => !t.archivedAt),
+    doneWhen,
+    { propertyId: groupProperty?.id ?? "", optionId },
+  );
   const counts = !!doneWhen || ship.closing;
+  const straysSaid = counts ? straysQuestion(strays.length, ship.closing) : null;
   /* With nothing left over there is nothing to decide about it. */
   const answers: ShipRest[] = !counts
     ? []
@@ -529,6 +541,16 @@ export function ShipQuestion({
         {shipQuestion(name, over.length, rest.length, ship.closing, counts)}
         {counts && rest.length > 0 && " What happens to them?"}
       </span>
+      {straysSaid && (
+        <label className={styles.colShipStrays}>
+          <input
+            type="checkbox"
+            checked={take}
+            onChange={(event) => setTake(event.target.checked)}
+          />
+          {straysSaid}
+        </label>
+      )}
       {!counts && (
         <Link
           className={`${styles.colConfirmYes} ${styles.colShipAnswer}`}
@@ -544,7 +566,7 @@ export function ShipQuestion({
           className={`${styles.colConfirmYes} ${styles.colShipAnswer}`}
           autoFocus={i === 0}
           title={answer === "next" ? `Move them to ${ship.nextName}` : undefined}
-          onClick={() => onPick(answer)}
+          onClick={() => onPick(answer, !!straysSaid && take)}
         >
           {rest.length ? SHIP_REST_LABEL[answer] : `Yes, ${shipWord(ship.closing).toLowerCase()}`}
         </button>
