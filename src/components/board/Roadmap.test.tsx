@@ -443,12 +443,12 @@ describe("A roadmap", () => {
       expect(sent("POST", /\/ship$/)).toHaveLength(0);
     });
 
-    test("a member or a filter takes Ship away", async () => {
+    test("a member may ship, and a filter takes Ship away", async () => {
       const data = shipPlan();
       data.project = { ...data.project, role: "member" };
       const member = await renderWithBoard(<BoardShell initialTask={null} />, data);
       await says(row("Beta"), "Beta");
-      await gone(row("Beta").getByTestId("roadmap-ship"));
+      await expect.element(row("Beta").getByTestId("roadmap-ship")).toBeVisible();
       await member.screen.unmount();
 
       const filtered = shipPlan();

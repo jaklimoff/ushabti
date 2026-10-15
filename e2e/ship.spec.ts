@@ -259,4 +259,40 @@ test.describe("Ship on a roadmap row", () => {
       board.properties.find((p) => p.id === version.id)!.options.every((o) => !o.shippedAt),
     ).toBe(true);
   });
+
+  /* A ship is a member's act: the button is on the column and on the row for
+     a member as for the owner, and the press ships. */
+  test("a member ships from the roadmap, and sees Ship on the column", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { projectId, read, version, v1 } = await releaseBoard(page);
+
+    const context = await browser.newContext();
+    const other = await context.newPage();
+    const member = await register(other, "Mia Member");
+    await inDatabase(async (client) => {
+      await client.query(
+        `insert into project_members (project_id, user_id, role, position)
+         select $1, id, 'member', 'n' from users where email = $2`,
+        [projectId, member.email],
+      );
+    });
+
+    await other.goto(`/p/${projectId}`);
+    await expect(column(other, "v1").getByRole("button", { name: "Ship v1" })).toBeVisible();
+    await openPlan(other, projectId, version.id);
+    await row(other, "v1").getByRole("button", { name: "Ship v1" }).click();
+    const ask = other.getByRole("alertdialog", { name: "Ship v1" });
+    await expect(ask.getByTestId("ship-confirm")).toContainText("3 tasks are over");
+    await other.screenshot({ path: testInfo.outputPath("seen-member-ship.png") });
+    await ask.getByRole("button", { name: "Leave them" }).click();
+
+    await expect(row(other, "v1")).toContainText("3 tasks archived");
+    const shipped = (await read()).properties
+      .find((p) => p.id === version.id)!
+      .options.find((o) => o.id === v1.id)!;
+    expect(shipped.shippedAt).toBe(today());
+    await context.close();
+  });
 });

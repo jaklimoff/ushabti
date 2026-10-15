@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An agent may ship a release.** Ship is a member's now, on the column, on the roadmap row and
+  through `POST /api/options/{id}/ship` with a token, so the agent that deployed ships the release
+  and the changelog has its day. `board.mjs ship "<release>" --rest next|leave|clear [--strays]`
+  ships one by name, and `board.mjs release "<name>" --target <day>` makes or dates one. Unship
+  stays an admin's.
 - **Ship takes the finished tasks that are in no release.** The ship question counts the tasks
   that are over and carry no release, and offers to take them with a tick that starts on. Taken,
   they get the release, are archived with the rest, and the changelog lists them. The route takes

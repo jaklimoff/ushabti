@@ -143,7 +143,7 @@ const flags = {};
  * then asks for the item it was handed. A person should not have to remember
  * an order.
  */
-const SWITCHES = ["done", "undone", "remove", "held", "free", "once", "replace"];
+const SWITCHES = ["done", "undone", "remove", "held", "free", "once", "replace", "strays"];
 
 for (let i = 1; i < argv.length; i += 1) {
   const arg = argv[i];
@@ -346,6 +346,25 @@ function optionId(property, wanted) {
   return option.id;
 }
 
+/** The property `releaseBy` points to. A board with releases off has none. */
+function releasesOf(data) {
+  const property = data.properties.find((p) => p.id === data.project.releaseBy);
+  if (!property) fail("This board has no releases. A person turns them on in Settings.");
+  return property;
+}
+
+/** A day flag, checked here so a typo is named before anything is written. */
+function dayFlag(name, { required = false } = {}) {
+  const value = flags[name];
+  if (value === undefined && required) fail(`Say the day: --${name} YYYY-MM-DD`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    fail(`--${name} must be a day like 2026-11-01.`);
+  }
+  return value;
+}
+
+const dateSpan = (d) => (d.startAt ? `${d.startAt} → ${d.targetAt}` : `due ${d.targetAt}`);
+
 /* ------------------------------------------------------------------ */
 /* Printing                                                            */
 /* ------------------------------------------------------------------ */
@@ -493,6 +512,13 @@ const commands = {
   attach <key> <file> [--mime <type>] upload a file and print its Markdown line
   archive <key>                       take it off the board, keep its history
   restore <key>                       put an archived task back
+  release "<name>" --target YYYY-MM-DD [--start YYYY-MM-DD]
+                                      make a release, or set the dates of the one there
+  ship "<release>" --rest next|leave|clear [--strays]
+                                      ship a release: archive what is over, and
+                                      move the rest on, leave it, or clear it.
+                                      --strays also takes what is over in no release.
+                                      Only when a person or your program says so.
   link <key> --blocked-by <key>       say what a task waits on
   link <key> --blocks <key>           say what waits on it
   unlink <key> --blocked-by <key>     take the link away again
@@ -770,6 +796,48 @@ http://localhost:3000.`);
     const task = findTask(data, positional[0], { archived: true });
     await call("DELETE", `/api/tasks/${task.id}/archive`);
     console.log(`${task.key} put back`);
+  },
+
+  /**
+   * A release is an option of the property `releaseBy` points to, made or
+   * dated by name. Run twice, it sets the dates of the one the first run made.
+   */
+  async release() {
+    const data = await board();
+    const releases = releasesOf(data);
+    const name = String(positional[0] ?? "").trim();
+    if (!name) fail('Name the release: release "0.26.0" --target 2026-11-01');
+    const dates = { targetAt: dayFlag("target", { required: true }) };
+    if (flags.start !== undefined) dates.startAt = dayFlag("start");
+    const there = releases.options.find((o) => o.name.toLowerCase() === name.toLowerCase());
+    if (there) {
+      await call("PATCH", `/api/options/${there.id}`, dates);
+      console.log(`${releases.name} ${there.name} dated ${dateSpan(dates)}`);
+    } else {
+      await call("POST", `/api/properties/${releases.id}/options`, { name, ...dates });
+      console.log(`${releases.name} ${name} made, ${dateSpan(dates)}`);
+    }
+  },
+
+  /**
+   * Ships a release, as the button on its column does. Unship stays a
+   * person's: it throws the shipped day away.
+   */
+  async ship() {
+    const data = await board();
+    const releases = releasesOf(data);
+    const rest = flags.rest;
+    if (!["next", "leave", "clear"].includes(rest)) {
+      fail("Say what happens to the rest: --rest next, --rest leave or --rest clear.");
+    }
+    const id = optionId(releases, String(positional[0] ?? "").trim());
+    const name = releases.options.find((o) => o.id === id).name;
+    const payload = { rest };
+    if (flags.strays === "true") payload.strays = true;
+    const done = await call("POST", `/api/options/${id}/ship`, payload);
+    const parts = [`${done.archived} archived`, `${done.moved} moved`];
+    if (done.taken) parts.push(`${done.taken} taken from no release`);
+    console.log(`${releases.name} ${name} shipped ${done.shippedAt}: ${parts.join(", ")}`);
   },
 
   async claim() {

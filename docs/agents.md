@@ -362,16 +362,30 @@ answer a token with `403`. On makes the property and its views, `201`, or
 takes the one already there and makes nothing, `200`. Off clears the pointer
 and nothing else.
 
-Shipping a column, `POST /api/options/{id}/ship`, is a person's act and
-answers a token with `403`. You see it in the feed: the lines of one ship
-share one `shipId` in their `data`, and the line on the project carries the
-counts. Its `action` is `shipped` for a release and `closed` for a sprint,
-which archives nothing.
+Shipping a column is `POST /api/options/{id}/ship`, and it is any member's,
+an agent's too. The body says what happens to the tasks that are not over:
 
-An agent cannot ship or unship. `shippedAt` closes a release or a sprint, so
-only the owner or an admin writes it, and only as a person: a write that
-carries `shippedAt` from a token is refused with `403`. An agent reads it, and
-writes the other three as before.
+```json
+{ "rest": "next", "strays": true }
+```
+
+`rest` is required: `next` moves them to the next option, `leave` keeps them
+where they are and `clear` takes the value away. `strays: true`, for a release
+only, also takes the tasks that are over and in no release, and archives them
+with the rest. The tasks that are over are archived, and the option writes the
+day. It answers `{ "archived", "moved", "rest", "shippedAt", "taken" }`, with
+`taken` the count of strays. An option with no target day answers `400`, and
+one already shipped `409`. Ship only when the person or the program you run
+for says so, never on your own clock. You see a ship in the feed: the lines of
+one ship share one `shipId` in their `data`, and the line on the project
+carries the counts. Its `action` is `shipped` for a release and `closed` for a
+sprint, which archives nothing.
+
+An agent cannot unship. Unship throws the shipped day away, so only the owner
+or an admin writes `shippedAt`, and only as a person: a write to the option
+routes that carries `shippedAt` from a token is refused with `403`. A ship
+goes through the ship route. An agent reads `shippedAt`, and writes the other
+three as before.
 
 Then write it:
 

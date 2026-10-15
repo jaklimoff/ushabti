@@ -97,12 +97,32 @@ describe("Ship on a column", () => {
     expect(last.status).toBe(400);
   });
 
-  it("a token is refused, and an undated option cannot ship", async () => {
-    const { owner, project: p, me, read, v1, v2 } = await releaseBoard();
+  /* The agent that deployed ships the release. Unship throws the day away,
+     so it stays a person's, an admin's, with the sentence it always had. */
+  it("a member token ships as an admin does, and is refused on unship", async () => {
+    const byAdmin = await releaseBoard();
+    const asAdmin = await ok(
+      byAdmin.me.post(`/api/options/${byAdmin.v1.id}/ship`, { rest: "leave" }),
+    );
 
+    const { owner, project: p, read, v1 } = await releaseBoard();
     const builder = await agent(owner, p.id);
-    const asAgent = await builder.api.post(`/api/options/${v1.id}/ship`, { rest: "leave" });
-    expect(asAgent.status).toBe(403);
+    const asAgent = await ok(builder.api.post(`/api/options/${v1.id}/ship`, { rest: "leave" }));
+    expect(asAgent).toEqual(asAdmin);
+    expect(asAgent).toMatchObject({ archived: 3, moved: 0, rest: "leave" });
+    const version = (await read()).properties.find((x) => x.name === "Version")!;
+    expect(version.options.find((o) => o.id === v1.id)!.shippedAt).not.toBeNull();
+
+    const unship = await builder.api.patch(`/api/options/${v1.id}`, { shippedAt: null });
+    expect(unship.status).toBe(403);
+    expect(await unship.json()).toMatchObject({ error: "Only a person can do this." });
+    expect(
+      (await read()).properties.find((x) => x.name === "Version")!.options[0].shippedAt,
+    ).not.toBeNull();
+  });
+
+  it("an undated option cannot ship, nor a rest nobody said", async () => {
+    const { me, read, v1, v2 } = await releaseBoard();
 
     const undated = await me.post(`/api/options/${v2.id}/ship`, { rest: "leave" });
     expect(undated.status).toBe(400);

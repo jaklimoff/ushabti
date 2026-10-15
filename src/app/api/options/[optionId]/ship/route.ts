@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/auth";
-import { adminOnly, body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { readShipRest, readShipStrays } from "@/lib/ship";
 import { shipOptionIn } from "@/lib/ship-option";
@@ -17,17 +17,19 @@ type Ctx = { params: Promise<{ optionId: string }> };
  * With `strays: true` a release also takes the over tasks in no release: they
  * get the option, then are archived with the rest. A sprint takes none.
  *
- * It is `adminOnly`, which is `humanOnly` too. One press here clears a whole
- * column and closes an option everybody shares, which is a decision about the
- * board, never work on a task.
+ * It is a member's, and an agent's. A member may archive every task of the
+ * column one by one, so a guard here would only keep an agent from doing fast
+ * what it may do slowly, and the agent that deployed is the one that knows the
+ * release is out. Unship is the admin's: it throws the shipped day away, so
+ * the option routes keep `adminOnly` for `shippedAt`, and a ship comes only
+ * through here.
  */
 export const POST = route<Ctx>(async (req, ctx) => {
   const { optionId } = await ctx.params;
   const owner = await optionPropertyId(optionId);
   if (!owner) throw new HttpError(404, "Option not found.");
   const { projectId, propertyId } = owner;
-  const { user, membership } = await guard(projectId);
-  adminOnly(user, membership, "ship a column");
+  const { user } = await guard(projectId);
 
   const input = await body<{ rest?: unknown; strays?: unknown }>(req);
   const read = readShipRest(input);
