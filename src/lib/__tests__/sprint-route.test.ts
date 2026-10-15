@@ -150,7 +150,7 @@ describe("Closing a sprint", () => {
     const sprint = b.properties.find((x) => x.name === "Sprint")!;
     const version = b.properties.find((x) => x.name === "Version")!;
     const status = b.properties.find((x) => x.name === "Status")!;
-    const done = status.options.find((o) => o.name === "Shipped")!;
+    const done = status.options.find((o) => o.name === "Done")!;
     const backlog = status.options.find((o) => o.name === "Backlog")!;
     const [s1, s2] = sprint.options;
     const [v1, v2] = version.options;

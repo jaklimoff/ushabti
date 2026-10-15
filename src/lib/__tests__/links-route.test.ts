@@ -180,7 +180,7 @@ describe("What a task is part of", () => {
     const r = api(me);
     const read = async () => (await board(me, p.id)) as Board;
     const status = (await read()).properties.find((x) => x.name === "Status")!;
-    const done = status.options.find((o) => o.name === "Shipped")!;
+    const done = status.options.find((o) => o.name === "Done")!;
     const backlog = status.options.find((o) => o.name === "Backlog")!;
     await ok(
       r.patch(`/api/projects/${p.id}`, { doneWhen: { propertyId: status.id, optionId: done.id } }),

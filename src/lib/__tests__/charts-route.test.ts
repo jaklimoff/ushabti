@@ -65,7 +65,7 @@ describe("A chart", () => {
     await set(me, t.id, status, option("Status", "Todo"));
     await set(me, t.id, status, doing);
     // Another option, and another select, count nothing here.
-    await set(me, t.id, status, option("Status", "Shipped"));
+    await set(me, t.id, status, option("Status", "Done"));
     await set(me, t.id, property("Priority").id, option("Priority", "High"));
 
     await addChart(me, p.id, status, doing);
@@ -82,13 +82,13 @@ describe("A chart", () => {
     await db.update(projects).set({ timeZone: "Asia/Tokyo" }).where(eq(projects.id, p.id));
     const { property, option, today } = await shape(me, p.id);
     const status = property("Status").id;
-    const done = option("Status", "Shipped");
+    const done = option("Status", "Done");
     const t = await task(me, p.id, "Shipped a while ago");
     const line = (at: string) => ({
       projectId: p.id,
       taskId: t.id,
       kind: "value",
-      data: { propertyId: status, type: "select", value: "Shipped", optionId: done },
+      data: { propertyId: status, type: "select", value: "Done", optionId: done },
       createdAt: new Date(at),
     });
     const three = dayBefore(today, 3);
@@ -210,7 +210,7 @@ describe("A new chart", () => {
     await join(p.id, other, "member");
     const { property, option } = await shape(me, p.id);
     const status = property("Status").id;
-    const shipped = option("Status", "Shipped");
+    const shipped = option("Status", "Done");
     await addChart(me, p.id, status, shipped);
 
     const again = await api(me).post("/api/charts", {

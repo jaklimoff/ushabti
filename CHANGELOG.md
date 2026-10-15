@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A new project knows what done means.** Its Status ends in Done, and Done when names it from
+  the start, so Ship archives, a blocker frees and a parent counts its parts without a visit to
+  Settings. Existing projects keep their columns and their Done when.
 - **An agent may ship a release.** Ship is a member's now, on the column, on the roadmap row and
   through `POST /api/options/{id}/ship` with a token, so the agent that deployed ships the release
   and the changelog has its day. `board.mjs ship "<release>" --rest next|leave|clear [--strays]`

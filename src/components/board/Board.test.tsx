@@ -383,12 +383,12 @@ describe("Ushabti board", () => {
     withTask(data, "Fold me across", { Status: "Todo" });
     const first = await draw(data);
 
-    const shipped = column("Shipped");
-    const open = page.getByRole("button", { name: "Open the column Shipped" });
+    const shipped = column("Done");
+    const open = page.getByRole("button", { name: "Open the column Done" });
 
-    await page.getByRole("button", { name: "Fold the column Shipped" }).click();
+    await page.getByRole("button", { name: "Fold the column Done" }).click();
     await expect.element(open).toBeVisible();
-    await expect.element(shipped.getByTestId("column-name")).toHaveTextContent("Shipped");
+    await expect.element(shipped.getByTestId("column-name")).toHaveTextContent("Done");
     await expect.element(shipped.getByTestId("column-count")).toHaveTextContent("0");
 
     // Giving the width back is the whole point of the fold.
@@ -400,15 +400,13 @@ describe("Ushabti board", () => {
     await expect.element(open).toBeVisible();
 
     await open.click();
-    await expect
-      .element(shipped.getByRole("button", { name: "Add a task to Shipped" }))
-      .toBeVisible();
+    await expect.element(shipped.getByRole("button", { name: "Add a task to Done" })).toBeVisible();
 
     /* A fold gives width back, and a phone has none to give: it draws one
        column, whole, and the strip above names the rest. So there is no way
        to fold one down there — and the fold this browser wrote is ignored
        rather than cleared, so the wider window gets it back. */
-    await page.getByRole("button", { name: "Fold the column Shipped" }).click();
+    await page.getByRole("button", { name: "Fold the column Done" }).click();
     await expect.element(open).toBeVisible();
 
     await page.viewport(390, 780);
@@ -427,7 +425,7 @@ describe("Ushabti board", () => {
     window.localStorage.clear();
     await draw(data);
     await expect
-      .element(column("Shipped").getByRole("button", { name: "Add a task to Shipped" }))
+      .element(column("Done").getByRole("button", { name: "Add a task to Done" }))
       .toBeVisible();
   });
 
@@ -584,7 +582,7 @@ describe("A board on a phone", () => {
       "TODO",
       "IN PROGRESS",
       "READY",
-      "SHIPPED",
+      "DONE",
     ]);
     expect(texts(pills.getByTestId("column-pill-count"))).toEqual(["1", "1", "1", "0", "0"]);
 
@@ -707,9 +705,9 @@ describe("A board on a phone", () => {
     /* The filled pill is the whole point of the strip, so paging to the last
        column has to bring its pill with it. It used to sit two hundred pixels
        past the end of a strip that had not moved. */
-    await columnPill("Shipped").click();
-    await expect.element(column("Shipped")).toBeVisible();
-    await inside(columnPill("Shipped"));
+    await columnPill("Done").click();
+    await expect.element(column("Done")).toBeVisible();
+    await inside(columnPill("Done"));
 
     /* The fade is now at the other end, because that is where the rest is. */
     expect(strip().scrollLeft).toBeGreaterThan(0);

@@ -362,15 +362,15 @@ describe("A roadmap", () => {
    */
   describe("Ship on a roadmap row", () => {
     /* Beta holds two tasks that are over and one that is not, and the
-       project says Shipped means done. */
+       project says Done means done. */
     function shipPlan(): BoardData {
       const data = versions();
       data.project.doneWhen = {
         propertyId: propertyOf(data, "Status").id,
-        optionIds: [optionOf(data, "Status", "Shipped")],
+        optionIds: [optionOf(data, "Status", "Done")],
       };
-      withTask(data, "Alpha task", { Version: "Beta", Status: "Shipped" });
-      withTask(data, "Bravo task", { Version: "Beta", Status: "Shipped" });
+      withTask(data, "Alpha task", { Version: "Beta", Status: "Done" });
+      withTask(data, "Bravo task", { Version: "Beta", Status: "Done" });
       withTask(data, "Charlie task", { Version: "Beta", Status: "Backlog" });
       return data;
     }
@@ -457,7 +457,7 @@ describe("A roadmap", () => {
           {
             propertyId: propertyOf(filtered, "Status").id,
             op: "is",
-            values: [optionOf(filtered, "Status", "Shipped")],
+            values: [optionOf(filtered, "Status", "Done")],
           },
         ],
       };
@@ -470,10 +470,10 @@ describe("A roadmap", () => {
        over, and Juliet is over in another. Only the first two are offered. */
     function withStrays(): BoardData {
       const data = shipPlan();
-      withTask(data, "Golf task", { Status: "Shipped" });
-      withTask(data, "Hotel task", { Status: "Shipped" });
+      withTask(data, "Golf task", { Status: "Done" });
+      withTask(data, "Hotel task", { Status: "Done" });
       withTask(data, "India task", { Status: "Backlog" });
-      withTask(data, "Juliet task", { Version: "Alpha", Status: "Shipped" });
+      withTask(data, "Juliet task", { Version: "Alpha", Status: "Done" });
       return data;
     }
     const tick = (name: string) => ask(name).getByRole("checkbox");

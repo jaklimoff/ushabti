@@ -75,13 +75,13 @@ function releaseBoard(): BoardData {
   data.views.find((v) => v.isDefault)!.groupById = version.id;
   data.project.doneWhen = {
     propertyId: propertyOf(data, "Status").id,
-    optionIds: [optionOf(data, "Status", "Shipped")],
+    optionIds: [optionOf(data, "Status", "Done")],
   };
-  withTask(data, "Alpha", { Version: "v1", Status: "Shipped", Points: 13 });
-  withTask(data, "Bravo", { Version: "v1", Status: "Shipped", Points: 8 });
+  withTask(data, "Alpha", { Version: "v1", Status: "Done", Points: 13 });
+  withTask(data, "Bravo", { Version: "v1", Status: "Done", Points: 8 });
   withTask(data, "Charlie", { Version: "v1", Status: "Backlog", Points: 13 });
-  withTask(data, "Delta", { Version: "v1", Status: "Shipped" });
-  withTask(data, "Echo", { Version: "v3", Status: "Shipped" });
+  withTask(data, "Delta", { Version: "v1", Status: "Done" });
+  withTask(data, "Echo", { Version: "v3", Status: "Done" });
   return data;
 }
 
@@ -239,13 +239,13 @@ function shipBoard(): BoardData {
   data.views.find((v) => v.isDefault)!.groupById = propertyOf(data, "Version").id;
   data.project.doneWhen = {
     propertyId: propertyOf(data, "Status").id,
-    optionIds: [optionOf(data, "Status", "Shipped")],
+    optionIds: [optionOf(data, "Status", "Done")],
   };
-  withTask(data, "Alpha", { Version: "v1", Status: "Shipped" });
-  withTask(data, "Bravo", { Version: "v1", Status: "Shipped" });
+  withTask(data, "Alpha", { Version: "v1", Status: "Done" });
+  withTask(data, "Bravo", { Version: "v1", Status: "Done" });
   withTask(data, "Charlie", { Version: "v1", Status: "Backlog" });
-  withTask(data, "Delta", { Version: "v1", Status: "Shipped" });
-  withTask(data, "Echo", { Version: "v3", Status: "Shipped" });
+  withTask(data, "Delta", { Version: "v1", Status: "Done" });
+  withTask(data, "Echo", { Version: "v3", Status: "Done" });
   withTask(data, "Foxtrot", { Version: "v3", Status: "Backlog" });
   return data;
 }

@@ -300,7 +300,7 @@ describe("What a task is part of", () => {
   test("a parent says how many of its parts are done, on the card, in the list and in the panel", async () => {
     const data = newProject();
     const status = propertyOf(data, "Status");
-    const shipped = optionOf(data, "Status", "Shipped");
+    const shipped = optionOf(data, "Status", "Done");
     data.project.doneWhen = { propertyId: status.id, optionIds: [shipped] };
     /* A list beside the board, to read the same count in a row. */
     data.views.push({
@@ -315,8 +315,8 @@ describe("What a task is part of", () => {
     const lone = withTask(data, "A lone task", { Status: "Backlog" });
     const parts = (
       [
-        ["Part A", "Shipped"],
-        ["Part B", "Shipped"],
+        ["Part A", "Done"],
+        ["Part B", "Done"],
         ["Part D", "Backlog"],
         ["Part E", "Backlog"],
       ] as const

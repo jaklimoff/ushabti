@@ -73,7 +73,7 @@ test.describe("The project list shows how every project is going", () => {
     const three = await make("Three", at("In Progress"));
     await make("Low, hidden by my lens", at("In Progress", "Low"));
     await make("In the backlog, hidden by the view", at("Backlog"));
-    const shipped = await make("Shipped", at("Shipped"));
+    const shipped = await make("Shipped", at("Done"));
     const archived = await make("Archived", at("Todo"));
     const deleted = await make("Deleted", at("Todo"));
     expect((await page.request.post(`/api/tasks/${archived.id}/archive`)).ok()).toBeTruthy();
@@ -126,14 +126,14 @@ test.describe("The project list shows how every project is going", () => {
       "Todo 2",
       "In Progress 1",
       "Ready 0",
-      "Shipped 1",
+      "Done 1",
     ]);
     const bar = card.getByTestId("project-bar");
     await expect(bar.locator("[data-column]")).toHaveCount(3);
     /* Greys, lighter from the first column to the last, each the shade of its dot. */
     const shade = (el: Element) => getComputedStyle(el).backgroundColor;
     const todo = await bar.locator('[data-column="Todo"]').evaluate(shade);
-    const shippedShade = await bar.locator('[data-column="Shipped"]').evaluate(shade);
+    const shippedShade = await bar.locator('[data-column="Done"]').evaluate(shade);
     expect(todo).not.toBe(shippedShade);
     expect(await card.getByTestId("project-column").first().locator("span").evaluate(shade)).toBe(
       todo,
@@ -146,20 +146,20 @@ test.describe("The project list shows how every project is going", () => {
     await expect(people.getByRole("img", { name: "Worker" })).toHaveCSS("border-radius", "4px");
     await expect(people.getByRole("img", { name: "Worker" })).toHaveText("WO");
 
-    /* Shipped folded on the main board leaves the bar and reads last, muted. */
+    /* Done folded on the main board leaves the bar and reads last, muted. */
     await page.evaluate(
       ([viewId, columnId]) =>
         window.localStorage.setItem(`ushabti:folded:${viewId}`, JSON.stringify([columnId])),
-      [main.id, opt(status, "Shipped")],
+      [main.id, opt(status, "Done")],
     );
     await page.reload();
-    await expect(card.getByTestId("project-folded")).toHaveText("+ Shipped 1");
+    await expect(card.getByTestId("project-folded")).toHaveText("+ Done 1");
     await expect(card.getByTestId("project-column")).toHaveText([
       "Todo 2",
       "In Progress 1",
       "Ready 0",
     ]);
-    await expect(bar.locator('[data-column="Shipped"]')).toHaveCount(0);
+    await expect(bar.locator('[data-column="Done"]')).toHaveCount(0);
     await expect(bar.locator("[data-column]")).toHaveCount(2);
   });
 
@@ -272,7 +272,7 @@ test.describe("The project list shows how every project is going", () => {
     });
     expect(dated.ok()).toBeTruthy();
     const doneWhen = await page.request.patch(`/api/projects/${projectId}`, {
-      data: { doneWhen: { propertyId: status.id, optionId: opt(status, "Shipped") } },
+      data: { doneWhen: { propertyId: status.id, optionId: opt(status, "Done") } },
     });
     expect(doneWhen.ok()).toBeTruthy();
     const put = await page.request.put(`/api/tasks/${task.id}/values/${version.id}`, {
@@ -280,7 +280,7 @@ test.describe("The project list shows how every project is going", () => {
     });
     expect(put.ok()).toBeTruthy();
     await make("Already out", {
-      [status.id]: opt(status, "Shipped"),
+      [status.id]: opt(status, "Done"),
       [version.id]: version.options[0].id,
     });
 

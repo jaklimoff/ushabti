@@ -212,7 +212,7 @@ describe("Filters inside a view", () => {
     withTask(data, "Only task", { Status: "Todo" });
     const { lensWrites } = await draw(data);
 
-    for (const name of ["Backlog", "Todo", "Shipped"]) {
+    for (const name of ["Backlog", "Todo", "Done"]) {
       await expect.element(column(name)).toBeVisible();
     }
 
@@ -222,7 +222,7 @@ describe("Filters inside a view", () => {
     await expect.element(chip("Status is Backlog")).toBeVisible();
     await expect.element(column("Backlog")).toBeVisible();
     await gone(column("Todo"));
-    await gone(column("Shipped"));
+    await gone(column("Done"));
 
     // Nothing is in Backlog, so the board says so rather than looking broken.
     await expect.element(page.getByText("No task passes the filter")).toBeVisible();
