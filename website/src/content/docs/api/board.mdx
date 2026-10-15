@@ -44,7 +44,7 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
   ],
 
   "views": [
-    // kind is "board" or "list". A list has no columns, so groupById may be
+    // kind is "board", "list" or "roadmap". A list has no columns, so groupById may be
     // null — and when it is not, it is remembered rather than read.
     // sort is the order the view draws in, or null for the rank every view shares.
     // filters is the whole team's. lens is the rules you added to this view, and
@@ -174,3 +174,41 @@ For the checklist, the comments, the activity and the full run, ask for the task
   href="/ushabti/api/tasks/#get-apitaskstaskid"
   description="The task DTO plus checklist, comments, the last 60 activity entries and the open run with its plan and log."
 />
+
+## `GET /api/projects/{projectId}/settings`
+
+What **Settings** reads when the stream rings: the same answer as the board read, but `tasks` holds
+only the three the card view preview draws, and `taskCount` says how many live tasks there are. Read
+this when you want the shape of the board — properties, options, views, members — without every
+value on it. Any member, a person or an agent.
+
+## `GET /api/projects/{projectId}/search?q=`
+
+The half of a search the board read cannot answer: the **archived** tasks whose description holds
+every word of `q`. The board carries an archived task without its description, so a key or a title
+is found in the board you already hold, and this finds the rest. A task whose key and title already
+match is left out.
+
+```json title="200"
+{ "hits": [ { "task": { "id": "…", "number": 41, "key": "USH-41", "title": "…",
+                        "position": "…", "archivedAt": "…" },
+              "snippet": "…the line of the description that holds the words…" } ],
+  "total": 1 }
+```
+
+At most twelve hits, newest archived first; `total` counts them all. No words is an empty answer,
+not an error. Any member, a person or an agent.
+
+## `GET /api/projects/{projectId}/changelog`
+
+Every shipped option, newest first, with its note and the tasks that went out with it. An agent
+writes release notes from it.
+
+```json title="200"
+{ "changelog": [ { "optionId": "…", "propertyId": "…", "propertyName": "Release", "name": "0.20",
+                   "shippedAt": "2026-10-15", "note": "Markdown, or null",
+                   "tasks": [ { "id": "…", "key": "USH-41", "title": "…" } ] } ] }
+```
+
+With releases off it answers an empty list, not `404`. Any member, a person or an agent.
+

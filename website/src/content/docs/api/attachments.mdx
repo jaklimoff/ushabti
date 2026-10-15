@@ -1,0 +1,87 @@
+---
+title: Files
+description: Put a file on a task in two calls, read it back through the board, and take it off again.
+sidebar:
+  order: 10
+---
+
+A task holds files: images and video first. The bytes live in an S3-compatible bucket and never
+pass through the board. You ask for an upload, PUT the bytes straight to the bucket, then say they
+are there. Every route here answers `503 Attachments are off, because this server has no S3 bucket
+set.` while the server has no bucket — see
+[Configuration](/ushabti/start/configuration/#files-on-a-task-s3_-and-attachment_).
+
+Any member may call them, a person or an agent.
+
+## `GET /api/tasks/{taskId}/attachments`
+
+The files of a task that are ready, newest first.
+
+```json title="200"
+{ "attachments": [
+  { "id": "…", "taskId": "…", "uploaderId": "…", "name": "queue.png", "mime": "image/png",
+    "size": 48213, "width": 1280, "height": 720, "createdAt": "…",
+    "url": "/api/attachments/…" } ] }
+```
+
+`width` and `height` are null for anything that is not an image whose size the server can read.
+
+## `POST /api/tasks/{taskId}/attachments`
+
+The first of the two calls an upload is.
+
+```json title="request"
+{ "name": "queue.png", "mime": "image/png", "size": 48213 }
+```
+
+```json title="201"
+{ "id": "…", "uploadUrl": "https://bucket…", "headers": { "Content-Type": "image/png" } }
+```
+
+PUT the bytes to `uploadUrl` with those headers, within ten minutes. The bucket takes only that mime
+and that length. Nothing reaches the feed yet, and an upload nobody confirms in an hour is removed.
+
+| Status | Message |
+| --- | --- |
+| `400` | `A file needs a name.` · `A file name is at most 200 characters.` · `A file needs a mime type.` |
+| `400` | `This board does not take {mime} files.` · `A file needs its size in bytes.` · `A file is at most {size}.` |
+| `404` | `Task not found.` |
+
+## `POST /api/attachments/{id}/ready`
+
+The second call: the bytes are there. The server asks the bucket rather than believing you. The
+object must hold the length and the mime the first call promised, and an image must be the image its
+mime names. Only the uploader may confirm. It answers `{ "attachment": … }` in the shape above,
+writes an `attachment` line to the feed with `data.action: "added"`, and rings the stream. A second
+call answers the same and writes nothing.
+
+| Status | Message |
+| --- | --- |
+| `403` | `Only the uploader can confirm a file.` |
+| `404` | `File not found.` |
+| `409` | `The bucket holds no file for this upload yet.` · `The file is {n} bytes, but the upload said {m}.` · `The file is {mime}, but the upload said {mime}.` |
+| `422` | `The file is not a {mime} image.` |
+
+To show a file in a description or a comment, paste `![name](/api/attachments/{id})`.
+
+## `GET /api/attachments/{id}`
+
+The one way to read a file. It answers `302` to a signed URL of the bucket that lasts five minutes,
+with `Cache-Control: private, no-store`. The link on the board is this route, so it never goes stale.
+An image or a video opens in place; SVG and everything else downloads, because SVG carries script.
+A file that is not ready yet, or whose task is deleted, is `404 File not found.`
+
+## `DELETE /api/attachments/{id}`
+
+Takes a file off its task, and out of the bucket. The uploader may take their own; the owner or an
+admin may take anybody's, and an agent only its own. A file that was ready writes an `attachment` line
+with `data.action: "removed"`.
+
+```json title="200"
+{ "ok": true }
+```
+
+| Status | Message |
+| --- | --- |
+| `403` | `You can only delete files you added.` |
+| `404` | `File not found.` |

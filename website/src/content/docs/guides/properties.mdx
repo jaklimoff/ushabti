@@ -1,6 +1,6 @@
 ---
 title: Properties
-description: The eight property types in Ushabti, how to create, rename, recolour, reorder and delete them, and what "show on card" decides.
+description: The nine property types in Ushabti, how to create, rename, recolour, reorder and delete them, and what "show on card" decides.
 sidebar:
   order: 1
 ---
@@ -15,12 +15,13 @@ Under the surface a property is a row in `properties`, and a value is a row in `
 by task **and** property. That is why adding a property costs nothing and deleting one takes its
 values with it.
 
-## The eight types
+## The nine types
 
 | Type             | Holds                              | Can group a view                     | In the panel it is                       |
 | ---------------- | ---------------------------------- | ------------------------------------ | ---------------------------------------- |
 | **Select**       | one option                         | <Badge text="yes" variant="tip" />   | a segmented row, or a dropdown           |
 | **Multi-select** | any number of options              | no                                   | chips plus a "find or add" menu          |
+| **Iteration**    | one option, and every option has dates | <Badge text="yes" variant="tip" /> | a segmented row, or a dropdown        |
 | **Person**       | one member — a human **or an agent** | <Badge text="yes" variant="tip" />  | an avatar, and a menu of everybody        |
 | **Text**         | free text, up to 2000 characters   | no                                   | a plain input                            |
 | **Number**       | a number                           | no                                   | an input, numeric keypad on a phone       |
@@ -28,7 +29,7 @@ values with it.
 | **Checkbox**     | on or off                          | <Badge text="yes" variant="tip" />   | a switch                                 |
 | **Link**         | up to 20 web addresses             | no                                   | links that open in a new tab, and a box to paste one more |
 
-Only **select, person and checkbox** can be a view's grouping property, because a task must sit in
+Only **select, iteration, person and checkbox** can be a view's grouping property, because a task must sit in
 exactly one column. A multi-select would put one card in three places at once.
 
 <Aside type="note" title="Why a select sometimes looks different">

@@ -28,6 +28,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The API and configuration docs match the code.** The configuration page lists the `S3_*`,
+  `ATTACHMENT_*` and development variables. The counts of property types and avatar colours, the
+  view kinds and the activity kinds are right. Files, ship, search, settings, the changelog and older
+  runs have pages, and the API overview says why the rest have none.
+
 - **An invite lets in only the person who received it.** An invite is now a link that works once,
   for 7 days; the email carries it, and People shows it to copy. Signing up with an invited email
   but without the link joins no project, and on a closed board is refused. An invite made before

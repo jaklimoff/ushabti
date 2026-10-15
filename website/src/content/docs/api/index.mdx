@@ -122,4 +122,22 @@ a client id and your own tab will skip its own echo instead of refetching. Optio
   <LinkCard title="Properties and views" href="/ushabti/api/properties/" description="The structure of the board, and its filters." />
   <LinkCard title="Agents and runs" href="/ushabti/api/runs/" description="Claim, report, beat, control, close." />
   <LinkCard title="Live events" href="/ushabti/api/events/" description="The server-sent-events stream, and what it does not send." />
+  <LinkCard title="Files" href="/ushabti/api/attachments/" description="Upload a file to a task, read it, take it off." />
+  <LinkCard title="Webhooks" href="/ushabti/api/webhooks/" description="A request the server makes to you when the feed moves." />
 </CardGrid>
+
+## Routes with no page
+
+Every route a token may call has a page. These do not, because a token is refused at their door —
+each is **human only**, or **owner and admins**, which is human only as well — and the screen that
+calls them is the documentation that matters:
+
+| Route | Why a token cannot call it |
+| --- | --- |
+| `/api/lists…`, `/api/charts…` | A list and a chart belong to one person, across their projects. A token opens one project. |
+| `PATCH /api/projects/{projectId}/position` | Where a project sits on one person's Home. |
+| `POST /api/projects/{projectId}/presence` | Which task a person's tab has open. An agent has no tab. |
+| `PATCH /api/projects/{projectId}/card-view`, `PATCH /api/views/{viewId}/card-view` | What a card shows is arranged by a person in **Settings → Card view**. |
+| `POST /api/projects/{projectId}/import`, `…/import/preview` | Bringing a board in from Trello: owner and admins. See [Import](/ushabti/guides/import/). |
+| `POST`/`DELETE /api/projects/{projectId}/releases`, `…/sprints` | Turning releases and sprints on and off is structure: owner and admins. |
+| `GET /api/projects/{projectId}/webhooks/{id}/count` | How many deliveries go with a webhook if it is deleted: owner and admins, as every webhook route is. |

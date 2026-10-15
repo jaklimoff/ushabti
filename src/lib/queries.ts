@@ -1642,7 +1642,10 @@ export async function groupPropertyId(
   if (!prop || prop.projectId !== projectId)
     throw new HttpError(400, "That property is not in this project.");
   if (!GROUPABLE_TYPES.includes(prop.type as PropertyType)) {
-    throw new HttpError(400, "A view can only group by a select, person or checkbox property.");
+    throw new HttpError(
+      400,
+      "A view can only group by a select, iteration, person or checkbox property.",
+    );
   }
   if (kind === "roadmap" && !isSelect(prop.type))
     throw new HttpError(400, "A roadmap draws the options of a select property.");

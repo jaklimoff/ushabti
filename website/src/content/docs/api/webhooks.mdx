@@ -38,7 +38,8 @@ secret**.
 ```
 
 `kind` is one of the words the activity feed writes: `created`, `title`, `description`, `value`,
-`checklist`, `comment`, `run`, `archive`, `link`, `deleted`, `reset`, `import`. A webhook that names
+`checklist`, `comment`, `run`, `archive`, `link`, `deleted`, `reset`, `import`, `attachment`, `rules`.
+A webhook that names
 none of them rings for all of them. A change that writes no feed line — a view, a property, the card
 view — rings nothing.
 
@@ -53,6 +54,12 @@ line per task behind it.
 rings nothing, because nothing happened to that task. `link` also rings when a task is made part of
 another or taken out of it: `taskKey` is the part, and the feed line carries `data.action`
 `parented` or `unparented` with the parent's key in `data.parentKey`.
+
+`attachment` rings when a file is added to a task or taken off it: the feed line carries
+`data.action`, `added` or `removed`, with `data.attachmentId` and `data.name`. An upload nobody
+confirmed rings nothing. `rules` rings when somebody changes the project's agent rules; the line is
+about the project, and carries `data.hash` and `data.text`. `reset` is about the project too: a reset
+link was made, for the member in `data.forUserId` and `data.forName`.
 
 `comment` rings for a new comment and for an edit of one. The feed line tells them apart: an edit
 carries `data.action: "edited"` beside `data.commentId`.
