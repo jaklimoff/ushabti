@@ -80,7 +80,7 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   await settles(page, /\/import$/, () =>
     page.getByRole("button", { name: "Import 4 tasks" }).click(),
   );
-  await expect(page.getByText("4 tasks and 2 options are on the board.")).toBeVisible();
+  await expect(page.getByText("4 tasks and 1 option are on the board.")).toBeVisible();
 
   // The board has the columns and the cards, in the order the file had them.
   await page.goto(`/p/${projectId}`);
