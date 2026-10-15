@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, lte, or } from "drizzle-orm";
 import { db } from "@/db";
 import { projectInvites, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
@@ -8,6 +8,8 @@ import { originOf } from "@/lib/origin";
 import { limiter, spendMail } from "@/lib/rate-limit";
 import { projectName } from "@/lib/queries";
 import { joinProject } from "@/lib/membership";
+import { mintToken } from "@/lib/agents";
+import { INVITE_DAYS, INVITE_MS, INVITE_PREFIX } from "@/lib/invite-link";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -21,23 +23,42 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
-  /* No account yet: remember the email. The person joins when they sign up
-     with it, and a closed sign-up lets them through for it. */
+  /* No account yet: the invite is a link, sent to the email. Whoever opens
+     it signs up with that email and is in, even through a closed sign-up.
+     The email alone opens nothing: nobody has proved they own it. */
   if (!user) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new HttpError(400, "That email address does not look correct.");
     }
-    const invited = await db
-      .select({ email: projectInvites.email })
-      .from(projectInvites)
-      .where(and(eq(projectInvites.projectId, projectId), eq(projectInvites.email, email)))
-      .limit(1);
-    if (invited.length) throw new HttpError(409, "That email is already invited.");
+    const minted = mintToken(INVITE_PREFIX);
+    const now = new Date();
+    /* A dead invite — old, or made before invites had links — takes the new
+       link in its place; a live one is refused. One statement, so two admins
+       inviting the same email at once cannot both get a link. */
     const [invite] = await db
       .insert(projectInvites)
-      .values({ projectId, email, invitedBy: actor.id })
+      .values({
+        projectId,
+        email,
+        invitedBy: actor.id,
+        hash: minted.hash,
+        expiresAt: new Date(now.getTime() + INVITE_MS),
+      })
+      .onConflictDoUpdate({
+        target: [projectInvites.projectId, projectInvites.email],
+        set: {
+          invitedBy: actor.id,
+          createdAt: now,
+          hash: minted.hash,
+          expiresAt: new Date(now.getTime() + INVITE_MS),
+        },
+        setWhere: or(isNull(projectInvites.hash), lte(projectInvites.expiresAt, now)),
+      })
       .returning({ email: projectInvites.email, createdAt: projectInvites.createdAt });
+    if (!invite) throw new HttpError(409, "That email is already invited.");
     await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
+
+    const link = `${originOf(req)}/invite/${minted.token}`;
 
     /* The invite is written before anything is sent, so a send that fails or
        hangs takes nothing back: the owner still has the link on screen. */
@@ -49,12 +70,17 @@ export const POST = route<Ctx>(async (req, ctx) => {
           to: invite.email,
           inviter: actor.name,
           project: await projectName(projectId),
-          origin: originOf(req),
+          link,
+          days: INVITE_DAYS,
         }),
       ));
 
     return json(
-      { invite: { email: invite.email, createdAt: invite.createdAt.toISOString() }, emailed },
+      {
+        invite: { email: invite.email, createdAt: invite.createdAt.toISOString(), live: true },
+        link,
+        emailed,
+      },
       201,
     );
   }

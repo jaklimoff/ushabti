@@ -111,17 +111,19 @@ describe("sendMail", () => {
 });
 
 describe("the letters", () => {
-  it("an invite names who, where, the sign-up link, and the same email", () => {
+  it("an invite names who, where, its own link, how long, and the same email", () => {
     const mail = inviteMail({
       to: "new@example.com",
       inviter: "Ada Owner",
       project: "Launch",
-      origin: "https://board.example.com",
+      link: "https://board.example.com/invite/ushi_abc",
+      days: 7,
     });
     expect(mail.to).toBe("new@example.com");
     expect(mail.subject).toBe("Ada Owner invited you to Launch on Ushabti");
     expect(mail.text).toContain("Ada Owner invited you to the project Launch");
-    expect(mail.text).toContain("\nhttps://board.example.com/register\n");
+    expect(mail.text).toContain("\nhttps://board.example.com/invite/ushi_abc\n");
+    expect(mail.text).toContain("The link works once, for 7 days.");
     expect(mail.text).toContain("with this same email address");
     expect(mail.text).toContain("new@example.com");
   });

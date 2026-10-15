@@ -779,6 +779,8 @@ export type ProjectDTO = {
 export type InviteDTO = {
   email: string;
   createdAt: string;
+  /** False once its link is old, or for an invite made before links: inviting again mends it. */
+  live: boolean;
 };
 
 export type BoardData = {

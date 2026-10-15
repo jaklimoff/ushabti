@@ -186,11 +186,15 @@ export const projectMembers = pgTable(
 );
 
 /**
- * An email the owner added before it had an account. Whoever registers with
- * it joins the project at once, and the row goes. It is also the one way in
- * through a closed sign-up, which is why the register route reads it: without
- * it the owner is told "ask them to register" and the person "ask the owner",
- * and nobody can break the circle.
+ * An email the owner added before it had an account. The invite is a link:
+ * whoever opens it registers with that email, joins the project, and the row
+ * goes. It is also the one way in through a closed sign-up. The email alone
+ * opens nothing, because nothing in Ushabti proves that somebody owns an
+ * address — only the link the owner sent there does.
+ *
+ * The table keeps the digest of the link's token, as `password_resets` does.
+ * A row made before invites had links has none, and opens nothing; inviting
+ * the email again gives it one.
  */
 export const projectInvites = pgTable(
   "project_invites",
@@ -203,10 +207,14 @@ export const projectInvites = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** SHA-256 of the link's token. Null on an invite older than links. */
+    hash: text("hash"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
   },
   (t) => [
     primaryKey({ columns: [t.projectId, t.email] }),
     index("project_invites_email_idx").on(t.email),
+    uniqueIndex("project_invites_hash_key").on(t.hash),
   ],
 );
 

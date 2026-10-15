@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { projectInvites, users } from "@/db/schema";
+import { users } from "@/db/schema";
+import { INVITE_IS_DEAD } from "@/lib/invite-link";
+import { inviteOfToken, spendInvite } from "@/lib/invites";
 import { joinProject } from "@/lib/membership";
 import { createSession, hashPassword, HttpError, refuseIfLimited, signupIsOpen } from "@/lib/auth";
 import { body, broadcast, json, route, str } from "@/lib/api";
@@ -21,7 +23,9 @@ export const POST = route(async (req: Request) => {
 });
 
 async function signUp(req: Request): Promise<Response> {
-  const input = await body<{ email?: string; password?: string; name?: string }>(req);
+  const input = await body<{ email?: string; password?: string; name?: string; invite?: string }>(
+    req,
+  );
 
   const email = str(input.email, "Email", { max: 200 }).toLowerCase();
   const name = str(input.name, "Name", { max: 80 });
@@ -29,16 +33,20 @@ async function signUp(req: Request): Promise<Response> {
     throw new HttpError(400, "That email address does not look correct.");
   }
 
-  /* An invited email gets in through a closed board: the owner asked for
-     this person, which is what "closed" is there to protect. */
-  const invites = await db
-    .select({ projectId: projectInvites.projectId })
-    .from(projectInvites)
-    .where(eq(projectInvites.email, email));
-  if (!signupIsOpen() && invites.length === 0) {
+  /* Only the link opens a project, and a closed board. An invited email on
+     its own proves nothing: nothing here checks that somebody owns an
+     address, so a stranger who typed it would be in before the real person. */
+  const token = typeof input.invite === "string" && input.invite ? input.invite : null;
+  if (token) {
+    const invite = await inviteOfToken(token);
+    if (!invite) throw new HttpError(400, INVITE_IS_DEAD);
+    if (invite.email !== email) {
+      throw new HttpError(400, `This invite is for ${invite.email}. Sign up with that email.`);
+    }
+  } else if (!signupIsOpen()) {
     throw new HttpError(
       403,
-      "This board is not taking new accounts. Ask the owner of your project to invite this email.",
+      "This board is not taking new accounts. Ask the owner of your project to invite this email, and open the link they send.",
     );
   }
   if (typeof input.password !== "string" || input.password.length < 8) {
@@ -54,9 +62,8 @@ async function signUp(req: Request): Promise<Response> {
 
   const passwordHash = await hashPassword(input.password);
 
-  /* One transaction, so a failure leaves no account without its projects.
-     The memberships come from the invites the delete took, never from the
-     read above: an invite that lands in between still gets its member. */
+  /* One transaction, so a failure leaves no account without its project, and
+     a link spent by another browser in between leaves no account at all. */
   const { user, joined } = await db.transaction(async (tx) => {
     const [user] = await tx
       .insert(users)
@@ -68,19 +75,14 @@ async function signUp(req: Request): Promise<Response> {
         color: users.color,
         emoji: users.avatarEmoji,
       });
-    const joined = await tx
-      .delete(projectInvites)
-      .where(eq(projectInvites.email, email))
-      .returning({ projectId: projectInvites.projectId });
-    for (const invite of joined) {
-      await joinProject(tx, { projectId: invite.projectId, userId: user.id, role: "member" });
-    }
+    if (!token) return { user, joined: null };
+    const joined = await spendInvite(tx, token, email);
+    if (!joined) throw new HttpError(400, INVITE_IS_DEAD);
+    await joinProject(tx, { projectId: joined, userId: user.id, role: "member" });
     return { user, joined };
   });
 
-  for (const invite of joined) {
-    await broadcast({ projectId: invite.projectId, scope: "project" });
-  }
+  if (joined) await broadcast({ projectId: joined, scope: "project" });
 
   await createSession(user.id);
   return json({ user });

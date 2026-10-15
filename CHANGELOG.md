@@ -16,6 +16,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **An invite lets in only the person who received it.** An invite is now a link that works once,
+  for 7 days; the email carries it, and People shows it to copy. Signing up with an invited email
+  but without the link joins no project, and on a closed board is refused. An invite made before
+  this release opens nothing: People marks it "link expired", and adding the email again sends a
+  new link.
 - **The docs say only what Ushabti does today.** The backup recipe now copies the bucket the
   attachments live in, since a dump alone loses them. No page says a delete cannot be undone, that
   there are no sprints or no rate limit, or that webhooks are the owner's alone. The roadmap has a

@@ -15,7 +15,15 @@ const fake = vi.hoisted(() => {
   let selects: unknown[][] = [];
   const chain = (rows: () => unknown[]) => {
     const builder: Record<string, unknown> = {};
-    for (const name of ["from", "innerJoin", "where", "limit", "values", "returning"]) {
+    for (const name of [
+      "from",
+      "innerJoin",
+      "where",
+      "limit",
+      "values",
+      "onConflictDoUpdate",
+      "returning",
+    ]) {
       builder[name] = () => builder;
     }
     builder.then = (ok: (rows: unknown[]) => unknown) => Promise.resolve(rows()).then(ok);
@@ -130,12 +138,13 @@ function mail(on: boolean) {
 }
 
 describe("with no SMTP_URL", () => {
-  it("an invite answers as before, with emailed: false, and sends nothing", async () => {
+  it("an invite answers its own link, with emailed: false, and sends nothing", async () => {
     mail(false);
     const answer = await invite();
     expect(answer.status).toBe(201);
     expect(answer.body).toEqual({
-      invite: { email: "new@example.com", createdAt: "2026-09-28T10:00:00.000Z" },
+      invite: { email: "new@example.com", createdAt: "2026-09-28T10:00:00.000Z", live: true },
+      link: expect.stringMatching(/^https:\/\/board\.example\.com\/invite\/ushi_[\w-]{43}$/),
       emailed: false,
     });
     expect(send).not.toHaveBeenCalled();
@@ -161,7 +170,7 @@ describe("with mail on", () => {
     expect(fake.steps).toEqual(["insert", "send"]);
     const [letter] = send.mock.calls[0];
     expect(letter.to).toBe("new@example.com");
-    expect(letter.text).toContain("https://board.example.com/register");
+    expect(letter.text).toContain(`\n${answer.body.link}\n`);
     expect(letter.text).toContain("Ada Owner invited you to the project Launch");
   });
 
