@@ -2,17 +2,17 @@
  * A small agent, with no dependencies. It claims a task, reports what it is
  * doing, obeys Pause and Stop from the board, and closes its run.
  *
- *   npm run db:seed
+ *   docker compose exec app npm run db:seed
  *   USHABTI_TOKEN=ush_demo_seed_token_not_for_real_use node examples/agent.mjs
  *
  * Read it, then write your own. The real work goes where `pretendToWork` is.
  */
 
-const BASE = process.env.USHABTI_URL ?? "http://localhost:3000";
+const BASE = process.env.USHABTI_URL ?? "http://localhost:3050";
 const TOKEN = process.env.USHABTI_TOKEN;
 
 if (!TOKEN) {
-  console.error("Set USHABTI_TOKEN. Settings -> Agents -> Issue token.");
+  console.error("Set USHABTI_TOKEN. Settings -> People -> Connect.");
   process.exit(1);
 }
 

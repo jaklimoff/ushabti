@@ -20,7 +20,8 @@ talks to and writes them over the copies here. Run it when a command this file
 names is missing. A failed download changes nothing.
 
 It needs `USHABTI_TOKEN` in the environment, and `USHABTI_URL` if the board is
-not at `http://localhost:3000`. If the token is missing, stop and ask for one:
+not at `http://localhost:3000`, where the production compose serves it. If the
+token is missing, stop and ask for one:
 the owner or an admin issues it in **Settings → People**, with the **Connect** button.
 
 ## The loop

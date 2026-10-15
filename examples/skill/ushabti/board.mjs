@@ -561,7 +561,7 @@ const commands = {
 A long text can come from a file: --file notes.md, or --file - for stdin.
 
 Every command needs USHABTI_TOKEN. Set USHABTI_URL if the board is not at
-http://localhost:3000.`);
+http://localhost:3000, where the production compose serves it.`);
   },
 
   async me() {

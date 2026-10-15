@@ -41,7 +41,9 @@ run's control word — see [Obey the control word](#obey-the-control-word).
 
 ## Sign in
 
-Send the token as a bearer token on every call.
+Send the token as a bearer token on every call. The address below is the
+production compose, which serves on 3000; the dev compose and `npm run dev`
+serve on 3050.
 
 ```bash
 export USHABTI=http://localhost:3000

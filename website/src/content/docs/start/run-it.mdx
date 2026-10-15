@@ -28,7 +28,7 @@ You need Docker. Nothing else — no Node on your machine, no Postgres, no globa
    The first run builds the image and installs the packages, so give it a minute. The app container
    installs, writes the database schema with `drizzle-kit push` and starts the dev server on its own.
 
-3. **Open it.** The board is at [http://localhost:3000](http://localhost:3000). Register an account and you have an empty
+3. **Open it.** The board is at [http://localhost:3050](http://localhost:3050). Register an account and you have an empty
    project with seven properties and two views already in it.
 
 </Steps>
@@ -81,7 +81,7 @@ seed a database you care about.
   <TabItem label="VS Code dev container">
 
 `.devcontainer/devcontainer.json` points at the same compose file. **Reopen in Container** puts your
-editor inside the `app` service, with ports 3000 and 5432 forwarded.
+editor inside the `app` service, with ports 3050 and 5432 forwarded.
 
   </TabItem>
   <TabItem label="Without Docker">
