@@ -248,8 +248,15 @@ breaking changes. Ushabti supports one version at a time, so a release branch
 would add work and give nothing back. If that ever changes, `release/X.Y` will
 be cut from the tag.
 
-`main` is protected. Every change arrives through a pull request, and the
-tests must pass before it merges.
+A change from outside arrives through a pull request, and CI must pass before
+it merges. The maintainer's build loop lands on `main` directly, through the
+admin bypass of the branch rules, after the same checks have passed on the
+maintainer's machine: format, lint, types and unit tests for each task, and
+the whole Playwright suite on the production build before each push. CI runs
+again on every push to `main`.
+
+`.setmaat/` is the configuration of that build loop. A contributor can ignore
+it.
 
 ## What runs, and when
 
