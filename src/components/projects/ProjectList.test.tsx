@@ -474,8 +474,14 @@ describe("A project card", () => {
         .map((el) => rectOf(el).top);
     const [a, b] = tops("project-foot");
     expect(page.getByTestId("project-card").elements()).toHaveLength(2);
-    /* The long one really is longer, so the test proves the line-up. */
-    expect(rectOf(page.getByTestId("project-columns").element()).height).toBeGreaterThan(40);
+    /* The long one really is longer, so the test proves the line-up. Measured
+       against its own chips, because a line's height is the font's: CI's
+       fallback font drew three lines in 37px. */
+    const chips = page.getByTestId("project-column").elements().map(rectOf);
+    expect(new Set(chips.map((r) => Math.round(r.top))).size).toBeGreaterThan(1);
+    expect(rectOf(page.getByTestId("project-columns").element()).height).toBeGreaterThan(
+      2 * chips[0].height,
+    );
     expect(Math.round(a)).toBe(Math.round(b));
     const [c, d] = tops("project-activity");
     expect(Math.round(c)).toBe(Math.round(d));
