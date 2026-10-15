@@ -62,5 +62,10 @@ release:
   tag: sh .setmaat/release/tag.sh
   # No build: docker.yml builds the image on the tag. The deploy waits for it.
   deploy: sh .setmaat/release/deploy.sh
+  # Last, after the tasks move to Shipped: the board's Ship archives only what
+  # is over, and at the deploy the tasks were still in Ready. It ships the
+  # release on the board, which writes its changelog entry. A failure here
+  # undoes nothing: the tag, the deploy and the move already happened.
+  after: sh .setmaat/release/ship.sh
   # For each command: the whole suite is long, and the deploy waits up to 45 min.
   timeout: 90m

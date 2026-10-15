@@ -265,7 +265,9 @@ tasks in Ready: Setmaat's release program pauses the loop, runs
 `.setmaat/e2e.sh`, and shows the SQL of each new migration and waits for a yes.
 Then `.setmaat/release/tag.sh` does steps 1 to 4 below and pushes `main` with
 the tag. `.setmaat/release/deploy.sh` waits for the image on Docker Hub, backs
-the database up and deploys. The tasks move to Shipped. The bump is minor
+the database up and deploys. The tasks move to Shipped. Then
+`.setmaat/release/ship.sh` ships the release on the board, so the same press
+archives its tasks and writes its changelog entry. The bump is minor
 unless the press names another. The `release:` block of `.setmaat/project.yaml`
 holds the commands.
 
