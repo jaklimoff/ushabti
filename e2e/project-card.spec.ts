@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { createProject, gotoSettings, register, unique } from "./helpers";
+import { backdateRun, createProject, gotoSettings, register, unique } from "./helpers";
 
 type Option = { id: string; name: string };
 type Property = { id: string; name: string; options: Option[] };
@@ -35,7 +35,12 @@ async function shapeOf(page: Page, projectId: string) {
 }
 
 /** Starts a run as the agent, and leaves it in the status asked for. */
-async function runAs(request: APIRequestContext, token: string, taskId: string, status?: string) {
+async function runAs(
+  request: APIRequestContext,
+  token: string,
+  taskId: string,
+  status?: string,
+): Promise<string> {
   const headers = { Authorization: `Bearer ${token}` };
   const started = await request.post(`/api/tasks/${taskId}/run`, { headers, data: { goal: "Go" } });
   expect(started.ok()).toBeTruthy();
@@ -44,6 +49,7 @@ async function runAs(request: APIRequestContext, token: string, taskId: string, 
     const moved = await request.patch(`/api/runs/${id}`, { headers, data: { status, step: "?" } });
     expect(moved.ok()).toBeTruthy();
   }
+  return id;
 }
 
 test.describe("The project list shows how every project is going", () => {
@@ -161,6 +167,48 @@ test.describe("The project list shows how every project is going", () => {
     ]);
     await expect(bar.locator('[data-column="Done"]')).toHaveCount(0);
     await expect(bar.locator("[data-column]")).toHaveCount(2);
+  });
+
+  test("the card and a list row say the same about a silent agent", async ({
+    page,
+    request,
+  }, testInfo) => {
+    await register(page, "Silence Reader");
+    const projectId = await createProject(page, unique("Silent"));
+    const reis = await connectAgent(page, projectId, "Reis");
+    const crackerjack = await connectAgent(page, projectId, "Crackerjack");
+    const make = async (title: string) => {
+      const made = await page.request.post(`/api/projects/${projectId}/tasks`, {
+        data: { title },
+      });
+      expect(made.ok()).toBeTruthy();
+      return (await made.json()).task as { id: string };
+    };
+    await runAs(request, reis, (await make("Reported lately")).id);
+    const silent = await runAs(request, crackerjack, (await make("Not heard from")).id);
+    /* Ten minutes with no report and no beat: past the six that make a run silent. */
+    await backdateRun(silent, 10);
+    const list = await page.request.post("/api/lists", {
+      data: { name: unique("Everything"), projectId },
+    });
+    expect(list.status()).toBe(201);
+
+    await page.goto("/projects");
+    const card = page.locator(`a[href="/p/${projectId}"]`);
+    await expect(card.getByTestId("project-agents")).toHaveText(
+      "Reis working · Crackerjack silent",
+    );
+    const row = (title: string) =>
+      page.getByTestId("list-card-row").filter({ hasText: title }).getByTestId("list-card-agent");
+    await expect(row("Not heard from")).toHaveText("Crackerjack");
+    await expect(row("Not heard from")).toHaveAttribute("title", "Not heard from for a while");
+    await expect(row("Not heard from").locator("span")).toHaveCount(0);
+    await expect(row("Reported lately")).toHaveAttribute("title", "At work on it");
+    await expect(row("Reported lately").locator("span")).toHaveCount(1);
+    /* Home may still swap its loading frame in after the rows read; wait for the page itself. */
+    await expect(page.getByRole("heading", { name: "Home", level: 1 })).toBeVisible();
+    await expect(card.getByTestId("project-agents")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-silent-agent.png") });
   });
 
   test("a main view that is a list draws no columns, and nothing waits", async ({ page }) => {

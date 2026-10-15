@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ME_KEY } from "../filters";
+import { agentsAtWork } from "../pulse";
 import {
   CARD_ROWS,
   EVERY_TASK,
@@ -72,11 +73,16 @@ function task(project: string, number: number, values: TaskDTO["values"]): TaskD
   };
 }
 
-function run(taskId: string, status: RunStatus): AgentRunDTO {
+const NOW = Date.parse("2026-10-09T12:00:00Z");
+
+function run(taskId: string, status: RunStatus, minutesAgo = 1, agent = "Builder"): AgentRunDTO {
+  const at = new Date(NOW - minutesAgo * 60_000).toISOString();
   return {
     taskId,
     status,
-    agent: { id: "a-1", name: "Builder", color: "#999999", emoji: null },
+    updatedAt: at,
+    beatAt: at,
+    agent: { id: `a-${agent}`, name: agent, color: "#999999", emoji: null },
   } as AgentRunDTO;
 }
 
@@ -202,6 +208,22 @@ describe("listGroups", () => {
     ]);
   });
 
+  it("says an agent is silent exactly when the project card does", () => {
+    const quiet = { ...run("b-t2", "running", 60, "Scout"), beatAt: new Date(NOW).toISOString() };
+    const runs = [run("b-t1", "running", 60, "Crackerjack"), quiet];
+    const [group] = listGroups(
+      [{ id: "s", projectId: "b", filters: { rules: [] } }],
+      [board("b", two.tasks, runs)],
+      "u-me",
+      NOW,
+    );
+    expect(group.rows.map((r) => [r.key, r.agent, r.silent])).toEqual([
+      ["B-1", "Crackerjack", true],
+      ["B-2", "Scout", false],
+    ]);
+    expect(agentsAtWork(runs, NOW)).toEqual({ names: ["Scout"], silent: ["Crackerjack"] });
+  });
+
   it("brings nothing from a project with no board: the person left it", () => {
     const groups = listGroups(
       [
@@ -257,6 +279,7 @@ describe("rulesSaid and summaryOf", () => {
       color: "#7aa8f0",
       waiting: false,
       agent: null,
+      silent: false,
       chip: null,
       createdAt: "2026-01-01T00:00:00.000Z",
     }));

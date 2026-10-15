@@ -386,6 +386,10 @@
   color: var(--accent);
 }
 
+.working[data-silent] {
+  color: var(--muted);
+}
+
 .workingDot {
   width: 6px;
   height: 6px;

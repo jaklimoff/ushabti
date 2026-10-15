@@ -72,7 +72,10 @@ export function ListPage({
                         </span>
                       )}
                       {row.agent && (
-                        <span className={styles.agent} title="At work on it">
+                        <span
+                          className={styles.agent}
+                          title={row.silent ? "Not heard from for a while" : "At work on it"}
+                        >
                           {row.agent}
                         </span>
                       )}
