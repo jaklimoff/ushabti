@@ -1,0 +1,1354 @@
+---
+// The landing page stands outside Starlight on purpose: it is dark whatever
+// theme the docs are set to, and it carries no sidebar, search or switch.
+import { Font } from "astro:assets";
+import pkg from "../../../package.json";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const at = (path: string) => `${base}${path}`;
+const site = Astro.site?.href.replace(/\/$/, "") ?? "";
+
+const title = "A task board where every field is yours | Ushabti";
+const description =
+  "A small, fast task board where every field on a task is a property you define — and where agents work the same board as people. Free, open source, and yours to run.";
+const version = "v" + pkg.version.split(".").slice(0, 2).join(".");
+const github = "https://github.com/jaklimoff/ushabti";
+
+const docs = at("/start/what-it-is/");
+const agents = at("/agents/");
+const api = at("/api/");
+const changelog = at("/releases/changelog/");
+const roadmap = at("/releases/roadmap/");
+const runIt = at("/start/run-it/");
+const selfHost = at("/start/self-host/");
+const properties = at("/guides/properties/");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={site + base + "/"} />
+    <link rel="icon" href={at("/favicon.svg")} type="image/svg+xml" />
+    <link rel="sitemap" href={at("/sitemap-index.xml")} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0a0b0d" />
+    <meta property="og:title" content={title} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={site + base + "/"} />
+    <meta property="og:description" content={description} />
+    <meta property="og:site_name" content="Ushabti" />
+    <meta property="og:image" content={site + base + "/og.png"} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <Font cssVariable="--font-ushabti-sans" preload />
+    <Font cssVariable="--font-ushabti-mono" />
+  </head>
+  <body>
+    <div class="page">
+      <nav class="nav">
+        <div class="wrap nav-in">
+          <a class="brand" href={at("/")}><span class="mark">U</span><span>Ushabti</span></a>
+          <div class="links">
+            <a class="link" href={docs}>Docs</a>
+            <a class="link" href={agents}>Agents</a>
+            <a class="link" href={api}>API</a>
+            <a class="link" href={changelog}>Changelog</a>
+            <a class="link" href={github}>GitHub</a>
+            <a class="btn btn-sm btn-on" href="#run">Run it</a>
+          </div>
+        </div>
+      </nav>
+
+      <header class="wrap hero">
+        <div class="pill"><b>{version}</b><i></i>Free<i></i>Self-hosted<i></i>MIT</div>
+        <h1 class="h1">
+          The task board for <span class="hu">humans</span> and <span class="ag">agents</span>.
+        </h1>
+        <p class="lede">
+          A small, fast board where <strong>every field on a task is a property you define</strong>,
+          even Status. An agent joins as a member and takes a card the way a person does.
+        </p>
+        <div class="row">
+          <a class="btn btn-on" href="#run">Run it in one command</a>
+          <a class="btn btn-ghost" href={docs}>Read the docs</a>
+        </div>
+        <div class="cmd">
+          <span class="p">$</span><span class="t">docker compose up</span><button
+            class="copy"
+            type="button"
+            data-copy
+            aria-live="polite">Copy</button
+          >
+        </div>
+        <div class="note">You need Docker. Nothing else.</div>
+      </header>
+
+      <div class="wrap">
+        <div class="film">
+          <div class="film-glow"></div>
+          <div class="film-frame">
+            <video
+              data-film
+              muted
+              loop
+              playsinline
+              disablepictureinpicture
+              preload="none"
+              poster={at("/promo-poster.webp")}
+              src={at("/promo.mp4")}
+              aria-label="Ushabti in 41 seconds"></video>
+          </div>
+          <div class="film-cap">
+            <span>Drag</span><span>Agents</span><span>Properties</span><span>Views</span><span
+              >Live</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <section class="wrap sec" id="agents">
+        <div class="split">
+          <div class="copyside">
+            <p class="eyebrow">Agents</p>
+            <h2 class="h2">An agent is a member, not a plugin.</h2>
+            <p class="body">
+              It signs in with a token and uses <strong>the same API the browser uses</strong>. So it
+              can hold a card, write a comment and show up in the activity log, with no second set of
+              rules.
+            </p>
+            <ul class="points">
+              <li>
+                <i class="tick"></i>
+                <div>
+                  <b>One quiet strip on the card</b>Who is working, on what, for how long. The plan
+                  and the log stay in the panel, so a board with ten runs still reads.
+                </div>
+              </li>
+              <li>
+                <i class="tick"></i>
+                <div>
+                  <b>It hears the board</b>A watcher wakes on a new task and claims it before it
+                  starts, so two agents never take the same card.
+                </div>
+              </li>
+              <li>
+                <i class="tick"></i>
+                <div>
+                  <b>Pause and Stop are requests</b>The agent reads them in the answer to its next
+                  report. Only Take over decides anything.
+                </div>
+              </li>
+            </ul>
+            <a class="more" href={agents}>Read the agent guide →</a>
+          </div>
+
+          <div class="stage" aria-label="A card with a live run, and the Agent tab of its panel">
+            <div class="card">
+              <div class="card-top"><i style="background:#d1913a"></i>USH-2</div>
+              <div class="card-title">Board grouped by any property you choose</div>
+              <div class="chips">
+                <span class="chip"><i style="background:#3fb0c8"></i>MVP</span><span class="chip"
+                  ><i style="background:#d1913a"></i>L</span
+                ><span class="chip">Aug 28</span>
+              </div>
+              <div class="strip">
+                <i class="live"></i><b>Builder</b> Writing offline queue tests<span class="age">6m</span>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="tabs">
+                <span>Comments</span><span>Activity</span><span class="on"><i class="live"></i>Agent</span>
+              </div>
+              <div class="ph">
+                <span class="av">B</span><span>Builder</span><span class="state">active</span><span
+                  class="age">started 6m ago</span
+                >
+              </div>
+              <div class="now">
+                <i class="live"></i>Writing tests/queue.spec.ts<span class="n">2 / 4</span>
+              </div>
+              <div class="bar"><i></i></div>
+              <ol class="plan">
+                <li class="done"><i></i>Reading the grouping code</li>
+                <li class="act"><i></i>Writing offline queue tests<span>2m</span></li>
+                <li><i></i>Making the tests pass</li>
+                <li><i></i>Opening a pull request</li>
+              </ol>
+              <div class="log">
+                <div><span>6m</span>started: write the offline queue tests</div>
+                <div><span>4m</span>step 1: read the grouping code</div>
+                <div><span>2m</span>step 2: write tests/queue.spec.ts</div>
+              </div>
+              <div class="ctl"><span>Pause</span><span>Stop</span><span class="danger">Take over</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap sec">
+        <div class="split flip">
+          <div class="copyside">
+            <p class="eyebrow">Custom properties</p>
+            <h2 class="h2">There is nothing special about Status.</h2>
+            <p class="body">
+              Most boards give you Status and Priority and let you add fields around them. Here <strong
+                >Status is a row you can rename, recolour or delete</strong
+              >, like the property you add this afternoon.
+            </p>
+            <p class="body">
+              A view is the board grouped by one of them, so the columns are that property's options,
+              in the order you dragged them. Delete Status and the board asks where to point instead.
+              Nothing breaks, because nothing was built on the name.
+            </p>
+            <a class="more" href={properties}>How properties work →</a>
+          </div>
+
+          <div class="stage prop" aria-label="A property, its options, and the board they make">
+            <div class="setrow">
+              <span class="grip"><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="nm"
+                >Status</span
+              ><span class="ty">select</span><span class="acts"><span>Rename</span><span>Delete</span></span>
+            </div>
+            <div class="opts">
+              <span class="opt"><i style="background:#6b7280"></i>Backlog</span>
+              <span class="opt"><i style="background:#a4aab3"></i>Todo</span>
+              <span class="opt"><i style="background:#d1913a"></i>In Progress</span>
+              <span class="opt"><i style="background:#4f8a5b"></i>Shipped</span>
+            </div>
+            <div class="setrow dim">
+              <span class="grip"><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="nm"
+                >Phase</span
+              ><span class="ty">select</span>
+            </div>
+            <div class="setrow dim">
+              <span class="grip"><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="nm"
+                >Estimate</span
+              ><span class="ty">select</span>
+            </div>
+            <div class="arrow">↓ group the board by Status</div>
+            <div class="mini">
+              <div class="mcol">
+                <div class="mhead"><i style="background:#6b7280"></i>Backlog</div>
+                <div class="mcard"><i></i><i></i></div>
+                <div class="mcard"><i></i><i></i></div>
+              </div>
+              <div class="mcol">
+                <div class="mhead"><i style="background:#a4aab3"></i>Todo</div>
+                <div class="mcard"><i></i><i></i></div>
+              </div>
+              <div class="mcol">
+                <div class="mhead"><i style="background:#d1913a"></i>In Progress</div>
+                <div class="mcard"><i></i><i></i></div>
+                <div class="mcard"><i></i><i></i></div>
+                <div class="mcard"><i></i><i></i></div>
+              </div>
+              <div class="mcol">
+                <div class="mhead"><i style="background:#4f8a5b"></i>Shipped</div>
+                <div class="mcard"><i></i><i></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap sec">
+        <p class="eyebrow">What you get</p>
+        <h2 class="h2">Small by intent, not by neglect.</h2>
+        <div class="grid">
+          <div class="tile">
+            <div class="k">Views</div>
+            <h3>Board, list or roadmap</h3>
+            <p>
+              The same tasks grouped by any property, lying down as a list, or laid out along the dates
+              of your releases.
+            </p>
+          </div>
+          <div class="tile">
+            <div class="k">Filters</div>
+            <h3>Filters that tell the truth</h3>
+            <p>
+              Every rule has to pass, and "is not" keeps the tasks that hold nothing. Yours stay yours;
+              Save for everyone shares them.
+            </p>
+          </div>
+          <div class="tile">
+            <div class="k">Keyboard</div>
+            <h3>Never touch the mouse</h3>
+            <p>One Tab reaches the board. The arrow keys move the cursor and carry a lifted card across columns.</p>
+          </div>
+          <div class="tile">
+            <div class="k">Releases</div>
+            <h3>Ship, and it is archived</h3>
+            <p>Releases and sprints are switches. Ship a release and the finished work goes with it, dated.</p>
+          </div>
+          <div class="tile">
+            <div class="k">Markdown</div>
+            <h3>Written the way agents read</h3>
+            <p>Descriptions are Markdown, drawn as the page would draw them. People and agents edit the same text.</p>
+          </div>
+          <div class="tile">
+            <div class="k">Live</div>
+            <h3>Live, in about a second</h3>
+            <p>Server-sent events over Postgres. A change reaches every open board with no reload and no polling.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap sec" id="run">
+        <div class="split flip">
+          <div class="copyside">
+            <p class="eyebrow">Run it</p>
+            <h2 class="h2">One command, and a board with something on it.</h2>
+            <p class="body">
+              The container writes the schema and starts on its own. The seed adds a filled project, two
+              accounts and an agent with a run already open, so you see a working board before you
+              decide anything.
+            </p>
+            <p class="body">When your team is ready, one more compose file serves the production image behind your own proxy.</p>
+            <div class="row" style="margin-top: 30px;">
+              <a class="btn btn-on" href={runIt}>Run it locally</a>
+              <a class="btn btn-ghost" href={selfHost}>Host it for your team</a>
+            </div>
+          </div>
+          <div class="term">
+            <div class="term-bar"><i></i><i></i><i></i><span>zsh</span></div>
+            <div class="lines">
+              <div class="cm"># you need Docker. Nothing else.</div>
+              <div data-command><span class="pr">$</span>git clone https://github.com/jaklimoff/ushabti</div>
+              <div data-command><span class="pr">$</span>cd ushabti &amp;&amp; cp .env.example .env</div>
+              <div data-command><span class="pr">$</span>docker compose up</div>
+              <div></div>
+              <div class="cm"># something to look at straight away</div>
+              <div><span class="pr">$</span>docker compose exec app npm run db:seed</div>
+              <div class="out">demo@ushabti.local / ushabti-demo</div>
+              <div></div>
+              <div class="cm"># watch a machine take a card</div>
+              <div><span class="pr">$</span>node examples/agent.mjs</div>
+              <div class="out">I am Builder on Ushabti roadmap (USH).</div>
+              <div class="out">Taking USH-3: Write the offline queue tests</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="wrap">
+        <div class="free">
+          <p class="eyebrow">Actually free</p>
+          <h2 class="h2">No limit on people or agents.</h2>
+          <p class="body">
+            No trial clock, and nothing a small team needs held back for a paid edition. MIT licensed,
+            for one person or for twenty, today and later.
+          </p>
+          <div class="row">
+            <a class="btn btn-on" href={docs}>Start reading</a>
+            <a class="btn btn-ghost" href={github}>Source on GitHub</a>
+          </div>
+        </div>
+      </div>
+
+      <section class="wrap tomb">
+        <p class="eyebrow">Why the name</p>
+        <div class="q">"Here I am. <span>I will do it.</span>"</div>
+        <p>
+          In ancient Egypt nobody expected the dead to do their own work. A tomb held small carved
+          figures called <em>ushabti</em>, "those who answer". When the owner was called to labour in
+          the afterlife, an ushabti stepped forward and spoke the words cut into its body. A rich
+          person was buried with 401 of them: one for each day of the year, and 36 overseers.
+        </p>
+        <p>
+          Three thousand years later that is still a good description of a team. You write the work
+          down. Someone, or something, answers and does it.
+        </p>
+      </section>
+
+      <footer class="foot">
+        <div class="wrap foot-in">
+          <a class="brand" href={at("/")}><span class="mark">U</span><span>Ushabti</span></a>
+          <span>MIT licensed</span>
+          <div class="links">
+            <a class="link" href={docs}>Docs</a>
+            <a class="link" href={changelog}>Changelog</a>
+            <a class="link" href={roadmap}>Roadmap</a>
+            <a class="link" href={github}>GitHub</a>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <script>
+      // The film plays only for somebody who has not asked for less motion,
+      // and it is fetched only then: the poster is all the others need.
+      const film = document.querySelector<HTMLVideoElement>("[data-film]");
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const follow = () => {
+        if (!film) return;
+        if (still.matches) {
+          film.pause();
+          return;
+        }
+        film.preload = "auto";
+        film.play().catch(() => {});
+      };
+      follow();
+      still.addEventListener("change", follow);
+
+      // The hero shows only the last command, but a stranger needs all three
+      // lines of the terminal to get there, so the button copies those.
+      const button = document.querySelector<HTMLButtonElement>("[data-copy]");
+      const command = [...document.querySelectorAll("[data-command]")]
+        .map((line) => line.textContent?.replace(/^\$/, "").trim())
+        .join(" && ");
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      button?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(command);
+        } catch {
+          return;
+        }
+        button.textContent = "Copied";
+        clearTimeout(timer);
+        timer = setTimeout(() => (button.textContent = "Copy"), 1400);
+      });
+    </script>
+
+    <style is:global>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0a0b0d;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      a {
+        color: #3fb0c8;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #9fd7e3;
+      }
+
+      .page {
+        --sans: var(--font-ushabti-sans), system-ui, sans-serif;
+        --mono: var(--font-ushabti-mono), ui-monospace, monospace;
+        min-height: 100vh;
+        background:
+          radial-gradient(1200px 640px at 50% -8%, rgba(63, 176, 200, 0.1), transparent 70%), #0a0b0d;
+        color: #e8e9ec;
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* nav */
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(10, 11, 13, 0.72);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid #16181c;
+      }
+      .nav-in {
+        height: 60px;
+        display: flex;
+        align-items: center;
+        gap: 28px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #e8e9ec;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand:hover {
+        color: #e8e9ec;
+      }
+      .mark {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        background: #3fb0c8;
+        color: #05242b;
+        display: grid;
+        place-items: center;
+        font: 600 13px var(--mono);
+        flex: none;
+      }
+      .links {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-left: auto;
+      }
+      .link {
+        color: #8b919b;
+        font-size: 13.5px;
+      }
+      .link:hover {
+        color: #e8e9ec;
+      }
+
+      /* buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 40px;
+        padding: 0 18px;
+        border-radius: 7px;
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .btn-sm {
+        height: 32px;
+        padding: 0 13px;
+        font-size: 13px;
+        border-radius: 6px;
+      }
+      .btn-on {
+        background: #3fb0c8;
+        color: #05242b;
+      }
+      .btn-on:hover {
+        background: #5cc0d4;
+        color: #05242b;
+      }
+      .btn-ghost {
+        border: 1px solid #262b32;
+        color: #dfe1e5;
+        background: rgba(255, 255, 255, 0.015);
+      }
+      .btn-ghost:hover {
+        border-color: #38505a;
+        color: #9fd7e3;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* hero */
+      .hero {
+        padding: 88px 0 0;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        height: 28px;
+        padding: 0 12px;
+        border: 1px solid #1c1f24;
+        border-radius: 99px;
+        background: #0f1013;
+        color: #8b919b;
+        font: 500 11.5px var(--mono);
+        letter-spacing: 0.02em;
+      }
+      .pill b {
+        color: #9fd7e3;
+        font-weight: 500;
+      }
+      .pill i {
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: #3f4650;
+      }
+      .h1 {
+        margin: 26px 0 0;
+        max-width: 16ch;
+        font-size: clamp(42px, 7vw, 80px);
+        line-height: 1.02;
+        letter-spacing: -0.035em;
+        font-weight: 600;
+        color: #a4aab3;
+        text-wrap: balance;
+      }
+      .h1 .hu {
+        color: #e8e9ec;
+      }
+      .h1 .ag {
+        color: #3fb0c8;
+      }
+      .lede {
+        margin: 24px 0 0;
+        max-width: 40rem;
+        font-size: clamp(16px, 1.6vw, 18.5px);
+        line-height: 1.6;
+        color: #8b919b;
+        text-wrap: pretty;
+      }
+      .lede strong {
+        color: #dfe1e5;
+        font-weight: 500;
+      }
+      .hero .row {
+        justify-content: center;
+        margin-top: 34px;
+      }
+      .cmd {
+        margin-top: 22px;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 100%;
+        height: 38px;
+        padding: 0 6px 0 14px;
+        border: 1px solid #1c1f24;
+        border-radius: 7px;
+        background: #0c0d10;
+        font: 400 13px var(--mono);
+        color: #cdd2d9;
+      }
+      .cmd .p {
+        color: #3fb0c8;
+      }
+      .cmd .t {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .copy {
+        flex: none;
+        height: 26px;
+        padding: 0 9px;
+        display: grid;
+        place-items: center;
+        border-radius: 5px;
+        border: 1px solid #23272e;
+        background: none;
+        color: #8b919b;
+        font: inherit;
+        font-family: var(--sans);
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .copy:hover {
+        border-color: #38505a;
+        color: #9fd7e3;
+      }
+      .note {
+        margin-top: 10px;
+        color: #565c66;
+        font-size: 12.5px;
+      }
+
+      /* film */
+      .film {
+        position: relative;
+        margin: 64px auto 0;
+        width: 100%;
+        max-width: 1120px;
+      }
+      .film-glow {
+        position: absolute;
+        inset: -12% -6% -18%;
+        background: radial-gradient(closest-side, rgba(63, 176, 200, 0.16), transparent 72%);
+        filter: blur(10px);
+        pointer-events: none;
+      }
+      .film-frame {
+        position: relative;
+        aspect-ratio: 16 / 9;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid #1c1f24;
+        background: #0a0b0d;
+        box-shadow:
+          0 40px 120px rgba(0, 0, 0, 0.65),
+          0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+      }
+      .film-frame video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .film-cap {
+        margin-top: 14px;
+        display: flex;
+        justify-content: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        color: #565c66;
+        font: 500 10.5px var(--mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      /* sections */
+      .sec {
+        padding: 132px 0 0;
+      }
+      .eyebrow {
+        margin: 0 0 14px;
+        color: #3fb0c8;
+        font: 500 11px var(--mono);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .h2 {
+        margin: 0;
+        font-size: clamp(30px, 4vw, 46px);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        font-weight: 600;
+        color: #e8e9ec;
+        text-wrap: balance;
+      }
+      .body {
+        margin: 18px 0 0;
+        max-width: 34rem;
+        color: #8b919b;
+        font-size: 16px;
+        line-height: 1.7;
+        text-wrap: pretty;
+      }
+      .body strong {
+        color: #dfe1e5;
+        font-weight: 500;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+        gap: 72px;
+        align-items: center;
+      }
+      .split.flip {
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      }
+      .split.flip .copyside {
+        order: 2;
+      }
+      .points {
+        margin: 30px 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        max-width: 34rem;
+      }
+      .points li {
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: 10px;
+        color: #8b919b;
+        font-size: 14.5px;
+        line-height: 1.6;
+      }
+      .points li b {
+        display: block;
+        color: #dfe1e5;
+        font-weight: 500;
+      }
+      .tick {
+        margin-top: 6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        border: 1.5px solid #3fb0c8;
+      }
+      .more {
+        display: inline-flex;
+        margin-top: 28px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      /* agent visual */
+      .stage {
+        position: relative;
+        padding: 28px;
+        border-radius: 16px;
+        border: 1px solid #16181c;
+        background: linear-gradient(180deg, #0d0e11, #0a0b0d);
+      }
+      .card {
+        width: 100%;
+        max-width: 300px;
+        padding: 12px 13px 0;
+        border-radius: 9px;
+        background: #14171b;
+        border: 1px solid #1c1f24;
+        overflow: hidden;
+      }
+      .card-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #6b7280;
+        font: 500 10.5px var(--mono);
+      }
+      .card-top i {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        flex: none;
+      }
+      .card-title {
+        margin-top: 8px;
+        color: #dfe1e5;
+        font-size: 13.5px;
+        line-height: 1.35;
+      }
+      .chips {
+        margin-top: 10px;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 21px;
+        padding: 0 7px;
+        border: 1px solid #23272e;
+        border-radius: 5px;
+        color: #a4aab3;
+        font: 500 10.5px var(--mono);
+      }
+      .chip i {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+      }
+      .strip {
+        margin: 12px -13px 0;
+        padding: 8px 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-top: 1px solid #1c1f24;
+        background: rgba(63, 176, 200, 0.06);
+        font-size: 11.5px;
+        color: #8b919b;
+      }
+      .strip b {
+        color: #9fd7e3;
+        font-weight: 500;
+      }
+      .strip .age {
+        margin-left: auto;
+        font: 500 10.5px var(--mono);
+        color: #565c66;
+      }
+      .live {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #3fb0c8;
+        box-shadow: 0 0 0 3px rgba(63, 176, 200, 0.18);
+        flex: none;
+      }
+      .panel {
+        margin: 22px 0 0 auto;
+        width: 100%;
+        max-width: 400px;
+        border-radius: 12px;
+        background: #0f1013;
+        border: 1px solid #1c1f24;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+      }
+      .tabs {
+        display: flex;
+        gap: 18px;
+        padding: 0 16px;
+        height: 40px;
+        align-items: center;
+        border-bottom: 1px solid #1c1f24;
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .tabs .on {
+        color: #e8e9ec;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 100%;
+        border-bottom: 2px solid #3fb0c8;
+        margin-bottom: -1px;
+      }
+      .ph {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 14px 16px 0;
+        font-size: 13px;
+      }
+      .av {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: #3fb0c8;
+        color: #05242b;
+        display: grid;
+        place-items: center;
+        font: 600 11px var(--mono);
+      }
+      .state {
+        color: #3fb0c8;
+        font-size: 11.5px;
+      }
+      .ph .age {
+        margin-left: auto;
+        color: #565c66;
+        font: 500 10.5px var(--mono);
+      }
+      .now {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px 0;
+        font-size: 12.5px;
+        color: #cdd2d9;
+      }
+      .now .n {
+        margin-left: auto;
+        color: #6b7280;
+        font: 500 10.5px var(--mono);
+      }
+      .bar {
+        margin: 10px 16px 0;
+        height: 3px;
+        border-radius: 3px;
+        background: #1c1f24;
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        width: 62%;
+        background: #3fb0c8;
+      }
+      .plan {
+        margin: 0;
+        padding: 14px 16px 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        font-size: 12.5px;
+        color: #8b919b;
+      }
+      .plan li {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+      .plan li i {
+        width: 11px;
+        height: 11px;
+        border-radius: 3px;
+        border: 1.5px solid #3f4650;
+        flex: none;
+      }
+      .plan li.done {
+        color: #565c66;
+        text-decoration: line-through;
+      }
+      .plan li.done i {
+        background: #2f9e7a;
+        border-color: #2f9e7a;
+      }
+      .plan li.act {
+        color: #e8e9ec;
+      }
+      .plan li.act i {
+        border-color: #3fb0c8;
+      }
+      .plan li span {
+        margin-left: auto;
+        color: #565c66;
+        font: 500 10.5px var(--mono);
+      }
+      .log {
+        margin: 14px 16px 0;
+        padding-top: 12px;
+        border-top: 1px solid #17191e;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font: 400 11px var(--mono);
+        color: #6b7280;
+      }
+      .log span {
+        color: #3f4650;
+        display: inline-block;
+        width: 28px;
+      }
+      .ctl {
+        display: flex;
+        gap: 8px;
+        padding: 14px 16px 16px;
+      }
+      .ctl span {
+        height: 28px;
+        padding: 0 11px;
+        display: grid;
+        place-items: center;
+        border-radius: 5px;
+        border: 1px solid #23272e;
+        font-size: 11.5px;
+        color: #a4aab3;
+      }
+      .ctl span.danger {
+        margin-left: auto;
+        border-color: rgba(224, 87, 77, 0.4);
+        color: #f0a49d;
+      }
+
+      /* properties visual */
+      .prop {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .setrow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: #0f1013;
+        border: 1px solid #1c1f24;
+      }
+      .grip {
+        width: 8px;
+        display: grid;
+        grid-template-columns: 3px 3px;
+        gap: 2px;
+      }
+      .grip i {
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: #3f4650;
+      }
+      .setrow .nm {
+        font-size: 14px;
+        font-weight: 500;
+        color: #e8e9ec;
+      }
+      .setrow .ty {
+        color: #6b7280;
+        font: 500 10.5px var(--mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .setrow .acts {
+        margin-left: auto;
+        display: flex;
+        gap: 14px;
+        font-size: 12px;
+        color: #565c66;
+      }
+      .setrow.dim {
+        opacity: 0.55;
+      }
+      .opts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 0 16px;
+      }
+      .opt {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 24px;
+        padding: 0 9px;
+        border-radius: 5px;
+        background: #14171b;
+        border: 1px solid #23272e;
+        color: #cdd2d9;
+        font-size: 12px;
+      }
+      .opt i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+      .arrow {
+        padding-left: 22px;
+        color: #3f4650;
+        font: 500 11px var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .mini {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        padding: 12px;
+        border-radius: 12px;
+        background: #0d0e11;
+        border: 1px solid #1c1f24;
+      }
+      .mcol {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+      }
+      .mhead {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 2px 6px;
+        color: #a4aab3;
+        font: 500 9.5px var(--mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .mhead i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .mcard {
+        height: 38px;
+        border-radius: 6px;
+        background: #14171b;
+        border: 1px solid #1c1f24;
+        padding: 7px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .mcard i {
+        display: block;
+        height: 4px;
+        border-radius: 2px;
+        background: #262b32;
+      }
+      .mcard i + i {
+        width: 55%;
+        background: #1c1f24;
+      }
+
+      /* grid */
+      .grid {
+        margin-top: 44px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 1px solid #16181c;
+        border-left: 1px solid #16181c;
+      }
+      .tile {
+        padding: 28px 26px 30px;
+        border-right: 1px solid #16181c;
+        border-bottom: 1px solid #16181c;
+      }
+      .tile .k {
+        color: #3fb0c8;
+        font: 500 10.5px var(--mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .tile h3 {
+        margin: 14px 0 0;
+        font-size: 17px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: #e8e9ec;
+      }
+      .tile p {
+        margin: 8px 0 0;
+        color: #8b919b;
+        font-size: 14px;
+        line-height: 1.6;
+        text-wrap: pretty;
+      }
+
+      /* terminal */
+      .term {
+        border-radius: 12px;
+        background: #0c0d10;
+        border: 1px solid #1c1f24;
+        overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+      }
+      .term-bar {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        height: 34px;
+        padding: 0 14px;
+        border-bottom: 1px solid #16181c;
+        color: #565c66;
+        font: 500 10.5px var(--mono);
+      }
+      .term-bar i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #23272e;
+      }
+      .term-bar span {
+        margin-left: 8px;
+      }
+      .lines {
+        padding: 18px 18px 20px;
+        overflow-x: auto;
+        font: 400 12.5px/1.75 var(--mono);
+        color: #cdd2d9;
+      }
+      .lines div {
+        white-space: pre;
+        min-height: 1.75em;
+      }
+      .term .cm {
+        color: #565c66;
+      }
+      .term .pr {
+        color: #3fb0c8;
+        margin-right: 1ch;
+      }
+      .term .out {
+        color: #8b919b;
+        padding-left: 2ch;
+      }
+
+      /* close */
+      .free {
+        margin-top: 132px;
+        padding: 72px 32px;
+        border-radius: 18px;
+        border: 1px solid #1c1f24;
+        background:
+          radial-gradient(700px 300px at 50% 0%, rgba(63, 176, 200, 0.1), transparent 70%), #0d0e11;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .free .body {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .free .row {
+        justify-content: center;
+        margin-top: 30px;
+      }
+      .tomb {
+        padding: 120px 0 0;
+        max-width: 44rem;
+        margin: 0 auto;
+        text-align: center;
+      }
+      .q {
+        margin: 0;
+        font-size: clamp(30px, 4.6vw, 52px);
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+        font-weight: 500;
+        color: #e8e9ec;
+      }
+      .q span {
+        color: #3fb0c8;
+      }
+      .tomb p {
+        margin: 26px auto 0;
+        color: #6b7280;
+        font-size: 14.5px;
+        line-height: 1.8;
+        text-wrap: pretty;
+      }
+      .tomb p em {
+        color: #a4aab3;
+      }
+      .foot {
+        margin-top: 120px;
+        border-top: 1px solid #16181c;
+      }
+      .foot-in {
+        height: 76px;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        color: #565c66;
+        font-size: 12.5px;
+      }
+      .foot-in .links {
+        gap: 18px;
+      }
+
+      @media (max-width: 900px) {
+        .split,
+        .split.flip {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 44px;
+        }
+        .split.flip .copyside {
+          order: 0;
+        }
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .sec {
+          padding-top: 96px;
+        }
+      }
+      @media (max-width: 640px) {
+        .wrap {
+          padding: 0 16px;
+        }
+        .nav .links .link {
+          display: none;
+        }
+        .hero {
+          padding-top: 56px;
+        }
+        .grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .stage {
+          padding: 16px;
+        }
+        .mini {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .free {
+          padding: 52px 20px;
+        }
+        .foot-in {
+          flex-wrap: wrap;
+          height: auto;
+          padding: 22px 0;
+        }
+      }
+    </style>
+  </body>
+</html>
