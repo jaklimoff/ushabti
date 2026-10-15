@@ -337,6 +337,7 @@ export async function createProject(userId: string, name: string, key: string) {
 
     const propRanks = rankSequence(DEFAULT_PROPERTIES.length);
     const byName = new Map<string, string>();
+    let doneWhen: DoneWhen | null = null;
 
     for (let i = 0; i < DEFAULT_PROPERTIES.length; i += 1) {
       const def = DEFAULT_PROPERTIES[i];
@@ -354,15 +355,26 @@ export async function createProject(userId: string, name: string, key: string) {
 
       if (def.options?.length) {
         const optRanks = rankSequence(def.options.length);
-        await tx.insert(propertyOptions).values(
-          def.options.map((o, j) => ({
-            propertyId: prop.id,
-            name: o.name,
-            color: o.color,
-            position: optRanks[j],
-          })),
-        );
+        const options = await tx
+          .insert(propertyOptions)
+          .values(
+            def.options.map((o, j) => ({
+              propertyId: prop.id,
+              name: o.name,
+              color: o.color,
+              position: optRanks[j],
+            })),
+          )
+          .returning({ id: propertyOptions.id, name: propertyOptions.name });
+        /* Without a done rule nothing is ever over: Ship archives nothing and
+           a blocker never frees. */
+        const last = options.find((o) => o.name === def.options!.at(-1)!.name);
+        if (def.endsInDone && last) doneWhen = { propertyId: prop.id, optionIds: [last.id] };
       }
+    }
+
+    if (doneWhen) {
+      await tx.update(projects).set({ doneWhen }).where(eq(projects.id, project.id));
     }
 
     const viewRanks = rankSequence(DEFAULT_VIEWS.length);

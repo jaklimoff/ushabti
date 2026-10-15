@@ -63,7 +63,7 @@ const SEED_TASKS: {
 }[] = [
   {
     title: "Custom properties: select, multi-select, person, date",
-    status: "Shipped",
+    status: "Done",
     priority: "Urgent",
     phase: "PoC",
     estimate: "L",
@@ -258,6 +258,13 @@ async function main() {
         )
         .returning({ id: propertyOptions.id, name: propertyOptions.name });
       for (const row of rows) optionByName.set(`${def.name}:${row.name}`, row.id);
+      const last = optionByName.get(`${def.name}:${def.options.at(-1)!.name}`);
+      if (def.endsInDone && last) {
+        await db
+          .update(projects)
+          .set({ doneWhen: { propertyId: prop.id, optionIds: [last] } })
+          .where(eq(projects.id, project.id));
+      }
     }
   }
 

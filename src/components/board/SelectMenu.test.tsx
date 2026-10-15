@@ -107,7 +107,7 @@ describe("The menu of a select", () => {
       "Todo",
       "In Progress",
       "Ready",
-      "Shipped",
+      "Done",
       "Blocked",
     ]);
     expect(server.tasks[0].values[statusId]).toBe(made[5].id);

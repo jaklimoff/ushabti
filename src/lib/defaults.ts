@@ -5,6 +5,8 @@ export type DefaultProperty = {
   name: string;
   type: PropertyType;
   options?: DefaultOption[];
+  /** Its last option is the project's Done when, so a new board can ship. */
+  endsInDone?: true;
 };
 
 /**
@@ -16,12 +18,13 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
   {
     name: "Status",
     type: "select",
+    endsInDone: true,
     options: [
       { name: "Backlog", color: "#6b7280" },
       { name: "Todo", color: "#9aa0aa" },
       { name: "In Progress", color: "#d1913a" },
       { name: "Ready", color: "#3fb0c8" },
-      { name: "Shipped", color: "#4f8a5b" },
+      { name: "Done", color: "#4f8a5b" },
     ],
   },
   {

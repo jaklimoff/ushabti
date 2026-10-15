@@ -53,7 +53,7 @@ async function releaseBoard() {
   );
   const first = await read();
   const status = first.properties.find((x) => x.name === "Status")!;
-  const done = status.options.find((o) => o.name === "Shipped")!;
+  const done = status.options.find((o) => o.name === "Done")!;
   const backlog = status.options.find((o) => o.name === "Backlog")!;
   const version = first.properties.find((x) => x.name === "Version")!;
   const [v1, v2, v3] = version.options;
@@ -149,6 +149,54 @@ describe("Ship on a column", () => {
   });
 });
 
+/* With no Done when nothing is over, so a new project could not ship. It
+   starts with its Status ending in Done, and that is what Done when names. */
+describe("A new project knows what done means", () => {
+  it("Done when is the last option of Status, and Ship archives what is in it", async () => {
+    const owner = await person("New Owner");
+    const p = await project(owner);
+    const me = api(owner);
+    const read = async () => (await board(owner, p.id)) as DoneBoard;
+
+    const first = await read();
+    const status = first.properties.find((x) => x.name === "Status")!;
+    const done = status.options.at(-1)!;
+    expect(done.name).toBe("Done");
+    expect(first.project.doneWhen).toEqual({ propertyId: status.id, optionIds: [done.id] });
+
+    await ok(
+      me.post(`/api/projects/${p.id}/properties`, {
+        name: "Version",
+        type: "select",
+        options: ["v1"],
+      }),
+    );
+    const version = (await read()).properties.find((x) => x.name === "Version")!;
+    const v1 = version.options[0];
+    await ok(me.patch(`/api/properties/${version.id}`, { dated: true }));
+    await ok(me.patch(`/api/options/${v1.id}`, { targetAt: "2026-10-14" }));
+    const backlog = status.options.find((o) => o.name === "Backlog")!;
+    const made = async (title: string, optionId: string) =>
+      (
+        await ok<{ task: { id: string } }>(
+          me.post(`/api/projects/${p.id}/tasks`, {
+            title,
+            values: { [version.id]: v1.id, [status.id]: optionId },
+          }),
+        )
+      ).task.id;
+    const finished = await made("Finished", done.id);
+    const open = await made("Open", backlog.id);
+
+    expect(await ok(me.post(`/api/options/${v1.id}/ship`, { rest: "leave" }))).toMatchObject({
+      archived: 1,
+    });
+    const b = await read();
+    expect(b.archived.map((t) => t.id)).toEqual([finished]);
+    expect(b.tasks.map((t) => t.id)).toContain(open);
+  });
+});
+
 /*
  * What frees a blocker and what Ship archives, when Done when names more than
  * one option. Each test was a test of `e2e/done-when.spec.ts` and carries its
@@ -163,7 +211,7 @@ type DoneBoard = {
   archived: { id: string }[];
 };
 
-/* A project whose Status ends in two ways, Shipped and Won't do, and a task
+/* A project whose Status ends in two ways, Done and Won't do, and a task
    that waits on another. */
 async function twoEnds() {
   const owner = await person("Done Owner");
@@ -175,7 +223,7 @@ async function twoEnds() {
   await ok(me.post(`/api/properties/${status.id}/options`, { name: "Won't do" }));
   const options = (await read()).properties.find((x) => x.id === status.id)!.options;
   const named = (name: string) => options.find((o) => o.name === name)!;
-  const shipped = named("Shipped");
+  const shipped = named("Done");
   const wont = named("Won't do");
   const backlog = named("Backlog");
 
@@ -279,7 +327,10 @@ describe("Done when names more than one option", () => {
     expect((await refused.json()).error).toBe(
       "Every option of Done when has to be an option of Status.",
     );
-    expect((await read()).project.doneWhen).toBeNull();
+    expect((await read()).project.doneWhen).toEqual({
+      propertyId: status.id,
+      optionIds: [shipped.id],
+    });
   });
 
   it("Ship archives tasks in every picked option", async () => {
@@ -670,10 +721,10 @@ describe("Ship takes the over tasks in no release", () => {
     const named = (name: string) => status.options.find((o) => o.name === name)!.id;
     const task = (title: string, values: Record<string, unknown>) =>
       ok(me.post(`/api/projects/${p.id}/tasks`, { title, values }));
-    await task("Golf", { [status.id]: named("Shipped") });
-    await task("Hotel", { [status.id]: named("Shipped") });
+    await task("Golf", { [status.id]: named("Done") });
+    await task("Hotel", { [status.id]: named("Done") });
     await task("India", { [status.id]: named("Backlog") });
-    await task("Juliet", { [made.version.id]: made.v2.id, [status.id]: named("Shipped") });
+    await task("Juliet", { [made.version.id]: made.v2.id, [status.id]: named("Done") });
     await ok(me.post(`/api/projects/${p.id}/releases`));
     const cursor = (await ok<{ now: string }>(me.get(`/api/projects/${p.id}/activity`))).now;
     const feed = async () =>

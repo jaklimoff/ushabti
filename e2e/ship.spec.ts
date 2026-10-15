@@ -18,7 +18,8 @@ type Board = {
  * A board grouped by Version, where v1 is due: three of its tasks are over
  * and one is not. v2 has no date, and v3 is the last option and dated, with
  * one task over and one not. Set up through the routes, because the header
- * is what is under test.
+ * is what is under test. Nobody writes Done when: a new project's Status ends
+ * in Done, and that is already what over means.
  */
 async function releaseBoard(page: Page) {
   await register(page);
@@ -33,7 +34,7 @@ async function releaseBoard(page: Page) {
 
   let board = await read();
   const status = board.properties.find((p) => p.name === "Status")!;
-  const done = status.options.find((o) => o.name === "Shipped")!;
+  const done = status.options.find((o) => o.name === "Done")!;
   const backlog = status.options.find((o) => o.name === "Backlog")!;
   const version = board.properties.find((p) => p.name === "Version")!;
   const [v1, v2, v3] = version.options;
@@ -61,11 +62,6 @@ async function releaseBoard(page: Page) {
   await task("Delta", { [version.id]: v1.id, [status.id]: done.id });
   await task("Echo", { [version.id]: v3.id, [status.id]: done.id });
   await task("Foxtrot", { [version.id]: v3.id, [status.id]: backlog.id });
-
-  const project = await page.request.patch(`/api/projects/${projectId}`, {
-    data: { doneWhen: { propertyId: status.id, optionId: done.id } },
-  });
-  expect(project.ok()).toBeTruthy();
 
   board = await read();
   const main = board.views.find((v) => v.isDefault)!;
@@ -184,7 +180,7 @@ test.describe("Ship on a roadmap row", () => {
   }, testInfo) => {
     const { projectId, read, version, v1 } = await releaseBoard(page);
     const status = (await read()).properties.find((p) => p.name === "Status")!;
-    const done = status.options.find((o) => o.name === "Shipped")!;
+    const done = status.options.find((o) => o.name === "Done")!;
     for (const title of ["Golf", "Hotel"]) {
       const res = await page.request.post(`/api/projects/${projectId}/tasks`, {
         data: { title, values: { [status.id]: done.id } },
@@ -295,4 +291,20 @@ test.describe("Ship on a roadmap row", () => {
     expect(shipped.shippedAt).toBe(today());
     await context.close();
   });
+});
+
+test("a new project's Settings → Project says Done when is Status, Done", async ({
+  page,
+}, testInfo) => {
+  await register(page);
+  const projectId = await createProject(page, unique("Done"));
+  await page.goto(`/p/${projectId}/settings/project`);
+
+  await expect(page.getByLabel("The property that says a task is done")).toContainText("Status");
+  const ticks = page.getByRole("group", { name: "The options that say a task is done" });
+  await expect(ticks.getByRole("checkbox")).toHaveCount(5);
+  await expect(ticks.getByRole("checkbox", { name: "Done" })).toBeChecked();
+  await expect(ticks.getByRole("checkbox", { checked: true })).toHaveCount(1);
+  await ticks.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("seen-new-project-done-when.png") });
 });

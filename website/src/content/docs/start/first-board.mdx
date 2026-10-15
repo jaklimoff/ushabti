@@ -15,13 +15,16 @@ right, but to be a worked example of what a property is.
 
 | Property     | Type         | Options it starts with                           |
 | ------------ | ------------ | ------------------------------------------------ |
-| **Status**   | select       | Backlog, Todo, In Progress, Ready, Shipped       |
+| **Status**   | select       | Backlog, Todo, In Progress, Ready, Done          |
 | **Priority** | select       | Urgent, High, Medium, Low                        |
 | **Assignee** | person       | — every member of the project                    |
 | **Phase**    | select       | PoC, MVP, MMP, Pilot, GA                         |
 | **Estimate** | select       | XS, S, M, L, XL                                  |
 | **Labels**   | multi-select | bug, feature, infra, ux, docs                    |
 | **Due**      | date         | —                                                |
+
+Done is what the project calls over: **Done when** in Settings → Project names it, so Ship, a
+blocker and a parent's parts count it from the first day.
 
 And two views: **Board** grouped by Status <Badge text="main" variant="tip" size="small" />, and
 **Phases** grouped by Phase.

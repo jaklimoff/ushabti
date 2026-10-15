@@ -46,7 +46,7 @@ test.describe("Ushabti board", () => {
       await register(page, "Ada Lovelace");
       await createProject(page, unique("Roadmap"));
 
-      for (const name of ["BACKLOG", "TODO", "IN PROGRESS", "READY", "SHIPPED"]) {
+      for (const name of ["BACKLOG", "TODO", "IN PROGRESS", "READY", "DONE"]) {
         await expect(column(page, name)).toBeVisible();
       }
       await expect(page.getByRole("button", { name: /^Board/ })).toBeVisible();
@@ -404,14 +404,14 @@ test.describe("Ushabti board", () => {
     await addTask(page, "Todo", "Fold me across");
     await page.getByRole("button", { name: "Close task" }).click();
 
-    const shipped = column(page, "Shipped");
-    const open = page.getByRole("button", { name: "Open the column Shipped" });
+    const shipped = column(page, "Done");
+    const open = page.getByRole("button", { name: "Open the column Done" });
 
-    await page.getByRole("button", { name: "Fold the column Shipped" }).click();
+    await page.getByRole("button", { name: "Fold the column Done" }).click();
     await expect(open).toBeVisible();
 
     // A folded column is still a drop target, so nothing is lost on a strip.
-    await dragCard(page, "Fold me across", await centreOf(page, "Shipped"));
+    await dragCard(page, "Fold me across", await centreOf(page, "Done"));
     await expect(shipped.getByTestId("column-count")).toHaveText("1");
     await expect(column(page, "Todo").getByTestId("card")).toHaveCount(0);
 

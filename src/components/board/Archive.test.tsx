@@ -179,18 +179,18 @@ const comments = () => page.getByRole("tab", { name: /^Comments/ });
 describe("Archiving a task", () => {
   test("archives everything in a column, after a question that names the count", async () => {
     const data = newProject();
-    const first = withTask(data, "First shipped", { Status: "Shipped" });
-    const second = withTask(data, "Second shipped", { Status: "Shipped" });
+    const first = withTask(data, "First shipped", { Status: "Done" });
+    const second = withTask(data, "Second shipped", { Status: "Done" });
     withTask(data, "Still to do", { Status: "Todo" });
     const shelf = [first, second].map((t) => ({ ...t, archivedAt: minuteAgo() }));
     const { sent } = await draw(data, null, shelf);
 
-    const count = () => column("Shipped").getByTestId("column-count");
+    const count = () => column("Done").getByTestId("column-count");
     await says(count(), "2");
 
-    await page.getByRole("button", { name: "Archive everything in Shipped" }).click();
+    await page.getByRole("button", { name: "Archive everything in Done" }).click();
     const question = byTestId("column-confirm");
-    await says(question, "Archive 2 tasks in Shipped?");
+    await says(question, "Archive 2 tasks in Done?");
     await says(question, "They leave the board and keep their history.");
 
     // Cancel leaves the column alone.
@@ -198,11 +198,11 @@ describe("Archiving a task", () => {
     await says(count(), "2");
     expect(sent("POST", COLUMN_ARCHIVE)).toHaveLength(0);
 
-    await page.getByRole("button", { name: "Archive everything in Shipped" }).click();
+    await page.getByRole("button", { name: "Archive everything in Done" }).click();
     await page.getByRole("button", { name: /^Yes, archive$/ }).click();
 
     await expect.poll(() => sent("POST", COLUMN_ARCHIVE).length).toBe(1);
-    await gone(column("Shipped").getByTestId("card"));
+    await gone(column("Done").getByTestId("card"));
     await expect.element(card("Still to do").first()).toBeVisible();
     // The board says how many went, in the server's own number.
     await says(byTestId("toast"), "Archived 2 tasks");

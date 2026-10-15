@@ -179,19 +179,19 @@ describe("Done when", () => {
     const tick = (name: string) => ticks.getByRole("checkbox", { name, exact: true });
     await expect.poll(() => ticks.getByRole("checkbox").elements()).toHaveLength(6);
 
-    await tick("Shipped").click();
-    await expect.element(tick("Shipped")).toBeChecked();
-    await expect.element(tick("Shipped")).toBeEnabled();
+    await tick("Done").click();
+    await expect.element(tick("Done")).toBeChecked();
+    await expect.element(tick("Done")).toBeEnabled();
     await tick("Won't do").click();
     await expect.element(tick("Won't do")).toBeChecked();
     await expect.element(tick("Won't do")).toBeEnabled();
     expect(patches().at(-1)!.body).toEqual({
-      doneWhen: { propertyId: status.id, optionIds: [id("Shipped"), id("Won't do")] },
+      doneWhen: { propertyId: status.id, optionIds: [id("Done"), id("Won't do")] },
     });
 
     // Taking every tick away leaves archived as the answer.
-    await tick("Shipped").click();
-    await expect.element(tick("Shipped")).toBeEnabled();
+    await tick("Done").click();
+    await expect.element(tick("Done")).toBeEnabled();
     await tick("Won't do").click();
     await expect.element(tick("Won't do")).not.toBeChecked();
     await expect.element(tick("Won't do")).toBeEnabled();
