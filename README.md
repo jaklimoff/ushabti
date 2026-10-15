@@ -6,19 +6,54 @@
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-ushabti-3fb0c8)](https://jaklimoff.github.io/ushabti/)
 
-A small, fast task board. It looks like Trello, but every field on a task is a
-property **you** define — including the ones a normal board hardcodes, such as
-Status and Priority. A view is a board grouped by one of those properties, so
-the same tasks can be looked at from more than one angle.
+A task board where AI agents work as members of the team. An agent joins a
+project the way a person does: it takes a card, says what it is doing on the
+card while it works, asks when it is stuck, and hands the card back. Claude Code
+connects in three commands.
+
+The second idea is the fields. Every field on a task is a property **you**
+define, even Status and Priority. A view groups the same tasks by one of those
+properties, so one board can be looked at from more than one angle.
 
 Free and open source, yours to run. The self-hosted board has everything a
 small team needs, with no limit on people or agents.
 
 **[Read the documentation](https://jaklimoff.github.io/ushabti/)** — the
-guides, every property type, the whole JSON API and the agent protocol, in one
+guides, every property type, the JSON API and the agent protocol, in one
 searchable place.
 
+<!-- The clip of an agent at work goes here (USH-330). -->
+
 ![The Ushabti board](docs/board.png)
+
+## Connect an agent
+
+Open **Settings → People**, add an agent, and press **Connect**. It shows the
+token once and prints these commands with your board's address already in them:
+
+```bash
+# 1. Put the skill where Claude Code finds it.
+mkdir -p ~/.claude/skills/ushabti && \
+  curl -sL https://your-board/skill/SKILL.md  -o ~/.claude/skills/ushabti/SKILL.md && \
+  curl -sL https://your-board/skill/board.mjs -o ~/.claude/skills/ushabti/board.mjs
+
+# 2. Give it the board and the token, and check it.
+export USHABTI_URL=https://your-board
+export USHABTI_TOKEN=ush_...
+curl -s $USHABTI_URL/api/agent/me -H "Authorization: Bearer $USHABTI_TOKEN"
+
+# 3. Keep it listening, so a task assigned to it starts it by itself.
+node ~/.claude/skills/ushabti/board.mjs watch --on assigned,mention \
+  --run 'claude -p {prompt} --allowedTools "Bash(node:*)"'
+```
+
+The page says when the agent answered and when it is listening. Any other
+harness works the same way: it is a member with a token and the same JSON API
+the browser uses.
+
+A token opens one project and nothing else. The server makes no LLM calls; the
+harness, the model and its keys run on your machine. See
+[docs/agents.md](docs/agents.md).
 
 ## The name
 
@@ -72,54 +107,48 @@ Board  ·  Phases  ·  By assignee            ← views you create
       ↑ columns are the options of the grouping property
 ```
 
-- **Custom properties.** Select, multi-select, person, text, number, date,
-  checkbox and link. Create, rename, recolour, reorder and delete any of them, including
-  the ones a new project starts with.
-- **Views.** Each view is a board grouped by one select, person or checkbox
-  property. Add as many as you like.
-- **Drag and drop.** Cards move inside a column and across columns; column
-  headers drag to reorder the options of the grouping property.
-- **The keyboard alone.** One press of **Tab** reaches the board, because one
-  card at a time is its tab stop. The **arrow keys** move that cursor from card
-  to card and across columns, holding its place in the column and stepping over
-  a column with no cards in it; **Home** and **End** reach the ends of a column.
-  **Enter** opens the card the cursor sits on. **Space** picks it up, the arrow
-  keys then move the card itself — one column at a time, into an empty column as
-  readily as a full one — **Space** puts it down and **Escape** cancels.
-- **Task detail.** Title, markdown description, checklist with progress,
-  markdown comments and an automatic activity log, all edited in place. No
-  dialogs.
+- **Agents as members.** An agent signs in with a token and uses the same JSON
+  API the browser uses. While it works, a strip along the bottom of its card
+  says who is working, what it is doing and for how long, and the task panel
+  grows an **Agent** tab with the plan and the run log. Pause and Stop ask;
+  **Take over** ends the run and hands the card back.
+- **Nine property types.** Select, multi-select, sprint, person, text, number,
+  date, checkbox and link. Create, rename, recolour, reorder and delete any of
+  them, including the ones a new project starts with.
+- **Three kinds of view.** A board grouped by one select, person or checkbox
+  property; a list, which is the same tasks lying down; and a roadmap, a row per
+  dated release with its progress.
+- **Releases and sprints.** Give a release a date and **Ship** it: the finished
+  tasks are archived under it and the changelog remembers the day. Sprints are
+  short dated iterations made by a cadence.
+- **Filters, lenses and sort.** A view's filter is the team's. A filter you add
+  is yours alone, and so is the order you sort by.
+- **Search.** One box in the top bar finds any task in the project by key, title
+  or description, archived ones too.
+- **Archive and undo.** An archived task keeps everything and comes back. A
+  deleted one can be put back for 30 days.
+- **Blockers, parents and children.** A task can wait on another, and a parent
+  counts its children that are done.
+- **Home.** Your projects in your own order, with lists and charts across them.
+- **Task detail.** Title, Markdown description, checklist, Markdown comments,
+  attachments and an automatic activity log, all edited in place. No dialogs.
+- **Drag and drop, and the keyboard alone.** Cards move inside a column and
+  across columns; column headers drag to reorder the options. One press of
+  **Tab** reaches the board, the arrow keys walk it, **Enter** opens a card and
+  **Space** picks it up.
 - **Live updates.** A change by one person reaches every open board in about a
   second, with no reload.
+- **On a phone.** The board and the task panel read on a small screen.
+- **Projects with members.** The owner invites people by email; an admin may
+  change the structure, a member works on the content.
 - **Email and password sign-in.** No third party. Set `USHABTI_SIGNUP=closed`
-  once your team has registered and the instance stops taking new accounts.
-- **Your own account.** Change your name, pick your colour from the palette,
-  change your password, and sign every other session out.
-- **A way back in.** A forgotten password is answered by a person: the owner
-  of a project makes a one-time link that lasts a day, and the server emails
-  it when mail is set up. With `USHABTI_URL` set as well, **Forgot password?**
-  on the sign-in page emails the person a link without asking anybody.
-- **Projects with members.** The owner adds people by email.
-- **Agents.** A project can have machine members. An agent signs in with a
-  token, uses the same JSON API the browser uses, and while it works a strip
-  along the bottom of its card says who is working, what it is doing and for how
-  long, and the task panel grows an **Agent** tab, with a dot that pulses while
-  the run is live, holding the plan and the run log. Pause and Stop ask; **Take
-  over** ends the run and hands the card back. **Settings → People → Connect**
-  hands you the token and the three commands that put it to work, with your
-  board's own address already in them, and then says when the agent answered.
-  See [docs/agents.md](docs/agents.md).
-- **Webhooks.** An agent waits on the stream, but a serverless function or a CI
-  job has nowhere to wait from. The owner gives a URL in **Settings →
-  Webhooks** and the board posts to it when something changes: the kind, the
-  task and the moment, signed with HMAC-SHA256, and never the change itself —
-  the receiver reads the board for that. See
-  [docs/webhooks.md](docs/webhooks.md).
-- **Import.** A team that cannot bring its board over does not start.
-  **Settings → Import** takes a Trello JSON export: lists become the columns
-  and cards become tasks, with their labels, due dates, checklists and
-  comments. The page shows what will be made before it makes it, and the same
-  file twice makes nothing twice.
+  once your team has registered. A forgotten password gets a one-time link,
+  emailed when mail is set up.
+- **Webhooks.** The board posts to a URL when something changes: the kind, the
+  task and the moment, signed with HMAC-SHA256, and never the change itself.
+  See [docs/webhooks.md](docs/webhooks.md).
+- **Import and export.** **Settings → Import** takes a Trello JSON export.
+  **Settings → Project → Export** saves one project as a JSON file.
 
 ![The task panel](docs/task.png)
 
@@ -170,8 +199,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 This pulls [`jaklimoff/ushabti:edge`](https://hub.docker.com/r/jaklimoff/ushabti),
 applies the migrations and serves the app on `127.0.0.1:3000`. Add `--build` to
-build the image here instead, or set `USHABTI_VERSION` in `.env` to pin a
-released tag such as `0.1.0`.
+build the image here instead, or pin a released tag in `.env`, such as
+`USHABTI_VERSION=0.25.0` or later.
+
+It needs Docker and little else: one Node image and one PostgreSQL 18
+container, built for amd64 and arm64.
 
 The same image is on `ghcr.io/jaklimoff/ushabti` if you prefer the GitHub
 registry. Both are built from the same commit by the same workflow.
@@ -188,6 +220,11 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 New migrations are applied when the container starts.
+
+To back it up, dump the database and copy the S3 bucket named by `S3_BUCKET`,
+after the dump: the attachments live in the bucket, not in the database. The
+[self-hosting guide](https://jaklimoff.github.io/ushabti/start/self-host/#backing-it-up)
+has the commands.
 
 #### Using a database you already have
 
@@ -290,9 +327,8 @@ well. That is the whole reason humans and agents share one board.
 `task_values` is the whole trick: one row per task and property, with the value
 shape decided by the property type. A select holds an option id, a multi-select
 holds a list of them, a person holds a user id, and the scalar types hold what
-you expect. Adding a property type means adding one branch in
-`src/lib/values.ts` and one control in
-`src/components/board/controls/PropertyControl.tsx`.
+you expect. On the card, adding a property type means one line in
+`KIND_OF_TYPE` in `src/lib/card-view.ts`.
 
 ### Ordering
 
@@ -324,7 +360,9 @@ design-reference/ the source design this interface follows
 
 ## Take part
 
-- [The documentation](https://jaklimoff.github.io/ushabti/) — the guides, the whole JSON API and the agent protocol, in one place.
+- [GitHub Discussions](https://github.com/jaklimoff/ushabti/discussions) — questions, ideas and what you built with it.
+- [Good first issues](https://github.com/jaklimoff/ushabti/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — small changes to start with.
+- [The documentation](https://jaklimoff.github.io/ushabti/) — the guides, the JSON API and the agent protocol, in one place.
 - [ROADMAP.md](ROADMAP.md) — what is done, what comes next, and the known limits.
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release. Versions follow semantic versioning; `:edge` is `main`, rebuilt each night, and a number is a release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up, test and send a change.

@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The README and the site lead with agents.** The first lines say that agents work as members,
+  a short section shows the commands that connect Claude Code, and "What it does" lists what ships
+  today. Hosting names the version to pin, what to back up and what the image needs.
 - **The site opens on a new landing page.** It is dark, leads with the 41-second promo film, and
   says in its first line that the board is for humans and agents. The film plays muted and
   looping, and a still stands in for it when the system asks for less motion.
