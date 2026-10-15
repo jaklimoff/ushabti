@@ -51,6 +51,19 @@ node board.mjs finish USH-14
 node board.mjs finish USH-14 --to "review"
 ```
 
+A release program ends on the board. Make or date the release, and when the
+work is deployed, ship it: the tasks that are over are archived and the
+changelog has its day.
+
+```bash
+node board.mjs release "0.26.0" --target 2026-11-01 [--start 2026-10-20]
+node board.mjs ship "0.26.0" --rest next      # or leave, or clear; --strays too
+# -> Release 0.26.0 shipped 2026-11-01: 12 archived, 2 moved
+```
+
+Ship only when the person or the program you run for says so, never on your
+own clock. Unship is a person's: ask for it.
+
 ## The rules of the board
 
 `claim` prints the rules of this board under the run id, if the project wrote

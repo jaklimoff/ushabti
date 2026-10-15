@@ -1,7 +1,6 @@
 "use client";
 
 import { readCadence, sprintAfter } from "@/lib/cadence";
-import { canManage } from "@/lib/roles";
 import { closes, nextOpenOption, shipSaid } from "@/lib/ship";
 import { isSelect } from "@/lib/types";
 import type { ShipOffer } from "./Column";
@@ -11,15 +10,15 @@ import { useBoard } from "./store";
  * How an option may ship, asked by the column header and by the roadmap row,
  * so the two doors offer it to the same people and send the same request.
  *
- * An option may ship only where its column may be swept, and only for the
- * people the route lets through: a ship is a sweep and more, and a button the
- * route would refuse is a button that lies. Under a filter the cards on screen
+ * An option may ship only where its column may be swept, and for everybody
+ * who may sweep it: a ship is a sweep and more, and the route lets every
+ * member through. Under a filter the cards on screen
  * are not the whole option, so the numbers in the question would not be the
  * numbers that go.
  */
 export function useShipOffer() {
   const { data, groupProperty, filters, shipOption, notify } = useBoard();
-  const canShip = !!groupProperty && filters.rules.length === 0 && canManage(data.project.role);
+  const canShip = !!groupProperty && filters.rules.length === 0;
 
   /** `onShipped` runs once the server said yes, for what only this door does. */
   return (option: { id: string; name: string }, onShipped?: () => void): ShipOffer | null => {

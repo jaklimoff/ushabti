@@ -346,7 +346,7 @@ describe("Ship on a column", () => {
     expect(sent("POST", /\/ship$/)).toHaveLength(0);
   });
 
-  test("a filter or a member's role takes Ship away", async () => {
+  test("a filter takes Ship away, and a member's role does not", async () => {
     const owner = await renderWithBoard(<BoardShell initialTask={null} />, shipBoard());
 
     /* Under a rule the cards on screen are not the whole column, so the
@@ -359,12 +359,12 @@ describe("Ship on a column", () => {
     await gone(column("v1").getByTestId("column-ship"));
     await owner.screen.unmount();
 
-    // A member sees the dated column and no Ship: the route would refuse it.
+    // A member ships as an admin does: the route lets every member through.
     const data = shipBoard();
     data.project = { ...data.project, role: "member" };
     await renderWithBoard(<BoardShell initialTask={null} />, data);
     const v1 = column("v1");
     await expect.element(v1.getByTestId("column-date")).toBeVisible();
-    await gone(v1.getByTestId("column-ship"));
+    await expect.element(v1.getByTestId("column-ship")).toBeVisible();
   });
 });

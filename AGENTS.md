@@ -373,6 +373,11 @@ and what is easy to get wrong.
   handing it over, changing an admin's role — behind `ownerOnly()`. The role
   rule lives once, in `src/lib/roles.ts`, because the settings panels read it
   too; a route never compares a role by hand. An agent is always a member.
+  A ship is a member's act, an agent's too: it archives what is over, which a
+  member may already do one task at a time, and the agent that deployed is
+  the one that knows the release is out. Unship is not: it throws the shipped
+  day away, which nothing else can give back, so the option routes keep
+  `adminOnly` for `shippedAt` and a ship comes only through its own route.
 - **A field saves on blur. A destructive action confirms in place. Nothing
   else has a Save button.** Settings used to hold six different save models on
   one page, and the one field a new person edits first was the odd one out.
