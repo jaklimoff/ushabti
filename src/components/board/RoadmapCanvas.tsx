@@ -101,7 +101,7 @@ export function RoadmapCanvas({
   openOptionId: string | null;
   onOpenOption: (optionId: string) => void;
 }) {
-  const { data, view, groupProperty, visibleTasks } = useBoard();
+  const { data, view, groupProperty } = useBoard();
   const { rows, drawn, countBy } = useRoadmap();
   const offerShip = useShipOffer();
   /* One row asks at a time, and a ship is one press: while it is out, the
@@ -235,17 +235,17 @@ export function RoadmapCanvas({
                 {ship && asking === row.id && (
                   <ShipQuestion
                     name={row.name}
-                    tasks={visibleTasks.filter((t) => t.values[groupProperty.id] === row.id)}
+                    optionId={row.id}
                     doneWhen={data.project.doneWhen}
                     ship={ship}
                     className={`${styles.roadmapAsk} ${styles.colHeadAsking}`}
                     onCancel={() => setAsking(null)}
-                    onPick={(rest) => {
+                    onPick={(rest, strays) => {
                       setAsking(null);
                       setShipping(row.id);
                       /* The board is read again before the answer comes, so a
                        shipped row already hides the button by its date. */
-                      void ship.onShip(rest).finally(() => setShipping(null));
+                      void ship.onShip(rest, strays).finally(() => setShipping(null));
                     }}
                   />
                 )}

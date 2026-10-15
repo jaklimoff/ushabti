@@ -40,8 +40,8 @@ export function useShipOffer() {
     return {
       nextName,
       closing,
-      onShip: async (rest) => {
-        const done = await shipOption(option.id, rest);
+      onShip: async (rest, strays) => {
+        const done = await shipOption(option.id, rest, strays);
         if (!done) return false;
         onShipped?.();
         notify(shipSaid(option.name, done, nextName, closing), "info");

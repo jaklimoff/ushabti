@@ -1,7 +1,7 @@
 import { HttpError } from "@/lib/auth";
 import { adminOnly, body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { optionPropertyId, withProjectLock } from "@/lib/queries";
-import { readShipRest } from "@/lib/ship";
+import { readShipRest, readShipStrays } from "@/lib/ship";
 import { shipOptionIn } from "@/lib/ship-option";
 
 type Ctx = { params: Promise<{ optionId: string }> };
@@ -14,6 +14,8 @@ type Ctx = { params: Promise<{ optionId: string }> };
  * writes the day it shipped. It is one act, so it is one transaction under the
  * project lock, one bell on the stream and one webhook: every feed line it
  * writes carries the same `shipId`, as the lines of one import share theirs.
+ * With `strays: true` a release also takes the over tasks in no release: they
+ * get the option, then are archived with the rest. A sprint takes none.
  *
  * It is `adminOnly`, which is `humanOnly` too. One press here clears a whole
  * column and closes an option everybody shares, which is a decision about the
@@ -27,12 +29,14 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
   adminOnly(user, membership, "ship a column");
 
-  const read = readShipRest(await body<{ rest?: unknown }>(req));
+  const input = await body<{ rest?: unknown; strays?: unknown }>(req);
+  const read = readShipRest(input);
   if ("error" in read) throw new HttpError(400, read.error);
   const { rest } = read;
+  const strays = readShipStrays(input);
 
   const { answer, ring } = await withProjectLock(projectId, (tx) =>
-    shipOptionIn(tx, { projectId, propertyId, optionId, rest, actorId: user.id }),
+    shipOptionIn(tx, { projectId, propertyId, optionId, rest, strays, actorId: user.id }),
   );
 
   await ring();

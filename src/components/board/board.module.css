@@ -969,6 +969,23 @@
   margin-left: 0;
 }
 
+/* The tick that takes the over tasks in no release sits on its own line,
+   under the question it belongs to and above the answers. */
+.colShipStrays {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.colShipStrays input {
+  margin: 2px 0 0;
+}
+
 .colConfirmNo:hover {
   background: var(--bg-hover);
   color: var(--text);

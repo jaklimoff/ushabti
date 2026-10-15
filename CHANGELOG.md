@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Ship takes the finished tasks that are in no release.** The ship question counts the tasks
+  that are over and carry no release, and offers to take them with a tick that starts on. Taken,
+  they get the release, are archived with the rest, and the changelog lists them. The route takes
+  `strays: true`. A sprint close offers nothing, since a sprint archives nothing.
 - **A release is made on the roadmap.** A roadmap with no release says so and asks for a
   name and a target date; Enter makes it. A roadmap with releases ends with an Add a release
   row. The note under Use releases links to the roadmap. A sprint roadmap offers none, since

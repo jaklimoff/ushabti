@@ -179,6 +179,53 @@ test.describe("Ship on a roadmap row", () => {
     expect(shipped.shippedAt).toBe(today());
   });
 
+  test("Ship takes the over tasks in no release when the tick is on", async ({
+    page,
+  }, testInfo) => {
+    const { projectId, read, version, v1 } = await releaseBoard(page);
+    const status = (await read()).properties.find((p) => p.name === "Status")!;
+    const done = status.options.find((o) => o.name === "Shipped")!;
+    for (const title of ["Golf", "Hotel"]) {
+      const res = await page.request.post(`/api/projects/${projectId}/tasks`, {
+        data: { title, values: { [status.id]: done.id } },
+      });
+      expect(res.ok()).toBeTruthy();
+    }
+    await page.reload();
+    await openPlan(page, projectId, version.id);
+
+    await row(page, "v1").getByRole("button", { name: "Ship v1" }).click();
+    const ask = page.getByRole("alertdialog", { name: "Ship v1" });
+    const tick = ask.getByRole("checkbox", {
+      name: "2 more are over and in no release. Take them too?",
+    });
+    await expect(tick).toBeChecked();
+    await page.screenshot({ path: testInfo.outputPath("seen-roadmap-ship-strays.png") });
+    await ask.getByRole("button", { name: "Leave them" }).click();
+
+    await expect(row(page, "v1")).toContainText("5 tasks archived");
+    const board = await read();
+    expect(board.tasks.map((t) => t.title).sort()).toEqual(["Charlie", "Echo", "Foxtrot"]);
+
+    /* They were given the release before they left, and their lines share the ship's id. */
+    const taken = await inDatabase(async (client) => {
+      const res = await client.query<{ value: string; ships: string[] }>(
+        `select tv.value #>> '{}' as value,
+           array(select distinct a.data->>'shipId' from activity a
+             where a.task_id = t.id and a.data ? 'shipId') as ships
+         from tasks t join task_values tv on tv.task_id = t.id and tv.property_id = $2
+         where t.project_id = $1 and t.title in ('Golf', 'Hotel') and t.archived_at is not null`,
+        [projectId, version.id],
+      );
+      return res.rows;
+    });
+    expect(taken).toHaveLength(2);
+    for (const t of taken) {
+      expect(t.value).toBe(v1.id);
+      expect(t.ships).toHaveLength(1);
+    }
+  });
+
   test("with no Done when, the row and the column say why nothing ships", async ({
     page,
   }, testInfo) => {

@@ -16,6 +16,10 @@ import { closes, nextOpenOption, shipDay, splitShip, type ShipDone, type ShipRes
 import type { TaskValue } from "./types";
 import { isSelect } from "./types";
 
+/** A value that says something: not missing, null, "" or []. */
+const filled = sql`(${taskValues.value} is not null
+  and ${taskValues.value} not in ('null'::jsonb, '""'::jsonb, '[]'::jsonb))`;
+
 /**
  * Ships one column inside the caller's transaction, which already holds the
  * project lock. Only a press of Ship comes here: a sprint past its end stays
@@ -30,6 +34,8 @@ export async function shipOptionIn(
     propertyId: string;
     optionId: string;
     rest: ShipRest;
+    /** Take the over tasks that are in no release along with the column. */
+    strays?: boolean;
     actorId: string;
   },
 ): Promise<{ answer: ShipDone; ring: Ring }> {
@@ -123,21 +129,50 @@ export async function shipOptionIn(
 
   /* Over is the project's rule, read afresh as every other reader does. */
   const doneWhen = readDoneWhen(project?.doneWhen, await loadProperties(projectId, tx));
+
+  /* The live tasks with no value for the property are read only when they
+     were asked for, and a sprint archives nothing, so it never takes them. */
+  const loose =
+    a.strays && doneWhen && !closes(option)
+      ? (
+          await tx
+            .select({ id: tasks.id })
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.projectId, projectId),
+                isNull(tasks.archivedAt),
+                isNull(tasks.deletedAt),
+                sql`not exists (select 1 from ${taskValues}
+                  where ${taskValues.taskId} = ${tasks.id}
+                    and ${taskValues.propertyId} = ${propertyId}
+                    and ${filled})`,
+              ),
+            )
+        ).map((t) => t.id)
+      : [];
+  const read = [...ids, ...loose];
   const held = new Map<string, TaskValue>();
-  if (doneWhen && ids.length) {
+  if (doneWhen && read.length) {
     const rows = await tx
       .select({ taskId: taskValues.taskId, value: taskValues.value })
       .from(taskValues)
-      .where(and(inArray(taskValues.taskId, ids), eq(taskValues.propertyId, doneWhen.propertyId)));
+      .where(and(inArray(taskValues.taskId, read), eq(taskValues.propertyId, doneWhen.propertyId)));
     for (const row of rows) held.set(row.taskId, row.value as TaskValue);
   }
+  /* The same split the question counts with, so the tick takes what it said. */
+  const loosed = new Set(loose);
   const split = splitShip(
-    ids.map((id) => ({
+    read.map((id) => ({
       id,
       archivedAt: null,
-      values: doneWhen ? { [doneWhen.propertyId]: held.get(id) ?? null } : {},
+      values: {
+        [propertyId]: loosed.has(id) ? null : optionId,
+        ...(doneWhen ? { [doneWhen.propertyId]: held.get(id) ?? null } : {}),
+      },
     })),
     doneWhen,
+    { propertyId, optionId },
   );
 
   /* A value written to one task takes no project lock, so a card can leave
@@ -153,14 +188,35 @@ export async function shipOptionIn(
   const asked = rest === "leave" ? [] : split.rest;
   /* The tasks that move are locked before their values change, as every
      write that drops what it hides does. */
-  await lockTasks(tx, asked);
+  await lockTasks(tx, [...asked, ...split.strays]);
+  /* A stray is given the option first, and only while it is still in no
+     release, so it is archived with the rest and the changelog lists it. */
+  const taken = split.strays.length
+    ? (
+        await tx
+          .insert(taskValues)
+          .values(split.strays.map((taskId) => ({ taskId, propertyId, value: optionId })))
+          .onConflictDoUpdate({
+            target: [taskValues.taskId, taskValues.propertyId],
+            set: { value: optionId },
+            setWhere: sql`not ${filled}`,
+          })
+          .returning({ id: taskValues.taskId })
+      ).map((r) => r.id)
+    : [];
   const archived =
-    split.over.length && !closes(option)
+    (split.over.length || taken.length) && !closes(option)
       ? (
           await tx
             .update(tasks)
             .set({ archivedAt: now, updatedAt: now })
-            .where(and(inArray(tasks.id, split.over), isNull(tasks.archivedAt), stillHere))
+            .where(
+              and(
+                inArray(tasks.id, [...split.over, ...taken]),
+                isNull(tasks.archivedAt),
+                stillHere,
+              ),
+            )
             .returning({ id: tasks.id })
         ).map((r) => r.id)
       : [];
@@ -186,6 +242,19 @@ export async function shipOptionIn(
      done it by hand; the line on the project carries the counts. */
   const line = { projectId, actorId: a.actorId };
   const entries: ActivityEntry[] = [
+    ...taken.map((taskId) => ({
+      ...line,
+      taskId,
+      kind: "value",
+      data: {
+        property: option.property,
+        propertyId,
+        type: option.type,
+        value: option.name,
+        optionId,
+        shipId,
+      },
+    })),
     ...archived.map((taskId) => ({
       ...line,
       taskId,
@@ -215,6 +284,7 @@ export async function shipOptionIn(
         option: option.name,
         optionId,
         archived: archived.length,
+        taken: taken.length,
         rest,
         moved: moved.length,
       },
@@ -229,5 +299,14 @@ export async function shipOptionIn(
     extra: { shipId },
     before: entries,
   });
-  return { answer: { archived: archived.length, moved: moved.length, rest, shippedAt }, ring };
+  return {
+    answer: {
+      archived: archived.length,
+      moved: moved.length,
+      rest,
+      shippedAt,
+      taken: taken.length,
+    },
+    ring,
+  };
 }
