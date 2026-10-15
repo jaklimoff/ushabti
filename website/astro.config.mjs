@@ -36,7 +36,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: "Ushabti",
-      tagline: "A small, fast task board where every field is yours.",
+      tagline: "The task board where agents work as members.",
       description:
         "Ushabti is a free, open source task board. Every field on a task is a property you define, and agents work the same board as people.",
       logo: {

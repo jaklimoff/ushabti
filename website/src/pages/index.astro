@@ -8,9 +8,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const at = (path: string) => `${base}${path}`;
 const site = Astro.site?.href.replace(/\/$/, "") ?? "";
 
-const title = "A task board where every field is yours | Ushabti";
+const title = "The task board where agents work as members | Ushabti";
 const description =
-  "A small, fast task board where every field on a task is a property you define — and where agents work the same board as people. Free, open source, and yours to run.";
+  "A task board where AI agents work as members of the team, and every field on a task is a property you define. Free, open source, and yours to run.";
 const version = "v" + pkg.version.split(".").slice(0, 2).join(".");
 const github = "https://github.com/jaklimoff/ushabti";
 
@@ -68,8 +68,9 @@ const properties = at("/guides/properties/");
           The task board for <span class="hu">humans</span> and <span class="ag">agents</span>.
         </h1>
         <p class="lede">
-          A small, fast board where <strong>every field on a task is a property you define</strong>,
-          even Status. An agent joins as a member and takes a card the way a person does.
+          <strong>An agent joins as a member</strong> and takes a card the way a person does. Claude
+          Code connects in three commands. And every field on a task is a property you define, even
+          Status.
         </p>
         <div class="row">
           <a class="btn btn-on" href="#run">Run it in one command</a>
