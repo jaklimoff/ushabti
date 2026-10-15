@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.25.0 — 2026-10-15
+
 ### Added
 
 - **A new project knows what done means.** Its Status ends in Done, and Done when names it from
