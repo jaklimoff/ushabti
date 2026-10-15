@@ -339,6 +339,14 @@ and what is easy to get wrong.
   A `change` may name an agent whose name changed, as `renamed`. That is
   still a where: a hint to read `/api/agent/me` again, never the name itself.
   A watcher that misses it reads its name again on the next `ready`.
+- **Home has one stream for every project.** `/api/home/stream` subscribes to
+  each project the person is a member of, reads the memberships again on every
+  ping, and is `humanOnly`. It rings as the board's does, and Home answers with
+  `router.refresh()`, gathered by `homeReader` into one read per burst and none
+  while the tab is hidden. Going silent rings nothing, so while an agent is at
+  work Home also looks on its own. The answer to a refresh is the next set of
+  projects the page hands down, and `trackWrites` drops it when it crossed a
+  drag, as the board drops a read.
 - **Listening is a lease, and only the stream writes it.** `listening_at` on a
   token is touched while an agent holds the stream and cleared when it closes;
   `isListening()` reads it against a minute. It is not "last used": a token
