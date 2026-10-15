@@ -16,8 +16,11 @@ import type { AgentRunRowDTO, BoardData } from "./types";
 
 export type PulseColumn = { id: string; name: string; color: string; count: number };
 
-/** The names of the agents that report, in the order their runs came. */
-export type AgentsAtWork = { names: string[]; silent: number };
+/**
+ * The agents with an open run that is not waiting, in the order their runs
+ * came: those at work, and those nobody has heard from.
+ */
+export type AgentsAtWork = { names: string[]; silent: string[] };
 
 /** The newest line of the feed, with what the card's sentence needs of it. */
 export type LastChange = {
@@ -161,16 +164,19 @@ export function mainColumns(board: BoardPart, viewer: string | null): PulseColum
   ).map((c) => ({ id: c.id, name: c.name, color: c.color, count: c.tasks.length }));
 }
 
+type HomeRun = Pick<AgentRunRowDTO, "status" | "updatedAt" | "beatAt" | "agent">;
+
 /**
- * The agents with an open run that is not waiting, and how many of those
- * nobody has heard from. An agent counts once however many runs it holds, and
- * it is silent only when every one of them is: one run that reports says the
- * agent is there.
+ * Whether each agent with an open run that is not waiting is at work, by its
+ * id. This is Home's one answer: the card's line and the list rows both ask
+ * it, so they cannot name one agent two ways in the same render. An agent is
+ * silent only when every run it holds is: one run that reports, or only
+ * beats, says the agent is there, as the board says it.
  */
-export function agentsAtWork(
-  runs: Pick<AgentRunRowDTO, "status" | "updatedAt" | "beatAt" | "agent">[],
+export function heardFrom(
+  runs: HomeRun[],
   now: number = Date.now(),
-): AgentsAtWork {
+): Map<string, { name: string; alive: boolean }> {
   const heard = new Map<string, { name: string; alive: boolean }>();
   for (const run of runs) {
     if (isWaiting(run.status)) continue;
@@ -178,23 +184,34 @@ export function agentsAtWork(
     const seen = heard.get(run.agent.id);
     heard.set(run.agent.id, { name: run.agent.name, alive: (seen?.alive ?? false) || alive });
   }
-  const all = [...heard.values()];
+  return heard;
+}
+
+export function agentsAtWork(runs: HomeRun[], now: number = Date.now()): AgentsAtWork {
+  const all = [...heardFrom(runs, now).values()];
   return {
     names: all.filter((a) => a.alive).map((a) => a.name),
-    silent: all.filter((a) => !a.alive).length,
+    silent: all.filter((a) => !a.alive).map((a) => a.name),
   };
+}
+
+function namesSaid(names: string[], word: string): string | null {
+  if (names.length === 0) return null;
+  if (names.length === 1) return `${names[0]} ${word}`;
+  if (names.length === 2) return `${names[0]} and ${names[1]} ${word}`;
+  return `${names[0]} and ${names.length - 1} more ${word}`;
 }
 
 /**
  * "Builder working", "Builder and Scout working", "Builder and 2 more
- * working", or null when no agent reports. A silent agent is not at work, so
- * the card shows the last change instead.
+ * working", then the silent ones after a dot: "Builder working · Scout
+ * silent". Null when no agent holds a run, so the card shows the last change
+ * instead. A silent agent is named rather than dropped, or the card and a
+ * list row would disagree about it.
  */
-export function agentsLine({ names }: AgentsAtWork): string | null {
-  if (names.length === 0) return null;
-  if (names.length === 1) return `${names[0]} working`;
-  if (names.length === 2) return `${names[0]} and ${names[1]} working`;
-  return `${names[0]} and ${names.length - 1} more working`;
+export function agentsLine({ names, silent }: AgentsAtWork): string | null {
+  const said = [namesSaid(names, "working"), namesSaid(silent, "silent")].filter(Boolean);
+  return said.length > 0 ? said.join(" · ") : null;
 }
 
 export function isQuiet(last: LastChange | null, now: number): boolean {

@@ -10,6 +10,7 @@ import {
   readFilters,
   waitingTasks,
 } from "./filters";
+import { heardFrom } from "./pulse";
 import { isWaiting } from "./run-state";
 import type { BoardData, FilterRule, PropertyDTO, TaskDTO, ViewFilters } from "./types";
 
@@ -45,8 +46,10 @@ export type ListRow = {
   color: string;
   /** Its open run asks a person something. */
   waiting: boolean;
-  /** The agent at work on it, if a run is open and not waiting. */
+  /** The agent on it, if a run is open and not waiting. */
   agent: string | null;
+  /** Nobody has heard from that agent: `heardFrom`, as the project card reads it. */
+  silent: boolean;
   chip: RowChip | null;
   createdAt: string;
 };
@@ -140,18 +143,22 @@ export function listGroups(
   sources: StoredSource[],
   boards: SourceBoard[],
   viewer: string | null,
+  now: number = Date.now(),
 ): ListGroup[] {
   const groups: ListGroup[] = [];
   for (const board of boards) {
     const mine = sources.filter((s) => s.projectId === board.project.id);
     if (mine.length === 0) continue;
     const waits = new Map<string, boolean>();
-    const agents = new Map<string, string>();
+    const agents = new Map<string, { name: string; alive: boolean }>();
+    const heard = heardFrom(board.runs, now);
     for (const run of board.runs) {
       /* A hand-over waits for the next agent, not for the person, so only a
          question earns "Waiting for you". Neither run is at work. */
       if (run.status === "waiting") waits.set(run.taskId, true);
-      else if (!isWaiting(run.status)) agents.set(run.taskId, run.agent.name);
+      else if (!isWaiting(run.status)) {
+        agents.set(run.taskId, heard.get(run.agent.id) ?? { name: run.agent.name, alive: true });
+      }
     }
     const picked = new Map<string, RowChip | null>();
     const rules: string[] = [];
@@ -174,7 +181,8 @@ export function listGroups(
         projectId: board.project.id,
         color: board.project.color,
         waiting: waits.get(t.id) ?? false,
-        agent: agents.get(t.id) ?? null,
+        agent: agents.get(t.id)?.name ?? null,
+        silent: agents.get(t.id)?.alive === false,
         chip: picked.get(t.id) ?? null,
         createdAt: t.createdAt,
       }));

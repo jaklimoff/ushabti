@@ -451,8 +451,13 @@ function ListCard({ list }: { list: ListSummary }) {
                 <span className={styles.listRowTitle}>{row.title}</span>
                 {row.waiting && <span className={styles.listWaiting}>Waiting for you</span>}
                 {row.agent && (
-                  <span className={styles.listAgent} title="At work on it">
-                    <span className={styles.listAgentDot} aria-hidden="true" />
+                  <span
+                    className={styles.listAgent}
+                    title={row.silent ? "Not heard from for a while" : "At work on it"}
+                    data-testid="list-card-agent"
+                    data-silent={row.silent || undefined}
+                  >
+                    {!row.silent && <span className={styles.listAgentDot} aria-hidden="true" />}
                     {row.agent}
                   </span>
                 )}
@@ -548,8 +553,14 @@ function Pulse({ pulse }: { pulse: ProjectPulse }) {
           ))}
         </span>
         {agents ? (
-          <span className={styles.working} data-testid="project-agents">
-            <span className={styles.workingDot} aria-hidden="true" />
+          <span
+            className={styles.working}
+            data-testid="project-agents"
+            data-silent={pulse.agents.names.length === 0 || undefined}
+          >
+            {pulse.agents.names.length > 0 && (
+              <span className={styles.workingDot} aria-hidden="true" />
+            )}
             {agents}
           </span>
         ) : (

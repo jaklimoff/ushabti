@@ -94,6 +94,7 @@ describe("The projects on Home", () => {
       color,
       waiting: false,
       agent: null,
+      silent: false,
       chip: null,
       createdAt: "2026-10-01T00:00:00Z",
     });
@@ -154,6 +155,7 @@ describe("The projects on Home", () => {
             color: "#f08a7e",
             waiting: false,
             agent: null,
+            silent: false,
             chip: null,
             createdAt: "2026-10-01T00:00:00Z",
           },
@@ -192,6 +194,7 @@ describe("The projects on Home", () => {
             color: "#7aa8f0",
             waiting: false,
             agent: "Builder",
+            silent: false,
             chip: null,
             createdAt: "2026-10-01T00:00:00Z",
           },
@@ -338,7 +341,7 @@ const pulseOf = (over: Partial<ProjectPulse> = {}): ProjectPulse => ({
     { id: "c3", name: "Ready", color: "#4f8a5b", count: 0 },
     { id: "c4", name: "Shipped", color: "#6d5bd0", count: 12 },
   ],
-  agents: { names: [], silent: 0 },
+  agents: { names: [], silent: [] },
   last: {
     at: new Date().toISOString(),
     who: null,
@@ -422,7 +425,7 @@ describe("A project card", () => {
   });
 
   test("shares the board out in greys, each count named, and the footer names who is on it", async () => {
-    const harbour = { ...rows[0], pulse: pulseOf({ agents: { names: ["Builder"], silent: 0 } }) };
+    const harbour = { ...rows[0], pulse: pulseOf({ agents: { names: ["Builder"], silent: [] } }) };
     await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
     const counts = page.getByTestId("project-column").elements();
     expect(counts.map((c) => c.textContent)).toEqual([
@@ -455,6 +458,45 @@ describe("A project card", () => {
     expect(getComputedStyle(agent.element()).borderRadius).toBe("4px");
     await expect.element(page.getByTestId("project-agents")).toHaveTextContent("Builder working");
     expect(page.getByTestId("project-last").elements()).toHaveLength(0);
+  });
+
+  test("a silent agent is named on the card and on its list row, without the green dot", async () => {
+    const harbour = {
+      ...rows[0],
+      pulse: pulseOf({ agents: { names: [], silent: ["Crackerjack"] } }),
+    };
+    const lists: ListSummary[] = [
+      {
+        id: "00000000-0000-4000-8000-0000000000d1",
+        name: "In Progress",
+        count: 1,
+        rows: [
+          {
+            id: "00000000-0000-4000-8000-0000000000e1",
+            key: "HAR-1",
+            title: "Fix the quay",
+            projectId: ids[0],
+            color: "#7aa8f0",
+            waiting: false,
+            agent: "Crackerjack",
+            silent: true,
+            chip: null,
+            createdAt: "2026-10-01T00:00:00Z",
+          },
+        ],
+      },
+    ];
+    await renderWithBoard(
+      <ProjectList user={ME} projects={[harbour]} lists={lists} />,
+      newProject(),
+    );
+    const line = page.getByTestId("project-agents");
+    await expect.element(line).toHaveTextContent("Crackerjack silent");
+    expect(line.element().children).toHaveLength(0);
+    const agent = page.getByTestId("list-card-agent");
+    await expect.element(agent).toHaveTextContent("Crackerjack");
+    await expect.element(agent).toHaveAttribute("title", "Not heard from for a while");
+    expect(agent.element().children).toHaveLength(0);
   });
 
   test("lines up its rows with the card beside it", async () => {

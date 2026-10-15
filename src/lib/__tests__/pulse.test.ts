@@ -202,18 +202,30 @@ describe("agentsAtWork", () => {
       run("d", "handed_over", 600),
     ];
     /* a has one run that reports, so a is there; b has said nothing for an hour. */
-    expect(agentsAtWork(runs, now)).toEqual({ names: ["a"], silent: 1 });
+    expect(agentsAtWork(runs, now)).toEqual({ names: ["a"], silent: ["b"] });
   });
 
-  it("names who works, and says nothing when nobody does", () => {
-    expect(agentsLine({ names: ["Builder"], silent: 0 })).toBe("Builder working");
-    expect(agentsLine({ names: ["Builder", "Scout"], silent: 0 })).toBe(
+  it("calls an agent that only beats at work, as the board does", () => {
+    const quiet = { ...run("q", "running", 60), beatAt: new Date(now - 60_000).toISOString() };
+    expect(agentsAtWork([quiet], now)).toEqual({ names: ["q"], silent: [] });
+  });
+
+  it("names who works and who is silent, and says nothing when nobody holds a run", () => {
+    expect(agentsLine({ names: ["Builder"], silent: [] })).toBe("Builder working");
+    expect(agentsLine({ names: ["Builder", "Scout"], silent: [] })).toBe(
       "Builder and Scout working",
     );
-    expect(agentsLine({ names: ["Builder", "Scout", "Fixer"], silent: 1 })).toBe(
+    expect(agentsLine({ names: ["Builder", "Scout", "Fixer"], silent: [] })).toBe(
       "Builder and 2 more working",
     );
-    expect(agentsLine({ names: [], silent: 2 })).toBeNull();
+    expect(agentsLine({ names: ["Reis"], silent: ["Crackerjack"] })).toBe(
+      "Reis working · Crackerjack silent",
+    );
+    expect(agentsLine({ names: [], silent: ["Crackerjack"] })).toBe("Crackerjack silent");
+    expect(agentsLine({ names: ["Reis"], silent: ["A", "B", "C"] })).toBe(
+      "Reis working · A and 2 more silent",
+    );
+    expect(agentsLine({ names: [], silent: [] })).toBeNull();
   });
 });
 

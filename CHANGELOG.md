@@ -28,6 +28,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Home's project cards and list rows agree about an agent nobody has heard from.** A card used to
+  drop a silent agent while a list row still showed it at work. Now the card says "Reis working ·
+  Crackerjack silent", and the row names the agent without the green dot.
 - **The API and configuration docs match the code.** The configuration page lists the `S3_*`,
   `ATTACHMENT_*` and development variables. The counts of property types and avatar colours, the
   view kinds and the activity kinds are right. Files, ship, search, settings, the changelog and older
