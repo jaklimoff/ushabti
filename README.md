@@ -22,7 +22,7 @@ small team needs, with no limit on people or agents.
 guides, every property type, the JSON API and the agent protocol, in one
 searchable place.
 
-<!-- The clip of an agent at work goes here (USH-330). -->
+![An agent takes a card, walks its plan, pauses when asked, and gives the card back](docs/demo.gif)
 
 ![The Ushabti board](docs/board.png)
 

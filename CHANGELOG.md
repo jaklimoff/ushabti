@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The README opens with a clip of an agent at work.** In 25 seconds an agent takes a card, walks
+  its plan, pauses when a person asks, and gives the card back on Take over. The board screenshot
+  is the seeded board of today, and `scripts/record-demo.mjs` records both again.
 - **The README and the site lead with agents.** The first lines say that agents work as members,
   a short section shows the commands that connect Claude Code, and "What it does" lists what ships
   today. Hosting names the version to pin, what to back up and what the image needs.

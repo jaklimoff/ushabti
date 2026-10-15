@@ -220,6 +220,24 @@ e2e/                Playwright specs
 drizzle/            generated migrations
 ```
 
+## The clip and the board in the README
+
+`docs/demo.gif` shows an agent working a card, and `docs/board.png` is the
+board as the seed makes it. One script takes both again, from a board that was
+just seeded:
+
+```bash
+docker compose exec app npm run db:seed
+node scripts/record-demo.mjs
+```
+
+Run the script on your machine, not in the container: it drives Playwright's
+Chromium and needs `ffmpeg` on the path (`brew install ffmpeg`). It plays the
+person in the browser and the seeded agent over the API, and refuses a clip of
+30 seconds or more, or of 8 MB or more. A take leaves the card with its agent,
+so seed again before the next one. `USHABTI_URL` points it at another board.
+Nothing in the tests or in CI runs it.
+
 ## Branches
 
 There is one branch: `main`. There is no `develop` and there is no release
