@@ -4,7 +4,7 @@
 // these values into `.next/standalone/server.js`, which is what runs.
 
 // The dev server allows localhost and the name it was started with, and blocks
-// its own HMR for any other name. A dev server reached as `mini-m4.local` logs
+// its own HMR for any other name. A dev server reached as `devbox.local` logs
 // "Blocked cross-origin request", the client never hydrates, and the login form
 // posts as plain HTML with no error on screen. So the hosts come from the
 // environment: a name here would be tracked, and a mounted file went stale

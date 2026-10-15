@@ -57,10 +57,10 @@ In a `docker-compose.override.yml`, give them to the app:
 services:
   app:
     environment:
-      ALLOWED_DEV_ORIGINS: mini-m4.local,192.168.1.8
+      ALLOWED_DEV_ORIGINS: devbox.local,192.168.1.50
 ```
 
-Outside Docker the shell does the same: `ALLOWED_DEV_ORIGINS=mini-m4.local npm run dev`.
+Outside Docker the shell does the same: `ALLOWED_DEV_ORIGINS=devbox.local npm run dev`.
 
 Write the host name only, without the scheme and without the port.
 `next.config.mjs` reads the variable, and only `next dev` uses it. Unset, the

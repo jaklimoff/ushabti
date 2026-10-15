@@ -20,7 +20,7 @@ const INSIDE = [
   "http://10.0.0.5/",
   "http://[::1]:9999/",
   "http://user:pass@169.254.169.254/",
-  "http://192.168.1.8:3105/api/projects",
+  "http://192.168.1.50:3105/api/projects",
 ];
 
 const OUTSIDE = [
@@ -84,7 +84,7 @@ describe("which literal addresses are inside", () => {
       "10.0.0.5",
       "172.16.0.1",
       "172.31.255.254",
-      "192.168.1.8",
+      "192.168.1.50",
       "169.254.169.254",
     ]) {
       expect(isPrivateIp(ip), ip).toBe(true);
