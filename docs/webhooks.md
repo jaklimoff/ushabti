@@ -13,8 +13,8 @@ before and after.
 ## Make one
 
 **Settings → Webhooks**, at `/p/{projectId}/settings/webhooks`. Only the owner
-of the project sees the page, and only the owner can call any of its routes —
-the read one too. A URL and a secret are another road onto the board.
+and the admins of the project see the page, and only they can call any of its
+routes — the read one too. A URL and a secret are another road onto the board.
 
 1. Type the URL and press **Add webhook**.
 2. Copy the secret. It is shown once. The server keeps it whole, because it
@@ -183,8 +183,8 @@ overlap and no second secret.
 
 ## The routes
 
-All four are `ownerOnly`, and a token is refused: a webhook is structure, and
-structure is the owner's.
+All four are `adminOnly`, and a token is refused: a webhook is structure, and
+structure is the owner's and the admins'.
 
 | What | Call |
 | --- | --- |

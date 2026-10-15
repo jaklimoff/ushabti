@@ -14,6 +14,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   says in its first line that the board is for humans and agents. The film plays muted and
   looping, and a still stands in for it when the system asks for less motion.
 
+### Fixed
+
+- **The docs say only what Ushabti does today.** The backup recipe now copies the bucket the
+  attachments live in, since a dump alone loses them. No page says a delete cannot be undone, that
+  there are no sprints or no rate limit, or that webhooks are the owner's alone. The roadmap has a
+  real Next, and a conduct problem is reported by email.
+
 ## 0.25.0 — 2026-10-15
 
 ### Added
