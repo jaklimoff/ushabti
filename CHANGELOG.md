@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.26.0 — 2026-10-15
+
 ### Added
 
 - **A chart on Home can count several projects.** **Add project** in the chart picker adds another
