@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { chartDays, chartFrom, chartShape, chartSummary, dayBefore } from "@/lib/charts";
+import {
+  chartDays,
+  chartFrom,
+  chartHeading,
+  chartHint,
+  chartSplit,
+  chartSummary,
+  dayBefore,
+  sameSources,
+  sourceShape,
+  sumChart,
+} from "@/lib/charts";
 
 describe("dayBefore", () => {
   it("crosses a month, a year and a leap day", () => {
@@ -66,7 +77,7 @@ describe("chartSummary", () => {
   });
 });
 
-describe("chartShape", () => {
+describe("sourceShape", () => {
   const board = {
     project: { id: "p", key: "USH", name: "Ushabti" },
     properties: [
@@ -78,11 +89,11 @@ describe("chartShape", () => {
       },
       { id: "who", name: "Assignee", type: "person", options: [] },
     ],
-  } as unknown as Parameters<typeof chartShape>[1];
-  const chart = { id: "c", projectId: "p", propertyId: "status", optionId: "done" };
+  } as unknown as Parameters<typeof sourceShape>[1];
+  const chart = { projectId: "p", propertyId: "status", optionId: "done" };
 
   it("names the option and takes its colour, read afresh", () => {
-    expect(chartShape(chart, board)).toMatchObject({
+    expect(sourceShape(chart, board)).toMatchObject({
       option: "Done",
       property: "Status",
       color: "#4f8a5b",
@@ -91,8 +102,69 @@ describe("chartShape", () => {
   });
 
   it("draws nothing for an option or property that is gone, or is not a select", () => {
-    expect(chartShape({ ...chart, optionId: "gone" }, board)).toBeNull();
-    expect(chartShape({ ...chart, propertyId: "gone" }, board)).toBeNull();
-    expect(chartShape({ ...chart, propertyId: "who" }, board)).toBeNull();
+    expect(sourceShape({ ...chart, optionId: "gone" }, board)).toBeNull();
+    expect(sourceShape({ ...chart, propertyId: "gone" }, board)).toBeNull();
+    expect(sourceShape({ ...chart, propertyId: "who" }, board)).toBeNull();
+  });
+});
+
+describe("A chart of several sources", () => {
+  const shape = (key: string, option: string, color = "#4f8a5b") => ({
+    project: { id: key, key, name: `Project ${key}` },
+    propertyId: "status",
+    optionId: option,
+    property: "Status",
+    option,
+    color,
+    days: [],
+  });
+
+  it("sums each day over its sources, on the first source's days, in its colour", () => {
+    const chart = sumChart(
+      "c",
+      [
+        {
+          shape: shape("USH", "Done", "#111111"),
+          rows: [
+            { day: "2026-10-09", count: 3 },
+            { day: "2026-10-01", count: 1 },
+          ],
+        },
+        { shape: shape("SET", "Done", "#222222"), rows: [{ day: "2026-10-09", count: 2 }] },
+      ],
+      "2026-10-09",
+    )!;
+    expect(chart.color).toBe("#111111");
+    expect(chart.days).toHaveLength(30);
+    expect(chart.days.at(-1)).toEqual({ day: "2026-10-09", count: 5 });
+    expect(chart.sources.map((s) => s.days.at(-1)!.count)).toEqual([3, 2]);
+    expect(chartSummary(chart.days)).toEqual({ today: 5, average: "0.2" });
+    expect(chartSplit(chart, 29)).toBe("USH 3, SET 2");
+    expect(sumChart("c", [], "2026-10-09")).toBeNull();
+  });
+
+  it("names every key and each option once; one source reads as it always did", () => {
+    const one = { sources: [shape("USH", "Done")] };
+    expect(chartHeading(one)).toEqual({
+      keys: "USH",
+      options: "Done",
+      title: "USH Entered Done",
+    });
+    expect(chartSplit(one, 0)).toBeNull();
+    expect(chartHint(one)).toBe("Status in Project USH");
+    expect(chartHeading({ sources: [shape("USH", "Done"), shape("SET", "Done")] }).title).toBe(
+      "USH · SET Entered Done",
+    );
+    expect(chartHeading({ sources: [shape("USH", "Done"), shape("SET", "Shipped")] }).title).toBe(
+      "USH · SET Entered Done, Shipped",
+    );
+  });
+
+  it("is the same chart whatever order its sources are in", () => {
+    const a = { projectId: "p", propertyId: "s", optionId: "o" };
+    const b = { projectId: "q", propertyId: "s", optionId: "o" };
+    expect(sameSources([a, b], [b, a])).toBe(true);
+    expect(sameSources([a], [a, b])).toBe(false);
+    expect(sameSources([a, b], [a, { ...b, optionId: "x" }])).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
-import { HttpError, requireActor, requireMembership } from "@/lib/auth";
-import { body, humanOnly, json, readId, route } from "@/lib/api";
-import { drawChart } from "@/lib/charts-load";
+import { HttpError, requireActor } from "@/lib/auth";
+import { body, humanOnly, json, route } from "@/lib/api";
+import { checkSources, drawChart, readSources } from "@/lib/charts-load";
 import { boardsOnce } from "@/lib/lists-load";
 
 /**
@@ -11,13 +11,17 @@ import { boardsOnce } from "@/lib/lists-load";
 export const POST = route(async (req) => {
   const user = await requireActor();
   humanOnly(user);
-  const input = await body<{ projectId?: unknown; propertyId?: unknown; optionId?: unknown }>(req);
-  const projectId = readId(input.projectId, "project");
-  const propertyId = readId(input.propertyId, "property");
-  const optionId = readId(input.optionId, "option");
-  const { role } = await requireMembership(user.id, projectId);
-  const board = await boardsOnce(user.id)({ id: projectId, role });
-  const chart = await drawChart({ id: "", projectId, propertyId, optionId }, board);
+  const sources = readSources(await body(req));
+  const { roles } = await checkSources(sources);
+  const boardOf = boardsOnce(user.id);
+  const boards = new Map(
+    await Promise.all(
+      sources.map(
+        async (s, i) => [s.projectId, await boardOf({ id: s.projectId, role: roles[i] })] as const,
+      ),
+    ),
+  );
+  const chart = await drawChart({ id: "", sources }, (id) => boards.get(id));
   if (!chart) throw new HttpError(400, "A chart counts the options of a select.");
   return json({ chart });
 });

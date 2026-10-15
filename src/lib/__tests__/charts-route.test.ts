@@ -70,7 +70,7 @@ describe("A chart", () => {
 
     await addChart(me, p.id, status, doing);
     const [chart] = await chartsFor(me);
-    expect(chart.option).toBe("In Progress");
+    expect(chart.sources[0].option).toBe("In Progress");
     expect(chart.days).toHaveLength(30);
     expect(chart.days.at(-1)).toEqual({ day: today, count: 3 });
     expect(chart.days.slice(0, -1).every((d) => d.count === 0)).toBe(true);
@@ -130,7 +130,7 @@ describe("A chart", () => {
 
     await addChart(me, p.id, status, ready);
     const [chart] = await chartsFor(me);
-    expect(chart.option).toBe("Waiting");
+    expect(chart.sources[0].option).toBe("Waiting");
     expect(chart.days.at(-1)!.count).toBe(1);
   });
 
@@ -186,7 +186,7 @@ describe("A chart", () => {
 
     await ok(api(me).del(`/api/options/${option("Status", "Backlog")}`));
     await ok(api(me).del(`/api/properties/${property("Priority").id}`));
-    expect((await chartsFor(me)).map((c) => c.property)).toEqual(["Phase"]);
+    expect((await chartsFor(me)).map((c) => c.sources[0].property)).toEqual(["Phase"]);
 
     const q = await project(owner);
     await join(q.id, me, "member");
@@ -267,6 +267,101 @@ describe("A new chart", () => {
   });
 });
 
+describe("A chart of several projects", () => {
+  async function twoProjects(name: string) {
+    const me = await person(name);
+    const p = await project(me);
+    const q = await project(me);
+    const here = await shape(me, p.id);
+    const there = await shape(me, q.id);
+    const pick = (where: typeof here, projectId: string, option: string) => ({
+      projectId,
+      propertyId: where.property("Status").id,
+      optionId: where.option("Status", option),
+    });
+    return { me, p, q, here, there, pick };
+  }
+
+  it("draws one bar a day that is the sum of each project's count", async () => {
+    const { me, p, q, here, there, pick } = await twoProjects("Two Boards");
+    for (const title of ["One", "Two", "Three"]) {
+      const t = await task(me, p.id, title);
+      await set(me, t.id, here.property("Status").id, here.option("Status", "Done"));
+    }
+    for (const title of ["Four", "Five"]) {
+      const t = await task(me, q.id, title);
+      await set(me, t.id, there.property("Status").id, there.option("Status", "Done"));
+    }
+    const sources = [pick(here, p.id, "Done"), pick(there, q.id, "Done")];
+    const { chart: preview } = await ok<{ chart: ChartDTO }>(
+      api(me).post("/api/charts/preview", { sources }),
+    );
+    await ok(api(me).post("/api/charts", { sources }));
+    const [chart] = await chartsFor(me);
+    expect(chart.days.at(-1)).toEqual({ day: here.today, count: 5 });
+    expect(chart.sources.map((s) => [s.project.key, s.days.at(-1)!.count])).toEqual([
+      [p.key, 3],
+      [q.key, 2],
+    ]);
+    expect({ ...preview, id: chart.id }).toEqual(chart);
+  });
+
+  it("refuses the same set in any order with 409, a project twice with 400, and a stranger's project", async () => {
+    const { me, p, q, here, there, pick } = await twoProjects("Set Twice");
+    const a = pick(here, p.id, "Done");
+    const b = pick(there, q.id, "Done");
+    await ok(api(me).post("/api/charts", { sources: [a, b] }));
+    const again = await api(me).post("/api/charts", { sources: [b, a] });
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as { error: string }).error).toBe(CHART_TWICE);
+    // One of the two alone is another chart.
+    await ok(api(me).post("/api/charts", { sources: [a] }));
+    const doubled = await api(me).post("/api/charts", {
+      sources: [a, pick(here, p.id, "Todo")],
+    });
+    expect(doubled.status).toBe(400);
+
+    const stranger = await person("Not In Q");
+    const theirs = await project(stranger);
+    const far = await shape(stranger, theirs.id);
+    const out = await api(me).post("/api/charts", {
+      sources: [a, pick(far, theirs.id, "Done")],
+    });
+    expect(out.status).toBe(404);
+    const peek = await api(me).post("/api/charts/preview", {
+      sources: [a, pick(far, theirs.id, "Done")],
+    });
+    expect(peek.status).toBe(404);
+    expect(await chartsFor(me)).toHaveLength(2);
+  });
+
+  it("counts nothing of a project the person left, and keeps the source", async () => {
+    const owner = await person("Keeps Q");
+    const { me, p, here, pick } = await twoProjects("Leaves Q");
+    const q = await project(owner);
+    await join(q.id, me, "member");
+    const there = await shape(me, q.id);
+    const t = await task(owner, q.id, "Done over there");
+    await set(owner, t.id, there.property("Status").id, there.option("Status", "Done"));
+    await ok(
+      api(me).post("/api/charts", {
+        sources: [pick(here, p.id, "Done"), pick(there, q.id, "Done")],
+      }),
+    );
+    expect((await chartsFor(me))[0].days.at(-1)!.count).toBe(1);
+
+    await ok(api(me).del(`/api/projects/${q.id}/members/${me.id}`));
+    const [chart] = await chartsFor(me);
+    expect(chart.sources.map((s) => s.project.key)).toEqual([p.key]);
+    expect(chart.days.at(-1)!.count).toBe(0);
+    const kept = await pool.query(
+      `select count(*)::int as n from chart_sources s join charts c on c.id = s.chart_id where c.user_id = $1`,
+      [me.id],
+    );
+    expect((kept.rows[0] as { n: number }).n).toBe(2);
+  });
+});
+
 describe("The migration", () => {
   it("gives an older line the id of the option that carries its name today, once", async () => {
     const me = await person("Old Lines");
@@ -298,5 +393,49 @@ describe("The migration", () => {
     expect((await dataOf(matches.id)).optionId).toBe(option("Status", "Ready"));
     expect(await dataOf(renamed.id)).not.toHaveProperty("optionId");
     expect(await dataOf(gone.id)).not.toHaveProperty("optionId");
+  });
+});
+
+describe("The sources migration", () => {
+  it("makes every chart made before it a chart of the one source it named", async () => {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const old = new PGlite();
+    const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as {
+      entries: { tag: string }[];
+    };
+    const run = async (tag: string) => {
+      for (const part of readFileSync(`drizzle/${tag}.sql`, "utf8").split(
+        "--> statement-breakpoint",
+      )) {
+        if (part.trim()) await old.exec(part);
+      }
+    };
+    const tags = journal.entries.map((e) => e.tag);
+    const at = tags.indexOf("0034_chart_sources");
+    for (const tag of tags.slice(0, at)) await run(tag);
+
+    // The rows a chart points at are not what this reads, so nothing checks them.
+    await old.exec(`set session_replication_role = replica`);
+    const ids = Array.from({ length: 5 }, () => crypto.randomUUID());
+    await old.query(
+      `insert into charts (id, user_id, project_id, property_id, option_id, position) values ($1, $2, $3, $4, $5, 'a0')`,
+      ids,
+    );
+    await run("0034_chart_sources");
+    const sources = await old.query(
+      `select chart_id, project_id, property_id, option_id, position from chart_sources`,
+    );
+    expect(sources.rows).toEqual([
+      {
+        chart_id: ids[0],
+        project_id: ids[2],
+        property_id: ids[3],
+        option_id: ids[4],
+        position: "a0",
+      },
+    ]);
+    const charts = await old.query(`select * from charts`);
+    expect(charts.rows).toEqual([{ id: ids[0], user_id: ids[1], position: "a0" }]);
+    await old.close();
   });
 });
