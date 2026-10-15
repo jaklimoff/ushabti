@@ -76,8 +76,9 @@ services:
       RUSTFS_ACCESS_KEY: ushabti
       RUSTFS_SECRET_KEY: ushabti-secret
       # The browser PUTs a file straight to the store. MinIO allowed every
-      # origin by itself; RustFS answers a preflight only for these.
-      RUSTFS_CORS_ALLOWED_ORIGINS: http://localhost:3050
+      # origin by itself; RustFS answers a preflight only for these. 3101 is
+      # the production build that CONTRIBUTING's `CI=1` recipe starts.
+      RUSTFS_CORS_ALLOWED_ORIGINS: http://localhost:3050,http://localhost:3101
       # Logs go to `docker compose logs`, not to a folder in the container.
       RUSTFS_OBS_LOG_DIRECTORY: ""
     volumes:

@@ -136,8 +136,17 @@ standalone one and reads the `.env` the build copied rather than the file on
 disk. Without it every route answers 500 and Playwright only says it timed
 out:
 
+The `S3_*` values belong on it for the same reason. Under `CI` the attachments
+spec fails, and does not skip, when the server has no bucket, because CI always
+has one. These are the dev compose's RustFS, which answers on `localhost:9050`
+while `docker compose up` runs. The upload specs send a file from the page, and
+RustFS lets a page on `localhost:3101` do that, so keep the port:
+
 ```sh
-CI=1 PORT=3101 DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti npm run test:e2e
+CI=1 PORT=3101 DATABASE_URL=postgres://ushabti:ushabti@localhost:5435/ushabti \
+  S3_ENDPOINT=http://localhost:9050 S3_REGION=us-east-1 S3_BUCKET=ushabti \
+  S3_ACCESS_KEY=ushabti S3_SECRET_KEY=ushabti-secret S3_FORCE_PATH_STYLE=true \
+  npm run test:e2e
 ```
 
 `npm run start` binds `0.0.0.0` because the image does, and because a shell

@@ -18,6 +18,11 @@ type Seen = { method: string; url: string; body: unknown }[];
 
 let server: Server | null = null;
 
+/* Every call starts a fresh Node, and a test makes up to eight of them. Alone
+   that is a second; beside the rest of the suite on a loaded machine it took
+   past the default of five. */
+const SPAWNS = { timeout: 30_000 };
+
 afterEach(() => {
   server?.close();
   server = null;
@@ -83,7 +88,7 @@ function runBoard(url: string, ...args: string[]) {
   });
 }
 
-describe("An agent's checklist", () => {
+describe("An agent's checklist", SPAWNS, () => {
   it("board.mjs adds an item, ticks the one its words name, and refuses to guess or to take an empty term", async () => {
     const { url, items } = await fakeBoard();
     const state = () => Object.fromEntries(items.map((i) => [i.text, i.done]));
@@ -129,7 +134,7 @@ describe("An agent's checklist", () => {
   });
 });
 
-describe("Removing and rewording an item", () => {
+describe("Removing and rewording an item", SPAWNS, () => {
   const add = async (url: string, ...texts: string[]) => {
     for (const text of texts) expect((await runBoard(url, "check", "T-1", text)).code).toBe(0);
   };
@@ -221,7 +226,7 @@ describe("Removing and rewording an item", () => {
   });
 });
 
-describe("A hand-over", () => {
+describe("A hand-over", SPAWNS, () => {
   it("to nobody is refused before anything is written", async () => {
     const { url, seen } = await fakeBoard();
     // `--to` with the next flag behind it reads as the word "true".
