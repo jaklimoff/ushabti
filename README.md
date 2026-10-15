@@ -221,6 +221,10 @@ docker compose -f docker-compose.prod.yml up -d
 
 New migrations are applied when the container starts.
 
+To check it is up, point a monitor at `GET /api/health`. It answers 200 while
+the app can reach the database and 503 when it cannot, and needs no sign-in.
+The app service in the compose file has a healthcheck that uses it.
+
 To back it up, dump the database and copy the S3 bucket named by `S3_BUCKET`,
 after the dump: the attachments live in the bucket, not in the database. The
 [self-hosting guide](https://jaklimoff.github.io/ushabti/start/self-host/#backing-it-up)

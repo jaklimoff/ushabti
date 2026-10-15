@@ -144,6 +144,19 @@ Check the [changelog](/ushabti/releases/changelog/) before a jump: some releases
 0.3.0 upgrade, for example, closes any open run whose agent last reported over thirty minutes ago
 the first time somebody loads the board.
 
+## Checking it is up
+
+`GET /api/health` answers **200** while the app can reach its database and **503** when it cannot.
+It needs no session and no token, and the answer is only `{"ok":true}`, so point Uptime Kuma, a
+load balancer or a Kubernetes probe at it:
+
+```bash
+curl -fsS http://127.0.0.1:3000/api/health
+```
+
+The app service in `docker-compose.prod.yml` has a healthcheck that asks it, so
+`docker compose -f docker-compose.prod.yml ps` shows the app as `healthy` or `unhealthy`.
+
 ## A database you already have
 
 Point `DATABASE_URL` at it and drop the `db` service. Two things about managed clusters:
