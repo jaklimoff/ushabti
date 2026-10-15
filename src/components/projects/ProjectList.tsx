@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -21,6 +21,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/lib/client";
 import { landedAfter } from "@/lib/landed";
+import { SILENCE_CHECK_MS, homeReader, type HomeReader } from "@/lib/home-live";
+import { trackWrites, type Reading, type Writes } from "@/lib/writes";
 import { suggestProjectKey } from "@/lib/defaults";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
@@ -83,7 +85,8 @@ export function ProjectList({
   const [key, setKey] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const order = useOrder(projects);
+  const live = useLive(projects);
+  const order = useOrder(projects, live);
 
   async function create(event: React.FormEvent) {
     event.preventDefault();
@@ -223,16 +226,17 @@ export function ProjectList({
  * one after another, so a quick second drag cannot reach the server first and
  * leave it with an order the screen does not show.
  */
-function useOrder(projects: ProjectRow[]) {
+function useOrder(projects: ProjectRow[], live: Live) {
   const router = useRouter();
   const [rows, setRows] = useState(projects);
   const [given, setGiven] = useState(projects);
   const [error, setError] = useState<string | null>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
-  /* A new read from the server is the truth, and replaces what was dragged. */
+  /* A new read from the server is the truth, and replaces what was dragged,
+     unless it crossed a drag: then it is older than the screen. */
   if (given !== projects) {
     setGiven(projects);
-    setRows(projects);
+    if (live.fresh(projects)) setRows(projects);
   }
 
   /* The grip is the only thing that lifts a card, so a click on the card
@@ -250,17 +254,92 @@ function useOrder(projects: ProjectRow[]) {
     if (!landed) return;
     setRows(landed.ordered);
     setError(null);
+    /* Counted from the drop, not from when the queue sends it: a read that
+       goes out in between is already older than the screen. */
+    const done = live.writes.begin();
     queue.current = queue.current.then(async () => {
       try {
         await api.patch(`/api/projects/${id}/position`, { afterId: landed.afterId });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not move the project.");
         router.refresh();
+      } finally {
+        done();
       }
     });
   }
 
   return { rows, error, sensors, onDragEnd };
+}
+
+type Live = {
+  writes: Writes;
+  /** Whether this answer from the server may be drawn. Asked during render, so asking twice gives one answer. */
+  fresh: (projects: ProjectRow[]) => boolean;
+};
+
+/**
+ * Home follows every project the person is on, through one stream for all of
+ * them. A ring is a doorbell: Home reads itself again, as a board does, and
+ * `homeReader` gathers a burst into one read and holds it while the tab is
+ * hidden. Going silent is time and rings nothing, so while an agent is at
+ * work Home also looks on its own.
+ *
+ * A read is `router.refresh()`, and its answer is the next set of projects
+ * the page hands down. One that crossed a drag would put the card back where
+ * it was, so it is dropped as the board drops one, by `trackWrites`, and read
+ * again once the drag is answered.
+ */
+function useLive(projects: ProjectRow[]): Live {
+  const router = useRouter();
+  const reader = useRef<HomeReader | null>(null);
+  const asked = useRef<Reading | null>(null);
+  const judged = useRef<{ projects: ProjectRow[]; fresh: boolean } | null>(null);
+  const [writes] = useState(() => trackWrites(() => reader.current?.ring()));
+
+  useEffect(() => {
+    const live = homeReader({
+      read: () => {
+        asked.current = writes.reading();
+        router.refresh();
+      },
+      hidden: () => document.visibilityState === "hidden",
+    });
+    reader.current = live;
+    const source = new EventSource("/api/home/stream");
+    /* Ready comes after the subscriptions, so reading on it misses nothing
+       that happened while the socket was down. */
+    source.addEventListener("ready", () => live.ring());
+    source.addEventListener("change", () => live.ring());
+    const shown = () => live.shown();
+    document.addEventListener("visibilitychange", shown);
+    return () => {
+      document.removeEventListener("visibilitychange", shown);
+      source.close();
+      live.stop();
+      reader.current = null;
+    };
+  }, [router, writes]);
+
+  const working = projects.some((p) => (p.pulse?.agents.names.length ?? 0) > 0);
+  useEffect(() => {
+    if (!working) return;
+    const look = setInterval(() => reader.current?.ring(), SILENCE_CHECK_MS);
+    return () => clearInterval(look);
+  }, [working]);
+
+  return {
+    writes,
+    fresh(given) {
+      if (judged.current?.projects === given) return judged.current.fresh;
+      const reading = asked.current;
+      asked.current = null;
+      /* Props that no read of ours asked for, such as the first render. */
+      const fresh = reading === null || writes.keep(reading);
+      judged.current = { projects: given, fresh };
+      return fresh;
+    },
+  };
 }
 
 /**

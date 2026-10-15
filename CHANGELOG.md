@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Home follows every project live.** A task that moves, or an agent that starts, reports, falls
+  silent or finishes, shows on Home's cards and lists within seconds, without a reload. Home holds
+  one connection for all your projects, reads once for a burst of changes, and reads nothing while
+  its tab is hidden.
 - **A self-hosted board answers at `/api/health`.** It answers 200 while the app can reach the
   database and 503 when it cannot, with no sign-in and nothing about the board in the answer. The
   app service in `docker-compose.prod.yml` has a healthcheck that uses it.
