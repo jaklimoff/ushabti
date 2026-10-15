@@ -20,7 +20,7 @@ Open the card while it runs.
 ## The whole thing
 
 ```js title="agent.mjs" {29-33} {46-51} {88-100}
-const BASE = process.env.USHABTI_URL ?? 'http://localhost:3000'
+const BASE = process.env.USHABTI_URL ?? 'http://localhost:3050'
 const TOKEN = process.env.USHABTI_TOKEN
 if (!TOKEN) {
   console.error('Set USHABTI_TOKEN. Settings → People → Connect.')
