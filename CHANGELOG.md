@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A self-hosted board answers at `/api/health`.** It answers 200 while the app can reach the
+  database and 503 when it cannot, with no sign-in and nothing about the board in the answer. The
+  app service in `docker-compose.prod.yml` has a healthcheck that uses it.
+
 ### Changed
 
 - **The README opens with a clip of an agent at work.** In 25 seconds an agent takes a card, walks
