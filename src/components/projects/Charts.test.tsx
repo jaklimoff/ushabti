@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { cleanup, render } from "vitest-browser-react";
-import type { ChartChoice, ChartDTO } from "@/lib/charts";
+import type { ChartChoice, ChartDTO, ChartSource, StoredSource } from "@/lib/charts";
 import { Charts } from "./Charts";
 
 /*
@@ -19,16 +19,24 @@ const days = Array.from({ length: 30 }, (_, i) => ({
   day: new Date(Date.UTC(2026, 9, 9 - 29 + i)).toISOString().slice(0, 10),
   count: i % 4,
 }));
-const chart: ChartDTO = {
-  id: "00000000-0000-4000-8000-000000000001",
-  project: { id: "00000000-0000-4000-8000-000000000002", key: "HAR", name: "Harbour" },
+const harbour = { id: "00000000-0000-4000-8000-000000000002", key: "HAR", name: "Harbour" };
+const source = (o: Partial<ChartSource> = {}): ChartSource => ({
+  project: harbour,
   propertyId: "p",
   optionId: "o",
   property: "Status",
   option: "Todo",
   color: "#3fb0c8",
   days,
+  ...o,
+});
+const chart: ChartDTO = {
+  id: "00000000-0000-4000-8000-000000000001",
+  sources: [source()],
+  color: "#3fb0c8",
+  days,
 };
+const charting = (...sources: ChartSource[]): ChartDTO => ({ ...chart, sources });
 
 const bars = () => page.getByTestId("chart-bars");
 const tip = () => page.getByTestId("chart-tip");
@@ -173,7 +181,7 @@ describe("A chart on Home", () => {
   test("New chart opens the picker in the first slot, and waits for a select", async () => {
     const choices = [
       {
-        id: chart.project.id,
+        id: harbour.id,
         key: "HAR",
         name: "Harbour",
         properties: [{ id: "p", name: "Status", options: [{ id: "o", name: "Todo" }] }],
@@ -204,7 +212,7 @@ describe("A chart on Home", () => {
 const opt = (id: string, name: string) => ({ id, name });
 const choices: ChartChoice[] = [
   {
-    id: chart.project.id,
+    id: harbour.id,
     key: "HAR",
     name: "Harbour",
     properties: [
@@ -224,7 +232,7 @@ const choices: ChartChoice[] = [
   },
 ];
 
-type Sent = { path: string; body: { projectId: string; propertyId: string; optionId: string } };
+type Sent = { path: string; body: { sources: StoredSource[] } };
 
 /**
  * Answers a preview with a chart that counts the option's place in its
@@ -241,20 +249,31 @@ function serve({ slow = "", status = 201, error = "" } = {}) {
       sent.push({ path, body });
       if (path === "/api/charts")
         return new Response(JSON.stringify(error ? { error } : {}), { status });
-      const project = choices.find((c) => c.id === body.projectId)!;
-      const property = project.properties.find((p) => p.id === body.propertyId)!;
-      const at = property.options.findIndex((o) => o.id === body.optionId);
+      const sources = body.sources.map((pick) => {
+        const project = choices.find((c) => c.id === pick.projectId)!;
+        const property = project.properties.find((p) => p.id === pick.propertyId)!;
+        const at = property.options.findIndex((o) => o.id === pick.optionId);
+        return source({
+          project: { id: project.id, key: project.key, name: project.name },
+          propertyId: property.id,
+          optionId: pick.optionId,
+          property: property.name,
+          option: property.options[at].name,
+          days: days.map((d, i) => ({ ...d, count: i === 29 ? at + 1 : 0 })),
+        });
+      });
       const drawn: ChartDTO = {
         ...chart,
         id: "",
-        project: { id: project.id, key: project.key, name: project.name },
-        propertyId: property.id,
-        optionId: body.optionId,
-        property: property.name,
-        option: property.options[at].name,
-        days: days.map((d, i) => ({ ...d, count: i === 29 ? at + 1 : 0 })),
+        sources,
+        days: days.map((d, i) => ({
+          ...d,
+          count: sources.reduce((sum, s) => sum + s.days[i].count, 0),
+        })),
       };
-      if (body.optionId === slow) await new Promise<void>((go) => held.push(go));
+      if (body.sources.some((p) => p.optionId === slow)) {
+        await new Promise<void>((go) => held.push(go));
+      }
       return new Response(JSON.stringify({ chart: drawn }), { status: 200 });
     }),
   );
@@ -307,7 +326,7 @@ describe("A new chart", () => {
 
   test("offers the options as pills, one pressed, starting on the last one not charted", async () => {
     serve();
-    await openPicker([{ ...chart, optionId: "o3", option: "Done" }]);
+    await openPicker([charting(source({ optionId: "o3", option: "Done" }))]);
     await expect.poll(pressed).toEqual(["Doing"]);
     await expect.element(pill("Done")).toHaveAttribute("aria-pressed", "false");
     await pill("Todo").click();
@@ -317,7 +336,7 @@ describe("A new chart", () => {
 
   test("starts on the last option when every option is charted, and says why it cannot add", async () => {
     serve({ status: 409 });
-    const all = ["o", "o2", "o3"].map((optionId) => ({ ...chart, optionId }));
+    const all = ["o", "o2", "o3"].map((optionId) => charting(source({ optionId })));
     await openPicker(all);
     expect(pressed()).toEqual(["Done"]);
     const quiet = getComputedStyle(pill("Done").element()).opacity;
@@ -356,7 +375,9 @@ describe("A new chart", () => {
     await expect.poll(face).toMatch(/QUAEntered Closed/);
     await expect.element(preview().getByTestId("chart-today")).toHaveTextContent("2");
     expect(
-      sent.filter((s) => s.path === "/api/charts/preview").map((s) => s.body.optionId),
+      sent
+        .filter((s) => s.path === "/api/charts/preview")
+        .map((s) => s.body.sources.map((p) => p.optionId).join()),
     ).toEqual(["o3", "o2", "o", "q2", "r2"]);
   });
 
@@ -379,14 +400,138 @@ describe("A new chart", () => {
     await add().click();
     await expect
       .poll(() => sent.find((s) => s.path === "/api/charts")?.body)
-      .toEqual({
-        projectId: chart.project.id,
-        propertyId: "p",
-        optionId: "o2",
-      });
+      .toEqual({ sources: [{ projectId: harbour.id, propertyId: "p", optionId: "o2" }] });
     await expect.element(picker()).not.toBeInTheDocument();
     await page.getByTestId("chart-new").first().click();
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect.element(picker()).not.toBeInTheDocument();
+  });
+});
+
+describe("A chart of several projects", () => {
+  const quay = { id: choices[1].id, key: "QUA", name: "Quay" };
+  const two = () =>
+    charting(
+      source({ option: "Done", days: days.map((d) => ({ ...d, count: 1 })) }),
+      source({
+        project: quay,
+        propertyId: "r",
+        optionId: "r2",
+        property: "Stage",
+        option: "Closed",
+        days: days.map((d) => ({ ...d, count: 2 })),
+      }),
+    );
+
+  test("names every key, says each option once, and holds the whole heading in its title", async () => {
+    const both = { ...two(), days: days.map((d) => ({ ...d, count: 3 })) };
+    await render(
+      <div style={{ width: 360 }}>
+        <Charts
+          charts={[both, { ...charting(source(), source({ project: quay })), id: "other" }]}
+          choices={[]}
+        />
+      </div>,
+    );
+    const [first, second] = page.getByTestId("chart-heading").elements();
+    expect(first.textContent).toBe("HAR · QUAEntered Done, Closed✕");
+    expect(first.getAttribute("title")).toBe("HAR · QUA Entered Done, Closed");
+    expect(second.textContent).toBe("HAR · QUAEntered Todo✕");
+    expect(page.getByText("Status in Harbour, Stage in Quay").elements()).toHaveLength(1);
+    expect(page.getByText("Status in Harbour, Quay").elements()).toHaveLength(1);
+  });
+
+  test("tells the total and each project's count by key on a day", async () => {
+    const both = { ...two(), days: days.map((d) => ({ ...d, count: 3 })) };
+    await render(
+      <div style={{ width: 360 }}>
+        <Charts charts={[both]} choices={[]} />
+      </div>,
+    );
+    await hoverDay(3);
+    await expect.element(tip()).toBeVisible();
+    expect(text("chart-tip")).toBe("Sun, 13 SeptEntered Done, Closed3HAR 1, QUA 2");
+    expect(page.getByTestId("chart-bar").elements()[3].getAttribute("title")).toBe(
+      "13 Sept · 3 — HAR 1, QUA 2",
+    );
+    await expect
+      .poll(() => text("chart-said"))
+      .toBe("Sun, 13 Sept: 3 entered Done, Closed — HAR 1, QUA 2");
+    expect(page.getByTestId("chart-today").element().textContent).toBe("3");
+  });
+
+  test("a chart of one project tells no split", async () => {
+    await draw();
+    await hoverDay(3);
+    await expect.element(tip()).toBeVisible();
+    await expect.element(page.getByTestId("chart-tip-split")).not.toBeInTheDocument();
+    expect(page.getByTestId("chart-bar").elements()[3].getAttribute("title")).toBe("13 Sept: 3");
+  });
+
+  test("Add project adds a source of a project not yet in the chart, and it can be removed", async () => {
+    const { sent } = serve();
+    await openPicker();
+    await expect.poll(() => preview().element().textContent).toMatch(/HAREntered Done/);
+    await page.getByTestId("chart-add-source").click();
+    const sources = page.getByTestId("chart-source");
+    expect(sources.elements()).toHaveLength(2);
+    // Each project select offers only what the other does not count.
+    await sources.nth(1).getByRole("combobox", { name: "Project" }).click();
+    expect(
+      page
+        .getByRole("option")
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(["Quay✓"]);
+    await userEvent.keyboard("{Escape}");
+    await sources.nth(0).getByRole("combobox", { name: "Project" }).click();
+    expect(
+      page
+        .getByRole("option")
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(["Harbour✓"]);
+    await userEvent.keyboard("{Escape}");
+    // Every project is in: nothing is left to add.
+    await expect.element(page.getByTestId("chart-add-source")).not.toBeInTheDocument();
+    // The first source has no ✕ while it stands alone or first.
+    expect(page.getByTestId("chart-remove-source").elements()).toHaveLength(1);
+
+    await expect
+      .poll(() => preview().element().textContent)
+      .toMatch(/HAR · QUAEntered Done, Closed/);
+    await expect.element(preview().getByTestId("chart-today")).toHaveTextContent("5");
+
+    await add().click();
+    await expect
+      .poll(() => sent.find((s) => s.path === "/api/charts")?.body)
+      .toEqual({
+        sources: [
+          { projectId: harbour.id, propertyId: "p", optionId: "o3" },
+          { projectId: quay.id, propertyId: "r", optionId: "r2" },
+        ],
+      });
+  });
+
+  test("a removed source leaves the preview, and the same set as a saved chart is refused", async () => {
+    serve();
+    const saved = charting(
+      source({ optionId: "o3", option: "Done" }),
+      source({ project: quay, propertyId: "r", optionId: "r2", option: "Closed" }),
+    );
+    await openPicker([saved]);
+    await expect.element(page.getByTestId("chart-taken")).not.toBeInTheDocument();
+    await page.getByTestId("chart-add-source").click();
+    // Closed would make the saved chart again, so the source starts on Open.
+    await expect.poll(pressed).toEqual(["Done", "Open"]);
+    await pill("Closed").click();
+    await expect
+      .element(page.getByTestId("chart-taken"))
+      .toHaveTextContent("You already have this chart. Pick another column.");
+    await expect.element(add()).toBeDisabled();
+    await page.getByTestId("chart-remove-source").click();
+    expect(page.getByTestId("chart-source").elements()).toHaveLength(1);
+    await expect.element(page.getByTestId("chart-taken")).not.toBeInTheDocument();
+    await expect.poll(() => preview().element().textContent).toMatch(/^HAREntered Done/);
   });
 });

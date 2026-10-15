@@ -120,3 +120,77 @@ test("a chart added on Home shows the tasks that entered a column today", async 
   );
   await expect(page.getByTestId("chart")).toHaveCount(0);
 });
+
+test("a chart of two projects sums them in one bar and splits them on hover", async ({
+  page,
+}, testInfo) => {
+  await register(page, "Chart Spreader");
+  const here = unique("Harbour");
+  const there = unique("Quay");
+  await createProject(page, here);
+  await addTask(page, "Todo", "Here one");
+  await addTask(page, "Todo", "Here two");
+  await createProject(page, there);
+  await addTask(page, "Todo", "There one");
+
+  await page.goto("/projects");
+  await page.getByTestId("chart-new").click();
+  const picker = page.getByTestId("chart-picker");
+  const sources = picker.getByTestId("chart-source");
+  async function choose(at: number, label: string, option: string) {
+    const box = sources.nth(at).getByRole("combobox", { name: label });
+    await box.click();
+    await page.getByRole("option", { name: option }).click();
+    await expect(box).toContainText(option);
+  }
+  await choose(0, "Project", here);
+  await choose(0, "Property", "Status");
+  await sources.nth(0).getByRole("button", { name: "Todo", exact: true }).click();
+
+  await picker.getByRole("button", { name: "+ Add project" }).click();
+  await expect(sources).toHaveCount(2);
+  /* The project the chart already counts is not offered again. */
+  await sources.nth(1).getByRole("combobox", { name: "Project" }).click();
+  await expect(page.getByRole("option", { name: there })).toBeVisible();
+  await expect(page.getByRole("option", { name: here })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await choose(1, "Project", there);
+  await choose(1, "Property", "Status");
+  await sources.nth(1).getByRole("button", { name: "Todo", exact: true }).click();
+
+  const preview = page.getByTestId("chart-preview");
+  await expect(preview.getByTestId("chart-today")).toHaveText("3");
+  await settles(page, /\/api\/charts$/, () =>
+    page.getByRole("button", { name: "Add chart" }).click(),
+  );
+
+  const chart = page.getByTestId("chart");
+  await expect(chart).toHaveCount(1);
+  const heading = chart.getByTestId("chart-heading");
+  await expect(heading).toHaveAttribute("title", / · .* Entered Todo$/);
+  const keys = (await heading.getAttribute("title"))!.replace(" Entered Todo", "").split(" · ");
+  expect(keys).toHaveLength(2);
+  await expect(chart.getByTestId("chart-today")).toHaveText("3");
+  await expect(chart.getByTestId("chart-bar").last()).toHaveAttribute("data-count", "3");
+
+  /* The bars take no pointer; the strip reads it. The right edge is today. */
+  const strip = chart.getByTestId("chart-bars");
+  const box = (await strip.boundingBox())!;
+  await strip.hover({ position: { x: box.width - 2, y: box.height / 2 } });
+  const tip = chart.getByTestId("chart-tip");
+  await expect(tip).toContainText("Today");
+  await expect(tip).toContainText("3");
+  await expect(chart.getByTestId("chart-tip-split")).toHaveText(`${keys[0]} 2, ${keys[1]} 1`);
+  await page.screenshot({ path: testInfo.outputPath("seen-chart-two-projects.png") });
+
+  /* The same two projects again are refused. */
+  await page.getByTestId("chart-new").click();
+  await choose(0, "Project", here);
+  await choose(0, "Property", "Status");
+  await sources.nth(0).getByRole("button", { name: "Todo", exact: true }).click();
+  await picker.getByRole("button", { name: "+ Add project" }).click();
+  await choose(1, "Property", "Status");
+  await sources.nth(1).getByRole("button", { name: "Todo", exact: true }).click();
+  await expect(picker).toContainText("You already have this chart. Pick another column.");
+  await expect(page.getByRole("button", { name: "Add chart" })).toBeDisabled();
+});

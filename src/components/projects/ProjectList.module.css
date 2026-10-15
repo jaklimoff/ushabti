@@ -935,8 +935,25 @@
 }
 
 .chartName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   color: var(--muted);
+}
+
+/* Several keys in one square. It gives way to the option names last, and is
+   cut with them when the panel is too narrow; the title holds the rest. */
+.chartKeys {
+  flex: 0 1 auto;
+  display: block;
+  min-width: 22px;
+  max-width: 50%;
+  line-height: 22px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chartName b {
@@ -1073,6 +1090,12 @@
   font-weight: 600;
 }
 
+.chartTipSplit {
+  color: var(--muted);
+  font-size: var(--t-micro);
+  font-variant-numeric: tabular-nums;
+}
+
 .chartTipSwatch {
   width: 8px;
   height: 8px;
@@ -1126,6 +1149,25 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* One project of a new chart. The ✕ of a second one sits at its top right. */
+.chartSource {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chartSource + .chartSource {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.chartSource > .chartDelete {
+  position: absolute;
+  top: 6px;
+  right: 0;
 }
 
 .chartPick {

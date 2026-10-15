@@ -1,22 +1,23 @@
 import "server-only";
-import { and, asc, eq, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { activity, charts } from "@/db/schema";
-import { humanOnly, readId } from "./api";
+import { activity, charts, chartSources, properties, propertyOptions } from "@/db/schema";
+import { guard, humanOnly, readId } from "./api";
 import { HttpError, requireActor } from "./auth";
 import {
   chartChoice,
-  chartDays,
   chartFrom,
-  chartShape,
+  sourceShape,
+  sumChart,
   type ChartChoice,
   type ChartDay,
   type ChartDTO,
   type StoredChart,
+  type StoredSource,
 } from "./charts";
 import type { BoardOf, ProjectRow } from "./lists-load";
 import { byPos } from "./order";
-import type { BoardData } from "./types";
+import { isSelect, type BoardData } from "./types";
 
 /**
  * The server half of a chart: whose it is, and the one query that counts it.
@@ -37,18 +38,96 @@ export async function ownChart(chartId: string) {
   return { user, chart };
 }
 
-export async function chartsOf(userId: string, tx: Pick<typeof db, "select"> = db) {
-  return tx
-    .select({
-      id: charts.id,
-      projectId: charts.projectId,
-      propertyId: charts.propertyId,
-      optionId: charts.optionId,
-      position: charts.position,
-    })
+/** The person's charts, in their order, each with its sources in theirs. */
+export async function chartsOf(
+  userId: string,
+  tx: Pick<typeof db, "select"> = db,
+): Promise<(StoredChart & { position: string })[]> {
+  const rows = await tx
+    .select({ id: charts.id, position: charts.position })
     .from(charts)
     .where(eq(charts.userId, userId))
     .orderBy(byPos(charts.position), asc(charts.id));
+  if (rows.length === 0) return [];
+  const sources = await tx
+    .select({
+      chartId: chartSources.chartId,
+      projectId: chartSources.projectId,
+      propertyId: chartSources.propertyId,
+      optionId: chartSources.optionId,
+    })
+    .from(chartSources)
+    .where(
+      inArray(
+        chartSources.chartId,
+        rows.map((r) => r.id),
+      ),
+    )
+    .orderBy(byPos(chartSources.position), asc(chartSources.id));
+  return rows.map((r) => ({
+    ...r,
+    sources: sources
+      .filter((s) => s.chartId === r.id)
+      .map(({ projectId, propertyId, optionId }) => ({ projectId, propertyId, optionId })),
+  }));
+}
+
+/* Enough for every project a person works in at once, and no runaway. */
+const SOURCES_MAX = 20;
+
+/**
+ * The sources a chart is asked for, by shape only: one or more, each one
+ * project at most once. A body of one source's three ids, as the picker sent
+ * before a chart had sources, reads as that one.
+ */
+export function readSources(
+  input: { sources?: unknown } & Record<string, unknown>,
+): StoredSource[] {
+  const raw = Array.isArray(input.sources) ? input.sources : [input];
+  if (raw.length === 0 || raw.length > SOURCES_MAX) {
+    throw new HttpError(400, `A chart counts one to ${SOURCES_MAX} projects.`);
+  }
+  const sources = raw.map((r: Record<string, unknown> | null) => ({
+    projectId: readId(r?.projectId, "project"),
+    propertyId: readId(r?.propertyId, "property"),
+    optionId: readId(r?.optionId, "option"),
+  }));
+  if (new Set(sources.map((s) => s.projectId)).size !== sources.length) {
+    throw new HttpError(400, "A chart takes each project once.");
+  }
+  return sources;
+}
+
+/**
+ * Each source's project is one the caller is in, through `guard`, and each
+ * names an option of a select there. Answers the caller's role in each
+ * project, in the sources' order.
+ */
+export async function checkSources(sources: StoredSource[]) {
+  const roles: string[] = [];
+  for (const source of sources) {
+    roles.push((await guard(source.projectId)).membership.role);
+    const [property] = await db
+      .select({ type: properties.type })
+      .from(properties)
+      .where(and(eq(properties.id, source.propertyId), eq(properties.projectId, source.projectId)))
+      .limit(1);
+    if (!property || !isSelect(property.type)) {
+      throw new HttpError(400, "A chart counts the options of a select.");
+    }
+    const [option] = await db
+      .select({ id: propertyOptions.id })
+      .from(propertyOptions)
+      .where(
+        and(
+          eq(propertyOptions.id, source.optionId),
+          eq(propertyOptions.propertyId, source.propertyId),
+        ),
+      )
+      .limit(1);
+    if (!option) throw new HttpError(400, "That option does not exist any more.");
+  }
+  return { roles };
 }
 
 /**
@@ -92,28 +171,40 @@ export async function countEntered(a: {
 }
 
 /**
- * One chart as Home draws it, off the board of its project. A saved chart
- * and the picker's preview both come through here, so the two cannot count
- * apart. Null when its property or option is gone.
+ * One chart as Home draws it, off the boards of its projects: one count per
+ * source, summed in `charts.ts`. A saved chart and the picker's preview both
+ * come through here, so the two cannot count apart. A source whose project
+ * finds no board, or whose property or option is gone, counts nothing; null
+ * when none is left.
  */
 export async function drawChart(
   chart: StoredChart,
-  board: Pick<BoardData, "project" | "properties" | "today">,
+  boardOf: (projectId: string) => Pick<BoardData, "project" | "properties" | "today"> | undefined,
 ): Promise<ChartDTO | null> {
-  const shape = chartShape(chart, board);
-  if (!shape) return null;
-  const rows = await countEntered({
-    ...chart,
-    timeZone: board.project.timeZone,
-    from: chartFrom(board.today),
+  const drawn = chart.sources.flatMap((source) => {
+    const board = boardOf(source.projectId);
+    const shape = board && sourceShape(source, board);
+    return board && shape ? [{ source, board, shape }] : [];
   });
-  return { ...shape, days: chartDays(rows, board.today) };
+  if (drawn.length === 0) return null;
+  const today = drawn[0].board.today;
+  const counted = await Promise.all(
+    drawn.map(async ({ source, board, shape }) => ({
+      shape,
+      rows: await countEntered({
+        ...source,
+        timeZone: board.project.timeZone,
+        from: chartFrom(today),
+      }),
+    })),
+  );
+  return sumChart(chart.id, counted, today);
 }
 
 /**
- * The person's charts as Home draws them, and what can be charted. A chart
+ * The person's charts as Home draws them, and what can be charted. A source
  * whose project they left finds no board, and one whose property or option
- * is gone has no shape; neither is drawn, and nothing deletes it.
+ * is gone has no shape; neither counts, and nothing deletes it.
  */
 export async function loadCharts(
   userId: string,
@@ -123,12 +214,7 @@ export async function loadCharts(
   const boards = await Promise.all(projects.map(boardOf));
   const byId = new Map(boards.map((b) => [b.project.id, b]));
   const stored = await chartsOf(userId);
-  const drawn = await Promise.all(
-    stored.map((chart) => {
-      const board = byId.get(chart.projectId);
-      return board ? drawChart(chart, board) : null;
-    }),
-  );
+  const drawn = await Promise.all(stored.map((chart) => drawChart(chart, (id) => byId.get(id))));
   return {
     charts: drawn.filter((c): c is ChartDTO => c !== null),
     choices: boards.map(chartChoice).filter((c) => c.properties.length > 0),

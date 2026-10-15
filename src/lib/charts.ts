@@ -3,7 +3,8 @@ import { isSelect } from "./types";
 
 /**
  * A chart on Home: how many tasks entered one option of one select, each
- * day, over the last thirty days in the project's zone. This half works out
+ * day, over the last thirty days in the project's zone, summed over one
+ * source per project. This half works out
  * the days and the words; `charts-load.ts` reads the counts.
  */
 
@@ -12,24 +13,35 @@ export const CHART_DAYS = 30;
 /** Said by the picker and by the route, so the two never word it apart. */
 export const CHART_TWICE = "You already have this chart. Pick another column.";
 
-export type StoredChart = {
-  id: string;
+/** One option of one select in one project, as a chart stores it. */
+export type StoredSource = {
   projectId: string;
   propertyId: string;
   optionId: string;
 };
 
+export type StoredChart = { id: string; sources: StoredSource[] };
+
 export type ChartDay = { day: string; count: number };
 
-export type ChartDTO = {
-  id: string;
+/** One source as it is drawn: its names, read afresh, and its own count a day. */
+export type ChartSource = {
   project: { id: string; key: string; name: string };
   propertyId: string;
   optionId: string;
   property: string;
   option: string;
   color: string;
-  /** Oldest first, the last one today. Always `CHART_DAYS` long. */
+  days: ChartDay[];
+};
+
+export type ChartDTO = {
+  id: string;
+  /** Only the sources that can still be drawn, in the chart's order. */
+  sources: ChartSource[];
+  /** The first source's option: one bar, one colour. */
+  color: string;
+  /** The sum of every source. Oldest first, the last one today. Always `CHART_DAYS` long. */
   days: ChartDay[];
 };
 
@@ -77,20 +89,19 @@ export function chartSummary(days: ChartDay[]): { today: number; average: string
 }
 
 /**
- * The names and the colour a stored chart draws with, read afresh off the
- * board. Null when there is nothing to draw: the property is gone or is no
- * longer a select, or the option is gone. Nothing deletes such a chart.
+ * The names and the colour one source draws with, read afresh off its board.
+ * Null when there is nothing to draw: the property is gone or is no longer a
+ * select, or the option is gone. Nothing deletes such a source.
  */
-export function chartShape(
-  chart: StoredChart,
+export function sourceShape(
+  source: StoredSource,
   board: Pick<BoardData, "project" | "properties">,
-): Omit<ChartDTO, "days"> | null {
-  const property = board.properties.find((p) => p.id === chart.propertyId);
+): Omit<ChartSource, "days"> | null {
+  const property = board.properties.find((p) => p.id === source.propertyId);
   if (!property || !isSelect(property.type)) return null;
-  const option = property.options.find((o) => o.id === chart.optionId);
+  const option = property.options.find((o) => o.id === source.optionId);
   if (!option) return null;
   return {
-    id: chart.id,
     project: { id: board.project.id, key: board.project.key, name: board.project.name },
     propertyId: property.id,
     optionId: option.id,
@@ -98,6 +109,67 @@ export function chartShape(
     option: option.name,
     color: option.color,
   };
+}
+
+/**
+ * A chart off what each of its sources counted. The days are the first
+ * source's, so a project in another zone adds its counts to the same dates;
+ * each bar is the sum. Null when no source is left to draw.
+ */
+export function sumChart(
+  id: string,
+  counted: { shape: Omit<ChartSource, "days">; rows: ChartDay[] }[],
+  today: string,
+): ChartDTO | null {
+  if (counted.length === 0) return null;
+  const sources = counted.map((c) => ({ ...c.shape, days: chartDays(c.rows, today) }));
+  return {
+    id,
+    sources,
+    color: sources[0].color,
+    days: chartDays(
+      counted.flatMap((c) => c.rows),
+      today,
+    ),
+  };
+}
+
+/**
+ * What a chart's heading says: the keys of its projects, and the options it
+ * counts, each name once. `title` is the whole of it, for a heading cut short.
+ */
+export function chartHeading(chart: Pick<ChartDTO, "sources">): {
+  keys: string;
+  options: string;
+  title: string;
+} {
+  const keys = chart.sources.map((s) => s.project.key).join(" · ");
+  const options = [...new Set(chart.sources.map((s) => s.option))].join(", ");
+  return { keys, options, title: `${keys} Entered ${options}` };
+}
+
+/** Each project's count on one day, by key, when there is more than one. */
+export function chartSplit(chart: Pick<ChartDTO, "sources">, index: number): string | null {
+  if (chart.sources.length < 2) return null;
+  return chart.sources.map((s) => `${s.project.key} ${s.days[index]?.count ?? 0}`).join(", ");
+}
+
+/** The words under a chart: which select it reads, in which projects. */
+export function chartHint(chart: Pick<ChartDTO, "sources">): string {
+  const names = new Set(chart.sources.map((s) => s.property));
+  if (names.size === 1) {
+    return `${chart.sources[0].property} in ${chart.sources.map((s) => s.project.name).join(", ")}`;
+  }
+  return chart.sources.map((s) => `${s.property} in ${s.project.name}`).join(", ");
+}
+
+const sourceKey = (s: StoredSource) => `${s.projectId}/${s.propertyId}/${s.optionId}`;
+
+/** Whether two charts count the same, whatever order their sources are in. */
+export function sameSources(a: StoredSource[], b: StoredSource[]): boolean {
+  if (a.length !== b.length) return false;
+  const keys = new Set(a.map(sourceKey));
+  return b.every((s) => keys.has(sourceKey(s)));
 }
 
 /** The selects of one board, for the picker. A project with none offers nothing. */

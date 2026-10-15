@@ -26,17 +26,22 @@ const rows: ProjectRow[] = ["Harbour", "Lighthouse", "Quay"].map((name, i) => ({
 
 const chart: ChartDTO = {
   id: "00000000-0000-4000-8000-0000000000f1",
-  project: { id: ids[0], key: "HAR", name: "Harbour" },
-  propertyId: "p",
-  optionId: "o",
-  property: "Status",
-  option: "Todo",
+  sources: [],
   color: "#3fb0c8",
   days: Array.from({ length: 30 }, (_, i) => ({
     day: `2026-09-${String(i + 1).padStart(2, "0")}`,
     count: 0,
   })),
 };
+chart.sources.push({
+  project: { id: ids[0], key: "HAR", name: "Harbour" },
+  propertyId: "p",
+  optionId: "o",
+  property: "Status",
+  option: "Todo",
+  color: "#3fb0c8",
+  days: chart.days,
+});
 
 const choices: ChartChoice[] = [
   {

@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A chart on Home can count several projects.** **Add project** in the chart picker adds another
+  project, each with its own select and column. The chart draws one bar a day, the sum of them all,
+  and hovering a day shows each project's count by its key. Charts made before read as they did.
 - **Home follows every project live.** A task that moves, or an agent that starts, reports, falls
   silent or finishes, shows on Home's cards and lists within seconds, without a reload. Home holds
   one connection for all your projects, reads once for a burst of changes, and reads nothing while

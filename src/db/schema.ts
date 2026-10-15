@@ -849,9 +849,8 @@ export const listSources = pgTable(
 /* ------------------------------------------------------------------ */
 
 /**
- * One person's chart on Home: how many tasks entered one option a day. The
- * property and the option carry no foreign key on purpose: a chart whose
- * option is gone is not drawn, and nothing deletes it, as a filter rule.
+ * One person's chart on Home: how many tasks entered a column a day, summed
+ * over its sources. It is a name-less list of sources, as a list is.
  */
 export const charts = pgTable(
   "charts",
@@ -860,6 +859,23 @@ export const charts = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    position: text("position").notNull(),
+  },
+  (t) => [index("charts_user_idx").on(t.userId)],
+);
+
+/**
+ * One option of one select in one project, counted by a chart. The property
+ * and the option carry no foreign key on purpose: a source whose option is
+ * gone counts nothing, and nothing deletes it, as a filter rule.
+ */
+export const chartSources = pgTable(
+  "chart_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chartId: uuid("chart_id")
+      .notNull()
+      .references(() => charts.id, { onDelete: "cascade" }),
     projectId: uuid("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
@@ -867,5 +883,5 @@ export const charts = pgTable(
     optionId: uuid("option_id").notNull(),
     position: text("position").notNull(),
   },
-  (t) => [index("charts_user_idx").on(t.userId)],
+  (t) => [index("chart_sources_chart_idx").on(t.chartId)],
 );
