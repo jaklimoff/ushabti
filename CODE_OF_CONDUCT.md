@@ -16,8 +16,9 @@ This is a small project. The rules are short.
 
 ## If there is a problem
 
-Report it to the maintainers with a private message on the issue tracker, or by
-a private security advisory if the report contains sensitive information. The
+Report it to the maintainers in private, by email to jaklimoff@gmail.com. If the
+report holds sensitive details, you may use a private security advisory on
+GitHub instead. The
 maintainers read every report and keep it private.
 
 The maintainers can edit or remove a comment, close an issue, or block a person

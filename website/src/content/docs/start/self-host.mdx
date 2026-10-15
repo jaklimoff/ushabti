@@ -187,15 +187,29 @@ without adding it there and the image builds, starts, and dies on the first line
 
 ## Backing it up
 
-Everything is in Postgres — there are no uploads and no files on disk.
+The board is in Postgres. The files people attach to a task are not: they live in the S3 bucket
+named by `S3_BUCKET`, and the database holds only their names and keys. A dump alone brings back
+every task with its files missing, so back up both.
+
+The database:
 
 ```bash
 docker compose -f docker-compose.prod.yml exec db \
   pg_dump -U ushabti ushabti | gzip > ushabti-$(date +%F).sql.gz
 ```
 
-A task you archive keeps everything and can be put back, but a **deleted** task is gone: there is no
-undo for a delete. The backup is the undo.
+The bucket, if you set one. Copy it to a second bucket or a disk, with any S3 tool. Take it
+after the dump, so every file the dump names is already there:
+
+```bash
+aws s3 sync s3://ushabti-files ./ushabti-files-$(date +%F) --endpoint-url "$S3_ENDPOINT"
+```
+
+Versioning on the bucket, where your provider has it, also keeps a file somebody removed.
+
+A task you archive keeps everything and can be put back. A **deleted** task can be put back for
+30 days, from [Deleted, gone in 30 days](/ushabti/guides/board/#deleted-gone-in-30-days). After
+that it is gone, and the backup is the only way back.
 
 A backup nobody has restored is a guess, so try one into an empty database before you need it:
 

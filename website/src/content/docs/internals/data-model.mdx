@@ -104,9 +104,9 @@ cascades above. See [Archived, and put back](/ushabti/guides/task-panel/#archive
 </Aside>
 
 <Aside type="note" title="What is deliberately absent">
-No audit log beyond `activity`, no attachments and no files on disk. Everything Ushabti holds is in
-Postgres, so `pg_dump` is a complete backup — and, since a delete has no undo, it is also the only
-one.
+No audit log beyond `activity` and no files on disk. The board is in Postgres; the files attached
+to a task are in the S3 bucket, and `attachments` holds only their keys. So a backup is `pg_dump`
+and a copy of the bucket, and a task deleted more than 30 days ago lives only in a backup.
 </Aside>
 
 <LinkCard

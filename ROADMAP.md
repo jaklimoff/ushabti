@@ -1,10 +1,39 @@
 # Roadmap
 
-Where Ushabti is, and where it goes next. Short by design.
+Where Ushabti is, and where it goes next. Short by design. Ushabti is 0.x: it
+runs real teams, and a minor release may still change an API. The
+[CHANGELOG](CHANGELOG.md) says what each release holds.
 
 ---
 
-## Done — v1 (2026-08-21)
+## Next
+
+- **Ready for a second team.** Ushabti is about to be shown in public. Before
+  that, the README shows the board, the docs say only what the product does
+  today, and every count in them is right.
+
+## Later
+
+- **A per-view card order.** See the limit below.
+- **A board that pages.** A board loads all its tasks at once, which is fine
+  for a few thousand. See the limit below.
+- **Import from Jira.** Trello is in. Jira has no one export — its CSV repeats a column per label and per comment, its dates carry the site's locale, and it stops at 1000 rows — so it waits until somebody asks for it.
+
+## Not planned
+
+Ushabti stays small. These do not fit it, however often they are asked for.
+
+- **A fixed field on a task.** Status, Priority and a due date are properties
+  somebody made. A new kind of value is a new property type.
+- **A workflow engine.** No rules that move a card for you, no required
+  transitions. An agent or a webhook does that from outside.
+- **A plugin market.**
+- **Per-field permissions.** A member writes values, an admin changes
+  structure, and that is all.
+
+---
+
+## 0.1 — the first board (2026-08-22)
 
 Everything below works, is tested, and runs in the dev container.
 
@@ -64,7 +93,7 @@ Everything below works, is tested, and runs in the dev container.
 
 ---
 
-## Done — v1.1 (2026-08-22)
+## 0.2 — everything off the board (2026-08-22)
 
 Everything off the board, brought up to the board's standard.
 
@@ -95,21 +124,10 @@ Everything off the board, brought up to the board's standard.
 
 ---
 
-## Next — the things that make daily use better
+## Since 0.2
 
-Nothing. The list is empty, which is where it should be before anybody else
-runs this.
-
-## Later
-
-- **A per-view card order.** See the limit below.
-- **Email invites that send email.** An invite exists: the owner adds an email that has no account, and the person joins as they sign up. Nothing sends them the link yet.
-- **Import from Jira.** Trello is in. Jira has no one export — its CSV repeats a column per label and per comment, its dates carry the site's locale, and it stops at 1000 rows — so it waits until somebody asks for it.
-- **Attachments.** Files on a task.
-
----
-
-## Done since v1.1, not yet released
+Some of what came after 0.2, and why. Each item is in a release now; the
+CHANGELOG says which.
 
 - **A board comes in from Trello.** A team that cannot bring its board over
   does not start, and this is the first thing a second team asks for.
