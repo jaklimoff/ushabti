@@ -15,15 +15,18 @@ export function AuthForm({
   mode,
   signupOpen = true,
   forgotOn = false,
+  invite,
 }: {
   mode: Mode;
   signupOpen?: boolean;
   /** Whether this board can email a reset link, which the server alone knows. */
   forgotOn?: boolean;
+  /** A live invite link this page was opened from. Its email is the only one it takes. */
+  invite?: { token: string; email: string; project: string };
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(invite?.email ?? "");
   // The password is read from the box, never kept in state. A password
   // manager can write the box with no event React hears, and a controlled box
   // then empties itself on the next render and sends nothing.
@@ -43,6 +46,7 @@ export function AuthForm({
         name,
         email,
         password: passwordBox.current?.value ?? "",
+        ...(invite ? { invite: invite.token } : {}),
       });
       router.replace("/projects");
       router.refresh();
@@ -57,15 +61,21 @@ export function AuthForm({
       {/* The pitch belongs where somebody is deciding, not where they sign in
           every morning. A closed board keeps the form: an invited email still
           gets in, and the server refuses the rest. */}
-      {register && signupOpen && (
+      {invite && (
+        <p className={styles.tagline} data-testid="invite-tagline">
+          You are invited to {invite.project}. Create an account with {invite.email}, and you are in
+          the project at once.
+        </p>
+      )}
+      {register && !invite && signupOpen && (
         <p className={styles.tagline}>
           A small, fast task board. You define the properties; the board follows them.
         </p>
       )}
-      {register && !signupOpen && (
+      {register && !invite && !signupOpen && (
         <p className={styles.tagline}>
-          This board is closed. It takes a new account only for an email its owner invited, so sign
-          up with that one.
+          This board is closed. It takes a new account only from an invite link, so open the one the
+          owner of your project sent you.
         </p>
       )}
 
@@ -94,6 +104,7 @@ export function AuthForm({
             autoFocus={!register}
             type="email"
             value={email}
+            readOnly={invite !== undefined}
             aria-label="Your email"
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"

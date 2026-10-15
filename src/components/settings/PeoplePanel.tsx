@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import { emailedLine } from "@/lib/emailed";
+import { INVITE_DAYS } from "@/lib/invite-link";
 import { editedText } from "@/lib/leave";
 import { canManage, isOwner, outranks, rolesOffered, type Role } from "@/lib/roles";
 import { isListening } from "@/lib/presence";
@@ -66,15 +67,12 @@ function Members({ mail }: { mail: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [invited, setInvited] = useState<{ email: string; emailed: boolean } | null>(null);
+  /** The link, held until the person leaves the page, as a reset link is. */
+  const [invited, setInvited] = useState<{ email: string; link: string; emailed: boolean } | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
   const canEdit = canManage(data.project.role);
-  const origin = useSyncExternalStore(
-    subscribeNothing,
-    () => window.location.origin,
-    () => "",
-  );
-  const signUpLink = origin ? `${origin}/register` : "";
 
   async function invite() {
     const value = email.trim();
@@ -83,13 +81,17 @@ function Members({ mail }: { mail: boolean }) {
     setError(null);
     setInvited(null);
     try {
-      const answer = await send.post<{ invite?: InviteDTO; emailed?: boolean }>(
+      const answer = await send.post<{ invite?: InviteDTO; link?: string; emailed?: boolean }>(
         `/api/projects/${data.project.id}/members`,
         { email: value },
       );
       // No account yet, so the email waits as an invite: say what happens next.
-      if (answer.invite) {
-        setInvited({ email: answer.invite.email, emailed: answer.emailed === true });
+      if (answer.invite && answer.link) {
+        setInvited({
+          email: answer.invite.email,
+          link: answer.link,
+          emailed: answer.emailed === true,
+        });
       }
       setEmail("");
       await refresh();
@@ -192,28 +194,29 @@ function Members({ mail }: { mail: boolean }) {
               >
                 {error}
               </span>
-            ) : invited && signUpLink ? (
+            ) : invited ? (
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 7 }}>
                 <Note>
                   {inviteLine === null ? (
                     <>
                       {invited.email} has no account yet, so it is invited. Send them this link;
-                      they are in the moment they sign up with that email.
+                      they are in the moment they sign up with it. It works once, for {INVITE_DAYS}{" "}
+                      days.
                     </>
                   ) : (
                     <>
                       {inviteLine} They have no account yet; they are in the moment they sign up
-                      with that email.
+                      with this link. It works once, for {INVITE_DAYS} days.
                     </>
                   )}
                 </Note>
-                <CopyField value={signUpLink} label="the sign-up link" />
+                <CopyField value={invited.link} label="the invite link" />
               </div>
             ) : (
               <span style={{ width: "100%" }}>
                 <Note>
-                  A person with an account joins at once. One without is invited, and joins when
-                  they sign up with that email — even on a closed board.
+                  A person with an account joins at once. One without gets an invite link, and joins
+                  when they sign up with it — even on a closed board.
                 </Note>
               </span>
             )}
@@ -370,7 +373,7 @@ function InviteRow({
   if (confirm.asking) {
     return (
       <ConfirmRow
-        question={`Withdraw the invite for ${invite.email}? They can no longer join by signing up.`}
+        question={`Withdraw the invite for ${invite.email}? Its link stops working.`}
         confirmLabel="Yes, withdraw"
         onConfirm={() => confirm.confirm(onWithdraw)}
         onCancel={confirm.cancel}
@@ -382,7 +385,9 @@ function InviteRow({
     <Row data-testid="invite-row">
       <Avatar name={invite.email} color="var(--text-muted)" size={22} />
       <span className={styles.memberMail}>{invite.email}</span>
-      <Tag>invited</Tag>
+      {/* A dead invite stays listed so its email still reads as asked for;
+          adding the email again gives it a new link. */}
+      <Tag>{invite.live ? "invited" : "link expired"}</Tag>
       <Spacer />
       {canWithdraw && (
         <IconButton

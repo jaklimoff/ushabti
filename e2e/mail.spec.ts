@@ -64,7 +64,7 @@ function mailOn() {
       await page.setExtraHTTPHeaders({ "x-forwarded-for": unique("198.51.100") });
     });
 
-    test("an invite to a new email reaches the mail server with the sign-up link", async ({
+    test("an invite to a new email reaches the mail server with its own link", async ({
       page,
       browser,
     }) => {
@@ -73,18 +73,20 @@ function mailOn() {
         const { projectName } = await ownerOnPeople(page, "Invite");
         const email = `${unique("new")}@example.com`;
 
-        const answer = await add(page, email);
+        const answer = (await add(page, email)) as { emailed?: boolean; link?: string };
         expect(answer.emailed).toBe(true);
         await expect(page.getByText(`Emailed to ${email}.`)).toBeVisible();
         // The link stays on screen too: an email can still be lost.
-        const copied = (await page.locator("code", { hasText: "/register" }).innerText()).trim();
+        const copied = (await page.locator("code", { hasText: "/invite/" }).innerText()).trim();
+        expect(copied).toBe(answer.link);
 
         const letter = await letterTo(mail, email);
         expect(letter.to).toEqual([email]);
         expect(letter.from).toBe("board@example.com");
         expect(letter.text).toContain(`Owner Person invited you to the project ${projectName}`);
         expect(letter.text).toContain("with this same email address");
-        const link = /(https?:\/\/\S+\/register)\s/.exec(letter.text)?.[1];
+        expect(letter.text).toContain("The link works once, for 7 days.");
+        const link = /(https?:\/\/\S+\/invite\/ushi_\S+)/.exec(letter.text)?.[1];
         // The same origin the screen uses, so the two links are one link.
         expect(link).toBe(copied);
 
@@ -93,7 +95,7 @@ function mailOn() {
         const them = await theirs.newPage();
         await them.goto(link!);
         await them.getByPlaceholder("Ada Lovelace").fill("Newcomer");
-        await them.getByPlaceholder("you@example.com").fill(email);
+        await expect(them.getByPlaceholder("you@example.com")).toHaveValue(email);
         await them.getByPlaceholder("At least 8 characters").fill("ushabti-secret");
         await them.getByRole("button", { name: "Create account" }).click();
         await them.waitForURL("**/projects");
@@ -153,7 +155,7 @@ function mailOn() {
       const invite = await add(page, email);
       expect(invite.emailed).toBe(false);
       await expect(page.getByText(`Could not email ${email}. Send them this link.`)).toBeVisible();
-      await expect(page.locator("code", { hasText: "/register" })).toBeVisible();
+      await expect(page.locator("code", { hasText: "/invite/" })).toBeVisible();
       const invites = await inDatabase(async (client) => {
         const { rows } = await client.query(
           "select 1 from project_invites where project_id = $1 and email = $2",

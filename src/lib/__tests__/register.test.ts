@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Sign-up writes three things: the account, its memberships and the spent
- * invites. The test hands the route a database of three arrays for one email,
- * with a transaction that puts them back when it throws. A write through
- * `db` while that transaction is open throws, because the rollback would
- * otherwise hide a write that a real database keeps.
+ * Sign-up writes the account and, from an invite link, its one membership.
+ * The test hands the route a database of arrays, with a transaction that puts
+ * them back when it throws. A write through `db` while that transaction is
+ * open throws, because the rollback would otherwise hide a write that a real
+ * database keeps. The invite itself is `@/lib/invites`, faked here, and
+ * proved against Postgres by `e2e/invite.spec.ts`.
  */
 const fake = vi.hoisted(() => {
   type Row = Record<string, unknown>;
   const NAME = Symbol.for("drizzle:Name");
   let tables: Record<string, Row[]> = {};
   let failMembers = false;
-  let afterInviteRead: (() => void) | null = null;
   let inTransaction = false;
   const rows = (table: unknown) => (tables[(table as Record<symbol, string>)[NAME]] ??= []);
   const pick = (list: Row[], shape?: Record<string, unknown>) =>
@@ -29,9 +29,6 @@ const fake = vi.hoisted(() => {
         from: (table: unknown) => ({
           where: () => {
             const found = pick(rows(table), shape);
-            if ((table as Record<symbol, string>)[NAME] === "project_invites") {
-              afterInviteRead?.();
-            }
             const limit = (n: number) => Promise.resolve(found.slice(0, n));
             return Object.assign(Promise.resolve(found), {
               limit,
@@ -88,14 +85,10 @@ const fake = vi.hoisted(() => {
     reset: () => {
       tables = {};
       failMembers = false;
-      afterInviteRead = null;
       inTransaction = false;
     },
     failMembers: (on: boolean) => {
       failMembers = on;
-    },
-    afterInviteRead: (fn: () => void) => {
-      afterInviteRead = fn;
     },
   };
 });
@@ -110,6 +103,10 @@ vi.mock("@/lib/auth", async (importOriginal) => {
     hashPassword: vi.fn(async () => "hash"),
   };
 });
+vi.mock("@/lib/invites", () => ({
+  inviteOfToken: vi.fn(),
+  spendInvite: vi.fn(),
+}));
 vi.mock("@/lib/api", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/api")>();
   return { ...real, broadcast: vi.fn(async () => {}) };
@@ -118,75 +115,119 @@ vi.mock("@/lib/api", async (importOriginal) => {
 const { POST } = await import("@/app/api/auth/register/route");
 const { createSession } = await import("@/lib/auth");
 const { broadcast } = await import("@/lib/api");
+const { inviteOfToken, spendInvite } = await import("@/lib/invites");
+const { INVITE_IS_DEAD } = await import("@/lib/invite-link");
 
 const EMAIL = "ada@example.com";
 
-async function signUp() {
+const LINK = "ushi_the-token";
+const INVITE = { projectId: "project-1", email: EMAIL, project: "Launch" };
+
+async function signUp(extra: Record<string, unknown> = {}) {
   const req = new Request("http://board/api/auth/register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: EMAIL, password: "long enough", name: "Ada" }),
+    headers: { "Content-Type": "application/json", "x-forwarded-for": `192.0.2.${++caller}` },
+    body: JSON.stringify({ email: EMAIL, password: "long enough", name: "Ada", ...extra }),
   });
   // The route takes no params; the wrapper still asks for a context.
   const res = await POST(req, undefined);
   return { status: res.status, body: await res.json() };
 }
+let caller = 0;
 
 beforeEach(() => {
   fake.reset();
+  vi.unstubAllEnvs();
   vi.mocked(createSession).mockClear();
   vi.mocked(broadcast).mockClear();
+  vi.mocked(inviteOfToken).mockReset();
+  vi.mocked(spendInvite).mockReset();
+  // A live link for EMAIL, until a test says otherwise.
+  vi.mocked(inviteOfToken).mockResolvedValue(INVITE);
+  vi.mocked(spendInvite).mockResolvedValue("project-1");
 });
 
 describe("sign-up", () => {
-  it("leaves no account when the member insert fails, and the email can sign up again", async () => {
-    fake.rows("project_invites").push({ projectId: "project-1", email: EMAIL });
+  it("joins the project of the link, and spends it in the same transaction", async () => {
+    const res = await signUp({ invite: LINK });
+    expect(res.status).toBe(200);
+    const [user] = fake.rows("users");
+    expect(fake.rows("project_members").map((m) => [m.projectId, m.userId, m.role])).toEqual([
+      ["project-1", user.id, "member"],
+    ]);
+    expect(spendInvite).toHaveBeenCalledWith(expect.anything(), LINK, EMAIL);
+    expect(vi.mocked(broadcast).mock.calls.map(([e]) => e.projectId)).toEqual(["project-1"]);
+    expect(createSession).toHaveBeenCalledWith(user.id);
+  });
+
+  it("with sign-up open, an account made without the link joins no project", async () => {
+    const res = await signUp();
+    expect(res.status).toBe(200);
+    expect(fake.rows("users")).toHaveLength(1);
+    expect(fake.rows("project_members")).toEqual([]);
+    expect(inviteOfToken).not.toHaveBeenCalled();
+    expect(spendInvite).not.toHaveBeenCalled();
+    expect(broadcast).not.toHaveBeenCalled();
+  });
+
+  it("with sign-up closed, an invited email without the link is refused, as any email", async () => {
+    vi.stubEnv("USHABTI_SIGNUP", "closed");
+    const res = await signUp();
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("This board is not taking new accounts.");
+    expect(fake.rows("users")).toEqual([]);
+    expect(inviteOfToken).not.toHaveBeenCalled();
+  });
+
+  it("with sign-up closed, the link still lets its email in", async () => {
+    vi.stubEnv("USHABTI_SIGNUP", "closed");
+    const res = await signUp({ invite: LINK });
+    expect(res.status).toBe(200);
+    expect(fake.rows("project_members")).toHaveLength(1);
+  });
+
+  it("a dead link is refused with the sentence that asks for a new invite", async () => {
+    vi.mocked(inviteOfToken).mockResolvedValue(null);
+    const res = await signUp({ invite: LINK });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(INVITE_IS_DEAD);
+    expect(INVITE_IS_DEAD).toContain("Ask the person who invited you for a new invite.");
+    expect(fake.rows("users")).toEqual([]);
+  });
+
+  it("the link takes only the email it was sent to", async () => {
+    const res = await signUp({ invite: LINK, email: "someone@example.com" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(`This invite is for ${EMAIL}. Sign up with that email.`);
+    expect(fake.rows("users")).toEqual([]);
+  });
+
+  it("a link spent by another browser in between leaves no account", async () => {
+    vi.mocked(spendInvite).mockResolvedValue(null);
+    const res = await signUp({ invite: LINK });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe(INVITE_IS_DEAD);
+    expect(fake.rows("users")).toEqual([]);
+    expect(fake.rows("project_members")).toEqual([]);
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("leaves no account when the member insert fails, and the link can sign up again", async () => {
     fake.failMembers(true);
 
     const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
-    const failed = await signUp();
+    const failed = await signUp({ invite: LINK });
     quiet.mockRestore();
     expect(failed.status).toBe(500);
     expect(fake.rows("users")).toEqual([]);
     expect(fake.rows("project_members")).toEqual([]);
-    expect(fake.rows("project_invites")).toHaveLength(1);
     expect(createSession).not.toHaveBeenCalled();
     expect(broadcast).not.toHaveBeenCalled();
 
     fake.failMembers(false);
-    const again = await signUp();
+    const again = await signUp({ invite: LINK });
     expect(again.status).toBe(200);
     expect(fake.rows("users")).toHaveLength(1);
     expect(fake.rows("project_members")).toHaveLength(1);
-  });
-
-  it("joins every project that invited the email, and no invite is left", async () => {
-    fake.rows("project_invites").push({ projectId: "project-1", email: EMAIL });
-    // An invite that lands between the read and the delete.
-    fake.afterInviteRead(() => {
-      fake.afterInviteRead(() => {});
-      fake.rows("project_invites").push({ projectId: "project-2", email: EMAIL });
-    });
-
-    const res = await signUp();
-    expect(res.status).toBe(200);
-    const [user] = fake.rows("users");
-    expect(
-      fake
-        .rows("project_members")
-        .map((m) => [m.projectId, m.userId, m.role])
-        .sort(),
-    ).toEqual([
-      ["project-1", user.id, "member"],
-      ["project-2", user.id, "member"],
-    ]);
-    expect(fake.rows("project_invites")).toEqual([]);
-    expect(
-      vi
-        .mocked(broadcast)
-        .mock.calls.map(([e]) => e.projectId)
-        .sort(),
-    ).toEqual(["project-1", "project-2"]);
-    expect(createSession).toHaveBeenCalledWith(user.id);
   });
 });

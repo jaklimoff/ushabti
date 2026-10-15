@@ -114,7 +114,8 @@ export function inviteMail(input: {
   to: string;
   inviter: string;
   project: string;
-  origin: string;
+  link: string;
+  days: number;
 }): Mail {
   return {
     to: input.to,
@@ -122,11 +123,11 @@ export function inviteMail(input: {
     text: [
       `${input.inviter} invited you to the project ${input.project} on Ushabti.`,
       "",
-      "Sign up here with this same email address, and you are in the project at once:",
+      "Open this link and sign up with this same email address, and you are in the project at once:",
       "",
-      `${input.origin}/register`,
+      input.link,
       "",
-      `The invite is for ${input.to}. An account with another address does not join.`,
+      `The link works once, for ${input.days} days. The invite is for ${input.to}; an account with another address does not join.`,
     ].join("\n"),
   };
 }

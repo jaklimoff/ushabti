@@ -26,6 +26,7 @@ import { readId } from "./api";
 import { listReady, removeObjects, toAttachmentDTO } from "./attachment-rows";
 import { attachmentsOn } from "./attachments";
 import { HttpError } from "./auth";
+import { inviteIsLive } from "./invite-link";
 import { mainBoardGroupById, ownCardView, PREVIEW_COUNT, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
@@ -995,7 +996,12 @@ async function loadProject(
       .where(eq(projectMembers.projectId, projectId))
       .orderBy(asc(users.name)),
     db
-      .select({ email: projectInvites.email, createdAt: projectInvites.createdAt })
+      .select({
+        email: projectInvites.email,
+        createdAt: projectInvites.createdAt,
+        hash: projectInvites.hash,
+        expiresAt: projectInvites.expiresAt,
+      })
       .from(projectInvites)
       .where(eq(projectInvites.projectId, projectId))
       .orderBy(asc(projectInvites.createdAt)),
@@ -1183,7 +1189,11 @@ async function loadProject(
     today: todayIn(timeZone),
     members,
     former: formerList.map((f) => ({ ...f, kind: f.kind === "agent" ? "agent" : "human" })),
-    invites: inviteRows.map((i) => ({ email: i.email, createdAt: i.createdAt.toISOString() })),
+    invites: inviteRows.map((i) => ({
+      email: i.email,
+      createdAt: i.createdAt.toISOString(),
+      live: inviteIsLive(i, new Date()),
+    })),
     properties: propertyList,
     views: viewList,
     cardView,
