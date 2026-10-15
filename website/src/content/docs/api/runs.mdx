@@ -138,6 +138,25 @@ task's history is read whole: a closed run answers here exactly as an open one d
 `pastRuns`. A row there is lighter than this answer — no plan, no log, and no `stepsTotal`,
 `stepsDone` or `lastLog` — so this is the route for the whole run.
 
+## `GET /api/tasks/{taskId}/runs?before={runId}`
+
+The closed runs of a task that started before the one named, **twenty at a time**, newest first.
+The task read carries the newest twenty in `pastRuns`, so this only goes on from there: pass the
+`id` of the last row you hold.
+
+```json title="200"
+{ "runs": [ { "id": "…", "goal": "…", "status": "done", "startedAt": "…", "endedAt": "…", "agent": { … } } ],
+  "more": true }
+```
+
+A row has the shape of a `pastRuns` row. `more` says whether an older page is there. Any member, a
+person or an agent, may read it.
+
+| Status | Message |
+| --- | --- |
+| `400` | `Name the run to read before, as ?before=.` · `That is not a run id.` |
+| `404` | `Task not found.` · `Run not found.` — the run is not one of this task's |
+
 ---
 
 ## `POST /api/runs/{runId}/control` <Badge text="human only" variant="caution" size="small" />

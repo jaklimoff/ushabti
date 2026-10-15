@@ -8,7 +8,7 @@ sidebar:
 Ushabti is configured entirely by environment variables. There is no configuration file and no
 settings a server administrator edits at runtime.
 
-## The four you might set
+## The ones you might set
 
 ### `DATABASE_URL`
 
@@ -81,6 +81,37 @@ receiver is on their own machine. `docker-compose.prod.yml` deliberately does no
 | `PORT` / `HOSTNAME`       | `3000` / `0.0.0.0`   | Baked into the production image.                                       |
 | `NEXT_TELEMETRY_DISABLED` | `1` in both images   | Next.js telemetry is off.                                              |
 | `CI`                      | unset                | When set, Playwright serves the **production build** instead of the dev server. |
+| `NEXT_PHASE` / `NEXT_RUNTIME` | set by Next.js   | Never set these. The build reads no `DATABASE_URL`; instrumentation runs only in Node. |
+
+### Files on a task: `S3_*` and `ATTACHMENT_*`
+
+A task holds files, images and video first, in an S3-compatible bucket: DigitalOcean Spaces, AWS
+S3, RustFS or any other. Leave `S3_BUCKET` unset and attachments are off: every attachment route
+answers 503, and **Settings → Project** says what to set. A bucket without both keys keeps them off,
+and the server logs one line at start that says why.
+
+| Variable               | Default            | What it does                                                    |
+| ---------------------- | ------------------ | --------------------------------------------------------------- |
+| `S3_ENDPOINT`          | empty              | The bucket's server. Empty for AWS.                             |
+| `S3_REGION`            | `us-east-1`        | The region.                                                     |
+| `S3_BUCKET`            | unset              | The bucket. Without it, attachments are off.                    |
+| `S3_ACCESS_KEY`        | unset              | The key that may put, read and delete in the bucket.            |
+| `S3_SECRET_KEY`        | unset              | Its secret.                                                     |
+| `S3_FORCE_PATH_STYLE`  | off                | `true`, `1` or `yes` for RustFS and other path-style stores.    |
+| `ATTACHMENT_MAX_BYTES` | `52428800` (50 MiB) | The largest file, in bytes.                                    |
+| `ATTACHMENT_MIMES`     | images and video   | The types a task takes, comma separated.                        |
+
+The bucket stays private. A file is read only through `/api/attachments/{id}`, which checks that the
+reader is on the project and redirects to a link that lasts five minutes. A browser uploads straight
+to the bucket, so give the bucket a CORS rule that allows `PUT` from the board's address. SVG and
+anything that is not an image or a video always downloads, because SVG carries script.
+
+### Only for development
+
+| Variable              | Default | What it does                                                                                   |
+| --------------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `ALLOWED_DEV_ORIGINS` | unset   | Host names, comma separated, that `next dev` lets load its client, such as `devbox.local`. Without it, a dev server opened by another name never hydrates. |
+| `DEV_SERVER_PAUSE_MS` | `2000`  | How long `scripts/dev-server.mjs` waits before it starts `next dev` again after a crash.       |
 
 ### `SMTP_URL` and `MAIL_FROM`
 
@@ -143,7 +174,7 @@ Worth stating plainly, so you do not go looking:
   restart forgets it and a second process counts separately — see
   [Host it for your team](/ushabti/start/self-host/).
 - **Session length** is 30 days. The cookie is `ushabti_session`, `httpOnly`, `SameSite=Lax`.
-- **The colour palette** is twelve fixed colours for options and eight for avatars. A board where
+- **The colour palette** is twelve fixed colours for options and eleven for avatars: the same twelve without the grey. A board where
   anybody can pick any colour stops meaning anything.
 - **The run lease** is 30 minutes without a report, or longer when a report said so with `reportFor`, up to 60 minutes; a run reads *quiet* after 6 minutes.
 - **Mail carries four things and nothing else**: an invite to an email with no account, a reset

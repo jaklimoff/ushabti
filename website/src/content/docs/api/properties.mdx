@@ -34,7 +34,7 @@ footer, where its type belongs — except a `link`, which starts off the card.
                 "options": [{ "id": "…", "name": "local", "color": "#e0574d", "position": "V" }] } }
 ```
 
-`400 That property type does not exist.` for anything outside the eight.
+`400 That property type does not exist.` for anything outside the nine.
 
 ### `PATCH /api/properties/{propertyId}`
 
@@ -135,6 +135,34 @@ How many tasks hold this option — a single-select set to it, or a multi-select
 **archived tasks included**, because the delete clears it from them too. It is what the option delete
 row asks before it names the cost. Any member, and an agent, may ask.
 
+### `POST /api/options/{optionId}/ship`
+
+Ships a release, or closes a sprint: the option of a dated select or of an iteration.
+
+```json title="request"
+{ "rest": "next", "strays": false }
+```
+
+The tasks in it that are over are archived. `rest` says what happens to the others, and is required:
+`next` moves them to the next option that is still open, `leave` leaves them where they are, `clear`
+takes the value off. With `strays: true` a release also takes along the tasks that are over and in
+no release; a sprint takes none. The option then carries the day it shipped. It is one transaction,
+one ring on the stream and one webhook, and every feed line it writes carries the same `shipId`.
+
+```json title="200"
+{ "archived": 9, "moved": 2, "rest": "next", "shippedAt": "2026-10-15", "taken": 0 }
+```
+
+Any member may ship, and so may an agent: the agent that deployed is the one that knows the release
+is out. Taking the day back is an admin's, through `PATCH /api/options/{optionId}`.
+
+| Status | Message |
+| --- | --- |
+| `400` | `Say what happens to the rest: "next", "leave" or "clear".` |
+| `400` | `Only an option with a target date can ship.` · `{option} is the last option, so there is nothing to move to.` |
+| `404` | `Option not found.` |
+| `409` | `{option} already shipped on {day}.` |
+
 ### `DELETE /api/options/{optionId}` <Badge text="owner and admins" variant="caution" size="small" />
 
 Deletes the option and scrubs it out of every value: a single-select holding it becomes `null`, and a
@@ -153,11 +181,12 @@ discarded every time the view is read. See [Filters](/ushabti/guides/filters/).
 { "name": "By assignee", "kind": "board", "groupById": "<propertyId>" }
 ```
 
-`kind` is `board` or `list`, and defaults to `board` — which is what every view was before there
+`kind` is `board`, `list` or `roadmap`, and defaults to `board` — which is what every view was before there
 was more than one kind.
 
-A **board** requires `groupById`: a property of this project whose type is `select`, `person` or
-`checkbox`. A **list** groups nothing and needs none, so it can be created on a project that has no
+A **board** requires `groupById`: a property of this project whose type is `select`, `iteration`,
+`person` or `checkbox`. A **roadmap** requires one too, and only a `select` or an `iteration` will do,
+because it draws a row per dated option. A **list** groups nothing and needs none, so it can be created on a project that has no
 such property at all. A list may still carry one; it is remembered, unread, for the day the view
 becomes a board again.
 
@@ -169,8 +198,8 @@ becomes a board again.
 | Status | Message |
 | --- | --- |
 | `400` | `Choose a property to group by.` · `That property is not in this project.` |
-| `400` | `A view can only group by a select, person or checkbox property.` |
-| `400` | `A view is a board or a list.` |
+| `400` | `A view can only group by a select, iteration, person or checkbox property.` |
+| `400` | `A view is a board, a list or a roadmap.` · `A roadmap draws the options of a select property.` |
 
 ### `PATCH /api/views/{viewId}`
 
