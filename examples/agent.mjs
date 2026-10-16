@@ -81,8 +81,6 @@ await call("PUT", `/api/tasks/${task.id}/values/${status.id}`, { value: inProgre
 
 /* ---- the loop -------------------------------------------------------- */
 
-let paused = false;
-
 for (let index = 0; index < plan.length; index += 1) {
   await pretendToWork();
 
@@ -92,7 +90,6 @@ for (let index = 0; index < plan.length; index += 1) {
       step: plan[index],
       stepIndex: index,
       log: `step ${index + 1}: ${plan[index].toLowerCase()}`,
-      ...(paused ? { status: "running" } : {}),
     });
   } catch (err) {
     // 409 means the run is closed under us: a person took the card over.
@@ -102,7 +99,6 @@ for (let index = 0; index < plan.length; index += 1) {
     }
     throw err;
   }
-  paused = false;
 
   // The board asked for something. Nothing forces us; we answer because we
   // said we would.
@@ -115,13 +111,15 @@ for (let index = 0; index < plan.length; index += 1) {
   if (answer.control === "pause") {
     await call("PATCH", `/api/runs/${run.id}`, { status: "paused", log: "paused on request" });
     console.log("Paused. Waiting for Resume on the board.");
-    paused = true;
-    while (paused) {
+    for (;;) {
       await wait(2000);
       const { run: fresh } = await call("GET", `/api/runs/${run.id}`);
-      if (fresh.control === "resume") paused = false;
       if (fresh.control === "stop" || fresh.endedAt) process.exit(0);
+      if (fresh.control === "resume") break;
     }
+    // Saying "running" is what clears the resume word and moves the card.
+    await call("PATCH", `/api/runs/${run.id}`, { status: "running", log: "resumed" });
+    console.log("Resumed.");
   }
 }
 

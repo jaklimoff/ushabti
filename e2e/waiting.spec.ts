@@ -29,7 +29,7 @@ async function connectAgent(page: Page, projectId: string, name: string): Promis
  * A project where Asker asked two questions, the older one in Backlog, and
  * where one run handed the task over and one works. Answers the ids.
  */
-async function askTwice(page: Page, request: APIRequestContext, third = false) {
+async function askTwice(page: Page, request: APIRequestContext) {
   await register(page, "Waited On");
   const projectId = await createProject(page, unique("Waiting"));
   /* The tasks are made by the route the composer calls: the list is what
@@ -38,10 +38,9 @@ async function askTwice(page: Page, request: APIRequestContext, third = false) {
   const status = made.properties.find((p: { name: string }) => p.name === "Status");
   const option = (name: string) =>
     status.options.find((o: { name: string }) => o.name === name).id as string;
-  const more = third ? ["Newest question"] : [];
   const columns: [string, string][] = [
     ["Older question", "Backlog"],
-    ...["Newer question", "Hands it over", "Just works", ...more].map((title): [string, string] => [
+    ...["Newer question", "Hands it over", "Just works"].map((title): [string, string] => [
       title,
       "Todo",
     ]),
@@ -68,10 +67,6 @@ async function askTwice(page: Page, request: APIRequestContext, third = false) {
   const hands = await start("Hands it over");
   await api.patch(`/api/runs/${hands}`, { status: "handed_over", step: "review" });
   await start("Just works");
-  if (third) {
-    const newest = await start("Newest question");
-    await api.patch(`/api/runs/${newest}`, { status: "waiting", step: "Which colour?" });
-  }
 
   await page.goto(`/p/${projectId}`);
   const keyOf = (title: string) =>

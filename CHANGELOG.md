@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **The example agent says it is running again after Resume.** `examples/agent.mjs` used to work on
+  with its card still reading paused and the resume word left on the run. It now reports
+  `running` as soon as it sees Resume, as `board.mjs pause` does.
+
 ## 0.26.0 — 2026-10-15
 
 ### Added

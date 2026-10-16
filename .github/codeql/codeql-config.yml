@@ -1,0 +1,6 @@
+name: Ushabti CodeQL config
+
+# design-reference/ holds exported mockups. They ship nothing, and their
+# generated scripts filled the alert list with noise.
+paths-ignore:
+  - design-reference/

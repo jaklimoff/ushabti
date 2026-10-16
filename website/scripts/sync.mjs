@@ -55,8 +55,6 @@ const rewrites = [
   [/\]\(README\.md\)/g, "](/)"],
 ];
 
-const escape = (value) => value.replace(/"/g, '\\"');
-
 for (const page of pages) {
   const raw = await readFile(join(repo, page.from), "utf8");
   // The repo file opens with its own H1. The page title replaces it.
@@ -66,7 +64,7 @@ for (const page of pages) {
   const front = [
     "---",
     `title: ${page.title}`,
-    `description: "${escape(page.description)}"`,
+    `description: ${JSON.stringify(page.description)}`,
     "editUrl: false",
     "---",
     "",
