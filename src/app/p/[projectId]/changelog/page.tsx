@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, requireMembership, HttpError } from "@/lib/auth";
+import { readShown } from "@/lib/changelog";
 import { loadChangelog } from "@/lib/changelog-load";
 import { ChangelogList } from "@/components/changelog/ChangelogList";
 import { EmptyState } from "@/components/ui/Layout";
@@ -17,8 +18,10 @@ export const metadata = { title: "Changelog · Ushabti" };
  */
 export default async function ChangelogPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ shown?: string | string[] }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -31,7 +34,7 @@ export default async function ChangelogPage({
     throw err;
   }
 
-  const log = await loadChangelog(projectId);
+  const log = await loadChangelog(projectId, readShown((await searchParams).shown));
   if (!log) notFound();
 
   return (
@@ -48,7 +51,12 @@ export default async function ChangelogPage({
             A column with a target date ships from its header, and lands here.
           </EmptyState>
         ) : (
-          <ChangelogList entries={log.entries} projectId={log.project.id} />
+          <ChangelogList
+            entries={log.entries}
+            older={log.older}
+            path={`/p/${log.project.id}/changelog`}
+            projectId={log.project.id}
+          />
         )}
       </div>
     </div>

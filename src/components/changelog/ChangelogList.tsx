@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { shippedSaid } from "@/lib/changelog";
+import { CHANGELOG_PAGE, shippedSaid } from "@/lib/changelog";
 import { Markdown } from "@/components/board/Markdown";
+import { ButtonPageLink } from "@/components/ui/Button";
 import styles from "./changelog.module.css";
 
 /** A task under a shipped option. The key is there only for a member. */
@@ -20,12 +21,23 @@ type Entry = {
  * stranger's rows are words only, because the board behind them is closed to
  * that reader. Which one it is follows from the data: the public answer has
  * no keys, so it cannot draw a link.
+ *
+ * **Older** is a link and not a button: the next ten are one more page of the
+ * same address, so a stranger's page works with no script, and the shelf that
+ * keeps it between visits keeps each length on its own. It keeps the scroll,
+ * so the reader stays where they were and the new entries arrive below.
  */
 export function ChangelogList({
   entries,
+  older,
+  path,
   projectId = null,
 }: {
   entries: Entry[];
+  /** How many shipped options are left below the last entry. */
+  older: number;
+  /** This page's address, which **Older** adds `?shown=` to. */
+  path: string;
   projectId?: string | null;
 }) {
   return (
@@ -57,6 +69,18 @@ export function ChangelogList({
           )}
         </section>
       ))}
+      {older > 0 && (
+        <div className={styles.older}>
+          <ButtonPageLink
+            variant="ghost"
+            href={`${path}?shown=${entries.length + CHANGELOG_PAGE}`}
+            scroll={false}
+            data-testid="changelog-older"
+          >
+            Older
+          </ButtonPageLink>
+        </div>
+      )}
     </>
   );
 }

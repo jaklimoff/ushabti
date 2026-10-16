@@ -613,6 +613,68 @@ describe("The changelog", () => {
     ]);
   });
 
+  /* A page opens on the newest ten, and **Older** is the same page asking for
+     twenty. The route an agent reads still answers every release. */
+  it("opens on the newest ten releases, and reads the next ten when asked", async () => {
+    const { owner, project: p, me, key, version, task } = await shippedProject();
+    const names = Array.from({ length: 10 }, (_, i) => `w${i + 1}`);
+    for (const [i, name] of names.entries()) {
+      const { option } = await ok<{ option: { id: string } }>(
+        me.post(`/api/properties/${version.id}/options`, { name }),
+      );
+      await ok(
+        me.patch(`/api/options/${option.id}`, {
+          shippedAt: `2026-11-${String(i + 1).padStart(2, "0")}`,
+        }),
+      );
+    }
+    await ok(me.patch(`/api/projects/${p.id}`, { publicChangelog: true }));
+    const slug = key.toLowerCase();
+
+    const first = (await loadChangelog(p.id, 10))!;
+    expect(first.entries.map((e) => e.name)).toEqual([...names].reverse());
+    expect(first.older).toBe(2);
+    expect((await loadPublicChangelog(slug, 10))!.older).toBe(2);
+
+    const both = (await loadChangelog(p.id, 20))!;
+    expect(both.entries.map((e) => e.name).slice(-2)).toEqual(["v2", "v1"]);
+    expect(both.entries.at(-1)!.tasks.map((t) => t.title)).toEqual(["Alpha lands", "Bravo lands"]);
+    expect(both.older).toBe(0);
+
+    // A page of ten reads the tasks of those ten and no others.
+    const ten = first.entries.map((e) => e.optionId);
+    expect(await readShipped(db as never, p.id, ten)).toEqual([]);
+    await task("Kilo lands", { [version.id]: first.entries[0].optionId });
+    expect((await readShipped(db as never, p.id, ten)).map((r) => r.title)).toEqual(["Kilo lands"]);
+
+    const builder = await agent(owner, p.id);
+    const { changelog } = await ok<{ changelog: unknown[] }>(
+      builder.api.get(`/api/projects/${p.id}/changelog`),
+    );
+    expect(changelog).toHaveLength(12);
+  });
+
+  /* A stranger's page is kept between visits. A write that went past the
+     routes is not seen, which is how the test knows it was kept; a ship
+     through its route is seen on the next visit. */
+  it("keeps the public page between visits, and shows a ship on the next one", async () => {
+    const { project: p, me, key, version } = await shippedProject();
+    await ok(me.patch(`/api/projects/${p.id}`, { publicChangelog: true }));
+    const slug = key.toLowerCase();
+    const names = async () => (await loadPublicChangelog(slug, 10))!.entries.map((e) => e.name);
+    expect(await names()).toEqual(["v2", "v1"]);
+
+    const v3 = version.options[2];
+    await db.execute(sql`update property_options set name = 'v3 by hand' where id = ${v3.id}`);
+    await db.execute(sql`update property_options set name = 'v2 by hand'
+                          where id = ${version.options[1].id}`);
+    expect(await names()).toEqual(["v2", "v1"]);
+
+    await ok(me.patch(`/api/options/${v3.id}`, { targetAt: "2026-10-14" }));
+    await ok(me.post(`/api/options/${v3.id}/ship`, { rest: "leave" }));
+    expect(await names()).toEqual(["v3 by hand", "v2 by hand", "v1"]);
+  });
+
   it("lets one project per key be public", async () => {
     const { owner, project: first, me, key } = await shippedProject();
     await ok(me.patch(`/api/projects/${first.id}`, { publicChangelog: true }));

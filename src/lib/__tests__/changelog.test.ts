@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buildChangelog,
+  CHANGELOG_PAGE,
   changelogSlug,
+  newestShipped,
   publicChangelog,
+  readShown,
   shippedDay,
   shippedSaid,
   type ChangelogInput,
@@ -149,12 +152,80 @@ describe("the public changelog", () => {
           tasks: [{ title: "First" }, { title: "Second" }],
         },
       ],
+      older: 0,
     });
     expect(JSON.stringify(shown)).not.toMatch(/USH|"id"/);
   });
 
   it("is addressed by the key in lower case", () => {
     expect(changelogSlug("USH")).toBe("ush");
+  });
+});
+
+describe("a page of the changelog", () => {
+  /* A hundred releases on one Version, shipped a day apart, plus a sprint
+     that closed in between and must not take a place. */
+  const many: ChangelogInput["properties"] = [
+    {
+      id: "version",
+      name: "Version",
+      type: "select",
+      options: Array.from({ length: 100 }, (_, i) => ({
+        id: `v${i}`,
+        name: `0.${i}`,
+        shippedAt: new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10),
+        note: null,
+      })),
+    },
+    {
+      id: "sprint",
+      name: "Sprint",
+      type: "iteration",
+      options: [{ id: "s", name: "S1", shippedAt: "2026-12-31", note: null }],
+    },
+  ];
+
+  it("keeps the newest ten and counts the rest", () => {
+    const { properties, older } = newestShipped(many, CHANGELOG_PAGE);
+    expect(older).toBe(90);
+    const log = buildChangelog({ project, properties, tasks: [] }, older);
+    expect(log.entries.map((e) => e.name)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `0.${99 - i}`),
+    );
+    expect(log.older).toBe(90);
+  });
+
+  it("keeps everything when asked for more than there is", () => {
+    const { older, properties } = newestShipped(many, Infinity);
+    expect(older).toBe(0);
+    expect(buildChangelog({ project, properties, tasks: [] }).entries).toHaveLength(100);
+  });
+
+  it("cuts two releases of one day in the Settings order", () => {
+    const sameDay = input({
+      properties: [
+        {
+          id: "version",
+          name: "Version",
+          type: "select",
+          options: [
+            { id: "a", name: "A", shippedAt: "2026-10-01", note: null },
+            { id: "b", name: "B", shippedAt: "2026-10-01", note: null },
+          ],
+        },
+      ],
+    });
+    const { properties, older } = newestShipped(sameDay.properties, 1);
+    expect(properties[0].options.map((o) => o.name)).toEqual(["A"]);
+    expect(older).toBe(1);
+  });
+
+  it("reads a whole number of pages from the address, and the first page from anything else", () => {
+    expect(readShown("20")).toBe(20);
+    expect(readShown("100")).toBe(100);
+    for (const raw of [undefined, "", "0", "5", "15", "-10", "1e2", "ten", ["20"], "9999999"]) {
+      expect(readShown(raw)).toBe(CHANGELOG_PAGE);
+    }
   });
 });
 

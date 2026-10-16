@@ -18,14 +18,16 @@ export type ShippedRow = {
 
 /**
  * The tasks of one project that carry a shipped option, one row per task and
- * property. The public page asks this on every anonymous request, so it reads
- * only what `buildChangelog` keeps. Archived tasks stay in, because a ship
- * archives what it shipped.
+ * property. It reads only what `buildChangelog` keeps, and with `optionIds`
+ * only the tasks of those options, which is how a page of ten releases reads
+ * ten. Archived tasks stay in, because a ship archives what it shipped.
  */
-export function readShipped(
+export async function readShipped(
   db: Pick<NodePgDatabase<Record<string, unknown>>, "select">,
   projectId: string,
+  optionIds?: string[],
 ): Promise<ShippedRow[]> {
+  if (optionIds?.length === 0) return [];
   return db
     .select({
       id: tasks.id,
@@ -54,6 +56,7 @@ export function readShipped(
         /* A closed sprint is not a release, so it lists nothing. */
         inArray(properties.type, PROPERTY_TYPES.filter(isRelease)),
         isNotNull(propertyOptions.shippedAt),
+        optionIds ? inArray(propertyOptions.id, optionIds) : undefined,
       ),
     );
 }

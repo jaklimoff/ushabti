@@ -80,3 +80,10 @@
   font-size: var(--t-label);
   color: var(--faint-2);
 }
+
+.older {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
