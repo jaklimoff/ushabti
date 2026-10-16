@@ -508,7 +508,7 @@ jobs:
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           # A fixed commit, so a change upstream never changes this step.
-          BOARD_MJS: https://raw.githubusercontent.com/jaklimoff/ushabti/519fef8ed92490560f1fb7e3c2560676ce39ef7a/examples/skill/ushabti/board.mjs
+          BOARD_MJS: https://raw.githubusercontent.com/jaklimoff/ushabti/cf981756e4fc402e8ea20643d1d84d9138dc41e7/examples/skill/ushabti/board.mjs
         run: |
           if [ -z "$USHABTI_TOKEN" ]; then
             echo "No USHABTI_TOKEN secret. A pull request from a fork gets none. Nothing written."
