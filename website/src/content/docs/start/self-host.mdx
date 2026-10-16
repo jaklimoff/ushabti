@@ -119,13 +119,15 @@ commit by the same workflow. Pick either.
 
 | Tag        | What it is                                       | Use it for                     |
 | ---------- | ------------------------------------------------ | ------------------------------ |
+| `:latest`  | The newest release                               | Production. The default.       |
+| `0.26.0`   | One release                                      | Production, pinned.            |
 | `:edge`    | `main`, rebuilt each night                        | Trying things. **Not** production. |
-| `0.5.0`    | A release                                        | Production. Pin it.            |
 
-Pin a release by setting `USHABTI_VERSION` in `.env`:
+`docker-compose.prod.yml` pulls `:latest` unless `USHABTI_VERSION` says otherwise, so every
+`pull` takes the newest release. Pin one in `.env` to choose when you move:
 
 ```bash
-USHABTI_VERSION=0.5.0
+USHABTI_VERSION=0.26.0
 ```
 
 Add `--build` to the compose command to build the image from your own checkout instead of pulling.
