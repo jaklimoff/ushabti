@@ -67,5 +67,10 @@
     "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3",
     "vitest-browser-react": "^2.3.0"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   }
 }
