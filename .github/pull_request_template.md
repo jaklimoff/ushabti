@@ -10,5 +10,6 @@
 - [ ] `npm run test:e2e` passes
 - [ ] A test covers the change
 - [ ] No new hardcoded task field
+- [ ] I used AI on this, and I read every line it wrote (only if you used it)
 - [ ] `CHANGELOG.md` has a line under "Unreleased" (only if a user would notice)
 - [ ] `npm run db:generate` was run, and the migration is in the commit (only if the schema changed)

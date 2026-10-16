@@ -12,6 +12,29 @@ the project.
 Read [ROADMAP.md](ROADMAP.md) first. It lists what comes next and what the
 project will not do.
 
+## Taking an issue
+
+Nobody is assigned. To take an issue, comment with your plan: the files you
+will change and how. A plan that shows you read the code is the claim. "I'd
+like to work on this" is not, and gets no answer.
+
+If two people post a plan, the maintainer picks one, and the issue says so. An
+issue can also stay with the maintainer. When it does, it loses
+`help wanted` and `good first issue`, and a plan does not change that.
+
+Take one issue at a time until your first pull request is merged. A claim with
+no pull request after two weeks lapses, and the issue is open again.
+
+## Using AI
+
+AI is welcome. You still answer for every line, so read what it wrote before
+you send it. Say in the pull request that you used it.
+
+In review, answer in your own words. A pull request whose author cannot
+explain it is closed, however green CI is. Read [AGENTS.md](AGENTS.md) and
+point your tool at it: it holds the rules that are easy to break, and a change
+that breaks one is sent back.
+
 ## Set up
 
 You need Docker. Nothing else.
