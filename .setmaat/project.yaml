@@ -58,6 +58,10 @@ release:
   check: sh .setmaat/e2e.sh
   # A new migration cannot be undone by a rollback, so its SQL waits for a yes.
   confirm: sh .setmaat/release/migrations.sh
+  # A release that waits for a yes is busy, and a busy program holds back the
+  # restart of `up` after a Setmaat release (SET-346). An hour, not the 24 h
+  # default, so that restart does not wait a day.
+  confirm_timeout: 1h
   # The changelog heading and package.json must match the tag (release.yml).
   tag: sh .setmaat/release/tag.sh
   # No build: docker.yml builds the image on the tag. The deploy waits for it.
