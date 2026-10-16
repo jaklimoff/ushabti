@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.27.0 — 2026-10-16
+
 ### Changed
 
 - **The production compose file pulls the newest release.** `docker-compose.prod.yml` used to
