@@ -27,7 +27,7 @@ Every project you are a member of, oldest first.
 top bar counts them. It is worked out for every project in the one query.
 
 An agent token cannot enumerate projects — it knows its one board from
-[`GET /api/agent/me`](/ushabti/api/auth/#get-apiagentme), which carries the same `waiting` number.
+[`GET /api/agent/me`](/api/auth/#get-apiagentme), which carries the same `waiting` number.
 
 ---
 
@@ -115,7 +115,7 @@ Eight ids are not properties: `_key`, `_title`, `_desc`, `_checklist`, `_parts`,
 project's time zone, and are `off` until somebody turns them on.
 
 A card view has **no order**. Where two rows share a place they follow the order of the properties
-(set with `afterId` on [`PATCH /api/properties/{id}`](/ushabti/api/properties/)), after `_key`,
+(set with `afterId` on [`PATCH /api/properties/{id}`](/api/properties/)), after `_key`,
 `_title` and `_desc` and before `_checklist`, `_parts`, `_comments`, `_created` and `_updated`. A row whose mode is `colour` or
 `avatar` carries no words and is drawn first in its place. An `order` in the body is ignored and
 never stored.
@@ -196,7 +196,7 @@ does, the email is remembered as an invite and the answer carries `invite` inste
 
 `emailed` says whether the server emailed the invite: who invited them, to which project, and the
 sign-up link. It is `true` only when the mail server took it. It is `false` when mail is off (no
-[`SMTP_URL` and `MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from)), when the send failed, when the caller has spent
+[`SMTP_URL` and `MAIL_FROM`](/start/configuration/#smtp_url-and-mail_from)), when the send failed, when the caller has spent
 its ten sends in ten minutes, and always for an account that joined at once. The invite is written before the send, so `false` never means it is missing: send the
 sign-up link (`<origin>/register`) yourself. The server waits for the send at most 10 seconds.
 
@@ -208,7 +208,7 @@ The role is always `member` and cannot be chosen. Invites are listed on the boar
 | `409` | `That email is already invited.` |
 | `409` | `That person is already a member.` |
 
-There is no `GET` here — the member list comes back with [the board](/ushabti/api/board/).
+There is no `GET` here — the member list comes back with [the board](/api/board/).
 
 ### `DELETE /api/projects/{projectId}/invites/{email}` <Badge text="owner and admins" variant="caution" size="small" />
 
@@ -262,21 +262,21 @@ The membership row goes; the `users` row stays, so the person's tasks, comments 
 ### `POST /api/projects/{projectId}/members/{userId}/reset` <Badge text="owner and admins" variant="caution" size="small" />
 
 Makes that member a way back into their account, for
-[a forgotten password](/ushabti/guides/people/#a-forgotten-password). Send no body.
+[a forgotten password](/guides/people/#a-forgotten-password). Send no body.
 
 ```json title="201 — the only copy"
 { "link": "https://your-board.example.com/reset/ushr_…", "emailed": true }
 ```
 
 `emailed` says whether the same link also went to the member's email, with a word that it works
-once, for 24 hours. It is `false` when mail is off (no [`SMTP_URL` and `MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from)), when the
+once, for 24 hours. It is `false` when mail is off (no [`SMTP_URL` and `MAIL_FROM`](/start/configuration/#smtp_url-and-mail_from)), when the
 send failed, or when the caller has spent its ten sends in ten minutes; the link is written before the send and works either way, so send it yourself. The
 server waits for the send at most 10 seconds.
 
 The link is readable in this answer, and in that one email, and never again: the table keeps a SHA-256 digest of the token,
 its account, who made it, when it expires and when it was used. It works **once**, for **24 hours**,
 and making a new one for the same person puts the older ones out of use. The person spends it at
-[`POST /api/auth/reset`](/ushabti/api/auth/#post-apiauthreset), which ends every session that account
+[`POST /api/auth/reset`](/api/auth/#post-apiauthreset), which ends every session that account
 had.
 
 The address in the link is the one the call arrived at (`x-forwarded-host`, then `host`), so behind a
@@ -342,7 +342,7 @@ coming back as well.
 
 `taskId` is null on both. `activity.task_id` cascades, so a line naming the task would be swept
 away with the task it is the record of; the key is what points at it instead, and the key outlives
-the row. See [`DELETE /api/tasks/{taskId}`](/ushabti/api/tasks/#delete-apitaskstaskid).
+the row. See [`DELETE /api/tasks/{taskId}`](/api/tasks/#delete-apitaskstaskid).
 
 ---
 

@@ -12,13 +12,13 @@ address, so a document can link to one. The owner and admins see two more than a
 
 | Page                                         | What lives there                                                           |
 | -------------------------------------------- | -------------------------------------------------------------------------- |
-| [Properties](/ushabti/guides/properties/) `…/settings/properties` | Every field on a task. Create, rename, recolour, reorder, delete. |
-| [Types](/ushabti/guides/types/) `…/settings/types`                 | The select whose options are the task types, and which properties each type shows. |
-| [Card view](/ushabti/guides/card-view/) `…/settings/card`         | What a card on the board carries, where each row sits and how it reads. |
-| [Views](/ushabti/guides/views/) `…/settings/views`                | Rename, regroup, reorder and delete views, and name the main one.   |
-| [People](/ushabti/guides/people/) `…/settings/people`             | Members and their roles, agents, and the tokens that connect them. |
-| [Webhooks](/ushabti/api/webhooks/) `…/settings/webhooks`          | A call out of the board when something changes. Owner and admins. |
-| [Import](/ushabti/guides/import/) `…/settings/import`             | Bring a board in from a Trello export. Owner and admins.          |
+| [Properties](/guides/properties/) `…/settings/properties` | Every field on a task. Create, rename, recolour, reorder, delete. |
+| [Types](/guides/types/) `…/settings/types`                 | The select whose options are the task types, and which properties each type shows. |
+| [Card view](/guides/card-view/) `…/settings/card`         | What a card on the board carries, where each row sits and how it reads. |
+| [Views](/guides/views/) `…/settings/views`                | Rename, regroup, reorder and delete views, and name the main one.   |
+| [People](/guides/people/) `…/settings/people`             | Members and their roles, agents, and the tokens that connect them. |
+| [Webhooks](/api/webhooks/) `…/settings/webhooks`          | A call out of the board when something changes. Owner and admins. |
+| [Import](/guides/import/) `…/settings/import`             | Bring a board in from a Trello export. Owner and admins.          |
 | Project `…/settings/project`                 | The project name, the task-key prefix, the time zone, what done means, the export (owner and admins), and deleting the project. |
 
 The rail counts what is on each page, and its foot names the version you are running.
@@ -30,7 +30,7 @@ project as one JSON file, `ushabti-{KEY}-{YYYY-MM-DD}.json`, the day being the p
 holds the properties with their options, the views with the team's filters and sort, the members,
 the invites, and every live and archived task with its values, checklist, comments and blockers.
 A deleted task is not in it, and neither is anybody's own filter. See
-[`GET /api/projects/{projectId}/export`](/ushabti/api/projects/#get-apiprojectsprojectidexport) for
+[`GET /api/projects/{projectId}/export`](/api/projects/#get-apiprojectsprojectidexport) for
 what is in the file and what is not.
 
 ## How a destructive action asks
@@ -125,14 +125,14 @@ Behind your avatar, not in project settings: **`/account`**.
 <Aside type="caution" title="This page needs the password you have">
 This page asks for the password you use now. If you cannot sign in at all, press **Forgot
 password?** on the sign-in page, which emails you a one-time link when the server has [mail set
-up](/ushabti/start/configuration/#smtp_url-and-mail_from) and
-[`USHABTI_URL`](/ushabti/start/configuration/#ushabti_url) set. Without them, the owner of a project
+up](/start/configuration/#smtp_url-and-mail_from) and
+[`USHABTI_URL`](/start/configuration/#ushabti_url) set. Without them, the owner of a project
 you are in makes you the link instead, which the server also emails to you when it has mail: [A
-forgotten password](/ushabti/guides/people/#a-forgotten-password).
+forgotten password](/guides/people/#a-forgotten-password).
 </Aside>
 
 <LinkCard
   title="People and projects"
-  href="/ushabti/guides/people/"
+  href="/guides/people/"
   description="The owner, admins and members, and exactly what each may do."
 />

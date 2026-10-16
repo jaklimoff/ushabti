@@ -49,7 +49,7 @@ the default binding is deliberately local-only.
    ```
 
    Without them nothing is emailed, and the owner sends the link by hand. See
-   [`SMTP_URL` and `MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from).
+   [`SMTP_URL` and `MAIL_FROM`](/start/configuration/#smtp_url-and-mail_from).
 
    Add the board's public address as well, and the sign-in page offers **Forgot password?**, so a
    person can get a reset link by email without asking anybody:
@@ -60,12 +60,12 @@ the default binding is deliberately local-only.
    ```
 
    The emailed link is built from this address and never from the request. See
-   [`USHABTI_URL`](/ushabti/start/configuration/#ushabti_url).
+   [`USHABTI_URL`](/start/configuration/#ushabti_url).
 
 </Steps>
 
 <Aside type="caution" title="A webhook cannot reach inside your network by default">
-A [webhook](/ushabti/api/webhooks/) is the one request a person tells the server to make for them,
+A [webhook](/api/webhooks/) is the one request a person tells the server to make for them,
 so Ushabti refuses a **loopback, private or link-local** address: `169.254.169.254` is a cloud's
 metadata service, `127.0.0.1:5432` says whether a database is listening, and `10.0.0.5` is
 whatever your neighbour is running. The check runs when the URL is saved and again before every
@@ -73,7 +73,7 @@ try, resolving the name each time, so a public name that starts pointing inside 
 
 If your receiver really is on that network — an internal CI runner, a service on the same compose
 network — set
-[`USHABTI_WEBHOOK_PRIVATE=1`](/ushabti/start/configuration/#ushabti_webhook_private):
+[`USHABTI_WEBHOOK_PRIVATE=1`](/start/configuration/#ushabti_webhook_private):
 
 ```bash
 echo "USHABTI_WEBHOOK_PRIVATE=1" >> .env
@@ -87,7 +87,7 @@ of its routes. This flag decides how far a webhook may reach once one exists.
 <Aside type="caution" title="What the rate limit does, and what it does not">
 Ushabti counts **ten failures in ten minutes** and then answers `429` with a `Retry-After` header,
 for a wrong password by address and by email, for a refused sign-up by address, for a bad agent
-token by address, and for a dead [reset link](/ushabti/guides/people/#a-forgotten-password) by
+token by address, and for a dead [reset link](/guides/people/#a-forgotten-password) by
 address. A sign-in that works counts nothing and clears the count for that email, so nobody is
 locked out by their own team.
 
@@ -106,7 +106,7 @@ The address is the first value of `x-forwarded-for`, which is your proxy's job t
 nginx — or a caller can name any address it likes and get a fresh ten tries each time.
 
 Have it replace **`X-Forwarded-Host`** as well — `proxy_set_header X-Forwarded-Host $host;`. That
-header is where a [reset link](/ushabti/guides/people/#a-forgotten-password) and an invite get the
+header is where a [reset link](/guides/people/#a-forgotten-password) and an invite get the
 address they carry, so a caller that names the host writes the address the owner copies out of the
 page — or the one the server emails — and sends to a colleague. The token in it is real, which is what
 makes it worth writing.
@@ -140,7 +140,7 @@ docker compose -f docker-compose.prod.yml up -d
 The container's command is `node scripts/migrate.mjs && node server.js`, so **every start applies
 any migration the database has not seen**. There is no separate migration step to remember.
 
-Check the [changelog](/ushabti/releases/changelog/) before a jump: some releases carry a note. The
+Check the [changelog](/releases/changelog/) before a jump: some releases carry a note. The
 0.3.0 upgrade, for example, closes any open run whose agent last reported over thirty minutes ago
 the first time somebody loads the board.
 
@@ -221,7 +221,7 @@ aws s3 sync s3://ushabti-files ./ushabti-files-$(date +%F) --endpoint-url "$S3_E
 Versioning on the bucket, where your provider has it, also keeps a file somebody removed.
 
 A task you archive keeps everything and can be put back. A **deleted** task can be put back for
-30 days, from [Deleted, gone in 30 days](/ushabti/guides/board/#deleted-gone-in-30-days). After
+30 days, from [Deleted, gone in 30 days](/guides/board/#deleted-gone-in-30-days). After
 that it is gone, and the backup is the only way back.
 
 A backup nobody has restored is a guess, so try one into an empty database before you need it:
@@ -242,6 +242,6 @@ the whole instance.
 
 <LinkCard
   title="Configuration"
-  href="/ushabti/start/configuration/"
+  href="/start/configuration/"
   description="Every environment variable, what it does and what it defaults to."
 />

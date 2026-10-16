@@ -148,7 +148,7 @@ async function doTheActualWork() {
    ```
 
    The `.catch(() => {})` is deliberate: a board unreachable for a minute is not a reason to give up,
-   because the [lease](/ushabti/agents/runs/#the-lease) covers the case where it never comes back.
+   because the [lease](/agents/runs/#the-lease) covers the case where it never comes back.
 
 2. **A goodbye.** Catch `SIGINT` and `SIGTERM` and send `{"status": "lost", "log": "the agent was
    stopped"}`. That frees the card at once instead of in thirty minutes.
@@ -169,6 +169,6 @@ Status to.
 
 <LinkCard
   title="The Claude Code skill"
-  href="/ushabti/agents/skill/"
+  href="/agents/skill/"
   description="A command-line wrapper that turns all of this into eleven commands, keyed by task."
 />

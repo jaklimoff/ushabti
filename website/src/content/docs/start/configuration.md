@@ -55,7 +55,7 @@ invites somebody by adding their email in **Settings → People**; that email ma
 
 ### `USHABTI_WEBHOOK_PRIVATE`
 
-Set to `1` — and only that — to let a [webhook](/ushabti/api/webhooks/) be pointed at a **private,
+Set to `1` — and only that — to let a [webhook](/api/webhooks/) be pointed at a **private,
 loopback or link-local** address. Unset, which is the default, those are refused.
 
 ```bash
@@ -115,8 +115,8 @@ anything that is not an image or a video always downloads, because SVG carries s
 
 ### `SMTP_URL` and `MAIL_FROM`
 
-Set both to let the server email an [invite](/ushabti/guides/people/#adding-somebody) and a
-[reset link](/ushabti/guides/people/#a-forgotten-password). Leave both unset and nothing is ever
+Set both to let the server email an [invite](/guides/people/#adding-somebody) and a
+[reset link](/guides/people/#a-forgotten-password). Leave both unset and nothing is ever
 emailed: every screen and every answer is as it was before there was any mail, and the owner sends
 the link by hand.
 
@@ -146,7 +146,7 @@ anybody who can sign up can make the server send invites, so close sign-up
 ### `USHABTI_URL`
 
 The address your team opens the board at, with the scheme and no path. With mail on as well, the
-sign-in page offers [**Forgot password?**](/ushabti/guides/people/#forgot-password), which emails a
+sign-in page offers [**Forgot password?**](/guides/people/#forgot-password), which emails a
 person a link to set a new password.
 
 ```bash
@@ -160,7 +160,7 @@ address the owner's browser used.
 
 With mail on and `USHABTI_URL` unset — or not starting with `http://` or `https://` — the forgot page
 is off, and the server logs one line at start that says so, next to the mail line. It is the same
-`USHABTI_URL` an [agent](/ushabti/agents/connect/) uses to find the board.
+`USHABTI_URL` an [agent](/agents/connect/) uses to find the board.
 
 ## What is not configurable
 
@@ -172,7 +172,7 @@ Worth stating plainly, so you do not go looking:
   every time, whether or not an account uses the email. A sign-in that works counts nothing and clears the count for that email. Over the limit
   the answer is `429` with `Retry-After`. The count is held in the memory of one process, so a
   restart forgets it and a second process counts separately — see
-  [Host it for your team](/ushabti/start/self-host/).
+  [Host it for your team](/start/self-host/).
 - **Session length** is 30 days. The cookie is `ushabti_session`, `httpOnly`, `SameSite=Lax`.
 - **The colour palette** is twelve fixed colours for options and eleven for avatars: the same twelve without the grey. A board where
   anybody can pick any colour stops meaning anything.
@@ -184,5 +184,5 @@ Worth stating plainly, so you do not go looking:
   [`USHABTI_URL`](#ushabti_url) as well. A question is emailed once, never again, to the person
   the task is assigned to, else the last person who changed it, else the owners and admins. Anybody
   can turn those emails off on their account page. There are no other notifications. See [A
-  forgotten password](/ushabti/guides/people/#a-forgotten-password).
+  forgotten password](/guides/people/#a-forgotten-password).
 - **The life of a reset link** is 24 hours and one use.

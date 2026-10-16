@@ -42,17 +42,17 @@ const pages = [
 
 // Links in the repo point at repo files. On the site they must point at pages.
 const rewrites = [
-  [/\]\(CHANGELOG\.md\)/g, "](/ushabti/releases/changelog/)"],
-  [/\]\(ROADMAP\.md\)/g, "](/ushabti/releases/roadmap/)"],
-  [/\]\(CONTRIBUTING\.md\)/g, "](/ushabti/internals/contributing/)"],
-  [/\]\(SECURITY\.md\)/g, "](/ushabti/internals/security/)"],
-  [/\]\(docs\/agents\.md\)/g, "](/ushabti/agents/)"],
+  [/\]\(CHANGELOG\.md\)/g, "](/releases/changelog/)"],
+  [/\]\(ROADMAP\.md\)/g, "](/releases/roadmap/)"],
+  [/\]\(CONTRIBUTING\.md\)/g, "](/internals/contributing/)"],
+  [/\]\(SECURITY\.md\)/g, "](/internals/security/)"],
+  [/\]\(docs\/agents\.md\)/g, "](/agents/)"],
   [/\]\(LICENSE\)/g, "](https://github.com/jaklimoff/ushabti/blob/main/LICENSE)"],
   [
     /\]\(CODE_OF_CONDUCT\.md\)/g,
     "](https://github.com/jaklimoff/ushabti/blob/main/CODE_OF_CONDUCT.md)",
   ],
-  [/\]\(README\.md\)/g, "](/ushabti/)"],
+  [/\]\(README\.md\)/g, "](/)"],
 ];
 
 const escape = (value) => value.replace(/"/g, '\\"');

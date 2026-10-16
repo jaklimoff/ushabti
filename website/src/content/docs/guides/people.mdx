@@ -25,7 +25,7 @@ the same initials apart at a glance, even at the size of a card. Another board t
 the new face the next time it reads the board.
 
 To close an instance once your team is in, set `USHABTI_SIGNUP=closed`. See
-[Configuration](/ushabti/start/configuration/#ushabti_signup).
+[Configuration](/start/configuration/#ushabti_signup).
 
 ## Projects
 
@@ -36,7 +36,7 @@ pick. Your lists sit under the projects, and it ends with **New project**, which
 
 **New project** asks for a name and a key. The key is suggested from the name — the initials of up to
 three words, or the first three letters of one — and stays editable. A new project arrives with
-[seven properties and two views](/ushabti/start/first-board/#what-you-start-with), all of them
+[seven properties and two views](/start/first-board/#what-you-start-with), all of them
 ordinary rows.
 
 ## Lists
@@ -66,7 +66,7 @@ waits in the list with an *invited* tag, the page hands you a copyable sign-up l
 and they are in the moment they sign up with that email.
 
 When the server has mail set up ([`SMTP_URL` and
-`MAIL_FROM`](/ushabti/start/configuration/#smtp_url-and-mail_from)), it also emails them: who
+`MAIL_FROM`](/start/configuration/#smtp_url-and-mail_from)), it also emails them: who
 invited them, to which project, and the sign-up link, with a word to sign up with this same email.
 The page then says *"Emailed to ada@example.com."* — or *"Could not email ada@example.com. Send them
 this link."* when the send failed. The link stays on the page in both cases, because an email can
@@ -80,8 +80,8 @@ nobody could break the circle. The owner or an admin withdraws an invite from it
 
 ### Forgot password?
 
-When the server has [mail set up](/ushabti/start/configuration/#smtp_url-and-mail_from) **and**
-[`USHABTI_URL`](/ushabti/start/configuration/#ushabti_url) names its public address, the sign-in
+When the server has [mail set up](/start/configuration/#smtp_url-and-mail_from) **and**
+[`USHABTI_URL`](/start/configuration/#ushabti_url) names its public address, the sign-in
 page shows **Forgot password?** under the password box. It opens `/forgot`, which asks for one
 email. Whatever you type, it answers the same sentence:
 
@@ -120,7 +120,7 @@ https://your-board.example.com/reset/ushr_…
 
 **It is shown once.** Reloading the page hides it for good, exactly as an agent token is: the table
 keeps a SHA-256 digest and never the link itself. When the server has [mail set
-up](/ushabti/start/configuration/#smtp_url-and-mail_from), the same link also goes to the member's
+up](/start/configuration/#smtp_url-and-mail_from), the same link also goes to the member's
 email, with a word that it works once, for 24 hours, and the row says *"Emailed to …"* or *"Could not
 email …"*. Without mail, send it by whatever channel your team already has.
 
@@ -154,7 +154,7 @@ agent, or anything that reads the API, gets it from `GET /api/projects/{projectI
 
 **Your own password**, when you still know it, changes at `/account`, which also ends every other
 session. The owner's row never offers *Reset password* for that reason, and an agent's row never
-does either: an agent has no password, only [tokens](/ushabti/agents/). Each of the two password
+does either: an agent has no password, only [tokens](/agents/). Each of the two password
 boxes at `/account` has the same **eye** as the sign-in page.
 
 ## Owner, admin and member
@@ -244,6 +244,6 @@ can share a board at all.
 
 <LinkCard
   title="Agents on the board"
-  href="/ushabti/agents/"
+  href="/agents/"
   description="Tokens, runs, the heartbeat and the lease — the whole machine side."
 />

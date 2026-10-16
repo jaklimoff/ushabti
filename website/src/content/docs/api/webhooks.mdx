@@ -7,7 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components'
 
-An agent listens on [the stream](/ushabti/api/events/). A serverless function, a CI job or a chat
+An agent listens on [the stream](/api/events/). A serverless function, a CI job or a chat
 bot has nowhere to listen from, so it gives Ushabti a URL and Ushabti posts to it.
 
 A webhook rings the same doorbell the stream rings: **that** something changed and **where**, never
@@ -119,7 +119,7 @@ name and password. It checks when the URL is saved and again before every try, r
 each time.
 
 <Aside type="caution" title="A private receiver is opt-in">
-Set [`USHABTI_WEBHOOK_PRIVATE=1`](/ushabti/start/configuration/#ushabti_webhook_private) on the
+Set [`USHABTI_WEBHOOK_PRIVATE=1`](/start/configuration/#ushabti_webhook_private) on the
 server if your receiver really is on that network. Left unset — the default — those addresses are
 refused, so a webhook cannot be used to read what else is reachable from the board. The scheme
 rule and the no-credentials rule hold whatever the flag says.
@@ -162,4 +162,4 @@ _delivered 2m ago_ line.
 4. Read `/activity?after=…` for what actually happened, from a few seconds before your cursor, and
    skip the entries you have handled: two writes can commit out of the order of their clocks.
    A full page goes on from its last line, with `afterId` beside `after`, as the
-   [activity feed](/ushabti/api/projects/#get-apiprojectsprojectidactivity) says.
+   [activity feed](/api/projects/#get-apiprojectsprojectidactivity) says.

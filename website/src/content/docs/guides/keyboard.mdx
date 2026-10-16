@@ -25,12 +25,12 @@ there too — focus *is* the cursor, so the two can never disagree.
 | --- | ------------ |
 | <kbd>Tab</kbd> | Reach the board. One stop, not forty. |
 | <kbd>↑</kbd> <kbd>↓</kbd> | Up and down inside the column. No wrapping — the ends are ends. |
-| <kbd>←</kbd> <kbd>→</kbd> | To the nearest column in that direction **that has cards**, keeping your place down the column. Empty columns are stepped over, and so are [folded](/ushabti/guides/board/) ones — a strip draws no cards to land on. Below 560 px, where [the board draws one column](/ushabti/guides/board/#on-a-phone), the board pages to the column the cursor lands in. |
+| <kbd>←</kbd> <kbd>→</kbd> | To the nearest column in that direction **that has cards**, keeping your place down the column. Empty columns are stepped over, and so are [folded](/guides/board/) ones — a strip draws no cards to land on. Below 560 px, where [the board draws one column](/guides/board/#on-a-phone), the board pages to the column the cursor lands in. |
 | <kbd>Home</kbd> | The first card in this column. |
 | <kbd>End</kbd> | The last card in this column. |
 | <kbd>Enter</kbd> | Open the card the cursor is on. The focus goes to its title. |
 | <kbd>Space</kbd> | Pick the card up. |
-| <kbd>x</kbd> | Select the card for a [bulk change](/ushabti/guides/board/#selecting-several-cards), or deselect it. The checks on the cards are not tab stops, because the board keeps one. |
+| <kbd>x</kbd> | Select the card for a [bulk change](/guides/board/#selecting-several-cards), or deselect it. The checks on the cards are not tab stops, because the board keeps one. |
 
 </div>
 
@@ -46,7 +46,7 @@ cursor does not move; that is the whole reason they can be trusted here.
 
 | Key while lifted | What it does |
 | ---------------- | ------------ |
-| <kbd>↑</kbd> <kbd>↓</kbd> | Move the card within its column. **Nothing while the board is [sorted](/ushabti/guides/board/#ordering-the-cards)**: the place a card has in a sorted column is the sort's, not the drag's. |
+| <kbd>↑</kbd> <kbd>↓</kbd> | Move the card within its column. **Nothing while the board is [sorted](/guides/board/#ordering-the-cards)**: the place a card has in a sorted column is the sort's, not the drag's. |
 | <kbd>←</kbd> <kbd>→</kbd> | Move the card one column at a time — **into an empty or folded column as readily as a full one**. A card put down on a folded column goes to its end. These keep working under a sort, because a column writes a value and not a rank. |
 | <kbd>Space</kbd> or <kbd>Enter</kbd> | Put it down. |
 | <kbd>Escape</kbd> | Cancel. The card goes back. |
@@ -65,7 +65,7 @@ A fix to only the first one reads as fixed and is not.
 
 ## A list
 
-A [list](/ushabti/guides/list/) is the same idea with one axis instead of two, and it walks the same
+A [list](/guides/list/) is the same idea with one axis instead of two, and it walks the same
 code — so everything above holds, minus the sideways.
 
 <div class="keys">
@@ -77,8 +77,8 @@ code — so everything above holds, minus the sideways.
 | <kbd>←</kbd> <kbd>→</kbd> | **Nothing.** A list has no sideways, so the keys are left alone and a wide list still scrolls with them. |
 | <kbd>Home</kbd> <kbd>End</kbd> | First row, last row. |
 | <kbd>Enter</kbd> | Open the row's task. |
-| <kbd>Space</kbd> | Pick the row up; press it again to put it down. <kbd>↑</kbd> <kbd>↓</kbd> move it, <kbd>Escape</kbd> cancels. Does nothing while the list is [sorted](/ushabti/guides/list/). |
-| <kbd>x</kbd> | Select the row for a [bulk change](/ushabti/guides/list/#selecting-several-rows), or deselect it. The checks in the gutter are not tab stops, because the list keeps one. |
+| <kbd>Space</kbd> | Pick the row up; press it again to put it down. <kbd>↑</kbd> <kbd>↓</kbd> move it, <kbd>Escape</kbd> cancels. Does nothing while the list is [sorted](/guides/list/). |
+| <kbd>x</kbd> | Select the row for a [bulk change](/guides/list/#selecting-several-rows), or deselect it. The checks in the gutter are not tab stops, because the list keeps one. |
 
 </div>
 
@@ -114,11 +114,11 @@ An error toast is read at once. Any other toast waits until the screen reader fi
 | Key | Where | What it does |
 | --- | ----- | ------------ |
 | <kbd>n</kbd> | the board, a list | Opens the composer for a new task: at the top of the column the cursor is in, or the first column; at the end of a list. Not when you are typing in a field, and not in the task panel. |
-| <kbd>/</kbd> | the board | Puts the cursor in the [search](/ushabti/guides/search/) box. If any card is [selected](/ushabti/guides/board/#selecting-several-cards), the press clears the selection first: a search wins over a selection, and on a narrow window the selection bar had taken the box off the top bar. Not when you are typing in a field — there it is a slash. |
+| <kbd>/</kbd> | the board | Puts the cursor in the [search](/guides/search/) box. If any card is [selected](/guides/board/#selecting-several-cards), the press clears the selection first: a search wins over a selection, and on a narrow window the selection bar had taken the box off the top bar. Not when you are typing in a field — there it is a slash. |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> | the search box | Move down the hits (it wraps) and open one. |
-| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> <kbd>Escape</kbd> | the [waiting](/ushabti/guides/board/#the-top-bar) list | Move down the questions (it wraps), open one with the cursor in the answer box, or put the list away. <kbd>Tab</kbd> reaches **N waiting**, and <kbd>Enter</kbd> opens it. |
-| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> <kbd>Escape</kbd> | the project name | <kbd>Enter</kbd> or <kbd>↓</kbd> opens the [switcher](/ushabti/guides/board/#the-top-bar); the arrows walk it (it wraps), <kbd>Enter</kbd> opens the project, <kbd>Escape</kbd> closes it and the focus goes back to the name. |
-| <kbd>Escape</kbd> | the board, a list | Puts away **one** thing, nearest first: an open panel, then the task, then the question **Archive** is asking, then every [selected](/ushabti/guides/board/#selecting-several-cards) card. Only when you are not typing in a field. |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> <kbd>Escape</kbd> | the [waiting](/guides/board/#the-top-bar) list | Move down the questions (it wraps), open one with the cursor in the answer box, or put the list away. <kbd>Tab</kbd> reaches **N waiting**, and <kbd>Enter</kbd> opens it. |
+| <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> <kbd>Escape</kbd> | the project name | <kbd>Enter</kbd> or <kbd>↓</kbd> opens the [switcher](/guides/board/#the-top-bar); the arrows walk it (it wraps), <kbd>Enter</kbd> opens the project, <kbd>Escape</kbd> closes it and the focus goes back to the name. |
+| <kbd>Escape</kbd> | the board, a list | Puts away **one** thing, nearest first: an open panel, then the task, then the question **Archive** is asking, then every [selected](/guides/board/#selecting-several-cards) card. Only when you are not typing in a field. |
 | <kbd>Enter</kbd> | a title | Saves and leaves the field. |
 | <kbd>Escape</kbd> | any field | Reverts it. |
 | <kbd>⌘</kbd><kbd>Enter</kbd> or <kbd>Ctrl</kbd><kbd>Enter</kbd> | description, comment | Saves or sends. The hint under the box names the key your machine has: ⌘ on a Mac, Ctrl everywhere else. Both keys work on both. |
@@ -134,7 +134,7 @@ every field on every page, which is worth more than a shortcut for each.
 
 <LinkCard
   title="Filters"
-  href="/ushabti/guides/filters/"
+  href="/guides/filters/"
   description="Every rule has to pass, and “is not” keeps the tasks that hold nothing."
 />
 

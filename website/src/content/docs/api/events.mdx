@@ -61,7 +61,7 @@ happened.
 
 A listener refetches:
 
-- `scope: "board"` → refetch [the board](/ushabti/api/board/)
+- `scope: "board"` → refetch [the board](/api/board/)
 - `scope: "task"` with a `taskId` → refetch that task
 - `scope: "project"` → the project's own settings changed
 
@@ -108,7 +108,7 @@ the same database stay in step** with no message broker and nothing to run.
 
 <Aside type="caution" title="Each open stream holds a database connection">
 One `LISTEN` connection per open board, outside the pool. It matters when you point Ushabti at a
-small managed cluster — see [`DATABASE_POOL_MAX`](/ushabti/start/configuration/#database_pool_max).
+small managed cluster — see [`DATABASE_POOL_MAX`](/start/configuration/#database_pool_max).
 </Aside>
 
 ## Which routes broadcast what

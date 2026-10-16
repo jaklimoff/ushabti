@@ -2,14 +2,14 @@
 //
 // The trap this catches: Starlight prefixes the base path onto sidebar links
 // by itself, but NOT onto the hero actions in a page's front matter, and not
-// onto a plain markdown link. Those have to carry `/ushabti/` themselves, and
-// a checker that only looks at links which already have it will never notice.
+// onto a plain markdown link. Those have to carry the base themselves, and a
+// checker that only looks at links which already have it will never notice.
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const base = (process.env.SITE_BASE ?? "/ushabti").replace(/\/$/, "");
+const base = (process.env.SITE_BASE ?? "/").replace(/\/$/, "");
 
 async function walk(dir) {
   const out = [];

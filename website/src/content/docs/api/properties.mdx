@@ -46,7 +46,7 @@ All optional and applied independently.
 
 - `showOnCard` writes the project's **card view**, not the property: `false` puts the property in
   `off`, `true` puts it back where its type belongs. See
-  [`PATCH /api/projects/{projectId}/card-view`](/ushabti/api/projects/#patch-apiprojectsprojectidcard-view)
+  [`PATCH /api/projects/{projectId}/card-view`](/api/projects/#patch-apiprojectsprojectidcard-view)
   for the long form.
 - `dated` says whether the options of a select carry a start, a target and a note. It is kept in
   `config.dated`, and is off until somebody turns it on. Only the owner or an admin writes it, and
@@ -59,7 +59,7 @@ All optional and applied independently.
   person, a date, a link or a sprint. Only the owner or an admin writes it. A value that would
   not read back, a key that is not a type, or a property that cannot carry one gets `400`. It is
   read afresh into `config.defaults`: a deleted type or value, or a project with no Type, reads as
-  no default. Every [create](/ushabti/api/tasks/#post-apiprojectsprojectidtasks) writes it.
+  no default. Every [create](/api/tasks/#post-apiprojectsprojectidtasks) writes it.
 - `afterId` moves it. **`null` means the front**, and so does an id that names nothing. It is the
   presence of the key that triggers the move, not its value.
 
@@ -169,7 +169,7 @@ Deletes the option and scrubs it out of every value: a single-select holding it 
 multi-select drops it from its list.
 
 **Saved filter rules are not touched.** They do not need to be — a rule naming a dead option is
-discarded every time the view is read. See [Filters](/ushabti/guides/filters/).
+discarded every time the view is read. See [Filters](/guides/filters/).
 
 ---
 
@@ -351,7 +351,7 @@ and never as an id, so one shared view means each viewer. Read it as your own id
 dropped on the read.
 
 The semantics — every rule must pass, `is_not` keeps the empties, values within a rule are an "or" —
-are explained in [the filters guide](/ushabti/guides/filters/).
+are explained in [the filters guide](/guides/filters/).
 
 ### What survives a read
 
