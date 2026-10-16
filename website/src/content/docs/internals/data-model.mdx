@@ -100,7 +100,7 @@ partial index — `(project_id, position) where archived_at is null` — keeps t
 makes off the archived rows however many pile up.
 
 It is the one soft delete in the schema, and it is not a delete: **delete still deletes**, with the
-cascades above. See [Archived, and put back](/ushabti/guides/task-panel/#archived-and-put-back).
+cascades above. See [Archived, and put back](/guides/task-panel/#archived-and-put-back).
 </Aside>
 
 <Aside type="note" title="What is deliberately absent">
@@ -111,6 +111,6 @@ and a copy of the bucket, and a task deleted more than 30 days ago lives only in
 
 <LinkCard
   title="Fractional ranks"
-  href="/ushabti/internals/ranks/"
+  href="/internals/ranks/"
   description="Why every ordered thing carries a string, and the collation trap that comes with it."
 />

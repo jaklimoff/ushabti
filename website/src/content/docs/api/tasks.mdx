@@ -31,7 +31,7 @@ values.
 | --- | --- |
 | `title` | required, ≤ 400 characters |
 | `description` | optional, ≤ 20000 characters |
-| `values` | optional, `{ propertyId: value }` — see [value shapes](/ushabti/api/properties/#value-shapes-by-type) |
+| `values` | optional, `{ propertyId: value }` — see [value shapes](/api/properties/#value-shapes-by-type) |
 | `afterId` | optional — place it straight after this task |
 | `atTop` | optional — only read when `afterId` is absent |
 
@@ -40,7 +40,7 @@ Neither placement field means the end of the board.
 **A create gets the type's defaults.** When the project has a Type, the server reads the type from
 `values` and writes what that type starts with — each property's `config.defaults` — for every
 property the request did not send and that the type shows. A value sent explicitly, `null`
-included, always wins. See [`defaults`](/ushabti/api/properties/#patch-apipropertiespropertyid).
+included, always wins. See [`defaults`](/api/properties/#patch-apipropertiespropertyid).
 
 ```json title="201"
 { "task": { "id": "…", "number": 14, "key": "USH-14", "title": "…", "description": "",
@@ -112,7 +112,7 @@ The task in full — everything the panel shows.
 A row of `pastRuns` is a run without its plan and its log, and without the three fields those would
 have to be read for: `stepsTotal`, `stepsDone` and `lastLog` are on an open run and **not** on a
 history row. It says who ran this, when, and how it ended. Ask
-[`GET /api/runs/{runId}`](/ushabti/api/runs/#get-apirunsrunid) for one of those in full; it answers
+[`GET /api/runs/{runId}`](/api/runs/#get-apirunsrunid) for one of those in full; it answers
 for a closed run exactly as it does for an open one, counts and plan and log and all.
 
 `activity.kind` is one of `created`, `title`, `description`, `value`, `checklist`, `comment`, `run`,
@@ -121,7 +121,7 @@ those are about the project and never reach a task. A `comment` entry carries `d
 `data.action: "edited"` when the words of a comment changed rather than a new one arrived, or
 `data.action: "deleted"` with `data.authorId` and `data.byProject` when somebody took it down. An `archive` entry carries `data.action`, which is `archived`
 or `restored`, and so does a `deleted` one — see
-[the activity feed](/ushabti/api/projects/#the-deleted-line). An `import` entry says the task came
+[the activity feed](/api/projects/#the-deleted-line). An `import` entry says the task came
 in from Trello and names the card it came from in `data.sourceId`; the webhook behind it rings once
 for the whole import, off the line about the project. An `attachment` entry carries `data.action`,
 `added` or `removed`, with `data.attachmentId` and `data.name`.
@@ -353,7 +353,7 @@ else is on it.
 | `400` | `Name the tasks, or the property the columns come from.` |
 | `400` | `Name the tasks as a list of ids.` — not a list, or something in it that is not a UUID |
 | `400` | `Name at least one task.` · `That is more than 200 tasks at once. Name fewer.` |
-| `400` | `That is not a property id.` — see [ids](/ushabti/api/#ids) |
+| `400` | `That is not a property id.` — see [ids](/api/#ids) |
 | `400` | `That property is not in this project.` |
 | `400` | `One of those tasks is not on this board.` |
 
@@ -429,11 +429,11 @@ deduplicated, `"42"` becomes the number `42`, and text is truncated at 2000 char
 multi-select.
 
 The accepted shape depends on the property's type —
-see [value shapes](/ushabti/api/properties/#value-shapes-by-type).
+see [value shapes](/api/properties/#value-shapes-by-type).
 
 | Status | Message |
 | --- | --- |
-| `400` | `That is not a task id.` · `That is not a property id.` — see [ids](/ushabti/api/#ids) |
+| `400` | `That is not a task id.` · `That is not a property id.` — see [ids](/api/#ids) |
 | `400` | `That property is not in this project.` |
 | `400` | `Priority needs one option.` · `One of the options does not exist any more.` · `Due needs a date like 2026-08-21.` |
 

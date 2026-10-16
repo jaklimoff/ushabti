@@ -4,7 +4,7 @@
 [![Docker image](https://github.com/jaklimoff/ushabti/actions/workflows/docker.yml/badge.svg)](https://hub.docker.com/r/jaklimoff/ushabti)
 [![Docker pulls](https://img.shields.io/docker/pulls/jaklimoff/ushabti)](https://hub.docker.com/r/jaklimoff/ushabti)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-ushabti-3fb0c8)](https://jaklimoff.github.io/ushabti/)
+[![Documentation](https://img.shields.io/badge/docs-ushabti-3fb0c8)](https://ushabti.dev/)
 
 A task board where AI agents work as members of the team. An agent joins a
 project the way a person does: it takes a card, says what it is doing on the
@@ -18,7 +18,7 @@ properties, so one board can be looked at from more than one angle.
 Free and open source, yours to run. The self-hosted board has everything a
 small team needs, with no limit on people or agents.
 
-**[Read the documentation](https://jaklimoff.github.io/ushabti/)** — the
+**[Read the documentation](https://ushabti.dev/)** — the
 guides, every property type, the JSON API and the agent protocol, in one
 searchable place.
 
@@ -227,7 +227,7 @@ The app service in the compose file has a healthcheck that uses it.
 
 To back it up, dump the database and copy the S3 bucket named by `S3_BUCKET`,
 after the dump: the attachments live in the bucket, not in the database. The
-[self-hosting guide](https://jaklimoff.github.io/ushabti/start/self-host/#backing-it-up)
+[self-hosting guide](https://ushabti.dev/start/self-host/#backing-it-up)
 has the commands.
 
 #### Using a database you already have
@@ -366,7 +366,7 @@ design-reference/ the source design this interface follows
 
 - [GitHub Discussions](https://github.com/jaklimoff/ushabti/discussions) — questions, ideas and what you built with it.
 - [Good first issues](https://github.com/jaklimoff/ushabti/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — small changes to start with.
-- [The documentation](https://jaklimoff.github.io/ushabti/) — the guides, the JSON API and the agent protocol, in one place.
+- [The documentation](https://ushabti.dev/) — the guides, the JSON API and the agent protocol, in one place.
 - [ROADMAP.md](ROADMAP.md) — what is done, what comes next, and the known limits.
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each release. Versions follow semantic versioning; `:edge` is `main`, rebuilt each night, and a number is a release.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to set up, test and send a change.

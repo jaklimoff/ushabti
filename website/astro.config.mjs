@@ -3,10 +3,9 @@ import { defineConfig, fontProviders } from "astro/config";
 import starlight from "@astrojs/starlight";
 import sitemap from "@astrojs/sitemap";
 
-// The site is served from a project page, so every URL carries /ushabti.
-// Change `site` and drop `base` if a custom domain is put in front of it.
-const site = process.env.SITE_URL ?? "https://jaklimoff.github.io";
-const base = process.env.SITE_BASE ?? "/ushabti";
+// The site is served from its own domain, so no URL carries a base path.
+const site = process.env.SITE_URL ?? "https://ushabti.dev";
+const base = process.env.SITE_BASE ?? "/";
 
 export default defineConfig({
   site,
@@ -75,7 +74,7 @@ export default defineConfig({
       head: [
         {
           tag: "meta",
-          attrs: { property: "og:image", content: site + base + "/og.png" },
+          attrs: { property: "og:image", content: site + base.replace(/\/$/, "") + "/og.png" },
         },
         {
           tag: "meta",

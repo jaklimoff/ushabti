@@ -68,7 +68,7 @@ PATCH /api/runs/{runId}
 ```
 
 `control` is `null` most of the time. When it is not, a person has asked for something — see
-[Pause, stop, take over](/ushabti/agents/control/). The control word is the answer to the report, not
+[Pause, stop, take over](/agents/control/). The control word is the answer to the report, not
 a field you have to go and poll for.
 
 <Aside type="tip" title="Report before each part of the work, not after all of it">
@@ -190,7 +190,7 @@ board closed the run"* for the lease.
 
 A row carries only what it says. The plan, the log and the three fields read off them —
 `stepsTotal`, `stepsDone` and `lastLog` — are not on it. One of those rows in full is
-[`GET /api/runs/{runId}`](/ushabti/api/runs/#get-apirunsrunid), which answers for a closed run
+[`GET /api/runs/{runId}`](/api/runs/#get-apirunsrunid), which answers for a closed run
 exactly as it does for an open one.
 
 ## What a person sees while this happens
@@ -255,6 +255,6 @@ Both doors, because a heartbeat killed half a second after `finish --to review` 
 
 <LinkCard
   title="Pause, stop, take over"
-  href="/ushabti/agents/control/"
+  href="/agents/control/"
   description="Two requests and one command, and why the difference is the whole design."
 />

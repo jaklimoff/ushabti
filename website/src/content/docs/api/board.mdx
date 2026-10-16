@@ -105,7 +105,7 @@ Note it is **not** wrapped in a `board` key.
 <Aside type="note" title="`valueCounts` is gone">
 The answer used to carry a count of the values held for each property. Only the question before a
 property is deleted read it, so it now has a call of its own:
-[`GET /api/properties/{propertyId}/count`](/ushabti/api/properties/#get-apipropertiespropertyidcount).
+[`GET /api/properties/{propertyId}/count`](/api/properties/#get-apipropertiespropertyidcount).
 No board read pays for it any more.
 </Aside>
 
@@ -124,7 +124,7 @@ order is just the global order, filtered.
 A property with no value written has **no key at all**. Treat a missing key and a `null` the same.
 
 The shape of each value depends on the property's type — see
-[Properties and views](/ushabti/api/properties/#value-shapes-by-type).
+[Properties and views](/api/properties/#value-shapes-by-type).
 
 ### 3. Sort ranks by bytes, never by locale
 
@@ -133,7 +133,7 @@ JavaScript's plain `<` on strings is correct. `localeCompare` and `Intl.Collator
 fold case, and these ranks depend on `"Z" < "a"`.
 
 The same trap exists on the server, which is why every ordering query asks for `COLLATE "C"`. See
-[Fractional ranks](/ushabti/internals/ranks/).
+[Fractional ranks](/internals/ranks/).
 
 ### 4. The filters you get back are not always the filters that were saved
 
@@ -144,7 +144,7 @@ a view yourself, and for `sort` and `lensSort`: an order naming a column that is
 
 ### 5. `tasks` is live, and `archived` is lighter
 
-An [archived task](/ushabti/guides/task-panel/#archived-and-put-back) is on no board and in no list,
+An [archived task](/guides/task-panel/#archived-and-put-back) is on no board and in no list,
 so it is never in `tasks` — the two lists never overlap. It is in `archived` because the browser's
 search reads every task in the project and a link to one still opens its panel.
 
@@ -156,7 +156,7 @@ Draw `tasks`; treat `archived` as the answer to "does this key still exist?".
 
 ### 6. Reading the board can close a run
 
-The [lease sweep](/ushabti/agents/runs/#the-lease) runs on this path. A `GET` may close any run whose
+The [lease sweep](/agents/runs/#the-lease) runs on this path. A `GET` may close any run whose
 agent has not reported for thirty minutes, and broadcast that it did. That is not a side effect to
 work around; it is how the lease is enforced without a scheduler.
 
@@ -171,7 +171,7 @@ For the checklist, the comments, the activity and the full run, ask for the task
 
 <LinkCard
   title="GET /api/tasks/{taskId}"
-  href="/ushabti/api/tasks/#get-apitaskstaskid"
+  href="/api/tasks/#get-apitaskstaskid"
   description="The task DTO plus checklist, comments, the last 60 activity entries and the open run with its plan and log."
 />
 

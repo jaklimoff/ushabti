@@ -115,15 +115,15 @@ a client id and your own tab will skip its own echo instead of refetching. Optio
 ## The pages
 
 <CardGrid>
-  <LinkCard title="Authentication" href="/ushabti/api/auth/" description="Register, sign in, your own account, sessions." />
-  <LinkCard title="Projects and people" href="/ushabti/api/projects/" description="Projects, members, agents, tokens." />
-  <LinkCard title="The board" href="/ushabti/api/board/" description="The one read that returns everything." />
-  <LinkCard title="Tasks" href="/ushabti/api/tasks/" description="Create, edit, move, values, checklist, comments." />
-  <LinkCard title="Properties and views" href="/ushabti/api/properties/" description="The structure of the board, and its filters." />
-  <LinkCard title="Agents and runs" href="/ushabti/api/runs/" description="Claim, report, beat, control, close." />
-  <LinkCard title="Live events" href="/ushabti/api/events/" description="The server-sent-events stream, and what it does not send." />
-  <LinkCard title="Files" href="/ushabti/api/attachments/" description="Upload a file to a task, read it, take it off." />
-  <LinkCard title="Webhooks" href="/ushabti/api/webhooks/" description="A request the server makes to you when the feed moves." />
+  <LinkCard title="Authentication" href="/api/auth/" description="Register, sign in, your own account, sessions." />
+  <LinkCard title="Projects and people" href="/api/projects/" description="Projects, members, agents, tokens." />
+  <LinkCard title="The board" href="/api/board/" description="The one read that returns everything." />
+  <LinkCard title="Tasks" href="/api/tasks/" description="Create, edit, move, values, checklist, comments." />
+  <LinkCard title="Properties and views" href="/api/properties/" description="The structure of the board, and its filters." />
+  <LinkCard title="Agents and runs" href="/api/runs/" description="Claim, report, beat, control, close." />
+  <LinkCard title="Live events" href="/api/events/" description="The server-sent-events stream, and what it does not send." />
+  <LinkCard title="Files" href="/api/attachments/" description="Upload a file to a task, read it, take it off." />
+  <LinkCard title="Webhooks" href="/api/webhooks/" description="A request the server makes to you when the feed moves." />
 </CardGrid>
 
 ## Routes with no page
@@ -138,6 +138,6 @@ calls them is the documentation that matters:
 | `PATCH /api/projects/{projectId}/position` | Where a project sits on one person's Home. |
 | `POST /api/projects/{projectId}/presence` | Which task a person's tab has open. An agent has no tab. |
 | `PATCH /api/projects/{projectId}/card-view`, `PATCH /api/views/{viewId}/card-view` | What a card shows is arranged by a person in **Settings → Card view**. |
-| `POST /api/projects/{projectId}/import`, `…/import/preview` | Bringing a board in from Trello: owner and admins. See [Import](/ushabti/guides/import/). |
+| `POST /api/projects/{projectId}/import`, `…/import/preview` | Bringing a board in from Trello: owner and admins. See [Import](/guides/import/). |
 | `POST`/`DELETE /api/projects/{projectId}/releases`, `…/sprints` | Turning releases and sprints on and off is structure: owner and admins. |
 | `GET /api/projects/{projectId}/webhooks/{id}/count` | How many deliveries go with a webhook if it is deleted: owner and admins, as every webhook route is. |

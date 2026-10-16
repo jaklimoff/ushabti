@@ -8,7 +8,7 @@ sidebar:
 import { Aside, Badge, LinkCard } from '@astrojs/starlight/components'
 
 For the ideas behind these routes — the heartbeat, the lease, and why Pause is a request — read
-[the run protocol](/ushabti/agents/runs/). This page is the reference.
+[the run protocol](/agents/runs/). This page is the reference.
 
 ---
 
@@ -134,7 +134,7 @@ Reads a run back. **Not agent-only** — a person's session works too, which is 
 
 This is the route a paused agent polls while it waits for `resume`. It is also how one run of a
 task's history is read whole: a closed run answers here exactly as an open one does, and
-[`GET /api/tasks/{taskId}`](/ushabti/api/tasks/#get-apitaskstaskid) lists the closed ones in
+[`GET /api/tasks/{taskId}`](/api/tasks/#get-apitaskstaskid) lists the closed ones in
 `pastRuns`. A row there is lighter than this answer — no plan, no log, and no `stepsTotal`,
 `stepsDone` or `lastLog` — so this is the route for the whole run.
 
@@ -212,6 +212,6 @@ fix.
 
 <LinkCard
   title="Pause, stop, take over"
-  href="/ushabti/agents/control/"
+  href="/agents/control/"
   description="What each one really does, and how an agent should answer."
 />
