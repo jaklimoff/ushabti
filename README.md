@@ -197,10 +197,11 @@ echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-This pulls [`jaklimoff/ushabti:edge`](https://hub.docker.com/r/jaklimoff/ushabti),
-applies the migrations and serves the app on `127.0.0.1:3000`. Add `--build` to
-build the image here instead, or pin a released tag in `.env`, such as
-`USHABTI_VERSION=0.25.0` or later.
+This pulls [`jaklimoff/ushabti:latest`](https://hub.docker.com/r/jaklimoff/ushabti),
+the newest release, applies the migrations and serves the app on
+`127.0.0.1:3000`. Add `--build` to build the image here instead, or pin a
+release in `.env`, such as `USHABTI_VERSION=0.26.0`, so that a `pull` moves you
+only when you say so.
 
 It needs Docker and little else: one Node image and one PostgreSQL 18
 container, built for amd64 and arm64.

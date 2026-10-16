@@ -76,7 +76,7 @@ receiver is on their own machine. `docker-compose.prod.yml` deliberately does no
 
 | Variable                  | Default              | What it does                                                          |
 | ------------------------- | -------------------- | --------------------------------------------------------------------- |
-| `USHABTI_VERSION`         | `edge`               | The image tag `docker-compose.prod.yml` pulls. Pin a release here.     |
+| `USHABTI_VERSION`         | `latest`             | The image tag `docker-compose.prod.yml` pulls. Pin a release here.     |
 | `NODE_ENV`                | set by the image     | `production` marks the session cookie `secure`, so plain HTTP breaks sign-in. |
 | `PORT` / `HOSTNAME`       | `3000` / `0.0.0.0`   | Baked into the production image.                                       |
 | `NEXT_TELEMETRY_DISABLED` | `1` in both images   | Next.js telemetry is off.                                              |

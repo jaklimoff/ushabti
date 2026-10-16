@@ -20,10 +20,10 @@ services:
       retries: 20
 
   app:
-    # Pulls the published image from Docker Hub. The same image is on
+    # Pulls the newest release from Docker Hub. The same image is on
     # ghcr.io/jaklimoff/ushabti. Add --build to the command to build it here
     # from the source in this directory instead.
-    image: jaklimoff/ushabti:${USHABTI_VERSION:-edge}
+    image: jaklimoff/ushabti:${USHABTI_VERSION:-latest}
     build:
       context: .
       dockerfile: Dockerfile

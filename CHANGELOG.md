@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **The production compose file pulls the newest release.** `docker-compose.prod.yml` used to
+  pull `:edge`, which is `main` rebuilt each night. It now pulls `:latest` unless
+  `USHABTI_VERSION` names another tag. A server that wants the nightly build sets
+  `USHABTI_VERSION=edge`.
+
 ### Fixed
 
 - **The example agent says it is running again after Resume.** `examples/agent.mjs` used to work on
