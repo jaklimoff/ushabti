@@ -4,7 +4,12 @@ import type { AnchorHTMLAttributes } from "react";
 export default function Link({
   href,
   prefetch: _prefetch,
+  scroll: _scroll,
   ...rest
-}: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string; prefetch?: boolean }) {
+}: AnchorHTMLAttributes<HTMLAnchorElement> & {
+  href: string;
+  prefetch?: boolean;
+  scroll?: boolean;
+}) {
   return <a href={href} {...rest} />;
 }

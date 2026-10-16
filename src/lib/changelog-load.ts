@@ -3,7 +3,14 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { readShipped, shippedTasks } from "./changelog-read";
-import { buildChangelog, publicChangelog, type Changelog, type PublicChangelog } from "./changelog";
+import {
+  buildChangelog,
+  newestShipped,
+  publicChangelog,
+  type Changelog,
+  type PublicChangelog,
+} from "./changelog";
+import { changelogShelf } from "./changelog-shelf";
 import { loadProperties } from "./queries";
 import { readReleaseBy } from "./releases";
 
@@ -14,8 +21,14 @@ import { readReleaseBy } from "./releases";
  *
  * With releases off there is no changelog, and both pages answer not found.
  * Off clears only the pointer, so on again brings the same entries back.
+ *
+ * `shown` is how many of the newest releases to read; a page passes it, and
+ * the route, which an agent reads release notes from, does not.
  */
-export async function loadChangelog(projectId: string): Promise<Changelog | null> {
+export async function loadChangelog(
+  projectId: string,
+  shown = Infinity,
+): Promise<Changelog | null> {
   const [project] = await db
     .select({
       id: projects.id,
@@ -27,21 +40,30 @@ export async function loadChangelog(projectId: string): Promise<Changelog | null
     .where(eq(projects.id, projectId));
   if (!project) return null;
 
-  const [props, shippedRows] = await Promise.all([
-    loadProperties(projectId),
-    readShipped(db, projectId),
-  ]);
+  const props = await loadProperties(projectId);
   const { releaseBy, ...named } = project;
   if (!readReleaseBy(releaseBy, props)) return null;
-  return buildChangelog({ project: named, properties: props, tasks: shippedTasks(shippedRows) });
+  const { properties, older } = newestShipped(props, shown);
+  const optionIds = Number.isFinite(shown)
+    ? properties.flatMap((p) => p.options.map((o) => o.id))
+    : undefined;
+  const rows = await readShipped(db, projectId, optionIds);
+  return buildChangelog({ project: named, properties, tasks: shippedTasks(rows) }, older);
 }
 
 /**
  * The public changelog at `/changelog/{slug}`. It answers only for the one
  * project with that key that turned it on; anything else is not found, so a
  * stranger cannot tell a private project from no project.
+ *
+ * Which project that is gets asked on every visit, so turning the page off
+ * or changing the key is at once. What the page draws is kept between
+ * visits; see `changelog-shelf.ts`.
  */
-export async function loadPublicChangelog(slug: string): Promise<PublicChangelog | null> {
+export async function loadPublicChangelog(
+  slug: string,
+  shown = Infinity,
+): Promise<PublicChangelog | null> {
   const [project] = await db
     .select({ id: projects.id })
     .from(projects)
@@ -49,6 +71,8 @@ export async function loadPublicChangelog(slug: string): Promise<PublicChangelog
       and(sql`lower(${projects.key}) = ${slug.toLowerCase()}`, eq(projects.publicChangelog, true)),
     );
   if (!project) return null;
-  const log = await loadChangelog(project.id);
-  return log ? publicChangelog(log) : null;
+  return changelogShelf<PublicChangelog | null>().get(project.id, shown, async () => {
+    const log = await loadChangelog(project.id, shown);
+    return log ? publicChangelog(log) : null;
+  });
 }

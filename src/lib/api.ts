@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 import zlib from "node:zlib";
 import { NextResponse } from "next/server";
 import { HttpError, requireActor, requireMembership, requireUser } from "./auth";
+import { forgetChangelog } from "./changelog-shelf";
 import { publish, type BoardEvent } from "./events";
 import { isId, notAnId } from "./ids";
 import { canManage, isOwner, outranks, roleChangeRefusal } from "./roles";
@@ -216,5 +217,7 @@ export function clientIdOf(req: Request): string | undefined {
 }
 
 export async function broadcast(event: BoardEvent) {
+  // Every write goes out here, so the kept public changelog is forgotten here.
+  forgetChangelog(event.projectId);
   await publish(event);
 }

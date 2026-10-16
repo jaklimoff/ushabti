@@ -14,6 +14,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   pull `:edge`, which is `main` rebuilt each night. It now pulls `:latest` unless
   `USHABTI_VERSION` names another tag. A server that wants the nightly build sets
   `USHABTI_VERSION=edge`.
+- **A changelog opens on the newest ten releases.** **Older** at the bottom adds the next ten
+  below, where you are reading, on the members' page and on the public one. Only the releases
+  on the page are read. The public page is kept between visits and read again after the project
+  changes, so a ship shows on the next visit.
 
 ### Fixed
 

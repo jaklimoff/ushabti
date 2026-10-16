@@ -33,6 +33,8 @@ export type ChangelogEntry = {
 export type Changelog = {
   project: { id: string; name: string; key: string };
   entries: ChangelogEntry[];
+  /** How many shipped options are older than the last entry here. */
+  older: number;
 };
 
 /**
@@ -48,6 +50,7 @@ export type PublicChangelog = {
     note: string | null;
     tasks: { title: string }[];
   }[];
+  older: number;
 };
 
 export type ChangelogInput = {
@@ -79,33 +82,81 @@ export function isRelease(type: string): boolean {
   return isSelect(type) && type !== "iteration";
 }
 
-export function buildChangelog(input: ChangelogInput): Changelog {
-  const tasks = sortByPosition(input.tasks);
-  const entries: ChangelogEntry[] = [];
-  for (const prop of input.properties) {
+type Property = ChangelogInput["properties"][number];
+type Option = Property["options"][number];
+
+/**
+ * Every shipped option, newest first: the one order of the changelog, so the
+ * options a page draws and the entries it builds can never disagree.
+ */
+function shippedOptions(
+  properties: Property[],
+): { prop: Property; option: Option; shippedAt: string }[] {
+  const found: { prop: Property; option: Option; shippedAt: string }[] = [];
+  for (const prop of properties) {
     /* Only a select option carries a ship. A multi-select has none, an
        option dated by some older write on another type is not a release,
        and a closed sprint is not one either. */
     if (!isRelease(prop.type)) continue;
     for (const option of prop.options) {
-      if (!option.shippedAt) continue;
-      entries.push({
-        optionId: option.id,
-        propertyId: prop.id,
-        propertyName: prop.name,
-        name: option.name,
-        shippedAt: option.shippedAt,
-        note: option.note?.trim() ? option.note : null,
-        tasks: tasks
-          .filter((t) => t.values[prop.id] === option.id)
-          .map((t) => ({ id: t.id, key: `${input.project.key}-${t.number}`, title: t.title })),
-      });
+      if (option.shippedAt) found.push({ prop, option, shippedAt: option.shippedAt });
     }
   }
   /* Newest first. Two options shipped on one day keep the order of the
      Settings drag, which the sort leaves alone because it is stable. */
-  entries.sort((a, b) => (a.shippedAt < b.shippedAt ? 1 : a.shippedAt > b.shippedAt ? -1 : 0));
-  return { project: input.project, entries };
+  return found.sort((a, b) => (a.shippedAt < b.shippedAt ? 1 : a.shippedAt > b.shippedAt ? -1 : 0));
+}
+
+/** How many releases a changelog page opens on, and how many **Older** adds. */
+export const CHANGELOG_PAGE = 10;
+
+/**
+ * How many entries a page draws, from `?shown=` in its address. Anything
+ * that is not a whole number of pages is read as the first page, so an
+ * address somebody typed cannot ask for one entry or for all of them.
+ */
+export function readShown(raw: unknown): number {
+  const n = typeof raw === "string" && /^\d{1,6}$/.test(raw) ? Number(raw) : 0;
+  return n >= CHANGELOG_PAGE && n % CHANGELOG_PAGE === 0 ? n : CHANGELOG_PAGE;
+}
+
+/**
+ * The properties with only the newest `shown` shipped options left on them,
+ * and how many shipped options were left off. The loader reads the tasks of
+ * what is left and no others, so a page of ten releases never reads a
+ * hundred.
+ */
+export function newestShipped(
+  properties: Property[],
+  shown: number,
+): { properties: Property[]; older: number } {
+  const all = shippedOptions(properties);
+  const kept = new Set(all.slice(0, shown).map((s) => s.option.id));
+  return {
+    properties: properties.map((p) => ({
+      ...p,
+      options: p.options.filter((o) => kept.has(o.id)),
+    })),
+    older: all.length - kept.size,
+  };
+}
+
+export function buildChangelog(input: ChangelogInput, older = 0): Changelog {
+  const tasks = sortByPosition(input.tasks);
+  const entries: ChangelogEntry[] = shippedOptions(input.properties).map(
+    ({ prop, option, shippedAt }) => ({
+      optionId: option.id,
+      propertyId: prop.id,
+      propertyName: prop.name,
+      name: option.name,
+      shippedAt,
+      note: option.note?.trim() ? option.note : null,
+      tasks: tasks
+        .filter((t) => t.values[prop.id] === option.id)
+        .map((t) => ({ id: t.id, key: `${input.project.key}-${t.number}`, title: t.title })),
+    }),
+  );
+  return { project: input.project, entries, older };
 }
 
 export function publicChangelog(log: Changelog): PublicChangelog {
@@ -117,6 +168,7 @@ export function publicChangelog(log: Changelog): PublicChangelog {
       note: e.note,
       tasks: e.tasks.map((t) => ({ title: t.title })),
     })),
+    older: log.older,
   };
 }
 
