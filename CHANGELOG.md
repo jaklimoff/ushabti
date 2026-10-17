@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.27.1 — 2026-10-17
+
 ### Changed
 
 - **Newer dependencies.** Next.js 16.4.0, CodeMirror, Lezer Markdown 1.8.0, marked 18.1.0,
