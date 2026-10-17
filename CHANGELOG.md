@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **Newer dependencies.** Next.js 16.4.0, CodeMirror, Lezer Markdown 1.8.0, marked 18.1.0,
+  DOMPurify 3.4.17, Drizzle 0.45.4, Nodemailer 10.1.0 and the AWS S3 client, with nineteen patch
+  and minor updates in all. Nothing about how the board works changes.
+
 ## 0.27.0 — 2026-10-16
 
 ### Changed
