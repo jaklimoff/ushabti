@@ -24,6 +24,20 @@ not at `http://localhost:3000`, where the production compose serves it. If the
 token is missing, stop and ask for one:
 the owner or an admin issues it in **Settings → People**, with the **Connect** button.
 
+There are two kinds of token, and they do different things:
+
+- An **agent token** (`ush_…`) is an agent on one project. It does everything
+  below, and it is the only token that can hold a run: `claim`, `beat`,
+  `step`, `ask`, `pause`, `finish`, `watch`, and `check --done` inside a run.
+- A **personal token** (`ushp_…`) acts as the person who made it, on every
+  project they are in, with their role in each. It reads, writes and changes
+  settings, but it holds no run: the run commands exit with "A run needs an
+  agent token". A task key names its project by its prefix (`USH-12`,
+  `SET-4`). `list`, `new`, `props`, `release` and `ship` take
+  `--project KEY`, or `USHABTI_PROJECT`, and need neither when the person is
+  in one project. `new` with a personal token makes a person's task, so it
+  wakes the agents watching `--on created`.
+
 ## The loop
 
 ```bash

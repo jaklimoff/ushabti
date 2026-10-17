@@ -15,6 +15,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   `ushp_`, is shown once, and expires after 30 days, 90 days, a year or never. It cannot add
   people, agents, tokens or webhooks, and cannot do the owner's acts. What it does is signed
   with your name and shows "via" the token's name in the feed and under a comment.
+- **`board.mjs` takes a personal token.** It works on every project of the token's person: a
+  task key names its project, and `list`, `new` and `props` take `--project KEY` or
+  `USHABTI_PROJECT`. The run commands say at once that a run needs an agent token.
 
 ## 0.27.1 — 2026-10-17
 

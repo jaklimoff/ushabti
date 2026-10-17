@@ -5,6 +5,9 @@
  *
  *   USHABTI_TOKEN=ush_…  node board.mjs <command> [options]
  *
+ * An agent token (ush_) opens one project. A personal token (ushp_) acts as
+ * its person on every project they are in, and cannot hold a run.
+ *
  * `node board.mjs help` prints the list.
  */
 
@@ -185,10 +188,62 @@ let cache = null;
 
 async function board() {
   if (cache) return cache;
-  const me = await call("GET", "/api/agent/me");
+  const me = PERSONAL ? await personalMe() : await call("GET", "/api/agent/me");
   const data = await call("GET", `/api/projects/${me.project.id}/board`);
   cache = { me, ...data };
   return cache;
+}
+
+/* The prefix is the agent token's too, so the token says what it is. */
+const PERSONAL = TOKEN?.startsWith("ushp_") ?? false;
+
+/* The commands about a project rather than a task. */
+const PROJECT_COMMANDS = new Set(["me", "props", "list", "new", "release", "ship"]);
+
+/* The run routes are an agent's. A personal token would get a 403 from the
+   first of them, after the board was already read. */
+const RUN_COMMANDS = new Set(["claim", "step", "beat", "pause", "ask", "finish", "watch"]);
+
+function needsAgentToken() {
+  if (!PERSONAL) return false;
+  if (RUN_COMMANDS.has(command)) return true;
+  /* A tick from inside a run is the run's report. Outside one it is a
+     person ticking their own checklist. */
+  const ticks =
+    (command === "check" && flags.done !== undefined) ||
+    (command === "check-set" && positional[2] === "true");
+  return ticks && Boolean(process.env.USHABTI_RUN);
+}
+
+/**
+ * Who a personal token is, in the shape `/api/agent/me` answers, with the one
+ * project this command is about. A task key names its project by its prefix;
+ * anything else asks --project, then USHABTI_PROJECT, then the only project.
+ */
+async function personalMe() {
+  const { user } = await call("GET", "/api/auth/me");
+  const { projects } = await call("GET", "/api/projects");
+  return { agent: { id: user.id, name: user.name }, person: true, project: pickProject(projects) };
+}
+
+function pickProject(projects) {
+  const keys = projects.map((p) => p.key).join(", ");
+  const byKey = (key) => projects.find((p) => p.key.toUpperCase() === key.toUpperCase());
+
+  const prefix = PROJECT_COMMANDS.has(command)
+    ? null
+    : /^([A-Z0-9]+)-\d+$/i.exec(String(positional[0] ?? "").trim())?.[1];
+  if (prefix)
+    return (
+      byKey(prefix) ?? fail(`No project ${prefix.toUpperCase()} of yours. You are in: ${keys}`)
+    );
+
+  const named = [].concat(flags.project ?? process.env.USHABTI_PROJECT ?? []).at(-1);
+  if (named && named !== "true")
+    return byKey(named) ?? fail(`No project ${named.toUpperCase()} of yours. You are in: ${keys}`);
+  if (projects.length === 1) return projects[0];
+  if (!projects.length) fail("This token's person is in no project.");
+  fail(`Name a project with --project KEY or USHABTI_PROJECT. You are in: ${keys}`);
 }
 
 /**
@@ -561,12 +616,19 @@ const commands = {
 A long text can come from a file: --file notes.md, or --file - for stdin.
 
 Every command needs USHABTI_TOKEN. Set USHABTI_URL if the board is not at
-http://localhost:3000, where the production compose serves it.`);
+http://localhost:3000, where the production compose serves it.
+
+An agent token (ush_) opens one project and can hold a run. A personal token
+(ushp_) acts as its person on all their projects: a task key names its
+project, and me, props, list, new, release and ship take --project KEY or
+USHABTI_PROJECT when there is more than one. claim, beat, step, ask, pause,
+finish and watch need an agent token.`);
   },
 
   async me() {
     const data = await board();
-    console.log(`${data.me.agent.name} on ${data.project.name} (${data.project.key}) at ${BASE}`);
+    const who = data.me.person ? `${data.me.agent.name} (personal token)` : data.me.agent.name;
+    console.log(`${who} on ${data.project.name} (${data.project.key}) at ${BASE}`);
     console.log(`${data.tasks.length} tasks, ${data.runs.length} open runs`);
   },
 
@@ -1895,4 +1957,5 @@ commands.watch = async function watch() {
 
 const run = commands[command];
 if (!run) fail(`No command "${command}". Try: node board.mjs help`);
+if (needsAgentToken()) fail("A run needs an agent token. Make one in Settings → People.");
 await run();
