@@ -198,7 +198,7 @@ async function board() {
 const PERSONAL = TOKEN?.startsWith("ushp_") ?? false;
 
 /* The commands about a project rather than a task. */
-const PROJECT_COMMANDS = new Set(["me", "props", "list", "new", "release", "ship"]);
+const PROJECT_COMMANDS = new Set(["me", "props", "prop", "list", "new", "release", "ship"]);
 
 /* The run routes are an agent's. A personal token would get a 403 from the
    first of them, after the board was already read. */
@@ -557,6 +557,9 @@ const commands = {
 
   me                                  who am I, which board
   props                               every property and its options, with their dates
+  prop add "<name>" <type> [--option "<name>"]...
+                                      add a property, only when the flow needs one.
+                                      Deleting one stays a person admin's.
   list [--held] [--free]              the board, grouped by the main view
   task <key>                          one task in full
   new "<title>" [--set "Name=Value"]  create a task
@@ -620,7 +623,7 @@ http://localhost:3000, where the production compose serves it.
 
 An agent token (ush_) opens one project and can hold a run. A personal token
 (ushp_) acts as its person on all their projects: a task key names its
-project, and me, props, list, new, release and ship take --project KEY or
+project, and me, props, prop, list, new, release and ship take --project KEY or
 USHABTI_PROJECT when there is more than one. claim, beat, step, ask, pause,
 finish and watch need an agent token.`);
   },
@@ -647,6 +650,31 @@ finish and watch need an agent token.`);
       console.log(`${p.name} (${p.type})${options}${when}`);
     }
     console.log(`Members: ${data.members.map(nameOf).join(", ")}`);
+  },
+
+  /**
+   * Adds a property, as a member does in Settings. Deleting one, and its
+   * dates, cadence, conditions and defaults, stay a person admin's.
+   */
+  async prop() {
+    if (positional[0] !== "add") fail('Say what to do: prop add "<name>" <type>');
+    const name = String(positional[1] ?? "").trim();
+    const type = String(positional[2] ?? "").trim();
+    if (!name || !type)
+      fail('Name the property and its type: prop add "Area" select --option "API"');
+    const data = await board();
+    const there = data.properties.find((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (there) fail(`This board already has ${there.name} (${there.type}).`);
+    const options = [].concat(flags.option ?? []).filter((o) => o !== "true");
+    const payload = { name, type };
+    if (options.length) payload.options = options;
+    const { property } = await call(
+      "POST",
+      `/api/projects/${data.me.project.id}/properties`,
+      payload,
+    );
+    const said = property.options.length ? `: ${property.options.map(nameOf).join(" | ")}` : "";
+    console.log(`${property.name} (${property.type}) added${said}`);
   },
 
   async list() {

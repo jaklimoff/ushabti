@@ -3,7 +3,7 @@ import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { properties, propertyOptions } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, humanOnly, json, route, str } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
 import { optionColumns, toOptionDTO, withProjectLock } from "@/lib/queries";
 import { rankAfter, rankSequence } from "@/lib/rank";
 import { hasOptions, PROPERTY_TYPES, type PropertyOptionDTO, type PropertyType } from "@/lib/types";
@@ -14,9 +14,8 @@ type Ctx = { params: Promise<{ projectId: string }> };
 
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
-  const { user } = await guard(projectId);
-  // A property is the shape everybody's board takes, so an agent fills one in and never makes one.
-  humanOnly(user);
+  // No `humanOnly`: an agent is a member, and a member may add a property. Deleting one stays a person admin's.
+  await guard(projectId);
 
   const input = await body<{ name?: string; type?: string; options?: string[] }>(req);
   const name = str(input.name, "Property name", { max: 40 });

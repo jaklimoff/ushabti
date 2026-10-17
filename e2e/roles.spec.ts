@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createProject, gotoSettings, inDatabase, register, unique } from "./helpers";
+import { createProject, gotoSettings, register, unique } from "./helpers";
 
 /** Adds a person with an account from the People page, as the owner does. */
 async function addMember(page: Page, email: string, name: string) {
@@ -12,7 +12,7 @@ async function addMember(page: Page, email: string, name: string) {
    before Make owner is `PeoplePanel.test.tsx`. */
 test.describe("Roles", () => {
   test(
-    "a member adds a property, an option and a type but deletes none; an agent adds no property",
+    "a member adds a property, an option and a type but deletes none; so does an agent",
     { tag: "@smoke" },
     async ({ page, browser }) => {
       const memberContext = await browser.newContext();
@@ -48,22 +48,42 @@ test.describe("Roles", () => {
       ).trim();
       expect(token).toMatch(/^ush_/);
 
-      /* ---- an agent fills properties in and never makes one ------------- */
+      /* ---- an agent adds a property, as a member may ------------------- */
 
-      const refused = await memberPage.request.post(`/api/projects/${projectId}/properties`, {
-        headers: { Authorization: `Bearer ${token}` },
-        data: { name: "Agent made", type: "select", options: ["One"] },
+      const bearer = { Authorization: `Bearer ${token}` };
+      const agentMade = await memberPage.request.post(`/api/projects/${projectId}/properties`, {
+        headers: bearer,
+        data: { name: "Agent made", type: "select", options: ["One", "Two"] },
       });
-      expect(refused.status()).toBe(403);
-      expect((await refused.json()).error).toBe("Only a person can do this.");
-      const written = await inDatabase(async (client) => {
-        const res = await client.query(
-          `select 1 from properties where project_id = $1 and name = 'Agent made'`,
-          [projectId],
-        );
-        return res.rowCount;
-      });
-      expect(written).toBe(0);
+      expect(agentMade.status()).toBe(201);
+      const { property: madeByAgent } = (await agentMade.json()) as {
+        property: { id: string; name: string; options: { id: string; name: string }[] };
+      };
+      expect(madeByAgent.options.map((o) => o.name)).toEqual(["One", "Two"]);
+      const seen = await (
+        await memberPage.request.get(`/api/projects/${projectId}/board`, { headers: bearer })
+      ).json();
+      expect(
+        (seen.properties as { name: string }[]).some((p) => p.name === "Agent made"),
+      ).toBeTruthy();
+
+      /* ---- and deletes nothing, nor changes a property's shape ---------- */
+
+      const asAgent = memberPage.request;
+      const person = "Only a person can do this.";
+      const view = (seen.views as { id: string }[])[0];
+      for (const refused of [
+        asAgent.delete(`/api/properties/${madeByAgent.id}`, { headers: bearer }),
+        asAgent.delete(`/api/options/${madeByAgent.options[0].id}`, { headers: bearer }),
+        asAgent.delete(`/api/views/${view.id}`, { headers: bearer }),
+        ...[{ dated: true }, { cadence: { length: 14 } }, { when: null }, { defaults: {} }].map(
+          (data) => asAgent.patch(`/api/properties/${madeByAgent.id}`, { headers: bearer, data }),
+        ),
+      ]) {
+        const answer = await refused;
+        expect(answer.status()).toBe(403);
+        expect((await answer.json()).error).toBe(person);
+      }
 
       /* ---- a member gets the same add buttons on both pages ------------- */
 

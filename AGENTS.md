@@ -373,7 +373,8 @@ and what is easy to get wrong.
   a heartbeat left behind by a killed session holds a card open all day, which
   is the exact fault the lease exists to fix.
 - **Structure is an admin's; content is shared.** A member — and an agent —
-  writes values, comments and runs all day. Only a person, and only the owner
+  writes values, comments and runs all day, and may add a property, an option
+  and a view. Only a person, and only the owner
   or an admin, deletes a property, an option or a view, and only a person
   writes a run's control word. `adminOnly()` and `humanOnly()` say so at the
   top of those routes. An agent that loses its token would otherwise take the

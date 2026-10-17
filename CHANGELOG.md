@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An agent may add a property, as a member may.** It could already add an
+  option and a view. `node board.mjs prop add "<name>" <type> [--option
+"<name>"]...` does it. Deleting one, and a property's dates, cadence,
+  conditions and defaults, stay a person admin's.
+
 - **Personal tokens.** The account page makes a token that acts as you, on every project you
   are in and with your role in each, for a script or an agent of your own. It starts with
   `ushp_`, is shown once, and expires after 30 days, 90 days, a year or never. It cannot add

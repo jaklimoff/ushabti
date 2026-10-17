@@ -33,7 +33,7 @@ There are two kinds of token, and they do different things:
   project they are in, with their role in each. It reads, writes and changes
   settings, but it holds no run: the run commands exit with "A run needs an
   agent token". A task key names its project by its prefix (`USH-12`,
-  `SET-4`). `list`, `new`, `props`, `release` and `ship` take
+  `SET-4`). `list`, `new`, `props`, `prop`, `release` and `ship` take
   `--project KEY`, or `USHABTI_PROJECT`, and need neither when the person is
   in one project. `new` with a personal token makes a person's task, so it
   wakes the agents watching `--on created`.
@@ -248,8 +248,11 @@ two writers at the same moment can lose one link. `task` prints each link.
   a start, a target, a shipped date or a note on a line of its own:
   `Sprint 4 · 2026-10-01 → 2026-10-14 · shipped 2026-10-13 · the note`. That is
   how a board says which Sprint or Version is which.
-- **Do not create properties or delete tasks.** You may create tasks, edit
-  them, comment and move them.
+- **Add a property only when the flow needs one.** You may add a property, an
+  option and a view, as any member may: `prop add "<name>" <type> [--option
+"<name>"]...`. Run `props` first, and never add a second of what is there.
+  Deleting a property, an option or a view stays a person admin's. Do not
+  delete tasks. You may create tasks, edit them, comment and move them.
 - **Do not write over a person's description.** Propose yours in a comment.
   `describe --replace` is only for a rewrite a person said yes to.
 - **A question is a comment and a wait.** `ask` posts the question, marks the
