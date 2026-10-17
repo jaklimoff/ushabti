@@ -26,7 +26,7 @@ jobs:
     # `npm test` draws components in Chromium, so the gate runs in the image
     # the shards use, which carries the browser.
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
 
     steps:
       # The whole history: the GitHub step's tests read the board.mjs that
@@ -92,7 +92,7 @@ jobs:
     # The tag must be the installed `@playwright/test`, or the browser is not
     # the one it looks for. The gate's unit tests check that.
     container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
 
     strategy:
       # A shard that fails leaves the others running, so one run shows every
