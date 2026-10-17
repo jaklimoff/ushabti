@@ -4,7 +4,11 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => import("@/test/db"));
 vi.mock("next/headers", () => import("@/test/headers"));
 
-const { agent, api, backdateRun, board, ok, person, project, task } = await import("@/test/route");
+const { eq } = await import("drizzle-orm");
+const { db } = await import("@/db");
+const { agentTokens } = await import("@/db/schema");
+const { agent, api, backdateRun, board, join, ok, person, project, task } =
+  await import("@/test/route");
 
 /*
  * The answers an agent gets from the run routes, the token and the refusals.
@@ -237,6 +241,32 @@ describe("Agents on the board", () => {
     expect(kept.steps.map((s: { text: string }) => s.text)).toContain("Plan the work");
     expect(kept.log.map((l: { text: string }) => l.text)).toContain("left a line in the log");
   });
+
+  /* Both doors take an agent off a project by one rule, so the member route
+     cannot be the way round the open-run check. */
+  for (const door of ["agents", "members"] as const) {
+    it(`removing an agent through the ${door} route keeps its checks`, async () => {
+      const { bot, run, owner, project: p } = await running(`Held while removed by ${door}`);
+      const path = `/api/projects/${p.id}/${door}/${bot.id}`;
+
+      const held = await api(owner).del(path);
+      expect(held.status).toBe(409);
+      expect((await held.json()).error).toBe(
+        "That agent still holds a task. Take the task over first.",
+      );
+      expect((await bot.api.get(`/api/projects/${p.id}/board`)).status).toBe(200);
+
+      await ok(bot.api.patch(`/api/runs/${run.id}`, { status: "done" }));
+      const member = await person("Bob Member");
+      await join(p.id, member, "member");
+      expect((await api(member).del(path)).status).toBe(403);
+
+      await ok(api(owner).del(path));
+      const left = await db.select().from(agentTokens).where(eq(agentTokens.agentId, bot.id));
+      expect(left).toEqual([]);
+      expect((await bot.api.get(`/api/projects/${p.id}/board`)).status).toBe(401);
+    });
+  }
 
   it("an agent may write the board but not take it apart", async () => {
     const { bot, owner, project: p, task: t } = await running("The agent works on this");

@@ -24,6 +24,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   task key names its project, and `list`, `new` and `props` take `--project KEY` or
   `USHABTI_PROJECT`. The run commands say at once that a run needs an agent token.
 
+### Fixed
+
+- **Removing an agent as a member keeps the agent's checks.** The member route
+  now refuses while the agent holds a task, and takes its tokens for the
+  project with it, as the agent route always did.
+
 ## 0.27.1 — 2026-10-17
 
 ### Changed

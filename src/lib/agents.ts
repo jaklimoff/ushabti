@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { and, asc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { agentTokens, projectMembers, users } from "@/db/schema";
+import { agentRuns, agentTokens, projectMembers, users } from "@/db/schema";
 import { HttpError } from "./auth";
 import type { Tx } from "./queries";
 import type { AgentDTO } from "./types";
@@ -210,4 +210,26 @@ export async function refuseTakenName(
     )
     .limit(1);
   if (taken) throw new HttpError(409, `Another agent here is already called ${name}.`);
+}
+
+/**
+ * Takes an agent off a project: its membership and its tokens for it go, and
+ * its user row stays, with the runs, comments and activity that hang off it.
+ * Both the agent route and the member route remove an agent through here, so
+ * an agent that holds a task cannot leave by the door that forgot to ask.
+ */
+export async function removeAgent(tx: Tx, projectId: string, agentId: string): Promise<void> {
+  const [open] = await tx
+    .select({ id: agentRuns.id })
+    .from(agentRuns)
+    .where(and(eq(agentRuns.agentId, agentId), isNull(agentRuns.endedAt)))
+    .limit(1);
+  if (open) throw new HttpError(409, "That agent still holds a task. Take the task over first.");
+
+  await tx
+    .delete(agentTokens)
+    .where(and(eq(agentTokens.agentId, agentId), eq(agentTokens.projectId, projectId)));
+  await tx
+    .delete(projectMembers)
+    .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, agentId)));
 }

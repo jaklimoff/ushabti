@@ -1,6 +1,6 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { agentRuns, agentTokens, projectMembers, users } from "@/db/schema";
+import { projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import {
   body,
@@ -14,7 +14,7 @@ import {
   str,
   signedInOnly,
 } from "@/lib/api";
-import { refuseTakenName } from "@/lib/agents";
+import { refuseTakenName, removeAgent } from "@/lib/agents";
 import { readFace } from "@/lib/face";
 import { withProjectLock } from "@/lib/queries";
 
@@ -98,23 +98,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
 
   await agentOf(projectId, agentId);
 
-  const open = await db
-    .select({ id: agentRuns.id })
-    .from(agentRuns)
-    .where(and(eq(agentRuns.agentId, agentId), isNull(agentRuns.endedAt)))
-    .limit(1);
-  if (open.length) {
-    throw new HttpError(409, "That agent still holds a task. Take the task over first.");
-  }
-
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(agentTokens)
-      .where(and(eq(agentTokens.agentId, agentId), eq(agentTokens.projectId, projectId)));
-    await tx
-      .delete(projectMembers)
-      .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, agentId)));
-  });
+  await withProjectLock(projectId, (tx) => removeAgent(tx, projectId, agentId));
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
   return json({ ok: true });
 });

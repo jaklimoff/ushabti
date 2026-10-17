@@ -15,6 +15,7 @@ import {
   route,
   signedInOnly,
 } from "@/lib/api";
+import { removeAgent } from "@/lib/agents";
 import { withProjectLock, type Tx } from "@/lib/queries";
 import { isOwner } from "@/lib/roles";
 
@@ -65,6 +66,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
       if (!actor) throw new HttpError(404, "Project not found.");
       outranksOnly(user, actor, target, "remove");
     }
+    if (target.kind === "agent") return removeAgent(tx, projectId, userId);
     await tx
       .delete(projectMembers)
       .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId)));
