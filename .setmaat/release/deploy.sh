@@ -47,19 +47,37 @@ if [ -n "$(git status --porcelain)" ]; then
   echo "deploy.sh: $infra has uncommitted changes; a person is working there. Nothing was done." >&2
   exit 1
 fi
-git pull --ff-only --quiet
 file=apps/ushabti/versions.env
-perl -pi -e "s/^USHABTI_VERSION=.*/USHABTI_VERSION=$V/" "$file"
-if git diff --quiet -- "$file"; then
-  echo "deploy.sh: $file already names $V; running its workflow again"
-  sha=""
-  gh workflow run deploy-ushabti.yml --repo jaklimoff/infra
-else
+# Three tries: the Cards and Board app repos' CI push to jaklimoff/infra too,
+# and one that lands between the pull and the push here gets this push
+# rejected as non-fast-forward. Drop this commit, pull the newer main and
+# write the version again, rather than fail a release whose image is out.
+sha=""
+attempt=1
+while :; do
+  git pull --ff-only --quiet
+  perl -pi -e "s/^USHABTI_VERSION=.*/USHABTI_VERSION=$V/" "$file"
+  if git diff --quiet -- "$file"; then
+    echo "deploy.sh: $file already names $V; running its workflow again"
+    gh workflow run deploy-ushabti.yml --repo jaklimoff/infra
+    break
+  fi
   git commit --quiet -m "deploy ushabti $V" -- "$file"
-  git push --quiet
-  sha=$(git rev-parse HEAD)
-  echo "deploy.sh: pushed $file at $V (${sha%"${sha#???????}"})"
-fi
+  if git push --quiet; then
+    sha=$(git rev-parse HEAD)
+    echo "deploy.sh: pushed $file at $V (${sha%"${sha#???????}"})"
+    break
+  fi
+  # Only this script's own commit goes: the clean-tree check above and the
+  # --ff-only pull mean HEAD~1 is what origin had.
+  git reset --quiet --hard HEAD~1
+  if [ "$attempt" -ge 3 ]; then
+    echo "deploy.sh: $file could not be pushed in 3 tries. Nothing was deployed; 'just ushabti deploy $V' in jaklimoff/infra finishes it." >&2
+    exit 1
+  fi
+  attempt=$((attempt + 1))
+  echo "deploy.sh: the push was rejected; trying again ($attempt of 3)"
+done
 
 # The run for that push, or the newest one when it was dispatched. GitHub
 # takes a few seconds to list it.
