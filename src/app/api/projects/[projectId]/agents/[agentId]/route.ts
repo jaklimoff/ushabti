@@ -2,7 +2,18 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRuns, agentTokens, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, adminOnly, guard, json, readId, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  adminOnly,
+  guard,
+  json,
+  readId,
+  route,
+  str,
+  signedInOnly,
+} from "@/lib/api";
 import { refuseTakenName } from "@/lib/agents";
 import { readFace } from "@/lib/face";
 import { withProjectLock } from "@/lib/queries";
@@ -39,6 +50,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
   readId(agentId, "agent");
   adminOnly(user, membership, "change an agent");
+  signedInOnly(user);
 
   await agentOf(projectId, agentId);
   const input = await body<{ name?: unknown; color?: unknown; emoji?: unknown }>(req);
@@ -82,6 +94,7 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
   readId(agentId, "agent");
   adminOnly(user, membership, "remove an agent");
+  signedInOnly(user);
 
   await agentOf(projectId, agentId);
 

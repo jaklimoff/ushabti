@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/db";
 import { activity } from "@/db/schema";
 import type { Tx } from "./queries";
+import { viaFor } from "./via";
 import { kickSender, queueWebhooks, type Rung } from "./webhooks";
 
 /**
@@ -73,6 +74,7 @@ async function writeActivity(entries: ActivityEntry[], tx?: Tx): Promise<Ring> {
       projectId: entry.projectId,
       taskId: entry.taskId ?? null,
       actorId: entry.actorId,
+      viaTokenId: viaFor(entry.actorId),
       kind: entry.kind,
       data: entry.data ?? {},
       createdAt: at,

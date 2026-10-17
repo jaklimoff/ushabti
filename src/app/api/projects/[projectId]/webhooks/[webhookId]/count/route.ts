@@ -1,4 +1,4 @@
-import { guard, json, adminOnly, route } from "@/lib/api";
+import { guard, json, adminOnly, route, signedInOnly } from "@/lib/api";
 import { HttpError } from "@/lib/auth";
 import { countDeliveries, webhookProjectId } from "@/lib/webhooks";
 
@@ -18,6 +18,7 @@ export const GET = route<Ctx>(async (_req, ctx) => {
   const { projectId, webhookId } = await ctx.params;
   const { user, membership } = await guard(projectId);
   adminOnly(user, membership, "see the webhooks of this project");
+  signedInOnly(user);
 
   const belongsTo = await webhookProjectId(webhookId);
   if (!belongsTo || belongsTo !== projectId) throw new HttpError(404, "Webhook not found.");

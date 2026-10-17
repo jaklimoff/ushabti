@@ -246,6 +246,13 @@
       "when": 1792083398280,
       "tag": "0034_chart_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792256944173,
+      "tag": "0035_personal_tokens",
+      "breakpoints": true
     }
   ]
 }

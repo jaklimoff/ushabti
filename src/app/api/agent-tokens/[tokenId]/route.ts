@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agentTokens } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { adminOnly, guard, json, readId, route } from "@/lib/api";
+import { adminOnly, guard, json, readId, route, signedInOnly } from "@/lib/api";
 
 type Ctx = { params: Promise<{ tokenId: string }> };
 
@@ -20,6 +20,7 @@ export const DELETE = route<Ctx>(async (_req, ctx) => {
 
   const { user, membership } = await guard(token.projectId);
   adminOnly(user, membership, "revoke a token");
+  signedInOnly(user);
 
   await db.update(agentTokens).set({ revokedAt: new Date() }).where(eq(agentTokens.id, tokenId));
   return json({ ok: true });

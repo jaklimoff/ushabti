@@ -2,7 +2,17 @@ import { and, eq, isNull, lte, or } from "drizzle-orm";
 import { db } from "@/db";
 import { projectInvites, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  adminOnly,
+  route,
+  str,
+  signedInOnly,
+} from "@/lib/api";
 import { inviteMail, mailIsOn, sendMail } from "@/lib/mail";
 import { originOf } from "@/lib/origin";
 import { limiter, spendMail } from "@/lib/rate-limit";
@@ -17,6 +27,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user: actor, membership } = await guard(projectId);
   adminOnly(actor, membership, "add members");
+  signedInOnly(actor);
 
   const input = await body<{ email?: string }>(req);
   const email = str(input.email, "Email", { max: 200 }).toLowerCase();

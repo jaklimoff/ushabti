@@ -3,6 +3,7 @@ import { comments } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
 import { logActivity, taskProjectId, touchTasks } from "@/lib/queries";
+import { viaFor } from "@/lib/via";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -18,7 +19,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const comment = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(comments)
-      .values({ taskId, authorId: user.id, body: text })
+      .values({ taskId, authorId: user.id, body: text, viaTokenId: viaFor(user.id) })
       .returning();
     await touchTasks([taskId], tx);
     return row;
@@ -33,10 +34,12 @@ export const POST = route<Ctx>(async (req, ctx) => {
     data: { commentId: comment.id },
   });
   await broadcast({ projectId, scope: "task", taskId, clientId: clientIdOf(req) });
+  const { viaTokenId: _via, ...written } = comment;
   return json(
     {
       comment: {
-        ...comment,
+        ...written,
+        via: user.personalTokenName ?? null,
         author: {
           id: user.id,
           name: user.name,

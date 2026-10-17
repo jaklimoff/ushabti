@@ -5,7 +5,9 @@ import { cookies, headers } from "next/headers";
 import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers, projects, sessions, users } from "@/db/schema";
-import { bearerToken, holderOfToken } from "./agents";
+import { bearerToken, holderOfToken, isPersonalToken } from "./agents";
+import { personOfToken } from "./personal-tokens";
+import { actingVia } from "./via";
 import {
   addressOf,
   limiter,
@@ -92,6 +94,14 @@ export type Actor = {
   tokenProjectId?: string;
   /** Set for an agent: the token it came with, which is what listens. */
   tokenId?: string;
+  /**
+   * Set for a person who came with a personal token instead of a session.
+   * They act as themselves, minus anything that lets somebody else in: see
+   * `signedInOnly` in `api.ts`.
+   */
+  personalTokenId?: string;
+  /** The name of that token, which the feed shows as "via". */
+  personalTokenName?: string;
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -119,27 +129,41 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return row ? { ...row, email: row.email ?? "" } : null;
 }
 
+/** The person signed in with a session. A personal token is not enough. */
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) throw new HttpError(401, "Sign in first.");
-  return user;
+  if (user) return user;
+  const token = bearerToken((await headers()).get("authorization"));
+  if (token && isPersonalToken(token)) throw new HttpError(403, PERSONAL_REFUSAL);
+  throw new HttpError(401, "Sign in first.");
 }
+
+export const PERSONAL_REFUSAL = "A personal token cannot do this. Sign in to do it.";
 
 /** The token first, then the cookie. Null when the request carries neither. */
 export async function getActor(): Promise<Actor | null> {
   const head = await headers();
   const token = bearerToken(head.get("authorization"));
+  if (token && isPersonalToken(token)) {
+    const person = await personOfToken(token);
+    if (!person) refuseToken(head);
+    actingVia(person.id, person.tokenId);
+    return {
+      id: person.id,
+      name: person.name,
+      color: person.color,
+      emoji: person.emoji,
+      kind: "human",
+      personalTokenId: person.tokenId,
+      personalTokenName: person.tokenName,
+    };
+  }
   if (token) {
     const holder = await holderOfToken(token);
     /* The token is looked up first on purpose: a good one is never counted
        and never waits, however hard somebody else is guessing from the same
        address. Only a token that opens nothing is a guess. */
-    if (!holder) {
-      const key = tokenByAddress(addressOf(head));
-      refuseIfLimited(key);
-      limiter.hit(key);
-      throw new HttpError(401, "That token is not valid any more.");
-    }
+    if (!holder) refuseToken(head);
     return {
       id: holder.id,
       name: holder.name,
@@ -154,6 +178,14 @@ export async function getActor(): Promise<Actor | null> {
   const user = await getCurrentUser();
   if (!user) return null;
   return { id: user.id, name: user.name, color: user.color, emoji: user.emoji, kind: "human" };
+}
+
+/** A token that opens nothing is a guess, whichever kind it claims to be. */
+function refuseToken(head: Headers): never {
+  const key = tokenByAddress(addressOf(head));
+  refuseIfLimited(key);
+  limiter.hit(key);
+  throw new HttpError(401, "That token is not valid any more.");
 }
 
 export async function requireActor(): Promise<Actor> {

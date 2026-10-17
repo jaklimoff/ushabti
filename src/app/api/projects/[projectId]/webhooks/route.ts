@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { webhooks } from "@/db/schema";
-import { body, guard, json, adminOnly, route } from "@/lib/api";
+import { body, guard, json, adminOnly, route, signedInOnly } from "@/lib/api";
 import { loadWebhooks, mintSecret, webhookUrl } from "@/lib/webhooks";
 import { readKinds } from "@/lib/webhook-delivery";
 
@@ -17,6 +17,7 @@ export const GET = route<Ctx>(async (_req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
   adminOnly(user, membership, "see the webhooks of this project");
+  signedInOnly(user);
   return json({ webhooks: await loadWebhooks(projectId) });
 });
 
@@ -32,6 +33,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
   adminOnly(user, membership, "add a webhook");
+  signedInOnly(user);
 
   const input = await body<{ url?: string; kinds?: unknown }>(req);
   const url = webhookUrl(input.url);

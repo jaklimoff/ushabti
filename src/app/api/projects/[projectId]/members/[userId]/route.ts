@@ -13,6 +13,7 @@ import {
   readId,
   roleChangeOnly,
   route,
+  signedInOnly,
 } from "@/lib/api";
 import { withProjectLock, type Tx } from "@/lib/queries";
 import { isOwner } from "@/lib/roles";
@@ -43,7 +44,11 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
       "An agent cannot leave a project. Ask the owner or an admin to remove it.",
     );
   }
-  if (!removingSelf) humanOnly(user);
+  // Leaving is the person's own act, so a personal token may do it.
+  if (!removingSelf) {
+    humanOnly(user);
+    signedInOnly(user);
+  }
 
   /* Under the project lock, and with both roles read again inside it. A
      hand-over commits under the same lock, so the owner this reads is the
@@ -78,6 +83,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const { projectId, userId } = await ctx.params;
   const { user } = await guard(projectId);
   humanOnly(user);
+  signedInOnly(user);
   readId(userId, "member");
   const input = await body<{ role?: unknown }>(req);
   const next = typeof input.role === "string" ? input.role : "";

@@ -10,6 +10,12 @@ import type { AgentDTO } from "./types";
 /** Every agent token starts with this, so a leak is easy to search for. */
 export const TOKEN_PREFIX = "ush_";
 
+/**
+ * Every personal token starts with this, so a scanner tells it apart from an
+ * agent token and a reset link (`ushr_`).
+ */
+export const PERSONAL_PREFIX = "ushp_";
+
 /** How much of the token the list shows. Enough to tell two of them apart. */
 const VISIBLE = 8;
 
@@ -34,13 +40,20 @@ export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-/** Reads the token out of an Authorization header. Null if there is none. */
+/**
+ * Reads an agent or a personal token out of an Authorization header. Null if
+ * there is none, and for a reset link, which opens no request.
+ */
 export function bearerToken(header: string | null): string | null {
   if (!header) return null;
   const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
   const token = match?.[1];
-  if (!token || !token.startsWith(TOKEN_PREFIX)) return null;
+  if (!token || !(token.startsWith(TOKEN_PREFIX) || isPersonalToken(token))) return null;
   return token;
+}
+
+export function isPersonalToken(token: string): boolean {
+  return token.startsWith(PERSONAL_PREFIX);
 }
 
 export type TokenHolder = {

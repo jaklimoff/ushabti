@@ -76,3 +76,25 @@
   color: var(--faint-3);
   text-align: center;
 }
+
+.tokenMake {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tokenMake > :first-child {
+  flex: 1 1 160px;
+}
+
+.tokenName {
+  font-size: var(--t-small);
+  color: var(--text-2);
+}
+
+.tokenPrefix {
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  color: var(--text-4);
+}

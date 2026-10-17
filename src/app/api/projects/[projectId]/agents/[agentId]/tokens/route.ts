@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { agentTokens, projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, adminOnly, guard, json, readId, route, str } from "@/lib/api";
+import { body, adminOnly, guard, json, readId, route, str, signedInOnly } from "@/lib/api";
 import { mintToken } from "@/lib/agents";
 
 type Ctx = { params: Promise<{ projectId: string; agentId: string }> };
@@ -16,6 +16,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
   readId(agentId, "agent");
   adminOnly(user, membership, "issue a token");
+  signedInOnly(user);
 
   const input = await body<{ name?: string }>(req);
   const name = str(input.name ?? "Token", "Token name", { max: 60 });

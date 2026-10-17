@@ -39,7 +39,8 @@ export async function GET(req: Request, ctx: Ctx) {
   try {
     const { user } = await guard(projectId);
     userId = user.id;
-    human = user.kind === "human";
+    // A script on a personal token is not in the room, so it says no goodbye.
+    human = user.kind === "human" && !user.personalTokenId;
     // An agent holding this open hears a new task. That is what "listening"
     // means on the board, so the stream is what says it.
     if (user.kind === "agent") tokenId = user.tokenId;

@@ -811,6 +811,13 @@
   color: var(--text-2);
 }
 
+/* The personal token somebody acted with, beside their name. */
+.via {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint-2);
+}
+
 .commentTime {
   font-family: var(--font-mono);
   font-size: 10.5px;

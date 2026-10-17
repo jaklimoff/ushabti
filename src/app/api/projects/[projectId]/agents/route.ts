@@ -1,6 +1,16 @@
 import { users } from "@/db/schema";
 import { joinProject } from "@/lib/membership";
-import { body, broadcast, clientIdOf, adminOnly, guard, json, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  adminOnly,
+  guard,
+  json,
+  route,
+  str,
+  signedInOnly,
+} from "@/lib/api";
 import { loadAgents, refuseTakenName } from "@/lib/agents";
 import { pickAvatarColor } from "@/lib/colors";
 import { withProjectLock } from "@/lib/queries";
@@ -24,6 +34,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
   adminOnly(user, membership, "add an agent");
+  signedInOnly(user);
 
   const input = await body<{ name?: string }>(req);
   const name = str(input.name, "Name", { max: 80 });

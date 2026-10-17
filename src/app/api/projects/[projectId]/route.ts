@@ -11,6 +11,7 @@ import {
   json,
   adminOnly,
   ownerOnly,
+  signedInOnly,
   route,
   str,
 } from "@/lib/api";
@@ -118,17 +119,21 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     patch.timeZone = zone;
   }
   /* Whether the changelog answers strangers. `adminOnly` above already keeps
-     it a person's, which it must be: it hands out a read of the project. */
+     it a person's, which it must be: it hands out a read of the project.
+     A personal token must not, for the same reason. */
   if (input.publicChangelog !== undefined) {
+    signedInOnly(user);
     if (typeof input.publicChangelog !== "boolean") {
       throw new HttpError(400, "Public changelog is on or off.");
     }
     patch.publicChangelog = input.publicChangelog;
   }
   /* The rules an agent obeys on this board. `adminOnly` above keeps them a
-     person's: an agent must not write its own rules. */
+     person's: an agent must not write its own rules. A personal token is
+     the thing an agent might hold, so it may not write them either. */
   let rules: string | null = null;
   if (input.agentRules !== undefined) {
+    signedInOnly(user);
     if (typeof input.agentRules !== "string") {
       throw new HttpError(400, "The agent rules are text.");
     }

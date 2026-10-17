@@ -131,6 +131,7 @@ for (const { name, width, height } of WIDTHS) {
         createdAt: "2026-10-08T09:30:00.000Z",
         editedAt: null,
         byProject: false,
+        via: null,
         author: { id: ME.id, name: ME.name, color: ME.color, emoji: null, kind: "human" },
       };
       await renderWithBoard(<BoardShell initialTask={task.key} />, data, serving(data, [comment]));

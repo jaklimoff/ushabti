@@ -1,12 +1,35 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { HttpError, requireUser } from "@/lib/auth";
-import { body, json, route, str } from "@/lib/api";
+import { HttpError, requireActor, requireUser } from "@/lib/auth";
+import { body, humanOnly, json, route, str } from "@/lib/api";
 import { readFace } from "@/lib/face";
 
 /**
- * Your own name, colour and face. The first two used to be written once at
+ * Who you are, for a session and for a personal token, and which of the two
+ * it was. An agent asks `/api/agent/me` instead.
+ */
+export const GET = route(async () => {
+  const actor = await requireActor();
+  humanOnly(actor);
+  return json({
+    user: {
+      id: actor.id,
+      name: actor.name,
+      color: actor.color,
+      emoji: actor.emoji,
+      kind: actor.kind,
+    },
+    via: actor.personalTokenId ? "token" : "session",
+    token: actor.personalTokenId
+      ? { id: actor.personalTokenId, name: actor.personalTokenName ?? "" }
+      : null,
+  });
+});
+
+/**
+ * Your own name, colour and face. Sign-in only: a token that could change a
+ * face could wear somebody else's. The first two used to be written once at
  * registration and never again, so a typo in either was permanent and an
  * avatar colour that clashed with a teammate's stayed clashed. The face is an
  * emoji or null, and null is the initials. `askMail` turns off, or on again,

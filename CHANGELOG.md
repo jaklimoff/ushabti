@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **Personal tokens.** The account page makes a token that acts as you, on every project you
+  are in and with your role in each, for a script or an agent of your own. It starts with
+  `ushp_`, is shown once, and expires after 30 days, 90 days, a year or never. It cannot add
+  people, agents, tokens or webhooks, and cannot do the owner's acts. What it does is signed
+  with your name and shows "via" the token's name in the feed and under a comment.
+
 ## 0.27.1 — 2026-10-17
 
 ### Changed

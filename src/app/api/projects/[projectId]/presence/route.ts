@@ -1,4 +1,4 @@
-import { body, clientIdOf, guard, humanOnly, json, readId, route } from "@/lib/api";
+import { body, clientIdOf, guard, humanOnly, json, readId, route, signedInOnly } from "@/lib/api";
 import { HttpError } from "@/lib/auth";
 import { publish } from "@/lib/events";
 import { readClientId } from "@/lib/presence";
@@ -19,6 +19,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
   const { user } = await guard(projectId);
   humanOnly(user);
+  signedInOnly(user);
 
   const clientId = readClientId(clientIdOf(req));
   if (!clientId) throw new HttpError(400, "Send the tab's id in the x-ushabti-client header.");

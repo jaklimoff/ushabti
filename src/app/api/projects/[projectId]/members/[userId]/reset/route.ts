@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers, users } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { adminOnly, guard, json, outranksOnly, readId, route } from "@/lib/api";
+import { adminOnly, guard, json, outranksOnly, readId, route, signedInOnly } from "@/lib/api";
 import { mailIsOn, resetMail, sendMail } from "@/lib/mail";
 import { originOf } from "@/lib/origin";
 import { limiter, spendMail } from "@/lib/rate-limit";
@@ -27,6 +27,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { user: actor, membership } = await guard(projectId);
   readId(userId, "member");
   adminOnly(actor, membership, "make a reset link for a member");
+  signedInOnly(actor);
 
   if (userId === actor.id) {
     // They know their password, or they could not be reading this page.

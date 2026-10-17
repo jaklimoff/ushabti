@@ -2,11 +2,12 @@ import "server-only";
 import { promisify } from "node:util";
 import zlib from "node:zlib";
 import { NextResponse } from "next/server";
-import { HttpError, requireActor, requireMembership, requireUser } from "./auth";
+import { HttpError, PERSONAL_REFUSAL, requireActor, requireMembership, requireUser } from "./auth";
 import { forgetChangelog } from "./changelog-shelf";
 import { publish, type BoardEvent } from "./events";
 import { isId, notAnId } from "./ids";
 import { canManage, isOwner, outranks, roleChangeRefusal } from "./roles";
+import { inRequest } from "./via";
 
 export { HttpError };
 
@@ -26,7 +27,7 @@ export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response
   return async (req: Request, ctx: Ctx): Promise<Response> => {
     let res: Response;
     try {
-      res = await handler(req, ctx);
+      res = await inRequest(() => handler(req, ctx));
     } catch (err) {
       if (err instanceof HttpError) res = fail(err.status, err.message, err.headers);
       else {
@@ -151,6 +152,17 @@ export function humanOnly(actor: { kind: string }) {
   if (actor.kind !== "human") throw new HttpError(403, "Only a person can do this.");
 }
 
+/**
+ * For what lets somebody or something in, or hands data out on its own:
+ * agents and their tokens, members, invites, reset links, webhooks, the
+ * owner's acts and personal tokens themselves. A personal token is its person
+ * on a board, but a leaked one must never be able to open the door to anybody
+ * else, so these ask for a session.
+ */
+export function signedInOnly(actor: { personalTokenId?: string }) {
+  if (actor.personalTokenId) throw new HttpError(403, PERSONAL_REFUSAL);
+}
+
 /** For the run routes, which belong to the agent doing the work. */
 export function agentOnly(actor: { kind: string }) {
   if (actor.kind !== "agent") throw new HttpError(403, "Only an agent can do this.");
@@ -174,10 +186,16 @@ export function adminOnly(actor: { kind: string }, membership: { role: string },
 /**
  * For the few acts that stay the owner's alone: deleting the project, handing
  * it over, and changing an admin's role. An admin who could do these could
- * remove the owner, which is the thing a second owner would have done.
+ * remove the owner, which is the thing a second owner would have done. None
+ * is open to a personal token.
  */
-export function ownerOnly(actor: { kind: string }, membership: { role: string }, what: string) {
+export function ownerOnly(
+  actor: { kind: string; personalTokenId?: string },
+  membership: { role: string },
+  what: string,
+) {
   humanOnly(actor);
+  signedInOnly(actor);
   if (!isOwner(membership.role)) throw new HttpError(403, `Only the owner can ${what}.`);
 }
 

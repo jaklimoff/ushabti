@@ -53,6 +53,35 @@ export const sessions = pgTable(
   (t) => [index("sessions_user_idx").on(t.userId)],
 );
 
+/**
+ * A token a person makes for a script of their own. It acts as that person on
+ * every project they are a member of, with their role in each, and refuses
+ * whatever lets somebody else in. Only its SHA-256 digest is kept, as for an
+ * agent token.
+ */
+export const personalTokens = pgTable(
+  "personal_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    hash: text("hash").notNull(),
+    prefix: text("prefix").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Null for a token that never expires. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    /* Revoked rather than deleted, so a line written with it still says "via". */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("personal_tokens_hash_key").on(t.hash),
+    index("personal_tokens_user_idx").on(t.userId),
+  ],
+);
+
 /* ------------------------------------------------------------------ */
 /* Projects and membership                                             */
 /* ------------------------------------------------------------------ */
@@ -399,6 +428,10 @@ export const comments = pgTable(
     body: text("body").notNull(),
     // Written by the project itself, as a roll does, so a null author is not a removed user.
     byProject: boolean("by_project").notNull().default(false),
+    /** The personal token the author wrote it with, if any. */
+    viaTokenId: uuid("via_token_id").references(() => personalTokens.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // Set only when an edit changed the words, so "edited" never marks a save of the same text.
     editedAt: timestamp("edited_at", { withTimezone: true }),
@@ -450,6 +483,10 @@ export const activity = pgTable(
     /** created | title | description | value | checklist | comment | run | archive | link | reset | deleted */
     kind: text("kind").notNull(),
     data: jsonb("data").notNull().default({}),
+    /** The personal token the actor acted with, if any. */
+    viaTokenId: uuid("via_token_id").references(() => personalTokens.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

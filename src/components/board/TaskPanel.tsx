@@ -943,6 +943,7 @@ export function TaskPanel({
                           const person = personOf(id, data.members, data.former);
                           return person ? personName(person) : null;
                         })}
+                        {entry.via && <span className={styles.via}> via {entry.via}</span>}
                       </span>
                     </div>
                   ))}
@@ -2873,6 +2874,7 @@ function CommentItem({
       <div className={styles.commentBody}>
         <div className={styles.commentHead}>
           <span className={styles.commentName}>{author}</span>
+          {comment.via && <span className={styles.via}>via {comment.via}</span>}
           <span className={styles.commentTime}>{relativeTime(comment.createdAt)}</span>
           {comment.editedAt && (
             /* A mark that can be reached by the keyboard, so the time it

@@ -79,6 +79,7 @@ export function serving(data: BoardData, user: SessionUser = ME, archived: TaskD
       kind,
       data: {},
       createdAt: new Date().toISOString(),
+      via: null,
       actor: authorOf(by),
     });
   const itemTask = (itemId: string) =>
@@ -102,6 +103,7 @@ export function serving(data: BoardData, user: SessionUser = ME, archived: TaskD
       createdAt: new Date(Date.now() - 60_000).toISOString(),
       editedAt: null,
       byProject: false,
+      via: null,
       author: authorOf(by),
     };
     listOf(comments, task.id).push(made);

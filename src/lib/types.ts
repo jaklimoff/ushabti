@@ -521,6 +521,8 @@ export type CommentDTO = {
   editedAt: string | null;
   /** Written by the project itself, as a roll does. Its author is null and nobody was removed. */
   byProject: boolean;
+  /** The name of the personal token the author wrote it with, if any. */
+  via: string | null;
   author: {
     id: string;
     name: string;
@@ -535,6 +537,8 @@ export type ActivityDTO = {
   kind: string;
   data: Record<string, unknown>;
   createdAt: string;
+  /** The name of the personal token the actor acted with, if any. */
+  via: string | null;
   actor: {
     id: string;
     name: string;
@@ -718,7 +722,20 @@ export type ActivityFeedEntryDTO = {
   taskKey: string | null;
   data: Record<string, unknown>;
   createdAt: string;
+  /** The name of the personal token the actor acted with, if any. */
+  via: string | null;
   actor: { id: string; name: string; kind: "human" | "agent" } | null;
+};
+
+/** A personal token as its person's account page lists it. Never the secret. */
+export type PersonalTokenDTO = {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  /** Null for a token that never expires. */
+  expiresAt: string | null;
+  lastUsedAt: string | null;
 };
 
 export type ProjectDTO = {

@@ -282,6 +282,7 @@ describe("The Agent tab", () => {
       createdAt: minutesAgo(5),
       editedAt: null,
       byProject: false,
+      via: null,
       author: { ...asker, kind: "agent" as const },
     };
     const { sent } = await draw(
@@ -373,6 +374,7 @@ describe("The Agent tab", () => {
       createdAt: minutesAgo(5),
       editedAt: null,
       byProject: false,
+      via: null,
       author: { ...drafter, kind: "agent" as const },
     };
     await draw(
@@ -399,6 +401,7 @@ describe("The Agent tab", () => {
       kind: "value",
       createdAt: minutesAgo(1),
       data: { property: "Assignee", type: "person", value: reis.id, personId: reis.id },
+      via: null,
       actor: {
         id: data.members[0].id,
         name: "Line Owner",

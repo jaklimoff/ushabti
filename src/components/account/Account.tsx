@@ -13,6 +13,7 @@ import { Toasts, type Toast } from "@/components/ui/Toasts";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import styles from "./account.module.css";
+import { PersonalTokens } from "./PersonalTokens";
 
 export function Account({
   user,
@@ -164,6 +165,8 @@ export function Account({
         {askMailOn && <AskMailSection on={user.askMail} notify={notify} />}
 
         <PasswordSection notify={notify} />
+
+        <PersonalTokens notify={notify} />
 
         <span className={styles.version}>Ushabti {version}</span>
       </div>

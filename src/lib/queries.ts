@@ -10,6 +10,7 @@ import {
   agentTokens,
   checklistItems,
   comments,
+  personalTokens,
   projectInvites,
   projectMembers,
   projects,
@@ -1261,6 +1262,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
           createdAt: comments.createdAt,
           editedAt: comments.editedAt,
           byProject: comments.byProject,
+          via: personalTokens.name,
           authorId: users.id,
           authorName: users.name,
           authorColor: users.color,
@@ -1269,6 +1271,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
         })
         .from(comments)
         .leftJoin(users, eq(users.id, comments.authorId))
+        .leftJoin(personalTokens, eq(personalTokens.id, comments.viaTokenId))
         .where(eq(comments.taskId, taskId))
         .orderBy(asc(comments.createdAt)),
       db
@@ -1277,6 +1280,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
           kind: activity.kind,
           data: activity.data,
           createdAt: activity.createdAt,
+          via: personalTokens.name,
           actorId: users.id,
           actorName: users.name,
           actorColor: users.color,
@@ -1285,6 +1289,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
         })
         .from(activity)
         .leftJoin(users, eq(users.id, activity.actorId))
+        .leftJoin(personalTokens, eq(personalTokens.id, activity.viaTokenId))
         .where(eq(activity.taskId, taskId))
         .orderBy(desc(activity.createdAt))
         .limit(60),
@@ -1336,6 +1341,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     createdAt: c.createdAt.toISOString(),
     editedAt: c.editedAt?.toISOString() ?? null,
     byProject: c.byProject,
+    via: c.via,
     author: c.authorId
       ? {
           id: c.authorId,
@@ -1352,6 +1358,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     kind: a.kind,
     data: (a.data ?? {}) as Record<string, unknown>,
     createdAt: a.createdAt.toISOString(),
+    via: a.via,
     actor: a.actorId
       ? {
           id: a.actorId,
@@ -1531,6 +1538,7 @@ export async function loadActivityFeed(
       projectKey: projects.key,
       data: activity.data,
       createdAt: activity.createdAt,
+      via: personalTokens.name,
       actorId: users.id,
       actorName: users.name,
       actorKind: users.kind,
@@ -1539,6 +1547,7 @@ export async function loadActivityFeed(
     .innerJoin(projects, eq(projects.id, activity.projectId))
     .leftJoin(tasks, eq(tasks.id, activity.taskId))
     .leftJoin(users, eq(users.id, activity.actorId))
+    .leftJoin(personalTokens, eq(personalTokens.id, activity.viaTokenId))
     .where(and(eq(activity.projectId, projectId), past))
     .orderBy(asc(activity.createdAt), asc(activity.id))
     .limit(limit);
@@ -1550,6 +1559,7 @@ export async function loadActivityFeed(
     taskKey: r.taskNumber === null ? null : `${r.projectKey}-${r.taskNumber}`,
     data: (r.data ?? {}) as Record<string, unknown>,
     createdAt: r.createdAt.toISOString(),
+    via: r.via,
     actor: r.actorId
       ? {
           id: r.actorId,
