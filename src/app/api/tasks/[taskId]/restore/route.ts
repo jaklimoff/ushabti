@@ -2,7 +2,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { projects, taskLinks, tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { broadcast, clientIdOf, guard, json, route } from "@/lib/api";
+import { broadcast, clientIdOf, guard, json, mayOnly, route } from "@/lib/api";
 import { deletedLine } from "@/lib/deleted";
 import { dropHidden, lockTasks } from "@/lib/hidden";
 import { brokenParts, PARENT } from "@/lib/links";
@@ -40,7 +40,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { taskId } = await ctx.params;
   const projectId = await taskProjectIdEvenDeleted(taskId);
   if (!projectId) throw new HttpError(404, "Task not found.");
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "delete");
 
   /* The task keeps its rank and its key, so it comes back where it was and
      as what it was. `taskCounter` was never touched. */

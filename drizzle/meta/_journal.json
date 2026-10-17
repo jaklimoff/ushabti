@@ -253,6 +253,13 @@
       "when": 1792256944173,
       "tag": "0035_personal_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792260747833,
+      "tag": "0036_foamy_komodo",
+      "breakpoints": true
     }
   ]
 }

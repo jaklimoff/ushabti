@@ -1,10 +1,13 @@
 import { HttpError, requireActor, requireMembership } from "@/lib/auth";
 import { agentOnly, json, route } from "@/lib/api";
 import { agentProject } from "@/lib/queries";
+import { actsOff, AGENT_ACT_WORDS } from "@/lib/roles";
 
 /**
  * The first call an agent makes. It answers "who am I and which board am I
- * on", so nothing else needs the project id in its configuration.
+ * on", so nothing else needs the project id in its configuration. It also
+ * names the acts an admin switched off for it on this board, so a
+ * well-behaved agent does not try them.
  */
 export const GET = route(async () => {
   const actor = await requireActor();
@@ -23,6 +26,7 @@ export const GET = route(async () => {
       key: project.key,
       role: membership.role,
       waiting: project.waiting,
+      off: actsOff(membership.acts).map((act) => ({ act, words: AGENT_ACT_WORDS[act].verb })),
     },
   });
 });

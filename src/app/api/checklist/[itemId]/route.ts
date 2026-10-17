@@ -2,7 +2,17 @@ import { and, eq, or } from "drizzle-orm";
 import { db } from "@/db";
 import { checklistItems } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  mayOnly,
+  optionalStr,
+  route,
+  str,
+} from "@/lib/api";
 import { checklistTaskId, logActivity, taskProjectId, touchTasks } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ itemId: string }> };
@@ -26,9 +36,11 @@ async function locate(itemId: string) {
 export const PATCH = route<Ctx>(async (req, ctx) => {
   const { itemId } = await ctx.params;
   const { taskId, projectId } = await locate(itemId);
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
 
   const input = await body<{ text?: string; done?: boolean; baseText?: string }>(req);
+  // A tick stays open; only the words are behind the switch.
+  if (input.text !== undefined) mayOnly(user, membership, "checklist");
   const patch: Record<string, unknown> = {};
   if (input.text !== undefined) patch.text = str(input.text, "Checklist item", { max: 400 });
   if (input.done !== undefined) patch.done = !!input.done;
@@ -98,7 +110,8 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 export const DELETE = route<Ctx>(async (req, ctx) => {
   const { itemId } = await ctx.params;
   const { taskId, projectId } = await locate(itemId);
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "checklist");
   const gone = await db.transaction(async (tx) => {
     const rows = await tx
       .delete(checklistItems)

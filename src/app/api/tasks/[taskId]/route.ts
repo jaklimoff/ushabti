@@ -2,7 +2,17 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { projects, tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  mayOnly,
+  optionalStr,
+  route,
+  str,
+} from "@/lib/api";
 import { deletedLine, goesAt } from "@/lib/deleted";
 import { loadTaskDetail, logActivity, sweepDeleted, taskProjectId } from "@/lib/queries";
 
@@ -124,7 +134,8 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { taskId } = await ctx.params;
   const projectId = await taskProjectId(taskId);
   if (!projectId) throw new HttpError(404, "Task not found.");
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "delete");
 
   const at = new Date();
   const [row] = await db

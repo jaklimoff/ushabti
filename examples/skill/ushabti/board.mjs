@@ -194,6 +194,15 @@ async function board() {
   return cache;
 }
 
+/**
+ * The acts an admin switched off for this agent on this board. The server
+ * refuses them whatever the agent was told; saying so up front saves the try.
+ */
+function mayNot(me) {
+  const off = me.project.off ?? [];
+  return off.length ? `; may not ${off.map((o) => o.words).join(", ")}` : "";
+}
+
 /* The prefix is the agent token's too, so the token says what it is. */
 const PERSONAL = TOKEN?.startsWith("ushp_") ?? false;
 
@@ -631,7 +640,9 @@ finish and watch need an agent token.`);
   async me() {
     const data = await board();
     const who = data.me.person ? `${data.me.agent.name} (personal token)` : data.me.agent.name;
-    console.log(`${who} on ${data.project.name} (${data.project.key}) at ${BASE}`);
+    console.log(
+      `${who} on ${data.project.name} (${data.project.key}) at ${BASE}${mayNot(data.me)}`,
+    );
     console.log(`${data.tasks.length} tasks, ${data.runs.length} open runs`);
   },
 
@@ -1936,7 +1947,9 @@ commands.watch = async function watch() {
             const event = /^event:\s*(\S+)/m.exec(block)?.[1];
             if (event === "ready") {
               await rereadMe();
-              say(`listening on ${me.project.name} (${me.project.key}) as ${me.agent.name}`);
+              say(
+                `listening on ${me.project.name} (${me.project.key}) as ${me.agent.name}${mayNot(me)}`,
+              );
               rang();
             } else if (event === "change") {
               if (renames(block)) await rereadMe();

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { agentRuns, agentTokens, projectMembers, users } from "@/db/schema";
 import { HttpError } from "./auth";
 import type { Tx } from "./queries";
+import { readAgentActs } from "./roles";
 import type { AgentDTO } from "./types";
 
 /** Every agent token starts with this, so a leak is easy to search for. */
@@ -146,6 +147,7 @@ export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
         color: users.color,
         emoji: users.avatarEmoji,
         createdAt: users.createdAt,
+        acts: projectMembers.acts,
       })
       .from(projectMembers)
       .innerJoin(users, eq(users.id, projectMembers.userId))
@@ -172,6 +174,7 @@ export async function loadAgents(projectId: string): Promise<AgentDTO[]> {
     color: row.color,
     emoji: row.emoji,
     createdAt: row.createdAt.toISOString(),
+    acts: readAgentActs(row.acts),
     tokens: tokenRows
       .filter((t) => t.agentId === row.id)
       .map((t) => ({

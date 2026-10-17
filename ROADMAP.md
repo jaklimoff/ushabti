@@ -29,7 +29,8 @@ Ushabti stays small. These do not fit it, however often they are asked for.
   transitions. An agent or a webhook does that from outside.
 - **A plugin market.**
 - **Per-field permissions.** A member writes values, an admin changes
-  structure, and that is all.
+  structure, and that is all. An agent's switches take acts away on one
+  board and give nothing; they are not permissions on a field.
 
 ---
 

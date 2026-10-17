@@ -10,6 +10,7 @@ import {
   humanOnly,
   json,
   adminOnly,
+  mayOnly,
   route,
   str,
 } from "@/lib/api";
@@ -33,6 +34,8 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const projectId = await viewProjectId(viewId);
   if (!projectId) throw new HttpError(404, "View not found.");
   const { user, membership } = await guard(projectId);
+  // The rest of a view is a person's already, so for an agent the switch covers it all.
+  mayOnly(user, membership, "structure");
 
   const input = await body<{
     name?: string;

@@ -2,7 +2,7 @@ import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { broadcast, clientIdOf, guard, json, route } from "@/lib/api";
+import { broadcast, clientIdOf, guard, json, mayOnly, route } from "@/lib/api";
 import { logActivity, taskProjectId } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ taskId: string }> };
@@ -27,7 +27,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { taskId } = await ctx.params;
   const projectId = await taskProjectId(taskId);
   if (!projectId) throw new HttpError(404, "Task not found.");
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "archive");
 
   const archived = await db
     .update(tasks)
@@ -52,7 +53,8 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
   const { taskId } = await ctx.params;
   const projectId = await taskProjectId(taskId);
   if (!projectId) throw new HttpError(404, "Task not found.");
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "archive");
 
   /* The task keeps its rank, so it comes back where it was. */
   const restored = await db

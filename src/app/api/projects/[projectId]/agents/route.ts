@@ -71,6 +71,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         color: agent.color,
         emoji: agent.emoji,
         createdAt: agent.createdAt.toISOString(),
+        acts: {},
         tokens: [],
       } satisfies AgentDTO,
     },

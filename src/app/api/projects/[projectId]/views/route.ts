@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { byPos } from "@/lib/order";
 import { views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, mayOnly, route, str } from "@/lib/api";
 import { startsOnCurrent } from "@/lib/filters";
 import {
   groupPropertyId,
@@ -18,7 +18,8 @@ type Ctx = { params: Promise<{ projectId: string }> };
 
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "structure");
 
   const input = await body<{ name?: string; kind?: string; groupById?: string | null }>(req);
   const name = str(input.name, "View name", { max: 40 });

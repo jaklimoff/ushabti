@@ -40,7 +40,7 @@ vi.mock("@/lib/queries", () => ({
 }));
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
-  guard: async () => ({ user: fake.state.caller, membership: { role: "member" } }),
+  guard: async () => ({ user: fake.state.caller, membership: { role: "member", acts: {} } }),
   broadcast: vi.fn(async () => undefined),
 }));
 

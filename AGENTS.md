@@ -387,6 +387,18 @@ and what is easy to get wrong.
   the one that knows the release is out. Unship is not: it throws the shipped
   day away, which nothing else can give back, so the option routes keep
   `adminOnly` for `shippedAt` and a ship comes only through its own route.
+- **An agent's switches only take away.** An owner or an admin can switch
+  off, for one agent on one board, an act it may otherwise do: create, delete
+  and archive tasks, reword or remove a checklist item, change the structure,
+  ship. They live on its membership as `project_members.acts`, holding only
+  what somebody changed; an act missing from it takes its default from
+  `roles.ts`, where Delete starts off and the rest on. `readAgentActs()` reads
+  it afresh, as a filter is read, and drops a word the code no longer knows.
+  `agentMay()` is the one answer and `mayOnly()` in `api.ts` the one guard; a
+  person, with a session or a personal token, always passes. A switch narrows
+  and never widens: it is not a permission on a field, and nothing about it
+  may give an agent more than a member has. A route that adds an act an admin
+  would want to take away asks `mayOnly` with one of the acts there are.
 - **A field saves on blur. A destructive action confirms in place. Nothing
   else has a Save button.** Settings used to hold six different save models on
   one page, and the one field a new person edits first was the odd one out.

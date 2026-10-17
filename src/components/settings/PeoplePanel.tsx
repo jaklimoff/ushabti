@@ -6,13 +6,23 @@ import { api } from "@/lib/client";
 import { emailedLine } from "@/lib/emailed";
 import { INVITE_DAYS } from "@/lib/invite-link";
 import { editedText } from "@/lib/leave";
-import { canManage, isOwner, outranks, rolesOffered, type Role } from "@/lib/roles";
+import {
+  AGENT_ACTS,
+  AGENT_ACT_WORDS,
+  agentMay,
+  canManage,
+  isOwner,
+  outranks,
+  rolesOffered,
+  type AgentAct,
+  type Role,
+} from "@/lib/roles";
 import { isListening } from "@/lib/presence";
 import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
-import { ColorSwatches, FaceSwatches, Field, Input, Select } from "@/components/ui/Form";
+import { Checkbox, ColorSwatches, FaceSwatches, Field, Input, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
@@ -479,6 +489,16 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
     }
   }
 
+  /* Only the list draws the switches, so only the list is asked again. */
+  async function changeAct(agent: AgentDTO, act: AgentAct, on: boolean): Promise<void> {
+    try {
+      await send.patch(`/api/projects/${projectId}/agents/${agent.id}`, { acts: { [act]: on } });
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not change what the agent may do.");
+    }
+    await reload();
+  }
+
   /** True when the name was saved; a refused one puts the old name back. */
   async function rename(agent: AgentDTO, next: string): Promise<boolean> {
     try {
@@ -530,6 +550,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
             onRemove={() => void remove(agent)}
             onFace={(patch) => changeFace(agent, patch)}
             onRename={(next) => rename(agent, next)}
+            onAct={(act, on) => changeAct(agent, act, on)}
             reload={reload}
           />
         ))}
@@ -564,6 +585,7 @@ function AgentBox({
   onRemove,
   onFace,
   onRename,
+  onAct,
   reload,
 }: {
   agent: AgentDTO;
@@ -575,6 +597,7 @@ function AgentBox({
   onRemove: () => void;
   onFace: (patch: { color?: string; emoji?: string | null }) => Promise<void>;
   onRename: (name: string) => Promise<boolean>;
+  onAct: (act: AgentAct, on: boolean) => Promise<void>;
   reload: () => Promise<void>;
 }) {
   const confirm = useConfirm();
@@ -732,6 +755,8 @@ function AgentBox({
         </div>
       )}
 
+      <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
+
       {agent.tokens.map((token) => (
         <TokenRow
           key={token.id}
@@ -742,6 +767,48 @@ function AgentBox({
           canEdit={canEdit}
           onRevoke={() => onRevoke(token.id)}
           reload={reload}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * What an admin lets this agent do on this board. A switch only takes away,
+ * and the server refuses an act that is off whatever the agent was told. A
+ * toggle saves on click and holds still until its answer comes, so a second
+ * click cannot race the first.
+ */
+function MayLine({
+  agent,
+  canEdit,
+  onAct,
+}: {
+  agent: AgentDTO;
+  canEdit: boolean;
+  onAct: (act: AgentAct, on: boolean) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState<AgentAct | null>(null);
+
+  async function flip(act: AgentAct, on: boolean) {
+    if (saving) return;
+    setSaving(act);
+    await onAct(act, on);
+    setSaving(null);
+  }
+
+  return (
+    <div className={styles.mayRow} data-testid="agent-may">
+      <span className={styles.mayLabel}>May</span>
+      {AGENT_ACTS.map((act) => (
+        <Checkbox
+          key={act}
+          label={AGENT_ACT_WORDS[act].label}
+          title={AGENT_ACT_WORDS[act].note}
+          aria-label={`${agent.name} may ${AGENT_ACT_WORDS[act].verb}`}
+          checked={agentMay(agent.acts, act)}
+          disabled={!canEdit || saving !== null}
+          onChange={(e) => void flip(act, e.currentTarget.checked)}
         />
       ))}
     </div>

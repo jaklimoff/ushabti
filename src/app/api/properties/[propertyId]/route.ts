@@ -5,7 +5,17 @@ import { projects, properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { GROUPED_KINDS, type TaskValue } from "@/lib/types";
 import { readCadenceInput } from "@/lib/cadence";
-import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  adminOnly,
+  mayOnly,
+  route,
+  str,
+} from "@/lib/api";
 import { fallbackRow, KIND_OF_TYPE, readCardView, setCardPlace } from "@/lib/card-view";
 import {
   defaultGroupById,
@@ -25,6 +35,8 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const projectId = await propertyProjectId(propertyId);
   if (!projectId) throw new HttpError(404, "Property not found.");
   const { user, membership } = await guard(projectId);
+  // All an agent may write here is a name, a place and showing on the card.
+  mayOnly(user, membership, "structure");
 
   const input = await body<{
     name?: string;

@@ -3,7 +3,17 @@ import { byPos } from "@/lib/order";
 import { db } from "@/db";
 import { properties, propertyOptions } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
-import { adminOnly, body, broadcast, clientIdOf, guard, json, route, str } from "@/lib/api";
+import {
+  adminOnly,
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  mayOnly,
+  route,
+  str,
+} from "@/lib/api";
 import { propertyProjectId, withProjectLock } from "@/lib/queries";
 import { nextPaletteColor } from "@/lib/colors";
 import { rankAfter } from "@/lib/rank";
@@ -18,6 +28,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const projectId = await propertyProjectId(propertyId);
   if (!projectId) throw new HttpError(404, "Property not found.");
   const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "structure");
 
   const [prop] = await db
     .select({ name: properties.name, type: properties.type })

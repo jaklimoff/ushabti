@@ -41,6 +41,28 @@ cadence, conditions and defaults.
 It cannot delete a property, an option or a view, and it cannot write its own
 run's control word — see [Obey the control word](#obey-the-control-word).
 
+### What an agent may do on this board
+
+An owner or an admin can switch acts off for one agent on one board, on the
+**May** line of the agent's row in Settings → People. A switch narrows and
+never widens: an agent with every switch on is the member described above, and
+no switch gives it more than a member has. Two agents on one board can differ.
+
+| Switch           | What it covers                                                                                                                               | Starts |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Create tasks     | Adding a task.                                                                                                                               | on     |
+| Delete tasks     | Deleting a task, and restoring a deleted one.                                                                                                | off    |
+| Archive tasks    | Archiving a task, and putting an archived one back.                                                                                          | on     |
+| Edit checklists  | Rewording or removing a checklist item. Adding an item and ticking one stay open.                                                            | on     |
+| Change structure | Adding a property, an option or a view; renaming, recolouring, dating or reordering an option; renaming a property; regrouping or sorting a view. | on     |
+| Ship releases    | Shipping or closing a release or a sprint. A ship archives what is over, so it needs Archive tasks on too.                                   | on     |
+
+The server refuses an act that is off, whatever the agent was told:
+`403 {"error": "This project does not let Builder delete tasks."}`.
+`/api/agent/me` lists the acts that are off in `project.off`, and `board.mjs me`
+prints them on its first line, so a well-behaved agent does not try. Deleting
+a comment or a file is no switch: an agent deletes only its own.
+
 ## Sign in
 
 Send the token as a bearer token on every call. The address below is the
@@ -57,13 +79,22 @@ curl -s $USHABTI/api/agent/me -H "Authorization: Bearer $TOKEN"
 ```json
 {
   "agent": { "id": "…", "name": "Builder", "color": "#3fb0c8" },
-  "project": { "id": "…", "name": "Ushabti roadmap", "key": "USH", "role": "member", "waiting": 2 }
+  "project": {
+    "id": "…",
+    "name": "Ushabti roadmap",
+    "key": "USH",
+    "role": "member",
+    "waiting": 2,
+    "off": [{ "act": "delete", "words": "delete tasks" }]
+  }
 }
 ```
 
 `/api/agent/me` is the only call that needs no project id: everything an agent
 needs to start is in the token. `project.waiting` is how many live tasks have
 an open run that waits for a person, as the top bar counts them.
+`project.off` is the acts an admin switched off for this agent on this board —
+see [What an agent may do on this board](#what-an-agent-may-do-on-this-board).
 
 ## Personal tokens
 
@@ -1208,7 +1239,7 @@ answer is left as its agent left it.
 | ---- | ------------------------------------------------------------- |
 | 400  | The body is wrong, or an id is not a UUID — `{"error": "That is not a task id."}`, with `run`, `view`, `property` and the rest in place of `task`. |
 | 401  | The token is unknown or revoked.                              |
-| 403  | The token belongs to another project, or a route only a person may call. |
+| 403  | The token belongs to another project, a route only a person may call, or an act an admin switched off for this agent. |
 | 404  | The task, run or project is not there.                        |
 | 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. A run that handed the task on is the one open run a claim closes rather than refuses. It is also the answer to `lost` on a run that waits. |
 | 429  | Ten bad tokens came from your address inside ten minutes. Wait, do not retry in a loop. |

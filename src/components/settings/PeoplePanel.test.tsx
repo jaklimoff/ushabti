@@ -28,6 +28,7 @@ function agent(name: string, color = "#e0574d"): AgentDTO {
     name,
     color,
     emoji: null,
+    acts: {},
     createdAt: new Date().toISOString(),
     tokens: [],
   };
@@ -62,7 +63,12 @@ function agentsRoute(agents: AgentDTO[]): Answer {
     }
     if (method === "PATCH" && AGENT.test(path)) {
       const i = agents.findIndex((a) => path.endsWith(a.id));
-      agents[i] = { ...agents[i], ...(body as Partial<AgentDTO>) };
+      const patch = body as Partial<AgentDTO>;
+      agents[i] = {
+        ...agents[i],
+        ...patch,
+        acts: { ...agents[i].acts, ...patch.acts },
+      };
       return { body: { agent: agents[i] } };
     }
   };
@@ -241,6 +247,39 @@ describe("Agents in Settings -> People", () => {
     // Only a keepalive request outlives the page that sent it.
     const leave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH");
     expect(leave?.[1]?.keepalive).toBe(true);
+  });
+
+  test("an admin switches an act on or off on the May line, and it saves on click", async () => {
+    const { patches } = await draw([agent("Keeper")]);
+    const may = box("Keeper").getByTestId("agent-may");
+    await expect.element(may).toMatchTextContent(/^May/);
+    // Delete starts off; the rest start on.
+    const del = page.getByRole("checkbox", { name: "Keeper may delete tasks" });
+    const create = page.getByRole("checkbox", { name: "Keeper may create tasks" });
+    await expect.element(del).not.toBeChecked();
+    await expect.element(create).toBeChecked();
+    await expect
+      .element(page.getByRole("checkbox", { name: "Keeper may ship releases" }))
+      .toBeChecked();
+
+    await del.click();
+    await wrote(patches, 1);
+    expect(patches()[0].body).toEqual({ acts: { delete: true } });
+    await expect.element(del).toBeChecked();
+
+    await create.click();
+    await wrote(patches, 2);
+    expect(patches()[1].body).toEqual({ acts: { create: false } });
+    await expect.element(create).not.toBeChecked();
+  });
+
+  test("a member sees what an agent may do and cannot change it", async () => {
+    const data = newProject();
+    data.project.role = "member";
+    await draw([{ ...agent("Keeper"), acts: { archive: false } }], data);
+    const archive = page.getByRole("checkbox", { name: "Keeper may archive tasks" });
+    await expect.element(archive).not.toBeChecked();
+    await expect.element(archive).toBeDisabled();
   });
 });
 

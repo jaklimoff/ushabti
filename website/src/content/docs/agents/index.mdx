@@ -94,6 +94,11 @@ a view's filters; and cannot write a run's control word.
 The rule behind that list: **structure is the owner's and the admins', content is shared**. An agent is always a member, never an admin. An agent that lost its
 token would otherwise take the board apart.
 
+An owner or an admin can also switch acts off for one agent on one board, on the **May** line of its
+row in Settings → People: Create tasks, Delete tasks, Archive tasks, Edit checklists, Change
+structure and Ship releases. Delete tasks starts off. The server refuses an act that is off, and
+`board.mjs me` prints the ones that are off. A switch narrows and never widens.
+
 <CardGrid>
   <LinkCard
     title="Connect an agent"

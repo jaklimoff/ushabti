@@ -96,3 +96,88 @@ export function rolesOffered(
   // A select with one choice changes nothing, so the row shows a tag instead.
   return offered.length > 1 ? offered : [];
 }
+
+/**
+ * The acts an admin may switch off for one agent on one board. Each is an act
+ * and not a route: the routes behind it ask `agentMay` through `mayOnly` in
+ * `api.ts`. A switch only takes away. An agent with every switch on is the
+ * member it always was, and no switch gives it more than a member has.
+ */
+export const AGENT_ACTS = [
+  "create",
+  "delete",
+  "archive",
+  "checklist",
+  "structure",
+  "ship",
+] as const;
+export type AgentAct = (typeof AGENT_ACTS)[number];
+export type AgentActs = Partial<Record<AgentAct, boolean>>;
+
+/** The name on the toggle, and the words of the refusal. */
+export const AGENT_ACT_WORDS: Record<AgentAct, { label: string; verb: string; note: string }> = {
+  create: { label: "Create tasks", verb: "create tasks", note: "Add a task to the board." },
+  delete: {
+    label: "Delete tasks",
+    verb: "delete tasks",
+    note: "Delete a task, and restore a deleted one.",
+  },
+  archive: {
+    label: "Archive tasks",
+    verb: "archive tasks",
+    note: "Archive a task, and put an archived one back.",
+  },
+  checklist: {
+    label: "Edit checklists",
+    verb: "edit checklists",
+    note: "Reword or remove a checklist item. Adding and ticking one stay open.",
+  },
+  structure: {
+    label: "Change structure",
+    verb: "change the structure",
+    note: "Add a property, an option or a view; rename, recolour or reorder an option; rename a property; regroup or sort a view.",
+  },
+  ship: {
+    label: "Ship releases",
+    verb: "ship releases",
+    note: "Ship or close a release or a sprint. A ship archives, so it needs Archive tasks too.",
+  },
+};
+
+/** Delete starts off for every agent: a deleted task is gone for others. */
+const ACT_DEFAULT: Record<AgentAct, boolean> = {
+  create: true,
+  delete: false,
+  archive: true,
+  checklist: true,
+  structure: true,
+  ship: true,
+};
+
+export function isAgentAct(value: unknown): value is AgentAct {
+  return typeof value === "string" && (AGENT_ACTS as readonly string[]).includes(value);
+}
+
+/**
+ * The stored switches, read afresh as a filter is. A word the code no longer
+ * knows, or a value that is not on or off, is dropped, so a stored object can
+ * never refuse something by accident.
+ */
+export function readAgentActs(stored: unknown): AgentActs {
+  const acts: AgentActs = {};
+  if (!stored || typeof stored !== "object" || Array.isArray(stored)) return acts;
+  for (const [act, on] of Object.entries(stored)) {
+    if (isAgentAct(act) && typeof on === "boolean") acts[act] = on;
+  }
+  return acts;
+}
+
+/** Whether an agent with these switches may do this act on this board. */
+export function agentMay(acts: AgentActs, act: AgentAct): boolean {
+  return acts[act] ?? ACT_DEFAULT[act];
+}
+
+/** The acts switched off, in the order the toggles are drawn. */
+export function actsOff(acts: AgentActs): AgentAct[] {
+  return AGENT_ACTS.filter((act) => !agentMay(acts, act));
+}

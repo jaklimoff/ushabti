@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { projectMembers, projects, sessions, users } from "@/db/schema";
 import { bearerToken, holderOfToken, isPersonalToken } from "./agents";
 import { personOfToken } from "./personal-tokens";
+import { readAgentActs, type AgentActs } from "./roles";
 import { actingVia } from "./via";
 import {
   addressOf,
@@ -225,6 +226,8 @@ export type Membership = {
   projectKey: string;
   ownerId: string;
   role: string;
+  /** An agent's switches on this board, read afresh; see `agentMay`. */
+  acts: AgentActs;
 };
 
 /** Throws unless the user is a member of the project. */
@@ -236,6 +239,7 @@ export async function requireMembership(userId: string, projectId: string): Prom
       projectKey: projects.key,
       ownerId: projects.ownerId,
       role: projectMembers.role,
+      acts: projectMembers.acts,
     })
     .from(projectMembers)
     .innerJoin(projects, eq(projects.id, projectMembers.projectId))
@@ -244,5 +248,5 @@ export async function requireMembership(userId: string, projectId: string): Prom
 
   const row = rows[0];
   if (!row) throw new HttpError(404, "Project not found.");
-  return row;
+  return { ...row, acts: readAgentActs(row.acts) };
 }

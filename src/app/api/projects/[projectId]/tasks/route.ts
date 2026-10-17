@@ -1,7 +1,17 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { projects, tasks, taskValues } from "@/db/schema";
 import { dropHidden } from "@/lib/hidden";
-import { body, broadcast, clientIdOf, guard, json, optionalStr, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  mayOnly,
+  optionalStr,
+  route,
+  str,
+} from "@/lib/api";
 import { loadProperties, rankOnTheEnd, withProjectLock } from "@/lib/queries";
 import { byPos } from "@/lib/order";
 import { rankBefore, rankBetween } from "@/lib/rank";
@@ -13,7 +23,8 @@ type Ctx = { params: Promise<{ projectId: string }> };
 
 export const POST = route<Ctx>(async (req, ctx) => {
   const { projectId } = await ctx.params;
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  mayOnly(user, membership, "create");
 
   const input = await body<{
     title?: string;

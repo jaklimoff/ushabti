@@ -1,3 +1,4 @@
+import type { AgentActs } from "./roles";
 export const PROPERTY_TYPES = [
   "select",
   "multi_select",
@@ -708,6 +709,8 @@ export type AgentDTO = {
   emoji: string | null;
   createdAt: string;
   tokens: AgentTokenDTO[];
+  /** What an admin switched on or off for it on this board; see `agentMay`. */
+  acts: AgentActs;
 };
 
 /**

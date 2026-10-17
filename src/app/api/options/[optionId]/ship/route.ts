@@ -1,5 +1,5 @@
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
+import { body, broadcast, clientIdOf, guard, json, mayOnly, route } from "@/lib/api";
 import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { readShipRest, readShipStrays } from "@/lib/ship";
 import { shipOptionIn } from "@/lib/ship-option";
@@ -29,7 +29,9 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const owner = await optionPropertyId(optionId);
   if (!owner) throw new HttpError(404, "Option not found.");
   const { projectId, propertyId } = owner;
-  const { user } = await guard(projectId);
+  const { user, membership } = await guard(projectId);
+  // A ship archives every task that is over, so it asks both switches.
+  mayOnly(user, membership, "ship", "archive");
 
   const input = await body<{ rest?: unknown; strays?: unknown }>(req);
   const read = readShipRest(input);

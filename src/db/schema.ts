@@ -206,6 +206,13 @@ export const projectMembers = pgTable(
      * lives on the membership. `joinProject` puts a new one at the top.
      */
     position: text("position").notNull(),
+    /**
+     * What an admin switched off or on for an agent on this board, act by
+     * act, holding only what somebody changed. An act missing here takes its
+     * default from `src/lib/roles.ts`, and `readAgentActs()` drops a word the
+     * code no longer knows. A person's stays empty and is never read.
+     */
+    acts: jsonb("acts").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

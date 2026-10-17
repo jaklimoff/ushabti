@@ -3,7 +3,17 @@ import { byPos } from "@/lib/order";
 import { properties, propertyOptions, taskValues } from "@/db/schema";
 import { dropHidden, lockTasks, projectTaskIds } from "@/lib/hidden";
 import { HttpError } from "@/lib/auth";
-import { body, broadcast, clientIdOf, guard, json, adminOnly, route, str } from "@/lib/api";
+import {
+  body,
+  broadcast,
+  clientIdOf,
+  guard,
+  json,
+  adminOnly,
+  mayOnly,
+  route,
+  str,
+} from "@/lib/api";
 import { optionPropertyId, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
@@ -17,6 +27,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const owner = await optionPropertyId(optionId);
   if (!owner) throw new HttpError(404, "Option not found.");
   const { user, membership } = await guard(owner.projectId);
+  mayOnly(user, membership, "structure");
 
   const input = await body<Record<string, unknown> & { afterId?: string | null }>(req);
   // Shipping closes a release or a sprint, and Unship opens it again. That is

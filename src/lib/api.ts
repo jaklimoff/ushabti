@@ -6,7 +6,16 @@ import { HttpError, PERSONAL_REFUSAL, requireActor, requireMembership, requireUs
 import { forgetChangelog } from "./changelog-shelf";
 import { publish, type BoardEvent } from "./events";
 import { isId, notAnId } from "./ids";
-import { canManage, isOwner, outranks, roleChangeRefusal } from "./roles";
+import {
+  AGENT_ACT_WORDS,
+  agentMay,
+  canManage,
+  isOwner,
+  outranks,
+  roleChangeRefusal,
+  type AgentAct,
+  type AgentActs,
+} from "./roles";
 import { inRequest } from "./via";
 
 export { HttpError };
@@ -166,6 +175,26 @@ export function signedInOnly(actor: { personalTokenId?: string }) {
 /** For the run routes, which belong to the agent doing the work. */
 export function agentOnly(actor: { kind: string }) {
   if (actor.kind !== "agent") throw new HttpError(403, "Only an agent can do this.");
+}
+
+/**
+ * For the acts an admin can switch off for one agent on one board. A person,
+ * with a session or a personal token, always passes: the switches are an
+ * agent's and only take away. The rule is `agentMay` in `roles.ts`.
+ */
+export function mayOnly(
+  actor: { kind: string; name: string },
+  membership: { acts: AgentActs },
+  ...acts: AgentAct[]
+) {
+  if (actor.kind !== "agent") return;
+  for (const act of acts) {
+    if (agentMay(membership.acts, act)) continue;
+    throw new HttpError(
+      403,
+      `This project does not let ${actor.name} ${AGENT_ACT_WORDS[act].verb}.`,
+    );
+  }
 }
 
 /**

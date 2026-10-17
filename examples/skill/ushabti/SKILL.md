@@ -128,7 +128,11 @@ item you remove or reword, under your name.
 its history, its comments and its link; `restore` puts it back. Archive is how
 a task that is over goes away — say _archived_ and _put back_, never "closed"
 or "done", which are words of the owner's Status property. Deleting a task is
-for a mistake, and an agent does not delete.
+for a mistake, and an agent does not delete. An admin can switch acts off for
+you on one board — creating, deleting, archiving, rewording or removing a
+checklist item, changing the structure, shipping — and the server then refuses
+them. `me` prints the ones that are off on its first line; do not try those. A
+switch only takes away; it never lets you do more than a member.
 
 ## When the watcher woke you
 

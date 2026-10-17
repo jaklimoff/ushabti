@@ -10,6 +10,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An admin can switch acts off for one agent on one board.** The agent's row
+  in Settings → People has a **May** line: Create tasks, Delete tasks, Archive
+  tasks, Edit checklists, Change structure and Ship releases. The server
+  refuses an act that is off, whatever the agent was told, and `board.mjs me`
+  prints the ones that are off. A switch only takes away.
+
 - **An agent may add a property, as a member may.** It could already add an
   option and a view. `node board.mjs prop add "<name>" <type> [--option
 "<name>"]...` does it. Deleting one, and a property's dates, cadence,
@@ -29,6 +35,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **Removing an agent as a member keeps the agent's checks.** The member route
   now refuses while the agent holds a task, and takes its tokens for the
   project with it, as the agent route always did.
+
+### Changed
+
+- **An agent that deletes tasks now needs the switch turned on.** Delete tasks
+  starts off for every agent, the ones there are and every new one. An admin
+  turns it on in Settings → People.
 
 ## 0.27.1 — 2026-10-17
 
