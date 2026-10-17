@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.28.0 — 2026-10-17
+
 ### Added
 
 - **An admin can switch acts off for one agent on one board.** The agent's row
