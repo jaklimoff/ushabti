@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A colour swatch says its colour.** A screen reader names each swatch, as
+  "Red" or "Teal", where it used to read out a code like "#e0574d". Ship
+  wears the same ✓ and word in a column header and on the roadmap, a token
+  reads the same in Account and in Settings, and the box for a new task starts
+  one line tall.
 - **Settings reads as grouped pages with fields that line up.** The menu sorts
   its pages under General, Board and Integrations. Project is a set of named
   cards, and deleting it asks you to type the key. Member rows fit a phone,

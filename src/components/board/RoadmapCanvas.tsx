@@ -27,9 +27,8 @@ import {
 } from "@/lib/roadmap";
 import { useBoard } from "./store";
 import { useAddOption } from "./useAddOption";
-import { ShipQuestion } from "./Column";
+import { ShipButton, ShipQuestion } from "./Column";
 import { useShipOffer } from "./useShipOffer";
-import { shipWord } from "@/lib/ship";
 import styles from "./board.module.css";
 import { isSelect } from "@/lib/types";
 
@@ -378,16 +377,15 @@ export function RoadmapCanvas({
                       <span className={styles.roadmapCount}>{said}</span>
                     </span>
                     {ship && shipping !== row.id && (
-                      <button
-                        type="button"
-                        className={`${styles.roadmapShip} ${ready ? styles.roadmapShipReady : ""}`}
-                        data-testid="roadmap-ship"
-                        aria-label={`${shipWord(ship.closing)} ${row.name}`}
-                        aria-expanded={asking === row.id}
+                      <ShipButton
+                        testId="roadmap-ship"
+                        className={styles.roadmapShip}
+                        closing={ship.closing}
+                        name={row.name}
+                        ready={ready}
+                        expanded={asking === row.id}
                         onClick={() => setAsking(asking === row.id ? null : row.id)}
-                      >
-                        {shipWord(ship.closing)}
-                      </button>
+                      />
                     )}
                   </div>
                   <div className={styles.roadmapTrack}>

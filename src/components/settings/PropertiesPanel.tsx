@@ -31,7 +31,7 @@ import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
-import { PALETTE } from "@/lib/colors";
+import { PALETTE, colorName } from "@/lib/colors";
 import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
@@ -559,8 +559,8 @@ function OptionChip({
               type="button"
               role="option"
               aria-selected={color === option.color}
-              aria-label={color}
-              title={color}
+              aria-label={colorName(color)}
+              title={colorName(color)}
               className={`${styles.swatchChip} ${color === option.color ? styles.swatchChipOn : ""}`}
               style={{ background: color }}
               onClick={() => {

@@ -12,6 +12,7 @@ import { useBoard } from "./store";
 import styles from "./board.module.css";
 import { hasOptions } from "@/lib/types";
 import { pickedAsked, pickedDrops } from "@/lib/when";
+import { Label } from "@/components/ui/Form";
 
 /**
  * What is picked, and the one thing you can do to all of it.
@@ -261,7 +262,7 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
               </>
             ) : (
               <>
-                <span className="label">Set one property on all of them</span>
+                <Label>Set one property on all of them</Label>
                 <AskBox
                   query={query}
                   onQuery={setQuery}

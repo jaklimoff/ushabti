@@ -978,7 +978,6 @@ label.act > input {
 .tokens {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
 }
 
@@ -986,14 +985,6 @@ label.act > input {
   font-size: var(--t-small);
   line-height: 24px;
   color: var(--muted);
-}
-
-.tokenRow {
-  display: flex;
-  align-items: center;
-  gap: 4px 10px;
-  flex-wrap: wrap;
-  min-height: 24px;
 }
 
 .tokenNaming {
@@ -1004,20 +995,9 @@ label.act > input {
   padding-top: 4px;
 }
 
-.tokenName {
-  font-size: var(--t-small);
-  color: var(--text-2);
-}
-
-.tokenPrefix {
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  color: var(--text-4);
-}
-
-.tokenWhen {
-  font-size: var(--t-small);
-  color: var(--muted);
+/* The recipe under a token just made, inside the row's own edge. */
+.tokenSecret {
+  padding: 0 13px 9px;
 }
 
 .tokenLive {
@@ -1656,13 +1636,6 @@ textarea.rulesBox {
   width: 10px;
   flex: 0 0 10px;
   color: var(--muted-2);
-}
-
-.viewGlyphDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
 }
 
 .viewMain {

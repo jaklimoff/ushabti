@@ -22,7 +22,15 @@ import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
-import { Checkbox, ColorSwatches, FaceSwatches, Field, Input, Select } from "@/components/ui/Form";
+import {
+  Checkbox,
+  ColorSwatches,
+  FaceSwatches,
+  Field,
+  Input,
+  Label,
+  Select,
+} from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import {
   Card,
@@ -36,6 +44,7 @@ import {
   Tag,
 } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
+import { TokenRow } from "@/components/ui/TokenRow";
 import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -767,10 +776,10 @@ function AgentBox({
         <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
 
         <div className={styles.agentPart}>
-          <span className={`label ${styles.agentLabel}`}>Tokens</span>
+          <Label className={styles.agentLabel}>Tokens</Label>
           <div className={styles.tokens}>
             {agent.tokens.map((token) => (
-              <TokenRow
+              <AgentTokenRow
                 key={token.id}
                 token={token}
                 others={agent.tokens.length - 1}
@@ -844,7 +853,7 @@ function MayLine({
 
   return (
     <div className={styles.agentPart} data-testid="agent-may">
-      <span className={`label ${styles.agentLabel}`}>May</span>
+      <Label className={styles.agentLabel}>May</Label>
       <div className={styles.mayBlock}>
         <div className={styles.mayGrid}>
           {AGENT_ACTS.map((act) => (
@@ -907,7 +916,7 @@ function usePickedFace(
   return { color, emoji, pick };
 }
 
-function TokenRow({
+function AgentTokenRow({
   token,
   others,
   agentName,
@@ -925,29 +934,20 @@ function TokenRow({
   onRevoke: () => void;
   reload: () => Promise<void>;
 }) {
-  const confirm = useConfirm();
-
-  if (confirm.asking) {
-    return (
-      <ConfirmRow
-        question={`Revoke the token “${token.name}”? ${
-          others === 0
-            ? `${agentName} stops working within one request.`
-            : `${agentName} keeps working on its ${others === 1 ? "other token" : `${others} other tokens`}.`
-        }`}
-        confirmLabel="Yes, revoke"
-        onConfirm={() => confirm.confirm(onRevoke)}
-        onCancel={confirm.cancel}
-      />
-    );
-  }
-
   return (
-    <>
-      <div className={styles.tokenRow} data-testid="token-row">
-        <span className={styles.tokenName}>{token.name}</span>
-        <span className={styles.tokenPrefix}>{token.prefix}…</span>
-        <span className={styles.tokenWhen}>
+    <TokenRow
+      name={token.name}
+      prefix={token.prefix}
+      testId="token-row"
+      fresh={Boolean(secret)}
+      question={`Revoke the token “${token.name}”? ${
+        others === 0
+          ? `${agentName} stops working within one request.`
+          : `${agentName} keeps working on its ${others === 1 ? "other token" : `${others} other tokens`}.`
+      }`}
+      onRevoke={canEdit ? onRevoke : null}
+      meta={
+        <>
           made {relativeDay(token.createdAt)} ·{" "}
           {isListening(token.listeningAt) ? (
             <span className={styles.tokenLive}>listening now</span>
@@ -956,29 +956,21 @@ function TokenRow({
           ) : (
             "never used"
           )}
-        </span>
-        <Spacer />
-        {canEdit && (
-          <IconButton
-            danger
-            label={`Revoke the token ${token.prefix}`}
-            title="Revoke this token"
-            onClick={confirm.ask}
-          >
-            ✕
-          </IconButton>
-        )}
-      </div>
+        </>
+      }
+    >
       {secret && (
-        <Connect
-          secret={secret}
-          agentName={agentName}
-          answered={token.lastUsedAt !== null}
-          listening={isListening(token.listeningAt)}
-          reload={reload}
-        />
+        <div className={styles.tokenSecret}>
+          <Connect
+            secret={secret}
+            agentName={agentName}
+            answered={token.lastUsedAt !== null}
+            listening={isListening(token.listeningAt)}
+            reload={reload}
+          />
+        </div>
       )}
-    </>
+    </TokenRow>
   );
 }
 
@@ -1028,12 +1020,12 @@ function Connect({
   return (
     <div className={styles.connect} data-testid="agent-secret">
       <div className={styles.connectStep}>
-        <span className="label">The token — readable only here, only now</span>
+        <Label>The token — readable only here, only now</Label>
         <CopyField value={secret} label="the token" loud />
       </div>
 
       <div className={styles.connectStep}>
-        <span className="label">Connect Claude Code</span>
+        <Label>Connect Claude Code</Label>
         <span className={styles.connectSay}>
           <span className={styles.connectNum}>1</span>
           Put the skill where Claude Code finds it.

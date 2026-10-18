@@ -8,6 +8,7 @@ import type { AttachmentDTO } from "@/lib/types";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
 import { useBoard } from "./store";
 import styles from "./panel.module.css";
+import { Label } from "@/components/ui/Form";
 
 type Send = <T>(write: () => Promise<T>) => Promise<T>;
 
@@ -55,7 +56,7 @@ export function FilesStrip({
   return (
     <div className={styles.block} data-testid="files">
       <div className={styles.blockHead}>
-        <span className="label">Files</span>
+        <Label>Files</Label>
       </div>
       <ul className={styles.files}>
         {files.map((file) =>

@@ -25,7 +25,7 @@ import { SILENCE_CHECK_MS, homeReader, type HomeReader } from "@/lib/home-live";
 import { trackWrites, type Reading, type Writes } from "@/lib/writes";
 import { suggestProjectKey } from "@/lib/defaults";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Form";
+import { Input, Label } from "@/components/ui/Form";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { AppBar } from "@/components/ui/AppBar";
 import { PageHead, PageShell } from "@/components/ui/Layout";
@@ -163,7 +163,7 @@ export function ProjectList({
 
                 {adding && (
                   <form className={styles.form} onSubmit={create}>
-                    <span className="label">New project</span>
+                    <Label>New project</Label>
                     <Input
                       block
                       autoFocus

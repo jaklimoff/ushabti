@@ -122,86 +122,8 @@
 
 /* ---- personal tokens ----------------------------------------------- */
 
-.tokenItem {
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.tokenItem:last-child {
-  border-bottom: 0;
-}
-
-/* Two lines that never break into each other: what it is, then its dates.
-   The ✕ spans both, so every row is the same height. */
-.tokenRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: var(--s-3);
-  row-gap: 3px;
-  align-items: center;
-  padding: 10px 13px;
-}
-
-.tokenLine {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-width: 0;
-}
-
-.tokenName {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--t-ui);
-  font-weight: 500;
-  color: var(--text-2);
-}
-
-.tokenPrefix {
-  flex: none;
-  padding: 1px 6px;
-  border-radius: var(--r-sm);
-  background: var(--bg-seg);
-  border: 1px solid var(--line);
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: var(--t-micro);
-  color: var(--text-4);
-}
-
-.tokenMeta {
-  grid-column: 1;
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--text-meta);
-}
-
 .tokenSoon {
   color: var(--danger-soft);
-}
-
-.tokenRevoke {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-}
-
-/* Quiet until needed, where there is a mouse. A touch screen keeps it. */
-@media (hover: hover) {
-  .tokenRevoke {
-    opacity: 0;
-    transition: opacity 140ms var(--ease);
-  }
-
-  .tokenRow:hover .tokenRevoke,
-  .tokenRevoke:focus-visible {
-    opacity: 1;
-  }
-}
-
-/* The row just made, until the page is left: its secret sits under it. */
-.tokenFresh {
-  box-shadow: inset 2px 0 0 var(--accent);
-  background: var(--bg-sub);
 }
 
 .secret {

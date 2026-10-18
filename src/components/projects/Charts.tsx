@@ -17,7 +17,7 @@ import {
 } from "@/lib/charts";
 import { Button, Pill } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
-import { Field, Select } from "@/components/ui/Form";
+import { Field, Label, Select } from "@/components/ui/Form";
 import { HomeSection, WidePanel } from "./Empty";
 import styles from "./ProjectList.module.css";
 
@@ -363,7 +363,7 @@ function ChartPicker({
 
   return (
     <form className={styles.form} onSubmit={add} data-testid="chart-picker">
-      <span className="label">New chart</span>
+      <Label>New chart</Label>
       {picks.map((pick, i) => (
         <ChartSourcePick
           key={i}
@@ -402,7 +402,7 @@ function ChartPicker({
       >
         {preview ? (
           <ChartFace chart={preview}>
-            <span className="label">Preview</span>
+            <Label>Preview</Label>
           </ChartFace>
         ) : (
           <div className={styles.chartWaiting} />

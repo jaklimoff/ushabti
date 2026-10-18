@@ -10,7 +10,7 @@ import type { FilterRule } from "@/lib/types";
 import { RuleChips } from "@/components/board/Filters";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
-import { Field, Input } from "@/components/ui/Form";
+import { Field, Input, Label } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { ListBar } from "./ListPage";
@@ -227,7 +227,7 @@ export function ListEditor({
         </div>
 
         <div className={styles.add}>
-          <span className="label">Add a project</span>
+          <Label>Add a project</Label>
           {sources.length + hidden === 0 && (
             <span className={styles.none} data-testid="list-needs-project">
               This list reads no project. Pick one.

@@ -10,7 +10,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { AVATAR_COLORS, PROJECT_COLORS, PROJECT_INK, facePaint, initials } from "@/lib/colors";
+import {
+  AVATAR_COLORS,
+  PROJECT_COLORS,
+  PROJECT_INK,
+  colorName,
+  facePaint,
+  initials,
+} from "@/lib/colors";
 import { FACE_EMOJI, isOneEmoji } from "@/lib/emoji";
 import {
   placeMenu,
@@ -468,6 +475,17 @@ export function Field({
 }
 
 /**
+ * The label of a `Field`, on its own: the head over a group of controls, a
+ * popover or a section, where there is no one control to tie it to. Words
+ * that do name one control go in a `Field` instead.
+ */
+export function Label({ className, ...rest }: React.ComponentPropsWithoutRef<"span">) {
+  return (
+    <span {...rest} className={[styles.fieldLabel, className ?? ""].filter(Boolean).join(" ")} />
+  );
+}
+
+/**
  * A row of swatches is one stop for Tab, as a native radio group is: the
  * picked swatch takes the focus, and the arrows, Home and End move and pick.
  * Forty swatches used to be forty stops between two fields.
@@ -541,8 +559,8 @@ export function ColorSwatches({
             i === 0,
             (AVATAR_COLORS as readonly string[]).includes(value),
           )}
-          aria-label={`Colour ${color}`}
-          title={color}
+          aria-label={colorName(color)}
+          title={colorName(color)}
           className={`${styles.swatch} ${emoji ? styles.swatchFace : ""} ${color === value ? styles.swatchOn : ""}`}
           style={swatchPaint(color, Boolean(emoji))}
           onClick={() => onPick(color)}
@@ -587,8 +605,8 @@ export function ProjectColorSwatches({
             i === 0,
             (PROJECT_COLORS as readonly string[]).includes(value),
           )}
-          aria-label={`Colour ${color}`}
-          title={color}
+          aria-label={colorName(color)}
+          title={colorName(color)}
           disabled={disabled}
           className={`${styles.swatch} ${styles.swatchKey} ${color === value ? styles.swatchOn : ""}`}
           style={{ backgroundColor: color, color: PROJECT_INK }}

@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import type { PersonalTokenDTO } from "@/lib/types";
-import { Button, IconButton } from "@/components/ui/Button";
-import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
+import { Button } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
 import { Input, Select } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Section } from "@/components/ui/Layout";
 import type { Toast } from "@/components/ui/Toasts";
+import { TokenRow } from "@/components/ui/TokenRow";
 import styles from "./account.module.css";
 
 const EXPIRIES = [
@@ -124,7 +124,7 @@ export function PersonalTokens({
         {tokens && tokens.length > 0 && (
           <div className={styles.tokens}>
             {tokens.map((token) => (
-              <TokenRow
+              <PersonalTokenRow
                 key={token.id}
                 token={token}
                 now={now}
@@ -168,7 +168,7 @@ export function PersonalTokens({
   );
 }
 
-function TokenRow({
+function PersonalTokenRow({
   token,
   now,
   secret,
@@ -180,7 +180,6 @@ function TokenRow({
   secret?: string;
   onRevoke: () => void;
 }) {
-  const confirm = useConfirm();
   const shown = useRef<HTMLDivElement>(null);
 
   /* A keyboard lands on Copy, the one thing to do next. */
@@ -188,45 +187,24 @@ function TokenRow({
     if (secret) shown.current?.querySelector<HTMLButtonElement>("button")?.focus();
   }, [secret]);
 
-  if (confirm.asking) {
-    return (
-      <div className={styles.tokenItem}>
-        <ConfirmRow
-          question={`Revoke the token “${token.name}”? Whatever uses it stops working within one request.`}
-          confirmLabel="Yes, revoke"
-          onConfirm={() => confirm.confirm(onRevoke)}
-          onCancel={confirm.cancel}
-        />
-      </div>
-    );
-  }
-
   const ends = expiry(token.expiresAt, now);
 
   return (
-    <div className={secret ? `${styles.tokenItem} ${styles.tokenFresh}` : styles.tokenItem}>
-      <div className={styles.tokenRow} data-testid="personal-token-row">
-        <div className={styles.tokenLine}>
-          <span className={styles.tokenName} title={token.name}>
-            {token.name}
-          </span>
-          <span className={styles.tokenPrefix}>{token.prefix}…</span>
-        </div>
-        <span className={styles.tokenMeta}>
+    <TokenRow
+      name={token.name}
+      prefix={token.prefix}
+      testId="personal-token-row"
+      fresh={Boolean(secret)}
+      question={`Revoke the token “${token.name}”? Whatever uses it stops working within one request.`}
+      onRevoke={onRevoke}
+      meta={
+        <>
           made {ago(token.createdAt, now)} ·{" "}
           <span className={ends.soon ? styles.tokenSoon : undefined}>{ends.text}</span> ·{" "}
           {token.lastUsedAt ? `last used ${ago(token.lastUsedAt, now)}` : "never used"}
-        </span>
-        <IconButton
-          className={styles.tokenRevoke}
-          danger
-          label={`Revoke the token ${token.name}`}
-          title="Revoke this token"
-          onClick={confirm.ask}
-        >
-          ✕
-        </IconButton>
-      </div>
+        </>
+      }
+    >
       {secret && (
         <div ref={shown} className={styles.secret} data-testid="personal-secret">
           <CopyField value={secret} label="the token" loud />
@@ -235,6 +213,6 @@ function TokenRow({
           </span>
         </div>
       )}
-    </div>
+    </TokenRow>
   );
 }

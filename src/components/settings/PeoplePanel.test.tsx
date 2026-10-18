@@ -182,7 +182,7 @@ describe("Agents in Settings -> People", () => {
 
     const colours = painter.getByRole("radiogroup", { name: "Colour of Painter" });
     await expect.poll(() => colours.getByRole("radio").all().length).toBe(11);
-    const green = colours.getByRole("radio", { name: "Colour #2f9e7a" });
+    const green = colours.getByRole("radio", { name: "Teal" });
     await green.click();
     await wrote(patches, 1);
     expect(patches()[0].body).toEqual({ color: "#2f9e7a" });

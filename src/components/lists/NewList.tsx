@@ -8,7 +8,7 @@ import type { SourceShape } from "@/lib/lists-load";
 import type { FilterRule } from "@/lib/types";
 import { RuleChips } from "@/components/board/Filters";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
-import { Field, Input } from "@/components/ui/Form";
+import { Field, Input, Label } from "@/components/ui/Form";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { ListBar } from "./ListPage";
 import { AppCrumb } from "@/components/ui/AppBar";
@@ -150,9 +150,7 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
         </Field>
 
         <section className={styles.add} aria-labelledby="list-projects">
-          <span className="label" id="list-projects">
-            Projects
-          </span>
+          <Label id="list-projects">Projects</Label>
           {projects.length >= FIND_FROM && (
             <Input
               block
@@ -180,9 +178,7 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
         </section>
 
         <section className={styles.add} aria-labelledby="list-gathers">
-          <span className="label" id="list-gathers">
-            What it gathers
-          </span>
+          <Label id="list-gathers">What it gathers</Label>
           {picks.length === 0 ? (
             <span className={styles.none} data-testid="list-needs-project">
               Pick a project above. Nothing is written until you press Create.

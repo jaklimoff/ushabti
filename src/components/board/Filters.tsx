@@ -43,6 +43,7 @@ import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { AskBox, BUILTIN_DOT, propertyColor, Rows, step, type Row } from "./Ask";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
+import { Label } from "@/components/ui/Form";
 
 /* ------------------------------------------------------------------ */
 /* The parts a rule is made of                                         */
@@ -616,7 +617,7 @@ function PickRule({
         />
       ) : (
         <>
-          <span className="label">Show only tasks where</span>
+          <Label>Show only tasks where</Label>
           {/* The same box in the same place as step two, so picking a
               property reads as the box moving on rather than swapping. */}
           <AskBox
@@ -806,7 +807,7 @@ export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: bool
 
       {open && (
         <div className={`${styles.popover} ${styles.filterPop}`} data-testid="sort-menu">
-          <span className="label">Order the cards by</span>
+          <Label>Order the cards by</Label>
           {/* The same box in the same place as the filter's, so the two
               controls beside each other are one thing to learn. */}
           <AskBox

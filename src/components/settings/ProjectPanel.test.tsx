@@ -458,17 +458,17 @@ describe("Project colour", () => {
     const drawn = await renderWithBoard(<ProjectPanel files />, data, projectRoute(data));
     const colours = page.getByRole("radiogroup", { name: "Project colour" });
     await expect
-      .element(colours.getByRole("radio", { name: "Colour #7aa8f0" }))
+      .element(colours.getByRole("radio", { name: "Cornflower" }))
       .toHaveAttribute("aria-checked", "true");
 
-    await colours.getByRole("radio", { name: "Colour #ec8fb8" }).click();
+    await colours.getByRole("radio", { name: "Pink" }).click();
     await wrote(() => drawn.sent("PATCH", PROJECT), 1);
     expect(drawn.sent("PATCH", PROJECT)[0].body).toEqual({ color: "#ec8fb8" });
     await expect
-      .element(colours.getByRole("radio", { name: "Colour #ec8fb8" }))
+      .element(colours.getByRole("radio", { name: "Pink" }))
       .toHaveAttribute("aria-checked", "true");
     await expect
-      .element(colours.getByRole("radio", { name: "Colour #7aa8f0" }))
+      .element(colours.getByRole("radio", { name: "Cornflower" }))
       .toHaveAttribute("aria-checked", "false");
   });
 
@@ -476,6 +476,6 @@ describe("Project colour", () => {
     const data = newProject();
     data.project.role = "member";
     await renderWithBoard(<ProjectPanel files />, data, projectRoute(data));
-    await expect.element(page.getByRole("radio", { name: "Colour #ec8fb8" })).toBeDisabled();
+    await expect.element(page.getByRole("radio", { name: "Pink" })).toBeDisabled();
   });
 });

@@ -124,7 +124,12 @@
   text-overflow: ellipsis;
 }
 
+/* An option reads in the card's chip font, so a value looks the same on the
+   card and in the panel. */
 .picked .triggerText {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-chip);
+  letter-spacing: 0.04em;
   color: var(--text);
 }
 
@@ -250,7 +255,9 @@
   gap: 6px;
   padding: 0 4px 0 8px;
   border-radius: var(--r-sm);
-  font-size: var(--t-small);
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-chip);
+  letter-spacing: 0.04em;
 }
 
 .chipRemove {

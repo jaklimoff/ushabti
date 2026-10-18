@@ -21,6 +21,7 @@ import {
   type ViewDTO,
   type ViewKind,
 } from "@/lib/types";
+import { ViewKindMark } from "@/components/ui/Marks";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useEdgeFade } from "./edges";
 import { FilterButton, SortButton } from "./Filters";
@@ -28,6 +29,7 @@ import { PlusIcon } from "./icons";
 import { copyText } from "@/lib/clipboard";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
+import { Label } from "@/components/ui/Form";
 
 const VIEW_DOTS = ["#3fb0c8", "#6d5bd0", "#2f9e7a", "#d1913a", "#c2557a", "#4b8fbe"];
 
@@ -178,7 +180,7 @@ export function ViewStrip({
 
       {adding && (
         <div className={styles.popover} style={{ left: popLeft }}>
-          <span className="label">New view</span>
+          <Label>New view</Label>
           <input
             className={styles.popInput}
             autoFocus
@@ -194,7 +196,7 @@ export function ViewStrip({
           {/* The name box keeps the caret, so the block that comes and goes is
               the last one and nothing ever moves above the cursor. */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="label">Shows as</span>
+            <Label>Shows as</Label>
             <div className={styles.chipRow} role="group" aria-label="What the new view shows">
               {VIEW_KINDS.map((option) => (
                 <button
@@ -203,7 +205,7 @@ export function ViewStrip({
                   aria-pressed={kind === option}
                   onClick={() => setKind(option)}
                 >
-                  <ViewKindMark kind={option} on={kind === option} />
+                  <ViewKindMark kind={option} on={kind === option} color="#4b8fbe" />
                   {VIEW_KIND_LABEL[option]}
                 </button>
               ))}
@@ -212,9 +214,7 @@ export function ViewStrip({
 
           {GROUPED_KINDS.includes(kind) ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span className="label" id="new-view-columns">
-                {kind === "roadmap" ? "Rows from" : "Columns by"}
-              </span>
+              <Label id="new-view-columns">{kind === "roadmap" ? "Rows from" : "Columns by"}</Label>
               <div className={styles.chipRow} role="group" aria-labelledby="new-view-columns">
                 {groupable.map((property) => (
                   <button
@@ -367,41 +367,5 @@ function ViewPill({
         </button>
       )}
     </span>
-  );
-}
-
-/**
- * What a kind looks like: a dot for a board, three lines for a list, three
- * staggered bars for a roadmap. Drawn
- * here rather than taken from an icon set, like the comment bubble on a card.
- */
-function ViewKindMark({
-  kind,
-  on,
-  color = "#4b8fbe",
-}: {
-  kind: ViewKind;
-  on: boolean;
-  color?: string;
-}) {
-  if (kind === "board") {
-    return <span className={styles.dot6} style={{ background: color, opacity: on ? 1 : 0.45 }} />;
-  }
-  return (
-    <svg
-      viewBox="0 0 8 8"
-      width="8"
-      height="8"
-      aria-hidden="true"
-      focusable="false"
-      style={{ flex: "0 0 8px", opacity: on ? 1 : 0.45 }}
-    >
-      <path
-        d={kind === "roadmap" ? "M0.5 1.5h3.5M2.5 4h4M4 6.5h3.5" : "M0.5 1.5h7M0.5 4h7M0.5 6.5h7"}
-        stroke={color}
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

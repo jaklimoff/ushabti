@@ -65,6 +65,41 @@ export function pickProjectColor(key: string): string {
   return PROJECT_COLORS[h];
 }
 
+/**
+ * What a swatch is called aloud. A screen reader used to say "Colour #e0574d",
+ * which names nothing a person can picture. Every swatch asks `colorName`, so
+ * one colour has one name wherever it is offered.
+ */
+const COLOR_NAMES: Record<string, string> = {
+  "#e0574d": "Red",
+  "#d1913a": "Amber",
+  "#4f8a5b": "Green",
+  "#3fb0c8": "Cyan",
+  "#4b8fbe": "Steel",
+  "#6d5bd0": "Violet",
+  "#c2557a": "Rose",
+  "#b6763f": "Brown",
+  "#2f9e7a": "Teal",
+  "#7a8a2f": "Olive",
+  "#3d7fc1": "Blue",
+  "#8b8f98": "Grey",
+  "#f08a7e": "Coral",
+  "#f0a860": "Orange",
+  "#e3c55a": "Yellow",
+  "#b5cf66": "Lime",
+  "#7cc48a": "Mint",
+  "#5cc5b0": "Sea green",
+  "#63c3dc": "Sky",
+  "#7aa8f0": "Cornflower",
+  "#a99af0": "Lavender",
+  "#ec8fb8": "Pink",
+};
+
+/** The spoken name of a colour; one from outside the palette reads as its code. */
+export function colorName(hex: string): string {
+  return COLOR_NAMES[hex.toLowerCase()] ?? hex;
+}
+
 export function nextPaletteColor(used: string[]): string {
   const free = PALETTE.find((c) => !used.includes(c));
   return free ?? PALETTE[used.length % PALETTE.length];

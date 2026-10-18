@@ -170,8 +170,14 @@ function boxOf(input: Locator) {
 }
 
 /** Grows with five lines, shows every one, and shrinks back when they go. */
+/* An empty composer is one line of 12.5px at a line height of 1.4. */
+async function oneLine(input: Locator) {
+  await expect.poll(() => boxOf(input).height).toBeLessThan(2 * 17);
+  expect(boxOf(input).scrolls).toBe(false);
+}
+
 async function grows(input: Locator) {
-  await expect.poll(() => boxOf(input)).toEqual({ height: 42, scrolls: false });
+  await oneLine(input);
 
   await input.fill(FIVE_LINES);
   await expect.poll(() => boxOf(input).scrolls).toBe(false);
@@ -179,7 +185,7 @@ async function grows(input: Locator) {
   expect(boxOf(input).height).toBeGreaterThanOrEqual(5 * 17);
 
   await input.fill("Short again");
-  await expect.poll(() => boxOf(input)).toEqual({ height: 42, scrolls: false });
+  await oneLine(input);
 }
 
 describe("The new-task composer", () => {

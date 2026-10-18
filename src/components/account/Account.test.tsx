@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { page, type Locator } from "vitest/browser";
 import { ME, newProject, renderWithBoard, type Answer } from "@/test/board";
+import { AVATAR_COLORS, colorName } from "@/lib/colors";
 import type { PersonalTokenDTO } from "@/lib/types";
 import { Account } from "./Account";
 
@@ -90,15 +91,14 @@ describe("Your own account", () => {
     // The palette, and all of it but the grey that reads as nobody.
     const swatches = page.getByRole("radiogroup", { name: "Your colour" }).getByRole("radio");
     await expect.poll(() => swatches.all().length).toBe(11);
-    await expect
-      .element(page.getByRole("radio", { name: "Colour #8b8f98" }))
-      .not.toBeInTheDocument();
+    await expect.element(page.getByRole("radio", { name: "Grey" })).not.toBeInTheDocument();
     const other = swatches.elements().find((s) => s.getAttribute("aria-checked") === "false")!;
     const label = other.getAttribute("aria-label")!;
     await page.getByRole("radio", { name: label }).click();
     await picked(page.getByRole("radio", { name: label }));
     await expect.poll(() => patches().length).toBe(2);
-    expect(patches()[1]).toEqual({ color: label.replace("Colour ", "") });
+    const color = AVATAR_COLORS.find((c) => colorName(c) === label);
+    expect(patches()[1]).toEqual({ color });
   });
 
   // The screen half of e2e "a face can be an emoji, and Initials brings the initials back".

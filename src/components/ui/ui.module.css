@@ -581,7 +581,10 @@
   }
 }
 
-/* The one mono caps label, the same as the global `.label`. */
+/* The one label the app writes: a field, a table head, a section eyebrow.
+   Mono capitals for words the app writes; sentence case for words people
+   write, and for every link and button. It never wraps mid-phrase. `Field`
+   and `Label` both draw it. */
 .fieldLabel {
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   font-size: var(--t-chip);
@@ -1270,4 +1273,12 @@
   .nameInput {
     font-size: 16px;
   }
+}
+
+/* A board's mark, beside the lines of a list and the bars of a roadmap. */
+.kindDot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
 }

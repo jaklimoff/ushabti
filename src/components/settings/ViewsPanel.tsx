@@ -20,7 +20,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
-import { NameInput, Select } from "@/components/ui/Form";
+import { Label, NameInput, Select } from "@/components/ui/Form";
+import { ViewKindMark } from "@/components/ui/Marks";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Row, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
@@ -237,7 +238,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
           two questions and never between a question and its answer. */}
       <div className={styles.viewShape}>
         <span className={`${styles.viewPair} ${styles.viewKind}`}>
-          <span className={`label ${styles.viewLabel}`}>Shows as</span>
+          <Label className={styles.viewLabel}>Shows as</Label>
           <Select
             aria-label={`How the view ${view.name} shows`}
             value={view.kind}
@@ -251,9 +252,9 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         </span>
         {GROUPED_KINDS.includes(view.kind) ? (
           <span className={`${styles.viewPair} ${styles.viewGroup}`}>
-            <span className={`label ${styles.viewLabel}`}>
+            <Label className={styles.viewLabel}>
               {view.kind === "roadmap" ? "Rows from" : "Columns by"}
-            </span>
+            </Label>
             <Select
               aria-label={`Grouping property of the view ${view.name}`}
               value={view.groupById ?? ""}
@@ -318,28 +319,11 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
   );
 }
 
-/**
- * What a kind looks like, as the strip above the board draws it: a dot for a
- * board, three lines for a list, three staggered bars for a roadmap. Quiet
- * here, because on this page the name is what is read.
- */
+/** Quiet here, because on this page the name is what is read. */
 function ViewKindGlyph({ kind }: { kind: ViewKind }) {
   return (
     <span className={styles.viewGlyph} title={VIEW_KIND_LABEL[kind]} aria-hidden>
-      {kind === "board" ? (
-        <span className={styles.viewGlyphDot} />
-      ) : (
-        <svg viewBox="0 0 8 8" width="9" height="9" focusable="false">
-          <path
-            d={
-              kind === "roadmap" ? "M0.5 1.5h3.5M2.5 4h4M4 6.5h3.5" : "M0.5 1.5h7M0.5 4h7M0.5 6.5h7"
-            }
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
+      <ViewKindMark kind={kind} />
     </span>
   );
 }

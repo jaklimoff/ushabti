@@ -399,19 +399,17 @@ export function Column({
               </button>
             )}
             {canShip && (
-              <button
-                className={styles.colAdd}
-                data-testid="column-ship"
-                aria-label={`${shipWord(ship.closing)} ${column.name}`}
+              <ShipButton
+                testId="column-ship"
+                closing={ship.closing}
+                name={column.name}
                 title={
                   ship.closing
                     ? "Close: end this sprint and keep its tasks on the board"
                     : "Ship: archive what is over and close this option"
                 }
                 onClick={shipAsk.ask}
-              >
-                <CheckIcon />
-              </button>
+              />
             )}
             <button
               className={`${styles.colAdd} ${styles.colFold}`}
@@ -496,6 +494,48 @@ export function Column({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The one Ship press, in a column header and on a roadmap row alike: the ✓
+ * and the word. `ready` lights it where the plan says this is the one to
+ * press.
+ */
+export function ShipButton({
+  testId,
+  closing,
+  name,
+  ready = false,
+  title,
+  expanded,
+  className,
+  onClick,
+}: {
+  testId: string;
+  closing: boolean;
+  name: string;
+  ready?: boolean;
+  title?: string;
+  expanded?: boolean;
+  className?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={[styles.shipButton, ready ? styles.shipButtonReady : "", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+      data-testid={testId}
+      aria-label={`${shipWord(closing)} ${name}`}
+      aria-expanded={expanded}
+      title={title}
+      onClick={onClick}
+    >
+      <CheckIcon size={10} />
+      {shipWord(closing)}
+    </button>
   );
 }
 
@@ -619,6 +659,7 @@ export const Composer = function Composer({
       <textarea
         ref={ref}
         className={styles.composerInput}
+        rows={1}
         value={draft}
         placeholder="What needs doing?"
         onChange={(e) => {

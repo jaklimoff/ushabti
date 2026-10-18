@@ -71,6 +71,7 @@ import { hasOptions } from "@/lib/types";
 import { changeAsked, droppedBy, droppedSaid, isShown, withoutHidden } from "@/lib/when";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
 import { canManage } from "@/lib/roles";
+import { Label } from "@/components/ui/Form";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -1220,7 +1221,7 @@ function Links({
         return (
           <div key={way} className={styles.block} data-testid={`links-${way}`}>
             <div className={styles.blockHead}>
-              <span className="label">{way === "children" ? childrenHead(list) : words.head}</span>
+              <Label>{way === "children" ? childrenHead(list) : words.head}</Label>
               <span className={styles.spacer} />
               <button
                 className={styles.linkAdd}
@@ -1784,9 +1785,7 @@ function PastRuns({
 
   return (
     <div className={styles.past} data-testid="panel-past-runs">
-      <span className="label" data-testid="past-runs-total">
-        Earlier runs · {Math.max(total, shown.length)}
-      </span>
+      <Label data-testid="past-runs-total">Earlier runs · {Math.max(total, shown.length)}</Label>
       {shown.map((run) => {
         const words = pastRunWords(run);
         const open = openId === run.id;
@@ -2297,7 +2296,7 @@ function Description({
   return (
     <div className={`${styles.block} ${styles.descBlock}`}>
       <div className={styles.blockHead}>
-        <span className="label">Description</span>
+        <Label>Description</Label>
         <span className={styles.spacer} />
         <span className={styles.hint}>
           {/* Editing starts with a click, so the browser has the word by then.
@@ -2510,7 +2509,7 @@ function Checklist({
   return (
     <div className={styles.block}>
       <div className={styles.blockHead}>
-        <span className="label">Checklist</span>
+        <Label>Checklist</Label>
         <span className={styles.spacer} />
         {local.length > 0 && (
           <span className={styles.count}>
