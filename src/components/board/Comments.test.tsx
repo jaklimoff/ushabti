@@ -3,7 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import type { BoardData, TaskDTO } from "@/lib/types";
 import { ME, newProject, renderWithBoard, withPerson, withTask } from "@/test/board";
-import { serving } from "@/test/panel";
+import { fillBox, liveValue, serving } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -50,17 +50,17 @@ describe("The author of a comment can edit it", () => {
     const { sent } = await oneComment();
 
     await openEdit();
-    await editor().fill("Thrown away");
+    await fillBox("Thrown away", "comment-editor");
     await userEvent.keyboard("{Escape}");
     await expect.element(editor()).not.toBeInTheDocument();
     await expect.element(byTestId("comment-markdown")).toHaveTextContent("The tests are gren");
 
     await openEdit();
     // An empty box is not a save: Mod + Enter leaves it open.
-    await editor().fill("");
+    await fillBox("", "comment-editor");
     await userEvent.keyboard("{ControlOrMeta>}{Enter}{/ControlOrMeta}");
     await expect.element(editor()).toBeVisible();
-    await editor().fill("The tests are gren");
+    await fillBox("The tests are gren", "comment-editor");
     await userEvent.keyboard("{ControlOrMeta>}{Enter}{/ControlOrMeta}");
     await expect.element(editor()).not.toBeInTheDocument();
 
@@ -74,10 +74,10 @@ describe("The author of a comment can edit it", () => {
     const { sent } = await oneComment();
 
     await openEdit();
-    await editor().fill("Not yet");
+    await fillBox("Not yet", "comment-editor");
     await byTestId("comment-box").click();
     await expect.element(editor()).not.toHaveFocus();
-    await expect.element(editor()).toHaveValue("Not yet");
+    await expect.poll(() => liveValue("comment-editor")).toBe("Not yet");
     await expect.element(page.getByRole("button", { name: "Update", exact: true })).toBeEnabled();
     await settle();
     expect(sent("PATCH", COMMENT)).toEqual([]);
@@ -97,14 +97,14 @@ describe("The author of a comment can edit it", () => {
     const { sent } = await oneComment();
 
     await openEdit();
-    await editor().fill("Thrown away");
+    await fillBox("Thrown away", "comment-editor");
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect.element(editor()).not.toBeInTheDocument();
     await expect.element(byTestId("comment-markdown")).toHaveTextContent("The tests are gren");
 
     // Opened again, it holds the saved words, not the thrown away ones.
     await openEdit();
-    await expect.element(editor()).toHaveValue("The tests are gren");
+    await expect.poll(() => liveValue("comment-editor")).toBe("The tests are gren");
     expect(sent("PATCH", COMMENT)).toEqual([]);
   });
 
@@ -114,7 +114,7 @@ describe("The author of a comment can edit it", () => {
     const { sent } = await oneComment();
 
     await openEdit();
-    await editor().fill("Left in a closed tab");
+    await fillBox("Left in a closed tab", "comment-editor");
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
 
     await settle();

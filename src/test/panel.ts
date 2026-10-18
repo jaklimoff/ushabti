@@ -306,13 +306,18 @@ export function serving(data: BoardData, user: SessionUser = ME, archived: TaskD
   };
 }
 
-/** The words the live editor holds, as they will be saved. */
+/** The words the description's live editor holds, as they will be saved. */
 export function boxValue(): string {
-  const el = page.getByTestId("live-editor").element() as unknown as {
+  return liveValue("live-editor");
+}
+
+/** The words the live editor with this test id holds, as they will be saved. */
+export function liveValue(testId: string): string {
+  const el = page.getByTestId(testId).element() as unknown as {
     cmTile?: { root?: { view?: { state: { doc: { toString(): string } } } } };
   };
   const view = el.cmTile?.root?.view;
-  if (!view) throw new Error("The description box is not a CodeMirror editor.");
+  if (!view) throw new Error(`The box ${testId} is not a CodeMirror editor.`);
   return view.state.doc.toString();
 }
 
@@ -321,16 +326,16 @@ export function boxValue(): string {
  * The words go in as one insertion, as Playwright's `insertText` puts them,
  * so a line break is a line and not an Enter the box would answer.
  */
-export async function fillBox(text: string) {
+export async function fillBox(text: string, testId = "live-editor") {
   /* The editor is a lazy chunk, so a click that opens it draws it later, and
      under load later than the next line. */
-  const box = page.getByTestId("live-editor");
+  const box = page.getByTestId(testId);
   await expect.element(box).toBeInTheDocument();
   (box.element() as HTMLElement).focus();
   await userEvent.keyboard("{ControlOrMeta>}a{/ControlOrMeta}");
   if (text === "") await userEvent.keyboard("{Backspace}");
   else document.execCommand("insertText", false, text);
-  await expect.poll(boxValue).toBe(text);
+  await expect.poll(() => liveValue(testId)).toBe(text);
   /* The box hands its words to the panel on its next render. A person never
      leaves a box in the same frame they typed in it, and a test must not
      either, or the blur reads a panel that has not seen the typing yet. */

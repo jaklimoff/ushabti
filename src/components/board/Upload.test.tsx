@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import type { AttachmentDTO } from "@/lib/types";
 import { detailOf, newProject, renderWithBoard, withTask } from "@/test/board";
-import { boxValue, serving } from "@/test/panel";
+import { boxValue, liveValue, serving } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -104,15 +104,20 @@ describe("Uploads", () => {
 
     // The draft a tab closed mid-upload leaves behind: the words and the line.
     const box = () => byTestId("comment-box");
-    await box().fill("Kept words\nUploading shot.png… 40%");
-    await expect.element(box()).toHaveValue("Kept words");
+    /* Typed in one go, as `fillBox` would, but the box drops the line at
+       once, so it never holds what was typed. */
+    await expect.element(box()).toBeInTheDocument();
+    (box().element() as HTMLElement).focus();
+    document.execCommand("insertText", false, "Kept words\nUploading shot.png… 40%");
+    await expect.poll(() => liveValue("comment-box")).toBe("Kept words");
     await first.screen.unmount();
 
     // The same tab, back on the board: the draft is what this browser kept.
     await renderWithBoard(<BoardShell initialTask={task.key} />, data, server.answer, {
       keepStorage: true,
     });
-    await expect.element(box()).toHaveValue("Kept words");
+    await expect.element(box()).toBeInTheDocument();
+    await expect.poll(() => liveValue("comment-box")).toBe("Kept words");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
     await expect.element(byTestId("comment-markdown")).toHaveTextContent("Kept words");
   });

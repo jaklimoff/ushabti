@@ -52,7 +52,7 @@ const LazyLiveEditor = lazy(loadLiveEditor);
  * It decides nothing about saving, as `PropertyControl` does not. Each place
  * keeps its own save and asks `onUploading` whether a file is still on its
  * way. With `live`, the box is a CodeMirror editor that shows every line
- * rendered but the cursor's; only the description passes it so far.
+ * rendered but the cursor's. All three boxes pass it, so they read alike.
  */
 export function MarkdownBox({
   taskId,
@@ -205,6 +205,8 @@ export function MarkdownBox({
           <LiveEditor
             boxRef={ref}
             value={value}
+            label={rest["aria-label"] ?? "Description"}
+            testId={(rest as { "data-testid"?: string })["data-testid"] ?? "live-editor"}
             className={rest.className}
             placeholder={rest.placeholder}
             autoFocus={rest.autoFocus}

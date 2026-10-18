@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { ME, newProject, renderWithBoard, withTask } from "@/test/board";
-import { serving } from "@/test/panel";
+import { fillBox, serving } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -71,9 +71,7 @@ test("a key in a description and in a comment opens its task", async () => {
   // A comment links an archived task, and opens its panel.
   await byTestId("card").filter({ hasText: "The waiting one" }).click();
   await expect.element(byTestId("task-title")).toHaveValue("The waiting one");
-  await page
-    .getByPlaceholder("Leave a note…")
-    .fill(`Done before in ${old.key}. See ${waiting.key}`);
+  await fillBox(`Done before in ${old.key}. See ${waiting.key}`, "comment-box");
   await page.getByRole("button", { name: "Comment", exact: true }).click();
   const comment = byTestId("comment-markdown");
   await expect.poll(() => comment.element().querySelectorAll("a[data-task-key]").length).toBe(2);

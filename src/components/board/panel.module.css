@@ -1097,6 +1097,13 @@
   color: var(--faint);
 }
 
+/* The live composer is the description's editor without its frame: the box
+   around it is the frame. */
+.composerInput :global(.cm-editor) {
+  min-height: 54px;
+  padding: 0;
+}
+
 .composerFoot {
   display: flex;
   align-items: center;
@@ -1122,6 +1129,9 @@
 /* An edited comment's box stays in the comment's column. */
 .commentEditor {
   margin: 2px 0 0;
+}
+.commentEditor:focus-within {
+  border-color: var(--accent-ring);
 }
 
 .spacer {

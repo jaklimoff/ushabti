@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { newProject, renderWithBoard, withAgent, withTask } from "@/test/board";
-import { boxValue, serving } from "@/test/panel";
+import { boxValue, liveValue, serving } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -49,7 +49,7 @@ describe("Who an @ can name", () => {
 
     await userEvent.keyboard("{Enter}");
     await expect.element(list()).not.toBeInTheDocument();
-    await expect.element(box).toHaveValue(`Please look, @${AGENT} `);
+    await expect.poll(() => liveValue("comment-box")).toBe(`Please look, @${AGENT} `);
 
     await userEvent.keyboard("today");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
@@ -69,7 +69,7 @@ describe("Who an @ can name", () => {
     await userEvent.keyboard("{Escape}");
     await expect.element(list()).not.toBeInTheDocument();
     // Escape belongs to the list while it is open. The words stay.
-    await expect.element(box).toHaveValue("@nig");
+    await expect.poll(() => liveValue("comment-box")).toBe("@nig");
 
     // Typing on with no match closes the list without a word.
     await userEvent.keyboard(" @zzz");
@@ -131,6 +131,6 @@ describe("A list with no room under the box", () => {
     // Drawn is not the same as reachable: an ancestor that scrolls would clip
     // the rows without moving them.
     await rows().first().click();
-    await expect.element(box).toHaveValue(`@${AGENT} `);
+    await expect.poll(() => liveValue("comment-box")).toBe(`@${AGENT} `);
   });
 });

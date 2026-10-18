@@ -115,7 +115,7 @@ test.describe("The questions that wait on a person", () => {
     /* The panel opens with the focus in the answer box. */
     const box = page.getByTestId("comment-box");
     await expect(box).toBeFocused();
-    await expect(box).toHaveAttribute("placeholder", "Answer Asker…");
+    await expect(box).toContainText("Answer Asker…");
     await expect(page.getByTestId("waiting-list")).toHaveCount(0);
     await page.keyboard.type("Europe.");
     await page.keyboard.press("ControlOrMeta+Enter");

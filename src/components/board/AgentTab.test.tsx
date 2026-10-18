@@ -22,6 +22,7 @@ import {
   withTask,
   type Answer,
 } from "@/test/board";
+import { fillBox } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -308,8 +309,8 @@ describe("The Agent tab", () => {
     await expect.element(panel.getByRole("button", { name: "Take over" })).toBeVisible();
 
     await page.getByRole("tab", { name: /^Comments/ }).click();
-    const composer = page.getByPlaceholder("Answer Asker…");
-    await composer.fill("The billing service.");
+    await expect.element(byTestId("comment-box")).toMatchTextContent("Answer Asker…");
+    await fillBox("The billing service.", "comment-box");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
 
     const comments = new RegExp(`^/api/tasks/${task.id}/comments$`);

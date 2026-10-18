@@ -2214,13 +2214,7 @@ function Description({
     void loadLiveEditor();
   }, []);
 
-  /* The page draws files and keys from these, so the box does too. Both
-     lists change with a board read, not with a key pressed in the box. */
-  const { projectId, projectKey, tasks } = links;
-  const preview = useMemo(
-    () => previewContextFor(files, { projectId, projectKey, keys: tasks.map((t) => t.key) }),
-    [files, projectId, projectKey, tasks],
-  );
+  const preview = usePreview(files, links);
 
   function startTyping() {
     if (!typed) base.current = shown;
@@ -2642,6 +2636,16 @@ function Checklist({
   );
 }
 
+/* The page draws files and keys from these, so a live box does too. Both
+   lists change with a board read, not with a key pressed in the box. */
+function usePreview(files: AttachmentDTO[], links: TaskKeyLinks) {
+  const { projectId, projectKey, tasks } = links;
+  return useMemo(
+    () => previewContextFor(files, { projectId, projectKey, keys: tasks.map((t) => t.key) }),
+    [files, projectId, projectKey, tasks],
+  );
+}
+
 function Comments({
   taskId,
   detail,
@@ -2670,7 +2674,8 @@ function Comments({
      browser until you send them rather than being sent when the tab goes. */
   const [draft, setDraft] = useDraft(commentDraftKey(data.project.id, taskId));
   const [busy, setBusy] = useState(false);
-  const box = useRef<HTMLTextAreaElement>(null);
+  const box = useRef<TextBox>(null);
+  const preview = usePreview(detail.attachments, links);
   /* Files still on their way. The draft holds a line for each until it is
      ready, and a note sent with that line would point at nothing. */
   const [uploading, setUploading] = useState(0);
@@ -2679,9 +2684,13 @@ function Comments({
   const note = uploading > 0 ? draft : withoutUploadLines(draft);
   /* Unlike the title, this takes the focus on a phone too: somebody who
      picked a question asked to write the answer. */
+  /* The editor is a lazy chunk, so the box may not be drawn yet. Then it
+     takes the focus itself, as it is drawn. */
+  const [focusOnDraw, setFocusOnDraw] = useState(false);
   useEffect(() => {
     if (!focus) return;
-    box.current?.focus({ preventScroll: false });
+    if (box.current) box.current.focus();
+    else setFocusOnDraw(true);
     onFocused();
   }, [focus, onFocused]);
   const agentAtWork = detail.run !== null;
@@ -2725,12 +2734,16 @@ function Comments({
               they go into the draft and survive a closed tab like the rest. */}
           <MarkdownBox
             boxRef={box}
+            live
+            preview={preview}
             taskId={taskId}
             send={counted}
             onUploading={setUploading}
             onUploaded={() => void reload()}
-            className={styles.composerInput}
+            className={`${styles.descEditor} ${styles.composerInput}`}
             data-testid="comment-box"
+            aria-label="Comment"
+            autoFocus={focusOnDraw}
             value={note}
             placeholder={
               waitingFor
@@ -2739,7 +2752,6 @@ function Comments({
                   ? "Leave a note for the agent…"
                   : "Leave a note…"
             }
-            rows={3}
             onChange={setDraft}
             onKeyDown={(e) => {
               /* The list has the keys while it is open, so Enter picks a
@@ -2806,6 +2818,7 @@ function CommentItem({
   const author = comment.byProject ? data.project.name : (comment.author?.name ?? "Removed user");
   const mod = useModKey();
   const [editing, setEditing] = useState(false);
+  const preview = usePreview(files, links);
   const [draft, setDraft] = useState(comment.body);
   /* The words the box opened with. The box holds its own words and does not
      follow a change that lands while it is open, as a checklist item does. */
@@ -2941,6 +2954,8 @@ function CommentItem({
         ) : editing ? (
           <>
             <MarkdownBox
+              live
+              preview={preview}
               taskId={taskId}
               send={counted}
               onUploading={setUploading}

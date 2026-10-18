@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import { commands, page, userEvent } from "vitest/browser";
 import type { BoardData, CommentDTO, TaskDTO } from "@/lib/types";
 import { detailOf, ME, newProject, renderWithBoard, withTask, type Answer } from "@/test/board";
+import { fillBox as fillLive, liveValue } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -119,14 +120,14 @@ describe("The task panel", () => {
     const note = "The queue drops a message when the worker restarts mid-batch.";
 
     const first = await draw(data, task);
-    await page.getByPlaceholder("Leave a note…").fill(note);
+    await fillLive(note, "comment-box");
     // In the browser, where the next tab reads it, and nowhere else.
     expect(Object.values({ ...window.localStorage })).toContain(note);
     expect(first.sent("POST", COMMENTS)).toEqual([]);
     await first.screen.unmount();
 
     const back = await draw(data, task, true);
-    await expect.element(page.getByPlaceholder("Leave a note…")).toHaveValue(note);
+    await expect.poll(() => liveValue("comment-box")).toBe(note);
     await page.getByRole("button", { name: "Comment", exact: true }).click();
     await expect.poll(() => back.sent("POST", COMMENTS).length).toBe(1);
     expect(back.sent("POST", COMMENTS)[0].body).toEqual({ body: note });
@@ -136,7 +137,7 @@ describe("The task panel", () => {
     // Sent is not unsaid: there is nothing left to put back.
     expect(Object.values({ ...window.localStorage })).not.toContain(note);
     await draw(data, task, true);
-    await expect.element(page.getByPlaceholder("Leave a note…")).toHaveValue("");
+    await expect.poll(() => liveValue("comment-box")).toBe("");
   });
 
   test("the panel is as wide as somebody dragged it, and stays that wide", async () => {

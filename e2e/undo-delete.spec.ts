@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addTask, card, createProject, register, settles, unique } from "./helpers";
+import { addTask, card, createProject, fillBox, register, settles, unique } from "./helpers";
 
 type Page = import("@playwright/test").Page;
 
@@ -23,8 +23,8 @@ test.describe("Undoing a delete", () => {
 
     await addTask(page, "Todo", "Rotate the signing key");
     const key = await page.getByTestId("task-key").innerText();
-    const comment = page.getByPlaceholder("Leave a note…");
-    await comment.fill("The key is in the vault.");
+    const comment = page.getByTestId("comment-box");
+    await fillBox(comment, "The key is in the vault.");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
     await expect(page.getByRole("tab", { name: /^Comments 1/ })).toBeVisible();
 

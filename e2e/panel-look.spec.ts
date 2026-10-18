@@ -34,7 +34,7 @@ async function openTask(page: Page, status = "In Progress") {
   await card(page, "Looked at").click();
   const panel = page.getByTestId("task-panel");
   await expect(panel.getByText("One thing")).toBeVisible();
-  await expect(panel.getByText("A note")).toBeVisible();
+  await expect(panel.getByText("A note", { exact: true })).toBeVisible();
   return panel;
 }
 

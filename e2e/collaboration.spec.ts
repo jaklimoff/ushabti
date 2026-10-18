@@ -7,14 +7,16 @@ import {
   columnOrder,
   createProject,
   dragCard,
+  expectBoxValue,
+  fillBox,
   gotoSettings,
   putFilterOnView,
   register,
-  signIn,
   settles,
+  signIn,
   sortBoard,
-  unique,
   type Account,
+  unique,
 } from "./helpers";
 
 /*
@@ -117,8 +119,8 @@ test.describe("Two people on one board", () => {
     await addTask(owner.page, "Todo", "Something to discuss");
 
     // The panel is open on the new task. Start a note, but do not send it.
-    const composer = owner.page.getByPlaceholder("Leave a note…");
-    await composer.fill("Half a thought");
+    const composer = owner.page.getByTestId("comment-box");
+    await fillBox(composer, "Half a thought");
 
     // The friend changes the board, which re-renders the owner's side.
     await friend.page.goto(`/p/${projectId}`);
@@ -127,7 +129,7 @@ test.describe("Two people on one board", () => {
     await expect(card(owner.page, "Arrives by itself")).toBeVisible({ timeout: 15_000 });
 
     // The note survived the re-render, and it can still be sent.
-    await expect(composer).toHaveValue("Half a thought");
+    await expectBoxValue(composer, "Half a thought");
     await owner.page.getByRole("button", { name: "Comment", exact: true }).click();
     await expect(owner.page.getByText("Half a thought")).toBeVisible();
 

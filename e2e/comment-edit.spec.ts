@@ -3,6 +3,8 @@ import {
   addTask,
   card,
   createProject,
+  expectBoxValue,
+  fillBox,
   gotoSettings,
   inDatabase,
   register,
@@ -38,7 +40,7 @@ async function oneComment(browser: Browser) {
   await anna.page.goto(`/p/${projectId}`);
   await addTask(anna.page, "Todo", "Talked about");
   await expect(anna.page.getByTestId("task-panel")).toBeVisible();
-  await anna.page.getByTestId("comment-box").fill("The tests are gren");
+  await fillBox(anna.page.getByTestId("comment-box"), "The tests are gren");
   await anna.page.getByRole("button", { name: "Comment", exact: true }).click();
   await expect(anna.page.getByTestId("comment-markdown")).toHaveText("The tests are gren");
 
@@ -52,6 +54,12 @@ async function oneComment(browser: Browser) {
     await ben.context.close();
   };
   return { anna: anna.page, ben: ben.page, projectId, close };
+}
+
+/* Typing and a pick take less than a button's 140 ms fade, so a shot taken
+   at once draws Update halfway from grey. It waits for the fades to end. */
+async function stillScreen(page: Page) {
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
 }
 
 /** Runs `action` and answers the status of the comment save it sends. */
@@ -96,11 +104,11 @@ test.describe("The author of a comment can edit it", () => {
       await anna.getByTestId("comment").hover();
       await anna.getByRole("button", { name: "Edit", exact: true }).click();
       const editor = anna.getByTestId("comment-editor");
-      await expect(editor).toHaveValue("The tests are gren");
+      await expectBoxValue(editor, "The tests are gren");
       const update = anna.getByRole("button", { name: "Update", exact: true });
       // Nothing changed yet, so there is nothing to update.
       await expect(update).toBeDisabled();
-      await editor.fill("The tests are green");
+      await fillBox(editor, "The tests are green");
       await expect(update).toBeEnabled();
       expect(await statusOf(anna, () => update.click())).toBe(200);
 
@@ -134,6 +142,54 @@ test.describe("The author of a comment can edit it", () => {
     },
   );
 
+  /* The two comment boxes are the description's editor: every line but the
+     cursor's reads as the page will draw it, and the @ list works in both. */
+  test("the composer and the edit draw Markdown as it is typed", async ({ browser }, testInfo) => {
+    const { anna, close } = await oneComment(browser);
+
+    const composer = anna.getByTestId("comment-box");
+    await composer.click();
+    await anna.keyboard.type("**Ready** for ");
+    await anna.keyboard.type("@Ben");
+    await expect(anna.getByTestId("mention-list")).toBeVisible();
+    await anna.keyboard.press("Enter");
+    await expect(anna.getByTestId("mention-list")).toHaveCount(0);
+    await anna.keyboard.press("Enter");
+    await anna.keyboard.type("Second line");
+    await expectBoxValue(composer, "**Ready** for @Ben Friend \nSecond line");
+    // The first line is rendered; the cursor's line shows its marks.
+    await expect(composer.locator(".cm-lp-strong")).toHaveText("Ready");
+    await stillScreen(anna);
+    await anna.screenshot({ path: testInfo.outputPath("seen-composer-live.png") });
+
+    await anna.keyboard.press("ControlOrMeta+Enter");
+    const posted = anna.getByTestId("comment-markdown").nth(1);
+    await expect(posted.locator("strong")).toHaveText("Ready");
+    await expectBoxValue(composer, "");
+
+    const second = anna.getByTestId("comment").nth(1);
+    await second.hover();
+    await second.getByRole("button", { name: "Edit", exact: true }).click();
+    const editor = anna.getByTestId("comment-editor");
+    await expect(editor).toBeFocused();
+    await expect(editor.locator(".cm-lp-strong")).toHaveText("Ready");
+    await anna.keyboard.type(" and @Ann");
+    await expect(anna.getByTestId("mention-list")).toBeVisible();
+    await anna.keyboard.press("Enter");
+    await expectBoxValue(editor, "**Ready** for @Ben Friend \nSecond line and @Anna Owner ");
+    // The pick leaves the focus in the edit, and the edit reached its draft.
+    await expect(editor).toBeFocused();
+    await expect(composer).not.toBeFocused();
+    await expect(anna.getByRole("button", { name: "Update", exact: true })).toBeEnabled();
+    await stillScreen(anna);
+    await anna.screenshot({ path: testInfo.outputPath("seen-comment-edit-live.png") });
+
+    expect(await statusOf(anna, () => anna.keyboard.press("ControlOrMeta+Enter"))).toBe(200);
+    await expect(editor).toHaveCount(0);
+    await expect(posted).toContainText("Second line and @Anna Owner");
+    await close();
+  });
+
   test("a save that crossed a newer one asks Keep mine or Take theirs", async ({ browser }) => {
     const { anna, projectId, close } = await oneComment(browser);
     // A second tab of the same author, as the only other writer a comment has.
@@ -143,11 +199,11 @@ test.describe("The author of a comment can edit it", () => {
 
     await other.getByTestId("comment").hover();
     await other.getByRole("button", { name: "Edit", exact: true }).click();
-    await other.getByTestId("comment-editor").fill("Second tab");
+    await fillBox(other.getByTestId("comment-editor"), "Second tab");
 
     await anna.getByTestId("comment").hover();
     await anna.getByRole("button", { name: "Edit", exact: true }).click();
-    await anna.getByTestId("comment-editor").fill("First tab");
+    await fillBox(anna.getByTestId("comment-editor"), "First tab");
     expect(
       await statusOf(anna, () => anna.getByTestId("comment-editor").press("ControlOrMeta+Enter")),
     ).toBe(200);

@@ -7,14 +7,14 @@ import {
   columnOrder,
   columnPill,
   createProject,
+  descriptionBox,
   dragCard,
+  fillBox,
   forAFinger,
   register,
   settles,
   sortBoard,
   unique,
-  descriptionBox,
-  fillBox,
 } from "./helpers";
 
 type Page = import("@playwright/test").Page;
@@ -87,8 +87,8 @@ test.describe("Ushabti board", () => {
     await expect(page.getByText("1 / 1")).toBeVisible();
 
     // comment
-    const composer = page.getByPlaceholder("Leave a note…");
-    await composer.fill("Looks **right** to me.\n\n- one\n- two");
+    const composer = page.getByTestId("comment-box");
+    await fillBox(composer, "Looks **right** to me.\n\n- one\n- two");
     await page.getByRole("button", { name: "Comment", exact: true }).click();
     await expect(page.getByRole("tab", { name: /^Comments 1/ })).toBeVisible();
 
@@ -226,8 +226,8 @@ test.describe("Ushabti board", () => {
       await item.press("Enter");
       await page.getByRole("button", { name: "Mark as done" }).first().click();
 
-      const composer = page.getByPlaceholder("Leave a note…");
-      await composer.fill("A note.");
+      const composer = page.getByTestId("comment-box");
+      await fillBox(composer, "A note.");
       await page.getByRole("button", { name: "Comment", exact: true }).click();
       await expect(page.getByText("A note.")).toBeVisible();
 

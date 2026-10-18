@@ -1,6 +1,6 @@
 /* eslint-disable playwright/no-skipped-test -- a server with no bucket cannot run these, and says so. */
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { addTask, createProject, register, unique, hydrated } from "./helpers";
+import { addTask, createProject, expectBoxValue, fillBox, register, unique } from "./helpers";
 
 /**
  * A file dropped on the markdown box uploads, says how far it got where the
@@ -64,15 +64,15 @@ test("a PNG dropped on the composer uploads with a line, and becomes an image in
   );
 
   const composer = page.getByTestId("comment-box");
-  // A drop before React owns the box lands on nothing that listens.
-  await hydrated(composer);
+  // A drop before the editor is drawn lands on nothing that listens.
+  await expect(composer).toBeVisible();
   await drop(page, composer, [{ name: "pixel.png", mime: "image/png", base64: PNG }]);
-  await expect(composer).toHaveValue(/^Uploading pixel\.png… \d+%$/);
+  await expectBoxValue(composer, /^Uploading pixel\.png… \d+%$/);
   const send = page.getByRole("button", { name: "Uploading…" });
   await expect(send).toBeDisabled();
   release();
 
-  await expect(composer).toHaveValue(LINE);
+  await expectBoxValue(composer, LINE);
   await page.getByRole("button", { name: "Comment", exact: true }).click();
   const image = page.getByTestId("comment-markdown").locator("img");
   await expect(image).toHaveAttribute("src", /^\/api\/attachments\/[0-9a-f-]{36}$/);
@@ -94,14 +94,14 @@ test("a video draws a player, a refused file says why, and the strip removes one
   await addTask(page, "Todo", "Shows a clip");
 
   const composer = page.getByTestId("comment-box");
-  await hydrated(composer);
-  await composer.fill("Two files:");
+  await fillBox(composer, "Two files:");
   await drop(page, composer, [
     { name: "pixel.png", mime: "image/png", base64: PNG },
     { name: "clip.mp4", mime: "video/mp4", base64: MP4 },
   ]);
   // One line each, in the order they were dropped.
-  await expect(composer).toHaveValue(
+  await expectBoxValue(
+    composer,
     /^Two files:\n!\[pixel\.png\]\(\/api\/attachments\/[0-9a-f-]{36}\)\n!\[clip\.mp4\]\(\/api\/attachments\/[0-9a-f-]{36}\)$/,
   );
   await page.getByRole("button", { name: "Comment", exact: true }).click();
@@ -122,7 +122,7 @@ test("a video draws a player, a refused file says why, and the strip removes one
   await expect(page.getByTestId("upload-refused")).toHaveText(
     "This board does not take application/pdf files.",
   );
-  await expect(composer).toHaveValue("");
+  await expectBoxValue(composer, "");
 
   await page.getByRole("button", { name: "Remove pixel.png" }).click();
   await expect(page.getByRole("alertdialog")).toContainText("Remove pixel.png?");

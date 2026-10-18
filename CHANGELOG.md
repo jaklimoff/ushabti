@@ -15,6 +15,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   while you drag, and letting go saves it. Escape puts it back. From a focused
   bar the arrow keys do the same, Shift for a week, and Enter saves. An agent
   with Change structure off sees a bar that does not drag.
+- **The comment boxes show Markdown as you type, as the description does.**
+  The composer and the edit of a comment draw every line but the one you are
+  on as the comment will read. Mod + Enter still posts and updates, and the
+  @ list still names a member.
 
 ### Fixed
 

@@ -23,6 +23,9 @@ export type LiveEditorProps = {
   onBlur?: () => void;
   onFiles: (files: File[]) => void;
   boxRef: RefObject<TextBox | null>;
+  /** What a screen reader calls the box, and what a test finds it by. */
+  label: string;
+  testId: string;
   placeholder?: string;
   autoFocus?: boolean;
   className?: string;
@@ -73,8 +76,8 @@ export default function LiveEditor(props: LiveEditorProps) {
           keymap.of([...defaultKeymap, ...historyKeymap]),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({
-            "aria-label": "Description",
-            "data-testid": "live-editor",
+            "aria-label": p.label,
+            "data-testid": p.testId,
           }),
           p.placeholder ? hint(p.placeholder) : [],
           livePreview(),
