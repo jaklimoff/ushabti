@@ -16,6 +16,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   bar the arrow keys do the same, Shift for a week, and Enter saves. An agent
   with Change structure off sees a bar that does not drag.
 
+### Fixed
+
+- **Tapping the description on a phone no longer zooms the page.** The
+  description and the box that edits a comment draw their words at 16px on a
+  touch screen, so Safari stays where it was.
+
 ## 0.29.0 — 2026-10-18
 
 ### Changed

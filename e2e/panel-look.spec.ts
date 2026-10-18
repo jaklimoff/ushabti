@@ -108,6 +108,8 @@ test.describe("The task panel reads as one set of controls", () => {
     await expect(editor).toBeFocused();
     const line = editor.locator(".cm-line").first();
     await expect(line).toHaveText("Ships offline first.");
+    /* On a desktop the words keep the panel's own size. */
+    await expect(editor).toHaveCSS("font-size", "12.5px");
     const after = await wordsAt(line);
     expect(Math.abs(after.x - before.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1);
@@ -179,5 +181,31 @@ test.describe("The task panel under a finger", () => {
     const row = panel.getByRole("button", { name: "Delete task" });
     expect(await height(row)).toBeGreaterThanOrEqual(30);
     await page.screenshot({ path: testInfo.outputPath("seen-panel-touch.png") });
+  });
+
+  test("the description and a comment's edit box open at 16px", async ({ page }, testInfo) => {
+    const panel = await openTask(page, "Backlog");
+    const size = (el: Locator) => el.evaluate((node) => getComputedStyle(node).fontSize);
+
+    await panel.getByTestId("markdown").first().click();
+    const editor = panel.getByTestId("live-editor");
+    await expect(editor).toBeFocused();
+    await expect(editor).toHaveCSS("font-size", "16px");
+    await expect(editor.locator(".cm-line").first()).toHaveCSS("font-size", "16px");
+    /* A heading still reads bigger than the line, and code smaller. */
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("\n\n# Big\n\nSay `code` here");
+    await expect(editor.locator(".cm-lp-h1")).toHaveCSS("font-size", "23px");
+    await page.keyboard.press("ArrowUp");
+    const code = editor.locator(".cm-lp-code:not(.cm-line)").first();
+    await expect(code).toBeVisible();
+    expect(parseFloat(await size(code))).toBeLessThan(16);
+    await page.screenshot({ path: testInfo.outputPath("seen-panel-touch-description.png") });
+
+    await panel.getByRole("button", { name: "Edit" }).click();
+    const box = panel.getByTestId("comment-editor");
+    await expect(box).toBeVisible();
+    await expect(box).toHaveCSS("font-size", "16px");
+    await page.screenshot({ path: testInfo.outputPath("seen-panel-touch-comment.png") });
   });
 });

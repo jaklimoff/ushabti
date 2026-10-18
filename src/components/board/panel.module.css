@@ -474,9 +474,6 @@
 }
 .descEditor :global(.cm-content) {
   caret-color: var(--text);
-  /* A phone zooms into a box whose words are under 16px; this one asks it not
-     to, the textarea's own answer. */
-  -webkit-text-size-adjust: 100%;
 }
 .descEditor :global(.cm-lp-h1),
 .descEditor :global(.cm-lp-h2),
@@ -1615,6 +1612,19 @@
   .composerInput,
   .checkInput {
     font-size: 16px;
+  }
+  /* The description and the comment edit box too. Everything inside grows by
+     the same 16 / 12.5, so a heading still reads bigger and code smaller. */
+  .descEditor {
+    font-size: 16px;
+    --md-h1: 23px;
+    --md-h2: 20px;
+    --md-h3: 18px;
+    --md-h4: 16px;
+  }
+  .descEditor :global(.cm-line.cm-lp-code),
+  .descEditor :global(.cm-lp-code:not(.cm-line)) {
+    font-size: 14.5px;
   }
 }
 
