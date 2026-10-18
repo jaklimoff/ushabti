@@ -4,24 +4,39 @@
   min-width: 0;
 }
 
+/*
+ * One look for a value, whatever draws it. Every control starts on the edge
+ * of its column and is 26px tall, so a row of buttons, a menu, a chip and a
+ * date line up. A picked option is always the same object: its colour as a
+ * soft fill with a ring, a dot and its name. That is what makes a grey option
+ * read as picked, and what makes Status as strong as the bar under it.
+ * `--c` is the option's colour, set on the element.
+ */
+.picked {
+  color: var(--text);
+  font-weight: 500;
+  background: color-mix(in srgb, var(--c) 17%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent);
+}
+
 .seg {
   display: flex;
-  gap: 1px;
+  gap: 2px;
   padding: 1px;
   background: var(--bg-seg);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   flex-wrap: wrap;
 }
 
 .segItem {
   display: flex;
   align-items: center;
-  height: 22px;
-  gap: 7px;
+  height: 24px;
+  gap: 6px;
   padding: 0 9px;
-  border-radius: 5px;
+  border-radius: calc(var(--r-sm) - 1px);
   font-size: var(--t-small);
-  color: #7d838d;
+  color: var(--text-meta);
   white-space: nowrap;
   transition:
     background 140ms var(--ease),
@@ -30,16 +45,27 @@
 
 .segItem:hover {
   color: var(--text-2);
+  background: var(--bg-card-hover);
 }
 
+/* The ring sits inside the bar, so it never covers the option beside it. */
+.segItem:focus-visible {
+  outline-offset: -2px;
+}
+
+/* .picked comes before .segItem, so the words are said again here, or a
+   picked button would read grey where a picked menu reads white. */
 .segItemOn {
   color: var(--text);
+}
+
+.segItemOn:hover {
+  background: color-mix(in srgb, var(--c) 26%, transparent);
 }
 
 .segMono {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  font-weight: 500;
   letter-spacing: 0.04em;
   justify-content: center;
   min-width: 30px;
@@ -51,26 +77,39 @@
   height: 6px;
   flex: 0 0 6px;
   border-radius: 50%;
-  transition: opacity 140ms var(--ease);
+}
+
+/* Nothing picked: a ring where the colour would be. */
+.dotEmpty {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--faint);
 }
 
 .trigger {
   display: inline-flex;
   align-items: center;
   height: 26px;
-  gap: 8px;
-  padding: 0 9px;
-  border-radius: 5px;
+  gap: 7px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
   max-width: 100%;
-  transition: background 140ms var(--ease);
+  transition:
+    background 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
 
-.trigger:hover {
-  background: var(--bg-card-hover);
-}
-
+.trigger:hover,
 .triggerOpen {
   background: var(--bg-card-hover);
+}
+
+.trigger.picked:hover,
+.trigger.picked.triggerOpen {
+  background: color-mix(in srgb, var(--c) 26%, transparent);
+}
+
+.trigger:focus-visible {
+  outline-offset: 1px;
 }
 
 .triggerAvatar {
@@ -85,19 +124,30 @@
   text-overflow: ellipsis;
 }
 
+.picked .triggerText {
+  color: var(--text);
+}
+
+/* An empty value is still a button, so it is read, not hinted at. */
 .triggerEmpty {
-  color: var(--faint);
+  color: var(--text-meta);
+  font-weight: 400;
 }
 
 .caret {
-  font-size: 9px;
-  line-height: 1;
+  flex: none;
   color: var(--icon);
+  transition: color 140ms var(--ease);
+}
+
+.trigger:hover .caret,
+.triggerOpen .caret {
+  color: var(--text-4);
 }
 
 .menu {
   position: absolute;
-  top: 30px;
+  top: calc(100% + 4px);
   left: 0;
   z-index: 30;
   width: 200px;
@@ -106,7 +156,7 @@
   padding: 5px;
   background: var(--bg-menu);
   border: 1px solid var(--line-menu);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   box-shadow: var(--shadow-menu);
   display: flex;
   flex-direction: column;
@@ -127,7 +177,7 @@
   align-items: center;
   gap: 9px;
   padding: 5px 8px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   font-size: var(--t-body);
   color: var(--muted);
   width: 100%;
@@ -167,16 +217,21 @@
   height: 26px;
   margin-bottom: 3px;
   padding: 0 8px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line-dash);
   background: var(--bg-input);
   color: var(--text);
   font-size: var(--t-body);
   outline: none;
+  transition: border-color 140ms var(--ease);
 }
 
 .menuInput:focus {
-  border-color: var(--focus-ring);
+  border-color: var(--accent-ring);
+}
+
+.menuInput::placeholder {
+  color: var(--faint);
 }
 
 .chips {
@@ -184,38 +239,53 @@
   flex-wrap: wrap;
   gap: 5px;
   align-items: center;
+  min-height: 26px;
 }
 
+/* A chip is a picked option, so it wears the picked look. */
 .chip {
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  gap: 7px;
-  padding: 0 8px 0 8px;
-  border-radius: 5px;
+  height: 24px;
+  gap: 6px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--r-sm);
   font-size: var(--t-small);
-  color: var(--text-3);
 }
 
 .chipRemove {
-  margin-left: -2px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
   font-size: 9px;
   color: currentColor;
-  opacity: 0.5;
+  opacity: 0.55;
+  transition:
+    opacity 140ms var(--ease),
+    background 140ms var(--ease);
 }
 
 .chipRemove:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chipRemove:focus-visible {
+  opacity: 1;
+  outline-offset: 0;
 }
 
 .chipAdd {
   display: inline-flex;
   align-items: center;
-  height: 22px;
+  gap: 4px;
+  height: 24px;
   padding: 0 8px;
-  border-radius: 5px;
-  border: 1px dashed var(--line-dash);
-  color: var(--muted-2);
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--line-menu);
+  color: var(--text-meta);
   font-size: var(--t-small);
   transition:
     border-color 140ms var(--ease),
@@ -223,16 +293,17 @@
 }
 
 .chipAdd:hover {
-  border-color: var(--focus-ring);
+  border-color: var(--accent-line);
   color: var(--accent-soft);
 }
 
+/* A box that holds words wears the trigger's place and size, so a value does
+   not move when it turns into a box. */
 .textInput {
   width: 100%;
   height: 26px;
-  padding: 0 8px;
-  margin-left: -8px;
-  border-radius: 5px;
+  padding: 0 7px;
+  border-radius: var(--r-sm);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-2);
@@ -240,27 +311,36 @@
   outline: none;
   transition:
     background 140ms var(--ease),
-    border-color 140ms var(--ease);
+    border-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
 
 .textInput:hover {
-  background: #131518;
+  background: var(--bg-card-hover);
 }
 
-.textInput:focus {
+.textInput:focus,
+.textInput:focus-visible {
+  outline: none;
   background: var(--bg-input);
-  border-color: var(--line-strong);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-glow);
 }
 
 .textInput::placeholder {
-  color: var(--faint);
+  color: var(--text-meta);
+}
+
+/* The date box: the browser's own picker, in the shape of the button it replaced. */
+.dateInput {
+  max-width: 170px;
 }
 
 .toggle {
   width: 34px;
   height: 19px;
   border-radius: 20px;
-  background: #1c2126;
+  background: var(--line-menu);
   position: relative;
   transition: background 160ms var(--ease);
 }
@@ -319,4 +399,35 @@
 .linkProblem {
   font-size: var(--t-micro);
   color: var(--danger-text);
+}
+
+/* A finger needs more than a pointer does. Only where there is no hover, so
+   the desktop panel keeps its density. */
+@media (hover: none) {
+  .segItem,
+  .trigger {
+    height: 32px;
+  }
+
+  .chip,
+  .chipAdd {
+    height: 32px;
+  }
+
+  .chipRemove {
+    width: 28px;
+    height: 28px;
+    opacity: 0.8;
+  }
+
+  /* At 16px a phone does not zoom into the box, as on every other form. */
+  .textInput,
+  .menuInput {
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .menuItem {
+    padding: 9px 8px;
+  }
 }

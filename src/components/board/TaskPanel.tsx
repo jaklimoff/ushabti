@@ -603,7 +603,7 @@ export function TaskPanel({
           >
             {shown.key}
           </button>
-          <span style={{ flex: 1 }} />
+          <span className={styles.spacer} />
           {/* Who else has this task open. Fields save on blur and the last
               write wins, so seeing somebody here is the warning. The tip is
               the one the listening agents wear: a title never shows on focus. */}
@@ -635,8 +635,10 @@ export function TaskPanel({
             </span>
           )}
           <button
-            className={styles.iconButton}
+            className={`${styles.iconButton} ${menuOpen ? styles.iconButtonOn : ""}`}
             aria-label="Task menu"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
             title="More"
             onClick={() => setMenuOpen((v) => !v)}
           >
@@ -659,9 +661,9 @@ export function TaskPanel({
                   void copyLink();
                 }}
               >
-                <span className={styles.menuDot} />
                 Copy link
               </button>
+              <div className={styles.menuSep} role="separator" />
               <button
                 className={styles.menuItem}
                 data-testid="add-blocker"
@@ -670,7 +672,6 @@ export function TaskPanel({
                   setLinking({ taskId, way: "blockedBy" });
                 }}
               >
-                <span className={styles.menuDot} />
                 Blocked by…
               </button>
               <button
@@ -681,7 +682,6 @@ export function TaskPanel({
                   setLinking({ taskId, way: "parent" });
                 }}
               >
-                <span className={styles.menuDot} />
                 Part of…
               </button>
               <button
@@ -692,9 +692,9 @@ export function TaskPanel({
                   setLinking({ taskId, way: "children" });
                 }}
               >
-                <span className={styles.menuDot} />
                 Add a part…
               </button>
+              <div className={styles.menuSep} role="separator" />
               {/* Archive is the everyday way to make a task go away: the
                   panel stays open on the row that puts it back. Delete is for
                   a mistake, and it is still the one that ends things. */}
@@ -708,7 +708,6 @@ export function TaskPanel({
                     await reload();
                   }}
                 >
-                  <span className={styles.menuDot} />
                   Archive task
                 </button>
               )}
@@ -720,7 +719,6 @@ export function TaskPanel({
                   void counted(() => deleteTask(taskId));
                 }}
               >
-                <span className={styles.menuDot} />
                 Delete task
               </button>
             </div>
@@ -891,7 +889,7 @@ export function TaskPanel({
               shown={shownTab}
               onPick={setTab}
               tabs={[
-                { id: "comments", label: `Comments ${detail ? detail.comments.length : ""}` },
+                { id: "comments", label: "Comments", count: detail?.comments.length },
                 { id: "activity", label: "Activity" },
                 ...(anyRun ? [{ id: "agent" as const, label: "Agent" }] : []),
               ]}
@@ -930,10 +928,7 @@ export function TaskPanel({
               {detail && shownTab === "activity" && (
                 <div className={styles.feed}>
                   {detail.activity.length === 0 && (
-                    <div className={styles.activityRow}>
-                      <span className={styles.activityTime}>—</span>
-                      <span className={styles.activityText}>Nothing has happened yet.</span>
-                    </div>
+                    <p className={styles.activityEmpty}>No activity yet.</p>
                   )}
                   {detail.activity.map((entry) => (
                     <div key={entry.id} className={styles.activityRow}>
@@ -995,7 +990,7 @@ function PanelTabs({
   agentDot,
 }: {
   ids: string;
-  tabs: { id: PanelTab; label: string }[];
+  tabs: { id: PanelTab; label: string; count?: number }[];
   shown: PanelTab;
   onPick: (tab: PanelTab) => void;
   agentDot: React.ReactNode;
@@ -1035,6 +1030,13 @@ function PanelTabs({
                 count. The dot pulses only while an agent is working. */}
             {tab.id === "agent" && agentDot}
             {tab.label}
+            {/* The space keeps the name "Comments 2", as it was read before. */}
+            {tab.count !== undefined && (
+              <>
+                {" "}
+                <span className={styles.tabCount}>{tab.count}</span>
+              </>
+            )}
           </button>
         );
       })}
@@ -1219,7 +1221,7 @@ function Links({
           <div key={way} className={styles.block} data-testid={`links-${way}`}>
             <div className={styles.blockHead}>
               <span className="label">{way === "children" ? childrenHead(list) : words.head}</span>
-              <span style={{ flex: 1 }} />
+              <span className={styles.spacer} />
               <button
                 className={styles.linkAdd}
                 aria-label={words.add}
@@ -1479,7 +1481,7 @@ function AgentRunBlock({
         <span className={styles.runState}>
           {life === "reporting" ? STATUS_WORD[run.status] : LIFE_WORD[life]}
         </span>
-        <span style={{ flex: 1 }} />
+        <span className={styles.spacer} />
         <span className={styles.runSince}>started {since} ago</span>
       </div>
 
@@ -1530,27 +1532,23 @@ function AgentRunBlock({
 
       <div className={styles.runButtons}>
         {waiting ? null : paused ? (
-          <button className={styles.runButton} disabled={busy} onClick={() => void press("resume")}>
+          <Button variant="ghost" disabled={busy} onClick={() => void press("resume")}>
             Resume
-          </button>
+          </Button>
         ) : (
-          <button className={styles.runButton} disabled={busy} onClick={() => void press("pause")}>
+          <Button variant="ghost" disabled={busy} onClick={() => void press("pause")}>
             Pause
-          </button>
+          </Button>
         )}
         {!waiting && (
-          <button className={styles.runButton} disabled={busy} onClick={() => void press("stop")}>
+          <Button variant="ghost" disabled={busy} onClick={() => void press("stop")}>
             Stop
-          </button>
+          </Button>
         )}
-        <span style={{ flex: 1 }} />
-        <button
-          className={styles.runTakeOver}
-          disabled={busy}
-          onClick={() => void press("take_over")}
-        >
+        <span className={styles.spacer} />
+        <Button disabled={busy} onClick={() => void press("take_over")}>
           Take over
-        </button>
+        </Button>
       </div>
       {run.control && (
         <div className={styles.runNote} data-testid="panel-run-pending">
@@ -2297,14 +2295,19 @@ function Description({
   }
 
   return (
-    <div className={styles.block}>
+    <div className={`${styles.block} ${styles.descBlock}`}>
       <div className={styles.blockHead}>
         <span className="label">Description</span>
-        <span style={{ flex: 1 }} />
+        <span className={styles.spacer} />
         <span className={styles.hint}>
-          <span className={styles.kbd}>MD</span>
-          {/* Editing starts with a click, so the browser has the word by then. */}
-          {editing ? `${mod ?? "Ctrl"} + Enter saves` : "click to edit"}
+          {/* Editing starts with a click, so the browser has the word by then.
+              The words come first, so the MD that stays holds the edge. */}
+          <span className={styles.hintWords}>
+            {editing ? `${mod ?? "Ctrl"} + Enter saves` : "Click to edit"}
+          </span>
+          <span className={styles.kbd} title="Written in Markdown">
+            MD
+          </span>
         </span>
       </div>
       {mine !== null ? (
@@ -2326,10 +2329,10 @@ function Description({
             preview={preview}
             taskId={taskId}
             send={counted}
-            className={styles.descEditor}
+            className={`${styles.descEditor} ${styles.descLive}`}
             autoFocus
             value={text}
-            placeholder="Write in markdown…"
+            placeholder="Write in Markdown…"
             onChange={typing}
             onUploading={uploaded}
             onUploaded={() => void reload()}
@@ -2368,7 +2371,7 @@ function Description({
         </>
       ) : (
         <div
-          className={styles.desc}
+          className={`${styles.desc} ${shown.trim() ? "" : styles.descEmpty}`}
           onClick={edit}
           role="button"
           tabIndex={0}
@@ -2383,6 +2386,21 @@ function Description({
       )}
       <EditingSign said={sign} />
     </div>
+  );
+}
+
+/** The tick in a done box. Drawn, because a glyph sits off centre at 14px. */
+function Tick() {
+  return (
+    <svg aria-hidden width="10" height="10" viewBox="0 0 10 10" fill="none">
+      <path
+        d="M2 5.2l2 2L8 3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -2493,12 +2511,9 @@ function Checklist({
     <div className={styles.block}>
       <div className={styles.blockHead}>
         <span className="label">Checklist</span>
-        <span style={{ flex: 1 }} />
+        <span className={styles.spacer} />
         {local.length > 0 && (
-          <span
-            className="mono"
-            style={{ fontSize: 10.5, fontWeight: 500, color: "var(--accent-soft)" }}
-          >
+          <span className={styles.count}>
             {done} / {local.length}
           </span>
         )}
@@ -2509,16 +2524,13 @@ function Checklist({
           {local.map((item, i) => (
             <span
               key={item.id}
-              className={styles.progressCell}
-              style={{ background: i < done ? "var(--accent)" : "#1c2126" }}
+              className={`${styles.progressCell} ${i < done ? styles.progressDone : ""}`}
             />
           ))}
         </div>
       )}
 
-      {loading && local.length === 0 && (
-        <span style={{ fontSize: 12, color: "var(--faint)" }}>Loading…</span>
-      )}
+      {loading && local.length === 0 && <span className={styles.quiet}>Loading…</span>}
 
       {local.map((item) => (
         <Fragment key={item.id}>
@@ -2530,7 +2542,9 @@ function Checklist({
                 change((list) => list.map((i) => (i.id === item.id ? { ...i, done: !i.done } : i)));
                 void run(() => api.patch(`/api/checklist/${item.id}`, { done: !item.done }));
               }}
-            />
+            >
+              {item.done && <Tick />}
+            </button>
             {changed?.id === item.id ? (
               <ChangedWhileTyping
                 theirs={item.text}
@@ -2738,22 +2752,21 @@ function Comments({
             }}
           />
           <div className={styles.composerFoot}>
-            <span style={{ fontSize: 10.5, color: "var(--faint-3)" }}>
+            <span className={styles.footHint}>
               Markdown
               {/* The server does not know the machine, so the key waits for
                   the browser rather than naming the wrong one. */}
               {mod && ` · ${mod} + Enter to send`}
             </span>
-            <span style={{ flex: 1 }} />
+            <span className={styles.spacer} />
             {/* It says why it waits, rather than waiting in silence. */}
-            <button
-              className={`${styles.send} ${note.trim() && !uploading ? styles.sendOn : styles.sendOff}`}
+            <Button
               onClick={() => void send()}
               disabled={!note.trim() || busy || uploading > 0}
               title={uploading > 0 ? "A file is still uploading" : undefined}
             >
               {uploading > 0 ? "Uploading…" : "Comment"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -2891,7 +2904,7 @@ function CommentItem({
               </time>
             </span>
           )}
-          <span style={{ flex: 1 }} />
+          <span className={styles.spacer} />
           {mine && !editing && refused === null && !asking && (
             <button className={styles.commentUse} title="Edit this comment" onClick={open}>
               Edit
@@ -2933,7 +2946,7 @@ function CommentItem({
               send={counted}
               onUploading={setUploading}
               onUploaded={() => void reload()}
-              className={styles.descEditor}
+              className={`${styles.descEditor} ${styles.commentEditor}`}
               data-testid="comment-editor"
               aria-label="Edit comment"
               autoFocus
@@ -2948,19 +2961,20 @@ function CommentItem({
               }}
             />
             <div className={styles.editFoot}>
-              <span className={styles.hint}>{`${mod ?? "Ctrl"} + Enter saves · Esc cancels`}</span>
-              <span style={{ flex: 1 }} />
-              <button className={styles.editCancel} onClick={cancel}>
+              <span
+                className={styles.footHint}
+              >{`${mod ?? "Ctrl"} + Enter saves · Esc cancels`}</span>
+              <span className={styles.spacer} />
+              <Button variant="text" onClick={cancel}>
                 Cancel
-              </button>
-              <button
-                className={`${styles.send} ${changed && !uploading ? styles.sendOn : styles.sendOff}`}
+              </Button>
+              <Button
                 onClick={update}
                 disabled={!changed || uploading > 0}
                 title={uploading > 0 ? "A file is still uploading" : undefined}
               >
                 {uploading > 0 ? "Uploading…" : "Update"}
-              </button>
+              </Button>
             </div>
           </>
         ) : (

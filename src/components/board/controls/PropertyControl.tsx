@@ -2,7 +2,6 @@
 
 import { useId, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { tint } from "@/lib/colors";
 import { formatDate } from "@/lib/board";
 import { currentOption, keyName } from "@/lib/filters";
 import { NO_VALUE_KEY } from "@/lib/types";
@@ -12,6 +11,7 @@ import { openingAt, optionMenu } from "@/lib/option-menu";
 import { pickableOptions } from "@/lib/option-dates";
 import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
 import { Avatar } from "@/components/ui/Avatar";
+import { Chevron } from "@/components/ui/Marks";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useHighlightInView, walkKeys } from "../Ask";
 import { useBoard } from "../store";
@@ -52,6 +52,11 @@ function named(labelId: string | undefined, selfId?: string) {
 function focusBack(trigger: HTMLElement | null) {
   const field = trigger?.closest(`.${styles.wrap}`);
   if (field && field.contains(document.activeElement)) trigger?.focus();
+}
+
+/** The option's colour, which the picked look mixes its fill and ring from. */
+function colour(color: string): React.CSSProperties {
+  return { "--c": color } as React.CSSProperties;
 }
 
 /**
@@ -118,18 +123,17 @@ function SelectSegmented({ property, value, onChange, labelId }: Props) {
           return (
             <button
               key={option.id}
-              className={`${styles.segItem} ${mono ? styles.segMono : ""} ${on ? styles.segItemOn : ""}`}
-              style={on ? { background: tint(option.color, 0.18) } : undefined}
+              className={`${styles.segItem} ${mono ? styles.segMono : ""} ${
+                on ? `${styles.segItemOn} ${styles.picked}` : ""
+              }`}
+              style={colour(option.color)}
               aria-pressed={on}
               onClick={() => onChange(on ? null : option.id)}
               title={on ? "Click to clear" : option.name}
             >
-              {!mono && (
-                <span
-                  className={styles.dot}
-                  style={{ background: option.color, opacity: on ? 1 : 0.45 }}
-                />
-              )}
+              {/* Only the picked option wears its dot, so the eye finds one
+                  colour in the row and not five. */}
+              {!mono && on && <span className={styles.dot} style={{ background: option.color }} />}
               {option.name}
             </button>
           );
@@ -252,11 +256,7 @@ function EntryRow({
   onPick: () => void;
 }) {
   const color =
-    entry.kind === "option"
-      ? entry.option.color
-      : entry.kind === "add"
-        ? "var(--accent)"
-        : "#3f4650";
+    entry.kind === "option" ? entry.option.color : entry.kind === "add" ? "var(--accent)" : null;
   return (
     <div
       id={id}
@@ -270,7 +270,10 @@ function EntryRow({
       onMouseDown={(e) => e.preventDefault()}
       onClick={onPick}
     >
-      <span className={styles.dot} style={{ background: color }} />
+      <span
+        className={`${styles.dot} ${color ? "" : styles.dotEmpty}`}
+        style={color ? { background: color } : undefined}
+      />
       {entry.kind === "option"
         ? entry.option.name
         : entry.kind === "add"
@@ -350,19 +353,23 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId, taken, to
       <button
         ref={trigger}
         id={triggerId}
-        className={`${styles.trigger} ${open ? styles.triggerOpen : ""}`}
+        className={`${styles.trigger} ${current ? styles.picked : ""} ${
+          open ? styles.triggerOpen : ""
+        }`}
+        style={current ? colour(current.color) : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         {...named(labelId, triggerId)}
         onClick={toggleOpen}
       >
-        <span className={styles.dot} style={{ background: current?.color ?? "#3f4650" }} />
+        <span
+          className={`${styles.dot} ${current ? "" : styles.dotEmpty}`}
+          style={current ? { background: current.color } : undefined}
+        />
         <span className={`${styles.triggerText} ${current ? "" : styles.triggerEmpty}`}>
           {current?.name ?? noneName(property)}
         </span>
-        <span className={styles.caret} aria-hidden="true">
-          ▾
-        </span>
+        <Chevron className={styles.caret} />
       </button>
       {open && (
         <div className={styles.menu} ref={menu}>
@@ -436,8 +443,8 @@ function MultiSelect({ property, value, onChange, onAddOption, labelId }: Props)
         {chosen.map((option) => (
           <span
             key={option.id}
-            className={styles.chip}
-            style={{ background: tint(option.color, 0.13) }}
+            className={`${styles.chip} ${styles.picked}`}
+            style={colour(option.color)}
           >
             <span className={styles.dot} style={{ background: option.color }} />
             {option.name}
@@ -465,7 +472,7 @@ function MultiSelect({ property, value, onChange, onAddOption, labelId }: Props)
         </button>
       </div>
       {open && (
-        <div className={styles.menu} style={{ top: 28 }} ref={menu}>
+        <div className={styles.menu} ref={menu}>
           <OptionMenu
             property={property}
             entries={entries}
@@ -488,8 +495,9 @@ const NOBODY = (
     style={{
       width: 18,
       height: 18,
+      flex: "none",
       borderRadius: "50%",
-      border: "1px dashed #2f343c",
+      border: "1px dashed var(--faint)",
       display: "inline-block",
     }}
   />
@@ -583,12 +591,10 @@ function PersonMenu({ value, members, former = [], onChange, labelId }: Props) {
         >
           {current ? personName(current) : "Unassigned"}
         </span>
-        <span className={styles.caret} aria-hidden="true">
-          ▾
-        </span>
+        <Chevron className={styles.caret} />
       </button>
       {open && (
-        <div className={styles.menu} style={{ top: 32 }} ref={menu}>
+        <div className={styles.menu} ref={menu}>
           <input
             className={styles.menuInput}
             autoFocus
@@ -672,7 +678,7 @@ function DateField({ property, value, onChange, labelId }: Props) {
   if (editing) {
     return (
       <input
-        className={styles.textInput}
+        className={`${styles.textInput} ${styles.dateInput}`}
         type="date"
         autoFocus
         {...named(labelId)}
@@ -699,6 +705,7 @@ function DateField({ property, value, onChange, labelId }: Props) {
       <span className={`${styles.triggerText} ${text ? "" : styles.triggerEmpty}`}>
         {text || noneName(property)}
       </span>
+      <Chevron className={styles.caret} />
     </button>
   );
 }

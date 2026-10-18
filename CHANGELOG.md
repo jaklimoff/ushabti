@@ -34,6 +34,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   and **Yes, ship** confirms in the accent. A new project shows labels as dot
   and word. In a list the ring runs the whole row, a heading that sorts shows
   an arrow, and Assignee shows the face and the name.
+- **In the task panel, a picked value looks the same in every control.** A
+  picked option is one chip in its own colour, whether the field shows buttons
+  or a menu, and menus, the assignee and the date end in a chevron. Clicking the
+  description no longer moves the text. The checklist and comment actions show
+  on keyboard focus and on touch screens, and a phone gets larger buttons and
+  rows. In the task menu only Delete is red.
 
 ## 0.28.0 — 2026-10-17
 
