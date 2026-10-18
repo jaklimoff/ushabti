@@ -319,6 +319,12 @@ describe("Settings", () => {
     await page.getByRole("button", { name: "Delete project" }).click();
     const go = page.getByRole("button", { name: "Delete for good" });
     await expect.element(go).toBeDisabled();
+    expect(page.getByRole("alertdialog").element().textContent?.replace(/\s+/g, " ")).toContain(
+      `Type ${data.project.key} to confirm.`,
+    );
+    // A wrong word keeps the button off, and nothing has gone out.
+    await page.getByLabelText("Type the project key to confirm").fill("NOPE");
+    await expect.element(go).toBeDisabled();
 
     await page.getByLabelText("Type the project key to confirm").fill(data.project.key);
     await expect.element(go).toBeEnabled();
@@ -404,14 +410,7 @@ describe("Settings on a laptop", () => {
           .elements()
           .map((h) => h.textContent),
       )
-      .toEqual([
-        "Name, key and colour",
-        "Dates and progress",
-        "Agents",
-        "Releases and sprints",
-        "Sharing and export",
-        "Danger zone",
-      ]);
+      .toEqual(["General", "Work", "Agents", "Export", "Danger zone"]);
   });
 
   /* "Public changelog" is drawn only while releases are on (USH-226), so the

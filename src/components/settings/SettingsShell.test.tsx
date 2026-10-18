@@ -68,6 +68,32 @@ describe("Settings", () => {
     await expect.element(views).toHaveAttribute("href", `${base}/views`);
     expect(views.element().getAttribute("aria-current")).toBeNull();
   });
+
+  test("the menu shows three groups and hides a count of 0", async () => {
+    const data = newProject();
+    data.project.typeBy = null;
+    await drawAt("properties", <PropertiesPanel />, data);
+
+    const groups = rail().getByRole("group");
+    expect(groups.elements().map((g) => g.getAttribute("aria-labelledby"))).toEqual([
+      "rail-General",
+      "rail-Board",
+      "rail-Integrations",
+    ]);
+    const names = (title: string) =>
+      [...rail().getByRole("group", { name: title }).element().querySelectorAll("a")].map(
+        (a) => a.firstChild?.textContent,
+      );
+    expect(names("General")).toEqual(["Project", "People"]);
+    expect(names("Board")).toEqual(["Properties", "Types", "Card view", "Views"]);
+    expect(names("Integrations")).toEqual(["Webhooks", "Import"]);
+
+    // No types reads as nothing; a count that is there still shows.
+    await expect.element(rail().getByRole("link", { name: "Types", exact: true })).toBeVisible();
+    await expect
+      .element(rail().getByRole("link", { name: `Properties ${data.properties.length}` }))
+      .toBeVisible();
+  });
 });
 
 describe("Settings on a phone", () => {

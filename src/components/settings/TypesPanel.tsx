@@ -11,7 +11,7 @@ import { isSelect, type PropertyDTO, type TaskValue } from "@/lib/types";
 import { PropertyControl } from "@/components/board/controls/PropertyControl";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Form";
-import { Card, Foot, Note, Row, Section } from "@/components/ui/Layout";
+import { Card, EmptyState, Foot, Note, Row, Section } from "@/components/ui/Layout";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { PageHead } from "./SettingsShell";
@@ -79,14 +79,21 @@ export function TypesPanel() {
               ]}
             />
             <Note>
-              {selects.length === 0
-                ? "This project has no select property yet. Add one on the Properties page."
-                : canEdit
-                  ? "Each option of this select is a type."
-                  : "Only the owner or an admin can pick the select types come from."}
+              {selects.length === 0 ? (
+                <>
+                  This project has no select property yet. Add one on the <PropertiesLink />.
+                </>
+              ) : canEdit ? (
+                "Each option of this select is a type."
+              ) : (
+                "Only the owner or an admin can pick the select types come from."
+              )}
             </Note>
           </Field>
         </Row>
+        {/* Off, the page used to be one box and nothing under it. It says what
+            turning types on gives, with this project's own words where it can. */}
+        {!type && <TypesOff selects={selects} />}
       </Card>
 
       {type && (
@@ -200,6 +207,43 @@ function TypeSheet({
       )}
     </div>
   );
+}
+
+/**
+ * What types give, said while they are off: a property that shows only on
+ * some types, and a new task that starts with values of its own type.
+ */
+function TypesOff({ selects }: { selects: PropertyDTO[] }) {
+  return (
+    <div className={styles.typesOff} data-testid="types-off">
+      <EmptyState title="Types are off">
+        Pick a select, such as Kind, and each of its options becomes a type.
+        {selects.length > 0 && (
+          <> This project could take its types from {orList(selects.map((p) => p.name))}.</>
+        )}
+      </EmptyState>
+      <ul className={styles.typesGain}>
+        <li>
+          <span className={styles.typesGainHead}>Properties per type</span>
+          <span className={styles.typesGainBody}>
+            Severity can show only on a Bug, and stay off a Story.
+          </span>
+        </li>
+        <li>
+          <span className={styles.typesGainHead}>A start per type</span>
+          <span className={styles.typesGainBody}>
+            A new Bug can start as High priority, and a new Story as Medium.
+          </span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+/** "A", "A or B", "A, B or C". */
+function orList(names: string[]): string {
+  if (names.length < 2) return names.join("");
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
 type Kind = "every" | "here" | "elsewhere";

@@ -14,6 +14,7 @@ import {
 import { serving as servingPanel } from "@/test/panel";
 import { CardViewPanel } from "./CardViewPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
+import { ViewsPanel } from "./ViewsPanel";
 
 /*
  * The Properties page, and the board that draws what it says. Each test here
@@ -169,7 +170,7 @@ describe("Custom properties", () => {
       const tools = status.getByTestId("property-tools");
       /* No switch for dates: Use releases and Use sprints say that now. */
       await gone(tools.getByLabelText("Options carry dates"));
-      const when = tools.getByRole("button", { name: "Shown when…" });
+      const when = tools.getByRole("button", { name: "Show only when…" });
       await expect.element(when).toBeVisible();
       await expect
         .element(tools.getByRole("button", { name: "Delete the property Status" }))
@@ -587,3 +588,63 @@ function forAFinger(targets: Locator, count: number) {
     expect(at.height, `${label} is ${at.height} px tall`).toBeGreaterThanOrEqual(24);
   }
 }
+
+describe("What uses a property", () => {
+  test("a property shows what uses it, and the GROUPABLE badge is gone", async () => {
+    const data = newProject();
+    const status = propertyOf(data, "Status");
+    data.views.push({
+      ...data.views[0],
+      id: "00000000-0000-4000-9000-00000000a001",
+      name: "Plan",
+      kind: "roadmap",
+      isDefault: false,
+    });
+    expect(data.views[0].groupById).toBe(status.id);
+    await renderWithBoard(<PropertiesPanel />, data);
+
+    const boxOf = (name: string) =>
+      [...document.querySelectorAll('[data-testid="property-box"]')].find((box) =>
+        [...box.querySelectorAll("input")].some((i) => i.value === name),
+      )!;
+    await expect.poll(() => boxOf("Status")).toBeTruthy();
+    const use = (name: string) =>
+      boxOf(name).querySelector('[data-testid="property-use"]')?.textContent ?? null;
+    expect(use("Status")).toBe("Columns of Board · Rows of Plan");
+    expect(use("Phase")).toBe("Columns of Phases");
+    // A property nothing uses says nothing.
+    expect(use("Priority")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/groupable/i);
+  });
+});
+
+describe("The page note and the grips", () => {
+  test("the notes say what the page is, and the grip says what a drag does", async () => {
+    const data = newProject();
+    const drawn = await renderWithBoard(<PropertiesPanel />, data);
+    await expect
+      .element(page.getByText("Every field on a task is a property you made. Nothing is built in."))
+      .toBeVisible();
+    expect(document.body.textContent).not.toMatch(/Drag a property/);
+    await expect
+      .element(page.getByRole("button", { name: "Move Priority", exact: true }))
+      .toHaveAttribute("title", "Drag to change the order of the fields in the task panel");
+    const option = propertyOf(data, "Priority").options[0].name;
+    await expect
+      .element(page.getByRole("button", { name: `Move the option ${option}`, exact: true }))
+      .toHaveAttribute("title", "Drag to change the order of its columns and its sort");
+    await drawn.screen.unmount();
+
+    await renderWithBoard(<ViewsPanel />, data);
+    await expect
+      .element(page.getByText(/^A view is one way of looking at the same tasks\./))
+      .toBeVisible();
+    expect(document.body.textContent).not.toMatch(/Drag a view/);
+    await expect
+      .element(page.getByRole("button", { name: "Reorder the view Board", exact: true }))
+      .toHaveAttribute(
+        "title",
+        "Drag to change where it sits, here and in the strip above the board",
+      );
+  });
+});

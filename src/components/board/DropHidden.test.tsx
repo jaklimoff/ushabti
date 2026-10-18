@@ -286,7 +286,7 @@ describe("A rule in Settings", () => {
     /* Size shown when Priority is Urgent breaks the circle, and frees the
        rules of Type and Area. */
     const box = propertyBox("Size");
-    await box.getByRole("button", { name: "Shown when…" }).click();
+    await box.getByRole("button", { name: "Show only when…" }).click();
     await chooseIn(box.getByLabelText("Shown when of Size"), "Priority");
     await box.getByLabelText("Urgent", { exact: true }).click();
     await expect.poll(() => sent("PATCH", PROPERTY).length).toBe(1);
@@ -304,7 +304,7 @@ describe("A rule in Settings", () => {
       settings(data, { tasks: 1, names: ["Priority"] }),
     );
     const box = propertyBox("Priority");
-    await box.getByRole("button", { name: "Shown when…" }).click();
+    await box.getByRole("button", { name: "Show only when…" }).click();
     await chooseIn(box.getByLabelText("Shown when of Priority"), "Type");
     await box.getByLabelText("Bug", { exact: true }).click();
     const ask = box.getByTestId("when-confirm");

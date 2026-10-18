@@ -1,6 +1,7 @@
 "use client";
 
 import { type ChangeEvent, type FocusEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   DndContext,
   KeyboardSensor,
@@ -35,7 +36,8 @@ import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
 import {
-  GROUPABLE_TYPES,
+  type BoardData,
+  GROUPED_KINDS,
   hasOptions,
   isSelect,
   NO_VALUE_KEY,
@@ -67,6 +69,7 @@ export function PropertiesPanel() {
   const [options, setOptions] = useState("");
   const canEdit = canManage(data.project.role);
   const sensors = useGripSensors();
+  const named = name.trim() !== "";
   const listed = hasOptions(type) ? optionLines(options) : [];
   const tooMany = listed.length > OPTIONS_MAX;
 
@@ -93,7 +96,7 @@ export function PropertiesPanel() {
     <>
       <PageHead
         title="Properties"
-        note="Every field on a task lives here. Nothing is built in — rename, recolour or delete whatever you like. Drag a property by its grip to change the order of the fields in the task panel, and an option by its grip to change the order of its columns and its sort."
+        note="Every field on a task is a property you made. Nothing is built in."
       />
 
       <Card>
@@ -115,7 +118,9 @@ export function PropertiesPanel() {
           </SortableContext>
         </DndContext>
 
-        <Foot>
+        {/* One quiet line until somebody starts a name. A big empty box and a
+            bright button with nothing to add outweighed every property above. */}
+        <Foot className={styles.propFoot}>
           <Input
             width="medium"
             aria-label="New property name"
@@ -129,10 +134,22 @@ export function PropertiesPanel() {
             onChange={(picked) => setType(picked as PropertyType)}
             options={PROPERTY_TYPES.map((t) => ({ value: t, label: PROPERTY_TYPE_LABEL[t] }))}
           />
-          {hasOptions(type) && (
+          <span className={styles.propFootHint}>
+            <Note>{PROPERTY_TYPE_HINT[type]}</Note>
+          </span>
+          <Button
+            variant={named ? "primary" : "ghost"}
+            disabled={tooMany}
+            onClick={() => void create()}
+          >
+            Add property
+          </Button>
+          {named && hasOptions(type) && (
             <TextArea
+              className={styles.propFootOptions}
               aria-label="Options of the new property"
               aria-invalid={tooMany}
+              rows={3}
               value={options}
               placeholder="Options, one per line"
               onChange={(e) => setOptions(e.target.value)}
@@ -143,12 +160,6 @@ export function PropertiesPanel() {
               {tooManySaid(listed.length)}
             </span>
           )}
-          <Button disabled={tooMany} onClick={() => void create()}>
-            Add property
-          </Button>
-          <span style={{ width: "100%" }}>
-            <Note>{PROPERTY_TYPE_HINT[type]}</Note>
-          </span>
         </Foot>
       </Card>
     </>
@@ -289,7 +300,7 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           ref={setActivatorNodeRef}
           className={styles.grip}
           aria-label={`Move ${property.name}`}
-          title="Drag to reorder"
+          title="Drag to change the order of the fields in the task panel"
           {...attributes}
           {...listeners}
         >
@@ -316,18 +327,25 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           />
         </div>
         <div className={styles.propTags}>
-          <Tag>{PROPERTY_TYPE_LABEL[property.type]}</Tag>
-          {GROUPABLE_TYPES.includes(property.type) && (
-            <Tag title="A view can use this property for its columns">groupable</Tag>
+          <Tag title={PROPERTY_TYPE_HINT[property.type]}>{PROPERTY_TYPE_LABEL[property.type]}</Tag>
+          {dated && property.type !== "iteration" && (
+            <Tag accent title="Each option has a start and a target date">
+              dated
+            </Tag>
           )}
         </div>
+        <UsedFor property={property} data={data} />
         <div className={styles.propTools} data-testid="property-tools">
           {!property.config.when &&
             !whenOpen &&
             canEdit &&
             whenCandidates(property, data.properties).length > 0 && (
-              <Button variant="text" onClick={() => setWhenOpen(true)}>
-                Shown when…
+              <Button
+                variant="text"
+                title="Show this property only on some types or values"
+                onClick={() => setWhenOpen(true)}
+              >
+                Show only when…
               </Button>
             )}
           {canEdit && (
@@ -369,6 +387,13 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
       )}
       {hasOptions(property.type) && !dropConfirm.asking && (
         <div className={`${styles.options} ${dated ? styles.optionsRows : ""}`}>
+          {dated && openOptions.length > 0 && (
+            <div className={styles.planHead} aria-hidden>
+              <span className={styles.planHeadStart}>Start</span>
+              <span className={styles.planHeadTarget}>Target</span>
+              <span className={styles.planHeadNote}>Note</span>
+            </div>
+          )}
           {/* Labels wrap, so their strategy is a grid's; a select's options
               take a line each while they carry dates, so theirs is a list's. The
               drag names the chip it landed on, and the store makes the same
@@ -504,7 +529,7 @@ function OptionChip({
         ref={setActivatorNodeRef}
         className={`${styles.grip} ${styles.optionGrip}`}
         aria-label={`Move the option ${option.name}`}
-        title="Drag to reorder"
+        title="Drag to change the order of its columns and its sort"
         {...attributes}
         {...listeners}
       >
@@ -619,7 +644,7 @@ function OptionPlan({
   const unship = useConfirm();
   if (unship.asking) {
     return (
-      <span className={styles.optionPlan}>
+      <span className={`${styles.optionPlan} ${styles.optionPlanAsk}`}>
         <ConfirmRow
           question={`Unship ${option.name}? Shipped ${option.shippedAt} is lost.`}
           confirmLabel="Yes, unship"
@@ -754,6 +779,42 @@ function OptionField({
   );
 }
 
+/**
+ * What the project does with a property, in its own words: which views draw
+ * it as their columns or rows, and whether it holds the types, the releases
+ * or the sprints. A property nothing uses says nothing. Everything here is
+ * read from pointers the board already sends, so it decides nothing.
+ */
+function UsedFor({ property, data }: { property: PropertyDTO; data: BoardData }) {
+  const grouped = data.views.filter(
+    (v) => GROUPED_KINDS.includes(v.kind) && v.groupById === property.id,
+  );
+  const boards = grouped.filter((v) => v.kind === "board").map((v) => v.name);
+  const roadmaps = grouped.filter((v) => v.kind === "roadmap").map((v) => v.name);
+  const parts: React.ReactNode[] = [];
+  if (boards.length) parts.push(`Columns of ${boards.join(", ")}`);
+  if (roadmaps.length) parts.push(`Rows of ${roadmaps.join(", ")}`);
+  if (data.project.typeBy === property.id)
+    parts.push(
+      <Link key="types" href={`/p/${data.project.id}/settings/types`}>
+        The types
+      </Link>,
+    );
+  if (data.project.releaseBy === property.id) parts.push("The releases");
+  if (data.project.sprintBy === property.id) parts.push("The sprints");
+  if (!parts.length) return null;
+  return (
+    <span className={styles.propUse} data-testid="property-use">
+      {parts.map((part, i) => (
+        <span key={i}>
+          {i > 0 && <span className={styles.propUseDot}> · </span>}
+          {part}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 /** The selects a property may be shown by: any single select but itself. */
 function whenCandidates(property: PropertyDTO, all: PropertyDTO[]): PropertyDTO[] {
   return all.filter((p) => p.id !== property.id && isSelect(p.type));
@@ -793,6 +854,12 @@ function WhenRow({
       <span className={styles.whenSaid} data-testid="when-said">
         {rule ? whenSaid(rule, data.properties) : "Shown when"}
       </span>
+      {/* The Types page reads the same rule type first, and explains it. */}
+      {rule && rule.propertyId === data.project.typeBy && (
+        <Link className={styles.whenLink} href={`/p/${data.project.id}/settings/types`}>
+          See on Types
+        </Link>
+      )}
       {canEdit && (
         <>
           <Select

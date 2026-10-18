@@ -483,6 +483,9 @@ export function viewOf(items: CardItem[]): CardView {
  */
 export type CardChip = {
   key: string;
+  /** The card view row it was drawn for. Drawn on the chip and read by
+      nothing that decides: Settings uses it to point at the chip a row is. */
+  item: string;
   /** The tooltip: the row this came from, and what the task holds for it. */
   tip: string;
   swatch: { color: string; round: boolean } | null;
@@ -515,6 +518,7 @@ export type CardSlots = {
 function chip(item: CardItem, key: string, value: string, extra: Partial<CardChip>): CardChip {
   return {
     key,
+    item: item.id,
     tip: `${item.name} · ${value}`,
     swatch: null,
     fill: null,

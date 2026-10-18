@@ -49,6 +49,11 @@ export function Foot({ children, className }: { children: React.ReactNode; class
   return <div className={[styles.foot, className ?? ""].filter(Boolean).join(" ")}>{children}</div>;
 }
 
+/** What a foot says under its form, on a line of its own. */
+export function FootNote({ children }: { children: React.ReactNode }) {
+  return <div className={styles.footNote}>{children}</div>;
+}
+
 export function Spacer() {
   return <span className={styles.spacer} />;
 }

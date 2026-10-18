@@ -26,7 +26,13 @@ export function Chip({ chip }: { chip: CardChip }) {
   const paint = chip.fill ? { background: chip.fill, color: ink(chip.fill) } : undefined;
 
   return (
-    <span className={className} style={paint} title={chip.tip} data-testid="card-chip">
+    <span
+      className={className}
+      style={paint}
+      title={chip.tip}
+      data-testid="card-chip"
+      data-item={chip.item}
+    >
       {chip.swatch && (
         <span
           className={chip.swatch.round ? styles.cardChipDot : styles.cardChipSquare}

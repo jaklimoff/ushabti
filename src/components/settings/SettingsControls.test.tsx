@@ -102,13 +102,15 @@ async function checkboxGeometry(box: Locator) {
 }
 
 const fileBox = () => page.getByLabelText("The Trello export to bring in");
+/* The button drawn over the file box: the box itself is under it. */
+const fileButton = () => page.getByText("Choose a file…");
 
 afterEach(() => {
   at.pathname = null;
 });
 
 describe("Settings draws its controls dark", () => {
-  test("the page says it is dark, and an empty date reads muted", async () => {
+  test("the page says it is dark, and an empty date reads faint", async () => {
     const data = newProject();
     // Dates on, as a select dated before the switch went keeps them.
     const status: PropertyDTO = propertyOf(data, "Status");
@@ -119,10 +121,10 @@ describe("Settings draws its controls dark", () => {
 
     const start = propertyBox("Status").getByLabelText("Start of Todo");
     await expect.element(start).toHaveValue("");
-    await looks(start, "color", token("--muted"));
+    await looks(start, "color", token("--faint"));
     /* Focus does not make the placeholder read as a date. */
     (start.element() as HTMLElement).focus();
-    await looks(start, "color", token("--muted"));
+    await looks(start, "color", token("--faint"));
 
     /* A date in it reads as text, not as a placeholder. */
     await start.fill("2026-10-01");
@@ -135,7 +137,7 @@ describe("Settings draws its controls dark", () => {
 
     /* The ticks of "Shown when" are the checkbox Settings draws. */
     const priority = propertyBox("Priority");
-    await priority.getByRole("button", { name: "Shown when…" }).click();
+    await priority.getByRole("button", { name: "Show only when…" }).click();
     await choose(priority.getByLabelText("Shown when of Priority"), "Status");
     const tick = priority.getByLabelText("Todo", { exact: true });
     const geometry = await checkboxGeometry(tick);
@@ -171,11 +173,10 @@ describe("Settings draws its controls dark", () => {
   test("the file button of Import looks like a ghost button", async () => {
     await draw("import", <ImportPanel />);
     await expect.element(fileBox()).toBeEnabled();
-    const button = "::file-selector-button";
     expect({
-      background: css(fileBox(), "background-color", button),
-      color: css(fileBox(), "color", button),
-      border: css(fileBox(), "border-top-color", button),
+      background: css(fileButton(), "background-color"),
+      color: css(fileButton(), "color"),
+      border: css(fileButton(), "border-top-color"),
     }).toEqual({
       background: "rgba(0, 0, 0, 0)",
       color: token("--muted"),
@@ -252,17 +253,15 @@ describe("A button in Views and Types looks like a button", () => {
     for (const name of ["Every type", "This type"]) {
       const heading = sheet.getByRole("heading", { name });
       expect(await textLook(heading)).toMatchObject({ transform: "uppercase", mono: true });
-      await looks(heading, "font-size", "9.5px");
-      await looks(heading, "color", token("--faint"));
+      await looks(heading, "font-size", "10.5px");
+      await looks(heading, "color", token("--text-meta"));
     }
   });
 
   test("the ghost border and the danger words are tokens", async () => {
     const drawn = await draw("import", <ImportPanel />);
     await expect.element(fileBox()).toBeEnabled();
-    expect(css(fileBox(), "border-top-color", "::file-selector-button")).toBe(
-      token("--line-ghost"),
-    );
+    expect(css(fileButton(), "border-top-color")).toBe(token("--line-ghost"));
     await drawn.screen.unmount();
 
     await draw("project", <ProjectPanel files={false} />);

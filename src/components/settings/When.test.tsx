@@ -92,7 +92,7 @@ function edgeRoom(root: Element): number {
 }
 
 async function openRule(box: Locator) {
-  await box.getByRole("button", { name: "Shown when…" }).click();
+  await box.getByRole("button", { name: "Show only when…" }).click();
   await chooseIn(box.getByLabelText("Shown when of Priority"), "Type");
 }
 
@@ -156,7 +156,7 @@ describe("A property says when it shows", () => {
     const bugBox = box.getByLabelText("Bug", { exact: true });
     const storyBox = box.getByLabelText("Story", { exact: true });
 
-    await box.getByRole("button", { name: "Shown when…" }).click();
+    await box.getByRole("button", { name: "Show only when…" }).click();
     // Picking a select asks the question; it writes nothing yet.
     await chooseIn(box.getByLabelText("Shown when of Priority"), "Type");
     expect(sent("PATCH", PROPERTY)).toEqual([]);
@@ -179,7 +179,7 @@ describe("A property says when it shows", () => {
     await expect.poll(() => sent("PATCH", PROPERTY).length).toBe(3);
     expect(sent("PATCH", PROPERTY)[2].body).toEqual({ when: null });
     await expect.element(box.getByTestId("when-said")).not.toBeInTheDocument();
-    await expect.element(box.getByRole("button", { name: "Shown when…" })).toBeVisible();
+    await expect.element(box.getByRole("button", { name: "Show only when…" })).toBeVisible();
   });
 
   /* A failed test must not leave the next one at phone width. */
@@ -204,7 +204,7 @@ describe("A property says when it shows", () => {
     const { data } = typed();
     await renderWithBoard(<PropertiesPanel />, data, serving(data));
     const box = propertyBox("Priority");
-    await box.getByRole("button", { name: "Shown when…" }).click();
+    await box.getByRole("button", { name: "Show only when…" }).click();
     // The name box draws its words inside its own padding.
     const fromName = () => {
       const input = box

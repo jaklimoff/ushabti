@@ -60,10 +60,18 @@ export function ViewsPanel() {
     <>
       <PageHead
         title="Views"
-        note="A view is one way of looking at the same tasks. A board puts them in columns; a list puts them in rows. Drag a view by its grip to change where it sits, here and in the strip above the board. A new view is made with the + at the end of that strip."
+        note="A view is one way of looking at the same tasks. A board puts them in columns; a list puts them in rows."
       />
 
-      <Card>
+      <Card className={styles.viewsCard}>
+        {/* The words over the columns, said once. Each row repeated them, and
+            they wrapped mid-word. A phone has no columns, so its rows keep
+            their own words and this head goes. */}
+        <div className={styles.viewsHead} aria-hidden>
+          <span className={styles.viewsHeadName}>View</span>
+          <span className={styles.viewsHeadKind}>Shows as</span>
+          <span className={styles.viewsHeadGroup}>Grouped by</span>
+        </div>
         {/* One column of rows of the same height, so dnd-kit's own answer is
             the right one. Nothing here is as tall as the board. */}
         <DndContext
@@ -139,22 +147,26 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
 
   if (confirm.asking) {
     return (
-      <ConfirmRow
-        question={`Delete the view ${view.name}? The tasks stay; only this way of looking at them goes.`}
-        onConfirm={() => confirm.confirm(() => void deleteView(view.id))}
-        onCancel={confirm.cancel}
-      />
+      <div className={styles.viewWhole}>
+        <ConfirmRow
+          question={`Delete the view ${view.name}? The tasks stay; only this way of looking at them goes.`}
+          onConfirm={() => confirm.confirm(() => void deleteView(view.id))}
+          onCancel={confirm.cancel}
+        />
+      </div>
     );
   }
 
   if (unCopy.asking) {
     return (
-      <ConfirmRow
-        question={`Use the default card view for ${view.name}? Its own copy goes, and it draws the project's again.`}
-        confirmLabel="Yes, use the default"
-        onConfirm={() => unCopy.confirm(() => void resetCardView(view.id))}
-        onCancel={unCopy.cancel}
-      />
+      <div className={styles.viewWhole}>
+        <ConfirmRow
+          question={`Use the default card view for ${view.name}? Its own copy goes, and it draws the project's again.`}
+          confirmLabel="Yes, use the default"
+          onConfirm={() => unCopy.confirm(() => void resetCardView(view.id))}
+          onCancel={unCopy.cancel}
+        />
+      </div>
     );
   }
 
@@ -172,7 +184,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         ref={setActivatorNodeRef}
         className={styles.grip}
         aria-label={`Reorder the view ${view.name}`}
-        title="Drag to reorder"
+        title="Drag to change where it sits, here and in the strip above the board"
         {...attributes}
         {...listeners}
       >
@@ -183,48 +195,49 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         <span />
         <span />
       </button>
-      <NameInput
-        ref={box}
-        className={styles.viewName}
-        aria-label={`Name of the view ${view.name}`}
-        defaultValue={view.name}
-        onChange={() => setTyped(true)}
-        onBlur={(e) => {
-          setTyped(false);
-          const edit = editedText(e.target.value, view.name);
-          if (edit) void updateView(view.id, { name: edit });
-          else e.target.value = view.name;
-        }}
-      />
+      <span className={styles.viewName}>
+        <ViewKindGlyph kind={view.kind} />
+        <NameInput
+          ref={box}
+          aria-label={`Name of the view ${view.name}`}
+          defaultValue={view.name}
+          onChange={() => setTyped(true)}
+          onBlur={(e) => {
+            setTyped(false);
+            const edit = editedText(e.target.value, view.name);
+            if (edit) void updateView(view.id, { name: edit });
+            else e.target.value = view.name;
+          }}
+        />
+      </span>
       {/* The main view is named, never unnamed: a project always has one, so
           the way off the word is to give it to another view. The word and the
           two boxes are wrapped because a phone puts them on two lines, and a
           line is given a whole part of the row rather than one box of it. */}
-      {view.isDefault ? (
-        <span className={styles.viewMain}>
+      <span className={styles.viewMain}>
+        {view.isDefault ? (
           <Tag accent title="The view a board opens on. It is the one view that cannot be deleted.">
             main
           </Tag>
-        </span>
-      ) : (
-        canEdit && (
-          <span className={styles.viewMain}>
+        ) : (
+          canEdit && (
             <Button
               variant="text"
+              className={styles.viewReveal}
               aria-label={`Make ${view.name} the main view`}
               title="The board opens on the main view, and it cannot be deleted."
               onClick={() => void setMainView(view.id)}
             >
               Make main
             </Button>
-          </span>
-        )
-      )}
+          )
+        )}
+      </span>
       {/* A label and its box are one pair, so that a phone wraps between the
           two questions and never between a question and its answer. */}
       <div className={styles.viewShape}>
-        <span className={styles.viewPair}>
-          <span className="label">Shows as</span>
+        <span className={`${styles.viewPair} ${styles.viewKind}`}>
+          <span className={`label ${styles.viewLabel}`}>Shows as</span>
           <Select
             aria-label={`How the view ${view.name} shows`}
             value={view.kind}
@@ -236,9 +249,11 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
             }))}
           />
         </span>
-        {GROUPED_KINDS.includes(view.kind) && (
-          <span className={styles.viewPair}>
-            <span className="label">{view.kind === "roadmap" ? "Rows from" : "Columns by"}</span>
+        {GROUPED_KINDS.includes(view.kind) ? (
+          <span className={`${styles.viewPair} ${styles.viewGroup}`}>
+            <span className={`label ${styles.viewLabel}`}>
+              {view.kind === "roadmap" ? "Rows from" : "Columns by"}
+            </span>
             <Select
               aria-label={`Grouping property of the view ${view.name}`}
               value={view.groupById ?? ""}
@@ -249,12 +264,20 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
               }))}
             />
           </span>
+        ) : (
+          /* A list groups by nothing on purpose, and says so in the column. */
+          <span
+            className={`${styles.viewGroup} ${styles.viewNone}`}
+            title="A list puts every task in one column of rows."
+          >
+            Not grouped
+          </span>
         )}
         {/* A list's columns are its card view, so a list is arranged here
             too. The view keeps a copy only once somebody changes it. A
             roadmap draws no card, so it has nothing to arrange. */}
         {view.kind !== "roadmap" && (
-          <span className={styles.viewPair}>
+          <span className={`${styles.viewPair} ${styles.viewCard}`}>
             <ButtonPageLink
               variant="text"
               href={`/p/${data.project.id}/settings/views/${view.id}/card`}
@@ -265,7 +288,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
                   : "This view draws the project's card view."
               }
             >
-              Card view…
+              {view.cardView ? "Own card view…" : "Card view…"}
             </ButtonPageLink>
             {view.cardView && (
               <Button
@@ -282,7 +305,7 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
       </div>
       {!view.isDefault && canEdit && (
         <IconButton
-          className={styles.viewTools}
+          className={`${styles.viewTools} ${styles.viewReveal}`}
           danger
           label={`Delete the view ${view.name}`}
           title="Delete view"
@@ -292,6 +315,32 @@ function ViewRow({ view, groupable }: { view: ViewDTO; groupable: PropertyDTO[] 
         </IconButton>
       )}
     </Row>
+  );
+}
+
+/**
+ * What a kind looks like, as the strip above the board draws it: a dot for a
+ * board, three lines for a list, three staggered bars for a roadmap. Quiet
+ * here, because on this page the name is what is read.
+ */
+function ViewKindGlyph({ kind }: { kind: ViewKind }) {
+  return (
+    <span className={styles.viewGlyph} title={VIEW_KIND_LABEL[kind]} aria-hidden>
+      {kind === "board" ? (
+        <span className={styles.viewGlyphDot} />
+      ) : (
+        <svg viewBox="0 0 8 8" width="9" height="9" focusable="false">
+          <path
+            d={
+              kind === "roadmap" ? "M0.5 1.5h3.5M2.5 4h4M4 6.5h3.5" : "M0.5 1.5h7M0.5 4h7M0.5 6.5h7"
+            }
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+    </span>
   );
 }
 

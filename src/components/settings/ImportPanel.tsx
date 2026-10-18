@@ -7,8 +7,8 @@ import { CLIENT_ID } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { useBoard } from "@/components/board/store";
-import { Button } from "@/components/ui/Button";
-import { Field, Input, Select } from "@/components/ui/Form";
+import { Button, Pill } from "@/components/ui/Button";
+import { Field, FileInput, Select } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import {
   isSelect,
@@ -122,9 +122,23 @@ export function ImportPanel() {
           <Section title="The file">
             <Card>
               <Row>
-                <Field label="Export" inline>
-                  <Input
-                    type="file"
+                <Field
+                  label="Trello file"
+                  inline
+                  error={error}
+                  note={
+                    ready ? (
+                      <>
+                        In Trello: <b>Board menu → More → Print and export → Export as JSON</b>. Up
+                        to 5 MB and 2000 cards at a time. Trello only, for now.
+                      </>
+                    ) : (
+                      "One moment — the page is still loading."
+                    )
+                  }
+                >
+                  <FileInput
+                    fileName={name}
                     accept="application/json,.json"
                     aria-label="The Trello export to bring in"
                     /* A file picked before React has taken the page over goes
@@ -146,25 +160,6 @@ export function ImportPanel() {
                   />
                 </Field>
               </Row>
-              <Row>
-                <Note>
-                  {ready ? (
-                    <>
-                      In Trello: <b>Board menu → More → Print and export → Export as JSON</b>. Up to
-                      5 MB and 2000 cards at a time. Trello only, for now.
-                    </>
-                  ) : (
-                    "One moment — the page is still loading."
-                  )}
-                </Note>
-              </Row>
-              {error && (
-                <Row>
-                  <span className={styles.keyWarn} role="alert">
-                    {error}
-                  </span>
-                </Row>
-              )}
               {busy && !preview && (
                 <Row>
                   <Note>Reading {name}…</Note>
@@ -290,10 +285,8 @@ function Preview({
           <Row>
             <span>Archived cards</span>
             <Spacer />
-            <button
-              type="button"
-              aria-pressed={preview.archived.coming}
-              className={`${styles.kindChip} ${preview.archived.coming ? styles.kindChipOn : ""}`}
+            <Pill
+              on={preview.archived.coming}
               disabled={busy}
               onClick={() => onAsk({ ...ask, archived: !ask.archived })}
             >
@@ -302,7 +295,7 @@ function Preview({
                 : preview.archived.coming
                   ? `Bring ${preview.archived.inFile} in, archived`
                   : `Leave ${preview.archived.inFile} behind`}
-            </button>
+            </Pill>
           </Row>
           {preview.properties.some((p) => p.making) && (
             <Row>

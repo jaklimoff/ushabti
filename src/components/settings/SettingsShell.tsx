@@ -58,37 +58,53 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
        grows, a font arrives. */
     const sizes = new ResizeObserver(measure);
     sizes.observe(el);
-    for (const item of el.children) sizes.observe(item);
+    for (const item of el.querySelectorAll("a")) sizes.observe(item);
     return () => {
       el.removeEventListener("scroll", measure);
       sizes.disconnect();
     };
   }, [pathname]);
 
-  const items = [
-    { slug: "properties", label: "Properties", count: data.properties.length },
-    /* The number of types is the number of options of the select the project
-       names as its Type, and none while it names nothing. */
+  /* Three groups, so the eye finds a page by what it is about: the project
+     and its people first, which is what a newcomer comes to change, then the
+     shape of the board, then what goes in and out of it. */
+  const groups: RailGroup[] = [
     {
-      slug: "types",
-      label: "Types",
-      count: data.properties.find((p) => p.id === data.project.typeBy)?.options.length ?? 0,
+      title: "General",
+      items: [
+        { slug: "project", label: "Project", count: null },
+        { slug: "people", label: "People", count: data.members.length },
+      ],
     },
-    { slug: "card", label: "Card view", count: null },
-    { slug: "views", label: "Views", count: data.views.length },
-    { slug: "people", label: "People", count: data.members.length },
-    /* A URL and a secret are access, so the read is an admin's too. A member
-       who cannot see the page is not offered it. */
-    /* An import makes properties and options, and the shape of a project is
-       an admin's. A member who cannot press the button is not offered the
-       page that leads to it. */
+    {
+      title: "Board",
+      items: [
+        { slug: "properties", label: "Properties", count: data.properties.length },
+        /* The number of types is the number of options of the select the
+           project names as its Type, and none while it names nothing. */
+        {
+          slug: "types",
+          label: "Types",
+          count: data.properties.find((p) => p.id === data.project.typeBy)?.options.length ?? 0,
+        },
+        { slug: "card", label: "Card view", count: null },
+        { slug: "views", label: "Views", count: data.views.length },
+      ],
+    },
+    /* A URL and a secret are access, so the read is an admin's too. An import
+       makes properties and options, and the shape of a project is an admin's.
+       A member who cannot press the button is not offered the page. */
     ...(canManage(data.project.role)
       ? [
-          { slug: "webhooks", label: "Webhooks", count: null },
-          { slug: "import", label: "Import", count: null },
+          {
+            title: "Integrations",
+            items: [
+              { slug: "webhooks", label: "Webhooks", count: null },
+              { slug: "import", label: "Import", count: null },
+            ],
+          },
         ]
       : []),
-    { slug: "project", label: "Project", count: null },
   ];
 
   return (
@@ -102,22 +118,35 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
           aria-label="Settings sections"
           data-more={more || undefined}
         >
-          {items.map((item) => {
-            const href = `${base}/${item.slug}`;
-            /* A view's card view sits under its view, and lights Views. */
-            const on = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={item.slug}
-                href={href}
-                aria-current={on ? "page" : undefined}
-                className={`${styles.railItem} ${on ? styles.railOn : ""}`}
-              >
-                {item.label}
-                {item.count !== null && <span className={styles.railCount}>{item.count}</span>}
-              </Link>
-            );
-          })}
+          {groups.map((group) => (
+            <div
+              key={group.title}
+              role="group"
+              aria-labelledby={`rail-${group.title}`}
+              className={styles.railGroup}
+            >
+              <span id={`rail-${group.title}`} className={styles.railGroupTitle}>
+                {group.title}
+              </span>
+              {group.items.map((item) => {
+                const href = `${base}/${item.slug}`;
+                /* A view's card view sits under its view, and lights Views. */
+                const on = pathname === href || pathname.startsWith(`${href}/`);
+                return (
+                  <Link
+                    key={item.slug}
+                    href={href}
+                    aria-current={on ? "page" : undefined}
+                    className={`${styles.railItem} ${on ? styles.railOn : ""}`}
+                  >
+                    {item.label}
+                    {/* None of a thing reads as nothing, not as a zero to count. */}
+                    {item.count ? <span className={styles.railCount}>{item.count}</span> : null}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
           <div className={styles.railFoot}>
             <a
               className={styles.railLink}
@@ -126,6 +155,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
               rel="noreferrer"
             >
               How agents work
+              <span aria-hidden="true"> ↗</span>
             </a>
             <span className={styles.railVersion}>Ushabti {version}</span>
           </div>
@@ -139,7 +169,12 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
   );
 }
 
+type RailGroup = {
+  title: string;
+  items: { slug: string; label: string; count: number | null }[];
+};
+
 /** The title and the sentence at the top of each settings page. */
-export function PageHead({ title, note }: { title: string; note: React.ReactNode }) {
+export function PageHead({ title, note }: { title: React.ReactNode; note: React.ReactNode }) {
   return <SharedPageHead title={title} lead={note} />;
 }

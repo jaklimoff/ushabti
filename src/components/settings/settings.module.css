@@ -1,7 +1,8 @@
 /*
- * Settings is four pages behind one rail, not one scroll. The rail is the
+ * Settings is several pages behind one rail, not one scroll. The rail is the
  * board's own column-header idiom — mono, uppercase, tracked — applied to
- * navigation, so it reads as the same product.
+ * navigation, so it reads as the same product. It is set larger than a
+ * column header because it is read as a list, not glanced at as labels.
  */
 
 .page {
@@ -66,38 +67,107 @@
   }
 }
 
+/* A group is a heading and its items on a wide screen. On a phone the rail is
+   one scrolled line, so a group gives up its heading and keeps a hairline
+   between itself and the last group. */
+.railGroup {
+  display: contents;
+}
+
+.railGroupTitle {
+  display: none;
+}
+
+.railGroup + .railGroup > .railItem:first-of-type {
+  margin-left: 6px;
+  position: relative;
+}
+
+.railGroup + .railGroup > .railItem:first-of-type::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--line);
+}
+
+@media (min-width: 900px) {
+  .railGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .railGroup + .railGroup {
+    margin-top: 16px;
+  }
+
+  .railGroup + .railGroup > .railItem:first-of-type {
+    margin-left: 0;
+  }
+
+  .railGroup + .railGroup > .railItem:first-of-type::before {
+    content: none;
+  }
+
+  .railGroupTitle {
+    display: block;
+    padding: 0 10px 6px;
+    font-family: var(--font-mono);
+    font-size: var(--t-chip);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-meta);
+  }
+}
+
 .railItem {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 9px;
+  min-height: 30px;
+  padding: 0 10px;
   border-radius: var(--r-sm);
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-micro);
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-4);
   white-space: nowrap;
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
 }
 
+/* Hover is quieter than "you are here": a darker fill and no bar, so the
+   item under the pointer never reads as the page that is open. */
 .railItem:hover {
-  background: var(--bg-hover);
-  color: var(--text-4);
+  background: var(--bg-card);
+  color: var(--text-2);
 }
 
-.railOn {
-  background: var(--bg-tag);
-  color: var(--text-2);
+.railOn,
+.railOn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.railItem:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .railCount {
   margin-left: auto;
-  color: var(--faint-3);
-  font-size: 9px;
+  font-size: var(--t-chip);
+  letter-spacing: 0.04em;
+  color: var(--text-meta);
+  font-variant-numeric: tabular-nums;
 }
 
 .railOn .railCount {
@@ -112,9 +182,9 @@
   .railFoot {
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    margin-top: 14px;
-    padding: 12px 9px 0;
+    gap: 8px;
+    margin-top: 18px;
+    padding: 14px 10px 0;
     border-top: 1px solid var(--line-soft);
   }
 }
@@ -124,12 +194,16 @@
   color: var(--muted);
 }
 
+.railLink:hover {
+  color: var(--text-2);
+}
+
 .railVersion {
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
+  font-size: var(--t-chip);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--faint-3);
+  color: var(--text-meta);
 }
 
 .body {
@@ -141,8 +215,11 @@
 
 /* ---- property rows -------------------------------------------------- */
 
+/* Each property is a block: its name reads as a heading and everything it
+   holds sits under that name. The line between two blocks is the card's own
+   line, so one property never blurs into the next. */
 .propBox {
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line);
 }
 
 .propBox:last-child {
@@ -153,7 +230,34 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 13px;
+  padding: 14px 13px 10px;
+}
+
+.propName input {
+  font-weight: 600;
+}
+
+/* What the project does with the property, said after its type. It was a
+   GROUPABLE badge, which read as a second type and named no view. */
+.propUse {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--t-small);
+  line-height: 1.4;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.propUse a {
+  color: var(--accent-soft);
+}
+
+.propUse a:hover {
+  text-decoration: underline;
+}
+
+.propUseDot {
+  color: var(--faint);
 }
 
 /*
@@ -181,6 +285,9 @@
   }
   .propTags {
     grid-area: tags;
+  }
+  .propUse {
+    grid-column: 1 / -1;
   }
   .propTools {
     grid-column: 1 / -1;
@@ -217,6 +324,14 @@
 
 .whenSaid {
   color: var(--text-2);
+}
+
+.whenLink {
+  color: var(--accent-soft);
+}
+
+.whenLink:hover {
+  text-decoration: underline;
 }
 
 .whenPick {
@@ -260,6 +375,36 @@
   margin-left: auto;
 }
 
+/*
+ * Quiet until needed. Where there is a mouse, the tools of a property and of
+ * an option come up when the pointer or the focus is on them, so the page
+ * shows what there is before how to change it. Opacity and not display, so
+ * nothing moves when they arrive and the keyboard still reaches every one.
+ * A touch screen has no hover, so there they always show.
+ */
+@media (hover: hover) {
+  .propTools,
+  .option .optionGrip,
+  .option .optionRemove {
+    opacity: 0;
+    transition: opacity 140ms var(--ease);
+  }
+  .propBox:hover .propTools,
+  .propBox:focus-within .propTools,
+  .option:hover .optionRemove,
+  .option:focus-within .optionRemove {
+    opacity: 1;
+  }
+  .option:hover .optionGrip,
+  .option:focus-within .optionGrip {
+    opacity: 0.65;
+  }
+  .option .optionGrip:hover,
+  .option .optionGrip:focus-visible {
+    opacity: 1;
+  }
+}
+
 /* On a phone the tools take a line of their own, and the delete keeps the
    end of it, where it sits on a wide screen. */
 @media (max-width: 620px) {
@@ -275,11 +420,19 @@
   }
 }
 
+/* The options start under the name, 47 px in, as the rule and the cadence
+   rows do: the head's 13, the grip's 24 and the gap's 10. */
 .options {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 0 13px 12px;
+  padding: 0 13px 14px 47px;
+}
+
+@media (max-width: 620px) {
+  .options {
+    padding: 0 13px 12px;
+  }
 }
 
 .option {
@@ -309,17 +462,89 @@
   min-height: 24px;
 }
 
-.optionPlan {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
+/* The add and the fold keep the size they have under a plain select. */
+.optionsRows > .optionAdd,
+.optionsRows > .optionFold,
+.optionsRows > input {
+  align-self: flex-start;
+}
+
+/* The words over the date boxes, once per property. The boxes had their
+   names only in a tooltip, so nobody could tell which date was the start. */
+.planHead {
+  display: none;
+}
+
+/*
+ * On a wide screen the dated options are the rows of one table: the grip, the
+ * colour, the name, the start, the arrow, the target, the note, the shipped
+ * day and the ✕, each in its own column. The rows share the columns of the
+ * list (a subgrid), so the dates line up under their heading whatever the
+ * names are. The plan's own box steps aside for the columns.
+ */
+@media (min-width: 621px) {
+  .optionsRows {
+    display: grid;
+    grid-template-columns: 24px 11px max-content 118px 14px 118px minmax(140px, 1fr) auto 18px;
+    column-gap: 7px;
+    row-gap: 6px;
+  }
+  .optionsRows > * {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .optionsRows > .option,
+  .optionsRows > .planHead {
+    display: grid;
+    grid-template-columns: subgrid;
+    justify-self: stretch;
+    align-items: center;
+  }
+  .planHead {
+    padding: 0 6px 0 8px;
+    border: 1px solid transparent;
+    font-family: var(--font-mono);
+    font-size: var(--t-chip);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--text-meta);
+  }
+  .planHeadStart {
+    grid-column: 4;
+  }
+  .planHeadTarget {
+    grid-column: 6;
+  }
+  .planHeadNote {
+    grid-column: 7;
+  }
+  .optionsRows .optionPlan {
+    display: contents;
+  }
+  .optionsRows .optionPlanAsk {
+    display: flex;
+    grid-column: 4 / 9;
+  }
+  .optionsRows .optionInput {
+    max-width: 22ch;
+  }
+  .optionsRows .optionNote {
+    grid-column: 7;
+    min-width: 0;
+  }
+  .optionsRows .optionShipped {
+    grid-column: 8;
+  }
+  .optionsRows .optionRemove {
+    grid-column: 9;
+  }
 }
 
 .optionArrow {
-  color: var(--faint-3);
+  color: var(--muted-2);
+  text-align: center;
 }
 
 .optionDate,
@@ -337,9 +562,9 @@
 }
 
 /* An empty date box shows dd/mm/yyyy, which is a placeholder and must not
-   read as a date. It stays muted until the date is whole, focused or not. */
+   read as a date. It stays faint until the date is whole, focused or not. */
 .optionDateEmpty {
-  color: var(--muted);
+  color: var(--faint);
 }
 
 /* The note keeps its lines, so it grows with them instead of hiding them. */
@@ -367,9 +592,11 @@
   }
   .optionsRows .optionInput {
     flex: 1;
+    max-width: none;
   }
   .optionsRows .optionRemove {
     order: 1;
+    margin-left: auto;
   }
   .optionsRows .optionPlan {
     order: 2;
@@ -432,6 +659,8 @@
   border-color: var(--text);
 }
 
+/* A chip is as wide as its name: XS is small and "Waiting for review" is
+   not cut. A browser that cannot size a box to its words keeps the old 82 px. */
 .optionInput {
   border: 0;
   outline: 0;
@@ -439,7 +668,16 @@
   color: inherit;
   font: inherit;
   width: 82px;
-  min-width: 20px;
+  min-width: 3ch;
+  max-width: 22ch;
+  text-overflow: ellipsis;
+}
+
+@supports (field-sizing: content) {
+  .optionInput {
+    width: auto;
+    field-sizing: content;
+  }
 }
 
 .optionRemove {
@@ -519,11 +757,106 @@
   color: var(--accent-soft);
 }
 
+/* The add form under the properties. The hint says what the picked type is,
+   right after the type it describes. */
+.propFootHint {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* Three lines to start, growing with the list up to eight. */
+.propFoot .propFootOptions {
+  flex-basis: 100%;
+  min-height: 0;
+  max-height: calc(8lh + 16px);
+  field-sizing: content;
+}
+
 /* ---- people --------------------------------------------------------- */
+
+/*
+ * A member row is four columns — face, who, role, what can be done — so the
+ * role of every row starts in one place. The role and the reset sit in one
+ * box that is no box on a wide screen: a phone moves that box under the name,
+ * and keeps the ✕ on the first line, where a thumb still finds it.
+ */
+div.memberRow {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 140px 128px 24px;
+  grid-template-areas: "face who role reset remove";
+  align-items: center;
+  column-gap: 12px;
+}
+
+.memberFace {
+  grid-area: face;
+  display: flex;
+}
+
+.memberWho {
+  grid-area: who;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.memberMeta {
+  display: contents;
+}
+
+.memberRole {
+  grid-area: role;
+  display: flex;
+  min-width: 0;
+}
+
+.memberReset {
+  grid-area: reset;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.memberRemove {
+  grid-area: remove;
+}
+
+@media (max-width: 620px) {
+  div.memberRow {
+    grid-template-columns: 22px minmax(0, 1fr) 24px;
+    grid-template-areas:
+      "face who remove"
+      ". meta meta";
+    row-gap: 8px;
+  }
+
+  .memberMeta {
+    grid-area: meta;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .memberRole {
+    width: 140px;
+  }
+}
+
+/* A role nobody here can change reads as the select would, without the box. */
+.roleText {
+  padding: 0 10px;
+  font-size: var(--t-body);
+  color: var(--text-4);
+}
 
 .memberName {
   font-size: var(--t-body);
   color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .memberMail {
@@ -533,6 +866,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.footError {
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--danger-text);
 }
 
 .agentBox {
@@ -552,25 +891,117 @@
   padding: 4px 13px 13px 45px;
 }
 
-.mayRow {
+/* What the agent may do and how it signs in, under its name. Each part is a
+   label and what it labels, the label in a column of its own, as a field's. */
+.agentDetail {
   display: flex;
-  align-items: center;
-  gap: 6px 14px;
-  flex-wrap: wrap;
-  padding: 0 13px 8px 45px;
-  font-size: var(--t-body);
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 13px 14px 45px;
 }
 
-.mayLabel {
+.agentPart {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  column-gap: 16px;
+  align-items: start;
+}
+
+.agentLabel {
+  line-height: 24px;
+}
+
+@media (max-width: 620px) {
+  .agentDetail {
+    padding-left: 13px;
+  }
+
+  .agentPart {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+  }
+}
+
+.mayBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mayGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 20px;
+}
+
+@media (max-width: 620px) {
+  .mayGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A switch with its meaning under it: the box sits on the first line. */
+label.act {
+  align-items: flex-start;
+}
+
+label.act > input {
+  margin-top: 5px;
+}
+
+.actSay {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-top: 3px;
+  min-width: 0;
+}
+
+.actName {
+  font-size: var(--t-small);
+  color: var(--text-3);
+}
+
+.actNote {
+  font-size: var(--t-micro);
+  line-height: 1.45;
+  color: var(--text-meta);
+  text-wrap: pretty;
+}
+
+.mayNote {
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
+.tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tokensNone {
+  font-size: var(--t-small);
+  line-height: 24px;
   color: var(--muted);
 }
 
 .tokenRow {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 4px 10px;
   flex-wrap: wrap;
-  padding: 4px 13px 8px 45px;
+  min-height: 24px;
+}
+
+.tokenNaming {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-top: 4px;
 }
 
 .tokenName {
@@ -584,13 +1015,22 @@
   color: var(--text-4);
 }
 
+.tokenWhen {
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
+.tokenLive {
+  color: var(--live);
+}
+
 /* ---- the connect recipe --------------------------------------------- */
 
 .connect {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 0 13px 13px 45px;
+  margin: 6px 0 4px;
   padding: 13px;
   border-radius: var(--r-md);
   background: var(--bg-input);
@@ -640,7 +1080,7 @@
 }
 
 .answeredDot {
-  background: #4f8a5b;
+  background: var(--live);
   animation: none;
 }
 
@@ -664,7 +1104,8 @@
   }
 }
 
-/* A group on the Types page is a head of its card too, so it reads the same. */
+/* A group on the Types page is a head of its card too, so it reads the same.
+   The one mono caps label, so it is readable. */
 .cardHead,
 .typeGroup {
   margin: 0;
@@ -672,11 +1113,12 @@
   border-bottom: 1px solid var(--line-soft);
   background: var(--bg-sub);
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  white-space: nowrap;
+  color: var(--text-meta);
 }
 
 .cardHead {
@@ -740,13 +1182,6 @@
   color: var(--text-2);
 }
 
-.cardRowDot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  border-radius: 2px;
-}
-
 /* A row that is off the card says so by going quiet, not by disappearing. */
 .cardRowOff {
   color: var(--faint-2);
@@ -775,10 +1210,25 @@
   background: var(--bg-card-hover);
 }
 
+/* The title row has the same box, read-only: dashed and dim, as a read-only
+   box is everywhere else. The column reads as one column. */
 .placeCell:disabled {
   background: transparent;
-  color: var(--faint-2);
+  outline: 1px dashed var(--line-dash);
+  outline-offset: -1px;
+  color: var(--faint);
   cursor: default;
+}
+
+/* The box opens a row editor, so it says so as a select does. */
+.placeCellCaret {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--icon);
+}
+
+.placeCellOpen .placeCellCaret {
+  transform: rotate(180deg);
 }
 
 .placeCellOpen {
@@ -791,6 +1241,7 @@
   height: 6px;
   flex: 0 0 6px;
   border-radius: 50%;
+  background: var(--accent-soft);
 }
 
 .placeCellBar {
@@ -833,15 +1284,26 @@
 }
 
 .cardFieldLabel {
-  width: 62px;
-  flex: 0 0 62px;
+  width: 72px;
+  flex: 0 0 72px;
   padding-top: 6px;
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  white-space: nowrap;
+  color: var(--text-meta);
+}
+
+/* The modes and the sentence that says what the picked one draws. */
+.cardFieldBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
 }
 
 .modes {
@@ -926,8 +1388,8 @@
 .placeBox:disabled,
 .placeWide:disabled,
 .placeEdge:disabled {
-  background: #131619;
-  box-shadow: inset 0 0 0 1px #1a1d21;
+  background: var(--bg-seg);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
   color: var(--faint-3);
   cursor: not-allowed;
 }
@@ -939,7 +1401,7 @@
 }
 
 .placeOn {
-  background: rgba(63, 176, 200, 0.16);
+  background: var(--accent-bg);
   box-shadow: inset 0 0 0 1px var(--accent);
   color: var(--accent-soft);
 }
@@ -976,16 +1438,16 @@
 
 .previewTitle {
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 .previewLive {
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent-soft);
@@ -1001,29 +1463,103 @@
   background: var(--bg-column);
 }
 
-/* ---- danger --------------------------------------------------------- */
+/* The row a person is on, pointed at on the card: its part gets the accent
+   ring and the other chips step back. */
+.previewCards [data-lit] {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
 
-.danger {
+.previewCards[data-lighting] [data-testid="card-chip"]:not([data-lit]) {
+  opacity: 0.45;
+}
+
+.previewCards [data-testid="card-chip"] {
+  transition: opacity 140ms var(--ease);
+}
+
+/* ---- a page under another page --------------------------------------- */
+
+.subHead {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
-  padding: 15px 16px;
-  border: 1px solid rgba(224, 87, 77, 0.28);
-  border-radius: var(--r-lg);
-  background: rgba(224, 87, 77, 0.04);
 }
 
-.dangerHead {
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
+.backLink:hover {
+  color: var(--text-2);
+}
+
+.backChevron {
+  transform: rotate(90deg);
+}
+
+.cardTitleRow {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.cardTitleTag {
+  display: inline-flex;
+  font-size: 0;
+}
+
+/* ---- danger --------------------------------------------------------- */
+
+/* A card like every other, with a red edge and no red fill: the button says
+   the loss, the card only marks where it is. */
+div.dangerCard {
+  border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+div.dangerRow {
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 14px 16px;
+}
+
+.dangerSay {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+
+.dangerTitle {
   font-size: var(--t-ui);
   font-weight: 600;
-  color: var(--danger-soft);
+  color: var(--text);
 }
 
-.dangerRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
+/* The key a task will carry, set as it will be: in the mono of a task key. */
+.keySample {
+  font-family: var(--font-mono);
+  color: var(--text-4);
+}
+
+/* A dropdown alone on its row is as wide as the boxes above it start, so the
+   column of controls reads as one. */
+span.fieldSelect {
+  min-width: 180px;
+}
+
+/* The rules box takes the whole control column, so it lines up with every
+   box above it and ends where the card does. */
+textarea.rulesBox {
+  flex: 1 1 100%;
 }
 
 .keyWarn {
@@ -1067,7 +1603,7 @@
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: #3a4048;
+  background: var(--faint-3);
 }
 
 .rowLifted {
@@ -1088,8 +1624,47 @@
   }
 }
 
-/* The parts of a view row. On a wide screen this is the plain row it always
-   was: the name sits its own width and the two boxes are pushed right. */
+/*
+ * The views are one table. On a wide screen every row shares the columns of
+ * the card (a subgrid), so the boxes start at one x on every row and "which
+ * view groups by what" reads down a column: the grip, the name, main, how it
+ * shows, what it groups by, its card view, the ✕. A row that has no box for a
+ * column leaves the column empty rather than moving the next one along.
+ * The element is named because the card's own display comes from
+ * `components/ui/`, and which module the bundler emits last must not decide
+ * who wins.
+ */
+.viewsHead {
+  display: none;
+}
+
+.viewName {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.viewName input {
+  flex: 1;
+  width: 100%;
+}
+
+.viewGlyph {
+  display: inline-grid;
+  place-items: center;
+  width: 10px;
+  flex: 0 0 10px;
+  color: var(--muted-2);
+}
+
+.viewGlyphDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .viewMain {
   display: inline-flex;
   align-items: center;
@@ -1109,6 +1684,113 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+/* A list has no grouping, which a phone does not need said. */
+.viewNone {
+  display: none;
+}
+
+@media (min-width: 621px) {
+  div.viewsCard {
+    display: grid;
+    grid-template-columns: 24px minmax(120px, 1fr) max-content 128px 150px max-content 24px;
+    column-gap: 10px;
+  }
+  .viewsCard > * {
+    grid-column: 1 / -1;
+  }
+  div.viewsHead,
+  div.viewHead {
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+  }
+  .viewsHead {
+    padding: 8px 13px;
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-sub);
+    font-family: var(--font-mono);
+    font-size: var(--t-chip);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--text-meta);
+  }
+  .viewsHeadName {
+    grid-column: 2;
+  }
+  .viewsHeadKind {
+    grid-column: 4;
+  }
+  .viewsHeadGroup {
+    grid-column: 5;
+  }
+  .viewName {
+    grid-column: 2;
+  }
+  .viewMain {
+    grid-column: 3;
+  }
+  .viewShape {
+    display: contents;
+  }
+  .viewLabel {
+    display: none;
+  }
+  .viewKind,
+  .viewGroup {
+    display: flex;
+    min-width: 0;
+  }
+  .viewKind > :last-child,
+  .viewGroup > :last-child {
+    flex: 1;
+    min-width: 0;
+  }
+  .viewKind {
+    grid-column: 4;
+  }
+  .viewGroup {
+    grid-column: 5;
+  }
+  .viewNone {
+    padding-left: 10px;
+    font-size: var(--t-small);
+    color: var(--faint);
+  }
+  .viewCard {
+    grid-column: 6;
+    gap: 2px;
+  }
+  .viewTools {
+    grid-column: 7;
+  }
+}
+
+/* Make main and the ✕ come up with the pointer or the focus, as the tools of
+   a property do. A touch screen always shows them. */
+@media (hover: hover) {
+  .viewReveal {
+    opacity: 0;
+    transition:
+      opacity 140ms var(--ease),
+      background 140ms var(--ease),
+      color 140ms var(--ease);
+  }
+  .viewHead:hover .viewReveal,
+  .viewHead:focus-within .viewReveal {
+    opacity: 1;
+  }
+}
+
+.viewWhole {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.viewWhole:last-child {
+  border-bottom: 0;
 }
 
 /*
@@ -1147,6 +1829,10 @@
   }
   .viewTools {
     grid-area: tools;
+  }
+  /* The boxes of a row start at one x, as they do in the wide table. */
+  .viewLabel {
+    min-width: 86px;
   }
 }
 
@@ -1187,6 +1873,11 @@
   border-bottom: 0;
 }
 
+/* The URL and what sits under it are one webhook, so no line between them. */
+div.hookRow {
+  border-bottom: 0;
+}
+
 /* The kinds, the secret and the last delivery sit under the URL row, indented
    to the same place an agent's token rows are. */
 .hookUnder {
@@ -1199,35 +1890,8 @@
 .kinds {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
   align-items: center;
-}
-
-.kindChip {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line-soft);
-  background: transparent;
-  font-size: var(--t-micro);
-  color: var(--faint);
-  white-space: nowrap;
-  transition:
-    background 140ms var(--ease),
-    color 140ms var(--ease),
-    border-color 140ms var(--ease);
-}
-
-.kindChip:hover {
-  background: var(--bg-hover);
-  color: var(--text-3);
-}
-
-.kindChipOn {
-  border-color: rgba(63, 176, 200, 0.45);
-  color: var(--accent-soft);
 }
 
 /* One line: delivered 2m ago, or failed 4m ago — 500. */
@@ -1249,7 +1913,7 @@
 }
 
 .hookDotOk {
-  background: #4f8a5b;
+  background: var(--live);
 }
 
 .hookDotBad {
@@ -1376,9 +2040,55 @@
   gap: 6px;
 }
 
+/* Types while they are off: what turning them on gives. */
+.typesOff {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.typesGain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0 20px;
+  list-style: none;
+}
+
+.typesGain li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sub);
+}
+
+.typesGainHead {
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.typesGainBody {
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
 /* The ticks of Done when: as many as the property has options, so they wrap. */
 .doneOptions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
+}
+
+/* The rail while the page loads: no item is a link yet, so none lights. */
+.railLoading .railItem:hover {
+  background: none;
 }

@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Settings reads as grouped pages with fields that line up.** The menu sorts
+  its pages under General, Board and Integrations. Project is a set of named
+  cards, and deleting it asks you to type the key. Member rows fit a phone,
+  each agent switch says what it does, and every property says what uses it.
+  Pointing at a card view row rings its part of the preview card.
 - **The whole roadmap fits on one screen and says where each release stands.**
   A day's width follows the screen, so every release shows on open; a longer
   plan scrolls, and a chip at the edge brings an off-screen bar into view. A

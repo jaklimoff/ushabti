@@ -199,7 +199,10 @@ describe("The Types page", () => {
     const patches = () => sent("PATCH", PROPERTY);
 
     const nav = page.getByRole("navigation", { name: "Settings sections" });
-    await says(nav.getByRole("link", { name: /^Types/ }), "Types0");
+    // No types yet draws no count: a zero reads as noise in the menu.
+    await expect
+      .poll(() => nav.getByRole("link", { name: /^Types/ }).element().textContent)
+      .toBe("Types");
     await choose(page.getByLabelText("Types come from"), "Type");
     expect(sent("PATCH", PROJECT)[0].body).toEqual({ typeBy: type.id });
     const types = page.getByRole("group", { name: "Types" });

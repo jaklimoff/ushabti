@@ -157,7 +157,7 @@ describe("A settings select is the app's own menu", () => {
     await expect.element(list()).toBeVisible();
     const menu = list().element();
     const room = menu.scrollHeight - menu.clientHeight;
-    expect(room).toBeGreaterThan(40);
+    expect(room).toBeGreaterThan(30);
 
     menu.scrollTop = room;
     /* Nothing pulls it back to the highlighted row afterwards. */

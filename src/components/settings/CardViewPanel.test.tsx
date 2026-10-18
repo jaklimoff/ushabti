@@ -321,3 +321,30 @@ describe("Settings reads its own loader", () => {
     at.pathname = null;
   });
 });
+
+describe("The card view preview", () => {
+  test("hovering a card view row rings its part of the preview card", async () => {
+    const data = newProject();
+    withTask(data, "Pointed at", { Status: "Todo", Priority: "Urgent" });
+    await draw(data);
+    const priority = data.properties.find((p) => p.name === "Priority")!;
+    const preview = page.getByRole("complementary", { name: "What a card looks like" });
+    const chip = preview.element().querySelector(`[data-item="${priority.id}"]`) as HTMLElement;
+    expect(chip).not.toBeNull();
+    expect(chip.hasAttribute("data-lit")).toBe(false);
+
+    await row("Priority").hover();
+    await expect.poll(() => chip.hasAttribute("data-lit")).toBe(true);
+    expect(getComputedStyle(chip).outlineStyle).toBe("solid");
+    // Only its own part is ringed.
+    expect(preview.element().querySelectorAll("[data-lit]")).toHaveLength(
+      preview.element().querySelectorAll(`[data-item="${priority.id}"]`).length,
+    );
+
+    // Leaving the row lets the ring go; focusing a row brings one back.
+    await page.getByRole("heading", { name: "Card view" }).hover();
+    await expect.poll(() => chip.hasAttribute("data-lit")).toBe(false);
+    (opener("Priority").element() as HTMLElement).focus();
+    await expect.poll(() => chip.hasAttribute("data-lit")).toBe(true);
+  });
+});

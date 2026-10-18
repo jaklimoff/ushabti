@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBoard } from "@/components/board/store";
 import { TaskCard } from "@/components/board/TaskCard";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
+import { Chevron } from "@/components/ui/Marks";
 import {
   canEdge,
   cardItems as itemsOf,
@@ -38,6 +39,9 @@ import styles from "./settings.module.css";
 export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
   const { data, cardItemsOf, setCardView, resetCardView } = useBoard();
   const [open, setOpen] = useState<string | null>(null);
+  /* The row under the pointer or the keys. It and the open row point at
+     their chip on the preview, so the list and the card read as one. */
+  const [near, setNear] = useState<string | null>(null);
   const confirm = useConfirm();
   const target = viewId ? (data.views.find((v) => v.id === viewId) ?? null) : null;
   const cardItems = useMemo(() => cardItemsOf(viewId), [cardItemsOf, viewId]);
@@ -78,14 +82,29 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
   return (
     <>
       {target ? (
-        <PageHead
-          title={`Card view of ${target.name}`}
-          note={
-            own
-              ? `What a ${shape} carries. This view keeps a copy of its own, so a change to the project's card view does not reach it.`
-              : `What a ${shape} carries. It draws the project's card view now; your first change here gives this view a copy of its own.`
-          }
-        />
+        <div className={styles.subHead}>
+          {/* The rail lights Views, and this is the way back to it. */}
+          <Link className={styles.backLink} href={`/p/${data.project.id}/settings/views`}>
+            <Chevron size={10} className={styles.backChevron} />
+            Views
+          </Link>
+          <PageHead
+            title={
+              <span className={styles.cardTitleRow}>
+                Card view of {target.name}
+                {/* The lead says it in words; the tag says it at a glance. */}
+                <span aria-hidden className={styles.cardTitleTag}>
+                  {own ? <Tag accent>own copy</Tag> : <Tag>follows the project</Tag>}
+                </span>
+              </span>
+            }
+            note={
+              own
+                ? `What a ${shape} carries. This view keeps a copy of its own, so a change to the project's card view does not reach it.`
+                : `What a ${shape} carries. It draws the project's card view now; your first change here gives this view a copy of its own.`
+            }
+          />
+        </div>
       ) : (
         <PageHead
           title="Card view"
@@ -107,6 +126,9 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
               item={item}
               edgeHolder={edge}
               open={open === item.id}
+              onNear={(on) =>
+                setNear((current) => (on ? item.id : current === item.id ? null : current))
+              }
               onToggle={() => setOpen((current) => (current === item.id ? null : item.id))}
               onClose={() => setOpen(null)}
               onPlace={(place) => void setCardView(setCardPlace(view, item.id, place), viewId)}
@@ -160,7 +182,7 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
           )}
         </Card>
 
-        <Preview items={cardItems} />
+        <Preview items={cardItems} lit={near ?? open} />
       </div>
     </>
   );
@@ -174,6 +196,7 @@ function CardRowBox({
   item,
   edgeHolder,
   open,
+  onNear,
   onToggle,
   onClose,
   onPlace,
@@ -182,6 +205,8 @@ function CardRowBox({
   item: CardItem;
   edgeHolder: CardItem | null;
   open: boolean;
+  /** The pointer or the focus came onto the row, or left it. */
+  onNear: (on: boolean) => void;
   onToggle: () => void;
   onClose: () => void;
   onPlace: (place: CardPlace) => void;
@@ -200,10 +225,19 @@ function CardRowBox({
   else hint = "Choose a box. Left and right are the two ends of the same row.";
 
   return (
-    <div className={styles.cardRowBox} data-testid="card-row" data-place={item.place}>
+    <div
+      className={styles.cardRowBox}
+      data-testid="card-row"
+      data-place={item.place}
+      onMouseEnter={() => onNear(true)}
+      onMouseLeave={() => onNear(false)}
+      onFocus={() => onNear(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) onNear(false);
+      }}
+    >
       <div className={styles.cardRow}>
         <span className={styles.cardRowName}>
-          <span className={styles.cardRowDot} style={{ background: item.color }} />
           <span className={off ? styles.cardRowOff : undefined}>{item.name}</span>
         </span>
 
@@ -220,15 +254,19 @@ function CardRowBox({
           disabled={item.fixed}
           onClick={onToggle}
         >
+          {/* The dot says it is on the card, and nothing about which colour:
+              the first option's colour read as a status. The edge is colour
+              itself, so its bar keeps it. */}
           {!off && !item.fixed && (
             <span
               className={item.place === "edge" ? styles.placeCellBar : styles.placeCellDot}
-              style={{ background: item.color }}
+              style={item.place === "edge" ? { background: item.color } : undefined}
             />
           )}
           <span className={off ? styles.cardRowOff : undefined}>
             {CARD_PLACE_LABEL[item.place]}
           </span>
+          {!item.fixed && <Chevron size={10} className={styles.placeCellCaret} />}
         </button>
       </div>
 
@@ -244,18 +282,21 @@ function CardRowBox({
 
           <div className={styles.cardField}>
             <span className={styles.cardFieldLabel}>Reads as</span>
-            <span className={styles.modes} role="group" aria-label={`How ${item.name} reads`}>
-              {modes.map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  className={`${styles.mode} ${item.mode === mode.id ? styles.modeOn : ""}`}
-                  aria-pressed={item.mode === mode.id}
-                  onClick={() => onMode(mode.id)}
-                >
-                  {mode.label}
-                </button>
-              ))}
+            <span className={styles.cardFieldBody}>
+              <span className={styles.modes} role="group" aria-label={`How ${item.name} reads`}>
+                {modes.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    className={`${styles.mode} ${item.mode === mode.id ? styles.modeOn : ""}`}
+                    aria-pressed={item.mode === mode.id}
+                    onClick={() => onMode(mode.id)}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </span>
+              <Note>{modeSaid(item)}</Note>
             </span>
           </div>
 
@@ -285,6 +326,36 @@ function CardRowBox({
       )}
     </div>
   );
+}
+
+/**
+ * What the picked reading draws, in one sentence. The names of the modes are
+ * short, and a newcomer cannot picture "Filled" or "Both" from the word.
+ */
+function modeSaid(item: CardItem): string {
+  const { kind, mode } = item;
+  if (kind === "select") {
+    if (mode === "both") return "A dot of the option's colour, then its name, in a thin box.";
+    if (mode === "fill") return "The option's name on a fill of its colour.";
+    if (mode === "colour") return "A square of the option's colour, no words.";
+    return "The option's name in a thin box, no colour.";
+  }
+  if (kind === "person") {
+    if (mode === "avatar") return "Their face, no name.";
+    if (mode === "text") return "Their name, no face.";
+    return "Their face and their name, in a thin box.";
+  }
+  if (kind === "desc")
+    return mode === "one"
+      ? "The first line of the description."
+      : "The first two lines of the description.";
+  if (kind === "checklist" || kind === "parts")
+    return mode === "bar"
+      ? "A small bar of what is done, then the count."
+      : "The count alone, as 1/4.";
+  if (kind === "comments") return "A speech bubble and the number of comments.";
+  if (kind === "title") return "The task's title, on its own line.";
+  return mode === "boxed" ? "The words in a thin box." : "The words alone.";
 }
 
 /**
@@ -353,12 +424,39 @@ function PlaceGrid({
  * reads. A preview that draws itself would drift from the board within a
  * release; this one cannot.
  */
-function Preview({ items }: { items: CardItem[] }) {
+function Preview({ items, lit }: { items: CardItem[]; lit: string | null }) {
   const { data } = useBoard();
+  const cards = useRef<HTMLDivElement>(null);
   const tasks = useMemo(
     () => previewTasks(data.tasks, data.properties, data.members, data.project.key),
     [data.members, data.project.key, data.properties, data.tasks],
   );
+
+  /* The row a person is on points at its part of the card. The chips say
+     which row they were drawn for; the title, the description and the edge
+     are the card's own parts and are found by what they are. Marked from
+     here, so the card itself still draws and decides nothing. */
+  useEffect(() => {
+    const root = cards.current;
+    const item = items.find((i) => i.id === lit);
+    if (!root || !item || item.place === "off") return;
+    const selector =
+      item.place === "edge"
+        ? '[data-testid="card-edge"]'
+        : item.id === "_title"
+          ? '[data-testid="card-title"]'
+          : item.id === "_desc"
+            ? `[data-testid="card-desc"], [data-item="_desc"]`
+            : `[data-item="${CSS.escape(item.id)}"]`;
+    const found = [...root.querySelectorAll(selector)];
+    if (!found.length) return;
+    for (const el of found) el.setAttribute("data-lit", "");
+    root.setAttribute("data-lighting", "");
+    return () => {
+      for (const el of found) el.removeAttribute("data-lit");
+      root.removeAttribute("data-lighting");
+    };
+  }, [items, lit, tasks]);
 
   return (
     <aside className={styles.preview} aria-label="What a card looks like">
@@ -366,7 +464,7 @@ function Preview({ items }: { items: CardItem[] }) {
         <span className={styles.previewTitle}>On the board</span>
         <span className={styles.previewLive}>live</span>
       </div>
-      <div className={styles.previewCards}>
+      <div className={styles.previewCards} ref={cards}>
         {tasks.map((task) => (
           <TaskCard key={task.id} task={task} items={items} />
         ))}

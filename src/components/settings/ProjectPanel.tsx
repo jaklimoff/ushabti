@@ -22,7 +22,7 @@ import {
   TextArea,
 } from "@/components/ui/Form";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
-import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
+import { Card, Note, Row, Section } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 import { isSelect } from "@/lib/types";
@@ -71,7 +71,6 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const savedRules = data.project.agentRules ?? "";
   const [rules, setRules] = useState(savedRules);
   const [typedRules, setTypedRules] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
   const [confirming, setConfirming] = useState(false);
   /* A press waits for its answer, so a second press cannot flip it back. */
   const [switching, setSwitching] = useState(false);
@@ -231,16 +230,33 @@ export function ProjectPanel({ files }: { files: boolean }) {
     }
   }
 
+  /* Who may change what is said once per card, under its last row. */
+  const ownersOnly = (what: string) =>
+    !canEdit && (
+      <Row>
+        <Note>Only the owner or an admin can change {what}.</Note>
+      </Row>
+    );
+
+  /* "Sharing" names the public changelog, which only exists with releases on,
+     and "export" the download, which only an admin is offered. */
+  const sharing = Boolean(data.project.releaseBy);
+  const exporting = canEdit;
+  const shareTitle = sharing && exporting ? "Sharing and export" : sharing ? "Sharing" : "Export";
+
   return (
     <>
-      <PageHead title="Project" note="The name on the board and the prefix on every task key." />
+      <PageHead
+        title="Project"
+        note="The name and key every task carries, how this project counts work, and the rules its agents follow."
+      />
 
-      <Section title="Name, key and colour">
+      <Section title="General">
         <Card>
           <Row>
             <Field label="Name" inline>
               <Input
-                grow
+                width="long"
                 aria-label="Project name"
                 value={name}
                 disabled={!canEdit}
@@ -274,17 +290,9 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   if (keyEdit) void save({ key: keyEdit });
                 }}
               />
-              <Note>Task keys look like {key || "USH"}-14.</Note>
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Colour" inline>
-              <ProjectColorSwatches
-                projectKey={data.project.key}
-                value={sendingColor ?? data.project.color}
-                disabled={!canEdit}
-                onPick={(color) => void pickColor(color)}
-              />
+              <Note>
+                Task keys look like <span className={styles.keySample}>{key || "USH"}-14</span>.
+              </Note>
             </Field>
           </Row>
           {/*
@@ -301,28 +309,37 @@ export function ProjectPanel({ files }: { files: boolean }) {
               </span>
             </Row>
           )}
-          {!canEdit && (
-            <Row>
-              <Note>Only the owner or an admin can change the name, the key and the colour.</Note>
-            </Row>
-          )}
-        </Card>
-      </Section>
-
-      <Section title="Dates and progress">
-        {/*
-         * Which day a relative date rule means.
-         *
-         * A shared filter that says "due this week" has to mean one week for
-         * the whole team, so the day is the project's and not the reader's: two
-         * browsers in two zones would otherwise see different cards through one
-         * view, and an agent has no browser at all. The box takes a name and
-         * the server refuses one it does not know, because the list of zones
-         * belongs to the machine that works the day out.
-         */}
-        <Card>
           <Row>
-            <Field label="Time zone" inline>
+            <Field label="Colour" inline>
+              <ProjectColorSwatches
+                projectKey={data.project.key}
+                value={sendingColor ?? data.project.color}
+                disabled={!canEdit}
+                onPick={(color) => void pickColor(color)}
+              />
+            </Field>
+          </Row>
+          {/*
+           * Which day a relative date rule means.
+           *
+           * A shared filter that says "due this week" has to mean one week for
+           * the whole team, so the day is the project's and not the reader's: two
+           * browsers in two zones would otherwise see different cards through one
+           * view, and an agent has no browser at all. The box takes a name and
+           * the server refuses one it does not know, because the list of zones
+           * belongs to the machine that works the day out.
+           */}
+          <Row>
+            <Field
+              label="Time zone"
+              inline
+              note={
+                <>
+                  Today is {data.today} here. A filter that says <b>Due this week</b> or{" "}
+                  <b>Overdue</b> is worked out in this zone, for everybody on the board.
+                </>
+              }
+            >
               <Input
                 width="long"
                 aria-label="The time zone this project's day is worked out in"
@@ -346,30 +363,36 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   ))}
                 </datalist>
               )}
-              <Note>
-                Today is {data.today} here. A filter that says <b>Due this week</b> or{" "}
-                <b>Overdue</b> is worked out in this zone, for everybody on the board.
-              </Note>
             </Field>
           </Row>
-          {!canEdit && (
-            <Row>
-              <Note>Only the owner or an admin can change the time zone of this project.</Note>
-            </Row>
-          )}
+          {ownersOnly("the name, the key, the colour and the time zone")}
         </Card>
+      </Section>
 
-        {/*
-         * The property and its ticks are one answer, so they sit on one row.
-         * Picking a property with no option yet writes nothing: the answer is
-         * the options. Each saves the moment it changes — a dropdown or a tick
-         * has no draft to lose, so the change is its blur.
-         */}
+      {/*
+       * How work moves and finishes: what done means, what a bar sums, and
+       * whether the project plans in releases and sprints.
+       *
+       * The property and its ticks are one answer, so they sit on one row.
+       * Picking a property with no option yet writes nothing: the answer is
+       * the options. Each saves the moment it changes — a dropdown or a tick
+       * has no draft to lose, so the change is its blur.
+       */}
+      <Section title="Work">
         <Card>
           <Row>
-            <Field label="Done when" inline>
+            <Field
+              label="Done when"
+              inline
+              note={
+                selects.length === 0
+                  ? "This board has no select property with options, so archived is the answer."
+                  : "A task that blocks another stops blocking when it is archived, or when it reaches any option ticked here."
+              }
+            >
               <Select
                 aria-label="The property that says a task is done"
+                className={styles.fieldSelect}
                 value={doneProperty?.id ?? ""}
                 disabled={!canEdit || selects.length === 0}
                 onChange={(picked) => {
@@ -404,23 +427,23 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   ))}
                 </div>
               )}
-              <Note>
-                A task that blocks another stops blocking when it is archived, or when it reaches
-                any option ticked here.
-              </Note>
             </Field>
           </Row>
-          {selects.length === 0 && (
-            <Row>
-              <Note>
-                This board has no select property with options, so archived is the answer.
-              </Note>
-            </Row>
-          )}
           <Row>
-            <Field label="Count progress by" inline>
+            <Field
+              label="Count progress by"
+              inline
+              note={
+                <>
+                  A column with a target date shows how much of it is done. A task with no value
+                  counts zero.
+                  {numbers.length === 0 && " Add a number property to count by it."}
+                </>
+              }
+            >
               <Select
                 aria-label="Count progress by"
+                className={styles.fieldSelect}
                 value={data.project.progressBy ?? ""}
                 disabled={!canEdit || numbers.length === 0}
                 onChange={(picked) => void save({ progressBy: picked || null })}
@@ -429,76 +452,16 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   ...numbers.map((p) => ({ value: p.id, label: p.name })),
                 ]}
               />
-              <Note>
-                A column with a target date shows how much of it is done. A task with no value
-                counts zero.
-              </Note>
             </Field>
           </Row>
-          {!canEdit && (
-            <Row>
-              <Note>Only the owner or an admin can change what this project calls done.</Note>
-            </Row>
-          )}
-        </Card>
-      </Section>
 
-      {/*
-       * How an agent works on this board. No field is hardcoded, so only the
-       * project can say which option means review or what done means. The
-       * text goes into every run, which is what the count under it is for.
-       */}
-      <Section title="Agents">
-        <Card>
-          <Row>
-            <Field
-              label="Agent rules"
-              note={
-                <>
-                  <span data-testid="agent-rules-count">{rulesCount(rules)}</span>
-                  {rules.length > AGENT_RULES_SOFT
-                    ? ". Every run carries the whole text, so a shorter one costs less."
-                    : ". Markdown. An agent reads this when it claims a task, and obeys it."}
-                </>
-              }
-            >
-              <TextArea
-                aria-label="Agent rules"
-                rows={8}
-                value={rules}
-                maxLength={AGENT_RULES_MAX}
-                disabled={!canEdit}
-                placeholder={
-                  "Which option means review, when to ask a person, what an estimate means, what done means."
-                }
-                onChange={(e) => {
-                  setRules(e.target.value);
-                  setTypedRules(true);
-                }}
-                onBlur={() => {
-                  setTypedRules(false);
-                  if (rulesEdit !== null) void save({ agentRules: rulesEdit });
-                }}
-              />
-            </Field>
-          </Row>
-          {!canEdit && (
-            <Row>
-              <Note>Only the owner or an admin can change the agent rules.</Note>
-            </Row>
-          )}
-        </Card>
-      </Section>
-
-      {/*
-       * Releases and sprints are a property and its views, nothing more, so
-       * each switch says which ones before it makes them. The switch reads
-       * the project's pointer, never a property's name.
-       */}
-      {canEdit && (
-        <Section title="Releases and sprints">
-          <Card>
-            {releasesOff.asking && release ? (
+          {/*
+           * Releases and sprints are a property and its views, nothing more, so
+           * each switch says which ones before it makes them. The switch reads
+           * the project's pointer, never a property's name.
+           */}
+          {canEdit &&
+            (releasesOff.asking && release ? (
               <ConfirmRow
                 question={offQuestion("release", release, data.tasks, data.views)}
                 confirmLabel="Yes, turn off"
@@ -544,8 +507,9 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   />
                 </Field>
               </Row>
-            )}
-            {sprintsOff.asking && sprint ? (
+            ))}
+          {canEdit &&
+            (sprintsOff.asking && sprint ? (
               <ConfirmRow
                 question={offQuestion("sprint", sprint, data.tasks, data.views)}
                 confirmLabel="Yes, turn off"
@@ -603,24 +567,69 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   )}
                 </Field>
               </Row>
-            )}
-          </Card>
-        </Section>
-      )}
+            ))}
+          {ownersOnly("how this project counts work")}
+        </Card>
+      </Section>
+
+      {/*
+       * How an agent works on this board. No field is hardcoded, so only the
+       * project can say which option means review or what done means. The
+       * text goes into every run, which is what the count under it is for.
+       */}
+      <Section title="Agents">
+        <Card>
+          <Row>
+            <Field
+              label="Agent rules"
+              inline
+              note={
+                <>
+                  <span data-testid="agent-rules-count">{rulesCount(rules)}</span>
+                  {rules.length > AGENT_RULES_SOFT
+                    ? ". Every run carries the whole text, so a shorter one costs less."
+                    : ". Markdown. An agent reads this when it claims a task, and obeys it."}
+                </>
+              }
+            >
+              <TextArea
+                className={styles.rulesBox}
+                aria-label="Agent rules"
+                rows={8}
+                value={rules}
+                maxLength={AGENT_RULES_MAX}
+                disabled={!canEdit}
+                placeholder={
+                  "Which option means review, when to ask a person, what an estimate means, what done means."
+                }
+                onChange={(e) => {
+                  setRules(e.target.value);
+                  setTypedRules(true);
+                }}
+                onBlur={() => {
+                  setTypedRules(false);
+                  if (rulesEdit !== null) void save({ agentRules: rulesEdit });
+                }}
+              />
+            </Field>
+          </Row>
+          {ownersOnly("the agent rules")}
+        </Card>
+      </Section>
 
       {/* A member with releases off has nothing here, so no empty heading. */}
-      {(data.project.releaseBy || canEdit) && (
-        <Section title="Sharing and export">
-          {/*
-           * The changelog, for people with no account. Off until somebody turns
-           * it on, because it shows the titles of the shipped tasks to anyone
-           * who has the address. The address is the key, so a project whose key
-           * another public project already has is refused, with that sentence.
-           * With releases off both pages are not found, so the block goes too;
-           * the flag stays stored and comes back with releases.
-           */}
-          {data.project.releaseBy && (
-            <Card>
+      {(sharing || exporting) && (
+        <Section title={shareTitle}>
+          <Card>
+            {/*
+             * The changelog, for people with no account. Off until somebody turns
+             * it on, because it shows the titles of the shipped tasks to anyone
+             * who has the address. The address is the key, so a project whose key
+             * another public project already has is refused, with that sentence.
+             * With releases off both pages are not found, so the block goes too;
+             * the flag stays stored and comes back with releases.
+             */}
+            {sharing && (
               <Row>
                 <Field
                   label="Public changelog"
@@ -649,28 +658,26 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   >
                     {data.project.publicChangelog ? "Make it private" : "Make it public"}
                   </Button>
+                  <ButtonLink variant="text" href={`/p/${data.project.id}/changelog`}>
+                    Changelog
+                  </ButtonLink>
                 </Field>
               </Row>
-              <Row>
-                <a href={`/p/${data.project.id}/changelog`}>Changelog</a>
-              </Row>
-              {!canEdit && (
-                <Row>
-                  <Note>Only the owner or an admin can make the changelog public.</Note>
-                </Row>
-              )}
-            </Card>
-          )}
+            )}
+            {sharing && ownersOnly("who reads the changelog")}
 
-          {/*
-           * The file holds every member's email, so it is an admin's, as the
-           * route says. The server answers with an attachment, so following it
-           * saves the file and leaves this page where it is.
-           */}
-          {canEdit && (
-            <Card>
+            {/*
+             * The file holds every member's email, so it is an admin's, as the
+             * route says. The server answers with an attachment, so following it
+             * saves the file and leaves this page where it is.
+             */}
+            {exporting && (
               <Row>
-                <Field label="Export" inline>
+                <Field
+                  label="Export"
+                  inline
+                  note="One JSON file with the properties, views, members, and every live and archived task with its values, checklist and comments."
+                >
                   <ButtonLink
                     variant="ghost"
                     href={`/api/projects/${data.project.id}/export`}
@@ -678,14 +685,10 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   >
                     Download
                   </ButtonLink>
-                  <Note>
-                    One JSON file with the properties, views, members, and every live and archived
-                    task with its values, checklist and comments.
-                  </Note>
                 </Field>
               </Row>
-            </Card>
-          )}
+            )}
+          </Card>
         </Section>
       )}
 
@@ -699,52 +702,42 @@ export function ProjectPanel({ files }: { files: boolean }) {
         </Section>
       )}
 
+      {/*
+       * The one loss so large that a second press is not enough: the row asks
+       * for the key, in the same shape as every other question in settings.
+       */}
       {isOwner && (
         <Section title="Danger zone">
-          <div className={styles.danger}>
-            <span className={styles.dangerHead}>Delete this project</span>
-            <Note>
-              The board, its {taskCount} {taskCount === 1 ? "task" : "tasks"}, its properties, its
-              views and its agents go with it. There is no undo.
-            </Note>
+          <Card className={styles.dangerCard}>
             {confirming ? (
-              <div className={styles.dangerRow}>
-                <Note>
-                  Type <b>{data.project.key}</b> to confirm.
-                </Note>
-                <Input
-                  autoFocus
-                  width="short"
-                  aria-label="Type the project key to confirm"
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-                />
-                <Button
-                  variant="danger"
-                  disabled={confirmText !== data.project.key}
-                  onClick={() => void remove()}
-                >
-                  Delete for good
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setConfirming(false);
-                    setConfirmText("");
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Spacer />
-              </div>
+              <ConfirmRow
+                question={
+                  <>
+                    Delete {data.project.name} and its {taskCount}{" "}
+                    {taskCount === 1 ? "task" : "tasks"} for good? Type <b>{data.project.key}</b> to
+                    confirm.
+                  </>
+                }
+                typed={{ word: data.project.key, label: "Type the project key to confirm" }}
+                confirmLabel="Delete for good"
+                onConfirm={() => void remove()}
+                onCancel={() => setConfirming(false)}
+              />
             ) : (
-              <div className={styles.dangerRow}>
+              <Row className={styles.dangerRow}>
+                <div className={styles.dangerSay}>
+                  <span className={styles.dangerTitle}>Delete this project</span>
+                  <Note>
+                    The board, its {taskCount} {taskCount === 1 ? "task" : "tasks"}, its properties,
+                    its views and its agents go with it. There is no undo.
+                  </Note>
+                </div>
                 <Button variant="danger" onClick={() => setConfirming(true)}>
                   Delete project
                 </Button>
-              </div>
+              </Row>
             )}
-          </div>
+          </Card>
         </Section>
       )}
     </>

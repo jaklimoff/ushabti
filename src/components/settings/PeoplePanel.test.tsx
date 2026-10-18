@@ -113,7 +113,8 @@ describe("Agents in Settings -> People", () => {
     await expect.element(name).not.toBeInTheDocument();
     expect(sent("POST", TOKENS)[0].body).toEqual({ name: today() });
 
-    await twin.getByRole("button", { name: "Connect" }).click();
+    // Once it has a token, the next one is a new token.
+    await twin.getByRole("button", { name: "New token" }).click();
     await name.fill("Laptop");
     await userEvent.keyboard("{Enter}");
     await expect.poll(() => rows.all().length).toBe(2);
@@ -151,7 +152,7 @@ describe("Agents in Settings -> People", () => {
   test("an owner types any one emoji for an agent, and other text saves nothing", async () => {
     const { patches } = await draw([agent("Typist")]);
     const typist = box("Typist");
-    await typist.getByRole("button", { name: "Face of Typist" }).click();
+    await typist.getByRole("button", { name: "Edit Typist" }).click();
     const emojis = typist.getByRole("radiogroup", { name: "Emoji of Typist" });
     const field = typist.getByRole("textbox", { name: "Or type any emoji" });
 
@@ -177,7 +178,7 @@ describe("Agents in Settings -> People", () => {
   test("an owner changes an agent's colour and emoji", async () => {
     const { patches } = await draw([agent("Painter", "#e0574d")]);
     const painter = box("Painter");
-    await painter.getByRole("button", { name: "Face of Painter" }).click();
+    await painter.getByRole("button", { name: "Edit Painter" }).click();
 
     const colours = painter.getByRole("radiogroup", { name: "Colour of Painter" });
     await expect.poll(() => colours.getByRole("radio").all().length).toBe(11);
@@ -213,7 +214,7 @@ describe("Agents in Settings -> People", () => {
 
     await expect.element(box("Painter")).toBeVisible();
     await expect
-      .element(page.getByRole("button", { name: "Face of Painter" }))
+      .element(page.getByRole("button", { name: "Edit Painter" }))
       .not.toBeInTheDocument();
   });
 
@@ -222,7 +223,7 @@ describe("Agents in Settings -> People", () => {
      and the clashes are the board read and the route. */
   test("an admin renames an agent, and the field saves on blur", async () => {
     const { patches } = await draw([agent("Scout")]);
-    await box("Scout").getByRole("button", { name: "Face of Scout" }).click();
+    await box("Scout").getByRole("button", { name: "Edit Scout" }).click();
     const field = page.getByRole("textbox", { name: "Name of the agent Scout" });
     await field.fill("  Ranger ");
     expect(patches()).toHaveLength(0);
@@ -237,7 +238,7 @@ describe("Agents in Settings -> People", () => {
   // The last part of the same e2e test.
   test("a name typed and left without a blur still saves", async () => {
     const { patches } = await draw([agent("Ranger")]);
-    await box("Ranger").getByRole("button", { name: "Face of Ranger" }).click();
+    await box("Ranger").getByRole("button", { name: "Edit Ranger" }).click();
     await page.getByRole("textbox", { name: "Name of the agent Ranger" }).fill("Pathfinder");
 
     // The box still has the focus. A closed tab raises pagehide and no blur.
@@ -315,7 +316,7 @@ describe("Members in Settings -> People", () => {
       await expect.element(page.getByLabelText("Role of Ada Tester")).not.toBeInTheDocument();
 
       await role.click();
-      await page.getByRole("option", { name: "owner", exact: true }).click();
+      await page.getByRole("option", { name: "Owner", exact: true }).click();
       await expect
         .element(page.getByText("Make Nia Next the owner? You become an admin."))
         .toBeVisible();
@@ -326,6 +327,41 @@ describe("Members in Settings -> People", () => {
       // Nobody can change the owner's role, and the old owner cannot change their own.
       await expect.element(page.getByLabelText("Role of Nia Next")).not.toBeInTheDocument();
       await expect.element(page.getByLabelText("Role of Ada Tester")).not.toBeInTheDocument();
+    } finally {
+      await page.viewport(1440, 900);
+    }
+  });
+});
+
+describe("A member row on a phone", () => {
+  test("at 390px every member row keeps its role and its remove button on screen", async () => {
+    const data = newProject();
+    const long = withPerson(data, "Bartholomew Maximilian Longname-Fitzgerald");
+    long.email = "bartholomew.maximilian.longname-fitzgerald@a-very-long-domain.example.com";
+    withPerson(data, "Ada Admin", "admin");
+    withPerson(data, "Mo Member");
+    await page.viewport(390, 844);
+    try {
+      await renderWithBoard(<PeoplePanel mail={false} />, data, ({ path }) =>
+        path.endsWith("/agents") ? { body: { agents: [] } } : undefined,
+      );
+      const width = document.documentElement.clientWidth;
+      const inside = (el: Element) => {
+        const box = el.getBoundingClientRect();
+        expect(box.width).toBeGreaterThan(0);
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(width);
+      };
+      for (const name of [long.name, "Ada Admin", "Mo Member"]) {
+        const role = page.getByLabelText(`Role of ${name}`);
+        await expect.element(role).toBeVisible();
+        inside(role.element());
+        inside(page.getByRole("button", { name: `Remove ${name}` }).element());
+      }
+      // The owner's own row reads its role as a word, in the same column.
+      await expect.element(page.getByText("Owner", { exact: true })).toBeVisible();
+      inside(page.getByText("Owner", { exact: true }).element());
+      expect(document.documentElement.scrollWidth - width).toBeLessThanOrEqual(0);
     } finally {
       await page.viewport(1440, 900);
     }

@@ -258,8 +258,11 @@
   width: 180px;
 }
 
+/* A project's name is a few words and a time zone is Europe/Amsterdam, so
+   the long box holds both without scrolling. */
 .inputLong {
-  width: 220px;
+  width: 280px;
+  max-width: 100%;
 }
 
 /* A box that takes what the row leaves, down to a width a URL still reads in. */
@@ -369,6 +372,56 @@
   font-size: var(--t-chip);
 }
 
+/* A file box: a ghost button over the real input, and the file's name. */
+.file {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fileButton {
+  position: relative;
+  cursor: pointer;
+}
+
+.fileButton:has(:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fileButton:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.fileInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.fileName,
+.fileNone {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--t-small);
+}
+
+.fileName {
+  color: var(--text-3);
+}
+
+.fileNone {
+  color: var(--muted);
+}
+
 /* A checkbox. The row is 24 px high so a finger finds it; the box is 14. */
 .check {
   display: inline-flex;
@@ -420,6 +473,18 @@
 
 .checkBox:checked::before {
   visibility: visible;
+}
+
+/* A quiet tick, for a block of switches that are mostly on: an accent
+   outline and tick on the card's own dark, so six of them do not outshout
+   the name of what they belong to. */
+.checkQuiet .checkBox:checked {
+  background: var(--bg-hover);
+  border-color: var(--accent-ring);
+}
+
+.checkQuiet .checkBox::before {
+  border-color: var(--accent);
 }
 
 .checkBox:focus-visible {
@@ -604,6 +669,15 @@
   flex: 1;
 }
 
+/* A sentence under the add form of a foot: it takes a line of its own. */
+.footNote {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
 /* ---- tag ----------------------------------------------------------- */
 
 .tag {
@@ -671,14 +745,35 @@
   align-items: center;
   gap: var(--s-2);
   padding: 11px 13px;
-  background: rgba(224, 87, 77, 0.06);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+  box-shadow: inset 2px 0 0 var(--danger-line);
   animation: ushabti-fade-in 140ms var(--ease);
 }
 
 .confirmText {
   font-size: var(--t-body);
+  line-height: 1.5;
   color: var(--danger-text);
   text-wrap: pretty;
+}
+
+.confirmText b {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The box a typed answer goes in. It wears the red the row does, so it reads
+   as part of the question and not as a field of the page. */
+.confirmInput,
+.confirmInput:focus {
+  border-color: var(--danger-line);
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: 0.06em;
+}
+
+.confirmInput:focus {
+  box-shadow: 0 0 0 3px var(--danger-bg);
 }
 
 /* ---- copy ---------------------------------------------------------- */

@@ -1,25 +1,31 @@
 import { AppBarBlank } from "@/components/ui/AppBar";
 import { Skeleton } from "@/components/ui/Skeleton";
+import styles from "@/components/settings/settings.module.css";
+
+/* The rail as it will arrive: its groups and their items, so the page does
+   not jump when the real one lands. A member sees one group fewer. */
+const GROUPS = [2, 4, 2];
 
 export default function Loading() {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
+    <div className={styles.page}>
       <AppBarBlank />
-      <div
-        style={{
-          maxWidth: 1040,
-          margin: "0 auto",
-          padding: "34px 20px",
-          display: "flex",
-          gap: 40,
-        }}
-      >
-        <div style={{ flex: "0 0 168px", display: "flex", flexDirection: "column", gap: 6 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} height={24} radius={5} />
+      <div className={styles.shell}>
+        <div className={`${styles.rail} ${styles.railLoading}`} aria-hidden="true">
+          {GROUPS.map((count, g) => (
+            <div key={g} className={styles.railGroup}>
+              <span className={styles.railGroupTitle}>
+                <Skeleton width={56} height={10} />
+              </span>
+              {Array.from({ length: count }, (_, i) => (
+                <span key={i} className={styles.railItem}>
+                  <Skeleton width={70 + ((g + i) % 3) * 14} height={10} />
+                </span>
+              ))}
+            </div>
           ))}
         </div>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
+        <div className={styles.body}>
           <Skeleton width={160} height={22} />
           <Skeleton height={340} radius={10} />
         </div>

@@ -339,17 +339,61 @@ export function Select({
 }
 
 /**
+ * A file box drawn as a ghost button with the file's name beside it, so it
+ * matches every other control. The browser's own box said "Choose File / No
+ * file chosen" in its own type. The real input is under the button: the
+ * keyboard and a screen reader meet it, and a press on the words opens it.
+ */
+export function FileInput({
+  button = "Choose a file…",
+  fileName,
+  empty = "No file chosen",
+  ...rest
+}: Omit<React.ComponentPropsWithRef<"input">, "type"> & {
+  button?: string;
+  fileName?: string;
+  empty?: string;
+}) {
+  const link = useFieldLink({ id: rest.id, describedBy: rest["aria-describedby"] });
+  return (
+    <span className={styles.file}>
+      <label className={`${styles.btn} ${styles.ghost} ${styles.fileButton}`}>
+        <input
+          {...rest}
+          id={link.id}
+          aria-describedby={link.describedBy}
+          aria-invalid={link.invalid || undefined}
+          type="file"
+          className={styles.fileInput}
+        />
+        {button}
+      </label>
+      <span className={fileName ? styles.fileName : styles.fileNone}>{fileName || empty}</span>
+    </span>
+  );
+}
+
+/**
  * A checkbox drawn in the page's colours. It is a real checkbox under the
  * paint, so the keyboard and a screen reader meet it as before, and the label
  * round it makes the words a part of the control.
  */
 export function Checkbox({
   label,
+  quiet = false,
   className,
   ...rest
-}: Omit<React.ComponentPropsWithRef<"input">, "type"> & { label: React.ReactNode }) {
+}: Omit<React.ComponentPropsWithRef<"input">, "type"> & {
+  label: React.ReactNode;
+  /** An outlined tick, for a block of switches that are mostly on. */
+  quiet?: boolean;
+}) {
   return (
-    <label className={[styles.check, className ?? ""].filter(Boolean).join(" ")}>
+    <label
+      className={[styles.check, quiet ? styles.checkQuiet : "", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <input {...rest} type="checkbox" className={styles.checkBox} />
       {label}
     </label>

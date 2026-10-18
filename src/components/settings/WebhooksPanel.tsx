@@ -5,11 +5,11 @@ import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
-import { Button, IconButton } from "@/components/ui/Button";
+import { Button, IconButton, Pill } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { CopyField } from "@/components/ui/CopyField";
 import { Input } from "@/components/ui/Form";
-import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
+import { Card, EmptyState, Foot, FootNote, Note, Row, Section, Tag } from "@/components/ui/Layout";
 import { useElapsed } from "@/components/ui/useElapsed";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { WEBHOOK_KIND_LABEL, WEBHOOK_KINDS, type WebhookDTO, type WebhookKind } from "@/lib/types";
@@ -63,7 +63,7 @@ export function WebhooksPanel() {
     <>
       <PageHead
         title="Webhooks"
-        note="A call out of the board, for a service that cannot hold a socket open. It says that something changed and where; the receiver reads the board for the rest."
+        note="Ushabti posts to a URL whenever the board changes. The body says what changed and where; the receiver reads the rest."
       />
       {canEdit ? (
         <Hooks hooks={hooks} reload={reload} projectId={projectId} />
@@ -131,11 +131,7 @@ function Hooks({
         )}
 
         {hooks !== null && hooks.length === 0 && (
-          <EmptyState title="No webhooks yet.">
-            Give a URL and this board will post to it whenever something changes. The body says what
-            kind of change it was and which task, never the change itself — so the receiver reads
-            the activity feed, exactly as an agent on the stream does.
-          </EmptyState>
+          <EmptyState title="No webhooks yet.">Add a URL below.</EmptyState>
         )}
 
         {(hooks ?? []).map((hook) => (
@@ -172,19 +168,15 @@ function Hooks({
           <Button onClick={() => void add()} disabled={busy}>
             Add webhook
           </Button>
-          {error ? (
-            <span className={styles.hookError} role="alert" data-testid="webhook-error">
-              {error}
-            </span>
-          ) : (
-            <span style={{ width: "100%" }}>
-              <Note>
-                The secret is made here and shown once. Keep it: it is what signs every body, and
-                the only way to another one is to roll it. The address has to be one a stranger
-                could reach too — a private or loopback address is refused.
-              </Note>
-            </span>
-          )}
+          <FootNote>
+            {error ? (
+              <span className={styles.hookError} role="alert" data-testid="webhook-error">
+                {error}
+              </span>
+            ) : (
+              <Note>The address must be public. The secret is shown once.</Note>
+            )}
+          </FootNote>
         </Foot>
       </Card>
     </Section>
@@ -327,8 +319,7 @@ function HookBox({
           }}
         />
         {!hook.active && <Tag>off</Tag>}
-        <Spacer />
-        <Button variant="ghost" onClick={() => void save({ active: !hook.active })}>
+        <Button variant="text" onClick={() => void save({ active: !hook.active })}>
           {hook.active ? "Turn off" : "Turn on"}
         </Button>
         <IconButton
@@ -352,17 +343,20 @@ function HookBox({
 
         {secret && (
           <div className={styles.hookSecret} data-testid="webhook-secret">
-            <Note>The secret — readable only here, only now.</Note>
+            <Note>
+              The secret — readable only here, only now. It signs every body, and rolling it is the
+              only way to another one.
+            </Note>
             <CopyField value={secret} label="the webhook secret" loud />
           </div>
         )}
 
         <div className={styles.hookTools}>
           <span className={styles.tokenPrefix}>{hook.prefix}…</span>
-          <Button variant="ghost" onClick={roll.ask}>
+          <Button variant="text" onClick={roll.ask}>
             Roll the secret
           </Button>
-          <Button variant="ghost" onClick={() => void test()}>
+          <Button variant="text" onClick={() => void test()}>
             Send a test
           </Button>
         </div>
@@ -381,26 +375,19 @@ function Kinds({ kinds, onPick }: { kinds: WebhookKind[]; onPick: (kinds: string
   const all = kinds.length === 0;
   return (
     <div className={styles.kinds} role="group" aria-label="What rings this webhook">
-      <button
-        type="button"
-        aria-pressed={all}
-        className={`${styles.kindChip} ${all ? styles.kindChipOn : ""}`}
-        onClick={() => onPick([])}
-      >
+      <Pill on={all} onClick={() => onPick([])}>
         Everything
-      </button>
+      </Pill>
       {WEBHOOK_KINDS.map((kind) => {
         const on = kinds.includes(kind);
         return (
-          <button
+          <Pill
             key={kind}
-            type="button"
-            aria-pressed={on}
-            className={`${styles.kindChip} ${on ? styles.kindChipOn : ""}`}
+            on={on}
             onClick={() => onPick(on ? kinds.filter((k) => k !== kind) : [...kinds, kind])}
           >
             {WEBHOOK_KIND_LABEL[kind]}
-          </button>
+          </Pill>
         );
       })}
     </div>

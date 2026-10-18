@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import { emailedLine } from "@/lib/emailed";
@@ -24,7 +24,17 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
 import { Checkbox, ColorSwatches, FaceSwatches, Field, Input, Select } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
+import {
+  Card,
+  EmptyState,
+  Foot,
+  FootNote,
+  Note,
+  Row,
+  Section,
+  Spacer,
+  Tag,
+} from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
 import { PageHead } from "./SettingsShell";
@@ -198,14 +208,13 @@ function Members({ mail }: { mail: boolean }) {
               {busy ? "Adding…" : "Add member"}
             </Button>
             {error ? (
-              <span
-                style={{ width: "100%", fontSize: 11.5, color: "var(--danger-text)" }}
-                role="alert"
-              >
-                {error}
-              </span>
+              <FootNote>
+                <span className={styles.footError} role="alert">
+                  {error}
+                </span>
+              </FootNote>
             ) : invited ? (
-              <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 7 }}>
+              <FootNote>
                 <Note>
                   {inviteLine === null ? (
                     <>
@@ -221,14 +230,14 @@ function Members({ mail }: { mail: boolean }) {
                   )}
                 </Note>
                 <CopyField value={invited.link} label="the invite link" />
-              </div>
+              </FootNote>
             ) : (
-              <span style={{ width: "100%" }}>
+              <FootNote>
                 <Note>
                   A person with an account joins at once. One without gets an invite link, and joins
                   when they sign up with it — even on a closed board.
                 </Note>
-              </span>
+              </FootNote>
             )}
           </Foot>
         )}
@@ -316,39 +325,50 @@ function MemberRow({
 
   return (
     <>
-      <Row>
-        <Avatar name={member.name} color={member.color} emoji={member.emoji} size={22} />
-        <span className={styles.memberName}>{member.name}</span>
-        <span className={styles.memberMail}>{member.email}</span>
-        {roles.length > 0 ? (
-          /* Saves on change. Only the hand-over asks first, because it is
-             the one change that takes something from the person making it. */
-          <Select
-            aria-label={`Role of ${member.name}`}
-            value={member.role}
-            onChange={(picked) => {
-              const next = picked as Role;
-              if (next === "owner") handOver.ask();
-              else onRole(next);
-            }}
-            options={roles.map((role) => ({ value: role, label: role }))}
-          />
-        ) : isOwner(member.role) ? (
-          <Tag accent>owner</Tag>
-        ) : member.role === "admin" ? (
-          <Tag>admin</Tag>
-        ) : null}
-        <Spacer />
-        {canReset && (
-          <Button variant="ghost" onClick={reset.ask}>
-            Reset password
-          </Button>
-        )}
+      {/* Columns, so the role of every row starts in one place: who, their
+          role, then what can be done to them. */}
+      <Row className={styles.memberRow}>
+        <span className={styles.memberFace}>
+          <Avatar name={member.name} color={member.color} emoji={member.emoji} size={22} />
+        </span>
+        <span className={styles.memberWho}>
+          <span className={styles.memberName}>{member.name}</span>
+          <span className={styles.memberMail}>{member.email}</span>
+        </span>
+        <span className={styles.memberMeta}>
+          <span className={styles.memberRole}>
+            {roles.length > 0 ? (
+              /* Saves on change. Only the hand-over asks first, because it is
+                 the one change that takes something from the person making it. */
+              <Select
+                aria-label={`Role of ${member.name}`}
+                block
+                value={member.role}
+                onChange={(picked) => {
+                  const next = picked as Role;
+                  if (next === "owner") handOver.ask();
+                  else onRole(next);
+                }}
+                options={roles.map((role) => ({ value: role, label: roleWord(role) }))}
+              />
+            ) : (
+              <span className={styles.roleText}>{roleWord(member.role)}</span>
+            )}
+          </span>
+          {canReset && (
+            <span className={styles.memberReset}>
+              <Button variant="text" onClick={reset.ask}>
+                Reset password
+              </Button>
+            </span>
+          )}
+        </span>
         {canRemove && (
           <IconButton
             danger
             label={isSelf ? "Leave the project" : `Remove ${member.name}`}
             title={isSelf ? "Leave the project" : "Remove from the project"}
+            className={styles.memberRemove}
             onClick={confirm.ask}
           >
             ✕
@@ -392,18 +412,26 @@ function InviteRow({
   }
 
   return (
-    <Row data-testid="invite-row">
-      <Avatar name={invite.email} color="var(--text-muted)" size={22} />
-      <span className={styles.memberMail}>{invite.email}</span>
+    <Row data-testid="invite-row" className={styles.memberRow}>
+      <span className={styles.memberFace}>
+        <Avatar name={invite.email} color="var(--text-muted)" size={22} />
+      </span>
+      <span className={styles.memberWho}>
+        <span className={styles.memberMail}>{invite.email}</span>
+      </span>
       {/* A dead invite stays listed so its email still reads as asked for;
           adding the email again gives it a new link. */}
-      <Tag>{invite.live ? "invited" : "link expired"}</Tag>
-      <Spacer />
+      <span className={styles.memberMeta}>
+        <span className={styles.memberRole}>
+          <Tag accent={invite.live}>{invite.live ? "invited" : "link expired"}</Tag>
+        </span>
+      </span>
       {canWithdraw && (
         <IconButton
           danger
           label={`Withdraw the invite for ${invite.email}`}
           title="Withdraw the invite"
+          className={styles.memberRemove}
           onClick={confirm.ask}
         >
           ✕
@@ -649,20 +677,23 @@ function AgentBox({
           <Spacer />
           {canEdit && (
             <>
+              {/* Edit opens the name, the colour and the emoji. A token is
+                  how an agent connects, so the first one is Connect and
+                  every one after it is a new token. */}
               <Button
-                variant="ghost"
+                variant="text"
                 aria-expanded={editing}
-                aria-label={`Face of ${agent.name}`}
+                aria-label={`Edit ${agent.name}`}
                 onClick={() => setEditing((open) => !open)}
               >
-                Face
+                Edit
               </Button>
               <Button
-                variant="ghost"
+                variant="text"
                 aria-expanded={naming !== null}
                 onClick={() => setNaming((open) => (open === null ? today() : null))}
               >
-                Connect
+                {agent.tokens.length === 0 ? "Connect" : "New token"}
               </Button>
               <IconButton
                 danger
@@ -732,43 +763,56 @@ function AgentBox({
         </div>
       )}
 
-      {canEdit && naming !== null && (
-        <div className={styles.tokenRow} data-testid="token-name">
-          <Input
-            grow
-            autoFocus
-            maxLength={60}
-            aria-label={`Name of the new token for ${agent.name}`}
-            value={naming}
-            onChange={(e) => setNaming(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void make();
-              if (e.key === "Escape") setNaming(null);
-            }}
-          />
-          <Button onClick={() => void make()} disabled={making || !naming.trim()}>
-            Make token
-          </Button>
-          <Button variant="ghost" onClick={() => setNaming(null)}>
-            Cancel
-          </Button>
+      <div className={styles.agentDetail}>
+        <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
+
+        <div className={styles.agentPart}>
+          <span className={`label ${styles.agentLabel}`}>Tokens</span>
+          <div className={styles.tokens}>
+            {agent.tokens.map((token) => (
+              <TokenRow
+                key={token.id}
+                token={token}
+                others={agent.tokens.length - 1}
+                agentName={agent.name}
+                secret={secrets[token.id]}
+                canEdit={canEdit}
+                onRevoke={() => onRevoke(token.id)}
+                reload={reload}
+              />
+            ))}
+            {agent.tokens.length === 0 && naming === null && (
+              <span className={styles.tokensNone}>
+                {canEdit
+                  ? `None yet. Connect makes the first one, and shows how to use it.`
+                  : `None yet.`}
+              </span>
+            )}
+            {canEdit && naming !== null && (
+              <div className={styles.tokenNaming} data-testid="token-name">
+                <Input
+                  grow
+                  autoFocus
+                  maxLength={60}
+                  aria-label={`Name of the new token for ${agent.name}`}
+                  value={naming}
+                  onChange={(e) => setNaming(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void make();
+                    if (e.key === "Escape") setNaming(null);
+                  }}
+                />
+                <Button onClick={() => void make()} disabled={making || !naming.trim()}>
+                  Make token
+                </Button>
+                <Button variant="ghost" onClick={() => setNaming(null)}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-
-      <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
-
-      {agent.tokens.map((token) => (
-        <TokenRow
-          key={token.id}
-          token={token}
-          others={agent.tokens.length - 1}
-          agentName={agent.name}
-          secret={secrets[token.id]}
-          canEdit={canEdit}
-          onRevoke={() => onRevoke(token.id)}
-          reload={reload}
-        />
-      ))}
+      </div>
     </div>
   );
 }
@@ -789,6 +833,7 @@ function MayLine({
   onAct: (act: AgentAct, on: boolean) => Promise<void>;
 }) {
   const [saving, setSaving] = useState<AgentAct | null>(null);
+  const said = useId();
 
   async function flip(act: AgentAct, on: boolean) {
     if (saving) return;
@@ -798,19 +843,37 @@ function MayLine({
   }
 
   return (
-    <div className={styles.mayRow} data-testid="agent-may">
-      <span className={styles.mayLabel}>May</span>
-      {AGENT_ACTS.map((act) => (
-        <Checkbox
-          key={act}
-          label={AGENT_ACT_WORDS[act].label}
-          title={AGENT_ACT_WORDS[act].note}
-          aria-label={`${agent.name} may ${AGENT_ACT_WORDS[act].verb}`}
-          checked={agentMay(agent.acts, act)}
-          disabled={!canEdit || saving !== null}
-          onChange={(e) => void flip(act, e.currentTarget.checked)}
-        />
-      ))}
+    <div className={styles.agentPart} data-testid="agent-may">
+      <span className={`label ${styles.agentLabel}`}>May</span>
+      <div className={styles.mayBlock}>
+        <div className={styles.mayGrid}>
+          {AGENT_ACTS.map((act) => (
+            <Checkbox
+              key={act}
+              quiet
+              className={styles.act}
+              label={
+                <span className={styles.actSay}>
+                  <span className={styles.actName}>{AGENT_ACT_WORDS[act].label}</span>
+                  <span id={`${said}-${act}`} className={styles.actNote}>
+                    {AGENT_ACT_WORDS[act].note}
+                  </span>
+                </span>
+              }
+              aria-label={`${agent.name} may ${AGENT_ACT_WORDS[act].verb}`}
+              aria-describedby={`${said}-${act}`}
+              checked={agentMay(agent.acts, act)}
+              disabled={!canEdit || saving !== null}
+              onChange={(e) => void flip(act, e.currentTarget.checked)}
+            />
+          ))}
+        </div>
+        {canEdit && (
+          <span className={styles.mayNote}>
+            Switch one off to stop {agent.name} doing it on this board.
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -884,14 +947,16 @@ function TokenRow({
       <div className={styles.tokenRow} data-testid="token-row">
         <span className={styles.tokenName}>{token.name}</span>
         <span className={styles.tokenPrefix}>{token.prefix}…</span>
-        <Note>
+        <span className={styles.tokenWhen}>
           made {relativeDay(token.createdAt)} ·{" "}
-          {isListening(token.listeningAt)
-            ? "listening now"
-            : token.lastUsedAt
-              ? `last used ${relativeDay(token.lastUsedAt)}`
-              : "never used"}
-        </Note>
+          {isListening(token.listeningAt) ? (
+            <span className={styles.tokenLive}>listening now</span>
+          ) : token.lastUsedAt ? (
+            `last used ${relativeDay(token.lastUsedAt)}`
+          ) : (
+            "never used"
+          )}
+        </span>
         <Spacer />
         {canEdit && (
           <IconButton
@@ -1011,6 +1076,11 @@ function Connect({
 /** window.location never changes under us, so there is nothing to subscribe to. */
 function subscribeNothing() {
   return () => {};
+}
+
+/** A role as a value reads: in sentence case, as every value in settings does. */
+function roleWord(role: string): string {
+  return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
 /** The local day, as a token's first name: it says when the token was made. */

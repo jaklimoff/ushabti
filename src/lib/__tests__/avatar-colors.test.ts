@@ -192,6 +192,7 @@ describe("a filled chip", () => {
         createElement(Chip, {
           chip: {
             key: "p",
+            item: "p-prio",
             tip: "Priority: High",
             swatch: null,
             fill,
