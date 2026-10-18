@@ -112,8 +112,9 @@ and what is easy to get wrong.
   on a _card_ — so adding a property type is still one line in `KIND_OF_TYPE`
   plus one width. `buildRow()` sits beside `buildCard()` and shares `chipsFor`,
   so a value cannot read one way on a card and another in a list. Its one
-  deliberate difference is that a colour-only chip gets its name back: a
-  column's heading names the property, never the value.
+  deliberate difference is that a colour chip and a face get their names
+  back: a column's heading names the property, never the value, and two
+  initials under Assignee name nobody to a newcomer.
 - **One view is the main one, and it is named rather than unnamed.** The word
   says two things at once: which view a board opens on when nobody has picked
   one, and which view cannot be deleted. So the route takes `isDefault: true`
@@ -387,6 +388,8 @@ and what is easy to get wrong.
   the one that knows the release is out. Unship is not: it throws the shipped
   day away, which nothing else can give back, so the option routes keep
   `adminOnly` for `shippedAt` and a ship comes only through its own route.
+  Ship is not a loss, so **Yes, ship** confirms in the accent; archive and
+  delete keep the red.
 - **An agent's switches only take away.** An owner or an admin can switch
   off, for one agent on one board, an act it may otherwise do: create, delete
   and archive tasks, reword or remove a checklist item, change the structure,
@@ -453,7 +456,9 @@ and what is easy to get wrong.
   ended up in three greys.
 - **Off the board, geometry comes from `components/ui/`.** A button, an input,
   a tag and a card are declared once. They used to be declared three times
-  each, at three different heights. The board keeps its own CSS on purpose.
+  each, at three different heights. The board's top bar takes its geometry
+  from there too, so it reads as the bar on every other page. The rest of the
+  board keeps its own CSS on purpose.
   A board component that leaves the board may take a `bare` variant, as
   `RuleChips` does inside a list's card, which drops the board's own strip
   and keeps the chips. It does not grow a second look.

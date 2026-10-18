@@ -56,6 +56,38 @@ function rowIdOf(target: EventTarget | null): string | null {
   return target.closest<HTMLElement>("[data-task-id]")?.dataset.taskId ?? null;
 }
 
+/*
+ * Whether anything has slid under the head or under the held cells. Written
+ * straight onto the scroller, because a scroll event re-rendering forty rows
+ * to move one shadow would be the slowest way to draw a hairline.
+ */
+function markScrolled(el: HTMLElement) {
+  el.toggleAttribute("data-scrolled", el.scrollTop > 0);
+  el.toggleAttribute("data-scrolled-x", el.scrollLeft > 0);
+}
+
+/** Which way a heading orders: both ways while it only offers, one once it does. */
+const ARROW = {
+  none: "M3 4l2-2 2 2M3 6l2 2 2-2",
+  asc: "M5 8.5V1.5M2.5 4L5 1.5 7.5 4",
+  desc: "M5 1.5v7M2.5 6L5 8.5 7.5 6",
+};
+
+function SortArrow({ way }: { way: "asc" | "desc" | null }) {
+  return (
+    <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden focusable="false">
+      <path
+        d={ARROW[way ?? "none"]}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function focusRow(root: HTMLElement | null, taskId: string) {
   const row = root?.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
   if (!row) return;
@@ -350,12 +382,14 @@ export function ListCanvas({
           ref={scrollRef}
           onFocus={onRowFocus}
           onKeyDown={onRowKeys}
+          onScroll={(event) => markScrolled(event.currentTarget)}
           style={{ "--list-cols": template } as React.CSSProperties}
         >
           <div className={styles.listGrid}>
-            {/* Labels, not buttons. The order of a list is the rank everybody
-                shares and drags to change; a header that sorted would show an
-                order no drag can write and nobody else can see. */}
+            {/* A heading that can order the list is a button. The order is
+                mine and writes no rank, so the rank everybody shares is still
+                the one the boards draw; see `pressSort`. A list has no Sort
+                button, so the heading also has to say it can be pressed. */}
             <div className={styles.listHead} data-testid="list-head">
               {columns.map((column, at) => {
                 const held = pinProps(columns, column, at);
@@ -416,11 +450,12 @@ export function ListCanvas({
                     <span className={styles.listHeadWords} data-testid="list-head-name">
                       {column.name}
                     </span>
-                    {on && (
-                      <span className={styles.listHeadArrow} aria-hidden>
-                        {on === "asc" ? "\u2191" : "\u2193"}
-                      </span>
-                    )}
+                    <span
+                      className={`${styles.listHeadArrow} ${on ? "" : styles.listHeadHint}`}
+                      aria-hidden
+                    >
+                      <SortArrow way={on} />
+                    </span>
                   </button>
                 );
               })}
@@ -445,17 +480,19 @@ export function ListCanvas({
                 places; a list has one order and the drag is right there. */}
             {composing ? (
               <div className={styles.listCompose}>
-                <Composer
-                  ref={inputRef}
-                  draft={draft}
-                  setDraft={setDraft}
-                  note={addNote}
-                  commit={() => void commit()}
-                  cancel={() => {
-                    setDraft("");
-                    setComposing(false);
-                  }}
-                />
+                <div className={styles.listComposeSlot}>
+                  <Composer
+                    ref={inputRef}
+                    draft={draft}
+                    setDraft={setDraft}
+                    note={addNote}
+                    commit={() => void commit()}
+                    cancel={() => {
+                      setDraft("");
+                      setComposing(false);
+                    }}
+                  />
+                </div>
               </div>
             ) : (
               <button
@@ -467,7 +504,12 @@ export function ListCanvas({
                   setComposing(true);
                 }}
               >
-                <span className={styles.listAddWords}>+ Add a task</span>
+                <span className={styles.listAddWords}>
+                  <span className={styles.listAddPlus} aria-hidden>
+                    +
+                  </span>
+                  Add a task
+                </span>
               </button>
             )}
           </div>

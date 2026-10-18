@@ -41,18 +41,49 @@
   max-width: 34vw;
 }
 
+/* Ushabti's own mark, the way home, exactly where the shared bar puts it. */
+.home {
+  display: flex;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+
 .crumbSep {
+  flex: none;
   font-size: var(--t-ui);
   color: var(--faint-2);
 }
 
-.crumbView {
-  font-size: var(--t-ui);
-  color: var(--text-4);
-}
-
 .spacer {
   flex: 1;
+}
+
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+/* Read by a screen reader at every width, and drawn where the bar has room. */
+.liveWord {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 1200px) {
+  .liveWord {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+    font-size: var(--t-small);
+    color: var(--text-meta);
+  }
 }
 
 /* It never shrinks. A full bar squashed it to nothing without a word, and a
@@ -137,27 +168,18 @@
   background: var(--faint-3);
 }
 
-.iconLink {
-  height: 26px;
-  padding: 0 9px;
-  display: grid;
-  place-items: center;
-  border-radius: 5px;
-  font-family: var(--font-mono);
-  font-size: var(--t-label);
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--icon);
-  transition:
-    background 140ms var(--ease),
-    color 140ms var(--ease);
+/* The ways off the board are the shared bar's quiet words (`AppAction`),
+   as close together as the shared bar sets them. `.iconLink` only lets the
+   bar give their room back when it runs short. */
+.barActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
 }
 
-.iconLink:hover {
-  background: var(--bg-hover);
-  color: var(--accent-soft);
+.iconLink {
+  flex: none;
 }
 
 /*
@@ -172,13 +194,19 @@
     gap: 10px;
   }
 
-  .iconLink {
+  /* `.top` first, so these win over the shared bar's own padding. */
+  .top .iconLink {
     padding: 0 4px;
+  }
+
+  /* Two marks side by side read as a path without the slash between them. */
+  .home + .crumbSep {
+    display: none;
   }
 
   /* The bar was full with two links, and no gap pays for a third word.
      Project settings links to the changelog instead. */
-  .changelogLink {
+  .top .changelogLink {
     display: none;
   }
 }
@@ -195,11 +223,11 @@
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
-  height: 26px;
+  height: var(--control-h);
   padding: 0 4px 0 8px;
   border-radius: 5px;
   background: var(--bg-hover);
-  box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.35);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
 .pickCount {
@@ -287,7 +315,7 @@
    */
   .top:has(.pickBar) .crumbName,
   .top:has(.pickBar) .searchAnchor,
-  .top:has(.pickBar) .iconLink {
+  .top:has(.pickBar) .barActions {
     display: none;
   }
 }
@@ -296,8 +324,7 @@
   /* And the dot that says the board is live goes with them. It is five pixels
      wide, so it used to be squashed to nothing here without a word, which
      reads as a board that is not live. It lends its room instead. */
-  .top:has(.pickBar) .liveDot,
-  .top:has(.pickBar) .liveDotOff {
+  .top:has(.pickBar) .live {
     display: none;
   }
 
@@ -340,19 +367,18 @@
   display: none;
 }
 
+/* A view's name is somebody's words, so it reads as words: the sans, in
+   sentence case, as on every other page. */
 .pill {
   display: flex;
   align-items: center;
-  height: 24px;
+  height: 26px;
   gap: 7px;
-  padding: 0 9px;
+  padding: 0 10px;
   border-radius: 5px;
   white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
+  font-size: var(--t-body);
   font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--muted);
   /* The strip pans on a touch screen, exactly as a column does. */
   touch-action: manipulation;
@@ -429,14 +455,13 @@
 }
 
 .plus {
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   border-radius: 5px;
-  color: var(--icon);
-  font-size: 14px;
+  color: var(--muted-2);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
@@ -477,9 +502,41 @@
 
 .count {
   font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  color: var(--faint-2);
+  font-size: var(--t-chip);
+  color: var(--text-meta);
   white-space: nowrap;
+}
+
+/* Sort, Filter, and a list's + Rule: actions, so a step quieter and smaller
+   than the names of the views beside them. */
+.tool {
+  height: 26px;
+  font-size: var(--t-small);
+}
+
+/* A phone has room for the views or for the words on the tools, not both.
+   The marks stay, the words are still read aloud, and the count goes: under
+   a filter the button already carries how many rules there are. */
+@media (max-width: 560px) {
+  .tool {
+    min-width: 28px;
+    height: 28px;
+    justify-content: center;
+    padding: 0 8px;
+  }
+
+  .toolWord {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .views .count {
+    display: none;
+  }
 }
 
 .popover {
@@ -491,7 +548,7 @@
   padding: 11px 12px 12px;
   background: var(--bg-menu);
   border: 1px solid var(--line-menu);
-  border-radius: 9px;
+  border-radius: var(--r-lg);
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
@@ -499,22 +556,23 @@
   animation: ushabti-fade-in 130ms var(--ease);
 }
 
+/* The name of a new view or column, typed as it will read: sentence case. */
 .popInput {
   border: 0;
   border-bottom: 1px solid var(--line-menu);
   outline: 0;
   background: transparent;
   color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--t-small);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--t-body);
   padding: 2px 0 6px;
 }
 
+.popInput::placeholder {
+  color: var(--text-meta);
+}
+
 .popInput:focus {
-  border-color: var(--focus-ring);
+  border-color: var(--accent);
 }
 
 .chipRow {
@@ -553,8 +611,11 @@
   border-radius: 50%;
 }
 
+/* The board keeps its own buttons, at the shared control height, so a Save
+   in a popover here is as tall as one in Settings. */
 .primary {
-  padding: 4px 10px;
+  height: var(--control-h);
+  padding: 0 11px;
   border-radius: 5px;
   background: var(--accent);
   color: var(--accent-ink);
@@ -568,7 +629,8 @@
 }
 
 .ghost {
-  padding: 4px 9px;
+  height: var(--control-h);
+  padding: 0 10px;
   border-radius: 5px;
   border: 1px solid var(--line-ghost);
   color: var(--muted);
@@ -638,11 +700,8 @@
   padding: 0 9px;
   border-radius: 5px;
   white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
+  font-size: var(--t-body);
   font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
   color: var(--muted);
   touch-action: manipulation;
   transition:
@@ -657,7 +716,7 @@
 
 .columnPill:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* A new column is the last pill, because that is where a new column goes. */
@@ -721,7 +780,7 @@
 }
 
 .columnOver {
-  border-color: rgba(63, 176, 200, 0.42);
+  border-color: var(--accent-ring);
   background: #0f1216;
 }
 
@@ -736,10 +795,12 @@
 }
 
 .colHead {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 11px 11px 10px 9px;
+  gap: 8px;
+  min-height: 41px;
+  padding: 10px 11px 10px 9px;
   border-bottom: 1px solid var(--line-soft);
   flex: 0 0 auto;
 }
@@ -787,7 +848,7 @@
 }
 
 .grip:hover {
-  background: #191d22;
+  background: var(--bg-hover);
   opacity: 1;
 }
 
@@ -795,7 +856,7 @@
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: #2f353d;
+  background: var(--faint-3);
   display: block;
 }
 
@@ -813,24 +874,27 @@
   border-radius: 50%;
 }
 
+/* Somebody named the column, so it reads as their words: sentence case, in
+   the sans, at the weight of a heading. Mono capitals at 0.11em cost a third
+   more width and cut "MVP" to "M…" beside a date. */
 .colName {
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
-  font-weight: 500;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: #d5dae1;
+  font-size: var(--t-body);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .colCount {
+  flex: 0 0 auto;
   padding: 1px 6px;
   border-radius: 20px;
-  background: #161a1e;
+  background: var(--bg-tag);
   font-family: var(--font-mono);
   font-size: var(--t-chip);
+  line-height: 1.4;
   color: var(--text-meta);
 }
 
@@ -842,7 +906,7 @@
   flex: 0 0 auto;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: #8a919c;
+  color: var(--muted);
   white-space: nowrap;
 }
 
@@ -874,14 +938,52 @@
   transition: width 200ms var(--ease);
 }
 
+/*
+ * The header's buttons. Where there is a pointer they rest out of sight and
+ * lie over the right end of the header when it is hovered or focused, on the
+ * column's own ground, so the name keeps the whole width the rest of the
+ * time. They are hidden by opacity and not removed, so Tab still reaches
+ * them, and reaching one shows them all.
+ */
+.colActions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 0 22px;
+  background: linear-gradient(90deg, transparent, var(--bg-column) 18px);
+  opacity: 0;
+  transition: opacity 120ms var(--ease);
+}
+
+/* Still pressable while out of sight: a pointer that reaches them has
+   already hovered the column and shown them. */
+.column:hover .colActions,
+.colHead:focus-within .colActions {
+  opacity: 1;
+}
+
+/* A finger cannot hover, so here they stand in the row as they always did. */
+@media (hover: none) {
+  .colActions {
+    position: static;
+    height: auto;
+    padding: 0;
+    background: none;
+    opacity: 1;
+  }
+}
+
 .colAdd {
-  width: 19px;
-  height: 19px;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   border-radius: 5px;
-  color: var(--icon);
-  font-size: 14px;
+  color: var(--muted-2);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
@@ -892,18 +994,6 @@
   color: var(--accent-soft);
 }
 
-.colFold {
-  font-size: 12px;
-}
-
-.colArchive {
-  font-size: 12px;
-}
-
-.colShip {
-  font-size: 12px;
-}
-
 /* ------------------------------------------- archiving a whole column */
 
 /* The question needs the room the name, the count and the two buttons took,
@@ -911,7 +1001,7 @@
 .colHeadAsking {
   flex-wrap: wrap;
   gap: 6px;
-  background: #191d22;
+  background: var(--bg-hover);
 }
 
 .colConfirm {
@@ -948,9 +1038,28 @@
 }
 
 /* A ship offers up to three answers. They sit in a row after the question
-   and wrap together, so none of them is pushed to the edge alone. */
+   and wrap together, so none of them is pushed to the edge alone.
+
+   Shipping is the good moment of a release, and nothing is lost by it, so it
+   asks in the accent. Red is for loss only, and stays with the archive. */
+.colShipQuestion {
+  color: var(--text-3);
+}
+
 .colShipAnswer {
-  margin-left: 0;
+  padding: 3px 9px;
+  border-radius: 5px;
+  border: 1px solid var(--accent-line);
+  font-size: var(--t-micro);
+  color: var(--accent-soft);
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.colShipAnswer:hover {
+  background: var(--accent-bg);
+  color: var(--text);
 }
 
 /* The tick that takes the over tasks in no release sits on its own line,
@@ -1002,19 +1111,16 @@
 
 .strip:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* The name is turned on its side rather than cut to two letters, because the
    whole point of the strip is that you can still tell which column it is. */
 .stripName {
   writing-mode: vertical-rl;
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
-  font-weight: 500;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: #d5dae1;
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1033,17 +1139,22 @@
   min-height: 0;
 }
 
+/* The size of a row and no more. It used to fill the rest of the column, so
+   a pointer anywhere below the cards drew a dashed box hundreds of pixels tall
+   with nothing in it. The drop target is the body, not this, so a drag still
+   lands anywhere in the column. */
 .emptyDrop {
-  flex: 1 0 auto;
-  min-height: 34px;
+  flex: 0 0 auto;
+  min-height: 32px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
-  padding: 7px 9px;
+  gap: 6px;
+  padding: 0 9px;
   border-radius: 6px;
   border: 1px dashed transparent;
   color: transparent;
-  font-size: var(--t-body);
+  font-size: var(--t-small);
   transition:
     border-color 160ms var(--ease),
     color 160ms var(--ease);
@@ -1051,18 +1162,21 @@
 
 .emptyDrop:hover {
   border-color: var(--line-menu);
-  color: var(--faint);
+  color: var(--muted);
+}
+
+/* An empty column says what it is for without waiting for a pointer. */
+.emptyDropBare {
+  color: var(--text-meta);
 }
 
 /* Every stop the keyboard can reach has to be visible, or a person who never
    touches the mouse cannot see where they are. This one is invisible until
    then on purpose: it is a drop target, not furniture. */
-.emptyDrop:focus-visible,
-.colAdd:focus-visible {
+.emptyDrop:focus-visible {
   outline: none;
-  border-color: var(--focus-ring);
-  box-shadow: 0 0 0 1px var(--focus-ring);
-  color: var(--faint);
+  border-color: var(--accent);
+  color: var(--muted);
 }
 
 /* --------------------------------------------------------------- cards */
@@ -1074,8 +1188,8 @@
   /* The column scrolls; the card keeps its height. A card clips its own
      overflow, so a flex column would happily squash it to nothing first. */
   flex: 0 0 auto;
-  gap: 7px;
-  padding: 10px 11px 9px;
+  gap: 8px;
+  padding: 11px 12px 10px;
   border-radius: 6px;
   overflow: hidden;
   background: var(--bg-card);
@@ -1112,13 +1226,15 @@
  * The button is the place it is pressed and the box inside it is what is
  * drawn, so a finger can be given more room without the check growing.
  */
+/* Centred on the corner square of a card the view did not rearrange, so on
+   hover the square turns into the box instead of half showing under it. */
 .cardPick {
   position: absolute;
-  top: 5px;
-  left: 5px;
+  top: 13px;
+  left: 9.5px;
   z-index: 2;
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   display: grid;
   place-items: center;
   opacity: 0;
@@ -1128,10 +1244,10 @@
 .cardPickBox {
   display: grid;
   place-items: center;
-  width: 15px;
-  height: 15px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--line-menu);
+  border-radius: 3px;
   background: var(--bg-card);
   color: var(--accent);
   font-size: 10px;
@@ -1148,7 +1264,7 @@
 /* A check that is standing on every card has to be seen from across the
    board, and an empty one on a dark card was a rumour of a box. */
 .cardPick[data-on="true"] .cardPickBox {
-  border-color: var(--line-menu);
+  border-color: var(--faint);
 }
 
 .cardPicked .cardPickBox {
@@ -1187,8 +1303,8 @@
      needs: the button grows around the box and the box stays the size it was,
      so the check reads the same and a miss no longer opens the task. */
   .cardPick {
-    top: 1px;
-    left: 1px;
+    top: 7.5px;
+    left: 4px;
     width: 24px;
     height: 24px;
     opacity: 1;
@@ -1209,7 +1325,7 @@
   outline: none;
   box-shadow:
     inset 0 0 0 1px var(--accent),
-    0 0 0 3px rgba(63, 176, 200, 0.18);
+    0 0 0 3px var(--focus-glow);
 }
 
 .cardGhost {
@@ -1268,7 +1384,7 @@
 }
 
 .cardEdged {
-  padding-left: 14px;
+  padding-left: 15px;
 }
 
 .cardBody {
@@ -1298,7 +1414,7 @@
 
 .cardChipBoxed {
   padding: 2px 6px 2px 5px;
-  border: 1px solid #23262c;
+  border: 1px solid var(--line-dash);
   border-radius: 4px;
 }
 
@@ -1322,11 +1438,13 @@
   border-radius: 50%;
 }
 
+/* The key and a plain date: small, but read and pasted, so they pass
+   contrast. --faint is for decoration. */
 .cardChipText {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   letter-spacing: 0.03em;
-  color: var(--faint);
+  color: var(--text-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1353,14 +1471,17 @@
   text-overflow: ellipsis;
 }
 
+/* The loudest thing on the card. The chips around it are small and coloured,
+   so the title wins by size and weight rather than by anything added. */
 .cardTitle {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
-  font-size: var(--t-body);
-  line-height: 1.35;
-  color: var(--text-3);
+  font-size: var(--t-ui);
+  font-weight: 500;
+  line-height: 1.38;
+  color: var(--text-2);
   text-wrap: pretty;
   word-break: break-word;
 }
@@ -1376,7 +1497,7 @@
   width: 34px;
   height: 3px;
   border-radius: 2px;
-  background: #1c2126;
+  background: var(--line-menu);
   overflow: hidden;
 }
 
@@ -1399,7 +1520,7 @@
   padding: 9px 10px;
   border-radius: 6px;
   background: var(--bg-card);
-  box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.4);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
 
 .composerInput {
@@ -1418,9 +1539,9 @@
 
 .composerHint {
   font-family: var(--font-mono);
-  font-size: var(--t-label);
-  letter-spacing: 0.05em;
-  color: var(--faint-3);
+  font-size: var(--t-chip);
+  letter-spacing: 0.03em;
+  color: var(--text-meta);
 }
 
 .addColumn {
@@ -1438,12 +1559,9 @@
   padding: 10px 11px;
   border: 1px dashed var(--line-dash);
   border-radius: 8px;
-  color: #5d636e;
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
+  color: var(--muted-2);
+  font-size: var(--t-small);
   font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   transition:
     border-color 150ms var(--ease),
     color 150ms var(--ease);
@@ -1476,11 +1594,6 @@
 }
 
 @media (max-width: 900px) {
-  .crumbSep,
-  .crumbView {
-    display: none;
-  }
-
   .crumbName {
     max-width: 46vw;
   }
@@ -1500,6 +1613,12 @@
    links off the board are worth the room it was taking. */
 @media (max-width: 520px) {
   .crumbName {
+    display: none;
+  }
+
+  /* Ushabti's mark gives its room to the box that finds a task. The project
+     switcher it sits beside still offers Home, as its last row. */
+  .home {
     display: none;
   }
 }
@@ -1542,36 +1661,57 @@
  * than as one more badge. The card therefore has to clip it.
  */
 .runStrip {
+  --run-ground: rgba(63, 176, 200, 0.07);
+  --run-line: rgba(63, 176, 200, 0.16);
+  --run-text: #94b6bf;
+  --run-time: #6a8f99;
+  --run-bar: var(--accent);
   display: flex;
   flex-direction: column;
-  margin: 2px -11px -9px;
-  background: rgba(63, 176, 200, 0.07);
-  box-shadow: inset 0 1px 0 rgba(63, 176, 200, 0.16);
+  margin: 2px -12px -10px;
+  background: var(--run-ground);
+  box-shadow: inset 0 1px 0 var(--run-line);
+  transition: background 160ms var(--ease);
+}
+
+/* The edge stripe pads the card on the left, and the strip still bleeds to
+   the card's edge under it. */
+.cardEdged .runStrip {
+  margin-left: -15px;
+}
+
+.cardEdged .runStripRow {
+  padding-left: 15px;
 }
 
 .runStripRow {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 7px 11px 8px;
+  padding: 7px 12px 8px;
 }
 
+/* The agent's face and name, in its own colour. The colour is mixed with the
+   text in the markup, so a dark agent still reads on the strip. */
 .runAgent {
+  position: relative;
   flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: var(--t-label);
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #6fbfd2;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 45%;
+  overflow: hidden;
+  font-size: var(--t-small);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .runText {
   flex: 1;
   min-width: 0;
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
-  color: #94b6bf;
+  font-size: var(--t-small);
+  color: var(--run-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1581,7 +1721,58 @@
   flex: 0 0 auto;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: #55747c;
+  color: var(--run-time);
+}
+
+/*
+ * The board stops for a person here, so it is the loudest state a card can
+ * be in: the warm colour of "waiting" across the whole strip, and a bar that
+ * stands full and still. A hand-over waits too, for the next agent.
+ */
+.runStrip[data-status="waiting"],
+.runStrip[data-status="handed_over"] {
+  --run-ground: rgba(201, 146, 90, 0.11);
+  --run-line: rgba(201, 146, 90, 0.4);
+  --run-text: #e3c3a0;
+  --run-bar: var(--waiting);
+}
+
+.runStrip[data-status="waiting"] .runName,
+.runStrip[data-status="handed_over"] .runName {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.runStrip[data-status="waiting"] .runScan,
+.runStrip[data-status="handed_over"] .runScan {
+  background: rgba(201, 146, 90, 0.12);
+}
+
+.runStrip[data-status="waiting"] .runScanFill,
+.runStrip[data-status="handed_over"] .runScanFill {
+  width: 100%;
+  opacity: 0.55;
+  animation: none;
+}
+
+/* Paused: alive and still. The strip goes grey, so it is not read as work. */
+.runStrip[data-status="paused"] {
+  --run-ground: rgba(139, 145, 155, 0.06);
+  --run-line: rgba(139, 145, 155, 0.18);
+  --run-text: var(--muted);
+  --run-bar: var(--muted-2);
+}
+
+/* Silent: nobody has heard from it. The words fade, and the time in the warm
+   colour says for how long. */
+.runStrip[data-life="silent"]:not([data-status="waiting"]):not([data-status="handed_over"])
+  .runAgent,
+.runStrip[data-life="silent"]:not([data-status="waiting"]):not([data-status="handed_over"])
+  .runText {
+  opacity: 0.6;
 }
 
 /*
@@ -1604,7 +1795,7 @@
   display: block;
   width: 32%;
   height: 2px;
-  background: var(--accent);
+  background: var(--run-bar);
   animation: ushabti-scan 1.9s linear infinite;
 }
 
@@ -1626,7 +1817,8 @@
 
 .list {
   --list-row-h: 32px;
-  --list-head-h: 26px;
+  /* A table head is 30 px wherever the app draws one. */
+  --list-head-h: 30px;
   flex: 1;
   display: flex;
   min-height: 0;
@@ -1656,6 +1848,11 @@
  * padding, the held cell would stop at the very edge and the colour stripe
  * would have nowhere to be.
  */
+/*
+ * The head is a band of its own, a step lighter than the rows, so it reads as
+ * the names of the columns and not as one more faint row. Once the rows slide
+ * under it, it lifts with a soft shadow, so the seam says which is which.
+ */
 .listHead {
   position: sticky;
   top: 0;
@@ -1666,24 +1863,31 @@
   gap: 8px;
   height: var(--list-head-h);
   padding: 0 12px 0 0;
-  background: var(--bg-sub);
+  background: var(--bg-top);
   border-bottom: 1px solid var(--line);
+  transition: box-shadow 160ms var(--ease);
 }
 
+.listScroll[data-scrolled] .listHead {
+  box-shadow: 0 6px 12px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* The app's one mono caps label: the words the app writes, at a size and a
+   grey that can be read. */
 .listHeadCell {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
-  padding-right: 10px;
+  padding-right: 4px;
   border: 0;
   background: none;
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--text-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1698,16 +1902,18 @@ button.listHeadCell {
 }
 
 button.listHeadCell:hover {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 
 button.listHeadCell:focus-visible {
   outline: none;
-  color: var(--text-4);
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  color: var(--text-3);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: 4px;
 }
 
-.listHeadOn {
+.listHeadOn,
+button.listHeadOn:hover {
   color: var(--accent-soft);
 }
 
@@ -1717,10 +1923,36 @@ button.listHeadCell:focus-visible {
   text-overflow: ellipsis;
 }
 
+/*
+ * Where the order shows. A list has no Sort button, so its headings are the
+ * only way in, and a heading that never hinted at it is one nobody presses.
+ * The quiet arrows come up on the way past; on a sorted heading the one arrow
+ * stays, in the accent.
+ */
 .listHeadArrow {
   flex: 0 0 auto;
-  font-size: 9px;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  width: 10px;
+  height: 10px;
+}
+
+.listHeadHint {
+  opacity: 0;
+  transition: opacity 140ms var(--ease);
+}
+
+button.listHeadCell:hover .listHeadHint,
+button.listHeadCell:focus-visible .listHeadHint {
+  opacity: 0.6;
+}
+
+/* A finger cannot hover, so the hint stays, faint, on every heading that
+   sorts. */
+@media (hover: none) {
+  .listHeadHint {
+    opacity: 0.35;
+  }
 }
 
 /* A number reads from the right, so its heading does too. */
@@ -1746,6 +1978,9 @@ button.listHeadCell:focus-visible {
   border-bottom: 1px solid var(--line-faint);
   cursor: pointer;
   touch-action: manipulation;
+  /* Each row is its own stack, so its ring can sit over its own held cells
+     and still slide under the sticky head. */
+  isolation: isolate;
   transition: background 120ms var(--ease);
 }
 
@@ -1753,16 +1988,31 @@ button.listHeadCell:focus-visible {
   background: var(--bg-card);
 }
 
+/*
+ * A ring goes on a layer over the whole row. Drawn on the row itself, the held
+ * key and title painted over it, and the ring started halfway across the
+ * line, which read as a fault exactly where people look.
+ */
+.listRowSelected::after,
+.listRowPicked::after,
+.listRow:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
+
 /* The open task, wearing the ring its card wears. */
 .listRowSelected {
   background: var(--bg-card);
-  box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
 
 /* A picked row wears the border a picked card wears, and nothing more. It
    comes after the open row and before the cursor, exactly as a card's does:
    a pick is louder than the panel being open, and the cursor is loudest. */
-.listRowPicked {
+.listRowPicked::after {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
@@ -1774,7 +2024,10 @@ button.listHeadCell:focus-visible {
 .listRow:focus-visible {
   outline: none;
   background: var(--bg-card-hover);
-  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.listRow:focus-visible::after {
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /*
@@ -1795,7 +2048,7 @@ button.listHeadCell:focus-visible {
 .listRowOverlay {
   cursor: grabbing;
   border-radius: 6px;
-  background: #1a1e24;
+  background: var(--bg-card-hover);
   box-shadow: var(--shadow-drag);
 }
 
@@ -1812,8 +2065,19 @@ button.listHeadCell:focus-visible {
   background: inherit;
 }
 
-.listPinLast {
-  box-shadow: 1px 0 0 var(--line-faint);
+/* A held cell reaches over the gap after it, so nothing sliding under the
+   key and the title shows through the seam between them. The border is
+   transparent and painted with the row's own background. */
+.listPin:not(.listPinLast) {
+  margin-right: -8px;
+  border-right: 8px solid transparent;
+}
+
+/* The edge of the held part shows only once something has slid under it. At
+   rest it was the only upright rule in the table, and it read as a divider
+   that meant nothing. */
+.listScroll[data-scrolled-x] .listPinLast {
+  box-shadow: 1px 0 0 var(--line);
 }
 
 /*
@@ -1905,7 +2169,7 @@ button.listHeadCell:focus-visible {
   min-width: 0;
   font-family: var(--font-mono);
   font-size: var(--t-micro);
-  color: var(--muted-2);
+  color: var(--text-meta);
   white-space: nowrap;
 }
 
@@ -1932,7 +2196,7 @@ button.listHeadCell:focus-visible {
   flex: 0 1 auto;
   min-width: 0;
   font-size: var(--t-small);
-  color: var(--faint-2);
+  color: var(--text-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1993,7 +2257,7 @@ button.listHeadCell:focus-visible {
   bottom: 0;
   height: 1px;
   overflow: hidden;
-  background: rgba(63, 176, 200, 0.12);
+  background: var(--accent-bg);
 }
 
 .listRowRunFill {
@@ -2011,17 +2275,19 @@ button.listHeadCell:focus-visible {
  * invisible: a column carries a + in its head and can afford to hide this,
  * and a list has no head to carry one.
  */
+/* Its + stands where every key starts, so the way in reads as the next row of
+   the table and not as a link left under it. */
 .listAdd {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
   min-height: var(--list-row-h);
-  padding: 0 12px;
+  padding: 0 12px 0 28px;
   border: 0;
   border-bottom: 1px solid var(--line-faint);
   background: none;
-  color: var(--faint-2);
+  color: var(--text-meta);
   font-family: inherit;
   font-size: var(--t-body);
   text-align: left;
@@ -2040,17 +2306,43 @@ button.listHeadCell:focus-visible {
   outline: none;
   background: var(--bg-card);
   color: var(--text-4);
-  box-shadow: inset 0 0 0 1px var(--focus-ring);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* The words stay where the eye is when a wide list is scrolled sideways. */
 .listAddWords {
   position: sticky;
-  left: 0;
+  left: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
+.listAddPlus {
+  font-family: var(--font-mono);
+  font-size: var(--t-ui);
+  line-height: 1;
+}
+
+/*
+ * The composer is the next row, written in. It sits under the key and the
+ * title on the same grid, so the words start where every title starts, and it
+ * stops where the title stops instead of running across the whole window.
+ */
 .listCompose {
-  padding: 6px 12px;
+  display: grid;
+  grid-template-columns: var(--list-cols);
+  gap: 8px;
+  padding: 4px 12px 6px 0;
+  border-bottom: 1px solid var(--line-faint);
+  background: var(--bg-card);
+}
+
+.listComposeSlot {
+  grid-column: 1 / 3;
+  min-width: 0;
+  /* The box's own padding brings the words to the key's 28 px. */
+  margin-left: 18px;
 }
 
 /*
@@ -2169,6 +2461,7 @@ button.listHeadCell:focus-visible {
   padding-bottom: 6px;
 }
 
+/* The property somebody named, as they named it. */
 .askTag {
   display: flex;
   align-items: center;
@@ -2180,11 +2473,8 @@ button.listHeadCell:focus-visible {
   border-radius: 4px;
   background: var(--bg-menu-hover);
   color: var(--text-3);
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
+  font-size: var(--t-small);
   font-weight: 500;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2212,16 +2502,12 @@ button.listHeadCell:focus-visible {
   outline: 0;
   background: transparent;
   color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--t-small);
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-size: var(--t-body);
   padding: 2px 0;
 }
 
 .askBox::placeholder {
-  color: var(--faint);
-  text-transform: uppercase;
+  color: var(--text-meta);
 }
 
 .askBox:disabled {
@@ -2236,7 +2522,7 @@ button.listHeadCell:focus-visible {
 
 .filterRowNote {
   font-size: var(--t-chip);
-  color: var(--faint);
+  color: var(--text-meta);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2332,6 +2618,24 @@ button.listHeadCell:focus-visible {
   background: none;
 }
 
+/*
+ * While a panel asks its first question the row stands empty, holding the
+ * line the first chip will take, so that answer does not push the board down
+ * under the open panel. It opens rather than appears, so the board is seen
+ * to make room instead of jumping.
+ */
+.filterRow:empty {
+  animation: filter-row-open 160ms var(--ease);
+}
+
+@keyframes filter-row-open {
+  from {
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
 .filterChip {
   display: flex;
   align-items: center;
@@ -2359,7 +2663,7 @@ button.listHeadCell:focus-visible {
   height: 100%;
   padding: 0 7px 0 3px;
   font-size: 9px;
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 .filterChipX:hover {
@@ -2492,37 +2796,44 @@ button.listHeadCell:focus-visible {
 
 .searchBox {
   width: 100%;
-  height: 26px;
-  padding: 0 20px 0 9px;
+  height: var(--control-h);
+  padding: 0 28px 0 10px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   outline: 0;
   background: var(--bg-hover);
   color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  letter-spacing: 0.06em;
-  transition: border-color 140ms var(--ease);
+  font-size: var(--t-small);
+  transition:
+    border-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
 
 .searchBox::placeholder {
-  color: var(--faint);
-  text-transform: uppercase;
+  color: var(--text-meta);
 }
 
 .searchBox:focus {
-  border-color: var(--focus-ring);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-glow);
 }
 
-/* The key that opens the box, on the box. It goes the moment there are words,
-   because it is a hint and not a value. */
+/* The key that opens the box, on the box, drawn as a key. It goes the moment
+   there are words, because it is a hint and not a value. */
 .searchSlash {
   position: absolute;
-  right: 8px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line-menu);
+  border-radius: 4px;
   pointer-events: none;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: var(--faint-2);
+  line-height: 1;
+  color: var(--text-meta);
 }
 
 .searchPop {
@@ -2571,7 +2882,7 @@ button.listHeadCell:focus-visible {
   flex: 0 0 auto;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: var(--faint-2);
+  color: var(--text-meta);
 }
 
 .searchTitle {
@@ -2593,7 +2904,7 @@ button.listHeadCell:focus-visible {
   flex: 0 0 auto;
   margin-left: auto;
   font-size: var(--t-chip);
-  color: var(--faint);
+  color: var(--text-meta);
   white-space: nowrap;
 }
 
@@ -2618,7 +2929,7 @@ button.listHeadCell:focus-visible {
 }
 
 .waitButton {
-  height: 26px;
+  height: var(--control-h);
   padding: 0 9px;
   display: flex;
   align-items: center;
@@ -2698,6 +3009,15 @@ button.listHeadCell:focus-visible {
 
   .searchPop {
     width: 280px;
+  }
+}
+
+/* Under 16 px iOS zooms in on a box that takes the focus, and does not zoom
+   back out. Only a touch screen zooms, so a narrow window keeps the bar's
+   own size. */
+@media (hover: none) {
+  .searchBox {
+    font-size: 16px;
   }
 }
 

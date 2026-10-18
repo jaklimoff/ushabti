@@ -439,14 +439,15 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
   return (
     <div className={styles.filterAnchor} ref={ref}>
       <button
-        className={`${styles.pill} ${count ? styles.filterOn : ""}`}
+        className={`${styles.pill} ${styles.tool} ${count ? styles.filterOn : ""}`}
         data-testid="filter-button"
         aria-expanded={open}
         title={count ? "Change what this view shows" : "Show only some of the tasks"}
         onClick={() => setOpen(!open)}
       >
         <span className={styles.filterMark} aria-hidden />
-        Filter{count ? ` ${count}` : ""}
+        <span className={styles.toolWord}>Filter</span>
+        {count ? ` ${count}` : ""}
       </button>
 
       {open && (
@@ -710,7 +711,7 @@ export function RuleChips({
       })}
       <div className={styles.filterAnchor} ref={ref}>
         <button
-          className={styles.pill}
+          className={`${styles.pill} ${styles.tool}`}
           data-testid="rule-add"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
@@ -793,14 +794,14 @@ export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: bool
   return (
     <div className={styles.filterAnchor} ref={ref}>
       <button
-        className={`${styles.pill} ${sort ? styles.filterOn : ""}`}
+        className={`${styles.pill} ${styles.tool} ${sort ? styles.filterOn : ""}`}
         data-testid="sort-button"
         aria-expanded={open}
         title={sort ? "Change the order the cards are in" : "Order the cards in every column"}
         onClick={() => (open ? close() : setOpen(true))}
       >
         <span className={styles.sortMark} aria-hidden />
-        Sort
+        <span className={styles.toolWord}>Sort</span>
       </button>
 
       {open && (

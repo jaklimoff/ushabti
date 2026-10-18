@@ -9,7 +9,8 @@ import type { BoardData } from "@/lib/types";
 /** What opening a task needs: which one, and the key its link carries. */
 type Openable = { id: string; key: string };
 import { ProjectSwitcher } from "@/components/ui/ProjectSwitcher";
-import { ProjectMark } from "@/components/ui/Marks";
+import { AppAction } from "@/components/ui/AppBar";
+import { BrandMark, ProjectMark } from "@/components/ui/Marks";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
@@ -144,6 +145,14 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
         {/* The bar itself is named, so a test that measures what hangs out
             of it holds the bar and not whatever the mark sits in. */}
         <div className={styles.top} data-testid="top-bar">
+          {/* The bar reads as the one on every other page: Ushabti's mark leads
+              home, then the project, then quiet words at the end. */}
+          <Link href="/projects" className={styles.home} title="Home" aria-label="Home">
+            <BrandMark />
+          </Link>
+          <span className={styles.crumbSep} aria-hidden>
+            /
+          </span>
           {/* The mark is inside the button, so a phone that hides the name
               still has something to press. */}
           <ProjectSwitcher
@@ -160,8 +169,8 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
               {data.project.name}
             </span>
           </ProjectSwitcher>
-          <span className={styles.crumbSep}>/</span>
-          <span className={styles.crumbView}>{view?.name ?? "Board"}</span>
+          {/* The view is not named here: the strip under the bar already
+              names it, on the pill that is lit. */}
           <div className={styles.spacer} />
           {/* What is picked belongs to no view either, so it stands beside the
               search box and not in the strip. It is here only while something
@@ -175,42 +184,51 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
               rather than in it, beside the things that belong to no view. */}
           <Search onOpenTask={open} />
           <Listening />
+          {/* A dot alone said nothing to a newcomer. It carries its word for a
+              screen reader always, and on a wide screen for everybody. */}
           <span
-            className={live ? styles.liveDot : styles.liveDotOff}
-            data-testid={live ? "live-dot" : "live-dot-off"}
+            className={styles.live}
             title={live ? "Live: changes from others arrive by themselves" : "Not live right now"}
-          />
+          >
+            <span
+              className={live ? styles.liveDot : styles.liveDotOff}
+              data-testid={live ? "live-dot" : "live-dot-off"}
+            />
+            <span className={styles.liveWord}>{live ? "Live" : "Offline"}</span>
+          </span>
           {/* The two project pages, beside each other because they are the
               two places off the board. A 26 px ⚙ was the only route to
               settings, and the only pictograph in an otherwise geometric
               set. */}
-          <Link
-            className={styles.iconLink}
-            href={`/p/${data.project.id}/archived`}
-            title="The tasks that are archived"
-          >
-            Archived
-          </Link>
-          {/* The changelog reads the same record the archive does: a ship
+          <div className={styles.barActions}>
+            <AppAction
+              className={styles.iconLink}
+              href={`/p/${data.project.id}/archived`}
+              title="The tasks that are archived"
+            >
+              Archived
+            </AppAction>
+            {/* The changelog reads the same record the archive does: a ship
               archives what it shipped and dates the option. A phone reaches
               it from Project settings, because the bar is full there. With
               releases off the page is not found, so no link leads to it. */}
-          {data.project.releaseBy && (
-            <Link
-              className={`${styles.iconLink} ${styles.changelogLink}`}
-              href={`/p/${data.project.id}/changelog`}
-              title="The options that shipped, and their tasks"
+            {data.project.releaseBy && (
+              <AppAction
+                className={`${styles.iconLink} ${styles.changelogLink}`}
+                href={`/p/${data.project.id}/changelog`}
+                title="The options that shipped, and their tasks"
+              >
+                Changelog
+              </AppAction>
+            )}
+            <AppAction
+              className={styles.iconLink}
+              href={`/p/${data.project.id}/settings/properties`}
+              title="Project settings"
             >
-              Changelog
-            </Link>
-          )}
-          <Link
-            className={styles.iconLink}
-            href={`/p/${data.project.id}/settings/properties`}
-            title="Project settings"
-          >
-            Settings
-          </Link>
+              Settings
+            </AppAction>
+          </div>
           <UserMenu user={user} />
         </div>
 

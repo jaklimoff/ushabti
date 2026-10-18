@@ -24,6 +24,7 @@ import {
 } from "@/lib/ship";
 import type { PropertyOptionDTO, TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
+import { ArchiveIcon, CheckIcon, FoldIcon, PlusIcon } from "./icons";
 import { MentionList, useMentions } from "./Mentions";
 import { TaskCard } from "./TaskCard";
 import { useBoard } from "./store";
@@ -358,7 +359,7 @@ export function Column({
               className={styles.colDot}
               style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
             />
-            <span className={styles.colName} data-testid="column-name">
+            <span className={styles.colName} data-testid="column-name" title={column.name}>
               {column.name}
             </span>
           </span>
@@ -367,55 +368,60 @@ export function Column({
           </span>
           {ended ? <span className={styles.colMeta}>{when}</span> : when}
           <span className={styles.colSpacer} style={{ flex: 1 }} />
-          {onAddTask && (
+          {/* The buttons rest out of sight where there is a pointer, so the
+              name has the header. They come back on hover and on focus, and
+              stay where a finger cannot hover. */}
+          <span className={styles.colActions}>
+            {onAddTask && (
+              <button
+                className={styles.colAdd}
+                aria-label={`Add a task to the top of ${column.name}`}
+                title="Add a task to the top of this column"
+                onClick={() => {
+                  onCompose("top");
+                  setDraft("");
+                }}
+              >
+                <PlusIcon />
+              </button>
+            )}
+            {/* Archive is how a column that has done its job is emptied. It is
+              offered only when the whole column is on screen. */}
+            {onArchiveAll && column.tasks.length > 0 && (
+              <button
+                className={styles.colAdd}
+                data-testid="column-archive"
+                aria-label={`Archive everything in ${column.name}`}
+                title="Archive everything in this column"
+                onClick={sweep.ask}
+              >
+                <ArchiveIcon />
+              </button>
+            )}
+            {canShip && (
+              <button
+                className={styles.colAdd}
+                data-testid="column-ship"
+                aria-label={`${shipWord(ship.closing)} ${column.name}`}
+                title={
+                  ship.closing
+                    ? "Close: end this sprint and keep its tasks on the board"
+                    : "Ship: archive what is over and close this option"
+                }
+                onClick={shipAsk.ask}
+              >
+                <CheckIcon />
+              </button>
+            )}
             <button
-              className={styles.colAdd}
-              aria-label={`Add a task to the top of ${column.name}`}
-              title="Add a task to the top of this column"
-              onClick={() => {
-                onCompose("top");
-                setDraft("");
-              }}
+              className={`${styles.colAdd} ${styles.colFold}`}
+              aria-label={`Fold the column ${column.name}`}
+              title="Fold this column to a strip"
+              onClick={() => onFold(true)}
             >
-              +
+              <FoldIcon />
             </button>
-          )}
-          {/* Archive is how a column that has done its job is emptied. It is
-            offered only when the whole column is on screen. */}
-          {onArchiveAll && column.tasks.length > 0 && (
-            <button
-              className={`${styles.colAdd} ${styles.colArchive}`}
-              data-testid="column-archive"
-              aria-label={`Archive everything in ${column.name}`}
-              title="Archive everything in this column"
-              onClick={sweep.ask}
-            >
-              ↓
-            </button>
-          )}
-          {canShip && (
-            <button
-              className={`${styles.colAdd} ${styles.colShip}`}
-              data-testid="column-ship"
-              aria-label={`${shipWord(ship.closing)} ${column.name}`}
-              title={
-                ship.closing
-                  ? "Close: end this sprint and keep its tasks on the board"
-                  : "Ship: archive what is over and close this option"
-              }
-              onClick={shipAsk.ask}
-            >
-              ✓
-            </button>
-          )}
-          <button
-            className={`${styles.colAdd} ${styles.colFold}`}
-            aria-label={`Fold the column ${column.name}`}
-            title="Fold this column to a strip"
-            onClick={() => onFold(true)}
-          >
-            «
-          </button>
+          </span>
         </div>
       )}
 
@@ -476,7 +482,7 @@ export function Column({
 
         {onAddTask && composing === null && (
           <button
-            className={styles.emptyDrop}
+            className={`${styles.emptyDrop} ${column.tasks.length === 0 ? styles.emptyDropBare : ""}`}
             onClick={() => {
               onCompose("bottom");
               setDraft("");
@@ -484,7 +490,8 @@ export function Column({
             title="Add a task"
             aria-label={`Add a task to ${column.name}`}
           >
-            {column.tasks.length === 0 ? "Add a task" : ""}
+            <PlusIcon size={11} />
+            Add a task
           </button>
         )}
       </div>
@@ -537,7 +544,7 @@ export function ShipQuestion({
       : ["leave"];
   return (
     <div className={className} role="alertdialog" aria-label={`${shipWord(ship.closing)} ${name}`}>
-      <span className={styles.colConfirm} data-testid="ship-confirm">
+      <span className={`${styles.colConfirm} ${styles.colShipQuestion}`} data-testid="ship-confirm">
         {shipQuestion(name, over.length, rest.length, ship.closing, counts)}
         {counts && rest.length > 0 && " What happens to them?"}
       </span>
@@ -553,7 +560,7 @@ export function ShipQuestion({
       )}
       {!counts && (
         <Link
-          className={`${styles.colConfirmYes} ${styles.colShipAnswer}`}
+          className={styles.colShipAnswer}
           href={`/p/${data.project.id}/settings/project`}
           autoFocus
         >
@@ -563,7 +570,7 @@ export function ShipQuestion({
       {answers.map((answer, i) => (
         <button
           key={answer}
-          className={`${styles.colConfirmYes} ${styles.colShipAnswer}`}
+          className={styles.colShipAnswer}
           autoFocus={i === 0}
           title={answer === "next" ? `Move them to ${ship.nextName}` : undefined}
           onClick={() => onPick(answer, !!straysSaid && take)}

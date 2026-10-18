@@ -4,6 +4,7 @@ import { forwardRef, useMemo } from "react";
 import type { AgentRunDTO, TaskDTO } from "@/lib/types";
 import { buildCard, type CardChip, type CardItem } from "@/lib/card-view";
 import { isOpen, lifeOf, runClock, runIsStill, runLine } from "@/lib/run-state";
+import { Avatar } from "@/components/ui/Avatar";
 import { useNow } from "@/components/ui/useElapsed";
 import { Chip } from "./Chip";
 import { useBoard } from "./store";
@@ -279,13 +280,38 @@ function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
   const now = useNow(isOpen(run.status));
   const life = lifeOf(run, now);
   const clock = runClock(run, now);
+  const line = overlay ? "Drop to take over" : runLine(run);
 
+  /* The status rides on the strip beside the life, so a run that waits for a
+     person can wear its own warm ground. Nothing is added to the card: the
+     same who, what and how long, in another colour. */
   return (
-    <div className={styles.runStrip} data-testid="card-run" data-life={life}>
+    <div
+      className={styles.runStrip}
+      data-testid="card-run"
+      data-life={life}
+      data-status={run.status}
+    >
       <div className={styles.runStripRow}>
-        <span className={styles.runAgent}>{run.agent.name}</span>
-        <span className={styles.runText} data-testid="card-run-step">
-          {overlay ? "Drop to take over" : runLine(run)}
+        {/* The face and colour of the agent, so the one at work is not
+            mistaken for the person the task is assigned to. A run that waits
+            keeps the face and lends the name's room to its question. */}
+        <span
+          className={styles.runAgent}
+          style={{ color: `color-mix(in srgb, ${run.agent.color} 62%, var(--text-2))` }}
+        >
+          <Avatar
+            name={run.agent.name}
+            color={run.agent.color}
+            emoji={run.agent.emoji}
+            kind="agent"
+            size={14}
+          />
+          <span className={styles.runName}>{run.agent.name}</span>
+        </span>
+        {/* The line is cut to fit the card, so the whole of it is a hover away. */}
+        <span className={styles.runText} data-testid="card-run-step" title={line}>
+          {line}
         </span>
         <span
           className={`${styles.runTime} ${clock.stale ? styles.runTimeStale : ""}`}

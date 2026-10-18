@@ -258,7 +258,9 @@ export function defaultCardView(properties: PropertyDTO[], groupById: string | n
     if (property.id === groupById || property.config.showOnCard === false) {
       rows[property.id] = { place: "off", mode: firstMode(kind) };
     } else if (property.type === "multi_select") {
-      rows[property.id] = { place: "headerR", mode: "colour" };
+      /* Labels read as words. A row of bare dots asks a newcomer to learn
+         every colour before the card tells them anything. */
+      rows[property.id] = { place: "headerR", mode: "both" };
     } else {
       rows[property.id] = fallbackRow(kind);
     }
@@ -793,8 +795,14 @@ export function buildRow(
      * scarce thing, and the title above it carries the meaning. A column has
      * the room, and its heading names the property, never the value: a row of
      * bare squares under PRIORITY says only that the task has one.
+     *
+     * A face is the same legend. Two initials under ASSIGNEE name nobody to a
+     * newcomer, and the person column is the one people scan most. So a face
+     * reads as the card's own Both, which keeps it one answer from `chipsFor`
+     * and keeps the `gone` look of somebody who left.
      */
-    const named: CardItem = item.mode === "colour" ? { ...item, mode: "both" } : item;
+    const named: CardItem =
+      item.mode === "colour" || item.mode === "avatar" ? { ...item, mode: "both" } : item;
     slots.cells[item.id] = chipsFor(named, task, members, former, properties, timeZone);
   }
 

@@ -57,6 +57,7 @@ import {
   type ProgressRule,
 } from "./Column";
 import { ColumnStrip } from "./ColumnStrip";
+import { PlusIcon } from "./icons";
 import { useCursorBack, useShortcut } from "./keys";
 import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
@@ -905,7 +906,7 @@ function AddColumn() {
         </div>
       ) : (
         <button className={styles.addColumnButton} onClick={() => setAdding(true)}>
-          <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+          <PlusIcon />
           New column
         </button>
       )}

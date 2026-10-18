@@ -548,10 +548,10 @@ test.describe("A board under a finger", () => {
 
     /* And it is the only way in down here, so a finger has to be able to hit
        it: a miss lands on the card and opens the task. The check itself is
-       still 15 px, because the button grew around it and not with it. */
+       still 13 px, because the button grew around it and not with it. */
     await forAFinger(check, 1);
     const box = await check.getByTestId("card-pick-box").boundingBox();
-    expect(Math.round(box!.width)).toBe(15);
+    expect(Math.round(box!.width)).toBe(13);
 
     // A finger going left brings the next column in; going right, the one
     // before. A short one says nothing at all.

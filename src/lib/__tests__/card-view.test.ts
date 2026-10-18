@@ -154,6 +154,24 @@ describe("the default card", () => {
     });
   });
 
+  it("shows a multi-select as dot and word, and leaves an arranged one as it was", () => {
+    const labels: PropertyDTO = {
+      id: "p-labels",
+      name: "Labels",
+      type: "multi_select",
+      position: "z",
+      config: {},
+      options: [],
+    };
+    const all = [STATUS, PRIORITY, labels];
+    expect(defaultCardView(all, "p-status").rows["p-labels"]).toEqual({
+      place: "headerR",
+      mode: "both",
+    });
+    const arranged = { rows: { "p-labels": { place: "headerR", mode: "colour" } } };
+    expect(readCardView(arranged, all, "p-status").rows["p-labels"].mode).toBe("colour");
+  });
+
   it("keeps a property that an older project took off the card off it", () => {
     const hidden = { ...DUE, config: { showOnCard: false } };
     const view = defaultCardView([STATUS, PRIORITY, hidden], "p-status");
@@ -630,6 +648,16 @@ describe("a task laid out as a row", () => {
 
     const row = buildRow(items(null), task({ "p-prio": "o-urgent" }), [ADA]);
     expect(row.cells["p-prio"][0].text).toBe("Urgent");
+  });
+
+  it("puts a name beside a face", () => {
+    /* Two initials under ASSIGNEE name nobody to a newcomer. */
+    const card = buildCard(items(null), task({ "p-who": ADA.id }), [ADA]);
+    expect(card.headerR.find((c) => c.tip.startsWith("Assignee"))?.text).toBe(null);
+
+    const row = buildRow(items(null), task({ "p-who": ADA.id }), [ADA]);
+    expect(row.cells["p-who"][0]).toMatchObject({ text: "Ada Lovelace" });
+    expect(row.cells["p-who"][0].person?.name).toBe("Ada Lovelace");
   });
 
   it("wears the same stripe the card wears, and only when the card wears one", () => {

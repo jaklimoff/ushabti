@@ -1,5 +1,5 @@
 import type { CardItem } from "./card-view";
-import type { CardBuiltin, CardMode, PropertyType } from "./types";
+import type { CardBuiltin, PropertyType } from "./types";
 
 /**
  * What a list carries, and how wide.
@@ -39,11 +39,18 @@ export const TITLE_MIN_WIDTH = 200;
 export const TITLE_MAX_WIDTH = 520;
 
 /**
- * The narrowest a column may be. A cell can afford to be small — an avatar is
- * 17 px, a comment count is one digit — but the heading above it still has to
- * name the property, and a column headed ASSIGN teaches nobody anything.
+ * How much of a narrow window the title may hold before it gives way. The key
+ * and the title are both held in place, and on a phone a 200 px title left
+ * room for one property at a time.
  */
-const HEADING_WIDTH = 66;
+export const TITLE_MIN_SHARE = "40vw";
+
+/**
+ * The narrowest a column may be. A cell can afford to be small — a comment
+ * count is one digit — but the heading above it still has to name the
+ * property, and a column headed ASSIGN teaches nobody anything.
+ */
+const HEADING_WIDTH = 80;
 
 /** The gap between two columns. It has to be known to pin one. */
 const LIST_GAP = 8;
@@ -66,24 +73,15 @@ const WIDTH_OF_TYPE: Record<PropertyType, number> = {
   iteration: 112,
 };
 
-/**
- * A mode that draws no words needs far less room. Only the avatar is left: a
- * face is recognised, where a bare colour has to be learnt, so `buildRow` gives
- * a colour-only chip its name back and this gives it the room for one.
- */
-const WIDTH_OF_MODE: Partial<Record<CardMode, number>> = {
-  avatar: HEADING_WIDTH,
-};
-
 const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
   /* The gutter comes out of the first column, and the key is nearly always
      it. So the key carries the room the gutter takes, and its heading still
      has the same space to name itself in. */
-  _key: 88,
+  _key: 100,
   _title: 0,
   _desc: 0,
-  _checklist: 72,
-  _parts: 72,
+  _checklist: 88,
+  _parts: HEADING_WIDTH,
   _comments: HEADING_WIDTH,
   _created: 84,
   _updated: 84,
@@ -91,9 +89,9 @@ const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
 
 function widthOf(item: ListColumn["item"]): number {
   if (!item.property) return WIDTH_OF_BUILTIN[item.id as CardBuiltin] ?? 96;
-  const byMode = WIDTH_OF_MODE[item.mode];
-  /* A multi-select in colour mode still draws several swatches. */
-  if (byMode !== undefined) return item.property.type === "multi_select" ? byMode + 38 : byMode;
+  /* Every mode draws words in a row: `buildRow` names a colour and puts a
+     name beside a face, because a column's heading names the property and
+     never the value. So the room is the type's, whatever the card wears. */
   return WIDTH_OF_TYPE[item.property.type];
 }
 
@@ -175,7 +173,9 @@ export function listColumns(items: CardItem[]): ListColumn[] {
  */
 export function listTemplate(columns: ListColumn[]): string {
   const tracks = columns.map((c) =>
-    c.width === 0 ? `minmax(${TITLE_MIN_WIDTH}px, ${TITLE_MAX_WIDTH}px)` : `${c.width}px`,
+    c.width === 0
+      ? `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), ${TITLE_MAX_WIDTH}px)`
+      : `${c.width}px`,
   );
   return [...tracks, "1fr"].join(" ");
 }

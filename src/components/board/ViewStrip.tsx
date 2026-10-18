@@ -24,6 +24,7 @@ import {
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useEdgeFade } from "./edges";
 import { FilterButton, SortButton } from "./Filters";
+import { PlusIcon } from "./icons";
 import { copyText } from "@/lib/clipboard";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
@@ -160,7 +161,7 @@ export function ViewStrip({
           setGroupById(groupable[0]?.id ?? "");
         }}
       >
-        +
+        <PlusIcon />
       </button>
 
       <div style={{ flex: 1 }} />

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
-import { listColumns, listTemplate, TITLE_MAX_WIDTH, TITLE_MIN_WIDTH } from "../list-view";
+import {
+  listColumns,
+  listTemplate,
+  TITLE_MAX_WIDTH,
+  TITLE_MIN_SHARE,
+  TITLE_MIN_WIDTH,
+} from "../list-view";
 import type { PropertyDTO } from "../types";
 
 const STATUS: PropertyDTO = {
@@ -156,7 +162,9 @@ describe("the grid template", () => {
     const columns = columnsOf(null);
     const template = listTemplate(columns);
     expect(template.startsWith(`${columns[0].width}px minmax(`)).toBe(true);
-    expect(template).toContain(`minmax(${TITLE_MIN_WIDTH}px, ${TITLE_MAX_WIDTH}px)`);
+    expect(template).toContain(
+      `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), ${TITLE_MAX_WIDTH}px)`,
+    );
   });
 
   it("ends in a track nothing is drawn in, so the slack falls off the end", () => {

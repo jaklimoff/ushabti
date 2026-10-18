@@ -27,6 +27,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   loading, and faces on a card wear their own colour. Each Changelog release is
   a card, task keys read one way on Archived, Changelog and lists, and a member
   who opens the changelog with releases off sees "Releases are off".
+- **The board and the list read cleanly, with a look for each run state.**
+  Column names show in full, and the header buttons appear on hover or focus.
+  Keys, dates and counts are easier to read. A waiting run is warm, a paused
+  one grey and a silent one faded. The board's top bar matches the other pages,
+  and **Yes, ship** confirms in the accent. A new project shows labels as dot
+  and word. In a list the ring runs the whole row, a heading that sorts shows
+  an arrow, and Assignee shows the face and the name.
 
 ## 0.28.0 — 2026-10-17
 
