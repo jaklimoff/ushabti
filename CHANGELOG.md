@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.29.0 — 2026-10-18
+
 ### Changed
 
 - **A colour swatch says its colour.** A screen reader names each swatch, as
