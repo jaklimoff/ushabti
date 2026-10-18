@@ -31,7 +31,8 @@ export type ChangelogEntry = {
 };
 
 export type Changelog = {
-  project: { id: string; name: string; key: string };
+  /** The colour draws the project's mark in the bar, as on every other page. */
+  project: { id: string; name: string; key: string; color?: string };
   entries: ChangelogEntry[];
   /** How many shipped options are older than the last entry here. */
   older: number;
@@ -54,7 +55,7 @@ export type PublicChangelog = {
 };
 
 export type ChangelogInput = {
-  project: { id: string; name: string; key: string };
+  project: { id: string; name: string; key: string; color?: string };
   /** In `position` order, each with its options in `position` order. */
   properties: {
     id: string;

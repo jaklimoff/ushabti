@@ -543,8 +543,11 @@ describe("Ordering a board on a phone", () => {
     await expect.element(page.getByTitle("Project settings")).toBeVisible();
     expect(overflow()).toBe(0);
 
+    /* The mark wears the whole key, so it is as wide as the key and never
+       narrower than it is tall. */
     const mark = box(byTestId("board-mark"));
-    expect(mark.width).toBe(18);
+    expect(mark.width).toBeGreaterThanOrEqual(18);
+    expect(byTestId("board-mark").element().scrollWidth).toBeLessThanOrEqual(Math.ceil(mark.width));
     expect(mark.height).toBe(18);
   });
 });

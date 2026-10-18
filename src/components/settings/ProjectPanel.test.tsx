@@ -441,9 +441,9 @@ describe("Settings on a laptop", () => {
   });
 });
 
-/** The lines the words of the one span that reads `label` fill. */
+/** The lines the words of the one label that reads `label` fill. */
 function linesOf(label: string): number {
-  const spans = [...document.querySelectorAll("span")].filter(
+  const spans = [...document.querySelectorAll("span, label")].filter(
     (el) => el.childNodes.length === 1 && el.textContent === label,
   );
   expect(spans, `one span reads "${label}"`).toHaveLength(1);

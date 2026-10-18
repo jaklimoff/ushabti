@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/client";
 import { Avatar } from "./Avatar";
+import { Chevron } from "./Marks";
 import { useDismiss } from "./useDismiss";
 import styles from "./UserMenu.module.css";
 
@@ -18,6 +19,7 @@ export type SessionUser = {
 
 export function UserMenu({ user, extra }: { user: SessionUser; extra?: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
 
@@ -39,7 +41,7 @@ export function UserMenu({ user, extra }: { user: SessionUser; extra?: React.Rea
         <span className={styles.name} data-testid="user-name">
           {user.name}
         </span>
-        <span className={styles.caret}>▾</span>
+        <Chevron className={styles.caret} />
       </button>
       {open && (
         <div className={styles.menu} role="menu">
@@ -49,6 +51,7 @@ export function UserMenu({ user, extra }: { user: SessionUser; extra?: React.Rea
             className={styles.item}
             role="menuitem"
             href="/account"
+            aria-current={pathname === "/account" ? "page" : undefined}
             onClick={() => setOpen(false)}
           >
             Account

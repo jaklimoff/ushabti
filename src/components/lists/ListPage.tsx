@@ -4,8 +4,9 @@ import Link from "next/link";
 import { longAgo } from "@/lib/board";
 import type { ListGroup } from "@/lib/lists";
 import { ButtonPageLink } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/Layout";
-import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
+import { EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
+import type { SessionUser } from "@/components/ui/UserMenu";
+import { AppBar, AppCrumb } from "@/components/ui/AppBar";
 import { useNow } from "@/components/ui/useElapsed";
 import styles from "./lists.module.css";
 
@@ -26,18 +27,17 @@ export function ListPage({
   const total = groups.reduce((sum, g) => sum + g.count, 0);
   return (
     <div className={styles.page}>
-      <ListBar user={user} />
-      <div className={styles.body}>
-        <div className={styles.heading}>
-          <h1 className={styles.title}>{list.name}</h1>
-          <span className={styles.total} data-testid="list-total">
-            {total}
-          </span>
-          <span className={styles.spacer} />
-          <ButtonPageLink variant="ghost" href={`/lists/${list.id}/edit`}>
-            Edit list
-          </ButtonPageLink>
-        </div>
+      <ListBar user={user} trail={[<AppCrumb key="here">{list.name}</AppCrumb>]} />
+      <PageShell>
+        <PageHead
+          title={list.name}
+          count={<span data-testid="list-total">{total}</span>}
+          actions={
+            <ButtonPageLink variant="ghost" href={`/lists/${list.id}/edit`}>
+              Edit list
+            </ButtonPageLink>
+          }
+        />
 
         {groups.length === 0 && (
           <EmptyState title="Nothing on this list yet">
@@ -99,35 +99,15 @@ export function ListPage({
             )}
           </section>
         ))}
-      </div>
+      </PageShell>
     </div>
   );
 }
 
-/** The bar of a list page: the way home, and who is signed in. */
-/** With `here`, the bar says where the page sits: Ushabti / Home / here. */
-export function ListBar({ user, here }: { user: SessionUser; here?: string }) {
-  return (
-    <div className={styles.bar}>
-      {here ? (
-        <nav className={styles.home} aria-label="Where you are">
-          <span className={styles.mark}>U</span>
-          <span className={styles.brand}>Ushabti</span>
-          <span className={styles.crumbSep}>/</span>
-          <Link href="/projects" className={styles.crumb} data-testid="list-home">
-            Home
-          </Link>
-          <span className={styles.crumbSep}>/</span>
-          <span className={styles.crumbHere}>{here}</span>
-        </nav>
-      ) : (
-        <Link href="/projects" className={styles.home} data-testid="list-home">
-          <span className={styles.mark}>U</span>
-          <span className={styles.brand}>Home</span>
-        </Link>
-      )}
-      <span className={styles.spacer} />
-      <UserMenu user={user} />
-    </div>
-  );
+/**
+ * The bar of a list page: the way home, where the page sits, and who is
+ * signed in. The mark is the way home, so it carries the test's handle.
+ */
+export function ListBar({ user, trail }: { user: SessionUser; trail?: React.ReactNode[] }) {
+  return <AppBar user={user} trail={trail} homeTestId="list-home" />;
 }

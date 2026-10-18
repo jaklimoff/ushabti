@@ -31,11 +31,11 @@
   place-items: center;
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--t-ui);
 }
 
 .name {
-  font-size: 15px;
+  font-size: var(--t-h2);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -92,14 +92,14 @@ p.tagline,
 .error {
   padding: 8px 10px;
   border-radius: var(--r-md);
-  background: rgba(224, 87, 77, 0.12);
+  background: var(--danger-bg);
   color: var(--danger-text);
-  font-size: 12px;
+  font-size: var(--t-body);
   line-height: 1.45;
 }
 
 .switch {
   text-align: center;
-  font-size: 12px;
+  font-size: var(--t-body);
   color: var(--muted);
 }

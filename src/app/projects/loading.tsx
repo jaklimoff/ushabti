@@ -1,30 +1,17 @@
+import { AppBarBlank } from "@/components/ui/AppBar";
+import { PageShell } from "@/components/ui/Layout";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function Loading() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      <div
-        style={{
-          height: 46,
-          borderBottom: "1px solid var(--line)",
-          background: "var(--bg-top)",
-        }}
-      />
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "40px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-        }}
-      >
+      <AppBarBlank />
+      <PageShell width="wide">
         <Skeleton width={120} height={22} />
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(232px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(340px, 100%), 1fr))",
             gap: 10,
           }}
         >
@@ -32,7 +19,7 @@ export default function Loading() {
             <Skeleton key={i} height={96} radius={10} />
           ))}
         </div>
-      </div>
+      </PageShell>
     </div>
   );
 }

@@ -31,10 +31,9 @@
 }
 
 .caret {
+  flex: none;
   margin-left: -6px;
-  font-size: 9px;
-  line-height: 1;
-  color: #5d646f;
+  color: var(--icon);
   transition: color 140ms var(--ease);
 }
 
@@ -49,7 +48,7 @@
   padding: 5px;
   background: var(--bg-menu);
   border: 1px solid var(--line-menu);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   box-shadow: var(--shadow-menu);
   animation: ushabti-fade-in 120ms var(--ease);
 }
@@ -59,11 +58,15 @@
   margin-bottom: 4px;
   padding: 6px 8px;
   border: 1px solid var(--line-soft);
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   background: var(--bg);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--t-body);
   outline: none;
+}
+
+.box:focus {
+  border-color: var(--accent);
 }
 
 .menu {
@@ -80,14 +83,14 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-body);
   color: var(--text-4);
 }
 
 .item:hover,
 .itemAt {
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text);
 }
 
@@ -106,28 +109,19 @@
   color: var(--text);
 }
 
-/* The same square the bar draws beside the name, at the size of a row. */
-.mark {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  border-radius: 4px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-weight: 600;
-  font-size: 9px;
-  line-height: 1;
+/* The same mark the bar draws beside the name, at the size of a row. Its
+   slot is as wide as a usual key, so the names line up. */
+.markSlot {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 34px;
 }
 
 /* Sits where a mark sits and is as wide, but is not filled: it is not a
    project. */
 .glyph {
-  width: 16px;
-  flex: 0 0 16px;
-  text-align: center;
+  flex: 0 0 34px;
+  padding-left: 4px;
   font-size: 12px;
   line-height: 1;
 }
@@ -136,17 +130,9 @@
 .waiting {
   flex: 0 0 auto;
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 10px;
-  color: #c9925a;
+  font-size: var(--t-chip);
+  color: var(--waiting);
   white-space: nowrap;
-}
-
-/* Two projects can start with the same letter; the key tells them apart. */
-.key {
-  flex: 0 0 auto;
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 10px;
-  color: var(--faint);
 }
 
 /* The projects end here. What follows goes somewhere else. */
@@ -180,8 +166,8 @@
 
 .note {
   padding: 6px 8px;
-  font-size: 12px;
-  color: var(--faint);
+  font-size: var(--t-body);
+  color: var(--text-meta);
 }
 
 /* From a small tablet down the bar has two names to fit and no room to

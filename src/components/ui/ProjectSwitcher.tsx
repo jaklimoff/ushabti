@@ -15,11 +15,12 @@ import {
 import { api } from "@/lib/client";
 import { walkKeys } from "@/components/board/Ask";
 import { useDismiss } from "./useDismiss";
+import { Chevron, ProjectMark } from "./Marks";
 import styles from "./ProjectSwitcher.module.css";
 
 /* `waiting` comes only with the list: the bar hands in the open project
    without it, and its own count instead. */
-type Project = { id: string; key: string; name: string; waiting?: number };
+type Project = { id: string; key: string; name: string; color?: string; waiting?: number };
 type List = { id: string; name: string };
 
 /* A project row carries its key, which draws its mark; an action row carries
@@ -31,6 +32,7 @@ type Row = {
   href: string;
   current?: boolean;
   projectKey?: string;
+  projectColor?: string;
   glyph?: string;
   waiting?: number;
   /** A list of the person's own, drawn under the projects. */
@@ -126,6 +128,7 @@ export function ProjectSwitcher({
       href: `/p/${p.id}`,
       current: p.id === project.id,
       projectKey: p.key,
+      projectColor: p.color ?? project.color,
       waiting: p.id === project.id && waiting !== undefined ? waiting : p.waiting,
     })),
     ...(words ? [] : lists).map((l) => ({
@@ -201,9 +204,7 @@ export function ProjectSwitcher({
         }}
       >
         {children}
-        <span className={styles.caret} aria-hidden>
-          ▾
-        </span>
+        <Chevron className={styles.caret} />
       </button>
       {open && (
         <div className={styles.panel}>
@@ -261,8 +262,12 @@ export function ProjectSwitcher({
                   }}
                 >
                   {isProject ? (
-                    <span className={styles.mark} aria-hidden>
-                      {row.projectKey!.slice(0, 1)}
+                    <span className={styles.markSlot}>
+                      <ProjectMark
+                        size={16}
+                        projectKey={row.projectKey!}
+                        color={row.projectColor ?? "var(--accent)"}
+                      />
                     </span>
                   ) : (
                     <span className={styles.glyph} aria-hidden>
@@ -281,9 +286,6 @@ export function ProjectSwitcher({
                           {row.waiting} waiting
                         </span>
                       )}
-                      <span className={styles.key} aria-hidden>
-                        {row.projectKey}
-                      </span>
                       <span className={styles.tick} aria-hidden>
                         {row.current ? "✓" : ""}
                       </span>

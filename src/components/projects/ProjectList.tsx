@@ -26,7 +26,9 @@ import { trackWrites, type Reading, type Writes } from "@/lib/writes";
 import { suggestProjectKey } from "@/lib/defaults";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
-import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
+import type { SessionUser } from "@/components/ui/UserMenu";
+import { AppBar } from "@/components/ui/AppBar";
+import { PageHead, PageShell } from "@/components/ui/Layout";
 import { canManage } from "@/lib/roles";
 import { formatDate, longAgo } from "@/lib/board";
 import { foldedOf, noFolds, subscribeFolded } from "@/lib/fold";
@@ -107,17 +109,10 @@ export function ProjectList({
 
   return (
     <div className={styles.page}>
-      <div className={styles.bar}>
-        <div className={styles.mark}>U</div>
-        <div className={styles.brand}>Ushabti</div>
-        <div className={styles.spacer} />
-        <UserMenu user={user} />
-      </div>
+      <AppBar user={user} />
 
-      <div className={styles.body}>
-        <div className={styles.heading}>
-          <h1 className={styles.title}>Home</h1>
-        </div>
+      <PageShell width="wide">
+        <PageHead title="Home" />
 
         <div className={styles.sections}>
           <HomeSection
@@ -215,7 +210,7 @@ export function ProjectList({
 
           <Charts charts={charts} choices={chartChoices} canMake={!first} />
         </div>
-      </div>
+      </PageShell>
     </div>
   );
 }

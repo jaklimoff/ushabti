@@ -20,7 +20,7 @@
   gap: 7px;
   padding: 0 9px;
   border-radius: 5px;
-  font-size: 11.5px;
+  font-size: var(--t-small);
   color: #7d838d;
   white-space: nowrap;
   transition:
@@ -38,7 +38,7 @@
 
 .segMono {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.04em;
   justify-content: center;
@@ -78,7 +78,7 @@
 }
 
 .triggerText {
-  font-size: 12px;
+  font-size: var(--t-body);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -92,7 +92,7 @@
 .caret {
   font-size: 9px;
   line-height: 1;
-  color: #5d646f;
+  color: var(--icon);
 }
 
 .menu {
@@ -128,7 +128,7 @@
   gap: 9px;
   padding: 5px 8px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: var(--t-body);
   color: var(--muted);
   width: 100%;
   text-align: left;
@@ -138,13 +138,13 @@
 }
 
 .menuItem:hover {
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text);
 }
 
 /* The row Enter would pick. It reads as a hover, because it is one by key. */
 .menuItemAt {
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text);
 }
 
@@ -158,7 +158,7 @@
 
 /* The word beside the sprint that holds today. */
 .current {
-  font-size: 10px;
+  font-size: var(--t-chip);
   color: var(--muted-2);
 }
 
@@ -171,12 +171,12 @@
   border: 1px solid var(--line-dash);
   background: var(--bg-input);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--t-body);
   outline: none;
 }
 
 .menuInput:focus {
-  border-color: #38505a;
+  border-color: var(--focus-ring);
 }
 
 .chips {
@@ -193,7 +193,7 @@
   gap: 7px;
   padding: 0 8px 0 8px;
   border-radius: 5px;
-  font-size: 11.5px;
+  font-size: var(--t-small);
   color: var(--text-3);
 }
 
@@ -216,14 +216,14 @@
   border-radius: 5px;
   border: 1px dashed var(--line-dash);
   color: var(--muted-2);
-  font-size: 11.5px;
+  font-size: var(--t-small);
   transition:
     border-color 140ms var(--ease),
     color 140ms var(--ease);
 }
 
 .chipAdd:hover {
-  border-color: #38505a;
+  border-color: var(--focus-ring);
   color: var(--accent-soft);
 }
 
@@ -236,7 +236,7 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--t-body);
   outline: none;
   transition:
     background 140ms var(--ease),
@@ -249,7 +249,7 @@
 
 .textInput:focus {
   background: var(--bg-input);
-  border-color: #263038;
+  border-color: var(--line-strong);
 }
 
 .textInput::placeholder {
@@ -266,7 +266,7 @@
 }
 
 .toggleOn {
-  background: rgba(63, 176, 200, 0.55);
+  background: var(--accent-ring);
 }
 
 .knob {
@@ -276,7 +276,7 @@
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  background: #6b7280;
+  background: var(--muted-2);
   transition:
     transform 180ms var(--ease),
     background 160ms var(--ease);
@@ -301,7 +301,7 @@
   gap: 7px;
   min-width: 0;
   height: 22px;
-  font-size: 12px;
+  font-size: var(--t-body);
 }
 
 .linkText {
@@ -317,6 +317,6 @@
 }
 
 .linkProblem {
-  font-size: 11px;
+  font-size: var(--t-micro);
   color: var(--danger-text);
 }

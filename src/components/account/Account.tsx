@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
@@ -8,10 +7,11 @@ import { editedText } from "@/lib/leave";
 import { Button } from "@/components/ui/Button";
 import { ColorSwatches, FaceSwatches, Field, Input } from "@/components/ui/Form";
 import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
-import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
+import { Card, Note, PageHead, PageShell, Row, Section, Spacer } from "@/components/ui/Layout";
 import { Toasts, type Toast } from "@/components/ui/Toasts";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
+import type { SessionUser } from "@/components/ui/UserMenu";
+import { AppBar, AppCrumb } from "@/components/ui/AppBar";
 import styles from "./account.module.css";
 import { PersonalTokens } from "./PersonalTokens";
 
@@ -78,17 +78,13 @@ export function Account({
 
   return (
     <div className={styles.page}>
-      <div className={styles.bar}>
-        <div className={styles.mark}>U</div>
-        <Link href="/projects" className={styles.brand}>
-          Ushabti
-        </Link>
-        <span style={{ flex: 1 }} />
-        <UserMenu user={{ ...user, name, color, emoji }} />
-      </div>
+      <AppBar
+        user={{ ...user, name, color, emoji }}
+        trail={[<AppCrumb key="here">Account</AppCrumb>]}
+      />
 
-      <div className={styles.body}>
-        <h1 className={styles.h1}>Account</h1>
+      <PageShell width="narrow">
+        <PageHead title="Account" />
 
         <Card>
           <Row className={styles.stack}>
@@ -169,7 +165,7 @@ export function Account({
         <PersonalTokens notify={notify} />
 
         <span className={styles.version}>Ushabti {version}</span>
-      </div>
+      </PageShell>
 
       <Toasts toasts={toasts} />
     </div>

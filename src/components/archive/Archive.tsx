@@ -10,7 +10,7 @@ import type { ArchivedTaskDTO, BoardData, DeletedTaskDTO } from "@/lib/types";
 import { BoardProvider, useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
-import { Card, EmptyState, Row } from "@/components/ui/Layout";
+import { Card, EmptyState, PageHead, PageShell, Row } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import { Toasts } from "@/components/ui/Toasts";
 import { useNow } from "@/components/ui/useElapsed";
@@ -91,10 +91,8 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
     <div className={styles.page}>
       <ProjectBar project={data.project} here="Archived" user={user} />
 
-      <div className={styles.shell}>
-        <div className={styles.head}>
-          <h1 className={styles.h1}>Archived</h1>
-        </div>
+      <PageShell>
+        <PageHead title="Archived" />
 
         {/* Each list says its own count, on its own words. One number over two
             lists would have to name which list it counted, and a reader would
@@ -161,7 +159,7 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
             </Card>
           </div>
         )}
-      </div>
+      </PageShell>
 
       <Toasts toasts={toasts} />
     </div>

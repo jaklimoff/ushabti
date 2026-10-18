@@ -309,7 +309,7 @@ describe("A new chart", () => {
   test("names Project and Property, and a project with one select names it in place", async () => {
     serve();
     await openPicker();
-    const labels = [...picker().element().querySelectorAll("span")]
+    const labels = [...picker().element().querySelectorAll("label")]
       .map((el) => el.textContent)
       .filter((t) => t === "Project" || t === "Property");
     expect(labels).toEqual(["Project", "Property"]);

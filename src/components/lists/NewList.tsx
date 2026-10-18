@@ -12,6 +12,8 @@ import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Form";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { ListBar } from "./ListPage";
+import { AppCrumb } from "@/components/ui/AppBar";
+import { PageHead, PageShell } from "@/components/ui/Layout";
 import styles from "./lists.module.css";
 
 type Project = { id: string; key: string; name: string; color: string };
@@ -129,11 +131,9 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
 
   return (
     <div className={styles.page}>
-      <ListBar user={user} here="New list" />
-      <div className={styles.body}>
-        <div className={styles.heading}>
-          <h1 className={styles.title}>New list</h1>
-        </div>
+      <ListBar user={user} trail={[<AppCrumb key="here">New list</AppCrumb>]} />
+      <PageShell>
+        <PageHead title="New list" />
 
         <Field label="Name" note="Left empty, it is named after its projects.">
           <Input
@@ -293,7 +293,7 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
             Create list
           </Button>
         </div>
-      </div>
+      </PageShell>
     </div>
   );
 }

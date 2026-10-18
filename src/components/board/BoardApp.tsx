@@ -9,6 +9,7 @@ import type { BoardData } from "@/lib/types";
 /** What opening a task needs: which one, and the key its link carries. */
 type Openable = { id: string; key: string };
 import { ProjectSwitcher } from "@/components/ui/ProjectSwitcher";
+import { ProjectMark } from "@/components/ui/Marks";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
@@ -150,9 +151,11 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
             waiting={waitingCount(data.tasks, data.runs)}
             className={styles.switcher}
           >
-            <div className={styles.mark} data-testid="board-mark">
-              {data.project.key.slice(0, 1)}
-            </div>
+            <ProjectMark
+              projectKey={data.project.key}
+              color={data.project.color}
+              data-testid="board-mark"
+            />
             <span className={styles.crumbName} data-testid="board-crumb">
               {data.project.name}
             </span>

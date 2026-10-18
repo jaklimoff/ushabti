@@ -156,7 +156,7 @@ describe("Settings draws its controls dark", () => {
 
     /* The keyboard reaches it, and it says so. */
     await tabTo(tick);
-    await looks(tick, "outline-color", token("--focus-ring"));
+    await looks(tick, "outline-color", token("--accent"));
     await looks(tick, "outline-style", "solid");
     await userEvent.keyboard(" ");
     await expect.element(tick).not.toBeChecked();
@@ -211,7 +211,7 @@ async function expectTextButton(button: Locator) {
   await userEvent.unhover(button);
   await tabTo(button);
   await looks(button, "outline-style", "solid");
-  await looks(button, "outline-color", token("--focus-ring"));
+  await looks(button, "outline-color", token("--accent"));
 }
 
 describe("A button in Views and Types looks like a button", () => {
@@ -223,7 +223,7 @@ describe("A button in Views and Types looks like a button", () => {
 
     const label = page.getByText("Shows as", { exact: true }).first();
     expect(await textLook(label)).toMatchObject({ transform: "uppercase", mono: true });
-    await looks(label, "color", token("--faint"));
+    await looks(label, "color", token("--text-meta"));
   });
 
   test("the actions of a type are text buttons, and its groups read as headings", async () => {

@@ -48,6 +48,14 @@
   filter: brightness(1.08);
 }
 
+/* An unavailable primary reads as off, not as pressed: a dim teal looked
+   like the same button held down. */
+.primary:disabled {
+  opacity: 1;
+  background: var(--bg-hover);
+  color: var(--faint);
+}
+
 .input::file-selector-button {
   height: calc(var(--control-h) - 8px);
   margin: 3px 9px 3px -5px;
@@ -77,13 +85,13 @@
 }
 
 .danger {
-  border: 1px solid rgba(224, 87, 77, 0.35);
+  border: 1px solid var(--danger-line);
   color: var(--danger-ink);
   font-weight: 500;
 }
 
 .danger:hover:not(:disabled) {
-  background: rgba(224, 87, 77, 0.12);
+  background: var(--danger-bg);
   color: var(--danger-soft);
 }
 
@@ -98,11 +106,6 @@
 .text:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-2);
-}
-
-.text:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
 }
 
 /* A choice of one among a few, pressed in place: an option of a select. */
@@ -168,7 +171,7 @@
 }
 
 .iconBtnDanger:hover:not(:disabled) {
-  background: rgba(224, 87, 77, 0.13);
+  background: var(--danger-bg);
   color: var(--danger-soft);
 }
 
@@ -184,11 +187,31 @@
   font-size: var(--t-body);
   outline: none;
   min-width: 0;
-  transition: border-color 140ms var(--ease);
+  transition:
+    border-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
 
-.input:focus {
-  border-color: var(--focus-ring);
+/* A box with the cursor in it wears the accent and a soft glow, so it is
+   found at a glance and never by the browser's ring. */
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-glow);
+}
+
+/* A box you cannot change says so before you try. */
+.input[readonly] {
+  background: var(--bg-sub);
+  color: var(--text-4);
+  border-style: dashed;
+  cursor: default;
+}
+
+.input[readonly]:focus {
+  border-color: var(--line-menu);
+  box-shadow: none;
 }
 
 .input:disabled {
@@ -219,6 +242,10 @@
 .inputInvalid,
 .inputInvalid:focus {
   border-color: rgba(224, 87, 77, 0.55);
+}
+
+.inputInvalid:focus {
+  box-shadow: 0 0 0 3px var(--danger-bg);
 }
 
 /* Fixed widths for a box whose answer has a known length. Named, so that no
@@ -282,9 +309,8 @@
 }
 
 .selectCaret {
-  font-size: 9px;
-  line-height: 1;
-  color: #5d646f;
+  display: inline-flex;
+  color: var(--icon);
 }
 
 /* Fixed, so a card's overflow cannot cut it; `placeMenu` says where. */
@@ -299,7 +325,7 @@
   gap: 1px;
   background: var(--bg-menu);
   border: 1px solid var(--line-menu);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   box-shadow: var(--shadow-menu);
 }
 
@@ -309,8 +335,8 @@
   align-items: center;
   gap: 9px;
   padding: 5px 8px;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-body);
   color: var(--muted);
   white-space: nowrap;
   transition:
@@ -320,7 +346,7 @@
 
 /* The row Enter would pick. It reads as a hover, because it is one by key. */
 .selectItemAt {
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text);
 }
 
@@ -340,7 +366,7 @@
 }
 
 .selectTick {
-  font-size: 10px;
+  font-size: var(--t-chip);
 }
 
 /* A checkbox. The row is 24 px high so a finger finds it; the box is 14. */
@@ -397,7 +423,7 @@
 }
 
 .checkBox:focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -425,7 +451,8 @@
 
 .nameInput:focus {
   background: var(--bg-input);
-  border-color: var(--line-strong);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-glow);
 }
 
 .nameInput:disabled {
@@ -441,29 +468,63 @@
   min-width: 0;
 }
 
-.fieldRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* About as wide as the longest label settings has, COUNT PROGRESS BY, so the
+/* Label beside the control, help under the control. The label column is
+   about as wide as the longest label settings has, COUNT PROGRESS BY, so the
    boxes of one card start in one place. A label never breaks: where the font
    is wider than ours, the label grows past the column instead. */
-.fieldRow > .fieldLabel {
-  min-width: 120px;
-  flex: 0 0 auto;
-  white-space: nowrap;
+.fieldRow {
+  display: grid;
+  grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
+  column-gap: var(--s-4);
+  row-gap: 6px;
+  align-items: center;
+  min-width: 0;
 }
 
+.fieldRow > .fieldNote,
+.fieldRow > .fieldError {
+  grid-column: 2;
+}
+
+/* The label sits on the first line of the control, not halfway down a note
+   that wrapped under it. */
+.fieldRow > .fieldLabel {
+  align-self: start;
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
+}
+
+/* The control and what sits beside it: the ticks, "days, from", a date. */
+.fieldControl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* A phone has no room for a label column; the label goes on top. */
+@media (max-width: 620px) {
+  .fieldRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fieldRow > .fieldNote,
+  .fieldRow > .fieldError {
+    grid-column: 1;
+  }
+}
+
+/* The one mono caps label, the same as the global `.label`. */
 .fieldLabel {
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  white-space: nowrap;
+  color: var(--text-meta);
 }
 
 .fieldNote {
@@ -502,7 +563,7 @@
 }
 
 .note {
-  font-size: 12px;
+  font-size: var(--t-body);
   line-height: 1.55;
   color: var(--muted);
   text-wrap: pretty;
@@ -536,7 +597,7 @@
   gap: var(--s-2);
   padding: 12px 13px;
   border-top: 1px solid var(--line-soft);
-  background: #0b0c0f;
+  background: var(--bg-input);
 }
 
 .spacer {
@@ -557,12 +618,12 @@
 }
 
 .tagNeutral {
-  background: #171b20;
+  background: var(--bg-tag);
   color: var(--muted);
 }
 
 .tagAccent {
-  background: rgba(63, 176, 200, 0.14);
+  background: var(--accent-bg);
   color: var(--accent-soft);
 }
 
@@ -588,7 +649,7 @@
 
 .emptyMark {
   color: var(--faint-2);
-  font-size: 11px;
+  font-size: var(--t-micro);
 }
 
 .emptyBody {
@@ -635,7 +696,7 @@
 }
 
 .copyLoud {
-  border-color: rgba(63, 176, 200, 0.3);
+  border-color: var(--accent-line);
 }
 
 .copyText {
@@ -671,7 +732,7 @@
 
 .copyDone {
   border-color: rgba(79, 138, 91, 0.5);
-  color: #7fc08c;
+  color: var(--live);
 }
 
 /* ---- swatches ------------------------------------------------------ */
@@ -784,7 +845,7 @@
 
 .skeleton {
   border-radius: var(--r-sm);
-  background: linear-gradient(90deg, #14171b 0%, #1b1f24 50%, #14171b 100%);
+  background: linear-gradient(90deg, var(--bg-card) 0%, #1b1f24 50%, var(--bg-card) 100%);
   background-size: 200% 100%;
   animation: ushabti-shimmer 1.4s linear infinite;
 }
@@ -826,7 +887,7 @@
   place-items: center;
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--t-micro);
   margin-bottom: 2px;
 }
 
@@ -856,13 +917,14 @@
   margin-top: 4px;
 }
 
-/* ---- the bar above a project page that is not the board ------------ */
+/* ---- the app bar ---------------------------------------------------- */
 
 /*
- * Settings and the archive share it. It used to live in the settings module,
- * where the archive would have had to declare a second one.
+ * One bar for every page off the board: Home, Account, the lists, and the
+ * project pages that are not the board. The board keeps its own bar, at the
+ * same height.
  */
-.projTop {
+.appBar {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -875,20 +937,88 @@
   z-index: 20;
 }
 
-.projMark {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  border-radius: var(--r-sm);
-  background: var(--accent);
-  color: var(--accent-ink);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 10px;
+.appTrail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
+.appHome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+
+.appHome:hover {
+  color: var(--text);
+}
+
+.appBrand {
+  font-size: var(--t-ui);
+  font-weight: 600;
+}
+
+.appSep {
+  flex: none;
+  font-size: var(--t-ui);
+  color: var(--faint-2);
+}
+
+.appCrumb,
+.appHere {
+  font-size: var(--t-ui);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.appCrumb {
+  color: var(--muted);
+  border-radius: var(--r-sm);
+}
+
+.appCrumb:hover {
+  color: var(--text-2);
+}
+
+.appHere {
+  color: var(--text-4);
+}
+
+.appActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+/* A way off the page: words in sentence case, a box only under the pointer. */
+.appAction {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.appAction:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+/* The project's name in the trail, beside its mark. */
 .projCrumb {
   font-size: var(--t-ui);
   font-weight: 600;
@@ -899,26 +1029,119 @@
   white-space: nowrap;
 }
 
-.projSep {
-  font-size: var(--t-ui);
-  color: var(--faint-2);
+/* A phone has room for the trail or the name, not both. The mark is still
+   the switcher's button and still names the project. */
+@media (max-width: 560px) {
+  .projCrumb {
+    display: none;
+  }
 }
 
-.projHere {
-  font-size: var(--t-ui);
-  color: var(--text-4);
+/* ---- marks ---------------------------------------------------------- */
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.projBack {
-  font-size: var(--t-small);
-  color: var(--muted);
-  padding: 5px 10px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line-ghost);
+/* It never shrinks: a full bar would squash it, and on a phone it is the
+   only thing on the bar that names the project. */
+.projectMark {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0 3px;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.projBack:hover {
-  background: var(--bg-hover);
-  color: var(--text-2);
+/* ---- the page frame ------------------------------------------------- */
+
+/* Every page off the board starts its title at the same height, and takes
+   one of three named widths. */
+.pageShell {
+  width: 100%;
+  max-width: var(--page-w, var(--page-content));
+  margin: 0 auto;
+  padding: 34px 20px 90px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.pageNarrow {
+  --page-w: var(--page-narrow);
+}
+
+.pageContent {
+  --page-w: var(--page-content);
+}
+
+.pageWide {
+  --page-w: var(--page-wide);
+}
+
+.pageHead {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.pageTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  min-height: 28px;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--t-h1);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.pageCount {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-ui);
+  color: var(--text-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.pageActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.pageLead {
+  font-size: var(--t-body);
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+/* ---- phones --------------------------------------------------------- */
+
+/* Under 16 px iOS zooms in on a box that takes the focus, and does not zoom
+   back out. A select is a button and is left alone. */
+@media (hover: none), (max-width: 520px) {
+  .input:not(.selectButton),
+  .nameInput {
+    font-size: 16px;
+  }
 }

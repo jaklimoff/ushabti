@@ -34,6 +34,7 @@ export async function loadChangelog(
       id: projects.id,
       name: projects.name,
       key: projects.key,
+      color: projects.color,
       releaseBy: projects.releaseBy,
     })
     .from(projects)

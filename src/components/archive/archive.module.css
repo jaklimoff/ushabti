@@ -9,21 +9,6 @@
   background: var(--bg);
 }
 
-.shell {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 26px 20px 90px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-}
-
-.head {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
 /* One list, with whatever says what it is above it. The page is a column of
    these, so the gap between two lists is the gap between two sections. */
 .section {
@@ -36,12 +21,6 @@
   font-size: var(--t-body);
   font-weight: 600;
   color: var(--text);
-}
-
-.h1 {
-  font-size: var(--t-h1);
-  font-weight: 600;
-  letter-spacing: -0.015em;
 }
 
 .lead {

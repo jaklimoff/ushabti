@@ -14,6 +14,8 @@ import { Field, Input } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { ListBar } from "./ListPage";
+import { AppCrumb } from "@/components/ui/AppBar";
+import { PageHead, PageShell } from "@/components/ui/Layout";
 import styles from "./lists.module.css";
 
 type Project = { id: string; key: string; name: string };
@@ -143,15 +145,24 @@ export function ListEditor({
 
   return (
     <div className={styles.page}>
-      <ListBar user={user} />
-      <div className={styles.body}>
-        <div className={styles.heading}>
-          <h1 className={styles.title}>Edit list</h1>
-          <span className={styles.spacer} />
-          <ButtonPageLink variant="ghost" href={`/lists/${list.id}`} data-testid="list-open">
-            Open list
-          </ButtonPageLink>
-        </div>
+      <ListBar
+        user={user}
+        trail={[
+          <AppCrumb key="list" href={`/lists/${list.id}`}>
+            {saved}
+          </AppCrumb>,
+          <AppCrumb key="here">Edit</AppCrumb>,
+        ]}
+      />
+      <PageShell>
+        <PageHead
+          title="Edit list"
+          actions={
+            <ButtonPageLink variant="ghost" href={`/lists/${list.id}`} data-testid="list-open">
+              Open list
+            </ButtonPageLink>
+          }
+        />
 
         <Field label="Name">
           <Input
@@ -253,7 +264,7 @@ export function ListEditor({
             </Button>
           )}
         </div>
-      </div>
+      </PageShell>
     </div>
   );
 }

@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { AVATAR_COLORS, PROJECT_COLORS, PROJECT_INK, facePaint, initials } from "@/lib/colors";
 import { FACE_EMOJI, isOneEmoji } from "@/lib/emoji";
 import {
@@ -13,6 +22,36 @@ import {
 } from "@/lib/select-keys";
 import styles from "./ui.module.css";
 import { useDismiss } from "./useDismiss";
+import { Chevron } from "./Marks";
+
+/**
+ * What a `Field` hands the one control it labels: the id its `<label>` points
+ * at, what describes it, and whether it is wrong. The first control inside a
+ * field claims it, so a field that holds a box and a date names the box and
+ * never puts one id on two elements.
+ */
+type FieldLink = {
+  id: string;
+  describedBy?: string;
+  invalid: boolean;
+  claim: (control: string) => boolean;
+};
+
+const FieldContext = createContext<FieldLink | null>(null);
+
+/** The id, description and wrongness a control takes from the field round it. */
+function useFieldLink(own: { id?: string; invalid?: boolean; describedBy?: string }) {
+  const field = useContext(FieldContext);
+  const control = useId();
+  const named = !own.id && field ? field.claim(control) : false;
+  return {
+    id: own.id ?? (named ? field!.id : undefined),
+    describedBy:
+      [own.describedBy, named ? field!.describedBy : undefined].filter(Boolean).join(" ") ||
+      undefined,
+    invalid: Boolean(own.invalid) || (named && field!.invalid),
+  };
+}
 
 /**
  * It takes a `ref` because a password box is read from the page and not from
@@ -23,7 +62,7 @@ export function Input({
   width,
   grow = false,
   block = false,
-  invalid = false,
+  invalid: invalidOwn = false,
   className,
   ...rest
 }: Omit<React.ComponentPropsWithRef<"input">, "size" | "width"> & {
@@ -33,9 +72,17 @@ export function Input({
   block?: boolean;
   invalid?: boolean;
 }) {
+  const link = useFieldLink({
+    id: rest.id,
+    invalid: invalidOwn,
+    describedBy: rest["aria-describedby"],
+  });
+  const invalid = link.invalid;
   return (
     <input
       {...rest}
+      id={link.id}
+      aria-describedby={link.describedBy}
       aria-invalid={invalid || undefined}
       className={[
         styles.input,
@@ -56,9 +103,13 @@ export function Input({
 
 /** A box of several lines, in the same paint as `Input`. It fills its row. */
 export function TextArea({ className, ...rest }: React.ComponentPropsWithRef<"textarea">) {
+  const link = useFieldLink({ id: rest.id, describedBy: rest["aria-describedby"] });
   return (
     <textarea
       {...rest}
+      id={link.id}
+      aria-describedby={link.describedBy}
+      aria-invalid={link.invalid || undefined}
       className={[styles.input, styles.inputBlock, styles.textArea, className ?? ""]
         .filter(Boolean)
         .join(" ")}
@@ -102,6 +153,7 @@ export function Select({
   const menu = useRef<HTMLDivElement>(null);
   const typed = useRef({ word: "", at: 0 });
   const id = useId();
+  const link = useFieldLink({});
   const close = useCallback(() => setOpen(false), []);
   const wrap = useDismiss<HTMLSpanElement>(() => {
     close();
@@ -215,6 +267,8 @@ export function Select({
     >
       <button
         ref={button}
+        id={link.id}
+        aria-describedby={link.describedBy}
         type="button"
         role="combobox"
         aria-label={ariaLabel}
@@ -229,9 +283,7 @@ export function Select({
         onKeyDown={onKeyDown}
       >
         <span className={styles.selectText}>{options[current]?.label ?? ""}</span>
-        <span className={styles.selectCaret} aria-hidden="true">
-          ▾
-        </span>
+        <Chevron className={styles.selectCaret} />
       </button>
       {open && (
         <div
@@ -317,8 +369,11 @@ export function NameInput({ className, ...rest }: React.ComponentPropsWithRef<"i
 }
 
 /**
- * A label, its control, and the sentence under it. The label to control
- * relationship used to be an inline `style={{ width: 60 }}` in three places.
+ * A label, its control, and the sentence under it. The label is a real
+ * `<label>` tied to the first control inside, so a press on the words puts
+ * the cursor in the box and a screen reader hears the name. The help sits
+ * under the control, and an error takes its place and marks the control.
+ * A field of swatches or a switch has no box to name, so its words stay words.
  */
 export function Field({
   label,
@@ -333,19 +388,77 @@ export function Field({
   inline?: boolean;
   children: React.ReactNode;
 }) {
+  const id = useId();
+  const noteId = `${id}-note`;
+  /* Which control claimed the label. It is kept by the control's own id, so
+     a second render, or a second control, never moves it. */
+  const owner = useRef<string | null>(null);
+  const [named, setNamed] = useState(false);
+  useLayoutEffect(() => setNamed(owner.current !== null), []);
+  const shown = error ? error : note;
+  const link: FieldLink = {
+    id,
+    describedBy: shown ? noteId : undefined,
+    invalid: Boolean(error),
+    claim: (control) => (owner.current ??= control) === control,
+  };
   return (
-    <div className={inline ? styles.fieldRow : styles.field}>
-      <span className={styles.fieldLabel}>{label}</span>
-      {children}
-      {error ? (
-        <span className={styles.fieldError} role="alert">
-          {error}
-        </span>
-      ) : note ? (
-        <span className={styles.fieldNote}>{note}</span>
-      ) : null}
-    </div>
+    <FieldContext.Provider value={link}>
+      <div className={inline ? styles.fieldRow : styles.field}>
+        <label className={styles.fieldLabel} htmlFor={named ? id : undefined}>
+          {label}
+        </label>
+        {inline ? <div className={styles.fieldControl}>{children}</div> : children}
+        {error ? (
+          <span id={noteId} className={styles.fieldError} role="alert">
+            {error}
+          </span>
+        ) : note ? (
+          <span id={noteId} className={styles.fieldNote}>
+            {note}
+          </span>
+        ) : null}
+      </div>
+    </FieldContext.Provider>
   );
+}
+
+/**
+ * A row of swatches is one stop for Tab, as a native radio group is: the
+ * picked swatch takes the focus, and the arrows, Home and End move and pick.
+ * Forty swatches used to be forty stops between two fields.
+ */
+function walkSwatches(event: React.KeyboardEvent<HTMLElement>) {
+  const step =
+    event.key === "ArrowRight" || event.key === "ArrowDown"
+      ? 1
+      : event.key === "ArrowLeft" || event.key === "ArrowUp"
+        ? -1
+        : event.key === "Home"
+          ? "first"
+          : event.key === "End"
+            ? "last"
+            : null;
+  if (step === null) return;
+  const radios = [
+    ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]:not(:disabled)'),
+  ];
+  if (radios.length === 0) return;
+  event.preventDefault();
+  const at = radios.indexOf(document.activeElement as HTMLButtonElement);
+  const next =
+    step === "first"
+      ? 0
+      : step === "last"
+        ? radios.length - 1
+        : (Math.max(at, 0) + step + radios.length) % radios.length;
+  radios[next].focus();
+  radios[next].click();
+}
+
+/** The one swatch Tab lands on: the picked one, or the first when none is. */
+function stop(picked: boolean, first: boolean, anyPicked: boolean) {
+  return picked || (first && !anyPicked) ? 0 : -1;
 }
 
 /**
@@ -372,13 +485,18 @@ export function ColorSwatches({
 }) {
   const mark = emoji ?? plainMark(name, kind);
   return (
-    <div className={styles.swatches} role="radiogroup" aria-label={label}>
-      {AVATAR_COLORS.map((color) => (
+    <div className={styles.swatches} role="radiogroup" aria-label={label} onKeyDown={walkSwatches}>
+      {AVATAR_COLORS.map((color, i) => (
         <button
           key={color}
           type="button"
           role="radio"
           aria-checked={color === value}
+          tabIndex={stop(
+            color === value,
+            i === 0,
+            (AVATAR_COLORS as readonly string[]).includes(value),
+          )}
           aria-label={`Colour ${color}`}
           title={color}
           className={`${styles.swatch} ${emoji ? styles.swatchFace : ""} ${color === value ? styles.swatchOn : ""}`}
@@ -408,13 +526,23 @@ export function ProjectColorSwatches({
   onPick: (color: string) => void;
 }) {
   return (
-    <div className={styles.swatches} role="radiogroup" aria-label="Project colour">
-      {PROJECT_COLORS.map((color) => (
+    <div
+      className={styles.swatches}
+      role="radiogroup"
+      aria-label="Project colour"
+      onKeyDown={walkSwatches}
+    >
+      {PROJECT_COLORS.map((color, i) => (
         <button
           key={color}
           type="button"
           role="radio"
           aria-checked={color === value}
+          tabIndex={stop(
+            color === value,
+            i === 0,
+            (PROJECT_COLORS as readonly string[]).includes(value),
+          )}
           aria-label={`Colour ${color}`}
           title={color}
           disabled={disabled}
@@ -457,11 +585,17 @@ export function FaceSwatches({
   const wrong = typed.trim() !== "";
   return (
     <div className={styles.faces}>
-      <div className={styles.swatches} role="radiogroup" aria-label={label}>
+      <div
+        className={styles.swatches}
+        role="radiogroup"
+        aria-label={label}
+        onKeyDown={walkSwatches}
+      >
         <button
           type="button"
           role="radio"
           aria-checked={value === null}
+          tabIndex={value === null ? 0 : -1}
           aria-label={plain}
           title={plain}
           className={`${styles.swatch} ${value === null ? styles.swatchOn : ""}`}
@@ -476,6 +610,7 @@ export function FaceSwatches({
             type="button"
             role="radio"
             aria-checked={face === value}
+            tabIndex={face === value ? 0 : -1}
             aria-label={`Face ${face}`}
             title={face}
             className={`${styles.swatch} ${styles.swatchFace} ${face === value ? styles.swatchOn : ""}`}
@@ -487,20 +622,23 @@ export function FaceSwatches({
         ))}
       </div>
       {/* It saves on input and then empties, so it never holds words that a
-          closed tab could lose, and it needs no useSaveOnLeave. */}
-      <Input
-        className={styles.faceBox}
-        invalid={wrong}
-        placeholder="Or type any emoji"
-        aria-label="Or type any emoji"
-        value={typed}
-        onChange={(event) => {
-          const text = event.target.value;
-          if (!isOneEmoji(text.trim())) return setTyped(text);
-          setTyped("");
-          onPick(text.trim());
-        }}
-      />
+          closed tab could lose, and it needs no useSaveOnLeave. It is not
+          the field's control: the field's label names the grid. */}
+      <FieldContext.Provider value={null}>
+        <Input
+          className={styles.faceBox}
+          invalid={wrong}
+          placeholder="Or type any emoji"
+          aria-label="Or type any emoji"
+          value={typed}
+          onChange={(event) => {
+            const text = event.target.value;
+            if (!isOneEmoji(text.trim())) return setTyped(text);
+            setTyped("");
+            onPick(text.trim());
+          }}
+        />
+      </FieldContext.Provider>
       {wrong && (
         <span className={styles.fieldError} role="alert">
           One emoji only.

@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **Every page shares one top bar, one label style and a focus ring you can see.**
+  Home, Account, the lists, Settings, Archived and Changelog open under the same
+  bar, and each project wears its own colour and key. Field labels are easier to
+  read, a label puts the cursor in its box, and every control shows an accent ring
+  under the keyboard.
+
 ## 0.28.0 — 2026-10-17
 
 ### Added

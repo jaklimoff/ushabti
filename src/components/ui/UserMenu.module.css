@@ -24,7 +24,7 @@
   padding: 3px 10px 3px 4px;
   border: 1px solid var(--line-ghost);
   background: var(--bg-card);
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   transition:
     background 140ms var(--ease),
     border-color 140ms var(--ease);
@@ -32,14 +32,14 @@
 
 .button:hover {
   background: var(--bg-card-hover);
-  border-color: #2a323a;
+  border-color: var(--line-menu);
 }
 
 /* A long name used to push the whole top bar. The board crumb already
    ellipsises; this had been the one place that did not. It is the one part of
    the menu that gives way: the picture and the caret keep their width. */
 .name {
-  font-size: 12px;
+  font-size: var(--t-body);
   color: var(--text-3);
   max-width: 22vw;
   overflow: hidden;
@@ -70,9 +70,14 @@
 }
 
 .caret {
-  font-size: 9px;
-  line-height: 1;
-  color: #5d646f;
+  flex: none;
+  color: var(--icon);
+  transition: color 140ms var(--ease);
+}
+
+.button:hover .caret,
+.button[aria-expanded="true"] .caret {
+  color: var(--text);
 }
 
 .menu {
@@ -84,7 +89,7 @@
   padding: 5px;
   background: var(--bg-menu);
   border: 1px solid var(--line-menu);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   box-shadow: var(--shadow-menu);
   display: flex;
   flex-direction: column;
@@ -94,8 +99,8 @@
 
 .email {
   padding: 6px 8px 7px;
-  font-size: 11px;
-  color: var(--faint);
+  font-size: var(--t-micro);
+  color: var(--text-meta);
   border-bottom: 1px solid var(--line-soft);
   margin-bottom: 3px;
   overflow: hidden;
@@ -107,15 +112,15 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-body);
   color: var(--text-4);
   text-align: left;
   width: 100%;
 }
 
 .item:hover {
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text);
 }
 
@@ -125,4 +130,9 @@
   height: 1px;
   background: var(--line-soft);
   margin: 3px 0;
+}
+
+/* The page you are on. */
+.item[aria-current="page"] {
+  color: var(--text);
 }

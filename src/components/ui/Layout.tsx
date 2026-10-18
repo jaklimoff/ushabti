@@ -95,3 +95,57 @@ export function EmptyState({
     </div>
   );
 }
+
+const PAGE_WIDTH = {
+  narrow: styles.pageNarrow,
+  content: styles.pageContent,
+  wide: styles.pageWide,
+};
+
+/**
+ * The frame of a page off the board, under its bar. Pages used to pick their
+ * own widths and top paddings, so the title moved as you went from one to the
+ * next. A width is one of three names: `narrow` for one form, `content` for a
+ * page of rows, `wide` for a grid.
+ */
+export function PageShell({
+  width = "content",
+  className,
+  children,
+}: {
+  width?: keyof typeof PAGE_WIDTH;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <main
+      className={[styles.pageShell, PAGE_WIDTH[width], className ?? ""].filter(Boolean).join(" ")}
+    >
+      {children}
+    </main>
+  );
+}
+
+/** The title of a page, what it holds, and the one sentence that says what it is for. */
+export function PageHead({
+  title,
+  count,
+  lead,
+  actions,
+}: {
+  title: React.ReactNode;
+  count?: React.ReactNode;
+  lead?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className={styles.pageHead}>
+      <div className={styles.pageTitleRow}>
+        <h1 className={styles.pageTitle}>{title}</h1>
+        {count !== undefined && count !== null && <span className={styles.pageCount}>{count}</span>}
+        {actions && <div className={styles.pageActions}>{actions}</div>}
+      </div>
+      {lead && <div className={styles.pageLead}>{lead}</div>}
+    </div>
+  );
+}

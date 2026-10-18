@@ -436,6 +436,10 @@ and what is easy to get wrong.
   `live-markdown-parity.test.ts` holds it to marked. The editor is a lazy chunk
   that imports none of those rules: imported from there, they move into one
   more chunk the board page has to fetch.
+- **Text people read is `--text-meta` or brighter.** `--faint` and the darker
+  greys are for decoration only: a rule, a dot, an empty slot. A label in
+  `--faint` measures about 2.8:1, which is how four spellings of the field label
+  ended up in three greys.
 - **Off the board, geometry comes from `components/ui/`.** A button, an input,
   a tag and a card are declared once. They used to be declared three times
   each, at three different heights. The board keeps its own CSS on purpose.

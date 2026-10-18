@@ -31,24 +31,8 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* It never shrinks: a full bar would squash it, and below 520 px it is the
-   only thing on the bar that names the project. */
-.mark {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  border-radius: 5px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-size: 10px;
-}
-
 .crumbName {
-  font-size: 13px;
+  font-size: var(--t-ui);
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -58,12 +42,12 @@
 }
 
 .crumbSep {
-  font-size: 13px;
+  font-size: var(--t-ui);
   color: var(--faint-2);
 }
 
 .crumbView {
-  font-size: 13px;
+  font-size: var(--t-ui);
   color: var(--text-4);
 }
 
@@ -150,7 +134,7 @@
   height: 5px;
   flex: 0 0 5px;
   border-radius: 50%;
-  background: #3f4650;
+  background: var(--faint-3);
 }
 
 .iconLink {
@@ -160,12 +144,12 @@
   place-items: center;
   border-radius: 5px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--t-label);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: #5d646f;
+  color: var(--icon);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
@@ -220,7 +204,7 @@
 
 .pickCount {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -233,7 +217,7 @@
   padding: 0 7px;
   border-radius: 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -252,11 +236,11 @@
    it asks is too. The same red the confirm off the board wears. */
 .pickSet[data-danger],
 .pickCount[data-ask] {
-  color: #d2726a;
+  color: var(--danger-ink);
 }
 
 .pickSet[data-danger]:hover {
-  background: rgba(224, 87, 77, 0.12);
+  background: var(--danger-bg);
   color: var(--danger-soft);
 }
 
@@ -266,7 +250,7 @@
   display: grid;
   place-items: center;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: var(--t-chip);
   color: var(--faint);
   transition:
     background 140ms var(--ease),
@@ -365,7 +349,7 @@
   border-radius: 5px;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -424,7 +408,7 @@
 .pillLifted {
   z-index: 2;
   opacity: 0.9;
-  background: #171b20;
+  background: var(--bg-tag);
   box-shadow: 0 6px 18px #00000055;
 }
 
@@ -433,7 +417,7 @@
 }
 
 .pillActive {
-  background: #171b20;
+  background: var(--bg-tag);
   color: var(--text);
 }
 
@@ -451,7 +435,7 @@
   display: grid;
   place-items: center;
   border-radius: 5px;
-  color: #5d646f;
+  color: var(--icon);
   font-size: 14px;
   transition:
     background 140ms var(--ease),
@@ -484,7 +468,7 @@
 }
 
 .popLink {
-  font-size: 11.5px;
+  font-size: var(--t-small);
   color: var(--muted);
   padding-top: 2px;
   border-top: 1px solid var(--line-soft);
@@ -493,7 +477,7 @@
 
 .count {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--t-micro);
   color: var(--faint-2);
   white-space: nowrap;
 }
@@ -522,7 +506,7 @@
   background: transparent;
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--t-small);
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -530,7 +514,7 @@
 }
 
 .popInput:focus {
-  border-color: #38505a;
+  border-color: var(--focus-ring);
 }
 
 .chipRow {
@@ -546,7 +530,7 @@
   gap: 7px;
   padding: 0 9px;
   border-radius: 5px;
-  font-size: 11.5px;
+  font-size: var(--t-small);
   color: var(--muted);
   transition:
     background 140ms var(--ease),
@@ -558,7 +542,7 @@
 }
 
 .chipOn {
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text);
 }
 
@@ -574,7 +558,7 @@
   border-radius: 5px;
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: 11.5px;
+  font-size: var(--t-small);
   font-weight: 600;
   transition: filter 140ms var(--ease);
 }
@@ -588,7 +572,7 @@
   border-radius: 5px;
   border: 1px solid var(--line-ghost);
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--t-small);
 }
 
 .ghost:hover {
@@ -655,7 +639,7 @@
   border-radius: 5px;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -667,7 +651,7 @@
 }
 
 .columnPillOn {
-  background: #171b20;
+  background: var(--bg-tag);
   color: var(--text);
 }
 
@@ -831,7 +815,7 @@
 
 .colName {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -846,8 +830,8 @@
   border-radius: 20px;
   background: #161a1e;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  color: #6b727d;
+  font-size: var(--t-chip);
+  color: var(--text-meta);
 }
 
 /* The day a dated column aims at, or shipped on. It never wraps and never
@@ -857,13 +841,13 @@
 .colSum {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   color: #8a919c;
   white-space: nowrap;
 }
 
 .colShipped {
-  color: #7fb38a;
+  color: var(--shipped);
 }
 
 /* Brighter than a target, because it waits for somebody to press Ship. */
@@ -872,7 +856,7 @@
 }
 
 .colSum {
-  color: #6b727d;
+  color: var(--text-meta);
 }
 
 /* The bar lies on the header's own bottom line, so a dated column is no
@@ -896,7 +880,7 @@
   display: grid;
   place-items: center;
   border-radius: 5px;
-  color: #5d646f;
+  color: var(--icon);
   font-size: 14px;
   transition:
     background 140ms var(--ease),
@@ -932,7 +916,7 @@
 
 .colConfirm {
   flex: 1 1 100%;
-  font-size: 11px;
+  font-size: var(--t-micro);
   line-height: 1.45;
   color: var(--danger-text);
 }
@@ -941,7 +925,7 @@
 .colConfirmNo {
   padding: 3px 9px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: var(--t-micro);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
@@ -950,12 +934,12 @@
 /* The same red the ConfirmRow off the board wears, in the board's own CSS. */
 .colConfirmYes {
   margin-left: auto;
-  border: 1px solid rgba(224, 87, 77, 0.35);
-  color: #d2726a;
+  border: 1px solid var(--danger-line);
+  color: var(--danger-ink);
 }
 
 .colConfirmYes:hover {
-  background: rgba(224, 87, 77, 0.12);
+  background: var(--danger-bg);
   color: var(--danger-soft);
 }
 
@@ -976,7 +960,7 @@
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  font-size: 11px;
+  font-size: var(--t-micro);
   line-height: 1.45;
   color: var(--text);
   cursor: pointer;
@@ -1026,7 +1010,7 @@
 .stripName {
   writing-mode: vertical-rl;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -1059,14 +1043,14 @@
   border-radius: 6px;
   border: 1px dashed transparent;
   color: transparent;
-  font-size: 12px;
+  font-size: var(--t-body);
   transition:
     border-color 160ms var(--ease),
     color 160ms var(--ease);
 }
 
 .emptyDrop:hover {
-  border-color: #262b32;
+  border-color: var(--line-menu);
   color: var(--faint);
 }
 
@@ -1108,7 +1092,7 @@
 }
 
 .cardSelected {
-  box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.55);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
 
 /* A picked card wears a border and nothing more. The step count, the count in
@@ -1297,7 +1281,7 @@
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 11.5px;
+  font-size: var(--t-small);
   line-height: 1.5;
   color: var(--muted);
   word-break: break-word;
@@ -1340,7 +1324,7 @@
 
 .cardChipText {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   letter-spacing: 0.03em;
   color: var(--faint);
   white-space: nowrap;
@@ -1362,7 +1346,7 @@
 
 /* Words a person wrote read as words, not as data. */
 .cardChipWords {
-  font-size: 11.5px;
+  font-size: var(--t-small);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -1374,7 +1358,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: var(--t-body);
   line-height: 1.35;
   color: var(--text-3);
   text-wrap: pretty;
@@ -1427,14 +1411,14 @@
   background: transparent;
   color: var(--text);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: var(--t-body);
   line-height: 1.4;
   padding: 0;
 }
 
 .composerHint {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--t-label);
   letter-spacing: 0.05em;
   color: var(--faint-3);
 }
@@ -1456,7 +1440,7 @@
   border-radius: 8px;
   color: #5d636e;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1466,7 +1450,7 @@
 }
 
 .addColumnButton:hover {
-  border-color: #38505a;
+  border-color: var(--focus-ring);
   color: var(--accent-soft);
 }
 
@@ -1476,7 +1460,7 @@
   gap: 9px;
   padding: 10px 11px;
   background: var(--bg-column);
-  border: 1px solid #263038;
+  border: 1px solid var(--line-strong);
   border-radius: 8px;
 }
 
@@ -1487,7 +1471,7 @@
   max-width: 340px;
   text-align: center;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--t-body);
   line-height: 1.6;
 }
 
@@ -1575,7 +1559,7 @@
 .runAgent {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--t-label);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -1586,7 +1570,7 @@
   flex: 1;
   min-width: 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   color: #94b6bf;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1596,7 +1580,7 @@
 .runTime {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   color: #55747c;
 }
 
@@ -1606,7 +1590,7 @@
  * heard from it" is the same slot answering a harder question.
  */
 .runTimeStale {
-  color: #c9925a;
+  color: var(--waiting);
 }
 
 .runScan {
@@ -1772,7 +1756,7 @@ button.listHeadCell:focus-visible {
 /* The open task, wearing the ring its card wears. */
 .listRowSelected {
   background: var(--bg-card);
-  box-shadow: inset 0 0 0 1px rgba(63, 176, 200, 0.55);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
 
 /* A picked row wears the border a picked card wears, and nothing more. It
@@ -2093,7 +2077,7 @@ button.listHeadCell:focus-visible {
   border: 1px dashed var(--line-dash);
   background: rgba(13, 14, 17, 0.92);
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--t-body);
   line-height: 1.6;
   text-align: center;
   text-wrap: pretty;
@@ -2124,7 +2108,7 @@ button.listHeadCell:focus-visible {
 }
 
 .filterOn {
-  background: #171b20;
+  background: var(--bg-tag);
   color: var(--text);
 }
 
@@ -2194,10 +2178,10 @@ button.listHeadCell:focus-visible {
   height: 20px;
   padding: 0 6px;
   border-radius: 4px;
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text-3);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -2217,7 +2201,7 @@ button.listHeadCell:focus-visible {
 }
 
 .askTagFlat:hover {
-  background: #1b2126;
+  background: var(--bg-menu-hover);
   color: var(--text-3);
 }
 
@@ -2229,7 +2213,7 @@ button.listHeadCell:focus-visible {
   background: transparent;
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: var(--t-small);
   font-weight: 500;
   letter-spacing: 0.06em;
   padding: 2px 0;
@@ -2251,7 +2235,7 @@ button.listHeadCell:focus-visible {
 }
 
 .filterRowNote {
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   color: var(--faint);
   white-space: nowrap;
   overflow: hidden;
@@ -2345,7 +2329,7 @@ button.listHeadCell:focus-visible {
   align-items: center;
   height: 22px;
   border-radius: 5px;
-  background: #171b20;
+  background: var(--bg-tag);
   border: 1px solid var(--line);
   white-space: nowrap;
   transition: border-color 140ms var(--ease);
@@ -2508,7 +2492,7 @@ button.listHeadCell:focus-visible {
   background: var(--bg-hover);
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--t-micro);
   letter-spacing: 0.06em;
   transition: border-color 140ms var(--ease);
 }
@@ -2519,7 +2503,7 @@ button.listHeadCell:focus-visible {
 }
 
 .searchBox:focus {
-  border-color: #38505a;
+  border-color: var(--focus-ring);
 }
 
 /* The key that opens the box, on the box. It goes the moment there are words,
@@ -2529,7 +2513,7 @@ button.listHeadCell:focus-visible {
   right: 8px;
   pointer-events: none;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   color: var(--faint-2);
 }
 
@@ -2578,7 +2562,7 @@ button.listHeadCell:focus-visible {
 .searchKey {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   color: var(--faint-2);
 }
 
@@ -2600,14 +2584,14 @@ button.listHeadCell:focus-visible {
 .searchAway {
   flex: 0 0 auto;
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--t-chip);
   color: var(--faint);
   white-space: nowrap;
 }
 
 /* Why this is a hit, when neither the key nor the title says so. */
 .searchSnippet {
-  font-size: 10.5px;
+  font-size: var(--t-chip);
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -2634,23 +2618,23 @@ button.listHeadCell:focus-visible {
   border: 0;
   border-radius: 5px;
   background: var(--bg-hover);
-  color: #c9925a;
+  color: var(--waiting);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--t-chip);
   letter-spacing: 0.06em;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .waitButton:focus-visible {
-  outline: 1px solid #c9925a;
+  outline: 1px solid var(--waiting);
 }
 
 .waitDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #c9925a;
+  background: var(--waiting);
 }
 
 .waitPop {
@@ -2667,7 +2651,7 @@ button.listHeadCell:focus-visible {
   align-items: baseline;
   gap: 6px;
   min-width: 0;
-  font-size: 10.5px;
+  font-size: var(--t-chip);
 }
 
 .waitWho {
@@ -2687,8 +2671,8 @@ button.listHeadCell:focus-visible {
   flex: 0 0 auto;
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: #c9925a;
+  font-size: var(--t-chip);
+  color: var(--waiting);
 }
 
 @media (max-width: 900px) {
@@ -2829,7 +2813,7 @@ button.listHeadCell:focus-visible {
 }
 
 .mentionName {
-  font-size: 12px;
+  font-size: var(--t-body);
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
@@ -2840,7 +2824,7 @@ button.listHeadCell:focus-visible {
   margin-left: auto;
   padding-left: 8px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--t-label);
   letter-spacing: 0.05em;
   color: var(--faint-3);
 }
@@ -3096,7 +3080,7 @@ button.listHeadCell:focus-visible {
 }
 
 .roadmapAddBox:focus {
-  border-color: #38505a;
+  border-color: var(--focus-ring);
 }
 
 .roadmapBlank {

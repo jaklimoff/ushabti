@@ -3,7 +3,7 @@ import { getCurrentUser, requireMembership, HttpError } from "@/lib/auth";
 import { readShown } from "@/lib/changelog";
 import { loadChangelog } from "@/lib/changelog-load";
 import { ChangelogList } from "@/components/changelog/ChangelogList";
-import { EmptyState } from "@/components/ui/Layout";
+import { EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import styles from "@/components/changelog/changelog.module.css";
 
@@ -40,25 +40,26 @@ export default async function ChangelogPage({
   return (
     <div className={styles.page}>
       <ProjectBar project={log.project} here="Changelog" user={user} />
-      <div className={styles.shell}>
-        <h1 className={styles.h1}>Changelog</h1>
-        <span className={styles.lead}>
-          Every option that shipped, newest first, with its note and its tasks. A note is edited on
-          its option in Settings.
-        </span>
+      <PageShell>
+        <PageHead
+          title="Changelog"
+          lead="Every option that shipped, newest first, with its note and its tasks. A note is edited on its option in Settings."
+        />
         {log.entries.length === 0 ? (
           <EmptyState title="Nothing has shipped yet">
             A column with a target date ships from its header, and lands here.
           </EmptyState>
         ) : (
-          <ChangelogList
-            entries={log.entries}
-            older={log.older}
-            path={`/p/${log.project.id}/changelog`}
-            projectId={log.project.id}
-          />
+          <div className={styles.entries}>
+            <ChangelogList
+              entries={log.entries}
+              older={log.older}
+              path={`/p/${log.project.id}/changelog`}
+              projectId={log.project.id}
+            />
+          </div>
         )}
-      </div>
+      </PageShell>
     </div>
   );
 }
