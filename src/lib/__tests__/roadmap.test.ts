@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { daysIn, optionTasks, roadmapAxis, roadmapRows, type RoadmapTask } from "../roadmap";
+import {
+  daysIn,
+  nextStart,
+  optionTasks,
+  readyToShip,
+  roadmapAxis,
+  roadmapMonths,
+  roadmapRows,
+  roadmapState,
+  type RoadmapRow,
+  type RoadmapTask,
+} from "../roadmap";
 import type { PropertyDTO, PropertyOptionDTO } from "../types";
 
 function option(id: string, dates: Partial<PropertyOptionDTO> = {}): PropertyOptionDTO {
@@ -183,6 +194,80 @@ describe("roadmapAxis", () => {
   it("always holds today", () => {
     const axis = roadmapAxis([], "2026-10-03");
     expect(axis.weeks).toEqual(["2026-09-21", "2026-09-28", "2026-10-05"]);
+  });
+});
+
+describe("a short plan on a wide screen", () => {
+  it("is given weeks at the end, and keeps its first Monday", () => {
+    const axis = roadmapAxis([], "2026-10-03", 8);
+    expect(axis.weeks[0]).toBe("2026-09-21");
+    expect(axis.weeks).toHaveLength(8);
+  });
+
+  it("is never cut to fit", () => {
+    expect(roadmapAxis([], "2026-10-03", 1).weeks).toHaveLength(3);
+  });
+});
+
+describe("roadmapMonths", () => {
+  it("puts each month on its true first day, and says the year first and in January", () => {
+    const axis = roadmapAxis([{ start: "2026-11-20", end: "2027-01-10" }], "2026-11-20");
+    const months = roadmapMonths(axis);
+    expect(months.map((m) => [m.name, m.year, m.sayYear])).toEqual([
+      ["Nov", 2026, true],
+      ["Dec", 2026, false],
+      ["Jan", 2027, true],
+    ]);
+    expect(months[1].at).toBe(daysIn(axis, "2026-12-01"));
+    // The first month began before the axis did, so only its days on it count.
+    expect(months[0].at).toBeLessThan(0);
+    expect(months[0].days).toBe(daysIn(axis, "2026-12-01"));
+    expect(months.reduce((sum, m) => sum + m.days, 0)).toBe(axis.weeks.length * 7);
+  });
+});
+
+describe("roadmapState", () => {
+  const row = (dates: Partial<RoadmapRow>): RoadmapRow => ({
+    id: "v1",
+    name: "v1",
+    color: "#4b8fbe",
+    start: "2026-09-01",
+    end: "2026-10-20",
+    targetAt: "2026-10-20",
+    shippedAt: null,
+    done: 0,
+    total: 4,
+    share: 0,
+    archived: 0,
+    ...dates,
+  });
+
+  it("is ended once the target passed unshipped, and ready to ship", () => {
+    expect(roadmapState(row({}), "2026-10-21")).toEqual({ kind: "ended" });
+    expect(readyToShip(row({}), "2026-10-21")).toBe(true);
+  });
+
+  it("is late inside a week with work open, and not once the work is done", () => {
+    expect(roadmapState(row({}), "2026-10-17")).toEqual({ kind: "late", daysLeft: 3 });
+    expect(roadmapState(row({}), "2026-10-20")).toEqual({ kind: "late", daysLeft: 0 });
+    expect(roadmapState(row({ done: 4, share: 1 }), "2026-10-17")).toEqual({ kind: "open" });
+    expect(roadmapState(row({}), "2026-10-12")).toEqual({ kind: "open" });
+  });
+
+  it("is ready when every task is over, and never once shipped", () => {
+    expect(readyToShip(row({ done: 4, share: 1 }), "2026-10-01")).toBe(true);
+    expect(readyToShip(row({ done: 0, total: 0 }), "2026-10-01")).toBe(false);
+    const shipped = row({ shippedAt: "2026-10-19", end: "2026-10-19", share: 1 });
+    expect(roadmapState(shipped, "2026-11-01")).toEqual({ kind: "shipped" });
+    expect(readyToShip(shipped, "2026-11-01")).toBe(false);
+  });
+});
+
+describe("nextStart", () => {
+  it("starts the day after the last dated option, or today", () => {
+    const property = release([option("v1", { targetAt: "2026-09-30" }), option("v2")]);
+    expect(nextStart(property, "2026-10-17")).toBe("2026-10-01");
+    expect(nextStart(release([option("v1")]), "2026-10-17")).toBe("2026-10-17");
   });
 });
 

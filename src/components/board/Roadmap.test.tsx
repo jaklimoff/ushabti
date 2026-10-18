@@ -296,8 +296,8 @@ describe("A roadmap", () => {
       };
       return { status: 201, body: { option } };
     };
-    const nameBox = () => page.getByRole("textbox", { name: "Name of the release" });
-    const targetBox = () => page.getByLabelText("Target date of the release");
+    const nameBox = () => page.getByRole("textbox", { name: "Name of the new version" });
+    const targetBox = () => page.getByLabelText("Target date of the new version");
 
     async function addRelease(name: string, target: string) {
       await nameBox().fill(name);
@@ -305,12 +305,12 @@ describe("A roadmap", () => {
       await userEvent.keyboard("{Enter}");
     }
 
-    test("a roadmap with no release shows No release yet, and Enter makes one", async () => {
+    test("a roadmap with no release shows No version yet, and Enter makes one", async () => {
       const data = versions();
       propertyOf(data, "Version").options = [];
       const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, made);
 
-      await says(byTestId("roadmap-add"), "No release yet");
+      await says(byTestId("roadmap-add"), "No version yet");
       expect(rows().elements()).toHaveLength(0);
       const target = plus(data.today, 14);
       await addRelease("1.0", target);
@@ -321,17 +321,20 @@ describe("A roadmap", () => {
       expect(posts).toHaveLength(1);
       expect(posts[0].body).toEqual({ name: "1.0", targetAt: target });
       // The row it drew takes the place of the blank: the next one is added below.
-      await says(byTestId("roadmap-add"), "Add a release");
+      await expect.poll(() => byTestId("roadmap-add").element().textContent).not.toContain("yet");
+      await says(byTestId("roadmap-add"), "Add version");
       await expect.element(nameBox()).toHaveValue("");
     });
 
-    test("a roadmap with releases ends with Add a release, for a member too", async () => {
+    test("a roadmap with releases ends with New version, for a member too", async () => {
       const data = versions();
       data.project.role = "member";
       const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, made);
 
       await expect.poll(() => rows().elements()).toHaveLength(2);
-      await says(byTestId("roadmap-add"), "Add a release");
+      // The row is named after the property, and opens into the form.
+      await byTestId("roadmap-add").getByRole("button", { name: "New version" }).click();
+      await expect.element(nameBox()).toHaveFocus();
       // A name with no date would draw no row, so Enter asks for the date.
       await nameBox().fill("2.0");
       await userEvent.keyboard("{Enter}");

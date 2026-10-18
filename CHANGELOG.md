@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **The whole roadmap fits on one screen and says where each release stands.**
+  A day's width follows the screen, so every release shows on open; a longer
+  plan scrolls, and a chip at the edge brings an off-screen bar into view. A
+  release that passed reads "ended", one due within a week says how many days
+  are left, and Ship waits until a release is ready.
 - **Every page shares one top bar, one label style and a focus ring you can see.**
   Home, Account, the lists, Settings, Archived and Changelog open under the same
   bar, and each project wears its own colour and key. Field labels are easier to

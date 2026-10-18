@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { formatDate, sortByPosition } from "@/lib/board";
+import { isOver } from "@/lib/links";
 import { optionTasks } from "@/lib/roadmap";
 import { sortTasks } from "@/lib/sort";
 import { isTyping } from "./keys";
 import { Markdown, type TaskKeyLinks } from "./Markdown";
-import { endOf, useRoadmap } from "./RoadmapCanvas";
+import { countOf, endOf, useRoadmap } from "./RoadmapCanvas";
 import { useBoard } from "./store";
 import boardStyles from "./board.module.css";
 import styles from "./panel.module.css";
@@ -38,7 +39,7 @@ export function RoadmapPanel({
   onOpenTask: (task: Openable) => void;
 }) {
   const { data, visibleTasks, groupProperty, sort, cardItems } = useBoard();
-  const { drawn } = useRoadmap();
+  const { drawn, countBy } = useRoadmap();
   const panelRef = useRef<HTMLElement>(null);
 
   /* A filter can take the row away while the panel is open, and then the
@@ -119,7 +120,10 @@ export function RoadmapPanel({
       <div className={styles.accent} style={{ background: option.color }} />
       <div className={styles.head}>
         <div className={styles.headRow}>
-          <span className={styles.optionDates} data-testid="roadmap-panel-dates">
+          <span
+            className={`${styles.optionDates} ${boardStyles.roadmapPanelDates}`}
+            data-testid="roadmap-panel-dates"
+          >
             {formatDate(row.start)} – {endOf(row)}
           </span>
           <span style={{ flex: 1 }} />
@@ -133,6 +137,15 @@ export function RoadmapPanel({
           </button>
         </div>
         <h2 className={styles.optionName}>{option.name}</h2>
+        {/* The one number the bar stands for, where the bar is read. */}
+        <div className={boardStyles.roadmapPanelProgress} data-testid="roadmap-panel-progress">
+          <span className={boardStyles.roadmapPanelSaid}>
+            {countOf(row, (total) => (countBy ? countBy.name : total === 1 ? "task" : "tasks"))}
+          </span>
+          <span className={boardStyles.roadmapPanelLine} aria-hidden>
+            <span style={{ width: `${row.share * 100}%`, background: option.color }} />
+          </span>
+        </div>
         {option.note?.trim() && (
           <div className={styles.optionNote} data-testid="roadmap-panel-note">
             <Markdown text={option.note} links={links} />
@@ -148,6 +161,9 @@ export function RoadmapPanel({
             {/* Archived last: a ship archived them, so they are what is over. */}
             {[...tasks.live, ...tasks.archived].map((task) => {
               const archived = "archivedAt" in task && task.archivedAt !== null;
+              /* An archived task says Archived; a live one that is over says so
+                 with a tick, so the list shows which part of the bar is done. */
+              const over = !archived && "values" in task && isOver(task, data.project.doneWhen);
               return (
                 <li key={task.id}>
                   {/* The row a search hit and a waiting question are drawn
@@ -161,6 +177,13 @@ export function RoadmapPanel({
                     onClick={() => onOpenTask(task)}
                   >
                     <span className={boardStyles.searchLine}>
+                      <span className={boardStyles.roadmapPanelDone}>
+                        {over && (
+                          <span role="img" aria-label="Done">
+                            ✓
+                          </span>
+                        )}
+                      </span>
                       <span className={boardStyles.searchKey}>{task.key}</span>
                       <span className={boardStyles.searchTitle}>{task.title}</span>
                       {archived && <span className={boardStyles.searchAway}>Archived</span>}

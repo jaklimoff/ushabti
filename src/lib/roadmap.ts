@@ -126,14 +126,89 @@ export type RoadmapAxis = {
 /**
  * Weeks, from the week before the first thing on the roadmap to the week after
  * the last. Today is always on it, so the line always has somewhere to stand.
+ * A short plan is given more weeks at the end, up to `minWeeks`, so a screen
+ * wider than the plan draws its grid to the edge rather than stopping short.
  */
-export function roadmapAxis(rows: RoadmapRow[], today: string): RoadmapAxis {
-  const days = [today, ...rows.flatMap((r) => [r.start, r.end])].map(dayNumber);
+export function roadmapAxis(
+  spans: { start: string; end: string }[],
+  today: string,
+  minWeeks = 0,
+): RoadmapAxis {
+  const days = [today, ...spans.flatMap((r) => [r.start, r.end])].map(dayNumber);
   const first = monday(Math.min(...days)) - 7;
-  const last = monday(Math.max(...days)) + 7;
+  const last = Math.max(monday(Math.max(...days)) + 7, first + (minWeeks - 1) * 7);
   const weeks: string[] = [];
   for (let d = first; d <= last; d += 7) weeks.push(dayOf(d));
   return { first, weeks };
+}
+
+/* Written out, as `formatDate` writes them, so the server and the browser
+   draw the same words whatever their locale. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+export type RoadmapMonth = {
+  /** Days after the axis opens that the month begins. The first may be negative. */
+  at: number;
+  /** How many days of it the axis holds. */
+  days: number;
+  /** "Oct". */
+  name: string;
+  year: number;
+  /** The year has to be said: the first month on the axis, and every January. */
+  sayYear: boolean;
+};
+
+/**
+ * The months the axis crosses, each at its true first day. A week line is a
+ * Monday and a month rarely starts on one, so a month labelled at its first
+ * Monday puts a bar that ends on the 1st in the month before.
+ *
+ * The year is written on the first month and on every January, because an
+ * axis that runs into next year must say so.
+ */
+export function roadmapMonths(axis: RoadmapAxis): RoadmapMonth[] {
+  const end = axis.first + axis.weeks.length * 7;
+  const months: RoadmapMonth[] = [];
+  let [y, m] = dayOf(axis.first).split("-").map(Number);
+  for (;;) {
+    const start = dayNumber(`${y}-${String(m).padStart(2, "0")}-01`);
+    if (start >= end) break;
+    const next = m === 12 ? [y + 1, 1] : [y, m + 1];
+    const after = dayNumber(`${next[0]}-${String(next[1]).padStart(2, "0")}-01`);
+    months.push({
+      at: start - axis.first,
+      days: Math.min(after, end) - Math.max(start, axis.first),
+      name: MONTHS[m - 1],
+      year: y,
+      sayYear: months.length === 0 || m === 1,
+    });
+    [y, m] = next;
+  }
+  return months;
+}
+
+/**
+ * Where a row stands against today, for the words beside its bar. It decides
+ * nothing: the column header draws the same "ended" from the same dates.
+ *
+ * - `ended`: the target passed and it never shipped. It waits for Ship.
+ * - `late`: a week or less to go and work still open.
+ */
+export type RoadmapState =
+  { kind: "shipped" } | { kind: "ended" } | { kind: "late"; daysLeft: number } | { kind: "open" };
+
+export function roadmapState(row: RoadmapRow, today: string): RoadmapState {
+  if (row.shippedAt) return { kind: "shipped" };
+  const daysLeft = dayNumber(row.end) - dayNumber(today);
+  if (daysLeft < 0) return { kind: "ended" };
+  if (daysLeft <= 7 && row.share < 1) return { kind: "late", daysLeft };
+  return { kind: "open" };
+}
+
+/** A row that is ready to ship: its target passed, or every task in it is over. */
+export function readyToShip(row: RoadmapRow, today: string): boolean {
+  if (row.shippedAt) return false;
+  return roadmapState(row, today).kind === "ended" || (row.total > 0 && row.done >= row.total);
 }
 
 /* 1970-01-01 was a Thursday, so day 4 is the first Monday. */
@@ -169,4 +244,14 @@ export function optionTasks<
     live: ordered.filter((t) => t.values[propertyId] === optionId),
     archived: (under?.taskIds ?? []).flatMap((id) => byId.get(id) ?? []),
   };
+}
+
+/**
+ * Where a release added now would start: the day after the last dated
+ * option's target, as `roadmapRows` starts every option after the first, or
+ * today when nothing is dated. The add row draws it before it is made.
+ */
+export function nextStart(property: PropertyDTO, today: string): string {
+  const last = property.options.findLast((o) => o.targetAt)?.targetAt;
+  return last ? dayOf(dayNumber(last) + 1) : today;
 }

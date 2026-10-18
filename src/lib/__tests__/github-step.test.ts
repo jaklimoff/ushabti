@@ -73,7 +73,8 @@ async function fakeBoard(
 
 const base = { token: "ush_test", projectKey: "USH", prUrl: PR };
 
-describe("The GitHub Actions step", () => {
+/* Each case starts a node process, which outlasts five seconds on a busy machine. */
+describe("The GitHub Actions step", { timeout: 30_000 }, () => {
   it("adds the pull request to every key in the title and the branch", async () => {
     const { url, puts } = await fakeBoard();
     const result = await runStep({

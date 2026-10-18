@@ -3160,14 +3160,17 @@ button.listHeadCell:focus-visible .listHeadHint {
 /* ---- the roadmap ----------------------------------------------------- */
 
 /*
- * One row per dated option. The names are held at the left while the weeks
- * scroll under them, so a phone narrows the names and keeps the axis.
+ * One row per dated option. The names are held at the left while the days
+ * scroll under them, so a phone narrows the names and keeps the axis. The
+ * canvas sets --rm-track (every day) and --rm-week (one week) once it has
+ * measured the screen.
  */
 
 .roadmap {
   --rm-name: 200px;
   --rm-row-h: 40px;
-  --rm-head-h: 26px;
+  --rm-band: 20px;
+  --rm-head-h: calc(2 * var(--rm-band));
   flex: 1;
   display: flex;
   min-height: 0;
@@ -3184,6 +3187,11 @@ button.listHeadCell:focus-visible .listHeadHint {
 .roadmapGrid {
   position: relative;
   width: calc(var(--rm-name) + var(--rm-track));
+}
+
+/* Until the screen is measured the days are a guess, so they are not shown. */
+.roadmapGrid:not([data-measured]) .roadmapTrack {
+  visibility: hidden;
 }
 
 .roadmapHead,
@@ -3214,44 +3222,51 @@ button.listHeadCell:focus-visible .listHeadHint {
   width: var(--rm-name);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   min-width: 0;
   padding: 0 10px 0 14px;
   border-right: 1px solid var(--line);
 }
 
 .roadmapCorner {
+  align-items: flex-end;
+  padding-bottom: 5px;
   background: var(--bg-sub);
   font-family: var(--font-mono);
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--text-meta);
   white-space: nowrap;
   overflow: hidden;
 }
 
 .roadmapName {
   background: var(--bg);
+  transition: background 140ms var(--ease);
 }
 
+/* The dot a board column wears, so a release has one mark everywhere. */
 .roadmapSwatch {
-  flex: 0 0 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
 }
 
 .roadmapWords {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  gap: 1px;
   min-width: 0;
   line-height: 1.25;
 }
 
 .roadmapTitle {
   font-size: var(--t-body);
+  font-weight: 500;
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -3260,23 +3275,37 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 .roadmapCount {
   font-size: var(--t-micro);
-  color: var(--muted-2);
+  color: var(--text-meta);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Ship sits at the end of the name, where the release is read. */
+/* The open bar's row: the panel beside it points back here. */
+.roadmapRow:has(.roadmapBar[aria-expanded="true"]),
+.roadmapRow:has(.roadmapBar[aria-expanded="true"]) .roadmapName {
+  background: var(--bg-hover);
+}
+
+/*
+ * Ship sits at the end of the name, where the release is read. Five equal
+ * buttons said nothing about which one to press, so only a release that is
+ * ready wears one; the rest come up under the pointer.
+ */
 .roadmapShip {
   flex: 0 0 auto;
-  margin-left: auto;
-  padding: 2px 8px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-sm);
   font-size: var(--t-micro);
+  font-weight: 500;
   color: var(--muted);
   transition:
+    opacity 140ms var(--ease),
     background 140ms var(--ease),
+    border-color 140ms var(--ease),
     color 140ms var(--ease);
 }
 
@@ -3284,6 +3313,31 @@ button.listHeadCell:focus-visible .listHeadHint {
 .roadmapShip[aria-expanded="true"] {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+/* Over, or every task done: this is the one to press. */
+.roadmapShipReady {
+  border-color: var(--accent-ring);
+  color: var(--accent-soft);
+}
+
+.roadmapShipReady:hover,
+.roadmapShipReady[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent-soft);
+}
+
+@media (hover: hover) {
+  .roadmapShip:not(.roadmapShipReady) {
+    opacity: 0;
+  }
+
+  .roadmapRow:hover .roadmapShip,
+  .roadmapRow:focus-within .roadmapShip,
+  .roadmapShip[aria-expanded="true"] {
+    opacity: 1;
+  }
 }
 
 /* The question opens under its row. It is held at the left as the names
@@ -3303,37 +3357,113 @@ button.listHeadCell:focus-visible .listHeadHint {
   position: relative;
   flex: 0 0 var(--rm-track);
   width: var(--rm-track);
+  /* Clip, not hide: hidden would make each row a scroller of its own, and
+     the off-screen chips would stop holding to the edge. */
+  overflow-x: clip;
+}
+
+/* A line every week, so where a bar starts reads without the header. */
+.roadmapRow .roadmapTrack {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--line-faint) 0 1px,
+    transparent 1px var(--rm-week)
+  );
+}
+
+/* ---- the axis: months over weeks ---- */
+
+.roadmapMonth {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0 0 0 7px;
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-weight: 500;
+  line-height: var(--rm-band);
+  letter-spacing: 0.04em;
+  color: var(--text-4);
+  white-space: nowrap;
+  /* Clip, not hide, so the name inside can hold to the edge. */
+  overflow-x: clip;
+}
+
+/* A month scrolled half away still says which month it is. */
+.roadmapMonthName {
+  position: sticky;
+  left: calc(var(--rm-name) + 7px);
+}
+
+.roadmapMonthLine {
+  border-left: 1px solid var(--line-menu);
+}
+
+.roadmapWeeks {
+  position: absolute;
+  inset: var(--rm-band) 0 0 0;
 }
 
 .roadmapWeek {
   position: absolute;
   top: 0;
   bottom: 0;
-  display: flex;
-  align-items: center;
-  padding-left: 6px;
+  padding-left: 5px;
   border-left: 1px solid var(--line-faint);
   font-family: var(--font-mono);
-  font-size: var(--t-label);
-  color: var(--faint);
+  font-size: var(--t-chip);
+  line-height: var(--rm-band);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
   white-space: nowrap;
 }
 
-.roadmapWeekMonth {
-  color: var(--text-4);
-  border-left-color: var(--line);
+/* The months carry on through the rows, under the bars. */
+.roadmapMonthLines {
+  position: absolute;
+  top: var(--rm-head-h);
+  bottom: 0;
+  left: var(--rm-name);
+  width: var(--rm-track);
+  pointer-events: none;
 }
 
+.roadmapMonthLines > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--line);
+}
+
+/* ---- a bar ---- */
+
+/*
+ * The option's colour is the bar: a tinted body for the planned days and the
+ * full colour for the share that is done, so a release with nothing done yet
+ * still reads as a span of time rather than an empty outline.
+ */
 .roadmapBar {
   position: absolute;
-  top: 11px;
-  height: 18px;
+  top: 10px;
+  height: 20px;
+  min-width: 4px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid;
+  border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
   border-radius: var(--r-sm);
-  background: var(--bg-card);
-  cursor: default;
+  background: color-mix(in srgb, var(--c) 18%, var(--bg));
+  cursor: pointer;
+  transition:
+    filter 140ms var(--ease),
+    box-shadow 140ms var(--ease);
+}
+
+.roadmapBar:hover {
+  filter: brightness(1.25);
+}
+
+.roadmapBar[aria-expanded="true"] {
+  box-shadow: 0 0 0 1px var(--text-4);
 }
 
 .roadmapBar:focus-visible {
@@ -3344,32 +3474,107 @@ button.listHeadCell:focus-visible .listHeadHint {
 .roadmapFill {
   display: block;
   height: 100%;
-  opacity: 0.55;
+  background: var(--c);
+  opacity: 0.85;
+  transition: width 200ms var(--ease);
 }
 
+.roadmapBarCount {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+}
+
+/* The date the bar ends on, set as the column header sets its date. */
 .roadmapEnd {
   position: absolute;
   top: 0;
   bottom: 0;
   display: flex;
   align-items: center;
-  font-size: var(--t-micro);
-  color: var(--muted-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
   white-space: nowrap;
+  pointer-events: none;
 }
 
-/* Shipped is history: full, quieter, and below what is still open. */
-.roadmapShipped .roadmapFill {
-  opacity: 0.3;
+/* Over and not shipped: brighter than a target, because it waits for Ship. */
+.roadmapEnded .roadmapEnd {
+  color: var(--text-4);
+}
+
+/* A week or less, and work still open: a caution, not a loss. */
+.roadmapLate .roadmapEnd {
+  color: var(--warn);
+}
+
+/* Shipped is history: quieter, in the board's shipped green, and below what
+   is still open. */
+.roadmapShipped .roadmapBar {
+  opacity: 0.45;
+}
+
+.roadmapShipped .roadmapEnd {
+  color: var(--shipped);
 }
 
 .roadmapShipped .roadmapTitle {
   color: var(--muted);
 }
 
+/* A bar the screen cannot reach says where it went, and brings it back. */
+.roadmapOffLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.roadmapOffRight {
+  justify-content: flex-end;
+}
+
+.roadmapOff {
+  position: sticky;
+  left: calc(var(--rm-name) + 6px);
+  right: 6px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  background: var(--bg-hover);
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  color: var(--text-4);
+  white-space: nowrap;
+  pointer-events: auto;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.roadmapOff:hover {
+  background: var(--bg-menu-hover);
+  color: var(--text);
+}
+
+/* Today stands over the bars, below the names, and says its day in the
+   header so the line never has to be found by hovering. */
 .roadmapToday {
   position: absolute;
-  top: 0;
+  top: var(--rm-head-h);
   bottom: 0;
   left: calc(var(--rm-name) + var(--rm-x));
   z-index: 1;
@@ -3378,43 +3583,175 @@ button.listHeadCell:focus-visible .listHeadHint {
   pointer-events: none;
 }
 
+.roadmapTodayTag {
+  position: absolute;
+  bottom: 2px;
+  z-index: 1;
+  transform: translateX(-50%);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-weight: 600;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+/* ---- adding one ---- */
+
+/* The release being added, where it will land, before it is made. */
+.roadmapDraft .roadmapSwatch {
+  border: 1px dashed var(--muted-2);
+}
+
+.roadmapDraft .roadmapTitle {
+  color: var(--muted);
+}
+
+.roadmapDraftBar {
+  position: absolute;
+  top: 10px;
+  height: 20px;
+  min-width: 4px;
+  border: 1px dashed var(--focus-ring);
+  border-radius: var(--r-sm);
+  background: var(--accent-bg);
+}
+
+/* It covers the month lines and today's, which belong to the rows above. */
+.roadmapAddRow {
+  position: relative;
+  z-index: 2;
+  min-height: var(--rm-row-h);
+  display: flex;
+  background: var(--bg);
+}
+
 /* Held at the left, as the names are, so it never scrolls away with the axis. */
-.roadmapAdd {
+.roadmapAddStrip {
   position: sticky;
   left: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: max-content;
-  max-width: 100%;
-  padding: 10px 14px;
+  max-width: min(100vw, 640px);
+  padding: 8px 14px;
 }
 
-.roadmapAddSaid {
+/* The board's new column: a dashed ghost that names what it adds. */
+.roadmapAddButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: calc(var(--rm-name) - 24px);
+  height: var(--control-h);
+  padding: 0 10px;
+  border: 1px dashed var(--line-dash);
+  border-radius: var(--r-md);
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--muted);
+  transition:
+    border-color 150ms var(--ease),
+    color 150ms var(--ease);
+}
+
+.roadmapAddButton:hover {
+  border-color: var(--focus-ring);
+  color: var(--accent-soft);
+}
+
+.roadmapAddPlus {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.roadmapAddLead {
+  flex: 1 1 100%;
+  margin: 0;
   font-size: var(--t-body);
   color: var(--muted);
 }
 
+.roadmapAddButton + .roadmapAddLead {
+  flex: 0 1 auto;
+}
+
 .roadmapAddBox {
-  border: 0;
-  border-bottom: 1px solid var(--line-menu);
+  height: var(--control-h);
+  width: 180px;
+  padding: 0 9px;
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-sm);
   outline: 0;
-  padding: 3px 2px;
-  background: transparent;
+  background: var(--bg-input);
   color: var(--text);
   font: inherit;
   font-size: var(--t-body);
+  transition:
+    border-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
 
 .roadmapAddBox:focus {
-  border-color: var(--focus-ring);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-glow);
+}
+
+.roadmapAddDate {
+  width: 150px;
+  font-family: var(--font-mono);
+  font-size: var(--t-small);
 }
 
 .roadmapBlank {
   padding: 24px 14px;
   font-size: var(--t-body);
   color: var(--muted);
+}
+
+/* ---- the panel a bar opens ---- */
+
+.roadmapPanelDates {
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+}
+
+.roadmapPanelProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.roadmapPanelSaid {
+  font-size: var(--t-small);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.roadmapPanelLine {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.roadmapPanelLine > span {
+  display: block;
+  height: 100%;
+}
+
+/* A task that is over, in the list of what a release holds. */
+.roadmapPanelDone {
+  flex: 0 0 auto;
+  width: 10px;
+  font-size: var(--t-chip);
+  color: var(--live);
 }
 
 @media (max-width: 560px) {
@@ -3427,7 +3764,26 @@ button.listHeadCell:focus-visible .listHeadHint {
     padding: 0 8px 0 10px;
   }
 
-  .roadmapAdd {
-    padding: 10px;
+  .roadmapCorner {
+    padding-bottom: 5px;
+  }
+
+  /* The name column is narrow, and the count is what it is for. The board's
+     column header still offers Ship for a release that is not ready. */
+  .roadmapShip:not(.roadmapShipReady) {
+    display: none;
+  }
+
+  .roadmapAddStrip {
+    padding: 8px 10px;
+  }
+
+  .roadmapAddButton {
+    width: auto;
+  }
+
+  .roadmapAddBox,
+  .roadmapAddDate {
+    width: 100%;
   }
 }

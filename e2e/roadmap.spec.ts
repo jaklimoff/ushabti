@@ -101,6 +101,99 @@ test.describe("A roadmap", () => {
   );
 });
 
+/* A Version select whose options are dated so many days from today. */
+async function datedVersions(
+  page: Page,
+  projectId: string,
+  dates: Record<string, { start: number; target: number }>,
+) {
+  const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+    data: { name: "Version", type: "select", options: Object.keys(dates) },
+  });
+  expect(made.status()).toBe(201);
+  const { today, properties } = await boardOf(page, projectId);
+  const version = properties.find((p) => p.name === "Version")!;
+  for (const option of version.options) {
+    const { start, target } = dates[option.name];
+    const patched = await page.request.patch(`/api/options/${option.id}`, {
+      data: { startAt: plus(today, start), targetAt: plus(today, target) },
+    });
+    expect(patched.status()).toBe(200);
+  }
+}
+
+test.describe("A roadmap on a laptop", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("shows every release on open, says where each stands, and offers Ship on the ready one", async ({
+    page,
+  }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Laptop"));
+    await datedVersions(page, projectId, {
+      Old: { start: -40, target: -3 },
+      Soon: { start: -10, target: 4 },
+      Later: { start: 5, target: 60 },
+    });
+    await addRoadmap(page, projectId);
+    await page.mouse.move(0, 0);
+
+    const bars = page.getByTestId("roadmap-bar");
+    await expect(bars).toHaveCount(3);
+    for (const bar of await bars.all()) await expect(bar).toBeInViewport({ ratio: 1 });
+
+    const row = (name: string) => page.getByTestId("roadmap-row").filter({ hasText: name });
+    await expect(row("Old")).toContainText("· ended");
+    await expect(row("Soon")).toContainText("· 4 days left");
+    await expect(row("Later")).not.toContainText(/ended|left/);
+    await expect(row("Old").getByTestId("roadmap-bar")).toHaveAttribute("aria-label", /ended/);
+    await expect(row("Soon").getByTestId("roadmap-bar")).toHaveAttribute(
+      "aria-label",
+      /4 days left/,
+    );
+
+    /* Ship waits on a release that is not ready, until the row is pointed at. */
+    await expect(row("Old").getByTestId("roadmap-ship")).toHaveCSS("opacity", "1");
+    await expect(row("Soon").getByTestId("roadmap-ship")).toHaveCSS("opacity", "0");
+    await expect(row("Later").getByTestId("roadmap-ship")).toHaveCSS("opacity", "0");
+    await row("Later").hover();
+    await expect(row("Later").getByTestId("roadmap-ship")).toHaveCSS("opacity", "1");
+    await page.mouse.move(0, 0);
+    await page.screenshot({ path: testInfo.outputPath("seen-laptop-roadmap.png") });
+
+    /* The add row is named after the property, and makes a dated option. */
+    await page.getByTestId("roadmap-add").getByRole("button", { name: "New version" }).click();
+    await page.getByRole("textbox", { name: "Name of the new version" }).fill("Next");
+    const { today } = await boardOf(page, projectId);
+    await page.getByLabel("Target date of the new version").fill(plus(today, 70));
+    await page.getByLabel("Target date of the new version").press("Enter");
+    await expect(page.getByTestId("roadmap-row")).toHaveCount(4);
+    const version = (await boardOf(page, projectId)).properties.find((p) => p.name === "Version")!;
+    expect(version.options.map((o) => o.name)).toEqual(["Old", "Soon", "Later", "Next"]);
+  });
+
+  test("scrolls a plan too long to fit, and a chip at the edge brings a bar into view", async ({
+    page,
+  }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Long"));
+    await datedVersions(page, projectId, {
+      Now: { start: -10, target: 20 },
+      Far: { start: 380, target: 400 },
+    });
+    await addRoadmap(page, projectId);
+
+    const far = page.getByTestId("roadmap-row").filter({ hasText: "Far" });
+    await expect(page.getByTestId("roadmap-today")).toBeInViewport();
+    await expect(far.getByTestId("roadmap-bar")).not.toBeInViewport();
+    const chip = far.getByRole("button", { name: "Scroll to Far" });
+    await expect(chip).toHaveText(/›$/);
+    await page.screenshot({ path: testInfo.outputPath("seen-edge-chip.png") });
+    await chip.click();
+    await expect(far.getByTestId("roadmap-bar")).toBeInViewport({ ratio: 1 });
+  });
+});
+
 /*
  * A release is made where releases are seen. The walk a new project takes:
  * Use releases, the note's link to the roadmap, and the first release with
@@ -116,14 +209,14 @@ test("the first release is made on the roadmap the note links to", async ({ page
 
   await expect(page.getByTestId("roadmap-add")).toContainText("No release yet");
   const { today } = await boardOf(page, projectId);
-  await page.getByRole("textbox", { name: "Name of the release" }).fill("1.0");
-  await page.getByLabel("Target date of the release").fill(plus(today, 21));
-  await page.getByLabel("Target date of the release").press("Enter");
+  await page.getByRole("textbox", { name: "Name of the new release" }).fill("1.0");
+  await page.getByLabel("Target date of the new release").fill(plus(today, 21));
+  await page.getByLabel("Target date of the new release").press("Enter");
 
   const rows = page.getByTestId("roadmap-row");
   await expect(rows).toHaveCount(1);
   await expect(rows.first()).toContainText("1.0");
-  await expect(page.getByTestId("roadmap-add")).toContainText("Add a release");
+  await expect(page.getByTestId("roadmap-add")).toContainText("Add release");
   await page.screenshot({ path: testInfo.outputPath("seen-first-release.png") });
 
   const release = (await boardOf(page, projectId)).properties.find((p) => p.name === "Release")!;
