@@ -147,6 +147,11 @@ function callsOf(owner: Caller, projectId: string) {
         api(who).patch(`/api/options/${(await status()).options[0].id}`, {
           name: `Renamed ${Math.random().toString(36).slice(2, 7)}`,
         }),
+      /* What a roadmap bar's end writes when it is dragged. */
+      "PATCH option target": async (who) =>
+        api(who).patch(`/api/options/${(await status()).options[0].id}`, {
+          targetAt: "2027-01-15",
+        }),
       "PATCH option colour": async (who) =>
         api(who).patch(`/api/options/${(await status()).options[0].id}`, { color: "#2f9e7a" }),
       "PATCH option place": async (who) => {
@@ -201,6 +206,21 @@ describe("An agent's switches", () => {
     await passed(calls.ship["POST ship"](bot));
     const me = await ok(bot.api.get("/api/agent/me"));
     expect(me.project.off).toEqual([{ act: "delete", words: "delete tasks" }]);
+  });
+
+  it("the board an agent reads says whether it may change the structure", async () => {
+    const { owner, p, bot } = await team();
+    const read = async (who: Caller) =>
+      (
+        (await ok(api(who).get(`/api/projects/${p.id}/board`))) as {
+          project: { mayStructure: boolean };
+        }
+      ).project.mayStructure;
+    expect(await read(bot)).toBe(true);
+    await ok(setActs(owner, p.id, bot.id, only(["structure"])));
+    expect(await read(bot)).toBe(false);
+    // A person always may, so a roadmap bar drags for them.
+    expect(await read(owner)).toBe(true);
   });
 
   it("a ship asks Ship releases and Archive tasks both", async () => {

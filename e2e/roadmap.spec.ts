@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { formatDate } from "../src/lib/board";
 import { createProject, register, unique } from "./helpers";
 
 type Page = import("@playwright/test").Page;
@@ -221,4 +222,44 @@ test("the first release is made on the roadmap the note links to", async ({ page
 
   const release = (await boardOf(page, projectId)).properties.find((p) => p.name === "Release")!;
   expect(release.options.map((o) => o.name)).toEqual(["1.0"]);
+});
+
+test.describe("A roadmap bar's end", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("drags to move the target date, and the date is saved", async ({ page }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Drag end"));
+    await datedVersions(page, projectId, { Beta: { start: -10, target: 20 } });
+    const { today } = await boardOf(page, projectId);
+    await addRoadmap(page, projectId);
+
+    const beta = page.getByTestId("roadmap-row").filter({ hasText: "Beta" });
+    const bar = (await beta.getByTestId("roadmap-bar").boundingBox())!;
+    const grip = (await beta.getByTestId("roadmap-grip").boundingBox())!;
+    // Beta runs 31 days, from ten days ago to twenty days on.
+    const day = bar.width / 31;
+    const x = grip.x + grip.width / 2;
+    const y = grip.y + grip.height / 2;
+
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 4 * day, y, { steps: 12 });
+    // While it is held, the end says the day it will land on.
+    await expect(beta.getByTestId("roadmap-end")).toContainText(formatDate(plus(today, 24)));
+    await page.screenshot({ path: testInfo.outputPath("seen-held-end.png") });
+    await page.mouse.up();
+
+    await expect
+      .poll(async () => {
+        const { properties } = await boardOf(page, projectId);
+        return properties.find((p) => p.name === "Version")!.options[0];
+      })
+      .toMatchObject({ targetAt: plus(today, 24) });
+
+    await page.reload();
+    await expect(
+      page.getByTestId("roadmap-row").filter({ hasText: "Beta" }).getByTestId("roadmap-end"),
+    ).toContainText(formatDate(plus(today, 24)));
+  });
 });

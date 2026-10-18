@@ -12,6 +12,17 @@ type Point = { x: number; y: number };
 
 /** Presses at `from`, walks to `to` in small steps and lets go there. */
 const drag: BrowserCommand<[from: Point, to: Point]> = async (context, from, to) => {
+  await hold(context, from, to);
+  const { page } = context as unknown as { page: import("playwright").Page };
+  await page.mouse.up();
+};
+
+/**
+ * Presses at `from` and walks to `to`, as `drag` does, and keeps the button
+ * down, so a test can read what a held drag shows and press a key in it.
+ * `letGo` ends it.
+ */
+const hold: BrowserCommand<[from: Point, to: Point]> = async (context, from, to) => {
   if (context.provider.name !== "playwright") throw new Error("drag needs Playwright.");
   const { page, frame } = context as unknown as {
     page: import("playwright").Page;
@@ -35,6 +46,11 @@ const drag: BrowserCommand<[from: Point, to: Point]> = async (context, from, to)
     if (i % 5 === 0) await page.waitForTimeout(24);
   }
   await page.waitForTimeout(140);
+};
+
+/** Lets go of the button `hold` kept down, where the mouse is. */
+const letGo: BrowserCommand<[]> = async (context) => {
+  const { page } = context as unknown as { page: import("playwright").Page };
   await page.mouse.up();
 };
 
@@ -45,11 +61,13 @@ const reduceMotion: BrowserCommand<[on: boolean]> = async (context, on) => {
   await page.emulateMedia({ reducedMotion: on ? "reduce" : "no-preference" });
 };
 
-export const commands = { drag, reduceMotion };
+export const commands = { drag, hold, letGo, reduceMotion };
 
 declare module "vitest/browser" {
   interface BrowserCommands {
     drag: (from: Point, to: Point) => Promise<void>;
+    hold: (from: Point, to: Point) => Promise<void>;
+    letGo: () => Promise<void>;
     reduceMotion: (on: boolean) => Promise<void>;
   }
 }

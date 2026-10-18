@@ -211,6 +211,18 @@ export function readyToShip(row: RoadmapRow, today: string): boolean {
   return roadmapState(row, today).kind === "ended" || (row.total > 0 && row.done >= row.total);
 }
 
+/**
+ * The target a bar's end moved so many days to. It stops at the bar's first
+ * day, because a target before the start is what the option PATCH refuses.
+ */
+export function movedTarget(row: RoadmapRow, by: number): string {
+  const target = dayNumber(row.targetAt);
+  const start = dayNumber(row.start);
+  /* A start worked out past the target is no start of the option's own, so
+     the PATCH refuses nothing and the end is not pushed to it. */
+  return dayOf(target < start ? target + by : Math.max(target + by, start));
+}
+
 /* 1970-01-01 was a Thursday, so day 4 is the first Monday. */
 function monday(day: number): number {
   return day - ((((day - 4) % 7) + 7) % 7);

@@ -793,6 +793,12 @@ export type ProjectDTO = {
    * on every read a run makes.
    */
   agentRules: string | null;
+  /**
+   * Whether the reader may change the board's structure, as the option PATCH
+   * answers it. False only for an agent whose admin switched Change structure
+   * off; a person always may. A roadmap bar drags its end only when true.
+   */
+  mayStructure: boolean;
 };
 
 /** An email the owner added before it had an account. */

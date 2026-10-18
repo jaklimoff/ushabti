@@ -10,11 +10,14 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
+  type PointerEvent,
 } from "react";
 import { formatDate } from "@/lib/board";
 import { allowedColumns } from "@/lib/filters";
 import {
+  dayNumber,
   daysIn,
+  movedTarget,
   nextStart,
   readyToShip,
   roadmapAxis,
@@ -94,6 +97,11 @@ export function useRoadmap() {
   return { rows, drawn, countBy };
 }
 
+/* The days a move really takes the target, once the start has stopped it. */
+function heldBy(row: RoadmapRow, by: number): number {
+  return dayNumber(movedTarget(row, by)) - dayNumber(row.targetAt);
+}
+
 /** The last day of a bar, in words: the day it shipped, or its target. */
 export function endOf(row: RoadmapRow): string {
   return row.shippedAt ? `Shipped ${formatDate(row.shippedAt)}` : formatDate(row.end);
@@ -165,9 +173,12 @@ export function focusBar(optionId: string) {
  * The roadmap.
  *
  * One row per option of a select that has a target date, and one bar on a
- * line of days. Nothing here drags, and the dates are edited in Settings,
- * where the option lives. A bar is a button: pressing it opens the option's
- * tasks in the panel, which the board shell draws beside the view.
+ * line of days. A bar is a button: pressing it opens the option's tasks in
+ * the panel, which the board shell draws beside the view. Its right end
+ * drags to move the target, by whole days, and the arrow keys do the same
+ * from a focused bar. Letting go writes through the option PATCH Settings
+ * uses, so the roadmap decides nothing of its own; the start stays in
+ * Settings.
  */
 export function RoadmapCanvas({
   openOptionId,
@@ -176,8 +187,14 @@ export function RoadmapCanvas({
   openOptionId: string | null;
   onOpenOption: (optionId: string) => void;
 }) {
-  const { data, view, groupProperty } = useBoard();
+  const { data, view, groupProperty, patchOption } = useBoard();
   const { rows, drawn, countBy } = useRoadmap();
+  /* The end being moved and by how many days, before it is written. The ref
+     is the truth a pointer reads between renders. */
+  const [moving, setMoving] = useState<{ id: string; by: number; keys: boolean } | null>(null);
+  const drag = useRef<{ id: string; x: number; by: number } | null>(null);
+  /* A write is one press: until its answer comes, no end moves again. */
+  const writing = useRef(false);
   const offerShip = useShipOffer();
   /* One row asks at a time, and a ship is one press: while it is out, the
      button stays away. */
@@ -251,6 +268,21 @@ export function RoadmapCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view?.id, measured]);
 
+  /* Escape puts a dragged end back, wherever the pointer is. */
+  const pointerDrag = !!moving && !moving.keys;
+  useEffect(() => {
+    if (!pointerDrag) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      drag.current = null;
+      setMoving(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [pointerDrag]);
+
   const settings = `/p/${data.project.id}/settings/properties`;
   if (!groupProperty || !drawable) {
     return (
@@ -278,6 +310,65 @@ export function RoadmapCanvas({
 
   const today = at(data.today) + day / 2;
   const monthLabels = labelMonths(months, day);
+
+  /* Only somebody the option PATCH would answer may drag, and a shipped
+     release keeps the day it shipped. */
+  const movable = (row: RoadmapRow) => data.project.mayStructure && !row.shippedAt;
+
+  async function write(row: RoadmapRow, by: number) {
+    drag.current = null;
+    setMoving(null);
+    if (by === 0 || writing.current) return;
+    const targetAt = movedTarget(row, by);
+    if (targetAt === row.targetAt) return;
+    writing.current = true;
+    try {
+      await patchOption(row.id, { targetAt });
+    } finally {
+      writing.current = false;
+    }
+  }
+
+  function grab(e: PointerEvent<HTMLElement>, row: RoadmapRow) {
+    if (e.button !== 0 || writing.current) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { id: row.id, x: e.clientX, by: 0 };
+    setMoving({ id: row.id, by: 0, keys: false });
+  }
+
+  function pull(e: PointerEvent<HTMLElement>, row: RoadmapRow) {
+    const held = drag.current;
+    if (!held || held.id !== row.id) return;
+    const by = Math.round((e.clientX - held.x) / day);
+    /* Past the start the date stops, so the count stops with it. */
+    const kept = heldBy(row, by);
+    if (kept === held.by) return;
+    held.by = kept;
+    setMoving({ id: row.id, by: kept, keys: false });
+  }
+
+  function onBarKey(e: KeyboardEvent<HTMLButtonElement>, row: RoadmapRow) {
+    if (!movable(row)) return;
+    const held = moving?.id === row.id && moving.keys ? moving.by : null;
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      if (writing.current) return;
+      const step = (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 7 : 1);
+      setMoving({ id: row.id, by: heldBy(row, (held ?? 0) + step), keys: true });
+      return;
+    }
+    if (held === null) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void write(row, held);
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setMoving(null);
+    }
+  }
 
   return (
     <div className={styles.roadmap} data-testid="roadmap-view">
@@ -330,7 +421,16 @@ export function RoadmapCanvas({
               ))}
           </div>
 
-          {drawn.map((row) => {
+          {drawn.map((drawnRow) => {
+            /* A moved end is drawn where it will land: the bar, its date and
+               its words all read the day it is held at. */
+            const held = moving?.id === drawnRow.id ? moving : null;
+            const row = held
+              ? (() => {
+                  const end = movedTarget(drawnRow, held.by);
+                  return { ...drawnRow, end, targetAt: end };
+                })()
+              : drawnRow;
             const said = countOf(row, unit);
             const left = at(row.start);
             const width = at(row.end) - left + day;
@@ -400,7 +500,13 @@ export function RoadmapCanvas({
                       aria-expanded={openOptionId === row.id}
                       data-testid="roadmap-bar"
                       data-option={row.id}
+                      aria-keyshortcuts={movable(row) ? "ArrowLeft ArrowRight" : undefined}
                       onClick={() => onOpenOption(row.id)}
+                      onKeyDown={(e) => onBarKey(e, drawnRow)}
+                      onBlur={() => {
+                        /* Leaving the bar keeps the date, as a field saves on blur. */
+                        if (held?.keys) void write(drawnRow, held.by);
+                      }}
                     >
                       <span
                         className={styles.roadmapFill}
@@ -412,10 +518,32 @@ export function RoadmapCanvas({
                         </span>
                       )}
                     </button>
+                    {movable(row) && (
+                      <span
+                        className={styles.roadmapGrip}
+                        style={{ left: left + width - 5 }}
+                        title="Drag to move the target date"
+                        aria-hidden
+                        data-testid="roadmap-grip"
+                        data-held={held ? "" : undefined}
+                        onPointerDown={(e) => grab(e, drawnRow)}
+                        onPointerMove={(e) => pull(e, drawnRow)}
+                        onPointerUp={() => {
+                          if (drag.current?.id === drawnRow.id)
+                            void write(drawnRow, drag.current.by);
+                        }}
+                        onPointerCancel={() => {
+                          drag.current = null;
+                          setMoving(null);
+                        }}
+                      />
+                    )}
                     {/* Off screen, the chip at the edge carries the date instead. */}
                     {!off && (
                       <span
-                        className={styles.roadmapEnd}
+                        data-testid="roadmap-end"
+                        data-held={held ? "" : undefined}
+                        className={`${styles.roadmapEnd} ${held ? styles.roadmapEndHeld : ""}`}
                         style={before ? { right: track - left + 6 } : { left: left + width + 6 }}
                       >
                         {end}

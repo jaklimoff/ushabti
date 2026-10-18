@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A roadmap bar's end drags to move its target date.** Grab the right end of
+  a release that has not shipped and move it by whole days; the date shows
+  while you drag, and letting go saves it. Escape puts it back. From a focused
+  bar the arrow keys do the same, Shift for a week, and Enter saves. An agent
+  with Change structure off sees a bar that does not drag.
+
 ## 0.29.0 — 2026-10-18
 
 ### Changed

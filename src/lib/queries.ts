@@ -24,6 +24,7 @@ import {
   views,
 } from "@/db/schema";
 import { readId } from "./api";
+import { agentMay, type AgentActs } from "./roles";
 import { listReady, removeObjects, toAttachmentDTO } from "./attachment-rows";
 import { attachmentsOn } from "./attachments";
 import { HttpError } from "./auth";
@@ -936,8 +937,9 @@ export function loadBoard(
   projectId: string,
   role: string,
   viewerId: string | null = null,
+  agentActs: AgentActs | null = null,
 ): Promise<BoardData> {
-  return loadProject(projectId, role, viewerId, false);
+  return loadProject(projectId, role, viewerId, false, agentActs);
 }
 
 /**
@@ -959,6 +961,8 @@ async function loadProject(
   role: string,
   viewerId: string | null,
   preview: boolean,
+  /* An agent's switches, or null for a person, who always passes. */
+  agentActs: AgentActs | null = null,
 ): Promise<BoardData> {
   /* The sender runs on the read path as the lease does, and for the same
      reason: a board is read far more often than any schedule would fire, and
@@ -1188,6 +1192,7 @@ async function loadProject(
       timeZone,
       publicChangelog: projectRow.publicChangelog,
       agentRules: viewerId ? projectRow.agentRules : null,
+      mayStructure: agentActs ? agentMay(agentActs, "structure") : true,
     },
     /* The one clock this board reads. Every relative date rule on every view
        is measured against it, on the server now and in the browser after it

@@ -90,6 +90,7 @@ export function newProject(): BoardData {
       timeZone: "UTC",
       publicChangelog: false,
       agentRules: null,
+      mayStructure: true,
     },
     today: "2026-10-08",
     members: [{ ...ME, role: "owner", kind: "human", listeningAt: null }],

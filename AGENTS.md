@@ -80,7 +80,14 @@ and what is easy to get wrong.
   takes rows away through `allowedColumns`, exactly as it takes columns. An
   archived task carries no values on the board, so the board sends what a
   roadmap needs of them in `archivedUnder`: the oldest day and the count per
-  dated option. Nothing on a roadmap drags; the dates are edited in Settings.
+  dated option. One thing on a roadmap drags: the right end of a bar that has
+  not shipped, which moves its target by whole days, and the arrow keys do
+  the same from a focused bar, with Enter to write and Escape to put it back.
+  It writes `targetAt` through the option PATCH Settings uses, so the roadmap
+  decides nothing new, and only for somebody that PATCH answers: the board
+  carries `project.mayStructure`, false for an agent with **Change
+  structure** off. A bar's start, a whole bar and a row's place do not drag;
+  those stay in Settings.
 - **An iteration is a select whose options always carry dates.** It shares
   everything with a dated select: the option ids, the columns, the header date,
   Ship, "is current", the roadmap, the changelog and the option drag. So a

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "vitest";
-import { page, userEvent, type Locator } from "vitest/browser";
+import { commands, page, userEvent, type Locator } from "vitest/browser";
+import { formatDate } from "@/lib/board";
 import type { BoardData, PropertyDTO } from "@/lib/types";
 import { shipQuestion, straysQuestion } from "@/lib/ship";
 import {
@@ -540,6 +541,104 @@ describe("A roadmap", () => {
       await expect.element(close).toBeVisible();
       await expect.element(close).not.toHaveTextContent("in no release");
       await gone(close.getByRole("checkbox"));
+    });
+  });
+
+  describe("a bar's end drags its target", () => {
+    const beta = () => rows().filter({ hasText: "Beta" });
+    const patches = (sent: (method?: string, path?: RegExp) => { body: unknown }[]) =>
+      sent("PATCH", /^\/api\/options\//).map((s) => s.body);
+
+    /* The grip's middle, and the point so many days to its right. */
+    function grip(days: number) {
+      const bar = beta().getByTestId("roadmap-bar").element().getBoundingClientRect();
+      const box = beta().getByTestId("roadmap-grip").element().getBoundingClientRect();
+      // Beta runs from ten days ago to twenty days on: 31 days.
+      const day = bar.width / 31;
+      const from = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      return { from, to: { x: from.x + days * day, y: from.y } };
+    }
+
+    test("dragging a bar's end moves the target date and saves it", async () => {
+      const data = versions();
+      const target = versionOf(data, "Beta").targetAt!;
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+      await expect.poll(() => rows().elements()).toHaveLength(2);
+
+      // While it is held, the end reads the day it will land on.
+      const { from, to } = grip(3);
+      await commands.hold(from, to);
+      await says(beta().getByTestId("roadmap-end"), formatDate(plus(target, 3)));
+      expect(patches(sent)).toEqual([]);
+
+      await commands.letGo();
+      await expect.poll(() => patches(sent)).toEqual([{ targetAt: plus(target, 3) }]);
+      expect(sent("PATCH")[0].path).toBe(`/api/options/${versionOf(data, "Beta").id}`);
+      await says(beta().getByTestId("roadmap-end"), formatDate(plus(target, 3)));
+      // Letting go of the grip opens nothing.
+      await gone(panel());
+      // A shipped release keeps the day it shipped.
+      await gone(rows().filter({ hasText: "Alpha" }).getByTestId("roadmap-grip"));
+    });
+
+    test("escape during a drag writes nothing", async () => {
+      const data = versions();
+      const target = versionOf(data, "Beta").targetAt!;
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+      await expect.poll(() => rows().elements()).toHaveLength(2);
+
+      const { from, to } = grip(5);
+      await commands.hold(from, to);
+      await says(beta().getByTestId("roadmap-end"), formatDate(plus(target, 5)));
+      await userEvent.keyboard("{Escape}");
+      await says(beta().getByTestId("roadmap-end"), formatDate(target));
+      await commands.letGo();
+
+      await new Promise((done) => setTimeout(done, 200));
+      expect(patches(sent)).toEqual([]);
+      await says(beta().getByTestId("roadmap-end"), formatDate(target));
+    });
+
+    test("the keyboard moves the date from a focused bar", async () => {
+      const data = versions();
+      const target = versionOf(data, "Beta").targetAt!;
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+      await expect.poll(() => rows().elements()).toHaveLength(2);
+      const bar = beta().getByTestId("roadmap-bar");
+
+      // A day for an arrow, a week with Shift, and Escape puts it back.
+      (bar.element() as HTMLElement).focus();
+      await userEvent.keyboard("{ArrowRight}{ArrowRight}");
+      await says(beta().getByTestId("roadmap-end"), formatDate(plus(target, 2)));
+      await userEvent.keyboard("{Escape}");
+      await says(beta().getByTestId("roadmap-end"), formatDate(target));
+      expect(patches(sent)).toEqual([]);
+
+      await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}{ArrowRight}");
+      await says(beta().getByTestId("roadmap-end"), formatDate(plus(target, -6)));
+      // Enter writes it, and opens nothing.
+      await userEvent.keyboard("{Enter}");
+      await expect.poll(() => patches(sent)).toEqual([{ targetAt: plus(target, -6) }]);
+      await expect.element(bar).toHaveAttribute("aria-expanded", "false");
+      await expect.element(bar).toHaveFocus();
+
+      // The date stops at the start, which the PATCH would refuse to pass.
+      for (let i = 0; i < 5; i += 1) await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+      await says(beta().getByTestId("roadmap-end"), formatDate(plus(data.today, -10)));
+    });
+
+    test("an agent with change structure off cannot drag a bar", async () => {
+      const data = versions();
+      data.project.mayStructure = false;
+      const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+      await expect.poll(() => rows().elements()).toHaveLength(2);
+
+      await expect.poll(() => byTestId("roadmap-grip").elements()).toHaveLength(0);
+      const target = versionOf(data, "Beta").targetAt!;
+      (beta().getByTestId("roadmap-bar").element() as HTMLElement).focus();
+      await userEvent.keyboard("{ArrowRight}{Enter}");
+      await says(beta().getByTestId("roadmap-end"), formatDate(target));
+      expect(patches(sent)).toEqual([]);
     });
   });
 });

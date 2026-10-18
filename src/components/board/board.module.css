@@ -3513,6 +3513,44 @@ button.listHeadCell:focus-visible .listHeadHint {
   pointer-events: none;
 }
 
+/* The date a held end will land on reads as the thing being moved. */
+.roadmapEndHeld {
+  color: var(--text);
+}
+
+/*
+ * The grip on a bar's right end. It sits over the bar's last pixels and a
+ * little past them, so a narrow bar can still be grabbed, and shows itself
+ * only under the pointer or while it is held.
+ */
+.roadmapGrip {
+  position: absolute;
+  top: 8px;
+  width: 10px;
+  height: 24px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 1;
+}
+
+.roadmapGrip::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--text);
+  opacity: 0;
+  transition: opacity 140ms var(--ease);
+}
+
+.roadmapGrip:hover::after,
+.roadmapGrip[data-held]::after {
+  opacity: 0.8;
+}
+
 /* Over and not shipped: brighter than a target, because it waits for Ship. */
 .roadmapEnded .roadmapEnd {
   color: var(--text-4);

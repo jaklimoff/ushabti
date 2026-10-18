@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   daysIn,
+  movedTarget,
   nextStart,
   optionTasks,
   readyToShip,
@@ -260,6 +261,39 @@ describe("roadmapState", () => {
     const shipped = row({ shippedAt: "2026-10-19", end: "2026-10-19", share: 1 });
     expect(roadmapState(shipped, "2026-11-01")).toEqual({ kind: "shipped" });
     expect(readyToShip(shipped, "2026-11-01")).toBe(false);
+  });
+});
+
+describe("movedTarget", () => {
+  const row = (dates: Partial<RoadmapRow>): RoadmapRow => ({
+    id: "v1",
+    name: "v1",
+    color: "#4b8fbe",
+    start: "2026-10-01",
+    end: "2026-10-20",
+    targetAt: "2026-10-20",
+    shippedAt: null,
+    done: 0,
+    total: 0,
+    share: 0,
+    archived: 0,
+    ...dates,
+  });
+
+  it("moves the target by whole days, across a month", () => {
+    expect(movedTarget(row({}), 3)).toBe("2026-10-23");
+    expect(movedTarget(row({}), 12)).toBe("2026-11-01");
+    expect(movedTarget(row({}), -5)).toBe("2026-10-15");
+  });
+
+  it("stops at the bar's first day, which the PATCH refuses to pass", () => {
+    expect(movedTarget(row({}), -40)).toBe("2026-10-01");
+  });
+
+  it("never pushes to its start a target already before a start worked out past it", () => {
+    const late = row({ start: "2026-10-25" });
+    expect(movedTarget(late, -1)).toBe("2026-10-19");
+    expect(movedTarget(late, 2)).toBe("2026-10-22");
   });
 });
 

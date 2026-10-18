@@ -86,7 +86,8 @@ export function RoadmapPanel({
   useEffect(() => {
     if (!shown) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !isTyping(event.target)) onClose();
+      /* An Escape that put a dragged bar back has been answered. */
+      if (event.key === "Escape" && !event.defaultPrevented && !isTyping(event.target)) onClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
