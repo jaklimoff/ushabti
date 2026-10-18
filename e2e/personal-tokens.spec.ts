@@ -21,7 +21,7 @@ test.describe("Personal tokens", () => {
     expect(secret).toMatch(/^ushp_/);
     const row = page.getByTestId("personal-token-row").filter({ hasText: "Laptop script" });
     await expect(row).toContainText(secret.slice(0, 13));
-    await expect(row).toContainText(/made \d+ \w+ \d{4}/);
+    await expect(row).toContainText("made today");
     await expect(row).toContainText(/expires \d+ \w+ \d{4}/);
     await expect(row).toContainText("never used");
 
@@ -44,7 +44,7 @@ test.describe("Personal tokens", () => {
     // Shown once: the page read again lists the token and not the secret.
     await page.reload();
     await expect(page.getByTestId("personal-secret")).toHaveCount(0);
-    await expect(row).toContainText(/last used \d+ \w+ \d{4}/);
+    await expect(row).toContainText("last used today");
     await page.screenshot({
       path: testInfo.outputPath("seen-personal-tokens.png"),
       fullPage: true,

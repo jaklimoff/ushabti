@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { AuthCard, AuthForm } from "@/components/auth/AuthForm";
 import { signupIsOpen } from "@/lib/auth";
@@ -14,7 +15,8 @@ export const metadata: Metadata = { title: "Join a project · Ushabti" };
 /**
  * The page an invite link opens. The link is checked before a field is drawn,
  * as a reset link is, and a dead one gets one sentence and no form: it reads
- * the same whether the invite is old, spent, withdrawn or was never real.
+ * the same whether the invite is old, spent, withdrawn or was never real. The
+ * way back to sign in is the same for every token, so it reveals nothing.
  *
  * A dead link counts against the sign-up key the route uses, so this page is
  * no free oracle for walking tokens.
@@ -42,7 +44,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
 function Dead() {
   return (
-    <AuthCard>
+    <AuthCard title="Invite no longer works" below={<Link href="/login">Back to sign in</Link>}>
       <p className={styles.tagline} data-testid="invite-dead">
         {INVITE_IS_DEAD}
       </p>

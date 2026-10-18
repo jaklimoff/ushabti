@@ -425,6 +425,17 @@ and what is easy to get wrong.
   task and for a whole selection, so it holds no address of its own, and
   handing it one for the sake of a leave would put a decision back in a control
   that decides nothing.
+- **A form that makes a thing or proves who you are has a button.** It is the
+  stated exception to save on blur. Signing in, registering, a reset, a new
+  password, a new token and an invite are acts with an answer, not a field
+  that holds a value, so nothing is sent until somebody presses the button.
+  Such a form checks itself on submit: a box that is empty or short says so
+  under itself, turns red and takes the focus, and the server's answer lands
+  on the box it is about.
+- **A toast is for what failed; a save that worked shows itself.** The field
+  holds the new value and the preview follows it, which is the answer. A toast
+  on every success teaches people to stop reading toasts, and then the one that
+  says a save failed goes unread.
 - **The box is Markdown, and shows it rendered.** The description is a
   CodeMirror editor that draws every line but the cursor's as the page would,
   and it never stores another format: the agents read and write Markdown, and

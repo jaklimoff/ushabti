@@ -77,10 +77,10 @@ function forgotOn() {
         const back = await again.newPage();
         await back.goto("/login");
         await back.getByPlaceholder("you@example.com").fill(ada.email);
-        await back.getByPlaceholder("Your password").fill(ada.password);
+        await back.getByLabel("Your password").fill(ada.password);
         await back.getByRole("button", { name: "Sign in" }).click();
         await expect(back.getByText("Wrong email or password.")).toBeVisible();
-        await back.getByPlaceholder("Your password").fill("a-forgotten-secret");
+        await back.getByLabel("Your password").fill("a-forgotten-secret");
         await back.getByRole("button", { name: "Sign in" }).click();
         await back.waitForURL("**/projects");
         await again.close();
@@ -98,12 +98,10 @@ function forgotOn() {
 
 function forgotOff() {
   test.describe("Forgot password, without mail", () => {
-    test("the sign-in page has no link, and /forgot says to ask an admin", async ({ page }) => {
+    test("the sign-in link leads to /forgot, which says to ask an admin", async ({ page }) => {
       await page.goto("/login");
-      await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Forgot password?" })).toHaveCount(0);
-
-      await page.goto("/forgot");
+      await page.getByRole("link", { name: "Forgot password?" }).click();
+      await page.waitForURL("**/forgot");
       await expect(
         page.getByText(
           "This board cannot email you a link. Ask an admin of your project to make you one.",
@@ -112,7 +110,9 @@ function forgotOff() {
       await expect(page.getByLabel("Your email")).toHaveCount(0);
 
       await page.goto("/register");
-      await expect(page.getByText(/the owner of a project you are in has to make/)).toBeVisible();
+      await expect(
+        page.getByText(/an admin of your project can make you a reset link/),
+      ).toBeVisible();
     });
   });
 }

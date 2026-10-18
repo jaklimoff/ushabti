@@ -68,7 +68,7 @@ describe("forgotMail", () => {
 });
 
 describe("deadLinkSaid", () => {
-  it("points at the owner while the flow is off, and at Forgot password? while it is on", () => {
+  it("points at an admin while the flow is off, and at Forgot password? while it is on", () => {
     expect(deadLinkSaid(false)).toBe(LINK_IS_DEAD);
     expect(deadLinkSaid(true)).toContain("Forgot password?");
     expect(deadLinkSaid(true)).not.toContain("owner");

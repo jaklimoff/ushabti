@@ -182,10 +182,11 @@ function mailOn() {
         const saved = page.waitForResponse(
           (res) => res.url().endsWith("/api/auth/me") && res.request().method() === "PATCH",
         );
-        await page.getByRole("button", { name: "Turn off these emails" }).click();
+        const box = page.getByRole("checkbox", { name: /Email me when an agent asks me/ });
+        await box.uncheck();
         expect((await saved).status()).toBe(200);
         await page.reload();
-        await expect(page.getByRole("button", { name: "Turn on these emails" })).toBeVisible();
+        await expect(box).not.toBeChecked();
 
         // The ask is still taken once; it simply goes to nobody.
         await askedAgo(runId, 16);

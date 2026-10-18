@@ -26,8 +26,11 @@ test.describe("Your own account", () => {
 
     const name = page.getByLabel("Your name");
     await name.fill("Ada Lovelace");
+    const saved = page.waitForResponse(
+      (res) => res.url().endsWith("/api/auth/me") && res.request().method() === "PATCH",
+    );
     await name.blur();
-    await expect(page.getByTestId("toast")).toContainText("Saved.");
+    expect((await saved).status()).toBe(200);
 
     await page.goto(`/p/${projectId}`);
     await expect(page.getByRole("button", { name: /Ada Lovelace/ })).toBeVisible();

@@ -175,6 +175,11 @@ test.describe("Invites", () => {
     await expect(them.page.getByTestId("invite-dead")).toHaveText(
       "This invite does not work any more. An invite works once, for 7 days. Ask the person who invited you for a new invite.",
     );
+    // The way back to sign in is the same for every token, so it says nothing.
+    await expect(them.page.getByRole("link", { name: "Back to sign in" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
     await them.page.screenshot({ path: testInfo.outputPath("seen-invite-dead.png") });
 
     await page.reload();

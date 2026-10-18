@@ -1,7 +1,7 @@
 /**
  * The life of a reset link.
  *
- * The way back into an account nobody can sign in to is a person: the owner
+ * The way back into an account nobody can sign in to is a person: an admin
  * of a project you are in makes a link. With mail set up the server emails it
  * to the member as well; either way the page shows it, so it can go by
  * whatever channel the team has. With mail and `USHABTI_URL` both set, the
@@ -54,7 +54,7 @@ export function lifeOfLink(link: StoredLink, newestAt: Date, now: Date): LinkLif
  * whether an account exists: this page is open to anybody with a URL.
  */
 export const LINK_IS_DEAD =
-  "This link does not work any more. Ask the owner of your project for a new one.";
+  "This link does not work any more. Ask an admin of your project for a new one.";
 
 /** The same sentence while "Forgot password?" is on, which points there instead. */
 export const LINK_IS_DEAD_FORGOT =

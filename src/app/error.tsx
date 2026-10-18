@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import { StatusPage } from "@/components/ui/StatusPage";
 
 export default function Error({
@@ -13,21 +14,7 @@ export default function Error({
     <StatusPage
       title="Something broke"
       digest={error.digest}
-      action={
-        <button
-          onClick={reset}
-          style={{
-            padding: "6px 13px",
-            borderRadius: "var(--r-sm)",
-            background: "var(--accent)",
-            color: "var(--accent-ink)",
-            fontSize: "var(--t-small)",
-            fontWeight: 600,
-          }}
-        >
-          Try again
-        </button>
-      }
+      action={<Button onClick={reset}>Try again</Button>}
     >
       The page could not finish loading. Try again; if it keeps happening, look at the server log.
     </StatusPage>

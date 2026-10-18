@@ -93,3 +93,31 @@ describe("A password filled with no event", () => {
     });
   });
 });
+
+describe("A form that says what is wrong on the box", () => {
+  test("an empty sign-up names each box and sends nothing", async () => {
+    const { sent } = await draw(<AuthForm mode="register" />);
+    await page.getByLabelText("Your password").fill("short");
+    await page.getByRole("button", { name: "Create account" }).click();
+
+    await expect.element(page.getByText("Type your name.")).toBeVisible();
+    await expect.element(page.getByText("Type your email.")).toBeVisible();
+    await expect.element(page.getByText("Use at least 8 characters.")).toBeVisible();
+    await expect.element(page.getByLabelText("Your name")).toHaveAttribute("aria-invalid", "true");
+    await expect.element(page.getByLabelText("Your name")).toHaveFocus();
+    expect(sent("POST")).toEqual([]);
+  });
+
+  test("the sign-in page always offers Forgot password?", async () => {
+    await draw(<AuthForm mode="login" forgotOn={false} />);
+    await expect
+      .element(page.getByRole("link", { name: "Forgot password?" }))
+      .toHaveAttribute("href", "/forgot");
+  });
+
+  test("a click on the label puts the cursor in the box", async () => {
+    await draw(<AuthForm mode="login" />);
+    await page.getByText("Password", { exact: true }).click();
+    await expect.element(page.getByLabelText("Your password")).toHaveFocus();
+  });
+});

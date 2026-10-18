@@ -84,7 +84,7 @@ const login = await browser.newContext({ viewport: SIZE, colorScheme: "dark" });
 const signIn = await login.newPage();
 await signIn.goto(`${BASE}/login`);
 await signIn.getByPlaceholder("you@example.com").fill(PERSON.email);
-await signIn.getByPlaceholder("Your password").fill(PERSON.password);
+await signIn.getByLabel("Your password").fill(PERSON.password);
 await signIn.getByRole("button", { name: "Sign in" }).click();
 await signIn.waitForURL("**/projects");
 const session = await login.storageState();

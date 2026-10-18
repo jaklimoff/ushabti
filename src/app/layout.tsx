@@ -19,7 +19,7 @@ const mono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   // Three boards open in three tabs all read "Ushabti" before this.
   title: { default: "Ushabti", template: "%s" },
-  description: "A small, fast task board with properties you define yourself.",
+  description: "A task board where people and AI agents work the same tasks.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

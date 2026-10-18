@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { page, type Locator } from "vitest/browser";
 import { ME, newProject, renderWithBoard, type Answer } from "@/test/board";
+import type { PersonalTokenDTO } from "@/lib/types";
 import { Account } from "./Account";
 
 /*
@@ -18,14 +19,15 @@ function serving(more: Answer = () => undefined): Answer {
   return (sent) => {
     const said = more(sent);
     if (said) return said;
-    if (sent.path === "/api/auth/sessions") return { body: { others: 0 } };
+    if (sent.path === "/api/auth/sessions") return { body: { others: 3 } };
+    if (sent.path === "/api/auth/tokens") return { body: { tokens: [] } };
     if (sent.path === ME_PATH) return { body: { user: {} } };
   };
 }
 
-async function draw(emoji: string | null = null, answer?: Answer) {
+async function draw(emoji: string | null = null, answer?: Answer, askMailOn = false) {
   const drawn = await renderWithBoard(
-    <Account user={{ ...ME, emoji, askMail: true }} version="0.0.0" askMailOn={false} />,
+    <Account user={{ ...ME, emoji, askMail: true }} version="0.0.0" askMailOn={askMailOn} />,
     newProject(),
     serving(answer),
   );
@@ -45,6 +47,31 @@ function fillWithNoEvent(box: Locator, value: string) {
 }
 
 describe("Your own account", () => {
+  test("opens with a lead line, then Profile, Email, Password, Sessions and Personal tokens", async () => {
+    await draw(null, undefined, true);
+    await expect
+      .element(page.getByText("How you look to your team, and how you sign in."))
+      .toBeVisible();
+    const headings = () =>
+      page
+        .getByRole("heading", { level: 2 })
+        .elements()
+        .map((h) => h.textContent);
+    await expect
+      .poll(headings)
+      .toEqual(["Profile", "Email", "Password", "Sessions", "Personal tokens"]);
+  });
+
+  test("with mail off there is no Email section, and the order holds", async () => {
+    await draw();
+    const headings = () =>
+      page
+        .getByRole("heading", { level: 2 })
+        .elements()
+        .map((h) => h.textContent);
+    await expect.poll(headings).toEqual(["Profile", "Password", "Sessions", "Personal tokens"]);
+  });
+
   // The screen half of e2e "a name and a colour can be changed, and the board follows".
   test("a name and a colour can be changed", async () => {
     const { patches } = await draw();
@@ -54,7 +81,11 @@ describe("Your own account", () => {
     await name.fill("Ada Lovelace");
     (name.element() as HTMLInputElement).blur();
     await expect.poll(patches).toEqual([{ name: "Ada Lovelace" }]);
-    await expect.element(page.getByTestId("toast")).toHaveTextContent("Saved.");
+    // A save that worked shows itself in the preview; a toast is for what failed.
+    await expect
+      .poll(() => page.getByTestId("account-preview").element().textContent)
+      .toContain("Ada Lovelace");
+    await expect.element(page.getByTestId("toast")).not.toBeInTheDocument();
 
     // The palette, and all of it but the grey that reads as nobody.
     const swatches = page.getByRole("radiogroup", { name: "Your colour" }).getByRole("radio");
@@ -136,6 +167,13 @@ describe("Your own account", () => {
     await page.getByLabelText("The password you want").fill("a-longer-secret");
     await page.getByRole("button", { name: "Change password" }).click();
     await expect.element(page.getByText("That is not the password you use now.")).toBeVisible();
+    // The wrong box is the one that is marked, not the new one.
+    await expect
+      .element(page.getByLabelText("The password you use now"))
+      .toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(page.getByLabelText("The password you want"))
+      .not.toHaveAttribute("aria-invalid");
 
     await page.getByLabelText("The password you use now").fill("ushabti-secret");
     await page.getByRole("button", { name: "Change password" }).click();
@@ -219,5 +257,79 @@ describe("Your own account", () => {
     await expect.poll(() => posts().length).toBe(2);
     expect(posts()[1]).toEqual({ current: "a-second-secret", next: "a-third-secret" });
     await expect.element(want).toHaveValue("");
+  });
+
+  test("signing the other sessions out asks first, and names how many", async () => {
+    const { sent } = await draw();
+    const ends = () => sent("DELETE", /^\/api\/auth\/sessions$/);
+    await expect
+      .element(page.getByText("You are signed in here and in 3 other sessions."))
+      .toBeVisible();
+
+    await page.getByRole("button", { name: "Sign out the others" }).click();
+    await expect
+      .poll(() => page.getByRole("alertdialog").element().textContent)
+      .toContain("Sign out 3 other sessions? This one stays.");
+    await page.getByRole("button", { name: "Cancel" }).click();
+    expect(ends()).toEqual([]);
+
+    await page.getByRole("button", { name: "Sign out the others" }).click();
+    await page.getByRole("button", { name: "Yes, sign them out" }).click();
+    await expect.poll(() => ends().length).toBe(1);
+  });
+
+  test("the question email is a tick that saves at once", async () => {
+    const { patches } = await draw(null, undefined, true);
+    const box = page.getByRole("checkbox", { name: /Email me when an agent asks me something/ });
+    await expect.element(box).toBeChecked();
+    await box.click();
+    await expect.poll(patches).toEqual([{ askMail: false }]);
+    await expect.element(box).not.toBeChecked();
+    await expect.element(page.getByTestId("toast")).not.toBeInTheDocument();
+  });
+
+  test("a token row says when it was made and warns when it ends soon", async () => {
+    const at = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+    const made: PersonalTokenDTO = {
+      id: "t9",
+      name: "Raycast",
+      prefix: "ushp_77e2",
+      createdAt: at(0),
+      expiresAt: at(90),
+      lastUsedAt: null,
+    };
+    const tokens: PersonalTokenDTO[] = [
+      {
+        id: "t1",
+        name: "Laptop CLI",
+        prefix: "ushp_4f9a",
+        createdAt: at(-3),
+        expiresAt: at(6),
+        lastUsedAt: at(-1),
+      },
+    ];
+    await draw(null, ({ path, method }) => {
+      if (path !== "/api/auth/tokens") return;
+      if (method === "POST") {
+        tokens.unshift(made);
+        return { body: { token: made, secret: "ushp_77e2secret" } };
+      }
+      return { body: { tokens } };
+    });
+
+    const laptop = page.getByTestId("personal-token-row").filter({ hasText: "Laptop CLI" });
+    await expect
+      .poll(() => laptop.element().textContent)
+      .toContain("made 3 days ago · expires in 6 days · last used yesterday");
+
+    await page.getByLabelText("Token name").fill("Raycast");
+    await page.getByRole("button", { name: "Make token" }).click();
+    const secret = page.getByTestId("personal-secret");
+    await expect.poll(() => secret.element().textContent).toContain("ushp_77e2secret");
+    // The secret sits under its own row, and the keyboard waits on Copy.
+    const row = secret.element().previousElementSibling!;
+    expect(row.textContent).toContain("Raycast");
+    expect(row.textContent).toContain("made today");
+    await expect.element(page.getByRole("button", { name: "Copy the token" })).toHaveFocus();
   });
 });

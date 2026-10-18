@@ -35,7 +35,7 @@ export async function register(page: Page, name = "Test Person"): Promise<Accoun
   await page.goto("/register");
   await page.getByPlaceholder("Ada Lovelace").fill(name);
   await page.getByPlaceholder("you@example.com").fill(email);
-  await page.getByPlaceholder("At least 8 characters").fill(password);
+  await page.getByLabel("Your password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
   await page.waitForURL("**/projects");
   return { email, password, name };
@@ -44,7 +44,7 @@ export async function register(page: Page, name = "Test Person"): Promise<Accoun
 export async function signIn(page: Page, account: Account) {
   await page.goto("/login");
   await page.getByPlaceholder("you@example.com").fill(account.email);
-  await page.getByPlaceholder("Your password").fill(account.password);
+  await page.getByLabel("Your password").fill(account.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL("**/projects");
 }

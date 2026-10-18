@@ -96,7 +96,7 @@ function mailOn() {
         await them.goto(link!);
         await them.getByPlaceholder("Ada Lovelace").fill("Newcomer");
         await expect(them.getByPlaceholder("you@example.com")).toHaveValue(email);
-        await them.getByPlaceholder("At least 8 characters").fill("ushabti-secret");
+        await them.getByLabel("Your password").fill("ushabti-secret");
         await them.getByRole("button", { name: "Create account" }).click();
         await them.waitForURL("**/projects");
         await expect(them.getByText(projectName)).toBeVisible();

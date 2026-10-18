@@ -2,10 +2,10 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import { createProject, gotoSettings, register, signIn, unique } from "./helpers";
 
 /* The server Playwright starts has mail and USHABTI_URL, so there a dead link
-   points at "Forgot password?" instead of the owner. */
+   points at "Forgot password?" instead of an admin. */
 const DEAD = process.env.USHABTI_TEST_SMTP_PORT
   ? "This link does not work any more. Ask for a new one with Forgot password? on the sign-in page."
-  : "This link does not work any more. Ask the owner of your project for a new one.";
+  : "This link does not work any more. Ask an admin of your project for a new one.";
 
 /**
  * Presses Reset password on the member's row and answers the question.
@@ -50,7 +50,7 @@ async function guesser(browser: Browser): Promise<Page> {
  * draws its own button in one, and the page under test has no say in it.
  */
 function controls(page: Page): Promise<number> {
-  return page.evaluate(() => document.querySelectorAll("form, input, button, a").length);
+  return page.evaluate(() => document.querySelectorAll("form, input, button").length);
 }
 
 /* The rows a link leaves and the feed's record of it are `account-route.test.ts`. */
@@ -58,7 +58,7 @@ test.describe("A forgotten password", () => {
   test("the owner makes a link, it works once, and the new password signs in", async ({
     page,
     browser,
-  }) => {
+  }, testInfo) => {
     /* The person who forgot. They keep a browser that is still signed in, so
        the test can watch that session end. */
     const theirs = await browser.newContext();
@@ -112,16 +112,23 @@ test.describe("A forgotten password", () => {
     await them.goto("/projects");
     await them.waitForURL("**/login");
 
-    /* The link is spent. One sentence, and nothing to do: no form, no field,
-       no way on — and nothing that says whether an account exists. */
+    /* The link is spent. One sentence, no form and no field, and nothing that
+       says whether an account exists. Back to sign in is the one way on: it
+       is the same for every token, so it says nothing about any account. */
     await stranger.goto(second);
     await expect(stranger.getByTestId("reset-dead")).toHaveText(DEAD);
     expect(await controls(stranger)).toBe(0);
+    await expect(stranger.getByRole("link", { name: "Back to sign in" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
 
     // An invented token reads exactly the same.
     await stranger.goto("/reset/ushr_nothing-was-ever-made-with-this");
     await expect(stranger.getByTestId("reset-dead")).toHaveText(DEAD);
     expect(await controls(stranger)).toBe(0);
+    await expect(stranger.getByRole("link", { name: "Back to sign in" })).toBeVisible();
+    await stranger.screenshot({ path: testInfo.outputPath("seen-reset-dead.png") });
 
     // And the new password is the password now.
     await signIn(them, { ...member, password: "a-second-secret" });

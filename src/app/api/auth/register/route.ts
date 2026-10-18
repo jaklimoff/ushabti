@@ -46,7 +46,7 @@ async function signUp(req: Request): Promise<Response> {
   } else if (!signupIsOpen()) {
     throw new HttpError(
       403,
-      "This board is not taking new accounts. Ask the owner of your project to invite this email, and open the link they send.",
+      "This board is not taking new accounts. Ask an admin of your project to invite this email, and open the link they send.",
     );
   }
   if (typeof input.password !== "string" || input.password.length < 8) {

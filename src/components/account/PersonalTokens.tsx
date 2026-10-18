@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import type { PersonalTokenDTO } from "@/lib/types";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { CopyField } from "@/components/ui/CopyField";
-import { Field, Input, Select } from "@/components/ui/Form";
-import { Card, Note, Row, Section, Spacer } from "@/components/ui/Layout";
+import { Input, Select } from "@/components/ui/Form";
+import { Card, EmptyState, Foot, Section } from "@/components/ui/Layout";
 import type { Toast } from "@/components/ui/Toasts";
 import styles from "./account.module.css";
 
@@ -18,11 +18,36 @@ const EXPIRIES = [
   { value: "never", label: "Never" },
 ];
 
-/* Named month and a fixed locale: the list is the same in every browser. */
-const DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const DAY_MS = 86_400_000;
+/* An expiry this close is worth a colour: the script stops soon. */
+const SOON_DAYS = 14;
+
+/* Written out by hand, because a browser's own short month differs by
+   version ("Sep" or "Sept"), and the list should read the same everywhere. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function day(iso: string): string {
-  return DAY.format(new Date(iso));
+  const d = new Date(iso);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** Whole days back, as Settings writes an agent's token, then a date past a month. */
+function ago(iso: string, now: number): string {
+  const days = Math.floor((now - new Date(iso).getTime()) / DAY_MS);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 31) return `${days} days ago`;
+  return day(iso);
+}
+
+/** How far off the end is. Near, it counts the days; far, it names the date. */
+function expiry(iso: string | null, now: number): { text: string; soon: boolean } {
+  if (!iso) return { text: "never expires", soon: false };
+  const days = Math.ceil((new Date(iso).getTime() - now) / DAY_MS);
+  if (days > SOON_DAYS) return { text: `expires ${day(iso)}`, soon: false };
+  if (days <= 0) return { text: "expires today", soon: true };
+  if (days === 1) return { text: "expires tomorrow", soon: true };
+  return { text: `expires in ${days} days`, soon: true };
 }
 
 /**
@@ -35,21 +60,29 @@ export function PersonalTokens({
   notify: (text: string, kind?: Toast["kind"]) => void;
 }) {
   const [tokens, setTokens] = useState<PersonalTokenDTO[] | null>(null);
+  /* When the list was read, so every row of one answer counts from the same
+     moment and a render never reads the clock. */
+  const [now, setNow] = useState(0);
   const [name, setName] = useState("");
-  const [expiry, setExpiry] = useState("90");
+  const [expiresIn, setExpiresIn] = useState("90");
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState<{ id: string; secret: string } | null>(null);
 
   const load = useCallback(async () => {
     const res = await api.get<{ tokens: PersonalTokenDTO[] }>("/api/auth/tokens");
     setTokens(res.tokens);
+    setNow(Date.now());
   }, []);
 
   useEffect(() => {
     let alive = true;
     void api
       .get<{ tokens: PersonalTokenDTO[] }>("/api/auth/tokens")
-      .then((res) => alive && setTokens(res.tokens))
+      .then((res) => {
+        if (!alive) return;
+        setTokens(res.tokens);
+        setNow(Date.now());
+      })
       .catch(() => alive && setTokens([]));
     return () => {
       alive = false;
@@ -63,7 +96,7 @@ export function PersonalTokens({
     try {
       const res = await api.post<{ token: PersonalTokenDTO; secret: string }>("/api/auth/tokens", {
         name: trimmed,
-        days: expiry === "never" ? null : Number(expiry),
+        days: expiresIn === "never" ? null : Number(expiresIn),
       });
       setName("");
       setMade({ id: res.token.id, secret: res.secret });
@@ -86,92 +119,122 @@ export function PersonalTokens({
   }
 
   return (
-    <Section
-      title="Personal tokens"
-      note="A script or an agent with one acts as you, on every project you are in."
-    >
+    <Section title="Personal tokens">
       <Card>
-        <Row className={styles.stack}>
-          <Field
-            label="New token"
-            note="Everything it does is signed with your name. It cannot add people, agents or tokens."
-          >
-            <div className={styles.tokenMake}>
-              <Input
-                aria-label="Token name"
-                placeholder="What it is for"
-                value={name}
-                maxLength={80}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && void create()}
+        {tokens && tokens.length > 0 && (
+          <div className={styles.tokens}>
+            {tokens.map((token) => (
+              <TokenRow
+                key={token.id}
+                token={token}
+                now={now}
+                secret={made?.id === token.id ? made.secret : undefined}
+                onRevoke={() => void revoke(token)}
               />
-              <Select
-                aria-label="Expires after"
-                value={expiry}
-                onChange={setExpiry}
-                options={EXPIRIES}
-              />
-              <Button onClick={() => void create()} disabled={busy || !name.trim()}>
-                {busy ? "Making…" : "Make token"}
-              </Button>
-            </div>
-          </Field>
-        </Row>
-        {made && (
-          <Row className={styles.stack} data-testid="personal-secret">
-            <Field
-              label="Your new token"
-              note="Copy it now. It is not shown again; a lost one is revoked and made anew."
-            >
-              <CopyField value={made.secret} label="the token" loud />
-            </Field>
-          </Row>
+            ))}
+          </div>
         )}
-        {tokens?.map((token) => (
-          <TokenRow key={token.id} token={token} onRevoke={() => void revoke(token)} />
-        ))}
         {tokens?.length === 0 && (
-          <Row>
-            <Note>You have no personal tokens.</Note>
-          </Row>
+          <EmptyState title="No personal tokens yet.">
+            Make one below for a script or an agent that should act as you.
+          </EmptyState>
         )}
+        <Foot className={styles.tokenFoot}>
+          <Input
+            className={styles.tokenNameBox}
+            aria-label="Token name"
+            placeholder="What it is for"
+            value={name}
+            maxLength={80}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void create()}
+          />
+          <Select
+            aria-label="Expires after"
+            value={expiresIn}
+            onChange={setExpiresIn}
+            options={EXPIRIES}
+          />
+          <Button onClick={() => void create()} disabled={busy || !name.trim()}>
+            {busy ? "Making…" : "Make token"}
+          </Button>
+          <span className={styles.footNote}>
+            A script or an agent with a token acts as you, on every project you are in. Everything
+            it does is signed with your name. It cannot add people, agents or tokens.
+          </span>
+        </Foot>
       </Card>
     </Section>
   );
 }
 
-function TokenRow({ token, onRevoke }: { token: PersonalTokenDTO; onRevoke: () => void }) {
+function TokenRow({
+  token,
+  now,
+  secret,
+  onRevoke,
+}: {
+  token: PersonalTokenDTO;
+  now: number;
+  /** Only on the row just made, and only until the page is left. */
+  secret?: string;
+  onRevoke: () => void;
+}) {
   const confirm = useConfirm();
+  const shown = useRef<HTMLDivElement>(null);
+
+  /* A keyboard lands on Copy, the one thing to do next. */
+  useEffect(() => {
+    if (secret) shown.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [secret]);
 
   if (confirm.asking) {
     return (
-      <ConfirmRow
-        question={`Revoke the token “${token.name}”? Whatever uses it stops working within one request.`}
-        confirmLabel="Yes, revoke"
-        onConfirm={() => confirm.confirm(onRevoke)}
-        onCancel={confirm.cancel}
-      />
+      <div className={styles.tokenItem}>
+        <ConfirmRow
+          question={`Revoke the token “${token.name}”? Whatever uses it stops working within one request.`}
+          confirmLabel="Yes, revoke"
+          onConfirm={() => confirm.confirm(onRevoke)}
+          onCancel={confirm.cancel}
+        />
+      </div>
     );
   }
 
+  const ends = expiry(token.expiresAt, now);
+
   return (
-    <Row data-testid="personal-token-row">
-      <span className={styles.tokenName}>{token.name}</span>
-      <span className={styles.tokenPrefix}>{token.prefix}…</span>
-      <Note>
-        made {day(token.createdAt)} ·{" "}
-        {token.expiresAt ? `expires ${day(token.expiresAt)}` : "never expires"} ·{" "}
-        {token.lastUsedAt ? `last used ${day(token.lastUsedAt)}` : "never used"}
-      </Note>
-      <Spacer />
-      <IconButton
-        danger
-        label={`Revoke the token ${token.name}`}
-        title="Revoke this token"
-        onClick={confirm.ask}
-      >
-        ✕
-      </IconButton>
-    </Row>
+    <div className={secret ? `${styles.tokenItem} ${styles.tokenFresh}` : styles.tokenItem}>
+      <div className={styles.tokenRow} data-testid="personal-token-row">
+        <div className={styles.tokenLine}>
+          <span className={styles.tokenName} title={token.name}>
+            {token.name}
+          </span>
+          <span className={styles.tokenPrefix}>{token.prefix}…</span>
+        </div>
+        <span className={styles.tokenMeta}>
+          made {ago(token.createdAt, now)} ·{" "}
+          <span className={ends.soon ? styles.tokenSoon : undefined}>{ends.text}</span> ·{" "}
+          {token.lastUsedAt ? `last used ${ago(token.lastUsedAt, now)}` : "never used"}
+        </span>
+        <IconButton
+          className={styles.tokenRevoke}
+          danger
+          label={`Revoke the token ${token.name}`}
+          title="Revoke this token"
+          onClick={confirm.ask}
+        >
+          ✕
+        </IconButton>
+      </div>
+      {secret && (
+        <div ref={shown} className={styles.secret} data-testid="personal-secret">
+          <CopyField value={secret} label="the token" loud />
+          <span className={styles.secretNote}>
+            Copy it now. It is not shown again; a lost one is revoked and made anew.
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

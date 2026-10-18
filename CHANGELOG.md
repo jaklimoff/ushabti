@@ -15,6 +15,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   bar, and each project wears its own colour and key. Field labels are easier to
   read, a label puts the cursor in its box, and every control shows an accent ring
   under the keyboard.
+- **The sign-in pages say what Ushabti is, and Account reads as named sections.**
+  Every sign-in page has the mark and one line under it, at the same height, and
+  each error shows under the box it is about. A spent invite or reset link offers
+  **Back to sign in**. Account has Profile with a live preview, Email, Password,
+  Sessions and Personal tokens; a save that worked shows no toast, and **Sign out
+  the others** asks first.
 
 ## 0.28.0 — 2026-10-17
 
