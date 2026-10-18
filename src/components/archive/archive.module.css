@@ -9,21 +9,27 @@
   background: var(--bg);
 }
 
-/* One list, with whatever says what it is above it. The page is a column of
-   these, so the gap between two lists is the gap between two sections. */
+/* One list, with the box that narrows it above it. */
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
 }
 
-.h2 {
-  font-size: var(--t-body);
-  font-weight: 600;
-  color: var(--text);
+/* The deleted list is a second section, so it stands a section's step below
+   the first. */
+.deleted {
+  margin-top: var(--s-4);
+}
+
+/* The shared heading keeps the browser's margin; here the section's gap is
+   the only space around it. */
+.deleted h2 {
+  margin: 0;
 }
 
 .lead {
+  margin-top: -6px;
   font-size: var(--t-body);
   line-height: 1.6;
   color: var(--muted);
@@ -67,11 +73,16 @@
   min-width: 0;
 }
 
+/* The task key, as the changelog and the lists draw it: mono, readable grey,
+   and wide enough for most keys so the titles start in one place. */
 .key {
   flex: 0 0 auto;
+  min-width: 7ch;
   font-family: var(--font-mono);
-  font-size: var(--t-label);
-  color: var(--faint-2);
+  font-size: var(--t-micro);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
 }
 
 .title {
@@ -91,14 +102,23 @@
   white-space: nowrap;
 }
 
-/* How long is left. It is the one word on the row that runs out, so it is the
-   one that is drawn to be read before the others. */
+/* How long is left. It is the one word on the row that runs out, so it is a
+   tag and is read before the others. */
 .left {
   flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--bg-tag);
   font-size: var(--t-small);
   font-variant-numeric: tabular-nums;
-  color: var(--text-2);
+  color: var(--text-3);
   white-space: nowrap;
+}
+
+/* The last week. */
+.soon {
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
 /* A phone. The line the task is named on takes the whole width, and the

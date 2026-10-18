@@ -27,12 +27,17 @@ async function makeTask(page: Page, projectId: string, title: string): Promise<s
   return ((await made.json()).task as { id: string }).id;
 }
 
-/** Counts the reads of Home: a refresh asks the server for the page again. */
+/**
+ * Counts the reads of Home: a refresh asks the server for the page again. The
+ * top bar's Home link prefetches the same page, which is not a read.
+ */
 function countReads(page: Page) {
   const reads = { count: 0 };
   page.on("request", (req) => {
     const url = new URL(req.url());
-    if (url.pathname === "/projects" && req.headers()["rsc"] === "1") reads.count += 1;
+    const headers = req.headers();
+    if (url.pathname !== "/projects" || headers["rsc"] !== "1") return;
+    if (!headers["next-router-prefetch"]) reads.count += 1;
   });
   return reads;
 }
@@ -98,7 +103,7 @@ test.describe("Home follows every project live", () => {
 
     const reads = countReads(page);
     await page.goto("/projects");
-    const card = page.locator(`a[href="/p/${projectId}"]`);
+    const card = page.locator(`[data-testid="project-card"] > a[href="/p/${projectId}"]`);
     await expect(card.getByTestId("project-agents")).toHaveText("Worker working");
     /* The read on `ready` is over before the run goes quiet, so only Home's
        own look can find it. */

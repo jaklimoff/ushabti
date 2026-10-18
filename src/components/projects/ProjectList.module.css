@@ -10,7 +10,83 @@
 .sections {
   display: flex;
   flex-direction: column;
-  gap: 44px;
+  gap: 36px;
+}
+
+/* What needs the person, above everything else and only while it does. One
+   line, not a section: it points at boards, it is not a place of its own. */
+.waitingStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  min-height: 40px;
+  padding: 6px 8px 6px 14px;
+  border: 1px solid color-mix(in srgb, var(--waiting) 35%, transparent);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--waiting) 7%, transparent);
+  font-size: var(--t-ui);
+  color: var(--text-2);
+}
+
+.waitingSaid {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.waitingSaid strong {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--waiting);
+}
+
+.waitingDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--waiting);
+  box-shadow: 0 0 0 3px var(--waiting-soft);
+}
+
+.waitingLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.waitingLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 280px;
+  height: 28px;
+  padding: 0 8px 0 6px;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  transition: background 120ms var(--ease);
+}
+
+.waitingLink:hover {
+  background: color-mix(in srgb, var(--waiting) 12%, transparent);
+  color: var(--text);
+}
+
+.waitingName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waitingCount {
+  font-family: var(--font-mono);
+  font-size: var(--t-small);
+  color: var(--waiting);
 }
 
 /* The one column of Home: projects, lists and charts all sit in it, so
@@ -30,15 +106,21 @@
   padding: 14px 15px 13px;
   background: var(--bg-column);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   transition:
     border-color 150ms var(--ease),
     background 150ms var(--ease);
 }
 
 .card:hover {
-  border-color: #2a323a;
-  background: #101216;
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--bg-hover) 30%, var(--bg-column));
+}
+
+/* A card that asks something of the person carries the strip's amber on its
+   edge, so it can be found in a grid of six. */
+.cardWrap[data-waiting] > .card {
+  box-shadow: inset 2px 0 0 var(--waiting);
 }
 
 .cardTop {
@@ -88,7 +170,7 @@
 .role {
   flex: none;
   font-size: var(--t-micro);
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 /* Nobody wrote here for three weeks. */
@@ -165,7 +247,7 @@
 .goalCount {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: var(--faint-2);
+  color: var(--text-meta);
 }
 
 /* Grey, never the accent: progress asks nothing of anybody. */
@@ -187,7 +269,7 @@
 
 .noColumns {
   font-size: var(--t-small);
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 .pulse {
@@ -210,10 +292,12 @@
   min-width: 3px;
 }
 
+/* Each count has its own dot, so the gap is the only separator: a "·" would
+   start the next line when the counts wrap. */
 .counts {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 6px;
+  gap: 3px 12px;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   color: var(--muted);
@@ -226,11 +310,6 @@
   white-space: nowrap;
 }
 
-.count + .count::before {
-  content: "·";
-  color: var(--faint-3);
-}
-
 .countDot {
   width: 6px;
   height: 6px;
@@ -240,7 +319,7 @@
 /* A folded column is the pile somebody asked not to see: it stays named, quietly. */
 .aside {
   white-space: nowrap;
-  color: var(--faint-2);
+  color: var(--text-meta);
 }
 
 .activity {
@@ -252,6 +331,7 @@
 /* One height on every card, so the rows of a grid read level. Not `.bars`:
    a chart's strip once shared the name and took this width. */
 .dayBars {
+  position: relative;
   flex: 1 1 auto;
   max-width: 140px;
   height: 32px;
@@ -261,12 +341,28 @@
 }
 
 /* One grey, never a column's shade: the bars say how much, not where. Not
-   `.bar`: that is the page's top bar, and its padding made each day 32px wide. */
+   `.bar`: that is the page's top bar, and its padding made each day 32px wide.
+   An empty day draws nothing over the baseline, so a quiet run reads as one
+   line and not as a dashed rule. */
 .dayBar {
   flex: 1 1 0;
   min-width: 2px;
   border-radius: 1px;
   background: var(--faint-3);
+}
+
+.dayBar[data-empty] {
+  background: none;
+}
+
+/* The baseline the days stand on: a quiet run is one unbroken line. */
+.dayBars::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--faint-3);
+  opacity: 0.7;
 }
 
 .dayBar[data-today] {
@@ -278,13 +374,13 @@
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: var(--faint-2);
+  color: var(--text-meta);
   white-space: nowrap;
 }
 
 .activityText strong {
   font-weight: 600;
-  color: var(--muted);
+  color: var(--text-4);
 }
 
 .cardFoot {
@@ -295,7 +391,7 @@
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: var(--faint-2);
+  color: var(--text-meta);
 }
 
 .people {
@@ -312,8 +408,10 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--bg-hover);
-  color: var(--muted);
+  /* The person's own colour, held under the project square so the card still
+     reads as the project's. */
+  background: color-mix(in srgb, var(--face, var(--bg-hover)) 55%, var(--bg-hover));
+  color: var(--text);
   font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -355,7 +453,7 @@
   padding: 14px 15px;
   background: var(--bg-column);
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
 }
 
 .row {
@@ -369,13 +467,12 @@
   color: var(--danger-text);
 }
 
-/* An empty section shows one dashed panel in place of its items. Only a
-   panel that makes something reacts to the pointer, in the accent tint. */
+/* An empty section shows one dashed panel in place of its items, and the
+   panel is the way to make the first one, so it reacts in the accent tint. */
 .firstPanel,
-.quietPanel,
 .widePanel {
-  --panel-line: var(--line-dash);
-  --panel-shape: var(--line);
+  --panel-line: var(--line-strong);
+  --panel-shape: var(--faint-3);
   border: 1px dashed var(--panel-line);
   border-radius: var(--r-lg);
   transition:
@@ -387,7 +484,7 @@
 .widePanel:hover:not(:disabled),
 .widePanel:focus-visible {
   --panel-line: color-mix(in srgb, var(--accent) 55%, transparent);
-  --panel-shape: color-mix(in srgb, var(--accent) 22%, transparent);
+  --panel-shape: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .firstPanel {
@@ -432,28 +529,21 @@
   text-wrap: pretty;
 }
 
-.quietPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 18px 20px;
+.panelNote {
+  margin: 4px 0 0;
+  font-size: var(--t-small);
+  color: var(--text-meta);
 }
 
-.quietPanel .panelTitle {
-  color: var(--muted);
-}
-
-.quietPanel .panelLine {
-  color: var(--faint);
-}
-
+/* Small on purpose: it stands in for a section nobody has used yet, so it
+   must not outweigh the projects above it. */
 .widePanel {
   display: flex;
   align-items: center;
   gap: 24px;
   width: 100%;
-  min-height: 120px;
-  padding: 18px 20px;
+  min-height: 76px;
+  padding: 14px 18px;
   background: none;
   color: inherit;
   font: inherit;
@@ -466,23 +556,19 @@
   cursor: default;
 }
 
-.widePanel:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
 .wideWords {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
   min-width: 0;
 }
 
+/* In the accent, as a link reads: the panel is the action, not a placeholder. */
 .wideLabel {
   font-size: var(--t-ui);
   font-weight: 600;
-  color: var(--text);
+  color: var(--accent-soft);
 }
 
 .widePanel:disabled .wideLabel {
@@ -496,49 +582,63 @@
   text-wrap: pretty;
 }
 
+/* A line drawing, not a skeleton: outlines and hairlines, small, at the
+   panel's edge. Filled grey blocks the width of a box read as "loading". */
 .wideShapes {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 0 160px;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
-  max-width: 320px;
+  opacity: 0.8;
 }
 
 .shapeRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .shapeKey,
 .shapeLine,
 .shapeBar {
-  background: var(--panel-shape);
-  border-radius: 3px;
-  transition: background 150ms var(--ease);
+  transition:
+    background 150ms var(--ease),
+    border-color 150ms var(--ease);
 }
 
 .shapeKey {
-  width: 36px;
-  height: 12px;
+  flex: none;
+  width: 24px;
+  height: 9px;
+  border: 1px solid var(--panel-shape);
+  border-radius: 3px;
 }
 
 .shapeLine {
-  height: 8px;
+  height: 1px;
+  background: var(--panel-shape);
 }
 
 .shapeBars {
   flex-direction: row;
   align-items: flex-end;
-  gap: 5px;
-  height: 64px;
+  gap: 4px;
+  height: 36px;
+  border-bottom: 1px solid var(--panel-shape);
 }
 
 .shapeBar {
   flex: 1 1 0;
+  border: 1px solid var(--panel-shape);
+  border-bottom: 0;
   border-radius: 2px 2px 0 0;
+}
+
+.shapeBar[data-today] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* On a phone the words come first and the shapes sit under them. */
@@ -551,13 +651,13 @@
 
   .wideShapes {
     flex: none;
-    max-width: none;
+    width: 160px;
   }
 }
 
 .hint {
   font-size: var(--t-small);
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 /* The card is a link, so the grip and the gear sit beside it rather than
@@ -681,15 +781,9 @@
   transform: rotate(45deg);
 }
 
+/* One heading for every section: the page title above sets the hierarchy,
+   so lists and charts are not demoted to footnotes. */
 .section {
-  font-size: var(--t-ui);
-  font-weight: 600;
-  color: var(--muted);
-  letter-spacing: 0.02em;
-}
-
-/* Projects lead the page, so their heading reads in the text colour. */
-.sectionLead {
   font-size: var(--t-h2);
   font-weight: 600;
   color: var(--text);
@@ -704,7 +798,7 @@
 .sectionCount {
   font-family: var(--font-mono);
   font-size: var(--t-micro);
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 .headButton {
@@ -786,7 +880,7 @@
   display: grid;
   place-items: center;
   font-size: var(--t-small);
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 .listRow,
@@ -882,7 +976,7 @@
   gap: 10px;
   padding: 14px 15px 13px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
 }
 
 .chartName {
@@ -1078,7 +1172,7 @@
 
 .chartRange {
   margin-left: auto;
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 /* ---- the new chart's form ------------------------------------------- */

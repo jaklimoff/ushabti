@@ -29,28 +29,22 @@
 
 .groupHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--s-2);
   min-width: 0;
 }
 
-.key,
+/* The task key, as the archive and the changelog draw it: mono, readable
+   grey, and wide enough for most keys so the titles start in one place. */
 .rowKey {
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--accent-bg);
-  color: var(--accent-soft);
+  flex: 0 0 auto;
+  min-width: 7ch;
   font-family: var(--font-mono);
-  font-size: var(--t-chip);
+  font-size: var(--t-micro);
   font-weight: 500;
-  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
   white-space: nowrap;
-}
-
-.rowKey {
-  background: none;
-  padding: 0;
-  color: var(--muted);
 }
 
 .groupName {
@@ -65,11 +59,12 @@
 }
 
 .rules {
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: var(--t-small);
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .rows {
@@ -149,27 +144,23 @@
 
 .age {
   font-family: var(--font-mono);
-  font-size: var(--t-chip);
-  color: var(--faint-2);
+  font-size: var(--t-micro);
+  color: var(--text-meta);
   white-space: nowrap;
 }
 
+/* These lines say what to do next, so they are read, not decoration. */
 .none {
   margin: 0;
   font-size: var(--t-small);
-  color: var(--faint);
+  line-height: 1.55;
+  color: var(--muted);
 }
 
 .add {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-}
-
-.addRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .danger {
@@ -216,7 +207,12 @@
   transition: border-color 120ms ease;
 }
 
-.tile:hover,
+.tile:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.tile:hover:where(:not(:disabled)),
 .tile:focus-visible {
   border-color: var(--line-strong);
   background: var(--bg-hover);
@@ -242,7 +238,7 @@
 }
 
 /* Grey at rest and the project's own on hover, as a key on Home is. */
-.tile:hover .tileKey,
+.tile:hover:where(:not(:disabled)) .tileKey,
 .tile:focus-visible .tileKey {
   background: var(--key-tint);
   color: var(--key-tint-ink);
@@ -270,11 +266,23 @@
   color: var(--text);
 }
 
-.tick {
+.tick,
+.plus {
   flex: none;
   width: 12px;
   font-size: var(--t-small);
   color: var(--project);
+  text-align: center;
+}
+
+/* The editor's tile adds at once, so it says how, quietly until hovered. */
+.plus {
+  font-size: var(--t-ui);
+  color: var(--text-meta);
+}
+
+.tile:hover:where(:not(:disabled)) .plus {
+  color: var(--key-tint-ink);
 }
 
 /* The amber of the top bar's count, which is this page's warning. */
@@ -297,7 +305,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-2) var(--s-3);
   padding-top: var(--s-4);
   border-top: 1px solid var(--line);
 }
@@ -306,4 +314,18 @@
   font-family: var(--font-mono);
   font-size: var(--t-small);
   color: var(--muted);
+}
+
+/* Cancel and Create are one group at the right, on every width. */
+.footActions {
+  display: flex;
+  gap: var(--s-2);
+  margin-left: auto;
+}
+
+@media (max-width: 560px) {
+  .summary,
+  .footer .error {
+    flex-basis: 100%;
+  }
 }

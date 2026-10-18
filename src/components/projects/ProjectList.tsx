@@ -29,7 +29,8 @@ import { Input } from "@/components/ui/Form";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { AppBar } from "@/components/ui/AppBar";
 import { PageHead, PageShell } from "@/components/ui/Layout";
-import { canManage } from "@/lib/roles";
+import { ProjectMark } from "@/components/ui/Marks";
+import { canManage, isOwner } from "@/lib/roles";
 import { formatDate, longAgo } from "@/lib/board";
 import { foldedOf, noFolds, subscribeFolded } from "@/lib/fold";
 import {
@@ -45,7 +46,7 @@ import {
 import type { ListSummary } from "@/lib/lists";
 import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import { Charts } from "./Charts";
-import { FirstProjectPanel, HomeSection, QuietPanel, WidePanel } from "./Empty";
+import { FirstProjectPanel, HomeSection, WidePanel } from "./Empty";
 import { useNow } from "@/components/ui/useElapsed";
 import { PROJECT_INK, initials, keyTint } from "@/lib/colors";
 import styles from "./ProjectList.module.css";
@@ -114,10 +115,11 @@ export function ProjectList({
       <PageShell width="wide">
         <PageHead title="Home" />
 
+        <WaitingStrip projects={order.rows} />
+
         <div className={styles.sections}>
           <HomeSection
             title="Projects"
-            lead
             count={projects.length}
             adding={adding}
             create={
@@ -206,12 +208,46 @@ export function ProjectList({
             )}
           </HomeSection>
 
-          <MyLists lists={lists} canMake={!first} />
+          {/* Before the first project there is nothing to gather or count, so
+              the first-project panel says so in one line and these wait. A
+              list or a chart left over from a project somebody left still
+              shows. */}
+          {(!first || lists.length > 0) && <MyLists lists={lists} />}
 
-          <Charts charts={charts} choices={chartChoices} canMake={!first} />
+          {(!first || charts.length > 0) && <Charts charts={charts} choices={chartChoices} />}
         </div>
       </PageShell>
     </div>
+  );
+}
+
+/**
+ * What needs this person, over the projects: one line, only while something
+ * waits. Each link opens that board as it is; the board's own count leads on
+ * to the questions. The amber is the one colour Home keeps for "needs you".
+ */
+function WaitingStrip({ projects }: { projects: ProjectRow[] }) {
+  const asking = projects.filter((p) => p.waiting > 0);
+  const total = asking.reduce((sum, p) => sum + p.waiting, 0);
+  if (total === 0) return null;
+  return (
+    <nav className={styles.waitingStrip} aria-label="Waiting for you" data-testid="home-waiting">
+      <span className={styles.waitingSaid}>
+        <span className={styles.waitingDot} aria-hidden="true" />
+        <strong>{total}</strong> waiting for you
+      </span>
+      <ul className={styles.waitingLinks}>
+        {asking.map((p) => (
+          <li key={p.id}>
+            <Link href={`/p/${p.id}`} className={styles.waitingLink}>
+              <ProjectMark projectKey={p.key} color={p.color} size={16} />
+              <span className={styles.waitingName}>{p.name}</span>
+              <span className={styles.waitingCount}>{p.waiting}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -368,16 +404,21 @@ function ProjectCard({ project }: { project: ProjectRow }) {
         } as React.CSSProperties
       }
       data-quiet={project.pulse?.quiet || undefined}
+      data-waiting={project.waiting > 0 || undefined}
       data-testid="project-card"
     >
       <Link href={`/p/${project.id}`} className={styles.card}>
         <div className={styles.cardTop}>
           <span className={styles.key}>{project.key}</span>
           <span className={styles.cardName}>{project.name}</span>
-          {canManage(project.role) && <span className={styles.role}>{project.role}</span>}
+          {/* Owner is what a person is on a project they made, so it says
+              nothing; admin is the one role worth a word. */}
+          {canManage(project.role) && !isOwner(project.role) && (
+            <span className={styles.role}>{project.role}</span>
+          )}
           {project.waiting > 0 && (
             <span className={styles.waiting} data-testid="project-waiting">
-              {project.waiting} waiting for you
+              {project.waiting} waiting
             </span>
           )}
           {/* The gear's place, held so nothing moves when it fades in. */}
@@ -444,7 +485,7 @@ function Cog() {
  * first rows in the page's order, and how many more there are. It is not one
  * link around everything, because a row is a link of its own.
  */
-function MyLists({ lists, canMake }: { lists: ListSummary[]; canMake: boolean }) {
+function MyLists({ lists }: { lists: ListSummary[] }) {
   return (
     <HomeSection
       title="My lists"
@@ -461,20 +502,13 @@ function MyLists({ lists, canMake }: { lists: ListSummary[]; canMake: boolean })
         </ButtonPageLink>
       }
       empty={
-        canMake ? (
-          <WidePanel
-            label="+ New list"
-            hint="Tasks from any of your projects in one place, picked by rules, such as everything in Todo."
-            shapes="rows"
-            href="/lists/new"
-            data-testid="list-new"
-          />
-        ) : (
-          <QuietPanel
-            title="Lists"
-            line="Gather tasks from your projects in one place. Create a project first."
-          />
-        )
+        <WidePanel
+          label="+ New list"
+          hint="Tasks from any of your projects in one place, picked by rules, such as everything in Todo."
+          shapes="rows"
+          href="/lists/new"
+          data-testid="list-new"
+        />
       }
     >
       {lists.length > 0 && (
@@ -618,6 +652,7 @@ function Pulse({ pulse }: { pulse: ProjectPulse }) {
               key={p.id}
               className={styles.face}
               data-kind={p.kind}
+              style={{ "--face": p.color } as React.CSSProperties}
               title={p.name}
               aria-label={p.name}
               role="img"
@@ -668,6 +703,7 @@ function Activity({ days, last, now }: { days: number[]; last: string | null; no
             key={i}
             className={styles.dayBar}
             data-today={(i === days.length - 1 && n > 0) || undefined}
+            data-empty={n === 0 || undefined}
             style={{ height: n > 0 ? Math.max(2, Math.round((n / busiest) * BAR_HEIGHT)) : 2 }}
             data-testid="project-day"
           />
@@ -675,7 +711,7 @@ function Activity({ days, last, now }: { days: number[]; last: string | null; no
       </div>
       {total > 0 ? (
         <span className={styles.activityText} data-testid="project-changes">
-          <strong>{total}</strong> {total === 1 ? "change" : "changes"}, {days.length} days
+          <strong>{total}</strong> {total === 1 ? "change" : "changes"} in {days.length} days
         </span>
       ) : (
         <span

@@ -454,6 +454,9 @@ and what is easy to get wrong.
 - **Off the board, geometry comes from `components/ui/`.** A button, an input,
   a tag and a card are declared once. They used to be declared three times
   each, at three different heights. The board keeps its own CSS on purpose.
+  A board component that leaves the board may take a `bare` variant, as
+  `RuleChips` does inside a list's card, which drops the board's own strip
+  and keeps the chips. It does not grow a second look.
 - **Write short plain sentences**, in the interface, in comments and in commit
   messages. Comments say why, never what.
 

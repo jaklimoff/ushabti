@@ -19,8 +19,9 @@ import { readReleaseBy } from "./releases";
  * because a ship archives what it shipped; a deleted task was a mistake and
  * stays out.
  *
- * With releases off there is no changelog, and both pages answer not found.
- * Off clears only the pointer, so on again brings the same entries back.
+ * With releases off there is no changelog. The member's page says so, and the
+ * public page answers not found. Off clears only the pointer, so on again
+ * brings the same entries back.
  *
  * `shown` is how many of the newest releases to read; a page passes it, and
  * the route, which an agent reads release notes from, does not.
@@ -29,16 +30,7 @@ export async function loadChangelog(
   projectId: string,
   shown = Infinity,
 ): Promise<Changelog | null> {
-  const [project] = await db
-    .select({
-      id: projects.id,
-      name: projects.name,
-      key: projects.key,
-      color: projects.color,
-      releaseBy: projects.releaseBy,
-    })
-    .from(projects)
-    .where(eq(projects.id, projectId));
+  const project = await changelogProject(projectId);
   if (!project) return null;
 
   const props = await loadProperties(projectId);
@@ -50,6 +42,21 @@ export async function loadChangelog(
     : undefined;
   const rows = await readShipped(db, projectId, optionIds);
   return buildChangelog({ project: named, properties, tasks: shippedTasks(rows) }, older);
+}
+
+/** What the changelog's bar names, read whether releases are on or off. */
+export async function changelogProject(projectId: string) {
+  const [project] = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      key: projects.key,
+      color: projects.color,
+      releaseBy: projects.releaseBy,
+    })
+    .from(projects)
+    .where(eq(projects.id, projectId));
+  return project ?? null;
 }
 
 /**

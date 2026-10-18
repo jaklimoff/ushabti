@@ -63,11 +63,12 @@ test.describe("Undoing a delete", () => {
     await expect(row).toContainText("Rotate the signing key");
     await expect(row).toContainText("Deleted just now");
     await expect(row).toContainText("30 days left");
-    await expect(page.getByText("Deleted, gone in 30 days")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Deleted", exact: true })).toBeVisible();
+    await expect(page.getByText("Put one back within 30 days")).toBeVisible();
     /* Each list says its own count. One number over two lists would have to
        name which list it counted. */
-    await expect(page.getByText("1 deleted task.")).toBeVisible();
-    await expect(page.getByText("1 archived task.")).toHaveCount(0);
+    await expect(page.getByTestId("deleted-count")).toHaveText("1 task");
+    await expect(page.getByTestId("archive-count")).toHaveCount(0);
 
     // One press, no question asked: a put back takes nothing away.
     await settles(page, /\/api\/tasks\/[0-9a-f-]+\/restore$/, () =>

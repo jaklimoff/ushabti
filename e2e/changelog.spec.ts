@@ -66,7 +66,9 @@ async function shippedProject(page: Page) {
  * `ProjectPanel.test.tsx`.
  */
 test.describe("The changelog", () => {
-  test("lists the shipped options newest first, with their notes and tasks", async ({ page }) => {
+  test("lists the shipped options newest first, with their notes and tasks", async ({
+    page,
+  }, testInfo) => {
     const { projectId } = await shippedProject(page);
 
     await page.goto(`/p/${projectId}`);
@@ -77,6 +79,8 @@ test.describe("The changelog", () => {
     await expect(entries).toHaveCount(2);
     await expect(entries.nth(0).getByRole("heading")).toHaveText("v2");
     await expect(entries.nth(0)).toContainText("October 1, 2026");
+    await expect(entries.nth(0)).toContainText("1 task");
+    await expect(entries.nth(1)).toContainText("2 tasks");
     await expect(entries.nth(1).getByRole("heading")).toHaveText("v1");
     await expect(entries.nth(1)).toContainText("September 1, 2026");
     /* The note is markdown, drawn. */
@@ -87,5 +91,35 @@ test.describe("The changelog", () => {
       /Bravo lands/,
     ]);
     await expect(page.getByText("Delta waits")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("seen-changelog.png"), fullPage: true });
+  });
+
+  test("with releases off, a member reads Releases are off and a stranger finds nothing", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { projectId, key } = await shippedProject(page);
+    expect(
+      (
+        await page.request.patch(`/api/projects/${projectId}`, { data: { publicChangelog: true } })
+      ).ok(),
+    ).toBe(true);
+    expect((await page.request.delete(`/api/projects/${projectId}/releases`)).ok()).toBe(true);
+
+    /* No link on the board leads there. */
+    await page.goto(`/p/${projectId}`);
+    await expect(page.getByRole("link", { name: "Archived", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Changelog", exact: true })).toHaveCount(0);
+
+    const answer = await page.goto(`/p/${projectId}/changelog`);
+    expect(answer!.status()).toBe(200);
+    await expect(page.getByText("Releases are off")).toBeVisible();
+    await expect(page.getByTestId("changelog-entry")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("seen-releases-off.png"), fullPage: true });
+
+    const stranger = await browser.newPage();
+    const found = await stranger.goto(`/changelog/${key.toLowerCase()}`);
+    expect(found!.status()).toBe(404);
+    await stranger.close();
   });
 });

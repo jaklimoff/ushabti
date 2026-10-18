@@ -75,6 +75,8 @@ describe("A new list", () => {
     await expect
       .element(byTestId("list-needs-project"))
       .toHaveTextContent("Pick a project above. Nothing is written until you press Create.");
+    /* Nothing picked, nothing to sum: a line of zeros read as something missing. */
+    await expect.element(byTestId("list-summary")).not.toBeInTheDocument();
     await expect.element(create()).toBeDisabled();
 
     await tile("Quay").click();
@@ -85,9 +87,7 @@ describe("A new list", () => {
     await expect
       .element(page.getByText("Every task of QUA. Add a rule to narrow it."))
       .toBeVisible();
-    await expect
-      .element(byTestId("list-summary"))
-      .toHaveTextContent("2 projects · 0 rules · 6 tasks");
+    await expect.element(byTestId("list-summary")).toHaveTextContent("2 projects · 6 tasks");
     expect(writes()).toEqual([]);
 
     await create().click();

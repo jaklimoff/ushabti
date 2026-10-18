@@ -14,7 +14,6 @@ import styles from "./ProjectList.module.css";
 export function HomeSection({
   title,
   count,
-  lead = false,
   adding = false,
   create,
   empty,
@@ -23,7 +22,6 @@ export function HomeSection({
 }: {
   title: string;
   count: number;
-  lead?: boolean;
   adding?: boolean;
   create: React.ReactNode;
   empty: React.ReactNode;
@@ -33,8 +31,8 @@ export function HomeSection({
   return (
     <section className={styles.lists} data-testid={rest["data-testid"]}>
       <div className={styles.sectionHead}>
-        <h2 className={lead ? styles.sectionLead : styles.section}>{title}</h2>
-        {lead && count > 0 && <span className={styles.sectionCount}>{count}</span>}
+        <h2 className={styles.section}>{title}</h2>
+        {count > 0 && <span className={styles.sectionCount}>{count}</span>}
         {count > 0 && create}
       </div>
       {count === 0 && !adding && empty}
@@ -60,30 +58,19 @@ export function FirstProjectPanel({ onCreate }: { onCreate: () => void }) {
         Create your first project
       </h3>
       <p className={styles.panelLine}>
-        A project is one board of tasks, shared with the people and agents you invite. Every list
-        and chart on Home reads from your projects.
+        A project is one board of tasks, shared with the people and agents you invite.
       </p>
       <Button onClick={onCreate}>New project</Button>
-    </div>
-  );
-}
-
-/** Nothing can be made here yet, so the panel says why and does not react. */
-export function QuietPanel({ title, line }: { title: string; line: string }) {
-  const id = useId();
-  return (
-    <div className={styles.quietPanel} role="group" aria-labelledby={id} data-testid="quiet-panel">
-      <h3 id={id} className={styles.panelTitle}>
-        {title}
-      </h3>
-      <p className={styles.panelLine}>{line}</p>
+      {/* One line, in place of two more boxes that could only say "not yet". */}
+      <p className={styles.panelNote}>Lists and charts appear here once you have a project.</p>
     </div>
   );
 }
 
 /**
- * The wide panel that is itself the create link: the words on the left, grey
- * shapes of what will come on the right. The shapes are decoration only.
+ * The wide panel that is itself the create link: the words on the left, a
+ * small line drawing of what will come on the right. The drawing is outlines,
+ * never grey blocks, so nobody takes it for something still loading.
  */
 export function WidePanel({
   label,
@@ -163,8 +150,14 @@ function Bars() {
       aria-hidden="true"
       data-testid="panel-shapes"
     >
+      {/* The last day in the accent, as a real chart draws today. */}
       {BARS.map((height, i) => (
-        <span key={i} className={styles.shapeBar} style={{ height: `${height}%` }} />
+        <span
+          key={i}
+          className={styles.shapeBar}
+          data-today={i === BARS.length - 1 || undefined}
+          style={{ height: `${height}%` }}
+        />
       ))}
     </span>
   );

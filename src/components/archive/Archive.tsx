@@ -5,12 +5,12 @@ import { useMemo, useState } from "react";
 import { archiveOrder, narrowArchive } from "@/lib/archive";
 import { longAgo } from "@/lib/board";
 import { api } from "@/lib/client";
-import { DELETE_WINDOW_DAYS, saysLeft } from "@/lib/deleted";
+import { DELETE_WINDOW_DAYS, daysLeft, saysLeft } from "@/lib/deleted";
 import type { ArchivedTaskDTO, BoardData, DeletedTaskDTO } from "@/lib/types";
 import { BoardProvider, useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
-import { Card, EmptyState, PageHead, PageShell, Row } from "@/components/ui/Layout";
+import { Card, EmptyState, PageHead, PageShell, Row, Section } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import { Toasts } from "@/components/ui/Toasts";
 import { useNow } from "@/components/ui/useElapsed";
@@ -92,21 +92,15 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
       <ProjectBar project={data.project} here="Archived" user={user} />
 
       <PageShell>
-        <PageHead title="Archived" />
+        {/* The count is the archived list's own. The deleted list below says
+            its own count by its heading, so no number stands over two lists. */}
+        <PageHead
+          title="Archived"
+          count={all.length > 0 ? <span data-testid="archive-count">{all.length}</span> : null}
+          lead="Tasks taken off the board. Each keeps its values, checklist and comments, and goes back where it was."
+        />
 
-        {/* Each list says its own count, on its own words. One number over two
-            lists would have to name which list it counted, and a reader would
-            have to work out which. */}
         <div className={styles.section}>
-          {/* The page title already says Archived, so the first list needs no
-              heading of its own. Only the deleted list below is named. */}
-          <span className={styles.lead}>
-            {all.length > 0 && <b>{count(all.length)}. </b>}
-            An archived task is on no board and in no list, and keeps everything else: its values,
-            its checklist, its comments and its history. Put one back and it returns to the place it
-            had.
-          </span>
-
           {all.length > 0 && (
             <Input
               className={styles.find}
@@ -121,14 +115,13 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
 
           {all.length === 0 ? (
             <Card>
-              <EmptyState title="Nothing is archived.">
+              <EmptyState title="Nothing is archived">
                 Archive a task from its panel, or a whole column from the <b>↓</b> in its header.
-                They come here, and any one of them can be put back.
               </EmptyState>
             </Card>
           ) : rows.length === 0 ? (
             <Card>
-              <EmptyState title="No archived task by those words.">
+              <EmptyState title="No archived task by those words">
                 The box reads the key and the title, which are the two things a row shows.
               </EmptyState>
             </Card>
@@ -144,19 +137,21 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
         {/* Nothing deleted, no section. An empty drawer is a thing nobody has
             to be told about. */}
         {deleted.length > 0 && (
-          <div className={styles.section} data-testid="deleted-section">
-            <h2 className={styles.h2}>Deleted, gone in {DELETE_WINDOW_DAYS} days</h2>
-            <span className={styles.lead}>
-              <b>{deletedCount(deleted.length)}. </b>A deleted task is off every board and every
-              list, out of every search and every count. It comes back whole, with the key it had.
-              After {DELETE_WINDOW_DAYS} days it goes for good, and its comments, its checklist and
-              its history go with it.
-            </span>
-            <Card>
-              {deleted.map((task) => (
-                <DeletedRow key={task.id} task={task} now={now} onPutBack={putBack} />
-              ))}
-            </Card>
+          <div className={styles.deleted} data-testid="deleted-section">
+            <Section
+              title="Deleted"
+              note={<span data-testid="deleted-count">{deletedCount(deleted.length)}</span>}
+            >
+              <span className={styles.lead}>
+                Off every board, list and search. Put one back within {DELETE_WINDOW_DAYS} days and
+                it returns whole, with its key. After that it goes for good.
+              </span>
+              <Card>
+                {deleted.map((task) => (
+                  <DeletedRow key={task.id} task={task} now={now} onPutBack={putBack} />
+                ))}
+              </Card>
+            </Section>
           </div>
         )}
       </PageShell>
@@ -166,12 +161,11 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
   );
 }
 
-function count(n: number): string {
-  return `${n} archived ${n === 1 ? "task" : "tasks"}`;
-}
+/** From this many days left down, the count wears the warning colour. */
+const SOON_DAYS = 7;
 
 function deletedCount(n: number): string {
-  return `${n} deleted ${n === 1 ? "task" : "tasks"}`;
+  return `${n} ${n === 1 ? "task" : "tasks"}`;
 }
 
 /**
@@ -253,9 +247,12 @@ function DeletedRow({
         Deleted {longAgo(task.deletedAt, now)}
       </span>
 
-      {/* The one number that is about to run out, so it is the one that
-          carries a colour. */}
-      <span className={styles.left} suppressHydrationWarning>
+      {/* The one number that is about to run out, so it is the one drawn as
+          a tag. In its last week it turns amber. */}
+      <span
+        className={`${styles.left} ${daysLeft(task.goesAt, now) <= SOON_DAYS ? styles.soon : ""}`}
+        suppressHydrationWarning
+      >
         {saysLeft(task.goesAt, now)}
       </span>
 

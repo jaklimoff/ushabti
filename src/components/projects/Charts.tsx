@@ -18,7 +18,7 @@ import {
 import { Button, Pill } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { Field, Select } from "@/components/ui/Form";
-import { HomeSection, QuietPanel, WidePanel } from "./Empty";
+import { HomeSection, WidePanel } from "./Empty";
 import styles from "./ProjectList.module.css";
 
 /* A calendar day has no zone, so it is written in UTC: the server and the
@@ -35,15 +35,7 @@ const longDayName = (day: string) =>
  * The person's charts: how many tasks entered one column a day. A chart is
  * added and deleted right here, with no dialog.
  */
-export function Charts({
-  charts,
-  choices,
-  canMake = true,
-}: {
-  charts: ChartDTO[];
-  choices: ChartChoice[];
-  canMake?: boolean;
-}) {
+export function Charts({ charts, choices }: { charts: ChartDTO[]; choices: ChartChoice[] }) {
   const [adding, setAdding] = useState(false);
   const nothing = choices.length === 0 ? "No project has a select to count yet." : undefined;
   return (
@@ -65,22 +57,15 @@ export function Charts({
         </Button>
       }
       empty={
-        canMake ? (
-          <WidePanel
-            label="+ New chart"
-            hint="Counts the tasks that enter a column each day, such as how many shipped."
-            shapes="bars"
-            disabled={choices.length === 0}
-            title={nothing}
-            onClick={() => setAdding(true)}
-            data-testid="chart-new"
-          />
-        ) : (
-          <QuietPanel
-            title="Charts"
-            line="Count how many tasks enter a column each day. Create a project first."
-          />
-        )
+        <WidePanel
+          label="+ New chart"
+          hint="Counts the tasks that enter a column each day, such as how many shipped."
+          shapes="bars"
+          disabled={choices.length === 0}
+          title={nothing}
+          onClick={() => setAdding(true)}
+          data-testid="chart-new"
+        />
       }
     >
       {(adding || charts.length > 0) && (

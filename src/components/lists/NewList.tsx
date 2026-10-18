@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { PROJECT_INK, keyTint } from "@/lib/colors";
 import { NAME_MAX } from "@/lib/lists";
 import type { SourceShape } from "@/lib/lists-load";
 import type { FilterRule } from "@/lib/types";
@@ -14,6 +13,8 @@ import type { SessionUser } from "@/components/ui/UserMenu";
 import { ListBar } from "./ListPage";
 import { AppCrumb } from "@/components/ui/AppBar";
 import { PageHead, PageShell } from "@/components/ui/Layout";
+import { ProjectMark } from "@/components/ui/Marks";
+import { ProjectTiles } from "./ProjectTiles";
 import styles from "./lists.module.css";
 
 type Project = { id: string; key: string; name: string; color: string };
@@ -138,6 +139,7 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
         <Field label="Name" note="Left empty, it is named after its projects.">
           <Input
             block
+            size="lg"
             value={name}
             maxLength={NAME_MAX}
             placeholder="My week"
@@ -168,36 +170,11 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
               No project matches “{query.trim()}”.
             </span>
           ) : (
-            <div className={styles.tiles}>
-              {shown.map((p) => {
-                const picked = picks.some((s) => s.projectId === p.id);
-                const tint = keyTint(p.color);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className={styles.tile}
-                    aria-pressed={picked}
-                    data-testid="list-tile"
-                    style={
-                      {
-                        "--project": p.color,
-                        "--project-ink": PROJECT_INK,
-                        "--key-tint": tint.background,
-                        "--key-tint-ink": tint.color,
-                      } as React.CSSProperties
-                    }
-                    onClick={() => toggle(p.id)}
-                  >
-                    <span className={styles.tileKey}>{p.key}</span>
-                    <span className={styles.tileName}>{p.name}</span>
-                    <span className={styles.tick} aria-hidden="true">
-                      {picked ? "✓" : ""}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <ProjectTiles
+              projects={shown}
+              picked={(id) => picks.some((s) => s.projectId === id)}
+              onPick={toggle}
+            />
           )}
           {only && <span className={styles.none}>Your only project, picked for you.</span>}
         </section>
@@ -223,7 +200,7 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
                     data-testid="list-source-edit"
                   >
                     <div className={styles.groupHead}>
-                      <span className={styles.key}>{project.key}</span>
+                      <ProjectMark projectKey={project.key} color={project.color} />
                       <span className={styles.groupName}>{project.name}</span>
                       <span
                         className={nothing ? styles.countNone : styles.groupCount}
@@ -257,6 +234,7 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
                     )}
                     {pick.shape && (
                       <RuleChips
+                        bare
                         properties={pick.shape.properties}
                         members={pick.shape.members}
                         former={pick.shape.former}
@@ -272,26 +250,37 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
           )}
         </section>
 
+        {/* The two buttons are one group, so on a phone they wrap together and
+            Create stays at the right. The sum shows once there is one. */}
         <div className={styles.footer}>
-          <span className={styles.summary} data-testid="list-summary">
-            {several(picks.length, "project")} · {several(rules, "rule")} · {several(tasks, "task")}
-          </span>
-          <span className={styles.spacer} />
+          {picks.length > 0 && (
+            <span className={styles.summary} data-testid="list-summary">
+              {[
+                several(picks.length, "project"),
+                rules > 0 ? several(rules, "rule") : null,
+                several(tasks, "task"),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
+          )}
           {error && (
             <span className={styles.error} role="alert">
               {error}
             </span>
           )}
-          <ButtonPageLink variant="ghost" href="/projects">
-            Cancel
-          </ButtonPageLink>
-          <Button
-            disabled={picks.length === 0 || creating}
-            data-testid="list-create"
-            onClick={() => void create()}
-          >
-            Create list
-          </Button>
+          <div className={styles.footActions}>
+            <ButtonPageLink variant="ghost" href="/projects">
+              Cancel
+            </ButtonPageLink>
+            <Button
+              disabled={picks.length === 0 || creating}
+              data-testid="list-create"
+              onClick={() => void create()}
+            >
+              Create list
+            </Button>
+          </div>
         </div>
       </PageShell>
     </div>

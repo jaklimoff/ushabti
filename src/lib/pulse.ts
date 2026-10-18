@@ -62,7 +62,7 @@ export type Heading =
     };
 
 /** Somebody on the project, as the card's footer draws them. */
-export type PulsePerson = { id: string; name: string; kind: "human" | "agent" };
+export type PulsePerson = { id: string; name: string; kind: "human" | "agent"; color: string };
 
 /** Three weeks with nothing written, and a card reads quiet. */
 export const QUIET_AFTER = 21 * 24 * 60 * 60 * 1000;

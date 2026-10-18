@@ -21,6 +21,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   **Back to sign in**. Account has Profile with a live preview, Email, Password,
   Sessions and Personal tokens; a save that worked shows no toast, and **Sign out
   the others** asks first.
+- **Home says what waits for you, and the list pages wear project colours.** One
+  amber line under the Home title counts the questions and hand-overs waiting
+  for you, per project. Empty lists and charts no longer look like they are
+  loading, and faces on a card wear their own colour. Each Changelog release is
+  a card, task keys read one way on Archived, Changelog and lists, and a member
+  who opens the changelog with releases off sees "Releases are off".
 
 ## 0.28.0 — 2026-10-17
 

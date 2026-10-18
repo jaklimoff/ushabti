@@ -1,9 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, requireMembership, HttpError } from "@/lib/auth";
 import { readShown } from "@/lib/changelog";
-import { loadChangelog } from "@/lib/changelog-load";
+import { changelogProject, loadChangelog } from "@/lib/changelog-load";
 import { ChangelogList } from "@/components/changelog/ChangelogList";
-import { EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
+import { Card, EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import styles from "@/components/changelog/changelog.module.css";
 
@@ -35,7 +35,24 @@ export default async function ChangelogPage({
   }
 
   const log = await loadChangelog(projectId, readShown((await searchParams).shown));
-  if (!log) notFound();
+  if (!log) {
+    // A member was let in above, so the project is there and only releases are
+    // off. Not found would tell them they cannot see it, which is false.
+    const project = await changelogProject(projectId);
+    if (!project) notFound();
+    const { releaseBy: _off, ...named } = project;
+    return (
+      <div className={styles.page}>
+        <ProjectBar project={named} here="Changelog" user={user} />
+        <PageShell>
+          <PageHead title="Changelog" />
+          <Card>
+            <EmptyState title="Releases are off" />
+          </Card>
+        </PageShell>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -43,12 +60,14 @@ export default async function ChangelogPage({
       <PageShell>
         <PageHead
           title="Changelog"
-          lead="Every option that shipped, newest first, with its note and its tasks. A note is edited on its option in Settings."
+          lead="Every release that shipped, newest first, with its note and its tasks. A note is written on its release in Settings."
         />
         {log.entries.length === 0 ? (
-          <EmptyState title="Nothing has shipped yet">
-            A column with a target date ships from its header, and lands here.
-          </EmptyState>
+          <Card>
+            <EmptyState title="Nothing has shipped yet">
+              A column with a target date ships from its header, and lands here.
+            </EmptyState>
+          </Card>
         ) : (
           <div className={styles.entries}>
             <ChangelogList

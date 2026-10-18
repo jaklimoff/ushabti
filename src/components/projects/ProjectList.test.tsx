@@ -213,10 +213,10 @@ describe("The projects on Home", () => {
     const heads = page.getByRole("heading", { level: 2 }).elements();
     expect(heads.map((h) => h.textContent)).toEqual(["Projects", "My lists", "Charts"]);
     const sections = heads.map((h) => h.closest("section")!.getBoundingClientRect());
-    expect(Math.round(sections[1].top - sections[0].bottom)).toBe(44);
-    expect(Math.round(sections[2].top - sections[1].bottom)).toBe(44);
-    expect(getComputedStyle(heads[0]).fontSize).toBe("15px");
-    expect(getComputedStyle(heads[1]).fontSize).toBe("13px");
+    expect(Math.round(sections[1].top - sections[0].bottom)).toBe(36);
+    expect(Math.round(sections[2].top - sections[1].bottom)).toBe(36);
+    /* One heading style: lists and charts are sections, not footnotes. */
+    for (const head of heads) expect(getComputedStyle(head).fontSize).toBe("15px");
 
     for (const name of ["+ New project", "+ New list", "+ New chart"]) {
       const press = page.getByRole(name === "+ New list" ? "link" : "button", { name });
@@ -254,7 +254,7 @@ describe("The projects on Home", () => {
 });
 
 describe("An empty section on Home", () => {
-  test("with no projects, offers the first project and says lists and charts wait", async () => {
+  test("with no projects, offers only the first project and says lists and charts wait", async () => {
     await renderWithBoard(<ProjectList user={ME} projects={[]} />, newProject());
     const first = page.getByRole("group", { name: "Create your first project" });
     await expect.element(first).toBeVisible();
@@ -264,17 +264,12 @@ describe("An empty section on Home", () => {
     expect(page.getByRole("button", { name: "+ New project" }).elements()).toHaveLength(0);
     expect(page.getByRole("textbox", { name: "Project name" }).elements()).toHaveLength(0);
 
-    const lists = page.getByRole("group", { name: "Lists" });
-    expect(lists.element().textContent).toContain(
-      "Gather tasks from your projects in one place. Create a project first.",
+    /* One line in the panel, in place of two more boxes saying "not yet". */
+    expect(first.element().textContent).toContain(
+      "Lists and charts appear here once you have a project.",
     );
-    const charts = page.getByRole("group", { name: "Charts" });
-    expect(charts.element().textContent).toContain(
-      "Count how many tasks enter a column each day. Create a project first.",
-    );
-    for (const quiet of [lists, charts]) {
-      expect(quiet.element().querySelector("a, button")).toBeNull();
-    }
+    const heads = page.getByRole("heading", { level: 2 }).elements();
+    expect(heads.map((h) => h.textContent)).toEqual(["Projects"]);
     expect(page.getByTestId("list-new").elements()).toHaveLength(0);
     expect(page.getByTestId("chart-new").elements()).toHaveLength(0);
 
@@ -300,7 +295,10 @@ describe("An empty section on Home", () => {
     await expect.element(list).toHaveAttribute("href", "/lists/new");
     await expect.element(list).toHaveAccessibleDescription(/picked by rules/);
     expect(page.getByTestId("list-new").elements()).toHaveLength(1);
-    expect(list.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(120);
+    /* Small, so it does not outweigh the projects above it. */
+    const tall = list.element().getBoundingClientRect().height;
+    expect(tall).toBeGreaterThanOrEqual(76);
+    expect(tall).toBeLessThan(100);
 
     const chartPanel = page.getByRole("button", { name: "+ New chart" });
     await expect.element(chartPanel).toHaveAccessibleDescription(/such as how many shipped/);
@@ -358,8 +356,8 @@ const pulseOf = (over: Partial<ProjectPulse> = {}): ProjectPulse => ({
   },
   heading: null,
   people: [
-    { id: "u1", name: "Ada Lovelace", kind: "human" },
-    { id: "u2", name: "Builder", kind: "agent" },
+    { id: "u1", name: "Ada Lovelace", kind: "human", color: "#e0574d" },
+    { id: "u2", name: "Builder", kind: "agent", color: "#3fb0c8" },
   ],
   quiet: false,
   days: [0, 2, 0, 0, 5, 1, 0, 0, 0, 3, 0, 8, 0, 4],
@@ -368,12 +366,13 @@ const pulseOf = (over: Partial<ProjectPulse> = {}): ProjectPulse => ({
 
 const rectOf = (el: Element) => el.getBoundingClientRect();
 
-/* The grip carries an unseen copy of the key, so the square is the one outside it. */
+/* The grip carries an unseen copy of the key, so the square is the one outside
+   it; the waiting strip wears the key too, so it is the one on the card. */
 const squareOf = (key: string) =>
   page
     .getByText(key, { exact: true })
     .elements()
-    .find((el) => !el.closest("button"))!;
+    .find((el) => !el.closest("button") && el.closest('[data-testid="project-card"]'))!;
 
 describe("A project card", () => {
   test("reads the colour square, the name, the role, the badge and a gear that holds its place", async () => {
@@ -386,13 +385,16 @@ describe("A project card", () => {
     expect(getComputedStyle(key).backgroundColor).toBe("rgb(122, 168, 240)");
     expect(getComputedStyle(key).color).toBe("rgb(20, 22, 26)");
     expect(Math.round(rectOf(key).height)).toBe(22);
-    const name = page.getByText("Harbour", { exact: true }).element();
+    const name = card.getByText("Harbour", { exact: true }).element();
     expect(getComputedStyle(name).fontSize).toBe("15px");
     expect(getComputedStyle(name).fontWeight).toBe("600");
     await expect.element(page.getByText("admin", { exact: true })).toBeVisible();
-    await expect
-      .element(card.getByTestId("project-waiting"))
-      .toHaveTextContent("2 waiting for you");
+    await expect.element(card.getByTestId("project-waiting")).toHaveTextContent("2 waiting");
+    /* The strip over the projects says it once for all of them. */
+    const strip = page.getByRole("navigation", { name: "Waiting for you" });
+    await expect.element(strip).toBeVisible();
+    expect(strip.element().textContent).toBe("2 waiting for youHARHarbour2");
+    await expect.element(strip.getByRole("link")).toHaveAttribute("href", `/p/${harbour.id}`);
 
     const gear = page.getByRole("link", { name: "Settings for Harbour" });
     await expect.element(gear).toHaveAttribute("title", "Project settings");
@@ -461,7 +463,26 @@ describe("A project card", () => {
     expect(getComputedStyle(ada.element()).borderRadius).toBe("50%");
     const agent = page.getByRole("img", { name: "Builder" });
     expect(getComputedStyle(agent.element()).borderRadius).toBe("4px");
+    /* Each face wears its own colour, held under the colour itself. */
+    /* A color-mix computes to color(srgb 0..1), so it is read back into 0..255. */
+    const rgb = (el: Element) => {
+      const said = getComputedStyle(el).backgroundColor;
+      const parts = said
+        .match(/[\d.]+/g)!
+        .map(Number)
+        .slice(0, 3);
+      return said.startsWith("color(") ? parts.map((n) => Math.round(n * 255)) : parts;
+    };
+    const [r, g, b] = rgb(ada.element());
+    expect(r).toBeGreaterThan(g + 30);
+    expect(r).toBeLessThan(224);
+    const [ar, ag] = rgb(agent.element());
+    expect(ag).toBeGreaterThan(ar + 30);
+    expect(rgb(ada.element())).not.toEqual(rgb(agent.element()));
+    expect([r, g, b]).not.toEqual([224, 87, 77]);
     await expect.element(page.getByTestId("project-agents")).toHaveTextContent("Builder working");
+    /* Nothing waits, so the line over the projects is gone. */
+    expect(page.getByTestId("home-waiting").elements()).toHaveLength(0);
     expect(page.getByTestId("project-last").elements()).toHaveLength(0);
   });
 
@@ -593,8 +614,8 @@ describe("A project card's fourteen days", () => {
       .map((el) => rectOf(el).bottom);
     expect(Math.round(a)).toBe(Math.round(b));
     const said = page.getByTestId("project-changes").elements();
-    expect(said[0].textContent).toBe("23 changes, 14 days");
-    expect(said[1].textContent).toBe("1 change, 14 days");
+    expect(said[0].textContent).toBe("23 changes in 14 days");
+    expect(said[1].textContent).toBe("1 change in 14 days");
     await expect
       .element(
         page.getByRole("img", {

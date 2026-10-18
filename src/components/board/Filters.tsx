@@ -666,6 +666,7 @@ export function RuleChips({
   rules,
   onRules,
   owed,
+  bare = false,
 }: {
   properties: PropertyDTO[];
   members: MemberDTO[];
@@ -673,6 +674,8 @@ export function RuleChips({
   rules: FilterRule[];
   onRules: (rules: FilterRule[]) => void;
   owed: (rules: FilterRule[]) => LeaveSend | null;
+  /** Inside a card off the board: no strip of its own around the chips. */
+  bare?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -685,7 +688,10 @@ export function RuleChips({
   }
 
   return (
-    <div className={styles.filterRow} data-testid="rule-chips">
+    <div
+      className={`${styles.filterRow} ${bare ? styles.filterRowBare : ""}`}
+      data-testid="rule-chips"
+    >
       {rules.map((rule, i) => {
         const property = askable.find((p) => p.id === rule.propertyId);
         if (!property) return null;

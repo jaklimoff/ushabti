@@ -27,5 +27,12 @@ export default async function ListRoute({ params }: { params: Promise<{ listId: 
 
   const [sources, projects] = await Promise.all([sourcesOf([list.id]), listProjects(user.id)]);
   const boards = await boardsFor(sources, projects, boardsOnce(user.id));
-  return <ListPage user={user} list={list} groups={listGroups(sources, boards, user.id)} />;
+  return (
+    <ListPage
+      user={user}
+      list={list}
+      groups={listGroups(sources, boards, user.id)}
+      colors={Object.fromEntries(projects.map((p) => [p.id, p.color]))}
+    />
+  );
 }

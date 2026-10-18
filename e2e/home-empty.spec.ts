@@ -11,16 +11,13 @@ test("an empty Home offers the first project, then the first list", async ({ pag
   await register(page, "Empty Person");
   await page.goto("/projects");
 
-  /* No projects: one panel makes the first, and lists and charts wait for it. */
+  /* No projects: one panel makes the first, and says lists and charts wait for it. */
   const first = page.getByRole("group", { name: "Create your first project" });
   await expect(first).toContainText("A project is one board of tasks");
+  await expect(first).toContainText("Lists and charts appear here once you have a project.");
   await expect(page.getByRole("button", { name: "+ New project" })).toHaveCount(0);
-  await expect(page.getByRole("group", { name: "Lists" })).toContainText(
-    "Gather tasks from your projects in one place. Create a project first.",
-  );
-  await expect(page.getByRole("group", { name: "Charts" })).toContainText(
-    "Count how many tasks enter a column each day. Create a project first.",
-  );
+  await expect(page.getByTestId("my-lists")).toHaveCount(0);
+  await expect(page.getByTestId("my-charts")).toHaveCount(0);
   await expect(page.getByTestId("list-new")).toHaveCount(0);
   await expect(page.getByTestId("chart-new")).toHaveCount(0);
 
@@ -42,7 +39,8 @@ test("an empty Home offers the first project, then the first list", async ({ pag
   const shapes = lists.getByTestId("panel-shapes");
   await expect(shapes).toHaveAttribute("aria-hidden", "true");
   const box = (await panel.boundingBox())!;
-  expect(box.height).toBeGreaterThanOrEqual(119);
+  expect(box.height).toBeGreaterThanOrEqual(75);
+  expect(box.height).toBeLessThan(100);
   await expect(page.getByTestId("my-charts").getByTestId("chart-new")).toContainText(
     "such as how many shipped",
   );

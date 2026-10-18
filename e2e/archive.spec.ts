@@ -74,7 +74,7 @@ test.describe("Archiving a task", () => {
 
       const rows = page.getByTestId("archive-row");
       await expect(rows).toHaveCount(2);
-      await expect(page.getByText("2 archived tasks")).toBeVisible();
+      await expect(page.getByTestId("archive-count")).toHaveText("2");
 
       // Newest archived first, and only the archived ones.
       await expect(rows.nth(0)).toContainText("Second to go");
@@ -88,7 +88,7 @@ test.describe("Archiving a task", () => {
       await expect(rows).toHaveCount(1);
       await expect(rows.first()).toContainText("First to go");
       await find.fill("nothing by that name");
-      await expect(page.getByText("No archived task by those words.")).toBeVisible();
+      await expect(page.getByText("No archived task by those words")).toBeVisible();
       await find.fill("");
       await expect(rows).toHaveCount(2);
 

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { changelogSlug, readShown } from "@/lib/changelog";
 import { loadPublicChangelog } from "@/lib/changelog-load";
 import { ChangelogList } from "@/components/changelog/ChangelogList";
-import { EmptyState } from "@/components/ui/Layout";
+import { Card, EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
 import styles from "@/components/changelog/changelog.module.css";
 
 export const dynamic = "force-dynamic";
@@ -38,19 +38,28 @@ export default async function PublicChangelogPage({ params, searchParams }: Prop
 
   return (
     <div className={styles.page}>
-      <div className={styles.shell}>
-        <h1 className={styles.h1}>{log.project.name}</h1>
-        <span className={styles.lead}>Changelog</span>
+      {/* A stranger has no account here, so the bar names the project and
+          offers nothing to sign in to. */}
+      <header className={styles.publicBar}>
+        <span className={styles.publicName}>{log.project.name}</span>
+      </header>
+      <PageShell className={styles.publicShell}>
+        <PageHead title="Changelog" lead={`What shipped in ${log.project.name}, newest first.`} />
         {log.entries.length === 0 ? (
-          <EmptyState title="Nothing has shipped yet" />
+          <Card>
+            <EmptyState title="Nothing has shipped yet" />
+          </Card>
         ) : (
-          <ChangelogList
-            entries={log.entries}
-            older={log.older}
-            path={`/changelog/${changelogSlug(slug)}`}
-          />
+          <div className={styles.entries}>
+            <ChangelogList
+              entries={log.entries}
+              older={log.older}
+              path={`/changelog/${changelogSlug(slug)}`}
+            />
+          </div>
         )}
-      </div>
+      </PageShell>
+      <footer className={styles.publicFoot}>Kept with Ushabti</footer>
     </div>
   );
 }

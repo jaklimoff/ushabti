@@ -16,9 +16,11 @@ import type { SessionUser } from "@/components/ui/UserMenu";
 import { ListBar } from "./ListPage";
 import { AppCrumb } from "@/components/ui/AppBar";
 import { PageHead, PageShell } from "@/components/ui/Layout";
+import { ProjectMark } from "@/components/ui/Marks";
+import { ProjectTiles, type TileProject } from "./ProjectTiles";
 import styles from "./lists.module.css";
 
-type Project = { id: string; key: string; name: string };
+type Project = TileProject;
 
 /**
  * A saved list's name and its sources. The name saves on blur, as every
@@ -142,6 +144,8 @@ export function ListEditor({
 
   const offered = projects.filter((p) => !sources.some((s) => s.projectId === p.id));
   const last = sources.length + hidden <= 1;
+  /* A project the person left has no colour to read; it is not drawn anyway. */
+  const colorOf = (id: string) => projects.find((p) => p.id === id)?.color ?? "var(--accent)";
 
   return (
     <div className={styles.page}>
@@ -167,6 +171,7 @@ export function ListEditor({
         <Field label="Name">
           <Input
             block
+            size="lg"
             value={name}
             maxLength={80}
             aria-label="List name"
@@ -192,7 +197,7 @@ export function ListEditor({
           {sources.map((source) => (
             <section key={source.id} className={styles.source} data-testid="list-source-edit">
               <div className={styles.groupHead}>
-                <span className={styles.key}>{source.key}</span>
+                <ProjectMark projectKey={source.key} color={colorOf(source.projectId)} />
                 <span className={styles.groupName}>{source.name}</span>
                 <span className={styles.spacer} />
                 <IconButton
@@ -209,6 +214,7 @@ export function ListEditor({
                 <span className={styles.none}>Every task of {source.key}.</span>
               )}
               <RuleChips
+                bare
                 properties={source.properties}
                 members={source.members}
                 former={source.former}
@@ -234,19 +240,13 @@ export function ListEditor({
                 : "Every project of yours is on this list."}
             </span>
           ) : (
-            <div className={styles.addRow}>
-              {offered.map((p) => (
-                <Button
-                  key={p.id}
-                  variant="ghost"
-                  disabled={adding}
-                  data-testid="list-add-project"
-                  onClick={() => void addSource(p.id)}
-                >
-                  + {p.key} · {p.name}
-                </Button>
-              ))}
-            </div>
+            <ProjectTiles
+              projects={offered}
+              onPick={(id) => void addSource(id)}
+              adds
+              disabled={adding}
+              testId="list-add-project"
+            />
           )}
         </div>
 

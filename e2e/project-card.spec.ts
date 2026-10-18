@@ -56,7 +56,7 @@ test.describe("The project list shows how every project is going", () => {
   test("a card counts its main board, steps folded columns aside and names the last change", async ({
     page,
     request,
-  }) => {
+  }, testInfo) => {
     const me = await register(page, "Card Reader");
     const name = unique("Pulse");
     const projectId = await createProject(page, name);
@@ -118,8 +118,13 @@ test.describe("The project list shows how every project is going", () => {
     ).toBeTruthy();
 
     await page.goto("/projects");
-    const card = page.locator(`a[href="/p/${projectId}"]`);
-    await expect(card.getByTestId("project-waiting")).toHaveText("2 waiting for you");
+    const card = page.locator(`[data-testid="project-card"] > a[href="/p/${projectId}"]`);
+    await expect(card.getByTestId("project-waiting")).toHaveText("2 waiting");
+    /* The strip over the projects says it once, and leads to the board. */
+    const strip = page.getByRole("navigation", { name: "Waiting for you" });
+    await expect(strip).toContainText("2 waiting for you");
+    await expect(strip.getByRole("link")).toHaveAttribute("href", `/p/${projectId}`);
+    await page.screenshot({ path: testInfo.outputPath("seen-waiting.png") });
     /* The grip lies on the colour square and frames it exactly. */
     const keyBox = card.getByText(key, { exact: true });
     await expect(keyBox).toBeVisible();
@@ -194,7 +199,7 @@ test.describe("The project list shows how every project is going", () => {
     expect(list.status()).toBe(201);
 
     await page.goto("/projects");
-    const card = page.locator(`a[href="/p/${projectId}"]`);
+    const card = page.locator(`[data-testid="project-card"] > a[href="/p/${projectId}"]`);
     await expect(card.getByTestId("project-agents")).toHaveText(
       "Reis working · Crackerjack silent",
     );
@@ -227,11 +232,13 @@ test.describe("The project list shows how every project is going", () => {
     ).toBeTruthy();
 
     await page.goto("/projects");
-    const card = page.locator(`a[href="/p/${projectId}"]`);
+    const card = page.locator(`[data-testid="project-card"] > a[href="/p/${projectId}"]`);
     await expect(card).toBeVisible();
     await expect(card.getByTestId("project-columns")).toHaveCount(0);
     await expect(card.getByTestId("project-bar")).toHaveCount(0);
     await expect(card.getByTestId("project-waiting")).toHaveCount(0);
+    /* Nothing waits anywhere, so the line under the title is gone. */
+    await expect(page.getByTestId("home-waiting")).toHaveCount(0);
     await expect(card.getByTestId("project-no-columns")).toHaveText(
       "The main view draws no columns.",
     );
@@ -250,12 +257,12 @@ test.describe("The project list shows how every project is going", () => {
     }
 
     await page.goto("/projects");
-    const card = page.locator(`a[href="/p/${projectId}"]`);
+    const card = page.locator(`[data-testid="project-card"] > a[href="/p/${projectId}"]`);
     const bars = card.getByTestId("project-day");
     await expect(bars).toHaveCount(14);
     await expect(bars.last()).toHaveAttribute("data-today", "true");
     await expect(bars.first()).not.toHaveAttribute("data-today");
-    await expect(card.getByTestId("project-changes")).toHaveText(/^\d+ changes, 14 days$/);
+    await expect(card.getByTestId("project-changes")).toHaveText(/^\d+ changes in 14 days$/);
     await expect(
       card.getByRole("img", { name: /changes in 14 days\. The busiest day was today/ }),
     ).toBeVisible();
@@ -267,7 +274,7 @@ test.describe("The project list shows how every project is going", () => {
     const me = await register(page, "Goal Reader");
     const projectId = await createProject(page, unique("Goal"));
     const { key, status, opt } = await shapeOf(page, projectId);
-    const card = page.locator(`a[href="/p/${projectId}"]`);
+    const card = page.locator(`[data-testid="project-card"] > a[href="/p/${projectId}"]`);
 
     /* No activity yet: the row is there and says nothing. */
     await page.goto("/projects");

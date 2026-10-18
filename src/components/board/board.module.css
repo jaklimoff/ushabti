@@ -2324,6 +2324,14 @@ button.listHeadCell:focus-visible {
   flex-wrap: wrap;
 }
 
+/* The same chips inside a card off the board, where the card is the strip. */
+.filterRowBare {
+  min-height: 0;
+  padding: 0;
+  border-bottom: 0;
+  background: none;
+}
+
 .filterChip {
   display: flex;
   align-items: center;

@@ -247,7 +247,12 @@ export async function listProjectsWithPulse(
         agents: agentsAtWork(board.runs, now),
         last,
         heading: headingOf(board, last),
-        people: board.members.map((m) => ({ id: m.id, name: m.name, kind: m.kind })),
+        people: board.members.map((m) => ({
+          id: m.id,
+          name: m.name,
+          kind: m.kind,
+          color: m.color,
+        })),
         quiet: isQuiet(last, now),
         days: pulseDays(days.get(row.id) ?? [], board.today),
       };
