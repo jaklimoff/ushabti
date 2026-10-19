@@ -311,6 +311,9 @@ export function Column({
           }
         />
       ) : sweep.asking ? (
+        /* Not ConfirmRow: that row is sized for a page, and a column head is
+           narrow. The ship question beside this one needs several answers,
+           so both ask in the board's compact form, this one in the red. */
         <div
           className={`${styles.colHead} ${styles.colHeadAsking}`}
           role="alertdialog"

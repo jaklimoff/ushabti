@@ -18,7 +18,9 @@ import styles from "./ui.module.css";
  * `typed` is a question answered by typing a word, for a loss so large that a
  * second press is not enough: deleting a whole project. The danger button
  * stays off until the box holds the word, and the focus starts in the box.
- * It is the same row, so every destructive question in the app has one look.
+ * It is the same row, so every destructive question off the board has one look.
+ * A column head asks in the board's own compact form instead: it is narrower
+ * than a page row, and its ship question needs more than one answer.
  */
 export function ConfirmRow({
   question,

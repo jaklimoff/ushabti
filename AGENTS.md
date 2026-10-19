@@ -465,7 +465,9 @@ and what is easy to get wrong.
   a tag and a card are declared once. They used to be declared three times
   each, at three different heights. The board's top bar takes its geometry
   from there too, so it reads as the bar on every other page. The rest of the
-  board keeps its own CSS on purpose.
+  board keeps its own CSS on purpose. So the two questions a column head
+  asks, archive and ship, are not `ConfirmRow`: a column is narrow and ship
+  has several answers, so they ask in the board's compact form.
   A board component that leaves the board may take a `bare` variant, as
   `RuleChips` does inside a list's card, which drops the board's own strip
   and keeps the chips. It does not grow a second look.
