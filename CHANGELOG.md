@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.30.0 — 2026-10-19
+
 ### Added
 
 - **A roadmap bar's end drags to move its target date.** Grab the right end of
