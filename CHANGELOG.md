@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.31.0 — 2026-10-19
+
 ### Fixed
 
 - **A list row names a working agent in the card's teal.** The name used to
