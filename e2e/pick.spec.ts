@@ -87,4 +87,33 @@ test.describe("Picking several cards", () => {
     expect(await columnOrder(page, "In Progress")).toEqual(["Aardvark", "Beetle", "Cricket"]);
     await expect(page.getByTestId("pick-bar")).toHaveCount(0);
   });
+
+  test("the picker's label sits on one line inside its panel", async ({ page }, testInfo) => {
+    await register(page);
+    await createProject(page, unique("Picked"));
+    await addTask(page, "Todo", "Aardvark");
+    await page.getByRole("button", { name: "Close task" }).click();
+
+    await pick(page, "Aardvark");
+    await page.getByTestId("pick-set").click();
+    const menu = page.getByTestId("pick-menu");
+    const label = menu.getByText("Set a property", { exact: true });
+    await expect(label).toBeVisible();
+
+    /* Mono capitals run wide, so a long sentence ran out past the edge. */
+    const fits = await label.evaluate((node) => {
+      const panel = node.closest('[data-testid="pick-menu"]')!.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const words = range.getBoundingClientRect();
+      const lines = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+      return {
+        inside: words.left >= panel.left && words.right <= panel.right,
+        lines: lines.size,
+      };
+    });
+    expect(fits).toEqual({ inside: true, lines: 1 });
+
+    await page.screenshot({ path: testInfo.outputPath("seen-pick-label.png") });
+  });
 });

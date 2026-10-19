@@ -15,6 +15,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   time broke over four lines.
 - **The checklist bar on a card fills as items are ticked.** It used to stay
   empty beside the count.
+- **The label over a selection's property picker fits its panel.** It reads
+  "Set a property" and no longer runs past the right edge.
 
 ## 0.30.0 — 2026-10-19
 

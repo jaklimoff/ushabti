@@ -262,7 +262,7 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
               </>
             ) : (
               <>
-                <Label>Set one property on all of them</Label>
+                <Label>Set a property</Label>
                 <AskBox
                   query={query}
                   onQuery={setQuery}
