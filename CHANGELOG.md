@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.32.1 — 2026-10-19
+
 ### Changed
 
 - A project's top bar starts at the project's own mark and name, on the board and on Settings, Archived and Changelog. The sidebar leads Home; with one project and no list, where no sidebar is drawn, the Ushabti mark stays in the bar.
