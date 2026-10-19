@@ -29,7 +29,7 @@ async function makeTask(page: Page, projectId: string, title: string): Promise<s
 
 /**
  * Counts the reads of Home: a refresh asks the server for the page again. The
- * top bar's Home link prefetches the same page, which is not a read.
+ * Home link prefetches the same page, which is not a read.
  */
 function countReads(page: Page) {
   const reads = { count: 0 };

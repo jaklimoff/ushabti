@@ -41,19 +41,6 @@
   max-width: 34vw;
 }
 
-/* Ushabti's own mark, the way home, exactly where the shared bar puts it. */
-.home {
-  display: flex;
-  flex: none;
-  border-radius: var(--r-sm);
-}
-
-.crumbSep {
-  flex: none;
-  font-size: var(--t-ui);
-  color: var(--faint-2);
-}
-
 .spacer {
   flex: 1;
 }
@@ -197,11 +184,6 @@
   /* `.top` first, so these win over the shared bar's own padding. */
   .top .iconLink {
     padding: 0 4px;
-  }
-
-  /* Two marks side by side read as a path without the slash between them. */
-  .home + .crumbSep {
-    display: none;
   }
 
   /* The bar was full with two links, and no gap pays for a third word.
@@ -1653,12 +1635,6 @@
    links off the board are worth the room it was taking. */
 @media (max-width: 520px) {
   .crumbName {
-    display: none;
-  }
-
-  /* Ushabti's mark gives its room to the box that finds a task. The project
-     mark beside it opens the sidebar's sheet, which still offers Home. */
-  .home {
     display: none;
   }
 }

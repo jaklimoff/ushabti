@@ -10,8 +10,8 @@ import type { BoardData } from "@/lib/types";
 type Openable = { id: string; key: string };
 import { SidebarMark } from "@/components/ui/Sidebar";
 import { useOwnWaiting } from "@/components/ui/SidebarProvider";
-import { AppAction } from "@/components/ui/AppBar";
-import { BrandMark, ProjectMark } from "@/components/ui/Marks";
+import { AppAction, AppHome, AppSep, useHomeInBar } from "@/components/ui/AppBar";
+import { ProjectMark } from "@/components/ui/Marks";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
@@ -74,6 +74,7 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
   /* The sidebar reads the open project's count from here, so it and the top
      bar never disagree. */
   useOwnWaiting(data.project.id, waitingCount(data.tasks, data.runs));
+  const homeInBar = useHomeInBar();
 
   /* A task opened from the waiting list opens to be answered, so the focus
      goes to the comment box and not the title. The count tells one pick from
@@ -149,16 +150,17 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
         {/* The bar itself is named, so a test that measures what hangs out
             of it holds the bar and not whatever the mark sits in. */}
         <div className={styles.top} data-testid="top-bar">
-          {/* The bar reads as the one on every other page: Ushabti's mark leads
-              home, then the project, then quiet words at the end. */}
-          <Link href="/projects" className={styles.home} title="Home" aria-label="Home">
-            <BrandMark />
-          </Link>
-          <span className={styles.crumbSep} aria-hidden>
-            /
-          </span>
-          {/* The name is plain words: the sidebar is the way to another
-              project. On a phone the mark opens it, as a sheet. */}
+          {/* The bar reads as the one on every project page: the project, then
+              quiet words at the end. The sidebar leads Home, and where none is
+              drawn the Ushabti mark does. The name is plain words: the sidebar
+              is the way to another project. On a phone the mark opens it, as a
+              sheet. */}
+          {homeInBar && (
+            <>
+              <AppHome word={false} />
+              <AppSep />
+            </>
+          )}
           <SidebarMark className={styles.barMark}>
             <ProjectMark
               projectKey={data.project.key}
