@@ -198,15 +198,17 @@ export function MarkdownBox({
     take(files);
   }
 
-  if (live)
+  if (live) {
+    const testId = (rest as { "data-testid"?: string })["data-testid"] ?? "live-editor";
     return (
       <>
-        <Suspense fallback={<div className={rest.className} data-testid="live-editor-wait" />}>
+        {/* Named after its box: the description and the comment box wait at once. */}
+        <Suspense fallback={<div className={rest.className} data-testid={`${testId}-wait`} />}>
           <LiveEditor
             boxRef={ref}
             value={value}
             label={rest["aria-label"] ?? "Description"}
-            testId={(rest as { "data-testid"?: string })["data-testid"] ?? "live-editor"}
+            testId={testId}
             className={rest.className}
             placeholder={rest.placeholder}
             autoFocus={rest.autoFocus}
@@ -235,6 +237,7 @@ export function MarkdownBox({
         )}
       </>
     );
+  }
 
   return (
     <>
