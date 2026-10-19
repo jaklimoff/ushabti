@@ -1533,6 +1533,7 @@
 }
 
 .cardProgressBar {
+  display: block;
   width: 34px;
   height: 3px;
   border-radius: 2px;
@@ -1541,6 +1542,7 @@
 }
 
 .cardProgressFill {
+  display: block;
   height: 3px;
   border-radius: 2px;
   background: var(--accent);

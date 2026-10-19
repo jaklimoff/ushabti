@@ -8,6 +8,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **The checklist bar on a card fills as items are ticked.** It used to stay
+  empty beside the count.
+
 ## 0.30.0 — 2026-10-19
 
 ### Added
