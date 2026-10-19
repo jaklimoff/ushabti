@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Keys, dates, counts and idle icons stay readable on a hovered row.**
+  The two quiet greys are a little lighter, so they hold their contrast on a
+  hovered card, a lit menu row and a tag, not only on a plain card.
 - **Small words read on a dark card.** "Saved", "Somebody is editing",
   the comment box's hint, the picker's search, the word current and a dozen
   more were set in greys meant for lines and dots. The clear cross of a

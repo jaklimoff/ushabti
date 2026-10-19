@@ -65,3 +65,17 @@ test("a chart's delete cross can be found", async ({ page }, testInfo) => {
   expect(await colourOf(cross)).toBe(await paint(page, "--icon"));
   await page.screenshot({ path: testInfo.outputPath("seen-chart-delete.png") });
 });
+
+test("the two greys stay readable on a hovered card", async ({ page }, testInfo) => {
+  await register(page);
+  await createProject(page, unique("Hover greys"));
+  await addTask(page, "Todo", "Hovered");
+  await page.getByRole("button", { name: "Close task" }).click();
+
+  // #828892 and #646b76 hold 4.5:1 and 3:1 on every hover ground and a tag.
+  expect(await paint(page, "--text-meta")).toBe("rgb(130, 136, 146)");
+  expect(await paint(page, "--icon")).toBe("rgb(100, 107, 118)");
+
+  await card(page, "Hovered").hover();
+  await page.screenshot({ path: testInfo.outputPath("seen-hovered-card.png") });
+});

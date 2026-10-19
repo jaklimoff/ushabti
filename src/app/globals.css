@@ -59,9 +59,10 @@
   --faint-2: #4e545e;
   --faint-3: #3f4650;
   /* Small words people read: keys, dates, counts, times, the version line.
-     About 4.5:1 on a card, where --faint is not. --faint and darker are for
-     decoration only: grips, separators, an empty date. */
-  --text-meta: #7a808a;
+     At least 4.5:1 on a card, a hovered card, a hovered row, a lit menu row
+     and a tag, where --faint is not. --faint and darker are for decoration
+     only: grips, separators, an empty date. */
+  --text-meta: #828892;
 
   /* The grounds of a tag, an active pill, and a row of a menu under the
      pointer. */
@@ -108,7 +109,7 @@
      quiet border, under 3:1: a keyboard ring is the accent, see below. */
   --focus-ring: #38505a;
   --line-strong: #263038;
-  --icon: #5d646f;
+  --icon: #646b76;
   --danger-text: #f0a49d;
   --shadow-menu: 0 14px 34px rgba(0, 0, 0, 0.55);
   --shadow-drag: 0 26px 54px rgba(0, 0, 0, 0.62), 0 2px 0 rgba(255, 255, 255, 0.04) inset;
