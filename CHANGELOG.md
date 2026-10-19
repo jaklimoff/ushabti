@@ -10,6 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The sort chip asks "Remove for everyone?" as a filter chip does.** The
+  question used to come out in the order's mono teal.
 - **Keys, dates, counts and idle icons stay readable on a hovered row.**
   The two quiet greys are a little lighter, so they hold their contrast on a
   hovered card, a lit menu row and a tag, not only on a plain card.

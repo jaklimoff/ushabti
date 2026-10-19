@@ -256,7 +256,9 @@ test.describe("Two people on one board", () => {
  * why. The order is theirs now, exactly as a filter is.
  */
 test.describe("An order one person picks", () => {
-  test("holds only their board still, until they save it for everyone", async ({ browser }) => {
+  test("holds only their board still, until they save it for everyone", async ({
+    browser,
+  }, testInfo) => {
     const owner = await freshPage(browser);
     const friend = await freshPage(browser);
 
@@ -313,6 +315,13 @@ test.describe("An order one person picks", () => {
     const view = board.views.find((v: { isDefault: boolean }) => v.isDefault);
     expect(view.sort).toEqual({ columnId: expect.any(String), direction: "asc" });
     expect(view.lensSort).toBeNull();
+
+    // Taking the team's order away asks first, in a rule chip's voice.
+    await owner.page.getByTestId("sort-clear").click();
+    await expect(owner.page.getByTestId("sort-chip-question")).toContainText(
+      "Remove for everyone?",
+    );
+    await owner.page.screenshot({ path: testInfo.outputPath("seen-sort-chip-asks.png") });
 
     await owner.context.close();
     await friend.context.close();

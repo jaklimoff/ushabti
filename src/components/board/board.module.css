@@ -2717,7 +2717,9 @@ button.listHeadCell:focus-visible .listHeadHint {
   border-color: var(--line-menu);
 }
 
-.sortChip .filterChipBody {
+/* Only the order reads as code. The question the chip asks before its ✕ is a
+   sentence, and reads as a rule chip asking it does. */
+.sortChip:not(.filterChipAsking) .filterChipBody {
   font-family: var(--font-mono);
   font-size: var(--t-micro);
   letter-spacing: 0.04em;

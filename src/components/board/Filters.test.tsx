@@ -420,6 +420,36 @@ describe("Filters inside a view", () => {
     await gone(byTestId("filter-row"));
   });
 
+  test("the sort chip asks in the same voice as a rule chip", async () => {
+    const data = newProject();
+    withTask(data, "Urgent thing", { Status: "Todo", Priority: "Urgent" });
+    data.views[0].filters = { rules: [rule(data, "Priority", "Urgent")] };
+    data.views[0].sort = { columnId: propertyOf(data, "Priority").id, direction: "asc" };
+    await draw(data);
+
+    const voice = (el: Element) => {
+      const s = getComputedStyle(el);
+      return [s.fontFamily, s.fontSize, s.letterSpacing, s.color];
+    };
+    const body = (locator: Locator) => locator.element().querySelector("span") as Element;
+
+    // The order itself still reads as code, unlike a rule.
+    const order = voice(body(byTestId("sort-chip")));
+    const ruleBody = voice(chip("Priority is Urgent").element());
+    expect(order[0]).not.toBe(ruleBody[0]);
+    expect(order[3]).not.toBe(ruleBody[3]);
+
+    await page
+      .getByRole("button", { name: "Remove the filter Priority is Urgent for everyone" })
+      .click();
+    const ruleAsks = voice(body(byTestId("filter-chip-question")));
+    await userEvent.keyboard("{Escape}");
+
+    await byTestId("sort-clear").click();
+    const sortAsks = voice(body(byTestId("sort-chip-question")));
+    expect(sortAsks).toEqual(ruleAsks);
+  });
+
   test("a task added under both sets is seeded for both", async () => {
     const data = newProject();
     withTask(data, "First task", { Status: "Todo", Priority: "Urgent" });
