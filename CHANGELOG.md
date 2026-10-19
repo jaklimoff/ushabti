@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.32.0 — 2026-10-19
+
 ### Added
 
 - **A sidebar of projects on every signed-in page.** It shows a pulsing dot
