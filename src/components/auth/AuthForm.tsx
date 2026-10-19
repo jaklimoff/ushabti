@@ -7,6 +7,7 @@ import { ApiError, api } from "@/lib/client";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Form";
 import { BrandMark } from "@/components/ui/Marks";
+import { OutsideFrame, outsideCard } from "@/components/ui/OutsideFrame";
 import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
 import styles from "./AuthForm.module.css";
 
@@ -269,21 +270,17 @@ export function AuthCard({
   children: React.ReactNode;
 }) {
   return (
-    <main className={styles.wrap}>
-      <div className={styles.column}>
-        <div className={styles.brand}>
-          <BrandMark size={32} />
-          <div className={styles.name}>Ushabti</div>
-          <p className={styles.what}>
-            A task board where people and AI agents work the same tasks.
-          </p>
-        </div>
-        <section className={styles.card}>
-          {title && <h1 className={styles.h1}>{title}</h1>}
-          {children}
-        </section>
-        {below && <div className={styles.below}>{below}</div>}
+    <OutsideFrame>
+      <div className={styles.brand}>
+        <BrandMark size={32} />
+        <div className={styles.name}>Ushabti</div>
+        <p className={styles.what}>A task board where people and AI agents work the same tasks.</p>
       </div>
-    </main>
+      <section className={`${outsideCard} ${styles.card}`}>
+        {title && <h1 className={styles.h1}>{title}</h1>}
+        {children}
+      </section>
+      {below && <div className={styles.below}>{below}</div>}
+    </OutsideFrame>
   );
 }

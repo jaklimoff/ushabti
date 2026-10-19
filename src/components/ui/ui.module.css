@@ -958,11 +958,13 @@
   }
 }
 
-/* ---- status pages -------------------------------------------------- */
+/* ---- the outside frame --------------------------------------------- */
 
-/* The sign-in pages' frame (`AuthForm.module.css`): the same glow, the same
-   height to hang from, the same card. Keep the two in step. */
-.status {
+/* The app's outside: the sign-in pages and the status pages. The block hangs
+   from a fixed height rather than sitting in the middle, so the brand is in
+   one place on every page and a longer card grows down. What sits inside the
+   brand and the card is each page's own, and so are their gaps. */
+.frame {
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
@@ -973,13 +975,34 @@
     radial-gradient(900px 520px at 50% -10%, rgba(63, 176, 200, 0.08), transparent 70%), var(--bg);
 }
 
-.statusInner {
+.frameColumn {
   width: 100%;
   max-width: 380px;
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
 }
+
+.frameCard {
+  display: flex;
+  flex-direction: column;
+  padding: 26px var(--s-6) var(--s-6);
+  background: var(--bg-top);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+}
+
+@media (max-width: 520px) {
+  .frame {
+    padding-top: var(--s-6);
+  }
+
+  .frameCard {
+    padding: var(--s-5);
+  }
+}
+
+/* ---- status pages -------------------------------------------------- */
 
 .statusBrand {
   display: flex;
@@ -996,13 +1019,7 @@
 }
 
 .statusCard {
-  display: flex;
-  flex-direction: column;
   gap: var(--s-2);
-  padding: 26px var(--s-6) var(--s-6);
-  background: var(--bg-top);
-  border: 1px solid var(--line);
-  border-radius: var(--r-xl);
 }
 
 .statusTitle {
@@ -1035,16 +1052,6 @@
   gap: var(--s-4);
   margin-top: var(--s-3);
   font-size: var(--t-body);
-}
-
-@media (max-width: 520px) {
-  .status {
-    padding-top: var(--s-6);
-  }
-
-  .statusCard {
-    padding: var(--s-5);
-  }
 }
 
 /* ---- the app bar ---------------------------------------------------- */

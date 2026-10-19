@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "./Marks";
+import { OutsideFrame, outsideCard } from "./OutsideFrame";
 import styles from "./ui.module.css";
 
 /**
@@ -25,28 +26,26 @@ export function StatusPage({
   hrefLabel?: string;
 }) {
   return (
-    <main className={styles.status}>
-      <div className={styles.statusInner}>
-        <div className={styles.statusBrand}>
-          <BrandMark size={32} />
-          <span className={styles.statusName}>Ushabti</span>
-        </div>
-        <section className={styles.statusCard}>
-          <h1 className={styles.statusTitle}>{title}</h1>
-          <p className={styles.statusBody}>{children}</p>
-          {digest && (
-            <p className={styles.statusBody}>
-              Look for <span className={styles.statusDigest}>{digest}</span> in the server log.
-            </p>
-          )}
-          {(action || href) && (
-            <div className={styles.statusActions}>
-              {action}
-              {href && <Link href={href}>{hrefLabel}</Link>}
-            </div>
-          )}
-        </section>
+    <OutsideFrame>
+      <div className={styles.statusBrand}>
+        <BrandMark size={32} />
+        <span className={styles.statusName}>Ushabti</span>
       </div>
-    </main>
+      <section className={`${outsideCard} ${styles.statusCard}`}>
+        <h1 className={styles.statusTitle}>{title}</h1>
+        <p className={styles.statusBody}>{children}</p>
+        {digest && (
+          <p className={styles.statusBody}>
+            Look for <span className={styles.statusDigest}>{digest}</span> in the server log.
+          </p>
+        )}
+        {(action || href) && (
+          <div className={styles.statusActions}>
+            {action}
+            {href && <Link href={href}>{hrefLabel}</Link>}
+          </div>
+        )}
+      </section>
+    </OutsideFrame>
   );
 }
