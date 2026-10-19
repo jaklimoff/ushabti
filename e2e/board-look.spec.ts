@@ -220,6 +220,27 @@ test.describe("A list reads cleanly", () => {
     expect(Math.abs(ring.ringWidth - ring.rowWidth)).toBeLessThan(1);
     await page.screenshot({ path: testInfo.outputPath("seen-list-ring.png") });
   });
+
+  test("a row names a working agent in the card's teal", async ({ page, request }, testInfo) => {
+    const { projectId, task } = await project(page);
+    await task("Works");
+    const api = agentApi(request, await connectAgent(page, projectId, "Runner"));
+    const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
+    const id = board.tasks.find((t: { title: string }) => t.title === "Works").id as string;
+    const run = (await (await api.post(`/api/tasks/${id}/run`, { goal: "Works" })).json()).run;
+    await api.patch(`/api/runs/${run.id}`, { step: "Writing the tests" });
+
+    await page.goto(`/p/${projectId}`);
+    const step = card(page, "Works").getByTestId("card-run-step");
+    await expect(step).toHaveText(/Writing the tests/);
+    const onCard = await step.evaluate((el) => getComputedStyle(el).color);
+
+    await addListView(page, "Rows");
+    const name = listRow(page, "Works").getByTestId("list-row-run");
+    await expect(name).toHaveText("Runner");
+    await expect(name).toHaveCSS("color", onCard);
+    await page.screenshot({ path: testInfo.outputPath("seen-list-agent.png") });
+  });
 });
 
 test.describe("A column header under a finger", () => {

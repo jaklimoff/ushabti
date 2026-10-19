@@ -242,7 +242,7 @@
 
 .inputInvalid,
 .inputInvalid:focus {
-  border-color: rgba(224, 87, 77, 0.55);
+  border-color: var(--danger-ring);
 }
 
 .inputInvalid:focus {
@@ -512,7 +512,7 @@
 }
 
 .nameInput:hover:not(:disabled) {
-  background: #131518;
+  background: var(--bg-seg);
 }
 
 .nameInput:focus {
@@ -830,7 +830,7 @@
 }
 
 .copyDone {
-  border-color: rgba(79, 138, 91, 0.5);
+  border-color: var(--done-line);
   color: var(--live);
 }
 
@@ -924,7 +924,7 @@
 }
 
 .toastError {
-  border-color: rgba(224, 87, 77, 0.4);
+  border-color: var(--danger-line);
   color: var(--danger-soft);
 }
 
@@ -944,7 +944,7 @@
 
 .skeleton {
   border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--bg-card) 0%, #1b1f24 50%, var(--bg-card) 100%);
+  background: linear-gradient(90deg, var(--bg-card) 0%, var(--bg-hover) 50%, var(--bg-card) 100%);
   background-size: 200% 100%;
   animation: ushabti-shimmer 1.4s linear infinite;
 }

@@ -10,6 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A list row names a working agent in the card's teal.** The name used to
+  sit in a brighter teal of its own.
 - **The project switcher's find box is the small box every menu uses.** It
   reads "Find a project", as the same box on Home does.
 - **The sort chip asks "Remove for everyone?" as a filter chip does.** The

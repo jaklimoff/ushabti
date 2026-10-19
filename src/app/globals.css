@@ -31,6 +31,10 @@
   /* The red of a loss, as a border and as a fill. Red is for loss only. */
   --danger-line: rgba(224, 87, 77, 0.35);
   --danger-bg: rgba(224, 87, 77, 0.12);
+  /* The red of a box that refused its words: louder than a line, as a ring. */
+  --danger-ring: rgba(224, 87, 77, 0.55);
+  /* The faintest red: the ground of a value somebody else changed under you. */
+  --danger-wash: rgba(224, 87, 77, 0.06);
 
   /* The accent as a hairline, a ring and a fill, so a selected row, a loud
      box and a picked chip say the same teal. */
@@ -38,15 +42,24 @@
   --accent-ring: rgba(63, 176, 200, 0.55);
   --accent-bg: rgba(63, 176, 200, 0.14);
   --focus-glow: rgba(63, 176, 200, 0.16);
+  /* The faintest teal: the ground of a quote. */
+  --accent-wash: rgba(63, 176, 200, 0.05);
 
   /* Somebody is needed: an agent asked and waits. */
   --waiting: #c9925a;
   --waiting-soft: rgba(201, 146, 90, 0.14);
+  /* An agent at work names itself in these: its words, its time, and its
+     words while it waits. A card and a list row read the same ones. */
+  --agent-text: #94b6bf;
+  --agent-time: #6a8f99;
+  --agent-waiting-text: #e3c3a0;
   /* A caution that is not a loss: a key already taken, days running out. */
   --warn: #e0b56a;
   --warn-soft: rgba(224, 181, 106, 0.14);
   /* An option that shipped. Not --live: shipped is over, live is now. */
   --shipped: #7fb38a;
+  /* A thing that worked, as a border: a copy that took. */
+  --done-line: rgba(79, 138, 91, 0.5);
 
   --text: #e8e9ec;
   --text-2: #dfe1e5;
@@ -68,18 +81,19 @@
      pointer. */
   --bg-tag: #171b20;
   --bg-menu-hover: #1b2126;
+  /* A light wash under the pointer, for a row on any ground. */
+  --bg-hover-wash: rgba(255, 255, 255, 0.04);
 
   /* Control geometry. Every button and input picks one of these two heights,
      which is why the same button is the same size on every screen. */
   --control-h: 28px;
   --control-h-lg: 34px;
 
-  /* Radius. --radius stays as the old name for the middle step. */
+  /* Radius. */
   --r-sm: 5px;
   --r-md: 8px;
   --r-lg: 10px;
   --r-xl: 12px;
-  --radius: 8px;
 
   /* Page widths, by name, so no page writes a width of its own. */
   --page-narrow: 560px;
