@@ -16,6 +16,7 @@ import { api } from "@/lib/client";
 import { walkKeys } from "@/components/board/Ask";
 import { useDismiss } from "./useDismiss";
 import { Chevron, ProjectMark } from "./Marks";
+import { Input } from "./Form";
 import styles from "./ProjectSwitcher.module.css";
 
 /* `waiting` comes only with the list: the bar hands in the open project
@@ -209,8 +210,10 @@ export function ProjectSwitcher({
       {open && (
         <div className={styles.panel}>
           {many && (
-            <input
-              className={styles.box}
+            <Input
+              size="sm"
+              block
+              className={styles.find}
               autoFocus
               role="combobox"
               aria-expanded
@@ -218,7 +221,7 @@ export function ProjectSwitcher({
               aria-activedescendant={`${menuId}-${at}`}
               aria-label="Find a project"
               data-testid="project-switcher-find"
-              placeholder="Find a project…"
+              placeholder="Find a project"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);

@@ -53,20 +53,8 @@
   animation: ushabti-fade-in 120ms var(--ease);
 }
 
-.box {
-  width: 100%;
+.find {
   margin-bottom: 4px;
-  padding: 6px 8px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--r-sm);
-  background: var(--bg);
-  color: var(--text);
-  font-size: var(--t-body);
-  outline: none;
-}
-
-.box:focus {
-  border-color: var(--accent);
 }
 
 .menu {

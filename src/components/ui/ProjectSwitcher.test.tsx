@@ -218,6 +218,10 @@ describe("The project switcher", () => {
     await switcher().click();
     const find = byTestId("project-switcher-find");
     await expect.element(find).toHaveFocus();
+    await expect.element(find).toHaveAttribute("role", "combobox");
+    await expect.element(find).toHaveAttribute("placeholder", "Find a project");
+    /* The shared small box, not one built by hand. */
+    expect(find.element().getBoundingClientRect().height).toBe(24);
     await expect.poll(() => page.getByRole("menuitemradio").elements().length).toBe(9);
 
     await find.fill("spare 7");

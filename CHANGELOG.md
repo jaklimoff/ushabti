@@ -10,6 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The project switcher's find box is the small box every menu uses.** It
+  reads "Find a project", as the same box on Home does.
 - **The sort chip asks "Remove for everyone?" as a filter chip does.** The
   question used to come out in the order's mono teal.
 - **Keys, dates, counts and idle icons stay readable on a hovered row.**

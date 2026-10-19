@@ -98,6 +98,28 @@ test.describe("The design foundation", () => {
     await page.screenshot({ path: testInfo.outputPath("seen-switcher.png") });
   });
 
+  test("the switcher's find box is the small box every menu uses", async ({ page }, testInfo) => {
+    await register(page);
+    /* The box shows only past eight projects. */
+    for (let i = 0; i < 8; i++) {
+      const made = await page.request.post("/api/projects", {
+        data: { name: unique(`Spare ${i}`) },
+      });
+      expect(made.ok()).toBe(true);
+    }
+    await createProject(page, unique("Find"));
+
+    await page.getByTestId("project-switcher").click();
+    const find = page.getByTestId("project-switcher-find");
+    await expect(find).toBeFocused();
+    await expect(find).toHaveAttribute("role", "combobox");
+    await expect(find).toHaveAttribute("placeholder", "Find a project");
+    await expect(find).toHaveCSS("height", "24px");
+    await find.fill("Spare 3");
+    await expect(page.getByRole("menuitemradio")).toHaveCount(1);
+    await page.screenshot({ path: testInfo.outputPath("seen-switcher-find.png") });
+  });
+
   test("the keyboard lands on every control with the accent ring, and a click draws none", async ({
     page,
   }) => {
