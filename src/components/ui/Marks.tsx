@@ -2,25 +2,35 @@ import { PROJECT_INK } from "@/lib/colors";
 import type { ViewKind } from "@/lib/types";
 import styles from "./ui.module.css";
 
+/** The U of `src/app/icon.svg`, so the bar and the browser tab draw one mark. */
+const BRAND_U = "M11.6 8.7v7.6a4.4 4.4 0 0 0 8.8 0V8.7";
+
 /**
  * Ushabti's own mark: the teal U. It means the app and always leads Home, so
  * it never stands for a project. A project wears `ProjectMark`.
  */
 export function BrandMark({ size = 18 }: { size?: 16 | 18 | 22 | 32 }) {
+  // The icon is drawn on 32 units. Its 2.6 stroke would be 1.3 px at 16, too
+  // thin to read as a U, so the stroke never falls under 1.4 px.
+  const unit = size / 32;
   return (
-    <span
-      aria-hidden
+    <svg
+      aria-hidden="true"
+      focusable="false"
       className={styles.brandMark}
-      style={{
-        width: size,
-        height: size,
-        flexBasis: size,
-        borderRadius: Math.ceil(size / 4),
-        fontSize: Math.round(size * 0.55),
-      }}
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      data-brand-mark=""
     >
-      U
-    </span>
+      <rect width="32" height="32" rx={Math.ceil(size / 4) / unit} fill="var(--accent)" />
+      <path
+        d={BRAND_U}
+        fill="none"
+        stroke="var(--accent-ink)"
+        strokeWidth={Math.max(2.6, 1.4 / unit)}
+      />
+    </svg>
   );
 }
 

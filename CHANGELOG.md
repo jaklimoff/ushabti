@@ -17,6 +17,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   empty beside the count.
 - **The label over a selection's property picker fits its panel.** It reads
   "Set a property" and no longer runs past the right edge.
+- **The top bar draws the same teal U as the browser tab.** The bar, the
+  sign-in pages and the status pages typed a letter U beside a tab that drew
+  a stroke.
 
 ## 0.30.0 — 2026-10-19
 

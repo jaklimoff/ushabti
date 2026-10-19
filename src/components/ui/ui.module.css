@@ -1169,14 +1169,8 @@
 /* ---- marks ---------------------------------------------------------- */
 
 .brandMark {
-  display: grid;
-  place-items: center;
+  display: block;
   flex: 0 0 auto;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-weight: 600;
-  line-height: 1;
 }
 
 /* It never shrinks: a full bar would squash it, and on a phone it is the
