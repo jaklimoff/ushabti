@@ -53,6 +53,7 @@
   --text-3: #cdd2d9;
   --text-4: #a4aab3;
   --muted: #8b919b;
+  /* Not for words: about 3.7:1 on a card. A bar, a dashed edge, a glyph. */
   --muted-2: #6b7280;
   --faint: #565c66;
   --faint-2: #4e545e;

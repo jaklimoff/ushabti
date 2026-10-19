@@ -733,7 +733,7 @@
   padding: 0 9px;
   border-radius: var(--r-sm);
   border: 1px dashed var(--line-dash);
-  color: var(--muted-2);
+  color: var(--text-meta);
   font-size: var(--t-small);
 }
 
@@ -749,7 +749,7 @@
   gap: 6px;
   height: 24px;
   padding: 0 4px;
-  color: var(--muted-2);
+  color: var(--text-meta);
   font-size: var(--t-small);
 }
 
@@ -1299,7 +1299,7 @@ label.act > input {
   padding: 0 10px;
   border-radius: 4px;
   font-size: var(--t-small);
-  color: var(--muted-2);
+  color: var(--text-meta);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);

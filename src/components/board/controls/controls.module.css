@@ -214,7 +214,7 @@
 /* The word beside the sprint that holds today. */
 .current {
   font-size: var(--t-chip);
-  color: var(--muted-2);
+  color: var(--text-meta);
 }
 
 .menuInput {
@@ -236,7 +236,7 @@
 }
 
 .menuInput::placeholder {
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 .chips {

@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Small words read on a dark card.** "Saved", "Somebody is editing",
+  the comment box's hint, the picker's search, the word current and a dozen
+  more were set in greys meant for lines and dots. The clear cross of a
+  selection and a chart's delete cross are easier to find.
 - **The Agent tab shows a waiting run in amber, with its head on one line.**
   It was the one place that showed waiting in teal, and its state and start
   time broke over four lines.

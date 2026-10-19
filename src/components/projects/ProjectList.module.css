@@ -1007,7 +1007,7 @@
 }
 
 .chartDelete {
-  color: var(--faint);
+  color: var(--icon);
   font-size: var(--t-micro);
   padding: 2px 4px;
   border-radius: 4px;

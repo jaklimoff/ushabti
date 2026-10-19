@@ -49,7 +49,8 @@
 }
 
 /* An unavailable primary reads as off, not as pressed: a dim teal looked
-   like the same button held down. */
+   like the same button held down. Its words may sit below the floor of
+   --text-meta: WCAG holds a disabled control to no contrast. */
 .primary:disabled {
   opacity: 1;
   background: var(--bg-hover);

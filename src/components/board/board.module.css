@@ -279,7 +279,7 @@
   place-items: center;
   border-radius: 4px;
   font-size: var(--t-chip);
-  color: var(--faint);
+  color: var(--icon);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
@@ -461,7 +461,7 @@
   display: grid;
   place-items: center;
   border-radius: 5px;
-  color: var(--muted-2);
+  color: var(--text-meta);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
@@ -983,7 +983,7 @@
   display: grid;
   place-items: center;
   border-radius: 5px;
-  color: var(--muted-2);
+  color: var(--text-meta);
   transition:
     background 140ms var(--ease),
     color 140ms var(--ease);
@@ -1600,7 +1600,7 @@
   padding: 10px 11px;
   border: 1px dashed var(--line-dash);
   border-radius: 8px;
-  color: var(--muted-2);
+  color: var(--text-meta);
   font-size: var(--t-small);
   font-weight: 500;
   transition:
@@ -2281,7 +2281,7 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 .listRunAgent[data-life="quiet"],
 .listRunAgent[data-life="silent"] {
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 /* ---- an agent is working on this row -------------------------------- */
@@ -2753,7 +2753,7 @@ button.listHeadCell:focus-visible .listHeadHint {
   align-items: center;
   gap: 5px;
   font-size: var(--t-small);
-  color: var(--muted-2);
+  color: var(--text-meta);
   white-space: nowrap;
 }
 

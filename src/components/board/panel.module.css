@@ -380,7 +380,7 @@
 .editing {
   font-size: var(--t-micro);
   line-height: 1.4;
-  color: var(--faint);
+  color: var(--text-meta);
   overflow-wrap: anywhere;
   animation: ushabti-fade-in 140ms var(--ease);
 }
@@ -417,7 +417,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 .changedText {
@@ -474,6 +474,10 @@
 }
 .descEditor :global(.cm-content) {
   caret-color: var(--text);
+}
+/* CodeMirror's own grey is #888, which matches nothing else on the page. */
+.descEditor :global(.cm-editor .cm-placeholder) {
+  color: var(--text-meta);
 }
 .descEditor :global(.cm-lp-h1),
 .descEditor :global(.cm-lp-h2),
@@ -1094,7 +1098,7 @@
 }
 
 .composerInput::placeholder {
-  color: var(--faint);
+  color: var(--text-meta);
 }
 
 /* The live composer is the description's editor without its frame: the box
@@ -1334,7 +1338,7 @@
 }
 
 .runStepStruck {
-  color: var(--muted-2);
+  color: var(--text-meta);
   text-decoration: line-through;
 }
 
