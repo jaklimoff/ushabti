@@ -39,8 +39,7 @@ export default defineConfig({
       description:
         "Ushabti is a free, open source task board. Every field on a task is a property you define, and agents work the same board as people.",
       logo: {
-        light: "./src/assets/mark-light.svg",
-        dark: "./src/assets/mark-dark.svg",
+        src: "./src/assets/mark.svg",
         replacesTitle: false,
       },
       favicon: "/favicon.svg",

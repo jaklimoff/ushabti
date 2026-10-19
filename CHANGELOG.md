@@ -26,6 +26,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   description and the box that edits a comment draw their words at 16px on a
   touch screen, so Safari stays where it was.
 
+### Changed
+
+- **The docs, the site and a link to them wear the teal U.** The docs logo,
+  the favicon and the picture a pasted link shows used to draw an older mark;
+  they now draw the U the app has. The app also has an icon for a phone's home
+  screen.
+
 ## 0.29.0 — 2026-10-18
 
 ### Changed
