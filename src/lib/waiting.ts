@@ -57,7 +57,7 @@ export function waitingRows(
 }
 
 /**
- * The switcher's number for the open project: the live tasks whose open run
+ * The sidebar's number for the open project: the live tasks whose open run
  * waits for a person, a question or a hand-over. It is the number the project
  * list reads in SQL, worked out from the board the bar already holds, because
  * the list the menu fetched is as old as the menu. A hand-over is not a

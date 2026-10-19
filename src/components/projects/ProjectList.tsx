@@ -49,6 +49,7 @@ import { Charts } from "./Charts";
 import { FirstProjectPanel, HomeSection, WidePanel } from "./Empty";
 import { useNow } from "@/components/ui/useElapsed";
 import { PROJECT_INK, initials, keyTint } from "@/lib/colors";
+import { PROJECTS_MOVED, useSidebar, useTabRings } from "@/components/ui/SidebarProvider";
 import styles from "./ProjectList.module.css";
 
 export type ProjectRow = {
@@ -57,7 +58,7 @@ export type ProjectRow = {
   key: string;
   color: string;
   role: string;
-  /** Questions and hand-overs, the switcher's number. */
+  /** Questions and hand-overs, the sidebar's number. */
   waiting: number;
   pulse?: ProjectPulse;
 };
@@ -89,6 +90,7 @@ export function ProjectList({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const live = useLive(projects);
+  const sidebar = useSidebar()?.shown ?? false;
   const order = useOrder(projects, live);
 
   async function create(event: React.FormEvent) {
@@ -115,7 +117,9 @@ export function ProjectList({
       <PageShell width="wide">
         <PageHead title="Home" />
 
-        <WaitingStrip projects={order.rows} />
+        {/* The sidebar says what waits in each project, so the strip is
+            drawn only where the sidebar is not. */}
+        <WaitingStrip projects={order.rows} sidebar={sidebar} />
 
         <div className={styles.sections}>
           <HomeSection
@@ -226,12 +230,16 @@ export function ProjectList({
  * waits. Each link opens that board as it is; the board's own count leads on
  * to the questions. The amber is the one colour Home keeps for "needs you".
  */
-function WaitingStrip({ projects }: { projects: ProjectRow[] }) {
+function WaitingStrip({ projects, sidebar }: { projects: ProjectRow[]; sidebar: boolean }) {
   const asking = projects.filter((p) => p.waiting > 0);
   const total = asking.reduce((sum, p) => sum + p.waiting, 0);
   if (total === 0) return null;
   return (
-    <nav className={styles.waitingStrip} aria-label="Waiting for you" data-testid="home-waiting">
+    <nav
+      className={`${styles.waitingStrip} ${sidebar ? styles.waitingStripPhone : ""}`}
+      aria-label="Waiting for you"
+      data-testid="home-waiting"
+    >
       <span className={styles.waitingSaid}>
         <span className={styles.waitingDot} aria-hidden="true" />
         <strong>{total}</strong> waiting for you
@@ -291,6 +299,7 @@ function useOrder(projects: ProjectRow[], live: Live) {
     queue.current = queue.current.then(async () => {
       try {
         await api.patch(`/api/projects/${id}/position`, { afterId: landed.afterId });
+        window.dispatchEvent(new Event(PROJECTS_MOVED));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not move the project.");
         router.refresh();
@@ -311,7 +320,7 @@ type Live = {
 
 /**
  * Home follows every project the person is on, through one stream for all of
- * them. A ring is a doorbell: Home reads itself again, as a board does, and
+ * them: the one the sidebar holds for the tab. A ring is a doorbell: Home reads itself again, as a board does, and
  * `homeReader` gathers a burst into one read and holds it while the tab is
  * hidden. Going silent is time and rings nothing, so while an agent is at
  * work Home also looks on its own.
@@ -337,20 +346,21 @@ function useLive(projects: ProjectRow[]): Live {
       hidden: () => document.visibilityState === "hidden",
     });
     reader.current = live;
-    const source = new EventSource("/api/home/stream");
-    /* Ready comes after the subscriptions, so reading on it misses nothing
-       that happened while the socket was down. */
-    source.addEventListener("ready", () => live.ring());
-    source.addEventListener("change", () => live.ring());
     const shown = () => live.shown();
     document.addEventListener("visibilitychange", shown);
     return () => {
       document.removeEventListener("visibilitychange", shown);
-      source.close();
       live.stop();
       reader.current = null;
     };
   }, [router, writes]);
+
+  /* The tab's one stream, which the sidebar holds. Ready comes after the
+     subscriptions, so reading on it misses nothing that happened while the
+     socket was down. */
+  useTabRings((ring) => {
+    if (ring === "ready" || ring === "change") reader.current?.ring();
+  });
 
   const working = projects.some((p) => (p.pulse?.agents.names.length ?? 0) > 0);
   useEffect(() => {

@@ -278,6 +278,8 @@ export type Drawing = {
   user?: SessionUser;
   /** Keep what this browser stored, as the next page of the same tab does. */
   keepStorage?: boolean;
+  /** What the board is drawn inside, as the layout draws the sidebar around it. */
+  around?: (board: ReactNode) => ReactNode;
 };
 
 /**
@@ -290,7 +292,7 @@ export async function renderWithBoard(
   ui: ReactNode,
   data: BoardData,
   answer: Answer = () => undefined,
-  { user = ME, keepStorage = false }: Drawing = {},
+  { user = ME, keepStorage = false, around = (board) => board }: Drawing = {},
 ) {
   const requests: Sent[] = [];
 
@@ -322,21 +324,32 @@ export async function renderWithBoard(
   const bells: ((event: MessageEvent) => void)[] = [];
   const voices: ((event: MessageEvent) => void)[] = [];
   const readies: ((event: MessageEvent) => void)[] = [];
-  const sources: { onopen: ((event: Event) => void) | null }[] = [];
+  const elsewheres: ((event: MessageEvent) => void)[] = [];
+  const sources: { onopen: ((event: Event) => void) | null; url: string; closed: boolean }[] = [];
   vi.stubGlobal(
     "EventSource",
     class {
       onerror = null;
       onopen = null;
-      constructor() {
+      closed = false;
+      constructor(public url: string) {
         sources.push(this);
       }
       addEventListener(kind: string, listener: (event: MessageEvent) => void) {
         if (kind === "change") bells.push(listener);
         if (kind === "presence") voices.push(listener);
         if (kind === "ready") readies.push(listener);
+        if (kind === "elsewhere") elsewheres.push(listener);
       }
-      close() {}
+      removeEventListener(kind: string, listener: (event: MessageEvent) => void) {
+        for (const list of [bells, voices, readies, elsewheres]) {
+          const at = list.indexOf(listener);
+          if (at >= 0) list.splice(at, 1);
+        }
+      }
+      close() {
+        this.closed = true;
+      }
     },
   );
 
@@ -353,9 +366,11 @@ export async function renderWithBoard(
   window.history.replaceState(null, "", address.toString());
 
   const screen = await render(
-    <BoardProvider initial={data} user={user} initialView={initialView}>
-      {ui}
-    </BoardProvider>,
+    around(
+      <BoardProvider initial={data} user={user} initialView={initialView}>
+        {ui}
+      </BoardProvider>,
+    ),
   );
 
   const sent = (method?: string, path?: RegExp) =>
@@ -389,9 +404,18 @@ export async function renderWithBoard(
     for (const listener of readies) listener(event);
   };
 
+  /* Another project of the person changed, as the board's stream says it. */
+  const elsewhere = (projectId: string) => {
+    const event = new MessageEvent("elsewhere", { data: JSON.stringify({ projectId }) });
+    for (const listener of [...elsewheres]) listener(event);
+  };
+
+  /* The streams this tab holds open, by address. */
+  const streams = () => sources.filter((s) => !s.closed).map((s) => s.url);
+
   /* What `sent()` leaves out: the tab saying it is here. */
   const announced = () =>
     requests.filter((r) => r.method === "POST" && r.path.endsWith("/presence"));
 
-  return { screen, sent, ring, hear, open, ready, announced };
+  return { screen, sent, ring, hear, open, ready, announced, elsewhere, streams };
 }

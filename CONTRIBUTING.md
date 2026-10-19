@@ -263,6 +263,10 @@ docker compose exec app npm run db:seed
 node scripts/record-demo.mjs
 ```
 
+The still is copied to `website/src/assets/board.png` too, and the script
+makes the seeded person a second project, so the still shows the sidebar.
+`USHABTI_STILL_ONLY=1` takes only the still.
+
 Run the script on your machine, not in the container: it drives Playwright's
 Chromium and needs `ffmpeg` on the path (`brew install ffmpeg`). It plays the
 person in the browser and the seeded agent over the API, and refuses a clip of

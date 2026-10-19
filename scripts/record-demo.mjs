@@ -1,5 +1,6 @@
 // Records docs/demo.gif, the clip at the top of the README, and takes
-// docs/board.png again. Run it against a board that was just seeded:
+// docs/board.png and the site's copy again. USHABTI_STILL_ONLY=1 takes only
+// the still. Run it against a board that was just seeded:
 //
 //   docker compose exec app npm run db:seed
 //   node scripts/record-demo.mjs
@@ -14,7 +15,7 @@
 // webm, and ffmpeg, a tool of the recording machine, turns it into the gif.
 import { chromium } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { copyFileSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -24,6 +25,9 @@ const PERSON = { email: "demo@ushabti.local", password: "ushabti-demo" };
 const CARD = "Filter and sort inside a view";
 const GIF = "docs/demo.gif";
 const BOARD = "docs/board.png";
+const SITE_BOARD = "website/src/assets/board.png";
+/* A second project of the person's own, so the still shows the sidebar. */
+const SECOND = { name: "Ushabti site", key: "WEB" };
 // A README that opens on a heavy gif opens slowly.
 const MAX_BYTES = 8 * 1024 * 1024;
 const SIZE = { width: 1280, height: 720 };
@@ -87,6 +91,11 @@ await signIn.getByPlaceholder("you@example.com").fill(PERSON.email);
 await signIn.getByLabel("Your password").fill(PERSON.password);
 await signIn.getByRole("button", { name: "Sign in" }).click();
 await signIn.waitForURL("**/projects");
+const { projects: mine } = await (await login.request.get(`${BASE}/api/projects`)).json();
+if (!mine.some((p) => p.key === SECOND.key)) {
+  const made = await login.request.post(`${BASE}/api/projects`, { data: SECOND });
+  if (!made.ok()) throw new Error(`Could not make ${SECOND.name}: ${made.status()}`);
+}
 const session = await login.storageState();
 await login.close();
 
@@ -105,7 +114,13 @@ await stillPage.getByTestId("card-run").first().waitFor();
 await stillPage.waitForTimeout(1000);
 await stillPage.screenshot({ path: BOARD });
 await still.close();
-console.log(`Wrote ${BOARD}`);
+copyFileSync(BOARD, SITE_BOARD);
+console.log(`Wrote ${BOARD} and ${SITE_BOARD}`);
+if (process.env.USHABTI_STILL_ONLY) {
+  await browser.close();
+  rmSync(work, { recursive: true, force: true });
+  process.exit(0);
+}
 
 /* ---- the take ---------------------------------------------------------- */
 

@@ -61,13 +61,15 @@ test.describe("Home follows every project live", () => {
 
     await page.goto("/projects");
     await expect(page.getByRole("heading", { name: "Home", level: 1 })).toBeVisible();
-    await expect(page.locator(`a[href="/p/${first}"]`)).toBeVisible();
+    await expect(
+      page.locator(`[data-testid="project-card"] > a[href="/p/${first}"]`),
+    ).toBeVisible();
     /* The read on `ready` comes and goes before the test starts counting. */
     await expect.poll(() => reads.count).toBe(1);
     await page.waitForTimeout(1000);
     reads.count = 0;
 
-    const card = page.locator(`a[href="/p/${second}"]`);
+    const card = page.locator(`[data-testid="project-card"] > a[href="/p/${second}"]`);
     await expect(card.getByTestId("project-agents")).toHaveCount(0);
 
     const tasks = await Promise.all(

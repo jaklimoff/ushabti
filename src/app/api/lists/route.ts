@@ -8,7 +8,7 @@ import { listsOf } from "@/lib/lists-load";
 import { loadProperties } from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
 
-/** The person's lists, by name, for the switcher. An agent has none. */
+/** The person's lists, by name, for the sidebar. An agent has none. */
 export const GET = route(async () => {
   const user = await requireActor();
   humanOnly(user);

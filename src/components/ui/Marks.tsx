@@ -37,7 +37,7 @@ export function BrandMark({ size = 18 }: { size?: 16 | 18 | 22 | 32 }) {
 /**
  * A project's square: its own colour and its whole key, in the dark ink
  * Home draws it with. The same project reads the same on Home, on the board,
- * in settings and in the switcher. The teal is Ushabti's, never a project's.
+ * in settings and in the sidebar. The teal is Ushabti's, never a project's.
  */
 export function ProjectMark({
   projectKey,

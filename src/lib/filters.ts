@@ -87,7 +87,7 @@ export const UPDATED_KEY = "_updated";
 /**
  * The one status that means an agent asked a person something. The "Agent
  * waiting" filter and the top bar's list of questions read it. The number on
- * the project list and the switcher counts hand-overs beside it, by
+ * the project list and the sidebar counts hand-overs beside it, by
  * `WAITING_STATUSES`.
  */
 export const WAITS = "waiting";

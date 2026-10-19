@@ -50,31 +50,34 @@ async function askInProject(page: Page, request: APIRequestContext, projectId: s
   return { api, asks };
 }
 
-/* The count that changes live, while the menu is open. The numbers the list
-   and the agent read are runs-route.test.ts. */
+/* The count that changes live, in the sidebar. The numbers the list and the
+   agent read are runs-route.test.ts. */
 test.describe("How many tasks wait in each project", () => {
   test("reads the top bar's own count for the open project, live", async ({ page, request }) => {
-    await register(page, "One Project");
+    await register(page, "Two Projects");
+    /* The sidebar comes with a second project. */
+    await createProject(page, unique("Other"));
     const name = unique("Open");
     const projectId = await createProject(page, name);
     const { api, asks } = await askInProject(page, request, projectId);
 
     await page.goto(`/p/${projectId}`);
-    /* The top bar lists questions. The switcher counts what waits for a
+    /* The top bar lists questions. The sidebar counts what waits for a
        person, so the hand-over is in its number too. */
     await expect(page.getByTestId("waiting-count")).toHaveText("1 waiting");
-    await page.getByTestId("project-switcher").click();
-    const mine = page
-      .getByRole("menuitemradio", { name: new RegExp(name) })
-      .getByTestId("project-switcher-waiting");
-    await expect(mine).toHaveText("2 waiting");
+    const square = page
+      .getByTestId("sidebar-project")
+      .and(page.locator(`[href="/p/${projectId}"]`));
+    const mine = square.getByTestId("sidebar-count");
+    await expect(mine).toHaveText("2");
+    await expect(square).toHaveAttribute("aria-label", `${name}: 2 waiting for you`);
 
-    /* The answer comes while the menu is open. The list was read when it
-       opened, so only the board's own runs can take the number down. */
+    /* The answer comes from the agent. The board's own runs take the number
+       down, so the sidebar and the top bar move together. */
     const board = await (await api.get(`/api/projects/${projectId}/board`)).json();
     const open = board.runs.find((r: { taskId: string }) => r.taskId === asks);
     await api.patch(`/api/runs/${open.id}`, { status: "running", step: "Answered" });
     await expect(page.getByTestId("waiting-count")).toHaveCount(0);
-    await expect(mine).toHaveText("1 waiting");
+    await expect(mine).toHaveText("1");
   });
 });

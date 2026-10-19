@@ -444,6 +444,16 @@
   height: 6px;
   border-radius: 50%;
   background: var(--live);
+  /* The sidebar's dot pulses the same way, so the two read as one sign. */
+  animation: ushabti-pulse 2.2s ease-in-out infinite;
+}
+
+/* The sidebar says what waits, wherever it is drawn. A phone has it only as
+   a sheet, so there the strip stays. */
+@media (min-width: 561px) {
+  .waitingStripPhone {
+    display: none;
+  }
 }
 
 .form {

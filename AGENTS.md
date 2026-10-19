@@ -465,6 +465,13 @@ and what is easy to get wrong.
   `live-markdown-parity.test.ts` holds it to marked. The editor is a lazy chunk
   that imports none of those rules: imported from there, they move into one
   more chunk the board page has to fetch.
+- **The sidebar's fold is the one browser preference the server reads.** It
+  moves the whole page, so `FOLD_COOKIE` in `src/lib/sidebar.ts` is read in
+  the `(app)` layout and the first paint is already right; anything else a
+  browser keeps, a column fold or a view, is read after the paint. The layout
+  outlives each page, so the sidebar holds the tab's one stream: a board lends
+  its own through `useLendStream`, and Home hears it through `useTabRings`
+  rather than opening a second one.
 - **Text people read is `--text-meta` or brighter.** `--faint` and the darker
   greys are for decoration only: a rule, a dot, an empty slot. A label in
   `--faint` measures about 2.8:1, which is how four spellings of the field label

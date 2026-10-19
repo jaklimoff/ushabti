@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A sidebar of projects on every signed-in page.** It shows a pulsing dot
+  where an agent works and an amber count where something waits for you, live,
+  and switches with one press. It starts folded; the button or `[` opens it,
+  and the device remembers. It replaces the project-name menu. With one
+  project and no list it is not drawn, and on a phone the project mark opens it.
+
 ## 0.31.0 — 2026-10-19
 
 ### Fixed

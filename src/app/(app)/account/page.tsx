@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { forgotIsOn } from "@/lib/forgot";
 import { Account } from "@/components/account/Account";
-import { version } from "../../../package.json";
+import { version } from "../../../../package.json";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Account · Ushabti" };

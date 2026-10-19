@@ -15,7 +15,7 @@ async function homeOrder(page: Page, names: string[]) {
   return texts.map((t) => names.find((n) => t.includes(n)));
 }
 
-test("a project dragged on Home stays there, and the switcher and the API agree", async ({
+test("a project dragged on Home stays there, and the sidebar and the API agree", async ({
   page,
 }) => {
   await register(page, "Orderer");
@@ -57,12 +57,13 @@ test("a project dragged on Home stays there, and the switcher and the API agree"
   expect(projects.map((p: { name: string }) => p.name)).toEqual([a, c, b]);
 
   await page.goto(`/p/${ids[1]}`);
-  await page.getByTestId("project-switcher").click();
-  // The switcher reads `GET /api/projects` when it opens.
+  // The sidebar names the projects in the person's Home order.
   await expect
     .poll(async () => {
-      const rows = await page.getByRole("menuitemradio").allInnerTexts();
-      return rows.map((t) => names.find((n) => t.includes(n)));
+      const labels = await page
+        .getByTestId("sidebar-project")
+        .evaluateAll((links) => links.map((l) => l.getAttribute("aria-label") ?? ""));
+      return labels.map((t) => names.find((n) => t.startsWith(n)));
     })
     .toEqual([a, c, b]);
 });

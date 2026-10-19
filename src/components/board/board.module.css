@@ -330,10 +330,9 @@
 
   /* A question is longer than a count, and at this width the bar has already
      been given everything else. So the mark lends it the last of the room,
-     for as long as the question stands. The mark is the switcher's button,
-     so the whole switcher goes with it; a caret left alone would take the
-     room back. */
-  .top:has(.pickAsking) .switcher {
+     for as long as the question stands. On a phone the mark is the
+     sheet's button, so the whole button goes with it. */
+  .top:has(.pickAsking) .barMark {
     display: none;
   }
 }
@@ -1658,7 +1657,7 @@
   }
 
   /* Ushabti's mark gives its room to the box that finds a task. The project
-     switcher it sits beside still offers Home, as its last row. */
+     mark beside it opens the sidebar's sheet, which still offers Home. */
   .home {
     display: none;
   }

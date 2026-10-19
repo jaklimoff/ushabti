@@ -62,6 +62,7 @@ import { personOf } from "@/lib/people";
 import { landedAfter } from "@/lib/landed";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
+import { useLendStream } from "@/components/ui/SidebarProvider";
 
 /** A write sent through the one rule of `trackWrites`. */
 export type Send = {
@@ -664,6 +665,7 @@ export function BoardProvider({
   }, [presence]);
 
   /* --- live updates from the other people on the board ---------------- */
+  const lend = useLendStream();
   useEffect(() => {
     /* An EventSource cannot set a header, so the tab names itself in the
        address. The stream says goodbye for it when it closes. */
@@ -703,12 +705,15 @@ export function BoardProvider({
        follow all of them; the board has no listener for it on purpose. */
     source.onerror = () => setLive(false);
     source.onopen = () => setLive(true);
+    /* The sidebar hears this stream rather than opening a second one. */
+    const release = lend?.(source);
 
     return () => {
       if (timer) clearTimeout(timer);
+      release?.();
       source.close();
     };
-  }, [presence, projectId]);
+  }, [presence, projectId, lend]);
 
   /* --- derived -------------------------------------------------------- */
   const view = useMemo(

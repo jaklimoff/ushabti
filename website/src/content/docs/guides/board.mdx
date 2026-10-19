@@ -337,16 +337,41 @@ What is different down here, and why:
 A [list](/guides/list/) changes nothing on a phone: it is one column of rows already, so it
 has no strip, and a row keeps its columns.
 
+## The sidebar
+
+Down the left of every page you are signed in on — Home, a board, a list, Settings, the archive, a
+changelog and your account — the **sidebar** names every project you are in, in your Home order. It
+is the one way to another project. It is drawn once you have somewhere else to go: with one project
+and no list there is no sidebar, and a second project or a first list brings it.
+
+It starts **folded**: a rail of squares, one per project, in the project's colour with the first
+letter of its key, the open one ringed in teal, then **New project** and, at the bottom, the button
+that opens it. Point at a square or reach it with the keyboard and a tip names the project and what
+is going on there. Open, it is a column of rows: **Home**, then **Projects** with the name and one
+line under each, then **Lists** with your own lists, and **New project** at the bottom.
+
+What a square and a row say, live, without a reload:
+
+- **A pulsing teal dot**: an agent is at work there. The line reads *Builder on USH-12 · 4m*, the
+  agent, its task and how long since it last reported, with *+1* when two work there. An agent that
+  has gone silent reads as Home reads it: *Scout silent*.
+- **An amber count**: that many tasks wait for you — a question, or a task handed over. The line reads
+  *2 waiting for you*, which outranks an agent at work. On the open board the count is the board's
+  own, so the sidebar and the top bar never disagree.
+- **Quiet**: nothing is going on.
+
+The fold button or <kbd>[</kbd> folds and opens it. This device remembers which, and the page is
+drawn that way from the first paint. While the sidebar is drawn, Home leaves out its own *waiting
+for you* line, because the sidebar already says it. On a phone the sidebar is not in the page: the
+project mark in the top bar opens it as a menu.
+
 ## The top bar
 
 <CardGrid>
   <Card title="The project name" icon="open-book">
-    Press it for your projects, this one marked ✓, then your own lists, then **New project** and
-    **Home**. It is
-    the one way to another project, and it is the same on the board, in Settings and in the
-    Archive. The arrow keys walk it, <kbd>Enter</kbd> opens the highlighted row and <kbd>Escape</kbd>
-    puts it away. Past eight projects a box above the list narrows it. On a phone the name is hidden
-    and the letter beside it is the button.
+    The project's mark and its name. The [sidebar](#the-sidebar) is the way to another project; on a
+    phone the name is hidden and the mark opens the sidebar. In Settings, the archive and a
+    changelog, **Back to board** is the way back.
   </Card>
   <Card title="N waiting" icon="warning">
     Shown only while an agent waits for a person: `2 waiting` means two tasks where an agent asked a

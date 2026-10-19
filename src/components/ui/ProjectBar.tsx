@@ -2,7 +2,7 @@
 
 import { AppAction, AppBar, AppCrumb } from "./AppBar";
 import { ProjectMark } from "./Marks";
-import { ProjectSwitcher } from "./ProjectSwitcher";
+import { SidebarMark } from "./Sidebar";
 import type { SessionUser } from "./UserMenu";
 import styles from "./ui.module.css";
 
@@ -30,10 +30,12 @@ export function ProjectBar({
       user={user}
       word={false}
       trail={[
-        <ProjectSwitcher key="project" project={project}>
+        <SidebarMark key="project">
           <ProjectMark projectKey={project.key} color={project.color ?? "var(--accent)"} />
-          <span className={styles.projCrumb}>{project.name}</span>
-        </ProjectSwitcher>,
+          <span className={styles.projCrumb} data-testid="project-crumb">
+            {project.name}
+          </span>
+        </SidebarMark>,
         <AppCrumb key="here">{here}</AppCrumb>,
       ]}
       actions={<AppAction href={`/p/${project.id}`}>Back to board</AppAction>}

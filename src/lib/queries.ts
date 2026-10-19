@@ -229,7 +229,7 @@ export async function listProjects(userId: string) {
  * Each pulse is read off the board this person would open, through
  * `loadBoard` and the board's own readers, so the card and the board cannot
  * disagree about a count. It costs a board per project, which is why the
- * switcher and `GET /api/projects` ask `listProjects` alone.
+ * sidebar reads `listProjectsNow` and `GET /api/projects` asks `listProjects`.
  */
 export async function listProjectsWithPulse(
   userId: string,

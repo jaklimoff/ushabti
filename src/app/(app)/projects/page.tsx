@@ -9,7 +9,7 @@ import { ProjectList } from "@/components/projects/ProjectList";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Home · Ushabti" };
 
-/** `?new` arrives from **New project** in the switcher, and opens the one form. */
+/** `?new` arrives from **New project** in the sidebar, and opens the one form. */
 export default async function ProjectsPage({
   searchParams,
 }: {

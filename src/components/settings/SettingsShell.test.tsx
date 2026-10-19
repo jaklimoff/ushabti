@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
-import SettingsIndex from "@/app/p/[projectId]/settings/page";
+import SettingsIndex from "@/app/(app)/p/[projectId]/settings/page";
 import type { BoardData } from "@/lib/types";
 import { ME, newProject, renderWithBoard } from "@/test/board";
 import { at, pushed } from "@/test/next-navigation";

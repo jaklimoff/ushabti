@@ -1167,7 +1167,7 @@
 }
 
 /* A phone has room for the trail or the name, not both. The mark is still
-   the switcher's button and still names the project. */
+   there, and on a phone it opens the sidebar's sheet. */
 @media (max-width: 560px) {
   .projCrumb {
     display: none;

@@ -1,0 +1,360 @@
+/*
+ * The frame every signed-in page hangs in: the sidebar down the left, the
+ * page beside it. The sidebar holds still while the page scrolls.
+ */
+.frame {
+  display: flex;
+  min-height: 100vh;
+}
+
+.page {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg-top);
+  border-right: 1px solid var(--line);
+  z-index: 30;
+}
+
+.rail {
+  width: 56px;
+}
+
+.open {
+  width: 248px;
+}
+
+/* As tall as the top bar beside it, and ruled the same, so the two read as
+   one line across the page. */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 46px;
+  flex: 0 0 46px;
+  border-bottom: 1px solid var(--line);
+}
+
+.open .head {
+  justify-content: space-between;
+  padding: 0 8px 0 14px;
+}
+
+.home {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--t-ui);
+  font-weight: 600;
+  color: var(--text);
+  border-radius: var(--r-sm);
+}
+
+.railList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.railItem {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  color: var(--muted);
+  outline: none;
+}
+
+.railItem:hover {
+  background: var(--bg-hover-wash);
+  color: var(--text);
+}
+
+.railItem:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* A dashed square: not a project, the way to one. */
+.railNew {
+  width: 28px;
+  height: 28px;
+  margin-top: 4px;
+  border: 1px dashed var(--line-dash);
+  font-size: var(--t-ui);
+}
+
+.fold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--icon);
+  cursor: pointer;
+}
+
+.fold:hover {
+  background: var(--bg-hover-wash);
+  color: var(--text);
+}
+
+.rail .fold {
+  align-self: center;
+  margin: 8px 0 12px;
+}
+
+.square {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-small);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.squareBig {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-md);
+  font-size: var(--t-ui);
+}
+
+/* The open project wears the accent as a ring, a step outside the square. */
+.square[data-current] {
+  box-shadow:
+    0 0 0 2px var(--bg-top),
+    0 0 0 3.5px var(--accent);
+}
+
+.dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-top);
+  animation: ushabti-pulse 2.2s ease-in-out infinite;
+}
+
+.count {
+  position: absolute;
+  right: -6px;
+  bottom: -5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--waiting);
+  box-shadow: 0 0 0 2px var(--bg-top);
+  color: var(--accent-ink);
+  font-size: var(--t-label);
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+}
+
+/* Shows at once, on hover and on a keyboard's focus, as the Listening tips
+   do. It is hidden and not removed, so it is placed before it shows. */
+.tip {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  visibility: hidden;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  max-width: 260px;
+  padding: 6px 9px;
+  transform: translateY(-50%);
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-menu);
+  pointer-events: none;
+  text-align: left;
+}
+
+.railItem:hover .tip,
+.railItem:focus-visible .tip {
+  visibility: visible;
+}
+
+@media (hover: none) {
+  .railItem:focus .tip {
+    visibility: visible;
+  }
+}
+
+.tipName {
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.line {
+  overflow: hidden;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line[data-kind="working"],
+.line[data-kind="silent"] {
+  color: var(--agent-text);
+}
+
+.line[data-kind="waiting"] {
+  color: var(--agent-waiting-text);
+}
+
+.openList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  overflow-y: auto;
+}
+
+.section {
+  padding: 12px 8px 6px;
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  color: var(--text-4);
+}
+
+.row:hover,
+.row:focus-visible,
+.row[aria-current="page"] {
+  background: var(--bg-menu-hover);
+  color: var(--text);
+}
+
+.listRow,
+.newRow {
+  min-height: 30px;
+}
+
+.newRow {
+  margin: 0 8px 10px;
+  color: var(--muted);
+}
+
+.rowWords {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rowName {
+  overflow: hidden;
+  font-size: var(--t-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.glyph {
+  flex: 0 0 22px;
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+}
+
+/* The mark in the top bar, a plain mark until a phone makes it the way to
+   the sheet. */
+.markWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.markButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sheet {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 248px;
+  max-width: calc(100vw - 20px);
+  max-height: min(480px, 75vh);
+  padding: 5px;
+  overflow-y: auto;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-menu);
+  animation: ushabti-fade-in 120ms var(--ease);
+}
+
+.sheet .newRow {
+  margin: 4px 0 0;
+}
+
+/* A phone has the sidebar as a sheet from the project mark instead. */
+@media (max-width: 560px) {
+  .sidebar {
+    display: none;
+  }
+}

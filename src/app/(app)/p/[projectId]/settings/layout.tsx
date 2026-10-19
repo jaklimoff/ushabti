@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, requireMembership, HttpError } from "@/lib/auth";
 import { loadSettings } from "@/lib/queries";
 import { SettingsShell } from "@/components/settings/SettingsShell";
-import { version } from "../../../../../package.json";
+import { version } from "../../../../../../package.json";
 
 export const dynamic = "force-dynamic";
 

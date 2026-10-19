@@ -8,7 +8,8 @@ import type { BoardData } from "@/lib/types";
 
 /** What opening a task needs: which one, and the key its link carries. */
 type Openable = { id: string; key: string };
-import { ProjectSwitcher } from "@/components/ui/ProjectSwitcher";
+import { SidebarMark } from "@/components/ui/Sidebar";
+import { useOwnWaiting } from "@/components/ui/SidebarProvider";
 import { AppAction } from "@/components/ui/AppBar";
 import { BrandMark, ProjectMark } from "@/components/ui/Marks";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
@@ -70,6 +71,9 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
      panel that is still open. */
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  /* The sidebar reads the open project's count from here, so it and the top
+     bar never disagree. */
+  useOwnWaiting(data.project.id, waitingCount(data.tasks, data.runs));
 
   /* A task opened from the waiting list opens to be answered, so the focus
      goes to the comment box and not the title. The count tells one pick from
@@ -153,13 +157,9 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
           <span className={styles.crumbSep} aria-hidden>
             /
           </span>
-          {/* The mark is inside the button, so a phone that hides the name
-              still has something to press. */}
-          <ProjectSwitcher
-            project={data.project}
-            waiting={waitingCount(data.tasks, data.runs)}
-            className={styles.switcher}
-          >
+          {/* The name is plain words: the sidebar is the way to another
+              project. On a phone the mark opens it, as a sheet. */}
+          <SidebarMark className={styles.barMark}>
             <ProjectMark
               projectKey={data.project.key}
               color={data.project.color}
@@ -168,7 +168,7 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
             <span className={styles.crumbName} data-testid="board-crumb">
               {data.project.name}
             </span>
-          </ProjectSwitcher>
+          </SidebarMark>
           {/* The view is not named here: the strip under the bar already
               names it, on the pill that is lit. */}
           <div className={styles.spacer} />

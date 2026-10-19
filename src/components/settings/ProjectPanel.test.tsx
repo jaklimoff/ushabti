@@ -388,9 +388,7 @@ describe("An edit the tab was closed on", () => {
     ring();
     /* The bar of this tab, and not the answer to its read: the tab is still
        holding the name it was born with until the read lands. */
-    await expect
-      .element(page.getByTestId("project-switcher"))
-      .toHaveAccessibleName("Renamed elsewhere");
+    await expect.element(page.getByTestId("project-crumb")).toHaveTextContent("Renamed elsewhere");
 
     // Nobody typed in this tab, so closing it writes nothing.
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
