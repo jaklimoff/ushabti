@@ -137,4 +137,50 @@ test.describe("The questions that wait on a person", () => {
     await expect(count).toHaveCount(0);
     await expect(page).not.toHaveTitle(/^\(/);
   });
+
+  test("read in amber in the Agent tab, with the head unbroken", async ({
+    page,
+    request,
+  }, info) => {
+    await askTwice(page, request);
+    const amber = "rgb(227, 195, 160)";
+    const teal = "rgb(159, 215, 227)";
+
+    /* One line each: the word and the time are as tall as one line of text. */
+    async function oneLine(title: string) {
+      const run = page.getByTestId("panel-run");
+      for (const part of [run.getByText(/^started /), run.locator("[class*='runState']")]) {
+        const tall = await part.evaluate((el) => {
+          const style = getComputedStyle(el);
+          const line = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3;
+          return el.getBoundingClientRect().height / line;
+        });
+        expect(tall, title).toBeLessThan(1.5);
+      }
+    }
+
+    async function open(title: string) {
+      await card(page, title).first().click();
+      await page.getByTestId("agent-tab").click();
+      await expect(page.getByTestId("panel-run")).toBeVisible();
+    }
+
+    for (const title of ["Older question", "Hands it over"]) {
+      await open(title);
+      const run = page.getByTestId("panel-run");
+      await expect(run.locator("[class*='runState']")).toHaveCSS("color", amber);
+      await expect(run).toHaveCSS("border-top-color", "rgba(201, 146, 90, 0.4)");
+      await oneLine(title);
+      await page.getByRole("button", { name: "Close task" }).click();
+    }
+
+    await open("Just works");
+    const run = page.getByTestId("panel-run");
+    await expect(run.locator("[class*='runState']")).toHaveCSS("color", teal);
+    await expect(run).toHaveCSS("border-top-color", "rgba(63, 176, 200, 0.3)");
+    await oneLine("Just works");
+
+    await open("Older question");
+    await page.screenshot({ path: info.outputPath("seen-agent-tab-waiting.png") });
+  });
 });

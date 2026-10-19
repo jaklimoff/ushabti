@@ -1468,7 +1468,7 @@ function AgentRunBlock({
   }
 
   return (
-    <div className={styles.run} data-testid="panel-run">
+    <div className={styles.run} data-testid="panel-run" data-waiting={waiting || undefined}>
       <div className={styles.runHead}>
         <Avatar
           name={run.agent.name}
@@ -1482,7 +1482,6 @@ function AgentRunBlock({
         <span className={styles.runState}>
           {life === "reporting" ? STATUS_WORD[run.status] : LIFE_WORD[life]}
         </span>
-        <span className={styles.spacer} />
         <span className={styles.runSince}>started {since} ago</span>
       </div>
 

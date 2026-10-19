@@ -1205,8 +1205,15 @@
 
 .runHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
+}
+
+/* A run that waits for somebody reads in the amber the card strip wears for
+   it, so the panel never says "waiting" in the colour of work. */
+.run[data-waiting] {
+  border-color: rgba(201, 146, 90, 0.4);
 }
 
 .runAgent {
@@ -1215,9 +1222,10 @@
   color: var(--text-2);
 }
 
-/* The state of the run in the one label of the app, in the accent, because
-   it is the live word in the tab. */
+/* The state of the run, in the accent while it works and in the card
+   strip's amber while it waits. It never breaks inside itself. */
 .runState {
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
@@ -1226,7 +1234,14 @@
   color: var(--accent-soft);
 }
 
+.run[data-waiting] .runState {
+  color: #e3c3a0;
+}
+
+/* When the head is too narrow, the time goes to a line of its own, whole. */
 .runSince {
+  margin-left: auto;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   color: var(--text-meta);

@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The Agent tab shows a waiting run in amber, with its head on one line.**
+  It was the one place that showed waiting in teal, and its state and start
+  time broke over four lines.
 - **The checklist bar on a card fills as items are ticked.** It used to stay
   empty beside the count.
 
