@@ -1,21 +1,11 @@
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { projectMembers } from "@/db/schema";
 import { fail, humanOnly } from "@/lib/api";
 import { HttpError, requireActor } from "@/lib/auth";
-import { isPresence, subscribe } from "@/lib/events";
+import { isPresence } from "@/lib/events";
+import { followMemberships, type Following } from "@/lib/following";
 import { LISTEN_TOUCH_MS } from "@/lib/presence";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-async function memberOf(userId: string): Promise<Set<string>> {
-  const rows = await db
-    .select({ projectId: projectMembers.projectId })
-    .from(projectMembers)
-    .where(eq(projectMembers.userId, userId));
-  return new Set(rows.map((r) => r.projectId));
-}
 
 /**
  * Home's doorbell: one connection for every project the person is a member
@@ -43,7 +33,7 @@ export async function GET(req: Request) {
   }
 
   const encoder = new TextEncoder();
-  const unsubscribes = new Map<string, () => void>();
+  let following: Following | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let closed = false;
 
@@ -51,8 +41,7 @@ export async function GET(req: Request) {
     if (closed) return;
     closed = true;
     if (heartbeat) clearInterval(heartbeat);
-    for (const off of unsubscribes.values()) off();
-    unsubscribes.clear();
+    following?.close();
   };
 
   const stream = new ReadableStream({
@@ -67,34 +56,13 @@ export async function GET(req: Request) {
       const ring = (projectId: string) =>
         send(`event: change\ndata: ${JSON.stringify({ projectId })}\n\n`);
 
-      /* Brings the subscriptions in line with the memberships, and says
-         whether they moved. */
-      const follow = async (): Promise<string | null> => {
-        const ids = await memberOf(userId);
-        let moved: string | null = null;
-        for (const [id, off] of unsubscribes) {
-          if (ids.has(id)) continue;
-          off();
-          unsubscribes.delete(id);
-          moved = id;
-        }
-        for (const id of ids) {
-          if (unsubscribes.has(id)) continue;
-          const off = await subscribe(id, (event) => {
-            if (!isPresence(event)) ring(event.projectId);
-          });
-          if (closed) {
-            off();
-            continue;
-          }
-          unsubscribes.set(id, off);
-          moved = id;
-        }
-        return moved;
-      };
+      const follows = followMemberships(userId, (event) => {
+        if (!isPresence(event)) ring(event.projectId);
+      });
+      following = follows;
 
       send(`retry: 3000\n\n`);
-      await follow();
+      await follows.follow();
       if (closed) return;
 
       // Ready goes out after the subscriptions, so that a client which reads
@@ -103,7 +71,8 @@ export async function GET(req: Request) {
 
       heartbeat = setInterval(() => {
         send(`: ping\n\n`);
-        void follow()
+        void follows
+          .follow()
           .then((moved) => {
             if (moved && !closed) ring(moved);
           })

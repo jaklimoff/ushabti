@@ -251,6 +251,11 @@ async function shapeMany(rows: RunRow[]): Promise<AgentRunDTO[]> {
  */
 export const ON_A_TASK_YOU_CAN_SEE = sql`exists (select 1 from ${tasks} where ${tasks.id} = ${agentRuns.taskId} and ${tasks.deletedAt} is null)`;
 
+/** The lease of every open run in these projects, in one statement. */
+export async function sweepLostIn(projectIds: string[]): Promise<void> {
+  if (projectIds.length > 0) await sweepLost(inArray(agentRuns.projectId, projectIds));
+}
+
 /** Every open run of a project, for the board. */
 export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
   // Unconfirmed uploads are swept on the same read, for the same reason.

@@ -347,6 +347,14 @@ and what is easy to get wrong.
   A `change` may name an agent whose name changed, as `renamed`. That is
   still a where: a hint to read `/api/agent/me` again, never the name itself.
   A watcher that misses it reads its name again on the next `ready`.
+  A person's project stream also rings `elsewhere`, carrying only
+  `{ projectId }`, when another of their projects changes, so a page can
+  follow every project on the one socket a tab holds: a second stream per
+  tab fills HTTP/1.1's six connections at three tabs. It is a where too; the
+  page answers by reading `/api/home/projects`, which `listProjectsNow()`
+  answers in a fixed number of statements and no board. The board ignores
+  it. An agent's token never gets it. Both streams follow memberships
+  through `followMemberships()` in `src/lib/following.ts`.
 - **Home has one stream for every project.** `/api/home/stream` subscribes to
   each project the person is a member of, reads the memberships again on every
   ping, and is `humanOnly`. It rings as the board's does, and Home answers with

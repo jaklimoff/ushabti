@@ -1045,6 +1045,12 @@ mean that anything changed, so do not read the feed on it. An agent cannot send
 one — `POST /api/projects/{projectId}/presence` answers `403` to a token —
 because a run already shows what an agent is doing.
 
+A person's browser tab on the same stream also hears `event: elsewhere`, with
+only `{ "projectId": ... }`, when another project that person is a member of
+changes. It lets a page follow every project on the one socket a tab already
+holds. An agent never gets it: a token opens one project, so its stream rings
+for that project and no other.
+
 ### A webhook, if you cannot hold a socket
 
 Some harnesses have nowhere to listen from: a serverless function, a CI job, a

@@ -195,6 +195,39 @@ export function agentsAtWork(runs: HomeRun[], now: number = Date.now()): AgentsA
   };
 }
 
+/** An agent at work, as a page that follows every project names it. */
+export type AgentAtWork = {
+  id: string;
+  name: string;
+  /** The task of its newest report. */
+  taskKey: string | null;
+  /** Its newest report. */
+  reportedAt: string;
+  /** False when nobody has heard from it: silent, as Home says. */
+  working: boolean;
+};
+
+/**
+ * The agents at work, one each, by the same rule `agentsAtWork` reads, so a
+ * page that follows every project and Home cannot name one agent two ways.
+ */
+export function agentsNamed(
+  runs: (HomeRun & { taskKey: string | null })[],
+  now: number = Date.now(),
+): AgentAtWork[] {
+  const newest = new Map<string, (typeof runs)[number]>();
+  for (const run of runs) {
+    if (isWaiting(run.status)) continue;
+    const seen = newest.get(run.agent.id);
+    if (!seen || Date.parse(run.updatedAt) > Date.parse(seen.updatedAt))
+      newest.set(run.agent.id, run);
+  }
+  return [...heardFrom(runs, now)].map(([id, { name, alive }]) => {
+    const run = newest.get(id)!;
+    return { id, name, taskKey: run.taskKey, reportedAt: run.updatedAt, working: alive };
+  });
+}
+
 function namesSaid(names: string[], word: string): string | null {
   if (names.length === 0) return null;
   if (names.length === 1) return `${names[0]} ${word}`;

@@ -3,6 +3,7 @@ import { markListening } from "@/lib/agents";
 import { kickAskMail } from "@/lib/ask-sender";
 import { HttpError } from "@/lib/auth";
 import { isPresence, publish, subscribe } from "@/lib/events";
+import { followMemberships, type Following } from "@/lib/following";
 import { LISTEN_TOUCH_MS, readClientId } from "@/lib/presence";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,14 @@ type Ctx = { params: Promise<{ projectId: string }> };
  * tab has open. Nothing stores it, so there is nothing to read instead. An
  * agent receives it too and ignores it, as it ignores any event it does not
  * know.
+ *
+ * A person in the room also hears `elsewhere`, carrying only `{ projectId }`,
+ * when anything but presence happens in another project they are a member
+ * of. It lets a page say live which projects have work going on without a
+ * second socket per tab. The board does not read itself on it. Memberships
+ * are followed as Home's stream follows them, re-read on every ping, and a
+ * project joined or left rings once. An agent never gets `elsewhere`: its
+ * token opens one project.
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { projectId } = await ctx.params;
@@ -51,6 +60,7 @@ export async function GET(req: Request, ctx: Ctx) {
 
   const encoder = new TextEncoder();
   let unsubscribe: (() => void) | null = null;
+  let elsewhere: Following | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let closed = false;
 
@@ -74,6 +84,7 @@ export async function GET(req: Request, ctx: Ctx) {
     closed = true;
     if (heartbeat) clearInterval(heartbeat);
     unsubscribe?.();
+    elsewhere?.close();
     void listening(false);
     void leave();
   };
@@ -94,6 +105,19 @@ export async function GET(req: Request, ctx: Ctx) {
         const name = isPresence(event) ? "presence" : "change";
         send(`event: ${name}\ndata: ${JSON.stringify(event)}\n\n`);
       });
+      const ringElsewhere = (id: string) =>
+        send(`event: elsewhere\ndata: ${JSON.stringify({ projectId: id })}\n\n`);
+      if (human) {
+        elsewhere = followMemberships(
+          userId,
+          (event) => {
+            if (!isPresence(event)) ringElsewhere(event.projectId);
+          },
+          projectId,
+        );
+        await elsewhere.follow();
+      }
+      if (closed) return;
 
       // Ready goes out after the subscription, so that a client which reads
       // what it missed on `ready` cannot miss what happens in between.
@@ -103,6 +127,14 @@ export async function GET(req: Request, ctx: Ctx) {
       heartbeat = setInterval(() => {
         send(`: ping\n\n`);
         if (tokenId) void markListening(tokenId, true);
+        void elsewhere
+          ?.follow()
+          .then((moved) => {
+            if (moved && !closed) ringElsewhere(moved);
+          })
+          .catch(() => {
+            /* the next ping tries again */
+          });
         /* A watcher holds this open while nobody has the board open, so the
            ping is what looks for an ask that is owed its email. */
         kickAskMail();

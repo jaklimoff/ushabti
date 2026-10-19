@@ -699,6 +699,8 @@ export function BoardProvider({
     source.addEventListener("presence", (event) => {
       presence.heard(JSON.parse((event as MessageEvent).data) as PresenceSaid);
     });
+    /* `elsewhere` rings for another project and is for the pages that
+       follow all of them; the board has no listener for it on purpose. */
     source.onerror = () => setLive(false);
     source.onopen = () => setLive(true);
 

@@ -50,14 +50,16 @@ import { readReleaseBy } from "./releases";
 import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
-import { loadOpenRuns, loadTaskRuns } from "./runs";
+import { loadOpenRuns, loadTaskRuns, sweepLostIn } from "./runs";
 import {
   agentsAtWork,
+  agentsNamed,
   headingOf,
   isQuiet,
   mainColumns,
   PULSE_DAYS,
   pulseDays,
+  type AgentAtWork,
   type LastChange,
   type ProjectPulse,
 } from "./pulse";
@@ -80,6 +82,7 @@ import type {
   MemberDTO,
   PropertyDTO,
   PropertyType,
+  RunStatus,
   TaskDTO,
   TaskDetailDTO,
   TaskLinkDTO,
@@ -260,6 +263,97 @@ export async function listProjectsWithPulse(
       return { ...row, pulse };
     }),
   );
+}
+
+/** One project as a page that follows all of them draws it. */
+export type ProjectNow = {
+  id: string;
+  key: string;
+  name: string;
+  color: string;
+  waiting: number;
+  agents: AgentAtWork[];
+  /** The newest line of the feed, or null on a project that wrote none. */
+  lastAt: string | null;
+};
+
+/**
+ * Every project of a person, in their Home order, with who is at work in each.
+ *
+ * It answers every page that follows all of a person's projects, so it is
+ * read on every ring and costs the same three statements and one sweep
+ * however many projects there are: no board is read. Working and silent go
+ * through `agentsNamed`, over the rule Home reads; a run that waits is in
+ * `waiting` and never at work.
+ */
+export async function listProjectsNow(userId: string): Promise<ProjectNow[]> {
+  const lastAt = sql<
+    Date | string | null
+  >`(select max(a.created_at) from ${activity} a where a.project_id = ${projects}.id)`;
+  const rows = await db
+    .select({
+      id: projects.id,
+      key: projects.key,
+      name: projects.name,
+      color: projects.color,
+      waiting: waitingIn(),
+      lastAt,
+    })
+    .from(projectMembers)
+    .innerJoin(projects, eq(projects.id, projectMembers.projectId))
+    .where(eq(projectMembers.userId, userId))
+    .orderBy(byPos(projectMembers.position), desc(projectMembers.createdAt));
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+
+  /* The board sweeps before it reads its runs, so this does too: a run past
+     its lease is gone from Home, and must be gone here. */
+  await sweepLostIn(ids);
+  const runs = await db
+    .select({
+      projectId: agentRuns.projectId,
+      status: agentRuns.status,
+      updatedAt: agentRuns.updatedAt,
+      beatAt: agentRuns.beatAt,
+      agentId: users.id,
+      agentName: users.name,
+      agentColor: users.color,
+      agentEmoji: users.avatarEmoji,
+      taskNumber: tasks.number,
+      projectKey: projects.key,
+    })
+    .from(agentRuns)
+    .innerJoin(users, eq(users.id, agentRuns.agentId))
+    /* As `ON_A_TASK_YOU_CAN_SEE`: a run on a deleted task is not drawn. */
+    .innerJoin(tasks, and(eq(tasks.id, agentRuns.taskId), isNull(tasks.deletedAt)))
+    .innerJoin(projects, eq(projects.id, agentRuns.projectId))
+    .where(and(inArray(agentRuns.projectId, ids), isNull(agentRuns.endedAt)))
+    .orderBy(asc(agentRuns.startedAt));
+
+  const byProject = new Map<string, Parameters<typeof agentsNamed>[0]>();
+  for (const run of runs) {
+    const list = byProject.get(run.projectId) ?? [];
+    list.push({
+      status: run.status as RunStatus,
+      updatedAt: run.updatedAt.toISOString(),
+      beatAt: run.beatAt.toISOString(),
+      agent: {
+        id: run.agentId,
+        name: run.agentName,
+        color: run.agentColor,
+        emoji: run.agentEmoji,
+      },
+      taskKey: `${run.projectKey}-${run.taskNumber}`,
+    });
+    byProject.set(run.projectId, list);
+  }
+
+  const now = Date.now();
+  return rows.map(({ lastAt, ...row }) => ({
+    ...row,
+    agents: agentsNamed(byProject.get(row.id) ?? [], now),
+    lastAt: lastAt === null ? null : new Date(lastAt).toISOString(),
+  }));
 }
 
 /**
