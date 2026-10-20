@@ -17,12 +17,12 @@ test.describe("Settings pages", () => {
 
     await gotoSettings(page, projectId, "project");
     const rail = page.getByRole("navigation", { name: "Settings sections" });
-    for (const group of ["General", "Board", "Integrations"]) {
+    for (const group of ["General", "Shape", "Integrations"]) {
       await expect(rail.getByRole("group", { name: group })).toBeVisible();
     }
     // A new project has no types, and none reads as nothing.
     await expect(rail.getByRole("link", { name: "Types", exact: true })).toBeVisible();
-    for (const title of ["General", "Work", "Agents", "Export", "Danger zone"]) {
+    for (const title of ["General", "Work", "Agents", "Danger zone"]) {
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     }
 

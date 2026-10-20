@@ -238,11 +238,9 @@ export function ProjectPanel({ files }: { files: boolean }) {
       </Row>
     );
 
-  /* "Sharing" names the public changelog, which only exists with releases on,
-     and "export" the download, which only an admin is offered. */
+  /* "Sharing" holds the public changelog, which only exists with releases on.
+     The export lives on Import and export, beside the import. */
   const sharing = Boolean(data.project.releaseBy);
-  const exporting = canEdit;
-  const shareTitle = sharing && exporting ? "Sharing and export" : sharing ? "Sharing" : "Export";
 
   return (
     <>
@@ -617,9 +615,9 @@ export function ProjectPanel({ files }: { files: boolean }) {
         </Card>
       </Section>
 
-      {/* A member with releases off has nothing here, so no empty heading. */}
-      {(sharing || exporting) && (
-        <Section title={shareTitle}>
+      {/* With releases off there is nothing to share, so no empty heading. */}
+      {sharing && (
+        <Section title="Sharing">
           <Card>
             {/*
              * The changelog, for people with no account. Off until somebody turns
@@ -629,65 +627,40 @@ export function ProjectPanel({ files }: { files: boolean }) {
              * With releases off both pages are not found, so the block goes too;
              * the flag stays stored and comes back with releases.
              */}
-            {sharing && (
-              <Row>
-                <Field
-                  label="Public changelog"
-                  inline
-                  note={
-                    data.project.publicChangelog ? (
-                      <>
-                        Anyone with the address reads the shipped options and the titles of their
-                        tasks, with no keys and no people:{" "}
-                        <a
-                          href={`/changelog/${changelogSlug(data.project.key)}`}
-                          data-testid="public-changelog-link"
-                        >
-                          /changelog/{changelogSlug(data.project.key)}
-                        </a>
-                      </>
-                    ) : (
-                      "Only the members of this project read its changelog."
-                    )
-                  }
+            <Row>
+              <Field
+                label="Public changelog"
+                inline
+                note={
+                  data.project.publicChangelog ? (
+                    <>
+                      Anyone with the address reads the shipped options and the titles of their
+                      tasks, with no keys and no people:{" "}
+                      <a
+                        href={`/changelog/${changelogSlug(data.project.key)}`}
+                        data-testid="public-changelog-link"
+                      >
+                        /changelog/{changelogSlug(data.project.key)}
+                      </a>
+                    </>
+                  ) : (
+                    "Only the members of this project read its changelog."
+                  )
+                }
+              >
+                <Button
+                  variant="ghost"
+                  disabled={!canEdit || flipping}
+                  onClick={() => void flipPublic()}
                 >
-                  <Button
-                    variant="ghost"
-                    disabled={!canEdit || flipping}
-                    onClick={() => void flipPublic()}
-                  >
-                    {data.project.publicChangelog ? "Make it private" : "Make it public"}
-                  </Button>
-                  <ButtonLink variant="text" href={`/p/${data.project.id}/changelog`}>
-                    Changelog
-                  </ButtonLink>
-                </Field>
-              </Row>
-            )}
-            {sharing && ownersOnly("who reads the changelog")}
-
-            {/*
-             * The file holds every member's email, so it is an admin's, as the
-             * route says. The server answers with an attachment, so following it
-             * saves the file and leaves this page where it is.
-             */}
-            {exporting && (
-              <Row>
-                <Field
-                  label="Export"
-                  inline
-                  note="One JSON file with the properties, views, members, and every live and archived task with its values, checklist and comments."
-                >
-                  <ButtonLink
-                    variant="ghost"
-                    href={`/api/projects/${data.project.id}/export`}
-                    download
-                  >
-                    Download
-                  </ButtonLink>
-                </Field>
-              </Row>
-            )}
+                  {data.project.publicChangelog ? "Make it private" : "Make it public"}
+                </Button>
+                <ButtonLink variant="text" href={`/p/${data.project.id}/changelog`}>
+                  Changelog
+                </ButtonLink>
+              </Field>
+            </Row>
+            {ownersOnly("who reads the changelog")}
           </Card>
         </Section>
       )}

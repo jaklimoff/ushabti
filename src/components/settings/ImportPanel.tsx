@@ -7,7 +7,7 @@ import { CLIENT_ID } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { useBoard } from "@/components/board/store";
-import { Button, Pill } from "@/components/ui/Button";
+import { Button, ButtonLink, Pill } from "@/components/ui/Button";
 import { Field, FileInput, Select } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
 import {
@@ -21,7 +21,7 @@ import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
 /**
- * Bringing a board in from Trello.
+ * Taking the project out as one file, and bringing a board in from Trello.
  *
  * The page is the flow, because the board has no dialogs: pick a file and the
  * page becomes the preview, press **Import** and it says what was made.
@@ -105,15 +105,38 @@ export function ImportPanel() {
   return (
     <>
       <PageHead
-        title="Import"
-        note="Bring a board in from Trello. Its lists become the columns, its cards become tasks, and nothing is made twice."
+        title="Import and export"
+        note="Take the whole project out as one file, or bring a board in from Trello. Its lists become the columns, its cards become tasks, and nothing is made twice."
       />
 
-      {!canEdit ? (
-        <Section title="Import">
+      {/*
+       * The file holds every member's email, so it is an admin's, as the
+       * route says. The server answers with an attachment, so following it
+       * saves the file and leaves this page where it is.
+       */}
+      {canEdit && (
+        <Section title="Export">
           <Card>
             <Row>
-              <Note>Only the owner or an admin can bring a board in.</Note>
+              <Field
+                label="Export"
+                inline
+                note="One JSON file with the properties, views, members, and every live and archived task with its values, checklist and comments."
+              >
+                <ButtonLink variant="ghost" href={`/api/projects/${projectId}/export`} download>
+                  Download
+                </ButtonLink>
+              </Field>
+            </Row>
+          </Card>
+        </Section>
+      )}
+
+      {!canEdit ? (
+        <Section title="Import and export">
+          <Card>
+            <Row>
+              <Note>Only the owner or an admin can take a project out or bring a board in.</Note>
             </Row>
           </Card>
         </Section>

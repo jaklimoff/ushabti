@@ -63,3 +63,30 @@ test("the import page reads on a phone", async () => {
   const doc = document.documentElement;
   expect(Math.max(doc.scrollWidth - doc.clientWidth, 0)).toBe(0);
 });
+
+/* The screen half of "an admin downloads the project". What the file holds
+   and who the route lets in is `export-route.test.ts`. */
+test("an admin is offered the download before the import, and a member sees no row", async () => {
+  const data = newProject();
+  data.project = { ...data.project, role: "admin" };
+  const admin = await renderWithBoard(<ImportPanel />, data);
+  const download = page.getByRole("link", { name: "Download" });
+  await expect.element(download).toHaveAttribute("href", `/api/projects/${data.project.id}/export`);
+  await expect.element(download).toHaveAttribute("download");
+  expect(
+    page
+      .getByRole("heading", { level: 2 })
+      .elements()
+      .map((h) => h.textContent),
+  ).toEqual(["Export", "The file"]);
+  await admin.screen.unmount();
+
+  const member = newProject();
+  member.project = { ...member.project, role: "member" };
+  await renderWithBoard(<ImportPanel />, member);
+  await expect
+    .element(page.getByRole("heading", { name: "Import and export", level: 1 }))
+    .toBeVisible();
+  expect(page.getByText("Export", { exact: true }).elements()).toHaveLength(0);
+  expect(download.elements()).toHaveLength(0);
+});

@@ -77,7 +77,7 @@ describe("Settings", () => {
     const groups = rail().getByRole("group");
     expect(groups.elements().map((g) => g.getAttribute("aria-labelledby"))).toEqual([
       "rail-General",
-      "rail-Board",
+      "rail-Shape",
       "rail-Integrations",
     ]);
     const names = (title: string) =>
@@ -85,8 +85,8 @@ describe("Settings", () => {
         (a) => a.firstChild?.textContent,
       );
     expect(names("General")).toEqual(["Project", "People"]);
-    expect(names("Board")).toEqual(["Properties", "Types", "Card view", "Views"]);
-    expect(names("Integrations")).toEqual(["Webhooks", "Import"]);
+    expect(names("Shape")).toEqual(["Properties", "Types", "Card view", "Views"]);
+    expect(names("Integrations")).toEqual(["Webhooks", "Import and export"]);
 
     // No types reads as nothing; a count that is there still shows.
     await expect.element(rail().getByRole("link", { name: "Types", exact: true })).toBeVisible();

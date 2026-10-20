@@ -17,6 +17,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - People lists the members as a table under Person and Role, with larger faces and a "you" tag on your own row. Add member is a quieter button.
 - The options of a dated select or a sprint read as plain rows split by a faint line, not a stack of boxes. Plain options keep their pills.
+- Export moved from Project to Integrations, onto one Import and export page, above the Trello import. Project's last section is now Sharing, shown only while releases are on. The settings group for Properties and Views is called Shape.
 
 ## 0.32.1 — 2026-10-19
 

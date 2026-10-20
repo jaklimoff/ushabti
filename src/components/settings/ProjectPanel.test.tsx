@@ -128,30 +128,6 @@ describe("Files", () => {
   });
 });
 
-/* The screen half of "an admin downloads the project; a member is not offered
-   it and an agent is refused" in `e2e/export.spec.ts`. What the file holds and
-   who the route lets in is `export-route.test.ts`. */
-describe("Export", () => {
-  test("an admin is offered the download, and a member sees no row", async () => {
-    const data = newProject();
-    data.project = { ...data.project, role: "admin" };
-    const admin = await renderWithBoard(<ProjectPanel files={false} />, data);
-    const download = page.getByRole("link", { name: "Download" });
-    await expect
-      .element(download)
-      .toHaveAttribute("href", `/api/projects/${data.project.id}/export`);
-    await expect.element(download).toHaveAttribute("download");
-    await admin.screen.unmount();
-
-    const member = newProject();
-    member.project = { ...member.project, role: "member" };
-    await renderWithBoard(<ProjectPanel files={false} />, member);
-    await expect.element(page.getByLabelText("Project name")).toBeVisible();
-    expect(page.getByText("Export", { exact: true }).elements()).toHaveLength(0);
-    expect(download.elements()).toHaveLength(0);
-  });
-});
-
 /* Was "Settings picks the options with ticks" in `e2e/done-when.spec.ts`.
    What the server makes of the list, and what it frees and archives, is
    `release-route.test.ts`. */
@@ -289,7 +265,10 @@ describe("Changelog", () => {
     await lit.screen.unmount();
 
     const panel = await renderWithBoard(<ProjectPanel files={false} />, off);
-    await expect.element(page.getByRole("link", { name: "Download" })).toBeVisible();
+    await expect.element(page.getByLabelText("Project name")).toBeVisible();
+    // With nothing to share there is no Sharing heading, and no export: it is on Import and export.
+    expect(page.getByRole("heading", { name: "Sharing" }).elements()).toHaveLength(0);
+    expect(page.getByRole("link", { name: "Download" }).elements()).toHaveLength(0);
     expect(page.getByRole("link", { name: "Changelog", exact: true }).elements()).toHaveLength(0);
     expect(page.getByRole("button", { name: "Make it public" }).elements()).toHaveLength(0);
     await panel.screen.unmount();
@@ -297,6 +276,8 @@ describe("Changelog", () => {
     await renderWithBoard(<ProjectPanel files={false} />, on);
     await expect.element(page.getByRole("link", { name: "Changelog", exact: true })).toBeVisible();
     await expect.element(page.getByRole("button", { name: "Make it public" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Sharing", exact: true })).toBeVisible();
+    expect(page.getByRole("link", { name: "Download" }).elements()).toHaveLength(0);
   });
 });
 
@@ -408,7 +389,7 @@ describe("Settings on a laptop", () => {
           .elements()
           .map((h) => h.textContent),
       )
-      .toEqual(["General", "Work", "Agents", "Export", "Danger zone"]);
+      .toEqual(["General", "Work", "Agents", "Danger zone"]);
   });
 
   /* "Public changelog" is drawn only while releases are on (USH-226), so the
@@ -426,7 +407,6 @@ describe("Settings on a laptop", () => {
       "Releases",
       "Sprints",
       "Public changelog",
-      "Export",
     ]) {
       expect(linesOf(label), `"${label}" takes ${linesOf(label)} lines`).toBe(1);
     }

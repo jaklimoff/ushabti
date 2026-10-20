@@ -77,7 +77,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
       ],
     },
     {
-      title: "Board",
+      title: "Shape",
       items: [
         { slug: "properties", label: "Properties", count: data.properties.length },
         /* The number of types is the number of options of the select the
@@ -100,7 +100,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
             title: "Integrations",
             items: [
               { slug: "webhooks", label: "Webhooks", count: null },
-              { slug: "import", label: "Import", count: null },
+              { slug: "import", label: "Import and export", count: null },
             ],
           },
         ]
