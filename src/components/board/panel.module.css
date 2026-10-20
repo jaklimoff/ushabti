@@ -1781,3 +1781,34 @@
   color: var(--text-meta);
   font-size: var(--t-micro);
 }
+
+/* The card panel holds the whole editor, which wants a little more room than
+   a task's fields. */
+.cardPanel {
+  --panel-w: 440px;
+}
+
+.cardPanelSub {
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+/* What a change here reaches, in one sentence, with the way to the other card. */
+.cardPanelNote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--text-meta);
+}
+
+.cardPanelEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+}

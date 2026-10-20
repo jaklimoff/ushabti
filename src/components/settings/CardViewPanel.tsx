@@ -38,38 +38,8 @@ import styles from "./settings.module.css";
  * has no copy writes one, made from the card it was drawing.
  */
 export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
-  const { data, cardItemsOf, setCardView, resetCardView } = useBoard();
-  /* The drawing is the way a pointer arranges the card; the list is the same
-     editor as rows, and stays whole for the keyboard and a screen reader. */
-  const [shape, setShape] = useState<"card" | "list">("card");
-  const [open, setOpen] = useState<string | null>(null);
-  /* The row under the pointer or the keys. It and the open row point at
-     their chip on the preview, so the list and the card read as one. */
-  const [near, setNear] = useState<string | null>(null);
-  const confirm = useConfirm();
+  const { data } = useBoard();
   const target = viewId ? (data.views.find((v) => v.id === viewId) ?? null) : null;
-  const cardItems = useMemo(() => cardItemsOf(viewId), [cardItemsOf, viewId]);
-
-  /* The card view is everybody's, so a reset names what it moves: the rows
-     whose place or reading differ from the default. The default is the one the
-     store puts back, worked out the same way. There is no order to count: it
-     is the order of the properties, and a reset leaves that alone. */
-  const changed = useMemo(() => {
-    const fresh = itemsOf(
-      defaultCardView(data.properties, mainBoardGroupById(data.views)),
-      data.properties,
-    );
-    return cardItems.filter((item) => {
-      const other = fresh.find((f) => f.id === item.id);
-      return !other || other.place !== item.place || other.mode !== item.mode;
-    }).length;
-  }, [cardItems, data.properties, data.views]);
-
-  /* A click says what the whole card view becomes, not what one row does. */
-  const view: CardView = useMemo(() => viewOf(cardItems), [cardItems]);
-
-  const shown = cardItems.filter((i) => i.place !== "off").length;
-  const edge = cardItems.find((i) => i.place === "edge") ?? null;
 
   if (viewId && !target) {
     return (
@@ -116,6 +86,62 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
         />
       )}
 
+      <CardEditor viewId={viewId} />
+    </>
+  );
+}
+
+/**
+ * The editor itself, with no heading. Settings draws it beside a preview; the
+ * board's Card panel draws it bare, because the board behind it is the
+ * preview, and says above it what a view's own card means.
+ */
+export function CardEditor({
+  viewId = null,
+  bare = false,
+}: {
+  viewId?: string | null;
+  /** No preview and no "Use the default" in the foot: the board panel has both. */
+  bare?: boolean;
+}) {
+  const { data, cardItemsOf, setCardView, resetCardView } = useBoard();
+  /* The drawing is the way a pointer arranges the card; the list is the same
+     editor as rows, and stays whole for the keyboard and a screen reader. */
+  const [shape, setShape] = useState<"card" | "list">("card");
+  const [open, setOpen] = useState<string | null>(null);
+  /* The row under the pointer or the keys. It and the open row point at
+     their chip on the preview, so the list and the card read as one. */
+  const [near, setNear] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const target = viewId ? (data.views.find((v) => v.id === viewId) ?? null) : null;
+  const cardItems = useMemo(() => cardItemsOf(viewId), [cardItemsOf, viewId]);
+
+  /* The card view is everybody's, so a reset names what it moves: the rows
+     whose place or reading differ from the default. The default is the one the
+     store puts back, worked out the same way. There is no order to count: it
+     is the order of the properties, and a reset leaves that alone. */
+  const changed = useMemo(() => {
+    const fresh = itemsOf(
+      defaultCardView(data.properties, mainBoardGroupById(data.views)),
+      data.properties,
+    );
+    return cardItems.filter((item) => {
+      const other = fresh.find((f) => f.id === item.id);
+      return !other || other.place !== item.place || other.mode !== item.mode;
+    }).length;
+  }, [cardItems, data.properties, data.views]);
+
+  /* A click says what the whole card view becomes, not what one row does. */
+  const view: CardView = useMemo(() => viewOf(cardItems), [cardItems]);
+
+  const shown = cardItems.filter((i) => i.place !== "off").length;
+  const edge = cardItems.find((i) => i.place === "edge") ?? null;
+
+  if (viewId && !target) return null;
+  const own = target?.cardView != null;
+
+  return (
+    <>
       <div className={styles.shapeToggle} role="group" aria-label="Arrange the card as">
         {(["card", "list"] as const).map((s) => (
           <Pill
@@ -132,7 +158,7 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
         ))}
       </div>
 
-      <div className={styles.cardLayout}>
+      <div className={bare ? undefined : styles.cardLayout}>
         <Card className={shape === "card" ? styles.drawingCard : undefined}>
           {shape === "card" ? (
             <CardDrawing
@@ -183,7 +209,8 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
           ) : (
             <Foot>
               {target ? (
-                own && (
+                own &&
+                !bare && (
                   <Button
                     variant="ghost"
                     onClick={() => {
@@ -215,7 +242,7 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
           )}
         </Card>
 
-        <Preview items={cardItems} lit={near ?? open} />
+        {!bare && <Preview items={cardItems} lit={near ?? open} />}
       </div>
     </>
   );

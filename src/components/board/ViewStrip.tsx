@@ -47,11 +47,16 @@ export function ViewStrip({
   setFilterOpen,
   sortOpen,
   setSortOpen,
+  cardOpen,
+  onCard,
 }: {
   filterOpen: boolean;
   setFilterOpen: (v: boolean) => void;
   sortOpen: boolean;
   setSortOpen: (v: boolean) => void;
+  cardOpen: boolean;
+  /** Opens the Card panel, or closes it when it is open. */
+  onCard: () => void;
 }) {
   const { data, view, visibleTasks, setViewId, createView, moveView } = useBoard();
   const [adding, setAdding] = useState(false);
@@ -169,6 +174,19 @@ export function ViewStrip({
       <div style={{ flex: 1 }} />
       {/* A list is ordered by its headings, which it has and a board has not.
           So the button is here only where there is nothing else to press. */}
+      {/* A roadmap draws no card, so there is nothing for it to arrange. */}
+      {view && view.kind !== "roadmap" && (
+        <button
+          className={`${styles.pill} ${styles.tool} ${cardOpen ? styles.filterOn : ""}`}
+          data-testid="card-button"
+          aria-expanded={cardOpen}
+          title={`Arrange what a card on ${view.name} carries`}
+          onClick={onCard}
+        >
+          <span className={styles.cardMark} aria-hidden />
+          <span className={styles.toolWord}>Card</span>
+        </button>
+      )}
       {view?.kind === "board" && <SortButton open={sortOpen} setOpen={setSortOpen} />}
       <FilterButton open={filterOpen} setOpen={setFilterOpen} />
       {/* A filtered board says how much of itself it is showing. "12 tasks"

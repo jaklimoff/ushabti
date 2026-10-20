@@ -15,6 +15,7 @@ import { ProjectMark } from "@/components/ui/Marks";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
+import { CardPanel } from "./CardPanel";
 import { FilterChips } from "./Filters";
 import { ListCanvas } from "./ListCanvas";
 import { focusBar, RoadmapCanvas } from "./RoadmapCanvas";
@@ -71,6 +72,9 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
      panel that is still open. */
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  /* One panel shows at a time: opening the card closes the task, and opening
+     a task closes the card. */
+  const [cardOpen, setCardOpen] = useState(false);
   /* The sidebar reads the open project's count from here, so it and the top
      bar never disagree. */
   useOwnWaiting(data.project.id, waitingCount(data.tasks, data.runs));
@@ -85,12 +89,14 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
      person reads on the card and only the task knows it. An archived task is
      carried light, so this asks for the two parts every one of them has. */
   const open = useCallback((task: Openable | null) => {
+    if (task) setCardOpen(false);
     setSelected(task?.id ?? null);
     setAnswering(null);
     writeAddress(task?.key ?? null);
   }, []);
 
   const answer = useCallback((task: Openable) => {
+    setCardOpen(false);
     setSelected(task.id);
     setAnswering((was) => ({ taskId: task.id, n: (was?.n ?? 0) + 1 }));
     writeAddress(task.key);
@@ -105,6 +111,7 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
   const pressBar = useCallback(
     (optionId: string) => {
       if (!view) return;
+      setCardOpen(false);
       setBar({ viewId: view.id, optionId, task: null });
       open(null);
     },
@@ -127,6 +134,15 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
   // TaskPanel builds its loader from this, so a new function on every render
   // would make the panel reload — and reset — every time the board re-renders.
   const closePanel = useCallback(() => open(null), [open]);
+  const closeCard = useCallback(() => setCardOpen(false), []);
+  const pressCard = useCallback(() => {
+    if (cardOpen) return setCardOpen(false);
+    open(null);
+    setBar(null);
+    setCardOpen(true);
+  }, [cardOpen, open]);
+  /* A roadmap draws no card, so another view kind puts the panel away. */
+  const cardShown = cardOpen && view != null && view.kind !== "roadmap";
 
   /* A task that another person removed must not keep the panel open. The board
      answers that here rather than in an effect, so the panel is never drawn one
@@ -239,6 +255,8 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
           setFilterOpen={setFilterOpen}
           sortOpen={sortOpen}
           setSortOpen={setSortOpen}
+          cardOpen={cardShown}
+          onCard={pressCard}
         />
         <FilterChips panelOpen={filterOpen || sortOpen} />
         {/* The same tasks, drawn three ways. Everything above and below this line
@@ -294,6 +312,8 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
           </div>
         )}
       </div>
+
+      {cardShown && !openTask && <CardPanel onClose={closeCard} />}
 
       {openTask && (
         <TaskPanel

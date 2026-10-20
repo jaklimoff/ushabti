@@ -2445,6 +2445,17 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 /* Three bars, growing. The funnel above takes cards away; this one only puts
    them in order, so it reads the other way round and nothing is cut off. */
+/* A small card on its side: a frame with a stripe down its left edge. */
+.cardMark {
+  width: 9px;
+  height: 7px;
+  flex: 0 0 9px;
+  border: 1.5px solid currentColor;
+  border-left-width: 3px;
+  border-radius: 1.5px;
+  opacity: 0.75;
+}
+
 .sortMark {
   width: 8px;
   height: 6px;

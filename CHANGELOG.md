@@ -10,6 +10,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- A **Card** button beside Sort opens the card editor beside a board or a list, and the cards on the board change as you click. It says whether the view follows the default card or has its own, and offers the other one.
 - On the card editor a property chip dragged along its place moves the property, in Properties and in the task panel too. The task ID, checklist, children, comments and the two days keep their spots.
 - On the card editor a chip drags to another place, onto the edge or off the card, by mouse or by keyboard: Space lifts it, the arrows move it and Space drops it. The edge shows as closed for a chip that has no colours.
 - Properties opens with a strip that says which property plays each board role: the types, done when, the releases and the sprints. A set tile takes you to its property, and that property carries the role as a tag.

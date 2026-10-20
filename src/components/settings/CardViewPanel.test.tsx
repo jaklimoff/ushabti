@@ -736,7 +736,10 @@ describe("The card drawn big", () => {
     await gone(page.getByTestId("card-drawing"));
     await expect.element(row("Priority")).toHaveAttribute("data-place", "headerL");
 
-    await page.getByRole("button", { name: "Card", exact: true }).click();
+    await page
+      .getByRole("group", { name: "Arrange the card as" })
+      .getByRole("button", { name: "Card", exact: true })
+      .click();
     await expect.element(page.getByTestId("card-drawing")).toBeVisible();
   });
 });
