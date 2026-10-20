@@ -9,35 +9,34 @@ import type { PropertyDTO, When } from "@/lib/types";
 /**
  * The one way a page writes when a property shows.
  *
- * The Properties page ticks options and the Types page adds a property to a
- * type, and both are this: a rule that hides values on tasks asks first, with
- * the count, and the write drops them. The count is the server's, because
- * archived tasks lose theirs too. An answer that lands after another write is
- * dropped.
+ * The Properties page ticks options, the types grid ticks a type, and the
+ * Types page adds a property to a type, and all are this: a rule that hides
+ * values on tasks asks first, with the count, and the write drops them. The
+ * count is the server's, because archived tasks lose theirs too. An answer
+ * that lands after another write is dropped.
+ *
+ * It holds one question at a time, whichever property asked it, so a grid of
+ * many properties asks in one place.
  */
-export function useWhenWrite(property: PropertyDTO) {
+export function useWhenWrites() {
   const { patchProperty, notify } = useBoard();
-  const rule = property.config.when ?? null;
-  const [asking, setAsking] = useState<{ when: When | null; question: string } | null>(null);
+  const [asking, setAsking] = useState<{
+    propertyId: string;
+    when: When | null;
+    question: string;
+  } | null>(null);
   const asked = useRef(0);
 
-  /* Tick or untick one option of a select. */
-  function toggle(select: PropertyDTO, id: string, on: boolean) {
-    const ticked = rule && rule.propertyId === select.id ? rule.optionIds : [];
-    const next = on ? [...ticked, id] : ticked.filter((t) => t !== id);
-    const when = next.length ? { propertyId: select.id, optionIds: next } : null;
-    /* One more option under the same rule shows more and hides nothing. */
-    if (on && rule?.propertyId === select.id) {
-      asked.current++;
-      setAsking(null);
-      return void patchProperty(property.id, { when });
-    }
-    return write(when);
+  /* A write that shows more and hides nothing goes without a count. */
+  function save(property: PropertyDTO, when: When | null) {
+    asked.current++;
+    setAsking(null);
+    void patchProperty(property.id, { when });
   }
 
   /* Even no rule at all can hide: it may let a rule elsewhere out of a
      circle. So everything else is counted first. */
-  async function write(when: When | null) {
+  async function write(property: PropertyDTO, when: When | null) {
     const mine = ++asked.current;
     setAsking(null);
     try {
@@ -46,7 +45,7 @@ export function useWhenWrite(property: PropertyDTO) {
       );
       if (asked.current !== mine) return;
       if (drops.tasks === 0) return void patchProperty(property.id, { when });
-      setAsking({ when, question: `${ruleAsked(drops)}.` });
+      setAsking({ propertyId: property.id, when, question: `${ruleAsked(drops)}.` });
     } catch {
       if (asked.current === mine) notify("Could not count the values the rule hides.");
     }
@@ -54,10 +53,10 @@ export function useWhenWrite(property: PropertyDTO) {
 
   function confirm() {
     if (!asking) return;
-    const { when } = asking;
+    const { propertyId, when } = asking;
     asked.current++;
     setAsking(null);
-    void patchProperty(property.id, { when });
+    void patchProperty(propertyId, { when });
   }
 
   function cancel() {
@@ -65,5 +64,34 @@ export function useWhenWrite(property: PropertyDTO) {
     setAsking(null);
   }
 
-  return { rule, asking, toggle, write, confirm, cancel };
+  return { asking, save, write, confirm, cancel };
+}
+
+/** The writes of one property's rule. */
+export function useWhenWrite(property: PropertyDTO) {
+  const writes = useWhenWrites();
+  const rule = property.config.when ?? null;
+
+  /* Tick or untick one option of a select. */
+  function toggle(select: PropertyDTO, id: string, on: boolean) {
+    const ticked = rule && rule.propertyId === select.id ? rule.optionIds : [];
+    const next = on ? [...ticked, id] : ticked.filter((t) => t !== id);
+    const when = next.length ? { propertyId: select.id, optionIds: next } : null;
+    /* One more option under the same rule shows more and hides nothing. */
+    if (on && rule?.propertyId === select.id) return writes.save(property, when);
+    return write(when);
+  }
+
+  function write(when: When | null) {
+    return writes.write(property, when);
+  }
+
+  return {
+    rule,
+    asking: writes.asking,
+    toggle,
+    write,
+    confirm: writes.confirm,
+    cancel: writes.cancel,
+  };
 }

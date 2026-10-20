@@ -2599,3 +2599,81 @@ div.hookRow {
   align-items: center;
   gap: 8px;
 }
+
+/* ---- the types grid: properties down the side, types across the top ---- */
+
+/* The grid scrolls inside the panel, so a phone never scrolls the page. */
+.typeGridScroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.typeGrid {
+  border-collapse: collapse;
+  font-size: var(--t-small);
+  color: var(--text-2);
+}
+
+.typeGrid th,
+.typeGrid td {
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.typeGridHead,
+.typeGridType {
+  font-weight: 500;
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+
+.typeGridType .typeDot {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.typeGridName {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.typeGridCell {
+  min-width: 96px;
+}
+
+.typeGridRuled td,
+.typeGridRuled .typeGridName {
+  color: var(--text-meta);
+}
+
+.typeGridStartsSaid {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-meta);
+  white-space: nowrap;
+  text-align: left;
+}
+
+button.typeGridStartsSaid {
+  cursor: pointer;
+}
+
+button.typeGridStartsSaid:hover,
+button.typeGridStartsSaid[aria-expanded="true"] {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.typeGridStarts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

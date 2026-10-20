@@ -61,6 +61,7 @@ import {
 import { PageHead } from "./SettingsShell";
 import { useWhenWrite } from "./useWhenWrite";
 import { RolePanel, RoleRow } from "./RolePanel";
+import { TypesGrid } from "./TypesGrid";
 import styles from "./settings.module.css";
 
 /* The grip is the only thing that lifts a row or a chip, so the name boxes
@@ -509,6 +510,7 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
       {property.type === "iteration" && data.project.sprintBy === property.id && (
         <SprintsPanel property={property} canEdit={canEdit} />
       )}
+      {data.project.typeBy === property.id && <TypesGrid type={property} canEdit={canEdit} />}
     </div>
   );
 }
