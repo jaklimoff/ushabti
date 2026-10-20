@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatDate, type BoardColumn } from "@/lib/board";
 import type { DoneWhen } from "@/lib/links";
 import { progressOf } from "@/lib/progress";
-import { doneSettingsHref } from "@/lib/board-roles";
+import { propertySettingsHref } from "@/lib/board-roles";
 import {
   SHIP_REST_LABEL,
   shipQuestion,
@@ -603,7 +603,11 @@ export function ShipQuestion({
         </label>
       )}
       {!counts && (
-        <Link className={styles.colShipAnswer} href={doneSettingsHref(data.project.id)} autoFocus>
+        <Link
+          className={styles.colShipAnswer}
+          href={propertySettingsHref(data.project.id)}
+          autoFocus
+        >
           Open Settings
         </Link>
       )}

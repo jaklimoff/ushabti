@@ -5,7 +5,6 @@ import { FILES_OFF_NOTE } from "@/lib/attachments";
 import { BoardShell } from "@/components/board/BoardApp";
 import { ProjectPanel } from "./ProjectPanel";
 import { SettingsShell } from "./SettingsShell";
-import { TypesPanel } from "./TypesPanel";
 
 /*
  * The Agent rules box of Settings -> Project: what it counts and what it
@@ -332,16 +331,11 @@ describe("Settings on a laptop", () => {
      page is drawn with them on; the spec had not caught up. */
   test("no inline label breaks onto a second line", async () => {
     const data = releasesOn();
-    const project = await renderWithBoard(<ProjectPanel files />, data);
+    await renderWithBoard(<ProjectPanel files />, data);
     await expect.element(page.getByLabelText("Project name")).toBeVisible();
     for (const label of ["Name", "Key", "Time zone", "Public changelog"]) {
       expect(linesOf(label), `"${label}" takes ${linesOf(label)} lines`).toBe(1);
     }
-    await project.screen.unmount();
-
-    await renderWithBoard(<TypesPanel />, newProject());
-    await expect.element(page.getByLabelText("Types come from")).toBeVisible();
-    expect(linesOf("Types come from")).toBe(1);
   });
 });
 

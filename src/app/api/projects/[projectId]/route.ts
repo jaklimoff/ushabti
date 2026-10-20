@@ -94,8 +94,8 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   }
   /*
    * The select whose options are this project's types. Refused as
-   * `progressBy` is: a save that quietly became "no Type" would empty the
-   * Types page and say nothing.
+   * `progressBy` is: a save that quietly became "no Type" would take the
+   * types grid away and say nothing.
    */
   if (input.typeBy !== undefined) {
     if (input.typeBy === null || input.typeBy === "") {

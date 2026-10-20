@@ -1,6 +1,7 @@
-import { describe, expect, test } from "vitest";
-import { page, type Locator } from "vitest/browser";
-import { withWhen } from "@/lib/when";
+import { describe, expect, test, vi } from "vitest";
+import { page, userEvent, type Locator } from "vitest/browser";
+import { BoardShell } from "@/components/board/BoardApp";
+import { readDefaults, readTypeBy, startsWith, withWhen } from "@/lib/when";
 import {
   NO_VALUE_KEY,
   type BoardData,
@@ -21,6 +22,7 @@ import { PropertiesPanel } from "./PropertiesPanel";
 
 const PROPERTY = /^\/api\/properties\/[0-9a-f-]+$/;
 const PROJECT = /^\/api\/projects\/[0-9a-f-]+$/;
+const TASKS = /^\/api\/projects\/[0-9a-f-]+\/tasks$/;
 
 let made = 0;
 const id = () => `00000000-0000-4000-8000-0000000d${String(++made).padStart(4, "0")}`;
@@ -64,9 +66,11 @@ function typed() {
   return { data, type, severity, bug, story };
 }
 
-/** The server as the grid reads it: a Type, a rule, a default and a count. */
+/** The server as the grid reads it: a Type, a rule, a default and a count,
+    and a create that writes a type's defaults as the route does. */
 function serving(data: BoardData) {
   const server = structuredClone(data);
+  let number = 900;
   const hides = (rule: When | null, t: TaskDTO) => {
     if (rule === null) return false;
     const value = t.values[rule.propertyId];
@@ -97,6 +101,32 @@ function serving(data: BoardData) {
       const rule = JSON.parse(query.get("when") ?? "null") as When | null;
       const lost = server.tasks.filter((t) => t.values[property.id] != null && hides(rule, t));
       return { body: { tasks: lost.length, names: lost.length ? [property.name] : [] } };
+    }
+    if (method === "POST" && TASKS.test(path)) {
+      const sent = body as { title: string; values?: Record<string, TaskValue> };
+      const values = sent.values ?? {};
+      const read = readDefaults(server.properties, server.project.typeBy);
+      const starts = startsWith(readTypeBy(server.project.typeBy, read), values, read);
+      number += 1;
+      const task: TaskDTO = {
+        id: id(),
+        number,
+        key: `${server.project.key}-${number}`,
+        title: sent.title,
+        description: "",
+        position: "a0000000",
+        createdAt: "2026-10-08T10:00:00.000Z",
+        updatedAt: "2026-10-08T10:00:00.000Z",
+        archivedAt: null,
+        values: { ...starts, ...values },
+        checklistTotal: 0,
+        checklistDone: 0,
+        commentCount: 0,
+        blockedBy: [],
+        parts: null,
+      };
+      server.tasks.unshift(task);
+      return { status: 201, body: { task } };
     }
   };
 }
@@ -229,5 +259,81 @@ describe("The types grid", () => {
         .getByRole("button", { name: /starts/ })
         .elements(),
     ).toHaveLength(0);
+  });
+});
+
+describe("A when row on the types property", () => {
+  test("says See the types, and the link goes to the types property", async () => {
+    const { data, type } = typed();
+    await renderWithBoard(<PropertiesPanel />, data, serving(data));
+    const link = page.getByRole("link", { name: "See the types" });
+    await expect.element(link).toHaveAttribute("href", `#prop-${type.id}`);
+  });
+});
+
+/*
+ * A Starts as box is a settings row that holds words, so a blur saves it and
+ * a tab closed on it sends the same save. A closed tab raises pagehide and no
+ * blur, which is what this test raises.
+ */
+describe("A Starts as box in the grid", () => {
+  test("saves on blur, and on a tab closed while it has the focus", async () => {
+    const { data, bug } = typed();
+    const points = add(data, "Points", "number");
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, serving(data));
+    await grid().getByRole("button", { name: "Points on Bug starts empty" }).click();
+    const box = () => grid().getByTestId("types-grid-starts").getByRole("textbox");
+    const patches = () => sent("PATCH", PROPERTY);
+
+    await box().fill("3");
+    expect(patches()).toEqual([]);
+    (box().element() as HTMLInputElement).blur();
+    await expect.poll(() => patches().length).toBe(1);
+    expect(patches()[0].path).toBe(`/api/properties/${points.id}`);
+    expect(patches()[0].body).toEqual({ defaults: { [bug]: 3 } });
+
+    // The box still has the focus. Closing the tab here is the lost edit.
+    await box().fill("5");
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    await expect.poll(() => patches().length).toBe(2);
+    expect(patches()[1].body).toEqual({ defaults: { [bug]: 5 } });
+    const leave = vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === "PATCH");
+    expect(leave[1]?.[1]?.keepalive).toBe(true);
+  });
+});
+
+describe("What a new task of a type starts with", () => {
+  /* The screen half. That the server writes the default and answers with it
+     is `types-route.test.ts`. */
+  test("a task made in the Bug column says what it starts with, then carries it", async () => {
+    const { data, type, severity } = typed();
+    data.views[0].groupById = type.id;
+    const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, serving(data));
+
+    const column = (name: string) =>
+      page.getByTestId("column").filter({
+        has: page.getByTestId("column-name").filter({ hasText: new RegExp(`^${name}$`, "i") }),
+      });
+    await column("Bug").getByRole("button", { name: "Add a task to Bug" }).first().click();
+    await says(column("Bug"), "starts with Severity Minor");
+    await userEvent.keyboard("{Escape}");
+    await column("Story").getByRole("button", { name: "Add a task to Story" }).first().click();
+    await expect.element(page.getByPlaceholder("What needs doing?")).toBeVisible();
+    expect(column("Story").element().textContent).not.toContain("starts with");
+    await userEvent.keyboard("{Escape}");
+
+    await column("Bug").getByRole("button", { name: "Add a task to Bug" }).first().click();
+    await page.getByPlaceholder("What needs doing?").fill("A crash");
+    await userEvent.keyboard("{Enter}");
+    const card = page.getByTestId("card").filter({ hasText: "A crash" });
+    await expect.element(card).toBeVisible();
+    /* This tab hears no bell for its own create, so only the answer of the
+       create can put the default on the card it draws. */
+    await says(card, "Minor");
+    const create = sent("POST", TASKS);
+    expect(create).toHaveLength(1);
+    expect((create[0].body as { values: Record<string, TaskValue> }).values).not.toHaveProperty(
+      severity.id,
+    );
   });
 });

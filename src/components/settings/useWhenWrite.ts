@@ -9,8 +9,8 @@ import type { PropertyDTO, When } from "@/lib/types";
 /**
  * The one way a page writes when a property shows.
  *
- * The Properties page ticks options, the types grid ticks a type, and the
- * Types page adds a property to a type, and all are this: a rule that hides
+ * The Properties page ticks options and the types grid ticks a type, and
+ * both are this: a rule that hides
  * values on tasks asks first, with the count, and the write drops them. The
  * count is the server's, because archived tasks lose theirs too. An answer
  * that lands after another write is dropped.

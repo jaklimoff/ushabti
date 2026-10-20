@@ -73,10 +73,10 @@ list, and the setting reads as `null` only when none is left or the property its
 status in Ushabti — Status is a property the owner may rename tomorrow — which is why the project
 has to say which option it means.
 
-`typeBy` names the select whose options are this project's types, as **Settings → Types** shows
-them. `null` or `""` clears it; a property that is not a single select or sprint property of this project
+`typeBy` names the select whose options are this project's types, as the types grid on that
+property in **Settings → Properties** shows them. `null` or `""` clears it; a property that is not a single select or sprint property of this project
 is a `400`. It is read afresh, so the board answer and the export carry `typeBy: null` once that
-select is deleted. Nothing but the Types page reads it yet.
+select is deleted.
 
 ```json title="200"
 { "ok": true }

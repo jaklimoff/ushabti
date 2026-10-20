@@ -8,7 +8,6 @@ import { ImportPanel } from "./ImportPanel";
 import { ProjectPanel } from "./ProjectPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { SettingsShell } from "./SettingsShell";
-import { TypesPanel } from "./TypesPanel";
 import { ViewsPanel } from "./ViewsPanel";
 
 /*
@@ -231,7 +230,7 @@ async function expectTextButton(button: Locator) {
   await looks(button, "outline-color", token("--accent"));
 }
 
-describe("A button in Views and Types looks like a button", () => {
+describe("A button in Views looks like a button", () => {
   test("Make main and Card view are text buttons; Shows as stays a label", async () => {
     await draw("views", <ViewsPanel />);
 
@@ -241,37 +240,6 @@ describe("A button in Views and Types looks like a button", () => {
     const label = page.getByText("Shows as", { exact: true }).first();
     expect(await textLook(label)).toMatchObject({ transform: "uppercase", mono: true });
     await looks(label, "color", token("--text-meta"));
-  });
-
-  test("the actions of a type are text buttons, and its groups read as headings", async () => {
-    const data = newProject();
-    const priority = propertyOf(data, "Priority");
-    const type: PropertyDTO = {
-      ...priority,
-      id: "00000000-0000-4000-8000-00000000d001",
-      name: "Type",
-      position: "b0000000",
-      options: ["Bug", "Story"].map((name, i) => ({
-        ...priority.options[0],
-        id: `00000000-0000-4000-8000-00000000d10${i}`,
-        name,
-        position: `a000000${i}`,
-      })),
-    };
-    data.properties.push(type);
-    data.project.typeBy = type.id;
-    await draw("types", <TypesPanel />, data);
-
-    const sheet = page.getByTestId("type-sheet");
-    await expectTextButton(sheet.getByRole("button", { name: "Only on Bug" }).first());
-
-    /* A group heading reads as the head of the card view's table does. */
-    for (const name of ["Every type", "This type"]) {
-      const heading = sheet.getByRole("heading", { name });
-      expect(await textLook(heading)).toMatchObject({ transform: "uppercase", mono: true });
-      await looks(heading, "font-size", "10.5px");
-      await looks(heading, "color", token("--text-meta"));
-    }
   });
 
   test("the ghost border and the danger words are tokens", async () => {

@@ -12,9 +12,9 @@ async function addMember(page: Page, email: string, name: string) {
    before Make owner is `PeoplePanel.test.tsx`. */
 test.describe("Roles", () => {
   test(
-    "a member adds a property, an option and a type but deletes none; so does an agent",
+    "a member adds a property and an option but deletes none; so does an agent",
     { tag: "@smoke" },
-    async ({ page, browser }) => {
+    async ({ page, browser }, testInfo) => {
       const memberContext = await browser.newContext();
       const memberPage = await memberContext.newPage();
       const member = await register(memberPage, "Bob Member");
@@ -85,20 +85,33 @@ test.describe("Roles", () => {
         expect((await answer.json()).error).toBe(person);
       }
 
-      /* ---- a member gets the same add buttons on both pages ------------- */
+      /* ---- a member adds a property, and reads the types on theirs ----- */
 
       await gotoSettings(memberPage, projectId, "properties");
       await expect(memberPage.getByRole("button", { name: "Add property" })).toBeVisible();
-      await gotoSettings(memberPage, projectId, "types");
-      await memberPage.getByLabel("New type name").fill("Chore");
-      await memberPage.getByRole("button", { name: "Add type" }).click();
-      await expect(memberPage.getByRole("group", { name: "Types" }).getByRole("button")).toHaveText(
-        ["Bug", "Story", "Chore"],
+      // The old Types page sends a bookmark to the property that holds them.
+      await memberPage.goto(`/p/${projectId}/settings/types`);
+      await expect(memberPage).toHaveURL(
+        new RegExp(`/p/${projectId}/settings/properties#prop-${type.id}$`),
       );
+      const grid = memberPage.getByRole("group", { name: "The types" });
+      await expect(grid).toBeVisible();
+      await expect(grid.getByRole("checkbox").first()).toBeDisabled();
+      await expect(
+        memberPage
+          .getByRole("navigation", { name: "Settings sections" })
+          .getByRole("link", { name: /^Types/ }),
+      ).toHaveCount(0);
+      await memberPage.screenshot({ path: testInfo.outputPath("seen-types-redirect.png") });
       const mine = await memberPage.request.post(`/api/projects/${projectId}/properties`, {
         data: { name: "Mine", type: "text" },
       });
       expect(mine.ok()).toBeTruthy();
+      // A type is an option of the Type select, so a member adds one.
+      const chore = await memberPage.request.post(`/api/properties/${type.id}/options`, {
+        data: { name: "Chore" },
+      });
+      expect(chore.ok()).toBeTruthy();
 
       /* ---- and deletes nothing ------------------------------------------ */
 

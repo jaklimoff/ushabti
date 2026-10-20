@@ -96,10 +96,10 @@ export function rolesOf(
 export const propertyAnchor = (propertyId: string) => `prop-${propertyId}`;
 
 /**
- * Where Done when is set: the property's row on Properties when one is
+ * Where a board role is set: the property's row on Properties when one is
  * known, else the page, whose strip turns it on.
  */
-export function doneSettingsHref(projectId: string, propertyId?: string | null): string {
+export function propertySettingsHref(projectId: string, propertyId?: string | null): string {
   const page = `/p/${projectId}/settings/properties`;
   return propertyId ? `${page}#${propertyAnchor(propertyId)}` : page;
 }

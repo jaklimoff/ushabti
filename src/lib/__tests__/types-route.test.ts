@@ -7,10 +7,10 @@ vi.mock("next/headers", () => import("@/test/headers"));
 const { api, board, ok, person, project, unique } = await import("@/test/route");
 
 /*
- * The server's half of the Types page and of what a new task of a type
- * starts with. Each test was a test of `e2e/types.spec.ts` or
- * `e2e/type-defaults.spec.ts`, and carries its name. What the page and the
- * composer draw is `TypesPanel.test.tsx`.
+ * The server's half of the types and of what a new task of a type starts
+ * with. Each test was a test of `e2e/types.spec.ts` or
+ * `e2e/type-defaults.spec.ts`, and carries its name. What the grid and the
+ * composer draw is `TypesGrid.test.tsx`.
  */
 
 type Property = {
@@ -27,7 +27,7 @@ type Board = {
   tasks: { id: string; values: Record<string, unknown> }[];
 };
 
-describe("The Types page", () => {
+describe("The types", () => {
   it("the project names a select as its Type, and only a select", async () => {
     const owner = await person("Type by");
     const p = await project(owner);
@@ -152,7 +152,7 @@ describe("What a new task of a type starts with", () => {
 
 /* The route half of "saves on blur, and on a tab closed while it has the
    focus" in `e2e/type-defaults.spec.ts`: what the box sends is kept, and a
-   clear takes it away. What the box sends is `TypesPanel.test.tsx`. */
+   clear takes it away. What the box sends is `TypesGrid.test.tsx`. */
 describe("A Starts as box", () => {
   it("saves on blur, and on a tab closed while it has the focus", async () => {
     const { as, p, bug, defaultsOf } = await typed();

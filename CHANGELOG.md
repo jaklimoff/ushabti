@@ -18,6 +18,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 ### Changed
 
 - The property that holds the types shows a grid on Properties: every property down the side, every type across the top, and a tick where it shows. Unticking asks first with the count, a ticked cell says what a new task starts as, and its switch turns types off.
+- The Types page is gone from Settings: types are set in the grid on their property. An old link to it lands there, and **See the types** on a when row goes there too.
 - Sprints are turned off on the sprint property, on Properties, beside how many days a sprint lasts. Project no longer holds the Sprints switch or its two boxes.
 - Releases are turned off on the releases property, on Properties, and no longer on Project. Its switch asks first and says what stays.
 - Done when and Progress by moved from Project to the property that says done, on Properties. A switch turns it off, and one pill per option says which count as done. The ship question with no Done when now points to Properties.

@@ -85,11 +85,15 @@ describe("Settings", () => {
         (a) => a.firstChild?.textContent,
       );
     expect(names("General")).toEqual(["Project", "People"]);
-    expect(names("Shape")).toEqual(["Properties", "Types", "Card view", "Views"]);
+    expect(names("Shape")).toEqual(["Properties", "Card view", "Views"]);
     expect(names("Integrations")).toEqual(["Webhooks", "Import and export"]);
 
-    // No types reads as nothing; a count that is there still shows.
-    await expect.element(rail().getByRole("link", { name: "Types", exact: true })).toBeVisible();
+    // Types are set on their property, so the rail has no page for them.
+    expect(
+      rail()
+        .getByRole("link", { name: /^Types/ })
+        .elements(),
+    ).toHaveLength(0);
     await expect
       .element(rail().getByRole("link", { name: `Properties ${data.properties.length}` }))
       .toBeVisible();

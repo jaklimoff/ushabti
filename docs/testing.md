@@ -182,8 +182,8 @@ four workers at most.
 | `switcher.spec.ts` | 6 | done (USH-273) |  | 6 |  |  |  | The switcher is a menu. Where a press went is the link it followed or the route it pushed, not the next page. The file is gone. |
 | `task-keys.spec.ts` | 1 | done (USH-272) |  | 1 |  |  |  | A key in Markdown is the page's rule. |
 | `text-save.spec.ts` | 5 | done (USH-272) |  | 4 |  | 1 |  | A conflict is a 409 the fake can answer. A tick and a value refusing nothing is the route. |
-| `type-defaults.spec.ts` | 7 | done (USH-279) |  | 3 |  | 5 |  | What a create starts with is the route's answer, in `types-route.test.ts`. The box saved on a closed tab also has a route half, that the server keeps and clears what it sends. The composer and the Types page went to `TypesPanel.test.tsx`, and the file is gone. |
-| `types.spec.ts` | 4 | done (USH-279) |  | 3 |  | 1 |  | The Types page is a component, in `TypesPanel.test.tsx`; which select may be the Type is `types-route.test.ts`. The file is gone. |
+| `type-defaults.spec.ts` | 7 | done (USH-279) |  | 3 |  | 5 |  | What a create starts with is the route's answer, in `types-route.test.ts`. The box saved on a closed tab also has a route half, that the server keeps and clears what it sends. The composer and the box went to `TypesGrid.test.tsx`, and the file is gone. |
+| `types.spec.ts` | 4 | done (USH-279) |  | 3 |  | 1 |  | The types are a component, the grid in `TypesGrid.test.tsx`; which select may be the Type is `types-route.test.ts`. The file is gone. |
 | `undo-delete.spec.ts` | 8 | done (USH-277) | 1 | 3 |  | 4 |  | Keep the delete that comes back whole. |
 | `upload.spec.ts` | 4 | done (USH-282) | 2 | 2 |  |  |  | Keep the two uploads through the bucket. The description's drop and the stopped upload's line went to `Upload.test.tsx`, with the bucket answered in the page. |
 | `waiting.spec.ts` | 4 | done (USH-269) | 1 | 3 |  |  |  | Keep an answer from the list. Its tasks and agent are made by the routes, not the composer and Settings (USH-283). |

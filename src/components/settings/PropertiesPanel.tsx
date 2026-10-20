@@ -2,7 +2,6 @@
 
 import { type ChangeEvent, type FocusEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   DndContext,
   KeyboardSensor,
@@ -1410,11 +1409,18 @@ function WhenRow({
       <span className={styles.whenSaid} data-testid="when-said">
         {rule ? whenSaid(rule, data.properties) : "Shown when"}
       </span>
-      {/* The Types page reads the same rule type first, and explains it. */}
+      {/* The grid on the types property reads every such rule at once. */}
       {rule && rule.propertyId === data.project.typeBy && (
-        <Link className={styles.whenLink} href={`/p/${data.project.id}/settings/types`}>
-          See on Types
-        </Link>
+        <a
+          className={styles.whenLink}
+          href={`#${propertyAnchor(rule.propertyId)}`}
+          onClick={(e) => {
+            e.preventDefault();
+            goToProperty(rule.propertyId);
+          }}
+        >
+          See the types
+        </a>
       )}
       {canEdit && (
         <>

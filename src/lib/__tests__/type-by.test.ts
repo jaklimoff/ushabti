@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readTypeBy, readWhens, typeSheet } from "../when";
-import { NO_VALUE_KEY, type PropertyDTO, type PropertyOptionDTO } from "../types";
+import { readTypeBy } from "../when";
+import type { PropertyDTO, PropertyOptionDTO } from "../types";
 
 function option(id: string, name: string): PropertyOptionDTO {
   return {
@@ -42,61 +42,5 @@ describe("the select a project names as its Type", () => {
     expect(readTypeBy("p-points", all)).toBeNull();
     expect(readTypeBy(null, all)).toBeNull();
     expect(readTypeBy(7, all)).toBeNull();
-  });
-});
-
-describe("what one type shows", () => {
-  const rule = (propertyId: string, optionIds: string[]) => ({
-    config: { when: { propertyId, optionIds } },
-  });
-  const all = readWhens([
-    type,
-    area,
-    property("p-title2", "Notes"),
-    property("p-sev", "Severity", rule("p-type", ["o-bug"])),
-    property("p-repro", "Repro", rule("p-type", ["o-bug", "o-story", NO_VALUE_KEY])),
-    property("p-ac", "Acceptance", rule("p-type", ["o-story"])),
-    property("p-shot", "Screenshot", rule("p-area", ["o-ui"])),
-    property("p-lost", "Lost", rule("p-gone", ["o-x"])),
-  ]);
-  const names = (list: { name: string }[]) => list.map((p) => p.name);
-
-  it("puts a property with no rule, or one that does not hold, on every type", () => {
-    const sheet = typeSheet(all, "p-type", "o-bug");
-    expect(names(sheet.every)).toEqual(["Area", "Notes", "Lost"]);
-  });
-
-  it("puts a property ruled by the Type on this type, and says which others it is on", () => {
-    const sheet = typeSheet(all, "p-type", "o-bug");
-    expect(sheet.here.map((r) => [r.property.name, r.also])).toEqual([
-      ["Severity", []],
-      ["Repro", ["Story", "No type"]],
-    ]);
-    expect(sheet.elsewhere.map((r) => [r.property.name, r.also])).toEqual([
-      ["Acceptance", ["Story"]],
-    ]);
-  });
-
-  it("names nothing yet as one more place a property is on", () => {
-    const sheet = typeSheet(
-      readWhens([type, property("p-triage", "Triage", rule("p-type", ["o-bug", NO_VALUE_KEY]))]),
-      "p-type",
-      "o-bug",
-    );
-    expect(sheet.here.map((r) => [r.property.name, r.also])).toEqual([["Triage", ["No type"]]]);
-  });
-
-  it("lists a property ruled by another select with its rule in words", () => {
-    const sheet = typeSheet(all, "p-type", "o-bug");
-    expect(sheet.ruledBy.map((r) => [r.property.name, r.said])).toEqual([
-      ["Screenshot", "Shown when Area is UI"],
-    ]);
-  });
-
-  it("never lists the Type select itself", () => {
-    const sheet = typeSheet(all, "p-type", "o-chore");
-    const every = names(sheet.every);
-    expect(every).not.toContain("Type");
-    expect(sheet.here).toEqual([]);
   });
 });

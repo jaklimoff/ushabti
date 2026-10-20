@@ -86,13 +86,6 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
       title: "Shape",
       items: [
         { slug: "properties", label: "Properties", count: data.properties.length },
-        /* The number of types is the number of options of the select the
-           project names as its Type, and none while it names nothing. */
-        {
-          slug: "types",
-          label: "Types",
-          count: data.properties.find((p) => p.id === data.project.typeBy)?.options.length ?? 0,
-        },
         { slug: "card", label: "Card view", count: null },
         { slug: "views", label: "Views", count: data.views.length },
       ],
