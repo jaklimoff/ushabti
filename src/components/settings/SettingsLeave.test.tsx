@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { describe, expect, test, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { page } from "vitest/browser";
 import type { WebhookDTO } from "@/lib/types";
 import { newProject, propertyOf, renderWithBoard, type Sent } from "@/test/board";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -51,7 +51,9 @@ function lastWasKeepalive() {
 async function edit(label: string, words: string, how: "blur" | "close") {
   const box = page.getByLabelText(label, { exact: true });
   await box.fill(words);
-  if (how === "blur") await userEvent.click(document.body);
+  /* A click on the middle of the page can land on a row of the page, so the
+     box is let go of directly. */
+  if (how === "blur") (box.element() as HTMLElement).blur();
   else closeTab();
 }
 

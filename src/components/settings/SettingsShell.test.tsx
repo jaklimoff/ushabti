@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import SettingsIndex from "@/app/(app)/p/[projectId]/settings/page";
+import OldCardPage from "@/app/(app)/p/[projectId]/settings/card/page";
+import OldViewCardPage from "@/app/(app)/p/[projectId]/settings/views/[viewId]/card/page";
 import type { BoardData } from "@/lib/types";
 import { ME, newProject, renderWithBoard } from "@/test/board";
 import { at, pushed } from "@/test/next-navigation";
@@ -57,6 +59,17 @@ describe("Settings", () => {
     ).rejects.toThrow(/NEXT_REDIRECT/);
     expect(pushed).toEqual([`${base}/properties`]);
 
+    // The card pages went to Views; an old link to one still lands there.
+    pushed.length = 0;
+    await expect(
+      OldCardPage({ params: Promise.resolve({ projectId: data.project.id }) }),
+    ).rejects.toThrow(/NEXT_REDIRECT/);
+    const viewId = data.views[1].id;
+    await expect(
+      OldViewCardPage({ params: Promise.resolve({ projectId: data.project.id, viewId }) }),
+    ).rejects.toThrow(/NEXT_REDIRECT/);
+    expect(pushed).toEqual([`${base}/views`, `${base}/views?open=${viewId}`]);
+
     // Each item of the menu is a link to its own page, and the page it is on is lit.
     await drawAt("people", <PeoplePanel mail={false} />, data);
     const people = rail().getByRole("link", { name: /^People/ });
@@ -85,9 +98,15 @@ describe("Settings", () => {
         (a) => a.firstChild?.textContent,
       );
     expect(names("General")).toEqual(["Project", "People"]);
-    expect(names("Shape")).toEqual(["Properties", "Card view", "Views"]);
+    expect(names("Shape")).toEqual(["Properties", "Views"]);
     expect(names("Integrations")).toEqual(["Webhooks", "Import and export"]);
 
+    // The default card sits on Views, so the rail has no Card view.
+    expect(
+      rail()
+        .getByRole("link", { name: /^Card view/ })
+        .elements(),
+    ).toHaveLength(0);
     // Types are set on their property, so the rail has no page for them.
     expect(
       rail()

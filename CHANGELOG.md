@@ -10,6 +10,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- Views opens with the default card: one card drawn from it, and which views follow it and which have their own. **Edit the default card** opens its editor in place. The separate Card view pages are gone, and their old links land on Views.
 - Each row on Views says whether the view has its own card or the default one, and how many filters it keeps for everyone. Click a row to open it: its filters as chips, a link to change them on the board, and its card editor.
 - The open view's pill has a **⋯** menu: rename the view in place, pick what its columns or rows come from, open its card, copy its link, and, for an admin, make it main or delete it. The keyboard walks it with the arrows.
 - A **Card** button beside Sort opens the card editor beside a board or a list, and the cards on the board change as you click. It says whether the view follows the default card or has its own, and offers the other one.

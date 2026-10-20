@@ -296,9 +296,9 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
               {view?.kind === "list" ? (
                 <>
                   The columns of a list are what a card carries, which you arrange in{" "}
-                  <Link href={`/p/${data.project.id}/settings/card`}>Settings</Link>. Every field on
-                  a task is a property of yours — Status, Priority, Assignee and the rest — so you
-                  can rename or delete any of them.
+                  <Link href={`/p/${data.project.id}/settings/views`}>Views</Link>. Every field on a
+                  task is a property of yours — Status, Priority, Assignee and the rest — so you can
+                  rename or delete any of them.
                 </>
               ) : (
                 <>

@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
-import { CardViewPanel } from "@/components/settings/CardViewPanel";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Card view · Settings" };
-
-export default function Page() {
-  return <CardViewPanel />;
+/** The default card sits at the top of Views now. Old links still land. */
+export default async function Page({ params }: { params: Promise<{ projectId: string }> }) {
+  const { projectId } = await params;
+  redirect(`/p/${projectId}/settings/views`);
 }

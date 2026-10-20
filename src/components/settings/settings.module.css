@@ -2860,3 +2860,19 @@ button.typeGridStartsSaid[aria-expanded="true"] {
   align-items: center;
   gap: 8px;
 }
+
+/* The default card on Views: what it is, who follows it, and one card. */
+.defaultCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.defaultCardSaid {
+  margin: 0;
+}
+
+.defaultCardPreview {
+  width: 272px;
+  max-width: 100%;
+}

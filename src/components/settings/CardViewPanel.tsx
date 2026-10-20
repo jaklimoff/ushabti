@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBoard } from "@/components/board/store";
 import { TaskCard } from "@/components/board/TaskCard";
@@ -28,73 +27,14 @@ import {
   type CardView,
 } from "@/lib/types";
 import { CardDrawing } from "./CardDrawing";
-import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
 /**
- * The editor for the project's card view, or for one view's own copy when it
- * is given a view. It is the same editor either way, so a view's card cannot
- * be arranged in a way the project's cannot. The first change to a view that
- * has no copy writes one, made from the card it was drawing.
- */
-export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
-  const { data } = useBoard();
-  const target = viewId ? (data.views.find((v) => v.id === viewId) ?? null) : null;
-
-  if (viewId && !target) {
-    return (
-      <>
-        <PageHead title="Card view" note="This view is gone." />
-        <Link href={`/p/${data.project.id}/settings/views`}>Back to the views</Link>
-      </>
-    );
-  }
-
-  const own = target?.cardView != null;
-  const kindSaid = target?.kind === "list" ? "row of this list" : "card of this board";
-
-  return (
-    <>
-      {target ? (
-        <div className={styles.subHead}>
-          {/* The rail lights Views, and this is the way back to it. */}
-          <Link className={styles.backLink} href={`/p/${data.project.id}/settings/views`}>
-            <Chevron size={10} className={styles.backChevron} />
-            Views
-          </Link>
-          <PageHead
-            title={
-              <span className={styles.cardTitleRow}>
-                Card view of {target.name}
-                {/* The lead says it in words; the tag says it at a glance. */}
-                <span aria-hidden className={styles.cardTitleTag}>
-                  {own ? <Tag accent>own copy</Tag> : <Tag>follows the project</Tag>}
-                </span>
-              </span>
-            }
-            note={
-              own
-                ? `What a ${kindSaid} carries. This view keeps a copy of its own, so a change to the project's card view does not reach it.`
-                : `What a ${kindSaid} carries. It draws the project's card view now; your first change here gives this view a copy of its own.`
-            }
-          />
-        </div>
-      ) : (
-        <PageHead
-          title="Card view"
-          note="What a card on the board carries. Click a chip to say how it reads and where it sits. Chips sharing a place follow the order of the properties, which a drag along a place changes here or in Properties."
-        />
-      )}
-
-      <CardEditor viewId={viewId} />
-    </>
-  );
-}
-
-/**
- * The editor itself, with no heading. Settings draws it beside a preview; the
- * board's Card panel draws it bare, because the board behind it is the
- * preview, and says above it what a view's own card means.
+ * The card editor, for the project's card or for one view's own copy. It is
+ * the same editor either way, so a view's card cannot be arranged in a way
+ * the project's cannot; the first change to a view with no copy writes one.
+ * Views draws the default one beside a preview; a view's row and the board's
+ * Card panel draw it bare, and say above it what a view's own card means.
  */
 export function CardEditor({
   viewId = null,

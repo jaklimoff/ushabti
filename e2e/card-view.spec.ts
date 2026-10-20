@@ -40,11 +40,17 @@ test.describe("Card view", () => {
     expect(await tips()).toEqual(["Phase · MVP", "Estimate · M"]);
 
     // The card view has no order of its own to change.
-    await gotoSettings(page, projectId, "card");
+    await gotoSettings(page, projectId, "views");
+    await page.getByRole("button", { name: "Edit the default card" }).click();
     await expect(page.getByRole("button", { name: /^Move .* (up|down)$/ })).toHaveCount(0);
 
     // One drag in Properties is the one order.
     await gotoSettings(page, projectId);
+    // Status is a tall row now, so Estimate starts by the bottom edge, where
+    // the drag would scroll the page under the pointer.
+    await page
+      .getByLabel("Name of the Phase property")
+      .evaluate((el) => el.scrollIntoView({ block: "center" }));
     await dragOnto(
       page,
       page.getByRole("button", { name: "Move Estimate" }),
@@ -79,7 +85,8 @@ test.describe("Card view", () => {
     const projectId = await createProject(page, unique("Drawn"));
     await addTask(page, "Todo", "Arranged by clicks");
 
-    await gotoSettings(page, projectId, "card");
+    await gotoSettings(page, projectId, "views");
+    await page.getByRole("button", { name: "Edit the default card" }).click();
     const drawing = page.getByTestId("card-drawing");
     await expect(drawing.getByText("Title · always here")).toBeVisible();
     await expect(
@@ -109,6 +116,7 @@ test.describe("Card view", () => {
 
     // What was saved is what the page draws again after a reload.
     await page.reload();
+    await page.getByRole("button", { name: "Edit the default card" }).click();
     await expect(
       page.getByTestId("card-zone-body").getByRole("button", { name: "Description, body" }),
     ).toBeVisible();

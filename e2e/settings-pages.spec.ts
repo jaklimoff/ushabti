@@ -201,7 +201,17 @@ test.describe("Settings pages", () => {
     await expect(page.getByLabel("Name of the Status property")).toBeFocused();
     await page.screenshot({ path: testInfo.outputPath("seen-properties.png"), fullPage: true });
 
+    // The old card page is the default card at the top of Views now.
     await gotoSettings(page, projectId, "card");
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/settings/views$`));
+    await expect(page.getByTestId("default-card-followers")).toHaveText(
+      "Board and Phases follow it.",
+    );
+    await expect(page.getByRole("navigation", { name: "Settings sections" })).not.toContainText(
+      "Card view",
+    );
+    await page.screenshot({ path: testInfo.outputPath("seen-default-card.png") });
+    await page.getByRole("button", { name: "Edit the default card" }).click();
     // The page opens on the card drawn big; a chip under the pointer rings
     // its part of the preview, as a row of the list does.
     await page.getByRole("button", { name: "Priority, header left" }).hover();

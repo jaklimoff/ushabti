@@ -22,7 +22,8 @@ test.describe("Card drawing", () => {
     const projectId = await createProject(page, unique("Dragged"));
     await addTask(page, "Todo", "Arranged by drags");
 
-    await gotoSettings(page, projectId, "card");
+    await gotoSettings(page, projectId, "views");
+    await page.getByRole("button", { name: "Edit the default card" }).click();
     const drawing = page.getByTestId("card-drawing");
     await expect(drawing.getByText("Drag a chip to another place, or off the card.")).toBeVisible();
     const zone = (place: string) => page.getByTestId(`card-zone-${place}`);
@@ -66,6 +67,7 @@ test.describe("Card drawing", () => {
     ).toBeVisible();
 
     await page.reload();
+    await page.getByRole("button", { name: "Edit the default card" }).click();
     await expect(
       page.getByTestId("card-off").getByRole("button", { name: "Priority, not on the card" }),
     ).toBeVisible();
@@ -77,7 +79,8 @@ test.describe("Card drawing", () => {
     const projectId = await createProject(page, unique("Reordered"));
     await addTask(page, "Todo", "Due comes first");
 
-    await gotoSettings(page, projectId, "card");
+    await gotoSettings(page, projectId, "views");
+    await page.getByRole("button", { name: "Edit the default card" }).click();
     const drawing = page.getByTestId("card-drawing");
     await expect(
       drawing.getByText(
@@ -86,6 +89,11 @@ test.describe("Card drawing", () => {
     ).toBeVisible();
     const chip = (name: string) => drawing.getByRole("button", { name: new RegExp(`^${name}, `) });
 
+    // The editor sits under the default card on Views, so the footer starts
+    // by the bottom edge, where the drag would scroll the page under it.
+    await page
+      .getByTestId("card-zone-footerL")
+      .evaluate((el) => el.scrollIntoView({ block: "center" }));
     await dragOnto(page, chip("Due"), chip("Estimate"), /\/api\/properties\/[0-9a-f-]+$/);
     const footer = await page
       .getByTestId("card-zone-footerL")

@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { commands, page, userEvent, type Locator } from "vitest/browser";
 import { BoardShell } from "@/components/board/BoardApp";
-import { newProject, optionOf, propertyOf, renderWithBoard, type Sent } from "@/test/board";
+import {
+  newProject,
+  optionOf,
+  propertyOf,
+  renderWithBoard,
+  withTask,
+  type Sent,
+} from "@/test/board";
 import { ViewsPanel } from "./ViewsPanel";
 
 /*
@@ -234,6 +241,65 @@ describe("A view row says its card and its filters", () => {
     await page.getByRole("button", { name: "Open the view Road" }).click();
     await expect.element(open.getByRole("heading", { name: "Filters" })).toBeVisible();
     await gone(open.getByRole("heading", { name: "Its card" }));
+  });
+
+  test("the default card sits on top and names the views that follow it", async () => {
+    const data = project();
+    withTask(data, "Holds the most", { Status: "Todo", Priority: "Urgent" });
+    await renderWithBoard(<ViewsPanel />, data);
+    const top = page.getByTestId("default-card");
+    await expect.element(page.getByRole("heading", { name: "Default card" })).toBeVisible();
+    await expect
+      .element(top.getByText("What a card carries, unless a view has its own."))
+      .toBeVisible();
+    // One card, the preview task that holds the most.
+    await expect.poll(() => top.getByTestId("card").elements().length).toBe(1);
+    await expect.element(top.getByTestId("card").getByText("Holds the most")).toBeVisible();
+    // A roadmap draws no card, so it is named in neither list.
+    await expect
+      .element(page.getByTestId("default-card-followers"))
+      .toHaveTextContent("Phases follows it. Board has a card of its own.");
+    // It sits above the list of views.
+    const first = page.getByRole("heading", { level: 2 }).elements()[0];
+    expect(first.textContent).toBe("Default card");
+  });
+
+  test("Edit the default card opens the project's editor in place", async () => {
+    const data = project();
+    const { sent } = await renderWithBoard(<ViewsPanel />, data);
+    const top = page.getByTestId("default-card");
+    await page.getByRole("button", { name: "Edit the default card" }).click();
+    await expect.element(top.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+    await expect.element(top.getByRole("button", { name: "Reset to default" })).toBeVisible();
+    await expect
+      .element(top.getByRole("complementary", { name: "What a card looks like" }))
+      .toBeVisible();
+
+    // A change here is the project's card, never a view's.
+    await top.getByRole("button", { name: "List", exact: true }).click();
+    await top.getByRole("button", { name: /^Priority on the card/ }).click();
+    await top.getByRole("button", { name: "Put Priority in the footer right" }).click();
+    await wrote(() => sent("PATCH", /^\/api\/projects\/[0-9a-f-]+\/card-view$/), 1);
+    expect(sent("PATCH", /^\/api\/views\/[0-9a-f-]+\/card-view$/)).toEqual([]);
+
+    await page.getByRole("button", { name: "Done" }).click();
+    await gone(top.getByRole("group", { name: "Arrange the card as" }));
+    await expect.poll(() => top.getByTestId("card").elements().length).toBe(1);
+  });
+
+  test("an old link to a view's card lands with that row open", async () => {
+    const data = project();
+    const before = window.location.href;
+    window.history.replaceState(null, "", `?open=${data.views[1].id}`);
+    try {
+      await renderWithBoard(<ViewsPanel />, data);
+      await expect
+        .element(page.getByRole("button", { name: "Close the view Phases" }))
+        .toHaveAttribute("aria-expanded", "true");
+      await expect.element(page.getByTestId("view-open")).toBeVisible();
+    } finally {
+      window.history.replaceState(null, "", before);
+    }
   });
 });
 

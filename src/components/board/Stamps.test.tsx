@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { page } from "vitest/browser";
-import { CardViewPanel } from "@/components/settings/CardViewPanel";
+import { CardEditor } from "@/components/settings/CardViewPanel";
 import { ME, newProject, renderWithBoard, withTask, type Answer } from "@/test/board";
 import { serving } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
@@ -44,7 +44,7 @@ test("Created and Updated wait to be turned on, then read on the card and in a l
   });
   await renderWithBoard(
     <>
-      <CardViewPanel />
+      <CardEditor />
       <BoardShell initialTask={null} />
     </>,
     data,

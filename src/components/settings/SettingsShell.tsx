@@ -86,7 +86,6 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
       title: "Shape",
       items: [
         { slug: "properties", label: "Properties", count: data.properties.length },
-        { slug: "card", label: "Card view", count: null },
         { slug: "views", label: "Views", count: data.views.length },
       ],
     },
@@ -129,7 +128,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
               </span>
               {group.items.map((item) => {
                 const href = `${base}/${item.slug}`;
-                /* A view's card view sits under its view, and lights Views. */
+                /* A page under a section lights that section. */
                 const on = pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <Link

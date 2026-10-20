@@ -12,7 +12,7 @@ import {
   type Sent,
 } from "@/test/board";
 import { serving as servingPanel } from "@/test/panel";
-import { CardViewPanel } from "./CardViewPanel";
+import { CardEditor } from "./CardViewPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { ViewsPanel } from "./ViewsPanel";
 
@@ -222,7 +222,7 @@ describe("Custom properties", () => {
   test("hide a property and it leaves the card", async () => {
     const data = newProject();
     withTask(data, "Hidden props", { Status: "Todo", Priority: "Urgent" });
-    const { sent } = await draw(data, <CardViewPanel />);
+    const { sent } = await draw(data, <CardEditor />);
 
     const chip = card("Hidden props").getByTitle("Priority · Urgent");
     await expect.element(chip).toBeVisible();

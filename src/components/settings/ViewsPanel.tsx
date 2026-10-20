@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   KeyboardSensor,
@@ -20,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
+import { TaskCard } from "@/components/board/TaskCard";
 import { ReadRuleChips } from "@/components/board/Filters";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Label, NameInput, Select } from "@/components/ui/Form";
@@ -39,6 +41,7 @@ import {
 } from "@/lib/types";
 import { filterProperties } from "@/lib/filters";
 import { canManage } from "@/lib/roles";
+import { previewTasks } from "@/lib/card-view";
 import { CardEditor } from "./CardViewPanel";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -46,8 +49,10 @@ import styles from "./settings.module.css";
 export function ViewsPanel() {
   const { data, moveView } = useBoard();
   const groupable = data.properties.filter((p) => GROUPABLE_TYPES.includes(p.type));
-  /* One row open at a time, so the page stays a list of views to scan. */
-  const [open, setOpen] = useState<string | null>(null);
+  /* One row open at a time, so the page stays a list of views to scan. An
+     old link to a view's card page lands here with that row open. */
+  const asked = useSearchParams().get("open");
+  const [open, setOpen] = useState<string | null>(asked);
 
   /* The grip is the only thing that lifts a row, so the boxes on it still take
      a caret and a click. Space lifts, the arrows move, Space puts it down:
@@ -69,6 +74,8 @@ export function ViewsPanel() {
         title="Views"
         note="A view is one way of looking at the same tasks. A board puts them in columns; a list puts them in rows."
       />
+
+      <DefaultCard />
 
       <Section title="Views" note={String(data.views.length)}>
         <Card className={styles.viewsCard}>
@@ -108,6 +115,65 @@ export function ViewsPanel() {
       </Section>
     </>
   );
+}
+
+/**
+ * The project's card, said before the views that draw it, so a change to it
+ * names who it reaches. A roadmap draws no card and is in neither list.
+ */
+function DefaultCard() {
+  const { data, cardItemsOf } = useBoard();
+  const [editing, setEditing] = useState(false);
+  const items = useMemo(() => cardItemsOf(null), [cardItemsOf]);
+  const first = useMemo(
+    () => previewTasks(data.tasks, data.properties, data.members, data.project.key, 1)[0],
+    [data.members, data.project.key, data.properties, data.tasks],
+  );
+  const drawing = data.views.filter((v) => v.kind !== "roadmap");
+  const follow = drawing.filter((v) => v.cardView == null).map((v) => v.name);
+  const own = drawing.filter((v) => v.cardView != null).map((v) => v.name);
+
+  return (
+    <Section
+      title="Default card"
+      action={
+        <Button variant="ghost" aria-expanded={editing} onClick={() => setEditing((on) => !on)}>
+          {editing ? "Done" : "Edit the default card"}
+        </Button>
+      }
+    >
+      <div className={styles.defaultCard} data-testid="default-card">
+        <p className={styles.defaultCardSaid}>
+          <Note>What a card carries, unless a view has its own.</Note>{" "}
+          <span data-testid="default-card-followers">
+            <Note>{followersSaid(follow, own)}</Note>
+          </span>
+        </p>
+        {editing ? (
+          <CardEditor />
+        ) : (
+          first && (
+            <div className={styles.defaultCardPreview}>
+              <TaskCard task={first} items={items} />
+            </div>
+          )
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function namesSaid(names: string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+function followersSaid(follow: string[], own: string[]): string {
+  const follows = follow.length
+    ? `${namesSaid(follow)} ${follow.length === 1 ? "follows" : "follow"} it.`
+    : "No view follows it.";
+  if (!own.length) return follows;
+  return `${follows} ${namesSaid(own)} ${own.length === 1 ? "has a card" : "have cards"} of ${own.length === 1 ? "its" : "their"} own.`;
 }
 
 function ViewRow({

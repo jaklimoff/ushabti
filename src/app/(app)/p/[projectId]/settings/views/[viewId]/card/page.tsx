@@ -1,9 +1,11 @@
-import type { Metadata } from "next";
-import { CardViewPanel } from "@/components/settings/CardViewPanel";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Card view · Views · Settings" };
-
-export default async function Page({ params }: { params: Promise<{ viewId: string }> }) {
-  const { viewId } = await params;
-  return <CardViewPanel viewId={viewId} />;
+/** A view's card is edited in its own row on Views, so the link opens it. */
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ projectId: string; viewId: string }>;
+}) {
+  const { projectId, viewId } = await params;
+  redirect(`/p/${projectId}/settings/views?open=${encodeURIComponent(viewId)}`);
 }

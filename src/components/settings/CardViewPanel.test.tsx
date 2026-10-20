@@ -12,13 +12,13 @@ import {
   type Sent,
 } from "@/test/board";
 import { at } from "@/test/next-navigation";
-import { CardViewPanel } from "./CardViewPanel";
+import { CardEditor } from "./CardViewPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { SettingsShell } from "./SettingsShell";
 import { ViewsPanel } from "./ViewsPanel";
 
 /*
- * The card view page, and the board that draws what it says. Each test here
+ * The card editor, and the board that draws what it says. Each test here
  * was a test of `e2e/card-view.spec.ts`, and its name is the name it had
  * there. The page and the board share one store, as they do in the app, so a
  * change reaches the board in the same breath where the spec went there by a
@@ -42,11 +42,7 @@ function serving(data: BoardData): Answer {
 }
 
 /** The settings page above the board, both drawing from the one store. */
-async function draw(
-  data: BoardData,
-  settings = <CardViewPanel />,
-  shape: "Card" | "List" = "List",
-) {
+async function draw(data: BoardData, settings = <CardEditor />, shape: "Card" | "List" = "List") {
   const drawn = await renderWithBoard(
     <>
       {settings}
@@ -173,7 +169,7 @@ describe("Card view", () => {
   });
 
   test("a date has no colours of its own, so the edge is closed to it", async () => {
-    await draw(newProject(), <CardViewPanel />);
+    await draw(newProject(), <CardEditor />);
 
     await opener("Due").click();
     await expect
@@ -220,7 +216,7 @@ describe("Card view", () => {
 
   test("a row taken off the card comes back from the same page", async () => {
     const data = newProject();
-    const { screen, sent } = await renderWithBoard(<CardViewPanel />, data);
+    const { screen, sent } = await renderWithBoard(<CardEditor />, data);
     await asList();
     const due = data.properties.find((p) => p.name === "Due")!;
 
@@ -323,14 +319,15 @@ describe("Settings reads its own loader", () => {
     const data = newProject();
     for (let i = 0; i < 3; i++) withTask(data, `Light ${i}`);
     withTask(data, "Heavy", { Priority: "Urgent" });
-    at.pathname = `/p/${data.project.id}/settings/card`;
+    at.pathname = `/p/${data.project.id}/settings/views`;
     const { sent } = await renderWithBoard(
       <SettingsShell initial={data} user={ME} version="0.0.0">
-        <CardViewPanel />
+        <ViewsPanel />
       </SettingsShell>,
       data,
     );
-    await expect.element(page.getByText("Heavy")).toBeVisible();
+    // The default card draws the task that holds the most.
+    await expect.element(byTestId("default-card").getByText("Heavy")).toBeVisible();
     expect(sent("GET", /\/board$/)).toEqual([]);
     at.pathname = null;
   });
@@ -356,7 +353,7 @@ describe("The card view preview", () => {
     );
 
     // Leaving the row lets the ring go; focusing a row brings one back.
-    await page.getByRole("heading", { name: "Card view" }).hover();
+    await page.getByRole("group", { name: "Arrange the card as" }).hover();
     await expect.poll(() => chip.hasAttribute("data-lit")).toBe(false);
     (opener("Priority").element() as HTMLElement).focus();
     await expect.poll(() => chip.hasAttribute("data-lit")).toBe(true);
@@ -371,7 +368,7 @@ describe("The card drawn big", () => {
 
   test("the card editor shows a big card with each chip in its zone and the off rows below", async () => {
     const data = newProject();
-    await draw(data, <CardViewPanel />, "Card");
+    await draw(data, <CardEditor />, "Card");
 
     for (const label of [
       "Header · left",
@@ -407,7 +404,7 @@ describe("The card drawn big", () => {
   test("clicking a chip opens a popover with the modes drawn as sample chips, the edge switch and Take off", async () => {
     const data = newProject();
     withTask(data, "Arranged", { Status: "Todo", Priority: "Urgent" });
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const priority = data.properties.find((p) => p.name === "Priority")!;
 
     await drawn("Priority").click();
@@ -456,7 +453,7 @@ describe("The card drawn big", () => {
   });
 
   test("a date has no colours of its own, so its popover has no edge switch", async () => {
-    await draw(newProject(), <CardViewPanel />, "Card");
+    await draw(newProject(), <CardEditor />, "Card");
     await drawn("Due").click();
     await expect.element(popover("Due")).toBeVisible();
     await gone(popover("Due").getByRole("switch"));
@@ -464,7 +461,7 @@ describe("The card drawn big", () => {
 
   test("an off chip can be put in any of the five places from its popover", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const places = [
       ["headerL", "header left"],
       ["headerR", "header right"],
@@ -516,7 +513,7 @@ describe("The card drawn big", () => {
   test("a chip dragged to another zone saves its new place", async () => {
     const data = newProject();
     withTask(data, "Dragged", { Status: "Todo", Priority: "Urgent" });
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const priority = data.properties.find((p) => p.name === "Priority")!;
 
     await commands.drag(middle(drawn("Priority")), middle(zone("footerR")));
@@ -540,7 +537,7 @@ describe("The card drawn big", () => {
 
   test("a chip dragged to the tray comes off the card", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const priority = data.properties.find((p) => p.name === "Priority")!;
 
     await commands.drag(middle(drawn("Priority")), middle(page.getByTestId("card-off")));
@@ -555,7 +552,7 @@ describe("The card drawn big", () => {
 
   test("dropping a chip on the edge takes the old edge holder off", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const priority = data.properties.find((p) => p.name === "Priority")!;
     const status = data.properties.find((p) => p.name === "Status")!;
 
@@ -570,7 +567,7 @@ describe("The card drawn big", () => {
 
   test("the edge refuses a chip whose kind cannot colour it", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
 
     // While a date is held, the edge shows as closed and the boxes as open.
     await commands.hold(middle(drawn("Due")), middle(zone("edge")));
@@ -595,7 +592,7 @@ describe("The card drawn big", () => {
 
   test("the keyboard can move a chip between zones", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const priority = data.properties.find((p) => p.name === "Priority")!;
 
     // Space lifts, the arrows walk the card, Space drops.
@@ -628,7 +625,7 @@ describe("The card drawn big", () => {
   });
 
   test("the hint under the editor says a chip drags", async () => {
-    await draw(newProject(), <CardViewPanel />, "Card");
+    await draw(newProject(), <CardEditor />, "Card");
     await expect
       .element(
         page
@@ -648,7 +645,7 @@ describe("The card drawn big", () => {
 
   test("a property chip dragged along its zone moves the property", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const due = data.properties.find((p) => p.name === "Due")!;
     const names = data.properties.map((p) => p.name);
     expect(names.indexOf("Due")).toBeGreaterThan(names.indexOf("Estimate"));
@@ -671,7 +668,7 @@ describe("The card drawn big", () => {
 
   test("built-in chips cannot be moved along the order", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const footer = inZone("footerL");
 
     await commands.drag(middle(drawn("Checklist")), middle(drawn("Due")));
@@ -685,7 +682,7 @@ describe("The card drawn big", () => {
 
   test("a word chip dropped before a colour chip moves, and the hint says why it is not first", async () => {
     const data = newProject();
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     const estimate = data.properties.find((p) => p.name === "Estimate")!;
 
     await commands.drag(middle(drawn("Estimate")), middle(zone("headerL")));
@@ -706,7 +703,7 @@ describe("The card drawn big", () => {
   test("somebody who may not change the structure drags nothing along a zone", async () => {
     const data = newProject();
     data.project.mayStructure = false;
-    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const { sent } = await draw(data, <CardEditor />, "Card");
     await expect.element(page.getByText("Drag it along its row")).not.toBeInTheDocument();
 
     await commands.drag(middle(drawn("Due")), middle(drawn("Estimate")));
@@ -716,7 +713,7 @@ describe("The card drawn big", () => {
   });
 
   test("the hint says the order is the one order", async () => {
-    await draw(newProject(), <CardViewPanel />, "Card");
+    await draw(newProject(), <CardEditor />, "Card");
     await expect
       .element(
         page
@@ -729,7 +726,7 @@ describe("The card drawn big", () => {
   });
 
   test("the List toggle shows the rows, and Card brings the drawing back", async () => {
-    await draw(newProject(), <CardViewPanel />, "Card");
+    await draw(newProject(), <CardEditor />, "Card");
     await expect.element(page.getByTestId("card-drawing")).toBeVisible();
     await gone(row("Priority"));
 
