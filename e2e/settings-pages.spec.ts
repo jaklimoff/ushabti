@@ -44,6 +44,16 @@ test.describe("Settings pages", () => {
       "Columns of Board",
     );
     await expect(page.getByText(/groupable/i)).toHaveCount(0);
+    // A new project says done by Status; the other three roles are off.
+    const tiles = page.getByTestId("role-strip").getByTestId("role-tile");
+    await expect(tiles).toHaveCount(4);
+    await expect(tiles.nth(0)).toContainText("Not set");
+    await expect(tiles.nth(1)).toContainText("Status is Done");
+    await expect(tiles.nth(2)).toContainText("No releases.");
+    await expect(tiles.nth(3)).toContainText("No sprints.");
+    await expect(propertyBox(page, "Status")).toContainText("Done when");
+    await tiles.nth(1).click();
+    await expect(page.getByLabel("Name of the Status property")).toBeFocused();
     await page.screenshot({ path: testInfo.outputPath("seen-properties.png"), fullPage: true });
 
     await gotoSettings(page, projectId, "card");

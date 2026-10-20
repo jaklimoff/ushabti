@@ -2065,3 +2065,87 @@ div.hookRow {
 .railLoading .railItem:hover {
   background: none;
 }
+
+/* Who plays each board role, above the properties. Cyan here means a role
+   and nothing else, so the tiles and the role tags are the only cyan. */
+.roleStrip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.roleTile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-column);
+  font-size: var(--t-small);
+  line-height: 1.4;
+  color: var(--text-meta);
+}
+
+.roleSet {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+}
+
+.roleSet:hover {
+  border-color: var(--accent-ring);
+}
+
+.roleSet:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 1px;
+}
+
+.roleName {
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+}
+
+.roleAnswer {
+  font-size: var(--t-body);
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+.roleAnswer strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.roleDetail {
+  color: var(--text-4);
+}
+
+.roleDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+
+.roleOff {
+  font-size: var(--t-body);
+  color: var(--muted);
+}
+
+.roleLine {
+  color: var(--text-meta);
+}
+
+@media (max-width: 620px) {
+  .roleStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

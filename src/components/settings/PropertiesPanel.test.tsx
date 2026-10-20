@@ -618,12 +618,132 @@ describe("What uses a property", () => {
   });
 });
 
+describe("The role strip", () => {
+  const tiles = () =>
+    (byTestId("role-strip").getByTestId("role-tile").elements() as HTMLElement[]).map((t) =>
+      [...t.children].map((c) => c.textContent).join(" "),
+    );
+  const tags = (name: string) =>
+    [...propertyBox(name).element().querySelectorAll("span[title]")].map((t) => t.textContent);
+
+  /* A project with every role on: Kind holds the types, Status says done,
+     Phase holds the releases and Sprint the sprints. */
+  function allFour(): BoardData {
+    const data = newProject();
+    const phase = propertyOf(data, "Phase");
+    const status = propertyOf(data, "Status");
+    const kind = {
+      ...phase,
+      id: "00000000-0000-4000-9000-00000000b001",
+      name: "Kind",
+      position: "y",
+      options: ["Bug", "Story", "Chore"].map((name, i) => ({
+        ...phase.options[0],
+        id: `00000000-0000-4000-9000-00000000b10${i}`,
+        name,
+        position: String(i),
+      })),
+    };
+    const sprint = {
+      ...phase,
+      id: "00000000-0000-4000-9000-00000000b002",
+      name: "Sprint",
+      type: "iteration" as const,
+      position: "z",
+      config: { cadence: { length: 14 } },
+      options: [],
+    };
+    data.properties.push(kind, sprint);
+    data.project.typeBy = kind.id;
+    data.project.releaseBy = phase.id;
+    data.project.sprintBy = sprint.id;
+    data.project.doneWhen = {
+      propertyId: status.id,
+      optionIds: [optionOf(data, "Status", "Done")],
+    };
+    return data;
+  }
+
+  test("with all four roles set, each tile names its property and its answer", async () => {
+    const data = allFour();
+    await renderWithBoard(<PropertiesPanel />, data);
+    await expect.element(byTestId("role-strip")).toBeVisible();
+    expect(tiles()).toEqual([
+      "The types Kind · 3 types",
+      "Done when Status is Done",
+      "The releases Phase",
+      "The sprints Sprint · 14 days",
+    ]);
+    const done = byTestId("role-tile").nth(1).element();
+    const dot = done.querySelector<HTMLElement>("[aria-hidden]")!;
+    expect(dot.style.background).not.toBe("");
+    // The role is a tag after the type, and the quiet line no longer says it.
+    expect(tags("Kind")).toContain("The types");
+    expect(tags("Status")).toContain("Done when");
+    expect(tags("Phase")).toContain("The releases");
+    expect(tags("Sprint")).toContain("The sprints");
+    expect(tags("Priority").some((t) => /^The |Done when/.test(t ?? ""))).toBe(false);
+    expect(document.body.textContent).not.toMatch(/·\s*The (types|releases|sprints)/);
+    for (const name of ["Kind", "Phase", "Sprint"])
+      expect(propertyBox(name).element().id).toBe(`prop-${propertyOf(data, name).id}`);
+  });
+
+  test("pressing a set tile moves focus to its property's name", async () => {
+    const data = allFour();
+    await renderWithBoard(<PropertiesPanel />, data);
+    const tile = byTestId("role-tile").filter({ hasText: "The sprints" });
+    await expect.element(tile).toHaveAttribute("href", `#prop-${propertyOf(data, "Sprint").id}`);
+    await tile.click();
+    await expect.element(page.getByLabelText("Name of the Sprint property")).toHaveFocus();
+    await byTestId("role-tile").filter({ hasText: "Done when" }).click();
+    await expect.element(page.getByLabelText("Name of the Status property")).toHaveFocus();
+  });
+
+  test("more than two done options read the first two and a count", async () => {
+    const data = allFour();
+    data.project.doneWhen!.optionIds = ["Todo", "Ready", "Done"].map((o) =>
+      optionOf(data, "Status", o),
+    );
+    await renderWithBoard(<PropertiesPanel />, data);
+    await expect.element(byTestId("role-strip")).toBeVisible();
+    expect(tiles()[1]).toBe("Done when Status is Todo, Ready +1");
+  });
+
+  test("with no role set, every tile reads Not set and what that means", async () => {
+    const data = newProject();
+    await renderWithBoard(<PropertiesPanel />, data);
+    await expect.element(byTestId("role-strip")).toBeVisible();
+    expect(tiles()).toEqual([
+      "The types Not set Every task shows every property.",
+      "Done when Not set Only archived tasks are done.",
+      "The releases Not set No releases.",
+      "The sprints Not set No sprints.",
+    ]);
+    expect(byTestId("role-strip").element().querySelector("a")).toBeNull();
+    expect(document.querySelectorAll('[data-testid="property-box"] span[title]').length).toBe(
+      data.properties.length,
+    );
+  });
+
+  test("a member reads the same strip", async () => {
+    const data = allFour();
+    data.project.role = "member";
+    await renderWithBoard(<PropertiesPanel />, data);
+    await expect.element(byTestId("role-strip")).toBeVisible();
+    expect(tiles()[0]).toBe("The types Kind · 3 types");
+  });
+});
+
 describe("The page note and the grips", () => {
   test("the notes say what the page is, and the grip says what a drag does", async () => {
     const data = newProject();
     const drawn = await renderWithBoard(<PropertiesPanel />, data);
     await expect
-      .element(page.getByText("Every field on a task is a property you made. Nothing is built in."))
+      .element(
+        page.getByText(
+          "Every field on a task is a property you made. Some of them also play a role for the whole board.",
+        ),
+      )
       .toBeVisible();
     expect(document.body.textContent).not.toMatch(/Drag a property/);
     await expect

@@ -35,6 +35,7 @@ import { PALETTE, colorName } from "@/lib/colors";
 import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
+import { boardRoles, propertyAnchor, ROLE_NAME, rolesOf, type RoleTile } from "@/lib/board-roles";
 import {
   type BoardData,
   GROUPED_KINDS,
@@ -96,8 +97,10 @@ export function PropertiesPanel() {
     <>
       <PageHead
         title="Properties"
-        note="Every field on a task is a property you made. Nothing is built in."
+        note="Every field on a task is a property you made. Some of them also play a role for the whole board."
       />
+
+      <RoleStrip />
 
       <Card>
         {/* One column of rows, so dnd-kit's own answer is the right one.
@@ -267,7 +270,7 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
 
   if (confirm.asking) {
     return (
-      <div className={styles.propBox} data-testid="property-box">
+      <div id={propertyAnchor(property.id)} className={styles.propBox} data-testid="property-box">
         <ConfirmRow
           question={
             values === null
@@ -287,6 +290,7 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
   return (
     <div
       ref={setNodeRef}
+      id={propertyAnchor(property.id)}
       className={`${styles.propBox} ${isDragging ? styles.rowLifted : ""}`}
       data-testid="property-box"
       style={{
@@ -333,6 +337,11 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
               dated
             </Tag>
           )}
+          {rolesOf(property, data).map((role) => (
+            <Tag key={role} accent title="The role this property plays for the whole board">
+              {ROLE_NAME[role]}
+            </Tag>
+          ))}
         </div>
         <UsedFor property={property} data={data} />
         <div className={styles.propTools} data-testid="property-tools">
@@ -780,10 +789,10 @@ function OptionField({
 }
 
 /**
- * What the project does with a property, in its own words: which views draw
- * it as their columns or rows, and whether it holds the types, the releases
- * or the sprints. A property nothing uses says nothing. Everything here is
- * read from pointers the board already sends, so it decides nothing.
+ * Which views draw a property as their columns or rows. A property nothing
+ * groups says nothing. The roles it plays are its tags, so they are not said
+ * twice here. Read from pointers the board already sends, so it decides
+ * nothing.
  */
 function UsedFor({ property, data }: { property: PropertyDTO; data: BoardData }) {
   const grouped = data.views.filter(
@@ -791,17 +800,9 @@ function UsedFor({ property, data }: { property: PropertyDTO; data: BoardData })
   );
   const boards = grouped.filter((v) => v.kind === "board").map((v) => v.name);
   const roadmaps = grouped.filter((v) => v.kind === "roadmap").map((v) => v.name);
-  const parts: React.ReactNode[] = [];
+  const parts: string[] = [];
   if (boards.length) parts.push(`Columns of ${boards.join(", ")}`);
   if (roadmaps.length) parts.push(`Rows of ${roadmaps.join(", ")}`);
-  if (data.project.typeBy === property.id)
-    parts.push(
-      <Link key="types" href={`/p/${data.project.id}/settings/types`}>
-        The types
-      </Link>,
-    );
-  if (data.project.releaseBy === property.id) parts.push("The releases");
-  if (data.project.sprintBy === property.id) parts.push("The sprints");
   if (!parts.length) return null;
   return (
     <span className={styles.propUse} data-testid="property-use">
@@ -812,6 +813,72 @@ function UsedFor({ property, data }: { property: PropertyDTO; data: BoardData })
         </span>
       ))}
     </span>
+  );
+}
+
+/**
+ * Who plays each board role, above the list. A role that is set links to its
+ * property; one that is off says what the board does without it. It holds no
+ * control, so a member reads the same strip.
+ */
+function RoleStrip() {
+  const { data } = useBoard();
+  return (
+    <div className={styles.roleStrip} data-testid="role-strip">
+      {boardRoles(data).map((tile) => (
+        <RoleTileView key={tile.role} tile={tile} />
+      ))}
+    </div>
+  );
+}
+
+function RoleTileView({ tile }: { tile: RoleTile }) {
+  const { property } = tile;
+  const label = <span className={styles.roleName}>{tile.name}</span>;
+  if (!property) {
+    return (
+      <div className={styles.roleTile} data-testid="role-tile">
+        {label}
+        <span className={styles.roleOff}>Not set</span>
+        <span className={styles.roleLine}>{tile.off}</span>
+      </div>
+    );
+  }
+  const anchor = propertyAnchor(property.id);
+  return (
+    <a
+      href={`#${anchor}`}
+      className={`${styles.roleTile} ${styles.roleSet}`}
+      data-testid="role-tile"
+      onClick={(e) => {
+        e.preventDefault();
+        const row = document.getElementById(anchor);
+        if (!row) return;
+        row.scrollIntoView({ block: "center", behavior: "smooth" });
+        row
+          .querySelector<HTMLInputElement>(`.${styles.propName} input`)
+          ?.focus({ preventScroll: true });
+      }}
+    >
+      {label}
+      <span className={styles.roleAnswer}>
+        <strong>{property.name}</strong>
+        {tile.detail && <span className={styles.roleDetail}> · {tile.detail}</span>}
+        {tile.done.length > 0 && (
+          <span className={styles.roleDetail}>
+            {" is "}
+            {tile.done.map((o, i) => (
+              <span key={o.id}>
+                {i > 0 && ", "}
+                <span className={styles.roleDot} style={{ background: o.color }} aria-hidden />
+                {o.name}
+              </span>
+            ))}
+            {tile.more > 0 && ` +${tile.more}`}
+          </span>
+        )}
+      </span>
+    </a>
   );
 }
 
