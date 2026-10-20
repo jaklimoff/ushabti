@@ -735,6 +735,44 @@ export function RuleChips({
   );
 }
 
+/**
+ * A set of rules to read and not to change: the board's chips with no ✕, no
+ * panel and no **+ Rule**. Settings shows a view's rules here, and the board
+ * is where they change.
+ */
+export function ReadRuleChips({
+  properties,
+  members,
+  former,
+  rules,
+}: {
+  properties: PropertyDTO[];
+  members: MemberDTO[];
+  former: FormerDTO[];
+  rules: FilterRule[];
+}) {
+  const askable = filterProperties(properties);
+  return (
+    <div className={`${styles.filterRow} ${styles.filterRowBare}`} data-testid="rule-chips-read">
+      {rules.map((rule, i) => {
+        const property = askable.find((p) => p.id === rule.propertyId);
+        if (!property) return null;
+        return (
+          <span
+            key={`${rule.propertyId}-${i}`}
+            className={`${styles.filterChip} ${styles.filterChipRead}`}
+            data-testid="filter-chip-read"
+          >
+            <span className={styles.filterChipBody}>
+              {describeRule(rule, property, members, former)}
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Asking a board for an order                                         */
 /* ------------------------------------------------------------------ */

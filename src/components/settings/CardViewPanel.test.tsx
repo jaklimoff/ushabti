@@ -245,7 +245,7 @@ describe("Card view", () => {
   });
 
   /* The refused body with no rows is the card view route's to answer. */
-  test("a view's menu arranges a card view for that view only", async () => {
+  test("an open view row arranges a card view for that view only", async () => {
     const data = newProject();
     withTask(data, "Seen twice", { Status: "Backlog" });
     const dense = {
@@ -261,12 +261,12 @@ describe("Card view", () => {
     const { sent } = await renderWithBoard(
       <>
         <ViewsPanel />
-        <CardViewPanel viewId={dense.id} />
         <BoardShell initialTask={null} />
       </>,
       data,
       serving(data),
     );
+    await page.getByRole("button", { name: "Open the view Dense" }).click();
     await asList();
     const listHead = (name: string) =>
       byTestId("list-head-cell").filter({
@@ -278,19 +278,20 @@ describe("Card view", () => {
     await gone(listHead("Status"));
 
     // Nobody has changed a view yet, so no view has a copy to throw away.
-    await gone(page.getByRole("button", { name: /^Use the default card view/ }));
+    await gone(page.getByRole("button", { name: /^Use the default card/ }));
     await expect
-      .element(page.getByRole("link", { name: "Card view of Dense" }))
-      .toHaveAttribute("href", `/p/${data.project.id}/settings/views/${dense.id}/card`);
-    await expect.element(page.getByRole("heading", { name: "Card view of Dense" })).toBeVisible();
-    await gone(page.getByRole("button", { name: "Use the default", exact: true }));
+      .poll(() => byTestId("view-fork").element().textContent)
+      .toContain("Dense follows the default card");
 
     await opener("Status").click();
     await page.getByRole("button", { name: "Put Status in the footer left" }).click();
     await expect.element(row("Status")).toHaveAttribute("data-place", "footerL");
     await expect
-      .element(page.getByRole("button", { name: "Use the default", exact: true }))
+      .element(page.getByRole("button", { name: "Use the default card for Dense" }))
       .toBeVisible();
+    await expect
+      .poll(() => byTestId("view-fork").element().textContent)
+      .toContain("Dense has a card of its own");
     await wrote(() => sent("PATCH", VIEW_CARD), 1);
     expect(sent("PATCH", VIEW_CARD)[0].path).toBe(`/api/views/${dense.id}/card-view`);
     // The project's card view is untouched.
@@ -303,8 +304,8 @@ describe("Card view", () => {
       .toContain("Backlog");
 
     // Only the view with a copy offers the way back, and it asks first.
-    const back = page.getByRole("button", { name: /^Use the default card view/ });
-    await expect.element(back).toHaveAccessibleName("Use the default card view for Dense");
+    const back = page.getByRole("button", { name: /^Use the default card/ });
+    await expect.element(back).toHaveAccessibleName("Use the default card for Dense");
     await back.click();
     await page.getByRole("button", { name: /^Yes, / }).click();
     await gone(back);

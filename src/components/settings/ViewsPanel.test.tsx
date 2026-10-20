@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { commands, page, userEvent, type Locator } from "vitest/browser";
 import { BoardShell } from "@/components/board/BoardApp";
-import { newProject, renderWithBoard, type Sent } from "@/test/board";
+import { newProject, optionOf, propertyOf, renderWithBoard, type Sent } from "@/test/board";
 import { ViewsPanel } from "./ViewsPanel";
 
 /*
@@ -124,6 +124,119 @@ describe("Settings", () => {
   });
 });
 
+describe("A view row says its card and its filters", () => {
+  /** Board keeps two rules for everyone and a card of its own; Phases has
+      neither; Road is a roadmap. */
+  function project() {
+    const data = newProject();
+    const [board, phases] = data.views;
+    board.filters = {
+      rules: [
+        {
+          propertyId: propertyOf(data, "Status").id,
+          op: "is",
+          values: [optionOf(data, "Status", "Backlog")],
+        },
+        {
+          propertyId: propertyOf(data, "Priority").id,
+          op: "is",
+          values: [optionOf(data, "Priority", "Urgent")],
+        },
+      ],
+    };
+    board.cardView = data.cardView;
+    data.views.push({
+      ...phases,
+      id: "00000000-0000-4000-8000-0000000000c1",
+      name: "Road",
+      kind: "roadmap",
+      position: "z0",
+      cardView: null,
+    });
+    return data;
+  }
+  const summary = (name: string) =>
+    page
+      .getByTestId("view-summary")
+      .elements()
+      .find((el) =>
+        el
+          .closest("[class*='viewItem']")
+          ?.querySelector(`input[aria-label='Name of the view ${name}']`),
+      );
+
+  test("each row shows own card or default card and its shared filter count", async () => {
+    await renderWithBoard(<ViewsPanel />, project());
+    await expect.element(page.getByRole("heading", { name: "Views", level: 2 })).toBeVisible();
+    await expect.element(page.getByText("3", { exact: true })).toBeVisible();
+
+    await expect.poll(() => summary("Board")?.textContent).toBe("own card2 filters for everyone");
+    expect(summary("Phases")?.textContent).toBe("default cardno filters");
+    // A roadmap draws no card, so it says nothing about one.
+    expect(summary("Road")?.textContent).toBe("no filters");
+    // The old way to the card page has left the row.
+    expect(page.getByRole("link", { name: /^Card view of / }).elements()).toHaveLength(0);
+  });
+
+  test("an open row shows its shared filters as chips to read, and the way to the board", async () => {
+    const data = project();
+    const { sent } = await renderWithBoard(<ViewsPanel />, data);
+    const opener = page.getByRole("button", { name: "Open the view Board" });
+    await expect.element(opener).toHaveAttribute("aria-expanded", "false");
+
+    // A click on the row, away from its controls, opens it.
+    (summary("Board") as HTMLElement).click();
+    await expect
+      .element(page.getByRole("button", { name: "Close the view Board" }))
+      .toHaveAttribute("aria-expanded", "true");
+    const chips = page.getByTestId("filter-chip-read");
+    await expect.poll(() => chips.elements().length).toBe(2);
+    expect(chips.elements()[0].textContent).toMatch(/Status/);
+    // Nothing on a chip to press: it changes on the board.
+    expect(
+      page
+        .getByTestId("view-open")
+        .element()
+        .querySelectorAll("[data-testid='filter-chip-read'] button"),
+    ).toHaveLength(0);
+    await expect
+      .element(page.getByRole("link", { name: "Change them on the board" }))
+      .toHaveAttribute("href", `/p/${data.project.id}?view=${data.views[0].id}`);
+
+    // One row open at a time.
+    await page.getByRole("button", { name: "Open the view Phases" }).click();
+    await expect.poll(() => page.getByTestId("view-open").elements().length).toBe(1);
+    await expect.element(page.getByText("No filters. It shows every task.")).toBeVisible();
+    // A pick in the kind menu is a control, not a press on the row.
+    await page.getByLabelText("How the view Phases shows").click();
+    await expect.poll(() => page.getByTestId("view-open").elements().length).toBe(1);
+    expect(sent("PATCH", VIEW)).toEqual([]);
+  });
+
+  test("an open row shows that view's card editor in place, and a roadmap has none", async () => {
+    await renderWithBoard(<ViewsPanel />, project());
+    await page.getByRole("button", { name: "Open the view Phases" }).click();
+    const open = page.getByTestId("view-open");
+    await expect.element(open.getByRole("heading", { name: "Its card" })).toBeVisible();
+    await expect
+      .poll(() => page.getByTestId("view-fork").element().textContent)
+      .toContain("Phases follows the default card");
+    await expect.element(open.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Open the view Board" }).click();
+    await expect
+      .poll(() => page.getByTestId("view-fork").element().textContent)
+      .toContain("Board has a card of its own");
+    await page.getByRole("button", { name: "Use the default card for Board" }).click();
+    await expect.element(page.getByRole("button", { name: "Yes, use the default" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await page.getByRole("button", { name: "Open the view Road" }).click();
+    await expect.element(open.getByRole("heading", { name: "Filters" })).toBeVisible();
+    await gone(open.getByRole("heading", { name: "Its card" }));
+  });
+});
+
 describe("Settings on a phone", () => {
   afterEach(() => page.viewport(1440, 900));
 
@@ -131,7 +244,7 @@ describe("Settings on a phone", () => {
     await page.viewport(390, 780);
     await renderWithBoard(<ViewsPanel />, newProject());
 
-    await expect.element(page.getByRole("heading", { name: "Views" })).toBeVisible();
+    await expect.element(page.getByRole("heading", { name: "Views", level: 1 })).toBeVisible();
     expect(viewRowOrder()).toEqual(["BOARD", "PHASES"]);
 
     const doc = document.documentElement;

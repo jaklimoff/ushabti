@@ -2767,6 +2767,17 @@ button.listHeadCell:focus-visible .listHeadHint {
   color: var(--text-3);
 }
 
+/* A chip to read: nothing to press, so the edge does not answer the pointer. */
+.filterChipRead:hover {
+  border-color: var(--line);
+}
+
+.filterChipRead .filterChipBody {
+  display: inline-flex;
+  align-items: center;
+  padding-right: 8px;
+}
+
 .filterChipX {
   height: 100%;
   padding: 0 7px 0 3px;

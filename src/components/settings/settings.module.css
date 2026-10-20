@@ -1853,13 +1853,18 @@ textarea.rulesBox {
 @media (min-width: 621px) {
   div.viewsCard {
     display: grid;
-    grid-template-columns: 24px minmax(120px, 1fr) max-content 128px 150px max-content 24px;
+    /* The card and filters column takes the room it needs, and wraps the
+       note under the tag before the table grows past the card. */
+    grid-template-columns:
+      24px minmax(120px, 1fr) max-content 128px 150px fit-content(240px)
+      24px 24px;
     column-gap: 10px;
   }
   .viewsCard > * {
     grid-column: 1 / -1;
   }
   div.viewsHead,
+  div.viewItem,
   div.viewHead {
     display: grid;
     grid-template-columns: subgrid;
@@ -1885,6 +1890,12 @@ textarea.rulesBox {
   }
   .viewsHeadGroup {
     grid-column: 5;
+  }
+  .viewsHeadCard {
+    grid-column: 6;
+  }
+  .viewItem > * {
+    grid-column: 1 / -1;
   }
   .viewName {
     grid-column: 2;
@@ -1921,10 +1932,14 @@ textarea.rulesBox {
   }
   .viewCard {
     grid-column: 6;
-    gap: 2px;
+    flex-wrap: wrap;
+    gap: 2px 8px;
   }
   .viewTools {
     grid-column: 7;
+  }
+  .viewOpener {
+    grid-column: 8;
   }
 }
 
@@ -1944,12 +1959,81 @@ textarea.rulesBox {
   }
 }
 
-.viewWhole {
+.viewWhole,
+.viewItem {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.viewWhole:last-child {
+.viewWhole:last-child,
+.viewItem:last-child {
   border-bottom: 0;
+}
+
+/* A shut row opens on a click anywhere but its controls. */
+.viewHead {
+  cursor: pointer;
+}
+
+.viewFilters {
+  font-size: var(--t-small);
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+
+.viewChevron {
+  transform: rotate(-90deg);
+  transition: transform 140ms var(--ease);
+}
+
+.viewChevronOpen {
+  transition: transform 140ms var(--ease);
+}
+
+/* What an open row holds: its filters, then its card. */
+.viewOpen {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 14px 13px 16px 47px;
+  background: var(--bg-sub);
+}
+
+.viewPart {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.viewPart > :last-child:not(.viewBoardLink) {
+  align-self: stretch;
+}
+
+.viewPartHead {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.viewBoardLink {
+  font-size: var(--t-small);
+  color: var(--accent-soft);
+}
+
+.viewBoardLink:hover {
+  text-decoration: underline;
+}
+
+.viewFork {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 /*
@@ -1965,10 +2049,10 @@ textarea.rulesBox {
 @media (max-width: 620px) {
   div.viewHead {
     display: grid;
-    grid-template-columns: auto 1fr auto auto;
+    grid-template-columns: auto 1fr auto auto auto;
     grid-template-areas:
-      "grip name main tools"
-      "shape shape shape shape";
+      "grip name main tools open"
+      "shape shape shape shape shape";
     gap: 8px 10px;
   }
   .viewHead .grip {
@@ -1988,6 +2072,12 @@ textarea.rulesBox {
   }
   .viewTools {
     grid-area: tools;
+  }
+  .viewOpener {
+    grid-area: open;
+  }
+  .viewOpen {
+    padding-left: 13px;
   }
   /* The boxes of a row start at one x, as they do in the wide table. */
   .viewLabel {

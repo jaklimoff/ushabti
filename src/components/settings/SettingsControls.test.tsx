@@ -231,11 +231,10 @@ async function expectTextButton(button: Locator) {
 }
 
 describe("A button in Views looks like a button", () => {
-  test("Make main and Card view are text buttons; Shows as stays a label", async () => {
+  test("Make main is a text button; Shows as stays a label", async () => {
     await draw("views", <ViewsPanel />);
 
     await expectTextButton(page.getByRole("button", { name: "Make Phases the main view" }));
-    await expectTextButton(page.getByRole("link", { name: "Card view of Board" }));
 
     const label = page.getByText("Shows as", { exact: true }).first();
     expect(await textLook(label)).toMatchObject({ transform: "uppercase", mono: true });

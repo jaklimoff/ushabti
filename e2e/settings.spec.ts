@@ -1,5 +1,15 @@
 import { expect, test } from "@playwright/test";
-import { column, createProject, gotoSettings, register, saved, unique } from "./helpers";
+import {
+  addFilter,
+  column,
+  createProject,
+  gotoSettings,
+  hydrated,
+  putFilterOnView,
+  register,
+  saved,
+  unique,
+} from "./helpers";
 
 /*
  * The rest of this file went down in USH-274: the Settings pages are
@@ -36,5 +46,35 @@ test.describe("Settings", () => {
     // one: the Phase columns, and not the Status ones.
     await page.goto(`/p/${projectId}`);
     await expect(column(page, "PoC")).toBeVisible();
+  });
+
+  test("a view row says its card and its filters, and opens on both", async ({
+    page,
+  }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("ViewRows"));
+    await addFilter(page, "Priority", "Urgent");
+    await putFilterOnView(page);
+
+    await gotoSettings(page, projectId, "views");
+    await hydrated(page.getByLabel("Name of the view Board"));
+    const summaries = page.getByTestId("view-summary");
+    await expect(summaries.nth(0)).toHaveText("default card1 filter for everyone");
+    await expect(summaries.nth(1)).toHaveText("default cardno filters");
+
+    await summaries.nth(0).click();
+    await expect(page.getByRole("button", { name: "Close the view Board" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    const open = page.getByTestId("view-open");
+    await expect(open.getByTestId("filter-chip-read")).toHaveText(/Priority/);
+    await expect(open.getByRole("link", { name: "Change them on the board" })).toHaveAttribute(
+      "href",
+      new RegExp(`/p/${projectId}\\?view=[0-9a-f-]+$`),
+    );
+    await expect(open.getByTestId("view-fork")).toContainText("Board follows the default card");
+    await expect(open.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-view-row-open.png"), fullPage: true });
   });
 });
