@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -22,7 +22,11 @@ import {
   type ViewKind,
 } from "@/lib/types";
 import { ViewKindMark } from "@/components/ui/Marks";
+import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
+import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
+import { editedText } from "@/lib/leave";
+import { canManage } from "@/lib/roles";
 import { useEdgeFade } from "./edges";
 import { FilterButton, SortButton } from "./Filters";
 import { PlusIcon } from "./icons";
@@ -69,6 +73,13 @@ export function ViewStrip({
   const [picked, setGroupById] = useState(groupable[0]?.id ?? "");
   const groupById = groupable.some((p) => p.id === picked) ? picked : (groupable[0]?.id ?? "");
   const ref = useDismiss<HTMLDivElement>(() => setAdding(false), adding);
+
+  /* The menu and the name box belong to the open view. Picking another view
+     puts both away, because each is tied to the view it was asked about. */
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const menuOpen = view != null && menuFor === view.id;
 
   const plusRef = useRef<HTMLButtonElement>(null);
   const [popLeft, setPopLeft] = useState(14);
@@ -150,6 +161,11 @@ export function ViewStrip({
                 view={v}
                 active={v.id === view?.id}
                 onPick={() => setViewId(v.id)}
+                moreRef={v.id === view?.id ? moreRef : undefined}
+                menuOpen={menuOpen && v.id === view?.id}
+                onMore={() => setMenuFor((was) => (was === v.id ? null : v.id))}
+                renaming={renamingId === v.id && v.id === view?.id}
+                onRenamed={() => setRenamingId(null)}
               />
             ))}
           </SortableContext>
@@ -195,6 +211,22 @@ export function ViewStrip({
         {shown === taskCount ? shown : `${shown} of ${taskCount}`}{" "}
         {taskCount === 1 ? "task" : "tasks"}
       </span>
+
+      {menuOpen && view && (
+        <ViewMenu
+          view={view}
+          anchor={moreRef}
+          host={ref}
+          onClose={() => setMenuFor(null)}
+          onRename={() => {
+            setMenuFor(null);
+            setRenamingId(view.id);
+          }}
+          onCard={() => {
+            if (!cardOpen) onCard();
+          }}
+        />
+      )}
 
       {adding && (
         <div className={styles.popover} style={{ left: popLeft }}>
@@ -305,24 +337,35 @@ export function ViewStrip({
  * has no keyboard sensor to keep that promise. Those two are dropped, and the
  * tooltip names the view, because a long name is cut short on the pill.
  *
- * The open view carries a second button beside it that copies its link. It is
- * a button of its own and not a menu on the pill, so a click still picks, a
- * drag still moves, and Tab reaches it. It shows on hover and focus, and
- * always on a screen without a pointer to hover with.
+ * The open view carries a second button beside it, "⋯", that opens its menu.
+ * It is a button of its own and not a menu on the pill, so a click still
+ * picks, a drag still moves, and Tab reaches it. It shows on hover and focus,
+ * and always on a screen without a pointer to hover with.
  */
 function ViewPill({
   view,
   active,
   onPick,
+  moreRef,
+  menuOpen,
+  onMore,
+  renaming,
+  onRenamed,
 }: {
   view: ViewDTO;
   active: boolean;
   onPick: () => void;
+  moreRef?: React.RefObject<HTMLButtonElement | null>;
+  menuOpen: boolean;
+  onMore: () => void;
+  renaming: boolean;
+  onRenamed: () => void;
 }) {
-  const { data, notify } = useBoard();
+  const { updateView } = useBoard();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: view.id,
     transition: { duration: 190, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+    disabled: renaming,
   });
   const color = active ? dotOf(view) : "#3f4650";
   const {
@@ -331,12 +374,39 @@ function ViewPill({
     ...buttonAttributes
   } = attributes;
 
-  /* The same words as a task's link, and the same shape as the address bar's,
-     built from wherever the board is served. */
-  async function copyLink() {
-    const link = `${window.location.origin}/p/${data.project.id}?view=${view.id}`;
-    if (await copyText(link)) notify("Link copied", "info");
-    else notify("The link did not copy. The address bar holds it.");
+  const pill = useRef<HTMLButtonElement>(null);
+  const box = useRef<HTMLInputElement>(null);
+  /* Escape puts the name back, and the blur that follows must not save it. */
+  const kept = useRef(false);
+  /* Enter and Escape hand the focus back to the pill. A click away keeps it
+     where it went. */
+  const refocus = useRef(false);
+  /* Another tab can rename the view under the box, so only what this tab
+     typed may be written back. */
+  const [typed, setTyped] = useState(false);
+
+  useEffect(() => {
+    if (renaming) {
+      box.current?.focus();
+      box.current?.select();
+    } else if (refocus.current) {
+      refocus.current = false;
+      pill.current?.focus();
+    }
+  }, [renaming]);
+
+  /* The name saves on blur, and a closed tab sends no blur. */
+  useSaveOnLeave(() => {
+    const edit = renaming && typed ? editedText(box.current?.value ?? "", view.name) : null;
+    return edit ? { method: "PATCH", url: `/api/views/${view.id}`, body: { name: edit } } : null;
+  });
+
+  function finish(value: string) {
+    const edit = kept.current ? null : editedText(value, view.name);
+    kept.current = false;
+    setTyped(false);
+    onRenamed();
+    if (edit) void updateView(view.id, { name: edit });
   }
 
   return (
@@ -348,42 +418,259 @@ function ViewPill({
         transition: transition ?? undefined,
       }}
     >
-      <button
-        className={[styles.pill, active ? styles.pillActive : ""].filter(Boolean).join(" ")}
-        data-testid="view-pill"
-        title={view.name}
-        aria-current={active ? "true" : undefined}
-        onClick={onPick}
-        {...buttonAttributes}
-        {...listeners}
-      >
-        {/* The one place the two kinds sit side by side, so the mark earns its
-          pixels. */}
-        {view.kind !== "board" ? (
-          <ViewKindMark kind={view.kind} on={active} color={color} />
-        ) : (
-          <span className={styles.pillDot} style={{ background: color }} />
-        )}
-        {view.name}
-      </button>
-      {active && (
+      {renaming ? (
+        <input
+          ref={box}
+          className={styles.pillName}
+          aria-label={`Name of the view ${view.name}`}
+          defaultValue={view.name}
+          size={Math.max(view.name.length, 6)}
+          onChange={() => setTyped(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              refocus.current = true;
+              e.currentTarget.blur();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              kept.current = true;
+              refocus.current = true;
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={(e) => finish(e.target.value)}
+        />
+      ) : (
         <button
-          className={styles.pillLink}
-          aria-label={`Copy link to ${view.name}`}
-          title="Copy link"
-          onClick={() => void copyLink()}
+          ref={pill}
+          className={[styles.pill, active ? styles.pillActive : ""].filter(Boolean).join(" ")}
+          data-testid="view-pill"
+          title={view.name}
+          aria-current={active ? "true" : undefined}
+          onClick={onPick}
+          {...buttonAttributes}
+          {...listeners}
+        >
+          {/* The one place the two kinds sit side by side, so the mark earns its
+            pixels. */}
+          {view.kind !== "board" ? (
+            <ViewKindMark kind={view.kind} on={active} color={color} />
+          ) : (
+            <span className={styles.pillDot} style={{ background: color }} />
+          )}
+          {view.name}
+        </button>
+      )}
+      {active && !renaming && (
+        <button
+          ref={moreRef}
+          className={styles.pillMore}
+          aria-label={`More for ${view.name}`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          title="More"
+          /* The menu closes on a press outside it, and this button is outside
+             it. Without this the press would close the menu and the click
+             would open it again. */
+          onMouseDown={(e) => {
+            if (menuOpen) e.stopPropagation();
+          }}
+          onTouchStart={(e) => {
+            if (menuOpen) e.stopPropagation();
+          }}
+          onClick={onMore}
         >
           <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" focusable="false">
-            <path
-              d="M5 7l2-2M4.2 5.6L3 6.8a1.7 1.7 0 0 0 2.4 2.4L6.4 8M7.8 6.4L9 5.2A1.7 1.7 0 0 0 6.6 2.8L5.6 4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.2"
-              strokeLinecap="round"
-            />
+            <circle cx="2.5" cy="6" r="1.1" fill="currentColor" />
+            <circle cx="6" cy="6" r="1.1" fill="currentColor" />
+            <circle cx="9.5" cy="6" r="1.1" fill="currentColor" />
           </svg>
         </button>
       )}
     </span>
+  );
+}
+
+/**
+ * What can be done to the open view, one click from it. Each item makes the
+ * same write the Views page makes, under the same guard: making a view main
+ * and deleting one are an admin's, so a member is not offered them.
+ *
+ * It is drawn beside the strip and not inside it, because the strip pans and
+ * would cut it off. Like the + panel it is placed by hand under its button.
+ */
+function ViewMenu({
+  view,
+  anchor,
+  host,
+  onClose,
+  onRename,
+  onCard,
+}: {
+  view: ViewDTO;
+  anchor: React.RefObject<HTMLButtonElement | null>;
+  host: React.RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+  onRename: () => void;
+  onCard: () => void;
+}) {
+  const { data, notify, updateView, setMainView, deleteView } = useBoard();
+  const confirm = useConfirm();
+  const admin = canManage(data.project.role);
+  const groupable = data.properties.filter((p) =>
+    view.kind === "roadmap" ? isSelect(p.type) : GROUPABLE_TYPES.includes(p.type),
+  );
+
+  /* The focus goes back to the "⋯" it came from, but only if it is still in
+     the menu: a click elsewhere keeps where it went. */
+  function close() {
+    const inside = document.activeElement?.closest("[data-view-menu]") != null;
+    onClose();
+    if (inside) anchor.current?.focus();
+  }
+  const around = useDismiss<HTMLDivElement>(close, true);
+  const menu = useRef<HTMLDivElement>(null);
+
+  /* Placed straight on the element, so the menu is drawn once and in place. */
+  useLayoutEffect(() => {
+    if (!anchor.current || !host.current || !menu.current) return;
+    const at = anchor.current.getBoundingClientRect();
+    const box = host.current.getBoundingClientRect();
+    const width = menu.current.offsetWidth;
+    const left = Math.max(10, Math.min(at.left - box.left, box.width - width - 10));
+    menu.current.style.left = `${left}px`;
+  }, [anchor, host]);
+
+  useEffect(() => {
+    if (!confirm.asking) menu.current?.querySelector<HTMLElement>("[role^=menuitem]")?.focus();
+  }, [confirm.asking]);
+
+  function walk(e: React.KeyboardEvent) {
+    const items = [...(menu.current?.querySelectorAll<HTMLElement>("[role^=menuitem]") ?? [])];
+    if (!items.length) return;
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    let next = -1;
+    if (e.key === "ArrowDown") next = (index + 1) % items.length;
+    else if (e.key === "ArrowUp") next = (index - 1 + items.length) % items.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = items.length - 1;
+    if (next < 0) return;
+    e.preventDefault();
+    items[next]?.focus();
+  }
+
+  /** Runs the act, puts the menu away and hands the focus back. */
+  function then(run: () => void) {
+    return () => {
+      close();
+      run();
+    };
+  }
+
+  /* The same words as a task's link, and the same shape as the address bar's,
+     built from wherever the board is served. */
+  async function copyLink() {
+    const link = `${window.location.origin}/p/${data.project.id}?view=${view.id}`;
+    if (await copyText(link)) notify("Link copied", "info");
+    else notify("The link did not copy. The address bar holds it.");
+  }
+
+  const grouped = GROUPED_KINDS.includes(view.kind);
+
+  return (
+    <div ref={around} className={styles.viewMenuAround}>
+      <div
+        ref={menu}
+        className={`${styles.popover} ${styles.viewMenu}`}
+        data-view-menu=""
+        role={confirm.asking ? undefined : "menu"}
+        aria-label={`More for ${view.name}`}
+        onKeyDown={walk}
+      >
+        {confirm.asking ? (
+          <ConfirmRow
+            question={`Delete the view ${view.name}? The tasks stay; only this way of looking at them goes.`}
+            onConfirm={() => confirm.confirm(then(() => void deleteView(view.id)))}
+            onCancel={confirm.cancel}
+          />
+        ) : (
+          <>
+            <button role="menuitem" tabIndex={-1} className={styles.menuItem} onClick={onRename}>
+              Rename
+            </button>
+            {grouped && groupable.length > 0 && (
+              <div
+                role="group"
+                aria-label={view.kind === "roadmap" ? "Rows from" : "Columns by"}
+                className={styles.menuGroup}
+              >
+                <span className={styles.menuLabel} aria-hidden>
+                  {view.kind === "roadmap" ? "Rows from" : "Columns by"}
+                </span>
+                {groupable.map((property) => (
+                  <button
+                    key={property.id}
+                    role="menuitemradio"
+                    aria-checked={view.groupById === property.id}
+                    tabIndex={-1}
+                    className={styles.menuItem}
+                    onClick={then(() => {
+                      if (view.groupById !== property.id)
+                        void updateView(view.id, { groupById: property.id });
+                    })}
+                  >
+                    <span className={styles.menuTick} aria-hidden>
+                      {view.groupById === property.id ? "✓" : ""}
+                    </span>
+                    {property.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* A roadmap draws no card, so it has nothing to arrange. */}
+            {view.kind !== "roadmap" && (
+              <button
+                role="menuitem"
+                tabIndex={-1}
+                className={styles.menuItem}
+                onClick={then(onCard)}
+              >
+                Card
+              </button>
+            )}
+            <button
+              role="menuitem"
+              tabIndex={-1}
+              className={styles.menuItem}
+              onClick={then(() => void copyLink())}
+            >
+              Copy link
+            </button>
+            {admin && !view.isDefault && (
+              <>
+                <button
+                  role="menuitem"
+                  tabIndex={-1}
+                  className={styles.menuItem}
+                  title="The board opens on the main view, and it cannot be deleted."
+                  onClick={then(() => void setMainView(view.id))}
+                >
+                  Make main
+                </button>
+                <button
+                  role="menuitem"
+                  tabIndex={-1}
+                  className={`${styles.menuItem} ${styles.menuDanger}`}
+                  onClick={confirm.ask}
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }

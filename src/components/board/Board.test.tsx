@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import { commands, page, userEvent, type Locator } from "vitest/browser";
 import type { BoardData, TaskDTO } from "@/lib/types";
 import {
@@ -348,32 +348,16 @@ describe("Ushabti board", () => {
     await expect.element(pill("Board")).toHaveAttribute("aria-current", "true");
   });
 
-  test("the open pill copies its link, and the keyboard reaches it", async () => {
+  /* The copy moved into the open view's menu; `ViewMenu.test.tsx` holds it. */
+  test("only the open pill carries a menu", async () => {
     const data = newProject();
-    const phases = data.views[1];
-    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     await draw(data);
     const pill = (name: string) => byTestId("view-pill").filter({ hasText: name });
 
     await pill("Phases").click();
     await expect.element(pill("Phases")).toHaveAttribute("aria-current", "true");
-    // Only the open view carries one.
-    expect(page.getByRole("button", { name: /^Copy link to / }).elements()).toHaveLength(1);
-
-    const copy = page.getByRole("button", { name: "Copy link to Phases" });
-    html(pill("Phases")).focus();
-    await userEvent.keyboard("{Tab}");
-    expect(document.activeElement).toBe(copy.element());
-    expect(box(copy).width).toBeGreaterThan(0);
-
-    await userEvent.keyboard("{Enter}");
-    await expect.element(byTestId("toast")).toHaveTextContent("Link copied");
-    expect(writeText).toHaveBeenCalledWith(
-      `${window.location.origin}/p/${data.project.id}?view=${phases.id}`,
-    );
-    // The copy picked nothing and moved nothing.
-    await expect.element(pill("Phases")).toHaveAttribute("aria-current", "true");
-    writeText.mockRestore();
+    expect(page.getByRole("button", { name: /^More for / }).elements()).toHaveLength(1);
+    await expect.element(page.getByRole("button", { name: "More for Phases" })).toBeInTheDocument();
   });
 
   /* Was "a column folds to a strip, takes a card, and opens again". The drop
