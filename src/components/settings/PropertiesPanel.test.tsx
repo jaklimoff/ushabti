@@ -227,7 +227,7 @@ describe("Custom properties", () => {
     const chip = card("Hidden props").getByTitle("Priority · Urgent");
     await expect.element(chip).toBeVisible();
 
-    await page.getByRole("button", { name: /^Priority on the card/ }).click();
+    await page.getByRole("button", { name: "Priority, header left" }).click();
     await page.getByRole("button", { name: "Take off the card" }).click();
     await wrote(() => sent("PATCH", PROJECT_CARD), 1);
     const priority = propertyOf(data, "Priority");

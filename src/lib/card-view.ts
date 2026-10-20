@@ -387,13 +387,19 @@ export function setCardPlace(view: CardView, id: string, place: CardPlace): Card
   return { ...view, rows };
 }
 
+/** Where a row goes when it leaves the edge and nobody said where. */
+export const OFF_EDGE: CardPlace = "headerL";
+
+/** The places a chip can be put in by name. The edge is a switch of its own. */
+export const CHIP_PLACES = ["headerL", "headerR", "body", "footerL", "footerR"] as const;
+
 export function setCardMode(view: CardView, id: string, mode: CardMode): CardView {
   const rows = { ...view.rows };
   const mine = rows[id];
   if (!mine) return view;
   /* The edge is a stripe of colour. Asking for words moves the row off it. */
   const place =
-    mine.place === "edge" && mode !== "colour" && mode !== "avatar" ? "headerL" : mine.place;
+    mine.place === "edge" && mode !== "colour" && mode !== "avatar" ? OFF_EDGE : mine.place;
   rows[id] = { place, mode };
   return { ...view, rows };
 }
@@ -701,6 +707,34 @@ function wordless(item: CardItem): boolean {
   return item.mode === "colour" || item.mode === "avatar";
 }
 
+/** The rows in the order a card draws them: wordless first, each half in `cardOrder`. */
+export function drawOrder(items: CardItem[]): CardItem[] {
+  return [...items.filter(wordless), ...items.filter((item) => !wordless(item))];
+}
+
+/** How many lines of the description a mode draws. */
+export function descLines(mode: CardMode): number {
+  return mode === "one" ? 1 : 2;
+}
+
+/**
+ * One row drawn alone on a task, as `buildCard` would draw it with every other
+ * row off. The card editor draws each chip with this, so a chip there cannot
+ * read one way and another on the board. The other rows stay in, off, because
+ * a row shown only under a rule needs the properties of the whole card.
+ */
+export function buildOne(
+  items: CardItem[],
+  item: CardItem,
+  task: TaskDTO,
+  members: MemberDTO[],
+  former: FormerDTO[] = [],
+  timeZone: string = "UTC",
+): CardSlots {
+  const alone = items.map((i) => (i.id === item.id ? item : { ...i, place: "off" as const }));
+  return buildCard(alone, task, members, former, timeZone);
+}
+
 /**
  * A task, laid out the way the card view asks for. A card only draws what a
  * task actually holds, so a task with no due date has a shorter footer than the
@@ -724,10 +758,7 @@ export function buildCard(
     footerR: [],
   };
 
-  /* Wordless chips first, then the rest; each half keeps `cardOrder`. */
-  const drawn = [...items.filter(wordless), ...items.filter((item) => !wordless(item))];
-
-  for (const item of drawn) {
+  for (const item of drawOrder(items)) {
     if (item.place === "off" || item.place === "title") continue;
 
     if (item.place === "edge") {
@@ -737,7 +768,7 @@ export function buildCard(
 
     if (item.kind === "desc" && item.place === "body") {
       const text = task.description.trim();
-      if (text) slots.body = { text, lines: item.mode === "one" ? 1 : 2 };
+      if (text) slots.body = { text, lines: descLines(item.mode) };
       continue;
     }
 

@@ -57,10 +57,9 @@ test.describe("Settings pages", () => {
     await page.screenshot({ path: testInfo.outputPath("seen-properties.png"), fullPage: true });
 
     await gotoSettings(page, projectId, "card");
-    const row = page
-      .getByTestId("card-row")
-      .filter({ has: page.getByRole("button", { name: /^Priority on the card/ }) });
-    await row.hover();
+    // The page opens on the card drawn big; a chip under the pointer rings
+    // its part of the preview, as a row of the list does.
+    await page.getByRole("button", { name: "Priority, header left" }).hover();
     const preview = page.getByRole("complementary", { name: "What a card looks like" });
     await expect(preview.locator("[data-lit]").first()).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("seen-card-view.png") });

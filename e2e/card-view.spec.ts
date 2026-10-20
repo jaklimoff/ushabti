@@ -71,4 +71,55 @@ test.describe("Card view", () => {
     expect(heads.slice(0, 2)).toEqual(["TASK ID", "TITLE"]);
     expect(heads.indexOf("ESTIMATE")).toBeLessThan(heads.indexOf("PHASE"));
   });
+
+  test("a chip clicked on the big card changes how it reads and where it sits", async ({
+    page,
+  }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Drawn"));
+    await addTask(page, "Todo", "Arranged by clicks");
+
+    await gotoSettings(page, projectId, "card");
+    const drawing = page.getByTestId("card-drawing");
+    await expect(drawing.getByText("Title · always here")).toBeVisible();
+    await expect(
+      page.getByTestId("card-zone-headerL").getByRole("button", { name: "Priority, header left" }),
+    ).toBeVisible();
+
+    await drawing.getByRole("button", { name: "Priority, header left" }).click();
+    const pop = page.getByRole("dialog", { name: "Priority on the card" });
+    await pop.getByRole("button", { name: "Filled" }).click();
+    await expect(pop.getByRole("button", { name: "Filled" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(pop.getByRole("switch", { name: "Colour the edge of the card" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-chip-popover.png") });
+
+    // An off chip goes back in from its own popover.
+    await page.keyboard.press("Escape");
+    await drawing.getByRole("button", { name: "Description, not on the card" }).click();
+    await page
+      .getByRole("dialog", { name: "Description on the card" })
+      .getByRole("button", { name: "Put Description in the body" })
+      .click();
+    await expect(
+      page.getByTestId("card-zone-body").getByRole("button", { name: "Description, body" }),
+    ).toBeVisible();
+
+    // What was saved is what the page draws again after a reload.
+    await page.reload();
+    await expect(
+      page.getByTestId("card-zone-body").getByRole("button", { name: "Description, body" }),
+    ).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-card-drawing.png"), fullPage: true });
+
+    // The list is the same editor as rows.
+    await page.getByRole("button", { name: "List", exact: true }).click();
+    await expect(
+      page
+        .getByTestId("card-row")
+        .filter({ has: page.getByRole("button", { name: /^Description on the card/ }) }),
+    ).toHaveAttribute("data-place", "body");
+  });
 });

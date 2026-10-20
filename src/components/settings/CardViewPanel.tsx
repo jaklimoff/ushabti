@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBoard } from "@/components/board/store";
 import { TaskCard } from "@/components/board/TaskCard";
-import { Button, IconButton } from "@/components/ui/Button";
+import { Button, IconButton, Pill } from "@/components/ui/Button";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { Chevron } from "@/components/ui/Marks";
@@ -27,6 +27,7 @@ import {
   type CardPlace,
   type CardView,
 } from "@/lib/types";
+import { CardDrawing } from "./CardDrawing";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
@@ -38,6 +39,9 @@ import styles from "./settings.module.css";
  */
 export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
   const { data, cardItemsOf, setCardView, resetCardView } = useBoard();
+  /* The drawing is the way a pointer arranges the card; the list is the same
+     editor as rows, and stays whole for the keyboard and a screen reader. */
+  const [shape, setShape] = useState<"card" | "list">("card");
   const [open, setOpen] = useState<string | null>(null);
   /* The row under the pointer or the keys. It and the open row point at
      their chip on the preview, so the list and the card read as one. */
@@ -77,7 +81,7 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
   }
 
   const own = target?.cardView != null;
-  const shape = target?.kind === "list" ? "row of this list" : "card of this board";
+  const kindSaid = target?.kind === "list" ? "row of this list" : "card of this board";
 
   return (
     <>
@@ -100,41 +104,70 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
             }
             note={
               own
-                ? `What a ${shape} carries. This view keeps a copy of its own, so a change to the project's card view does not reach it.`
-                : `What a ${shape} carries. It draws the project's card view now; your first change here gives this view a copy of its own.`
+                ? `What a ${kindSaid} carries. This view keeps a copy of its own, so a change to the project's card view does not reach it.`
+                : `What a ${kindSaid} carries. It draws the project's card view now; your first change here gives this view a copy of its own.`
             }
           />
         </div>
       ) : (
         <PageHead
           title="Card view"
-          note="What a card on the board carries. Open a row to say how it reads and where it sits. Rows sharing a place follow the order of the properties — drag them in Properties to change it."
+          note="What a card on the board carries. Click a chip to say how it reads and where it sits. Chips sharing a place follow the order of the properties — drag them in Properties to change it."
         />
       )}
 
-      <div className={styles.cardLayout}>
-        <Card>
-          <div className={styles.cardHead}>
-            <span className={styles.cardHeadName}>Shows on the card</span>
-            <span className={styles.cardHeadType}>Type</span>
-            <span className={styles.cardHeadPlace}>On card</span>
-          </div>
+      <div className={styles.shapeToggle} role="group" aria-label="Arrange the card as">
+        {(["card", "list"] as const).map((s) => (
+          <Pill
+            key={s}
+            on={shape === s}
+            onClick={() => {
+              setOpen(null);
+              setNear(null);
+              setShape(s);
+            }}
+          >
+            {s === "card" ? "Card" : "List"}
+          </Pill>
+        ))}
+      </div>
 
-          {cardItems.map((item) => (
-            <CardRowBox
-              key={item.id}
-              item={item}
-              edgeHolder={edge}
-              open={open === item.id}
-              onNear={(on) =>
-                setNear((current) => (on ? item.id : current === item.id ? null : current))
-              }
-              onToggle={() => setOpen((current) => (current === item.id ? null : item.id))}
-              onClose={() => setOpen(null)}
-              onPlace={(place) => void setCardView(setCardPlace(view, item.id, place), viewId)}
-              onMode={(mode) => void setCardView(setCardMode(view, item.id, mode), viewId)}
+      <div className={styles.cardLayout}>
+        <Card className={shape === "card" ? styles.drawingCard : undefined}>
+          {shape === "card" ? (
+            <CardDrawing
+              items={cardItems}
+              open={open}
+              onOpen={setOpen}
+              onNear={setNear}
+              onPlace={(id, place) => void setCardView(setCardPlace(view, id, place), viewId)}
+              onMode={(id, mode) => void setCardView(setCardMode(view, id, mode), viewId)}
             />
-          ))}
+          ) : (
+            <>
+              <div className={styles.cardHead}>
+                <span className={styles.cardHeadName}>Shows on the card</span>
+                <span className={styles.cardHeadType}>Type</span>
+                <span className={styles.cardHeadPlace}>On card</span>
+              </div>
+
+              {cardItems.map((item) => (
+                <CardRowBox
+                  key={item.id}
+                  item={item}
+                  edgeHolder={edge}
+                  open={open === item.id}
+                  onNear={(on) =>
+                    setNear((current) => (on ? item.id : current === item.id ? null : current))
+                  }
+                  onToggle={() => setOpen((current) => (current === item.id ? null : item.id))}
+                  onClose={() => setOpen(null)}
+                  onPlace={(place) => void setCardView(setCardPlace(view, item.id, place), viewId)}
+                  onMode={(mode) => void setCardView(setCardMode(view, item.id, mode), viewId)}
+                />
+              ))}
+            </>
+          )}
 
           {confirm.asking ? (
             <ConfirmRow

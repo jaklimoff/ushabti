@@ -42,8 +42,12 @@ function serving(data: BoardData): Answer {
 }
 
 /** The settings page above the board, both drawing from the one store. */
-async function draw(data: BoardData, settings = <CardViewPanel />) {
-  return renderWithBoard(
+async function draw(
+  data: BoardData,
+  settings = <CardViewPanel />,
+  shape: "Card" | "List" = "List",
+) {
+  const drawn = await renderWithBoard(
     <>
       {settings}
       <BoardShell initialTask={null} />
@@ -51,6 +55,13 @@ async function draw(data: BoardData, settings = <CardViewPanel />) {
     data,
     serving(data),
   );
+  if (shape === "List") await asList();
+  return drawn;
+}
+
+/** The page opens on the card drawn big; the rows are one press away. */
+async function asList() {
+  await page.getByRole("button", { name: "List", exact: true }).click();
 }
 
 const byTestId = (id: string) => page.getByTestId(id);
@@ -210,6 +221,7 @@ describe("Card view", () => {
   test("a row taken off the card comes back from the same page", async () => {
     const data = newProject();
     const { screen, sent } = await renderWithBoard(<CardViewPanel />, data);
+    await asList();
     const due = data.properties.find((p) => p.name === "Due")!;
 
     await opener("Due").click();
@@ -255,6 +267,7 @@ describe("Card view", () => {
       data,
       serving(data),
     );
+    await asList();
     const listHead = (name: string) =>
       byTestId("list-head-cell").filter({
         has: byTestId("list-head-name").filter({ hasText: new RegExp(`^${name}$`, "i") }),
@@ -346,5 +359,152 @@ describe("The card view preview", () => {
     await expect.poll(() => chip.hasAttribute("data-lit")).toBe(false);
     (opener("Priority").element() as HTMLElement).focus();
     await expect.poll(() => chip.hasAttribute("data-lit")).toBe(true);
+  });
+});
+
+describe("The card drawn big", () => {
+  const zone = (place: string) => page.getByTestId(`card-zone-${place}`);
+  const drawn = (name: string) =>
+    page.getByTestId("card-drawing").getByRole("button", { name: new RegExp(`^${name}, `) });
+  const popover = (name: string) => page.getByRole("dialog", { name: `${name} on the card` });
+
+  test("the card editor shows a big card with each chip in its zone and the off rows below", async () => {
+    const data = newProject();
+    await draw(data, <CardViewPanel />, "Card");
+
+    for (const label of [
+      "Header · left",
+      "Header · right",
+      "Title · always here",
+      "Body",
+      "Footer · left",
+      "Footer · right",
+      "Edge",
+    ])
+      await expect
+        .element(page.getByTestId("card-drawing").getByText(label, { exact: true }))
+        .toBeVisible();
+
+    // Each row sits in the zone its place names, as its own chip.
+    await expect
+      .element(zone("headerL").getByRole("button", { name: "Priority, header left" }))
+      .toBeVisible();
+    await expect.element(drawn("Priority")).toHaveAttribute("title", "Priority");
+    await expect.element(zone("headerL").getByRole("button", { name: /^Task ID, / })).toBeVisible();
+
+    // The description waits below, and the body says what it is for.
+    const off = page.getByTestId("card-off");
+    await expect.element(off.getByText("Not on the card")).toBeVisible();
+    await expect
+      .element(off.getByRole("button", { name: "Description, not on the card" }))
+      .toBeVisible();
+    await expect
+      .element(zone("body").getByText("Drop a chip here for a line under the title"))
+      .toBeVisible();
+  });
+
+  test("clicking a chip opens a popover with the modes drawn as sample chips, the edge switch and Take off", async () => {
+    const data = newProject();
+    withTask(data, "Arranged", { Status: "Todo", Priority: "Urgent" });
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const priority = data.properties.find((p) => p.name === "Priority")!;
+
+    await drawn("Priority").click();
+    const pop = popover("Priority");
+    await expect.element(pop).toBeVisible();
+    await expect.element(pop.getByText("Header left")).toBeVisible();
+
+    // Every mode is a chip of a real value, and no caption says what it draws.
+    const modes = pop.getByRole("group", { name: "How Priority reads" }).getByRole("button");
+    expect(modes.elements()).toHaveLength(4);
+    for (const mode of modes.elements())
+      expect(mode.querySelector('[data-testid="card-chip"]')).not.toBeNull();
+    await expect
+      .element(pop.getByRole("button", { name: "Colour" }))
+      .toHaveAttribute("aria-pressed", "true");
+    await gone(pop.getByText("The option's name on a fill of its colour."));
+
+    await pop.getByRole("button", { name: "Filled" }).click();
+    await wrote(() => sent("PATCH", PROJECT_CARD), 1);
+    expect(
+      (sent("PATCH", PROJECT_CARD)[0].body as { cardView: CardView }).cardView.rows[priority.id]
+        .mode,
+    ).toBe("fill");
+    await expect
+      .element(pop.getByRole("button", { name: "Filled" }))
+      .toHaveAttribute("aria-pressed", "true");
+
+    // The edge is a switch, and the chip moves to the rail.
+    await pop.getByRole("switch", { name: "Colour the edge of the card" }).click();
+    await wrote(() => sent("PATCH", PROJECT_CARD), 2);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[1], priority.id)).toBe("edge");
+    await expect
+      .element(zone("edge").getByRole("button", { name: "Priority, edge stripe" }))
+      .toBeVisible();
+    await expect.element(card("Arranged").getByTestId("card-edge")).toBeVisible();
+
+    await popover("Priority").getByRole("button", { name: "Take off the card" }).click();
+    await wrote(() => sent("PATCH", PROJECT_CARD), 3);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[2], priority.id)).toBe("off");
+    await expect
+      .element(
+        page.getByTestId("card-off").getByRole("button", { name: "Priority, not on the card" }),
+      )
+      .toBeVisible();
+    await gone(card("Arranged").getByTestId("card-edge"));
+  });
+
+  test("a date has no colours of its own, so its popover has no edge switch", async () => {
+    await draw(newProject(), <CardViewPanel />, "Card");
+    await drawn("Due").click();
+    await expect.element(popover("Due")).toBeVisible();
+    await gone(popover("Due").getByRole("switch"));
+  });
+
+  test("an off chip can be put in any of the five places from its popover", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const places = [
+      ["headerL", "header left"],
+      ["headerR", "header right"],
+      ["body", "body"],
+      ["footerL", "footer left"],
+      ["footerR", "footer right"],
+    ] as const;
+
+    let writes = 0;
+    for (const [place, said] of places) {
+      await drawn("Description").click();
+      const pop = popover("Description");
+      await expect.element(pop.getByText("Put it in")).toBeVisible();
+      await gone(pop.getByRole("button", { name: "Take off the card" }));
+      expect(pop.getByRole("button", { name: /^Put Description in the / }).elements()).toHaveLength(
+        5,
+      );
+
+      await pop.getByRole("button", { name: `Put Description in the ${said}` }).click();
+      await wrote(() => sent("PATCH", PROJECT_CARD), ++writes);
+      expect(placeOf(sent("PATCH", PROJECT_CARD)[writes - 1], "_desc")).toBe(place);
+      await expect
+        .element(zone(place).getByRole("button", { name: /^Description, / }))
+        .toBeVisible();
+
+      await drawn("Description").click();
+      await popover("Description").getByRole("button", { name: "Take off the card" }).click();
+      await wrote(() => sent("PATCH", PROJECT_CARD), ++writes);
+    }
+  });
+
+  test("the List toggle shows the rows, and Card brings the drawing back", async () => {
+    await draw(newProject(), <CardViewPanel />, "Card");
+    await expect.element(page.getByTestId("card-drawing")).toBeVisible();
+    await gone(row("Priority"));
+
+    await asList();
+    await gone(page.getByTestId("card-drawing"));
+    await expect.element(row("Priority")).toHaveAttribute("data-place", "headerL");
+
+    await page.getByRole("button", { name: "Card", exact: true }).click();
+    await expect.element(page.getByTestId("card-drawing")).toBeVisible();
   });
 });

@@ -50,6 +50,7 @@ test("Created and Updated wait to be turned on, then read on the card and in a l
     data,
     serving(data).answer,
   );
+  await page.getByRole("button", { name: "List", exact: true }).click();
 
   await expect.element(card("Stamped")).toBeVisible();
   expect(

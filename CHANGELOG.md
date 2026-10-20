@@ -12,6 +12,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - Properties opens with a strip that says which property plays each board role: the types, done when, the releases and the sprints. A set tile takes you to its property, and that property carries the role as a tag.
 - People invites somebody as an admin as well as a member: pick the role beside the email. A pending invite shows its role, and the person joins with it.
+- Card view opens on a big drawing of the card. Each chip sits in its place; click one to pick how it reads from sample chips, colour the edge with it or take it off. The rows not on the card wait below it, and a click puts one in any of the five places. **List** brings back the table of rows.
 
 ### Changed
 

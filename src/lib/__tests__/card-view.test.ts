@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCard,
+  buildOne,
+  drawOrder,
   buildRow,
   cardAccent,
   cardItems,
@@ -412,6 +414,29 @@ describe("drawing a card", () => {
     expect(card.footerL[0]).toMatchObject({ text: "Aug 29", boxed: true });
     expect(card.footerR[0].bar).toEqual({ done: 1, total: 4 });
     expect(card.footerR[1]).toMatchObject({ text: "2", bubble: true });
+  });
+
+  it("draws one row alone, as the card editor's chips do", () => {
+    const due = resolved.find((i) => i.id === "p-due")!;
+    const one = buildOne(resolved, due, task({ "p-due": "2026-08-29" }), [ADA]);
+    expect(one.footerL.map((c) => c.item)).toEqual(["p-due"]);
+    expect(one.headerL).toHaveLength(0);
+    expect(one.body).toBeNull();
+
+    // A row off the card draws in whatever place it is handed.
+    const moved = buildOne(
+      resolved,
+      { ...due, place: "headerR", mode: "text" },
+      task({ "p-due": "2026-08-29" }),
+      [ADA],
+    );
+    expect(moved.headerR).toMatchObject([{ item: "p-due", boxed: false }]);
+  });
+
+  it("orders a place as the card does, wordless chips first", () => {
+    const order = drawOrder(resolved).map((i) => i.id);
+    expect(order.indexOf("p-prio")).toBeLessThan(order.indexOf("_key"));
+    expect(order.indexOf("p-who")).toBeLessThan(order.indexOf("_key"));
   });
 
   it("draws only what the task holds", () => {
