@@ -7,25 +7,16 @@ import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { AGENT_RULES_MAX, AGENT_RULES_SOFT, rulesCount } from "@/lib/agent-rules";
-import type { DoneWhen } from "@/lib/links";
 import { offQuestion } from "@/lib/plan-switch";
 import { CADENCE_DEFAULT } from "@/lib/cadence";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import {
-  Checkbox,
-  Field,
-  Input,
-  ProjectColorSwatches,
-  Select,
-  TextArea,
-} from "@/components/ui/Form";
+import { Checkbox, Field, Input, ProjectColorSwatches, TextArea } from "@/components/ui/Form";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { Card, Note, Row, Section } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
-import { isSelect } from "@/lib/types";
 import { FILES_OFF_NOTE } from "@/lib/attachments";
 import { DEFAULT_TIME_ZONE } from "@/lib/day";
 import { tellNobody } from "@/lib/mounted";
@@ -98,47 +89,6 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const keyChanged = key !== data.project.key && key.length > 0;
 
   /*
-   * What this project calls done. A blocker that is over stops blocking, and
-   * no status is hardcoded, so the owner says which option means it. Only a
-   * select can answer: a date or a number has no option to point at.
-   */
-  const doneWhen = data.project.doneWhen;
-  const selects = data.properties.filter((p) => isSelect(p.type) && p.options.length > 0);
-  /*
-   * Picking a property asks the question; the option answers it, exactly as a
-   * filter does. So the property lives here until the option is chosen —
-   * nothing is saved in between, because a half-made answer is not one. Null
-   * means "whatever is saved", so another tab's change still shows.
-   */
-  const [pickedId, setPickedId] = useState<string | null>(null);
-  const doneProperty = selects.find((p) => p.id === (pickedId ?? doneWhen?.propertyId)) ?? null;
-  /*
-   * Each tick writes the whole list, worked out from the saved one, so a
-   * second tick waits for the first answer rather than writing over it. The
-   * list on its way out is what the ticks show until the answer lands.
-   */
-  const savedTicks = doneWhen?.propertyId === doneProperty?.id ? (doneWhen?.optionIds ?? []) : [];
-  const [sendingTicks, setSendingTicks] = useState<string[] | null>(null);
-  const ticks = sendingTicks ?? savedTicks;
-  async function tickDone(optionId: string, on: boolean) {
-    if (!doneProperty || sendingTicks) return;
-    const next = doneProperty.options
-      .map((o) => o.id)
-      .filter((id) => (id === optionId ? on : savedTicks.includes(id)));
-    setSendingTicks(next);
-    try {
-      await save({
-        doneWhen: next.length ? { propertyId: doneProperty.id, optionIds: next } : null,
-      });
-    } finally {
-      setSendingTicks(null);
-    }
-  }
-  /* What a column's bar sums. The board cannot know what a point is, so the
-     owner names a number property, and none means each task counts one. */
-  const numbers = data.properties.filter((p) => p.type === "number");
-
-  /*
    * What each box still owes. A blur saves it; a closed tab sends no blur, so
    * the same answer goes out on the way off the page.
    */
@@ -160,8 +110,6 @@ export function ProjectPanel({ files }: { files: boolean }) {
     name?: string;
     key?: string;
     color?: string;
-    doneWhen?: DoneWhen | null;
-    progressBy?: string | null;
     timeZone?: string;
     publicChangelog?: boolean;
     agentRules?: string;
@@ -368,91 +316,12 @@ export function ProjectPanel({ files }: { files: boolean }) {
       </Section>
 
       {/*
-       * How work moves and finishes: what done means, what a bar sums, and
-       * whether the project plans in releases and sprints.
-       *
-       * The property and its ticks are one answer, so they sit on one row.
-       * Picking a property with no option yet writes nothing: the answer is
-       * the options. Each saves the moment it changes — a dropdown or a tick
-       * has no draft to lose, so the change is its blur.
+       * How work is planned: whether the project works in releases and
+       * sprints. What done means, and what a bar sums, sit on the property
+       * that says done, in Properties.
        */}
       <Section title="Work">
         <Card>
-          <Row>
-            <Field
-              label="Done when"
-              inline
-              note={
-                selects.length === 0
-                  ? "This board has no select property with options, so archived is the answer."
-                  : "A task that blocks another stops blocking when it is archived, or when it reaches any option ticked here."
-              }
-            >
-              <Select
-                aria-label="The property that says a task is done"
-                className={styles.fieldSelect}
-                value={doneProperty?.id ?? ""}
-                disabled={!canEdit || selects.length === 0}
-                onChange={(picked) => {
-                  /* The same property again is the same question, so it is not
-                   asked twice: re-picking it would otherwise throw away the
-                   option that is already the answer. */
-                  if (picked === (doneProperty?.id ?? "")) return;
-                  setPickedId(picked);
-                  /* Another property is another question, so the old answer
-                   goes now rather than when the new one arrives. */
-                  void save({ doneWhen: null });
-                }}
-                options={[
-                  { value: "", label: "Archived only" },
-                  ...selects.map((p) => ({ value: p.id, label: p.name })),
-                ]}
-              />
-              {doneProperty && (
-                <div
-                  role="group"
-                  aria-label="The options that say a task is done"
-                  className={styles.doneOptions}
-                >
-                  {doneProperty.options.map((o) => (
-                    <Checkbox
-                      key={o.id}
-                      label={o.name}
-                      checked={ticks.includes(o.id)}
-                      disabled={!canEdit || sendingTicks !== null}
-                      onChange={(e) => void tickDone(o.id, e.target.checked)}
-                    />
-                  ))}
-                </div>
-              )}
-            </Field>
-          </Row>
-          <Row>
-            <Field
-              label="Count progress by"
-              inline
-              note={
-                <>
-                  A column with a target date shows how much of it is done. A task with no value
-                  counts zero.
-                  {numbers.length === 0 && " Add a number property to count by it."}
-                </>
-              }
-            >
-              <Select
-                aria-label="Count progress by"
-                className={styles.fieldSelect}
-                value={data.project.progressBy ?? ""}
-                disabled={!canEdit || numbers.length === 0}
-                onChange={(picked) => void save({ progressBy: picked || null })}
-                options={[
-                  { value: "", label: "Tasks" },
-                  ...numbers.map((p) => ({ value: p.id, label: p.name })),
-                ]}
-              />
-            </Field>
-          </Row>
-
           {/*
            * Releases and sprints are a property and its views, nothing more, so
            * each switch says which ones before it makes them. The switch reads

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
 import { newProject, renderWithBoard } from "@/test/board";
-import { ProjectPanel } from "./ProjectPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 /*
@@ -51,32 +50,43 @@ afterEach(() => page.viewport(1440, 900));
 
 describe("A settings select is the app's own menu", () => {
   test("a 28 px button with the value and a chevron, opening the board's menu", async () => {
-    await renderWithBoard(<ProjectPanel files={false} />, newProject());
+    /* Progress by is on the property that says done, so one does. */
+    const data = newProject();
+    const status = data.properties.find((p) => p.name === "Status")!;
+    data.project.doneWhen = { propertyId: status.id, optionIds: [status.options.at(-1)!.id] };
+    data.properties.push({
+      ...status,
+      id: crypto.randomUUID(),
+      name: "Points",
+      type: "number",
+      position: "zz",
+      config: {},
+      options: [],
+    });
+    await renderWithBoard(<PropertiesPanel />, data);
 
-    const done = page.getByLabelText("The property that says a task is done");
-    const progress = page.getByLabelText("Count progress by");
-    await expect.element(done).toBeVisible();
-    expect(done.element().tagName).toBe("BUTTON");
+    const progress = page.getByLabelText("Progress by", { exact: true });
+    await expect.element(progress).toBeVisible();
+    expect(progress.element().tagName).toBe("BUTTON");
     expect(document.querySelectorAll("select")).toHaveLength(0);
-    await expect.element(done).toHaveAttribute("role", "combobox");
-    expect(done.element().textContent).toMatch(/Archived only/);
-    expect(done.element().getBoundingClientRect().height).toBe(28);
+    await expect.element(progress).toHaveAttribute("role", "combobox");
+    expect(progress.element().textContent).toMatch(/Tasks/);
+    expect(progress.element().getBoundingClientRect().height).toBe(28);
 
-    /* Two selects in one card line up, however short their words. */
+    /* A select lines up with its neighbours, however short its words. */
     expect(progress.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(120);
-    expect(done.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(120);
 
-    await done.click();
-    await expect.element(done).toHaveAttribute("aria-expanded", "true");
+    await progress.click();
+    await expect.element(progress).toHaveAttribute("aria-expanded", "true");
     await expect.element(list()).toBeVisible();
     expect(getComputedStyle(list().element()).backgroundColor).toBe(token("--bg-menu"));
     await expect
-      .element(list().getByRole("option", { name: /Archived only/ }))
+      .element(list().getByRole("option", { name: /Tasks/ }))
       .toHaveAttribute("aria-selected", "true");
 
     /* A click outside closes it. */
-    await page.getByRole("heading", { name: "Project" }).click();
-    await closed(done);
+    await page.getByRole("heading", { name: "Properties" }).click();
+    await closed(progress);
   });
 
   test("the keys open it, walk it, pick, close it and jump by letter", async () => {

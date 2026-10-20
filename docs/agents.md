@@ -306,8 +306,8 @@ sentence — _USH-12 already waits on USH-71, so this would be a circle._ — an
 task told to wait on itself is refused with _A task cannot wait on itself._
 
 **A blocker stops blocking when it is over.** Over means archived, and it also
-means any of the options the owner ticked in **Settings → Project**, such as
-Done and Won't do. Nothing here is hardcoded: read `project.doneWhen` on the
+means any of the options the owner ticked in **Settings → Properties**, on the
+property that says when a task is done, such as Done and Won't do. Nothing here is hardcoded: read `project.doneWhen` on the
 board answer, which is `{ "propertyId": …, "optionIds": [ … ] }` or null. It
 used to carry one `optionId`; it is a list now, and a list of one when a single
 option was named. A write still takes `optionId` and reads it as a list of one,

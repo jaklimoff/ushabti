@@ -26,7 +26,7 @@ import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { carriesDates, NOTE_MAX, optionEdit, splitShipped } from "@/lib/option-dates";
 import { CADENCE_DEFAULT, cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
-import { Button, IconButton } from "@/components/ui/Button";
+import { Button, IconButton, Pill } from "@/components/ui/Button";
 import { Checkbox, Input, Label, NameInput, Select, TextArea } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
@@ -36,6 +36,7 @@ import { PALETTE, colorName } from "@/lib/colors";
 import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
+import type { DoneWhen } from "@/lib/links";
 import {
   type BoardRole,
   boardRoles,
@@ -58,6 +59,7 @@ import {
 } from "@/lib/types";
 import { PageHead } from "./SettingsShell";
 import { useWhenWrite } from "./useWhenWrite";
+import { RolePanel, RoleRow } from "./RolePanel";
 import styles from "./settings.module.css";
 
 /* The grip is the only thing that lifts a row or a chip, so the name boxes
@@ -495,7 +497,118 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           )}
         </div>
       )}
+      {data.project.doneWhen?.propertyId === property.id && (
+        <DonePanel property={property} canEdit={canEdit} />
+      )}
     </div>
+  );
+}
+
+/*
+ * Done when, set on the property that says it. Each press writes the whole
+ * list, worked out from the saved one, so a second press waits for the first
+ * answer rather than writing over it. The list on its way out is what the
+ * pills show until the answer lands. The bar a dated column draws counts done
+ * through the same answer, so what it sums sits here too.
+ */
+function DonePanel({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
+  const { data, send, refresh, notify } = useBoard();
+  const router = useRouter();
+  const saved = data.project.doneWhen?.optionIds ?? [];
+  const [sending, setSending] = useState<string[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const ticks = sending ?? saved;
+  /* The board cannot know what a point is, so the owner names a number
+     property, and none means each task counts one. */
+  const numbers = data.properties.filter((p) => p.type === "number");
+
+  async function save(patch: { doneWhen?: DoneWhen | null; progressBy?: string | null }) {
+    try {
+      await send.patch(`/api/projects/${data.project.id}`, patch);
+      await refresh();
+      router.refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not save.");
+    }
+  }
+
+  async function press(optionId: string) {
+    if (sending || saving) return;
+    const next = property.options
+      .map((o) => o.id)
+      .filter((id) => (id === optionId ? !saved.includes(id) : saved.includes(id)));
+    setSending(next);
+    try {
+      /* No option left is no answer, so the last one off turns Done when off. */
+      await save({ doneWhen: next.length ? { propertyId: property.id, optionIds: next } : null });
+    } finally {
+      setSending(null);
+    }
+  }
+
+  async function turnOff() {
+    if (sending || saving) return;
+    setSaving(true);
+    try {
+      await save({ doneWhen: null });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <RolePanel label="Done when" note="A done task frees what it blocks, fills progress and ships.">
+      {canEdit && (
+        <RoleRow label="Done when">
+          <Checkbox
+            role="switch"
+            label={`${property.name} says when a task is done`}
+            checked
+            disabled={saving || sending !== null}
+            onChange={() => void turnOff()}
+          />
+        </RoleRow>
+      )}
+      <RoleRow label="Counts as done">
+        <div
+          role="group"
+          aria-label="The options that say a task is done"
+          className={styles.rolePanelControl}
+        >
+          {property.options.map((o) => (
+            <Pill
+              key={o.id}
+              on={ticks.includes(o.id)}
+              disabled={!canEdit || sending !== null || saving}
+              onClick={() => void press(o.id)}
+            >
+              {o.name}
+            </Pill>
+          ))}
+        </div>
+      </RoleRow>
+      <RoleRow
+        label="Progress by"
+        note={
+          <>
+            What a dated column counts as done.
+            {numbers.length === 0 && " Add a number property to count by it."}
+          </>
+        }
+      >
+        <Select
+          aria-label="Progress by"
+          className={styles.fieldSelect}
+          value={data.project.progressBy ?? ""}
+          disabled={!canEdit || numbers.length === 0}
+          onChange={(picked) => void save({ progressBy: picked || null })}
+          options={[
+            { value: "", label: "Tasks" },
+            ...numbers.map((p) => ({ value: p.id, label: p.name })),
+          ]}
+        />
+      </RoleRow>
+    </RolePanel>
   );
 }
 

@@ -128,53 +128,6 @@ describe("Files", () => {
   });
 });
 
-/* Was "Settings picks the options with ticks" in `e2e/done-when.spec.ts`.
-   What the server makes of the list, and what it frees and archives, is
-   `release-route.test.ts`. */
-describe("Done when", () => {
-  test("Settings picks the options with ticks", async () => {
-    const data = newProject();
-    const status = data.properties.find((p) => p.name === "Status")!;
-    status.options.push({
-      ...status.options[0],
-      id: "00000000-0000-4000-8000-0000000000aa",
-      name: "Won't do",
-      position: "a9999999",
-    });
-    const id = (name: string) => status.options.find((o) => o.name === name)!.id;
-    const { sent } = await renderWithBoard(
-      <ProjectPanel files={false} />,
-      data,
-      projectRoute(data),
-    );
-    const patches = () => sent("PATCH", PROJECT);
-
-    await page.getByLabelText("The property that says a task is done").click();
-    await page.getByRole("option", { name: "Status" }).click();
-    const ticks = page.getByRole("group", { name: "The options that say a task is done" });
-    const tick = (name: string) => ticks.getByRole("checkbox", { name, exact: true });
-    await expect.poll(() => ticks.getByRole("checkbox").elements()).toHaveLength(6);
-
-    await tick("Done").click();
-    await expect.element(tick("Done")).toBeChecked();
-    await expect.element(tick("Done")).toBeEnabled();
-    await tick("Won't do").click();
-    await expect.element(tick("Won't do")).toBeChecked();
-    await expect.element(tick("Won't do")).toBeEnabled();
-    expect(patches().at(-1)!.body).toEqual({
-      doneWhen: { propertyId: status.id, optionIds: [id("Done"), id("Won't do")] },
-    });
-
-    // Taking every tick away leaves archived as the answer.
-    await tick("Done").click();
-    await expect.element(tick("Done")).toBeEnabled();
-    await tick("Won't do").click();
-    await expect.element(tick("Won't do")).not.toBeChecked();
-    await expect.element(tick("Won't do")).toBeEnabled();
-    expect(patches().at(-1)!.body).toEqual({ doneWhen: null });
-  });
-});
-
 /* The screen half of two tests of `e2e/changelog.spec.ts`. What the
    changelog holds, for a member, an agent and a stranger, is
    `release-route.test.ts`; one shipped walk stays end to end. */
@@ -398,16 +351,7 @@ describe("Settings on a laptop", () => {
     const data = releasesOn();
     const project = await renderWithBoard(<ProjectPanel files />, data);
     await expect.element(page.getByLabelText("Project name")).toBeVisible();
-    for (const label of [
-      "Name",
-      "Key",
-      "Time zone",
-      "Done when",
-      "Count progress by",
-      "Releases",
-      "Sprints",
-      "Public changelog",
-    ]) {
+    for (const label of ["Name", "Key", "Time zone", "Releases", "Sprints", "Public changelog"]) {
       expect(linesOf(label), `"${label}" takes ${linesOf(label)} lines`).toBe(1);
     }
     await project.screen.unmount();

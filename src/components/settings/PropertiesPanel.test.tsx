@@ -868,6 +868,138 @@ describe("The role strip", () => {
   });
 });
 
+describe("The Done when panel", () => {
+  const PROJECT = /^\/api\/projects\/[0-9a-f-]+$/;
+  const panel = () => propertyBox("Status").getByTestId("role-panel");
+  const pill = (name: string) => panel().getByRole("button", { name, exact: true });
+  const tiles = () =>
+    (byTestId("role-tile").elements() as HTMLElement[]).map((t) =>
+      [...t.children].map((c) => c.textContent).join(" "),
+    );
+
+  /** A new project whose Status says done at Done, with Won't do and a Points property. */
+  function doneBoard() {
+    const data = newProject();
+    const status = propertyOf(data, "Status");
+    status.options.push({
+      ...status.options[0],
+      id: "00000000-0000-4000-8000-0000000000aa",
+      name: "Won't do",
+      position: "a9999999",
+    });
+    data.properties.push({
+      ...status,
+      id: "00000000-0000-4000-8000-0000000000bb",
+      name: "Points",
+      type: "number",
+      position: "zz",
+      config: {},
+      options: [],
+    });
+    data.project.doneWhen = {
+      propertyId: status.id,
+      optionIds: [optionOf(data, "Status", "Done")],
+    };
+    return data;
+  }
+
+  /* The project route keeps what it is sent, and the board read answers it. */
+  const keeps =
+    (data: BoardData): Answer =>
+    ({ method, path, body }) => {
+      if (method === "PATCH" && PROJECT.test(path)) {
+        data.project = { ...data.project, ...(body as object) };
+        return { body: { project: data.project } };
+      }
+      return undefined;
+    };
+
+  test("the property that says done carries a switch, the done options and Progress by", async () => {
+    const data = doneBoard();
+    await renderWithBoard(<PropertiesPanel />, data, keeps(data));
+    await expect.element(panel()).toBeVisible();
+    await expect
+      .element(panel().getByRole("switch", { name: "Status says when a task is done" }))
+      .toBeChecked();
+    await expect.element(pill("Done")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(pill("Won't do")).toHaveAttribute("aria-pressed", "false");
+    await expect
+      .element(panel().getByLabelText("Progress by", { exact: true }))
+      .toHaveTextContent("Tasks");
+    expect(panel().element().textContent).toContain("What a dated column counts as done.");
+    expect(propertyBox("Status").element().textContent).toContain(
+      "A done task frees what it blocks, fills progress and ships.",
+    );
+    // No other property carries it.
+    expect(byTestId("role-panel").elements()).toHaveLength(1);
+  });
+
+  test("a pill press saves at once, and the last one off turns Done when off", async () => {
+    const data = doneBoard();
+    const status = propertyOf(data, "Status");
+    const id = (name: string) => optionOf(data, "Status", name);
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, keeps(data));
+    const patches = () => sent("PATCH", PROJECT);
+
+    await pill("Won't do").click();
+    await expect.poll(() => patches().length).toBe(1);
+    expect(patches()[0].body).toEqual({
+      doneWhen: { propertyId: status.id, optionIds: [id("Done"), id("Won't do")] },
+    });
+    await expect.element(pill("Won't do")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(pill("Won't do")).toBeEnabled();
+
+    await pill("Done").click();
+    await expect.poll(() => patches().length).toBe(2);
+    expect(patches()[1].body).toEqual({
+      doneWhen: { propertyId: status.id, optionIds: [id("Won't do")] },
+    });
+    await expect.element(pill("Won't do")).toBeEnabled();
+
+    await pill("Won't do").click();
+    await expect.poll(() => patches().length).toBe(3);
+    expect(patches()[2].body).toEqual({ doneWhen: null });
+    await gone(byTestId("role-panel"));
+    expect(tiles()[1]).toBe("Done when Not set Only archived tasks are done. Pick ▾");
+  });
+
+  test("the switch off saves no Done when, and the tile reads Not set", async () => {
+    const data = doneBoard();
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, keeps(data));
+    await panel().getByRole("switch", { name: "Status says when a task is done" }).click();
+    await expect.poll(() => sent("PATCH", PROJECT).length).toBe(1);
+    expect(sent("PATCH", PROJECT)[0].body).toEqual({ doneWhen: null });
+    await gone(byTestId("role-panel"));
+    expect(tiles()[1]).toBe("Done when Not set Only archived tasks are done. Pick ▾");
+  });
+
+  test("Progress by saves progressBy from the panel", async () => {
+    const data = doneBoard();
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, keeps(data));
+    const box = panel().getByLabelText("Progress by", { exact: true });
+    await box.click();
+    await page.getByRole("option", { name: "Points", exact: true }).click();
+    await expect.poll(() => sent("PATCH", PROJECT).length).toBe(1);
+    expect(sent("PATCH", PROJECT)[0].body).toEqual({ progressBy: propertyOf(data, "Points").id });
+    await expect.element(box).toHaveTextContent("Points");
+  });
+
+  test("a member reads the panel with no switch, and cannot change it", async () => {
+    const data = doneBoard();
+    data.project.role = "member";
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, keeps(data));
+    await expect.element(panel()).toBeVisible();
+    expect(panel().getByRole("switch").elements()).toHaveLength(0);
+    for (const name of ["Done", "Won't do"]) await expect.element(pill(name)).toBeDisabled();
+    await expect.element(pill("Done")).toHaveAttribute("aria-pressed", "true");
+    const box = panel().getByLabelText("Progress by", { exact: true });
+    await expect.element(box).toBeDisabled();
+    await box.click({ force: true });
+    await pause(100);
+    expect(sent("PATCH", PROJECT)).toHaveLength(0);
+  });
+});
+
 describe("The page note and the grips", () => {
   test("the notes say what the page is, and the grip says what a drag does", async () => {
     const data = newProject();

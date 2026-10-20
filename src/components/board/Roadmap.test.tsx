@@ -438,12 +438,12 @@ describe("A roadmap", () => {
       await expect
         .element(ask("Beta").getByTestId("ship-confirm"))
         .toHaveTextContent(
-          "Nothing counts as over yet. Say which Status means done in Settings → Project.",
+          "Nothing counts as over yet. Say which Status means done in Settings → Properties.",
         );
       expect(answers("Beta")).toEqual(["Cancel"]);
       await expect
         .element(ask("Beta").getByRole("link", { name: "Open Settings" }))
-        .toHaveAttribute("href", `/p/${data.project.id}/settings/project`);
+        .toHaveAttribute("href", `/p/${data.project.id}/settings/properties`);
       expect(sent("POST", /\/ship$/)).toHaveLength(0);
     });
 

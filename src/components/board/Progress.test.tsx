@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { ProjectPanel } from "@/components/settings/ProjectPanel";
+import { PropertiesPanel } from "@/components/settings/PropertiesPanel";
 import type { BoardData, PropertyDTO } from "@/lib/types";
 import {
   newProject,
@@ -142,7 +142,7 @@ describe("A dated column reads as a release", () => {
     const data = releaseBoard();
     const { sent } = await renderWithBoard(
       <>
-        <ProjectPanel files={false} />
+        <PropertiesPanel />
         <BoardShell initialTask={null} />
       </>,
       data,
@@ -151,7 +151,7 @@ describe("A dated column reads as a release", () => {
     const patches = () => sent("PATCH", /^\/api\/projects\/[0-9a-f-]+$/);
     const v1 = () => column("v1");
 
-    const box = page.getByLabelText("Count progress by");
+    const box = page.getByLabelText("Progress by", { exact: true });
     await box.click();
     await page.getByRole("option", { name: "Points", exact: true }).click();
     await expect.poll(() => patches().length).toBe(1);
@@ -334,13 +334,13 @@ describe("Ship on a column", () => {
     await expect
       .element(ask.getByTestId("ship-confirm"))
       .toHaveTextContent(
-        "Nothing counts as over yet. Say which Status means done in Settings → Project.",
+        "Nothing counts as over yet. Say which Status means done in Settings → Properties.",
       );
     // No answer is offered, so nothing can ship from here.
     expect(buttons("Ship v1")).toEqual(["Cancel"]);
     await expect
       .element(ask.getByRole("link", { name: "Open Settings" }))
-      .toHaveAttribute("href", `/p/${data.project.id}/settings/project`);
+      .toHaveAttribute("href", `/p/${data.project.id}/settings/properties`);
     await ask.getByRole("button", { name: "Cancel" }).click();
     await gone(ask);
     expect(sent("POST", /\/ship$/)).toHaveLength(0);

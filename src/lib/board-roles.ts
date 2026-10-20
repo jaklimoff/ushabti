@@ -94,3 +94,12 @@ export function rolesOf(
 
 /** The id a property row carries, so a tile can find it. */
 export const propertyAnchor = (propertyId: string) => `prop-${propertyId}`;
+
+/**
+ * Where Done when is set: the property's row on Properties when one is
+ * known, else the page, whose strip turns it on.
+ */
+export function doneSettingsHref(projectId: string, propertyId?: string | null): string {
+  const page = `/p/${projectId}/settings/properties`;
+  return propertyId ? `${page}#${propertyAnchor(propertyId)}` : page;
+}

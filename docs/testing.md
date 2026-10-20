@@ -131,7 +131,7 @@ four workers at most.
 | `comment-delete.spec.ts` | 1 | done (USH-272) |  | 1 |  | 1 |  | Who may delete is a route answer. The question went to the comment component tests as a test of its own, the screen half of the same e2e test. |
 | `comment-edit.spec.ts` | 7 | done (USH-272) | 2 | 4 |  | 1 |  | Keep the save that crossed a newer one. The box's keys and its closed tab are the component. The plan kept 1, but the walk that edits and reaches the other panel carries `@smoke` and stays. |
 | `composer.spec.ts` | 2 | done (USH-271) |  | 2 |  |  |  | How the composer grows is layout, which Browser Mode has. |
-| `done-when.spec.ts` | 6 | done (USH-280) |  | 1 |  | 5 |  | What frees a blocker and what Ship archives are server answers, in `release-route.test.ts`; the ticks are `ProjectPanel.test.tsx`. The file is gone. |
+| `done-when.spec.ts` | 6 | done (USH-280) |  | 1 |  | 5 |  | What frees a blocker and what Ship archives are server answers, in `release-route.test.ts`; the ticks are `PropertiesPanel.test.tsx`, on the property's role panel. The file is gone. |
 | `drop-hidden.spec.ts` | 13 | done (USH-277) | 1 | 6 |  | 6 |  | Keep the writes that land at once. The questions are the panel and the bar; the drops are the routes. A rule written in Settings is a component test: its drop is the routes' and already held there, and what is left is the question with the count (USH-277). |
 | `editing-sign.spec.ts` | 2 | done (USH-272) | 1 | 1 |  |  |  | Keep two editors on one task. The phone line is layout; the other tabs speak through the stubbed stream. |
 | `editor-open.spec.ts` | 3 | keep | 2 | 1 |  |  |  | Which chunk loads when needs the production build. |

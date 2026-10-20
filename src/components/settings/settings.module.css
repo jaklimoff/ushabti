@@ -2112,12 +2112,6 @@ div.hookRow {
 }
 
 /* The ticks of Done when: as many as the property has options, so they wrap. */
-.doneOptions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-}
-
 /* The rail while the page loads: no item is a link yet, so none lights. */
 .railLoading .railItem:hover {
   background: none;
@@ -2280,6 +2274,64 @@ div.hookRow {
   .roleOffTile:nth-child(2n) .rolePop {
     left: auto;
     right: 0;
+  }
+}
+
+/* A role set on its property: an inset block under the options, a faint
+   tint of the accent and no border, so it reads as part of the row. */
+.rolePanelWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 13px 14px 47px;
+}
+
+.rolePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--accent-wash);
+}
+
+.rolePanelRow {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.rolePanelLabel {
+  padding-top: 2px;
+}
+
+.rolePanelControl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rolePanelRowNote {
+  flex-basis: 100%;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+.rolePanelNote {
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+@media (max-width: 620px) {
+  .rolePanelWrap {
+    padding: 0 13px 12px;
+  }
+
+  .rolePanelRow {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

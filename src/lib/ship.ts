@@ -132,7 +132,7 @@ function isEmpty(value: unknown): boolean {
  * then, so the question would offer to archive nothing.
  */
 export const NOTHING_OVER =
-  "Nothing counts as over yet. Say which Status means done in Settings → Project.";
+  "Nothing counts as over yet. Say which Status means done in Settings → Properties.";
 
 /**
  * The question a ship asks, in real numbers. `counts` is false when the

@@ -4,6 +4,7 @@ import { card, column, createProject, inDatabase, register, unique } from "./hel
 type Page = import("@playwright/test").Page;
 
 type Board = {
+  project: { doneWhen: { propertyId: string; optionIds: string[] } | null };
   properties: {
     id: string;
     name: string;
@@ -230,7 +231,8 @@ test.describe("Ship on a roadmap row", () => {
       data: { doneWhen: null },
     });
     expect(cleared.ok()).toBeTruthy();
-    const said = "Nothing counts as over yet. Say which Status means done in Settings → Project.";
+    const said =
+      "Nothing counts as over yet. Say which Status means done in Settings → Properties.";
 
     await page.reload();
     await column(page, "v1").getByRole("button", { name: "Ship v1" }).click();
@@ -244,7 +246,7 @@ test.describe("Ship on a roadmap row", () => {
     await expect(ask.getByTestId("ship-confirm")).toHaveText(said);
     await expect(ask.getByRole("link", { name: "Open Settings" })).toHaveAttribute(
       "href",
-      `/p/${projectId}/settings/project`,
+      `/p/${projectId}/settings/properties`,
     );
     await page.screenshot({ path: testInfo.outputPath("seen-roadmap-no-done-when.png") });
     await expect(ask.getByRole("button", { name: /Leave them|Move|Clear|Yes/ })).toHaveCount(0);
@@ -293,18 +295,45 @@ test.describe("Ship on a roadmap row", () => {
   });
 });
 
-test("a new project's Settings → Project says Done when is Status, Done", async ({
+test("a new project's Status carries Done when on Properties, and a pill saves it", async ({
   page,
 }, testInfo) => {
   await register(page);
   const projectId = await createProject(page, unique("Done"));
-  await page.goto(`/p/${projectId}/settings/project`);
+  await page.goto(`/p/${projectId}/settings/properties`);
 
-  await expect(page.getByLabel("The property that says a task is done")).toContainText("Status");
-  const ticks = page.getByRole("group", { name: "The options that say a task is done" });
-  await expect(ticks.getByRole("checkbox")).toHaveCount(5);
-  await expect(ticks.getByRole("checkbox", { name: "Done" })).toBeChecked();
-  await expect(ticks.getByRole("checkbox", { checked: true })).toHaveCount(1);
-  await ticks.scrollIntoViewIfNeeded();
+  const panel = page.getByTestId("role-panel");
+  await expect(panel).toHaveCount(1);
+  await expect(
+    panel.getByRole("switch", { name: "Status says when a task is done" }),
+  ).toBeChecked();
+  const pills = panel.getByRole("group", { name: "The options that say a task is done" });
+  await expect(pills.getByRole("button")).toHaveCount(5);
+  await expect(pills.getByRole("button", { name: "Done", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(pills.getByRole("button", { pressed: true })).toHaveCount(1);
+  await expect(panel.getByLabel("Progress by", { exact: true })).toContainText("Tasks");
+  await expect(page.getByText("Count progress by")).toHaveCount(0);
+
+  const ready = pills.getByRole("button", { name: "Ready", exact: true });
+  await ready.click();
+  await expect(ready).toHaveAttribute("aria-pressed", "true");
+  await expect(ready).toBeEnabled();
+  const { project, properties }: Board = await (
+    await page.request.get(`/api/projects/${projectId}/board`)
+  ).json();
+  const status = properties.find((p) => p.name === "Status")!;
+  expect(project.doneWhen).toEqual({
+    propertyId: status.id,
+    optionIds: ["Ready", "Done"].map((n) => status.options.find((o) => o.name === n)!.id),
+  });
+  await panel.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("seen-new-project-done-when.png") });
+
+  await page.goto(`/p/${projectId}/settings/project`);
+  await expect(page.getByRole("switch", { name: "Use releases" })).toBeVisible();
+  await expect(page.getByText("Done when", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Count progress by")).toHaveCount(0);
 });
