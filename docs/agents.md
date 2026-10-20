@@ -771,7 +771,7 @@ POST /api/tasks/{taskId}/run
 The answer is `{ "run": …, "rules": { "text": "…", "hash": "…" } }`.
 
 `rules` is how to work on this board: Markdown that the owner or an admin
-writes in **Settings → Project → Agent rules**. No field on a task is fixed, so
+writes in **Settings → People → Rules for every agent**. No field on a task is fixed, so
 only the project can say which option means review, when to ask a person, what
 an estimate means and what done means. **Obey it**, and read it before you set
 a property. `text` is empty when the project wrote none. `hash` names the

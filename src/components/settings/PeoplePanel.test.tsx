@@ -475,3 +475,107 @@ describe("A member row on a phone", () => {
     }
   });
 });
+
+/*
+ * The rules every agent reads sit under the agents, where an admin sets one
+ * up. Who may write them, and that a claim carries them, are the route
+ * tests' half.
+ */
+describe("Rules for every agent", () => {
+  const PROJECT = /^\/api\/projects\/[0-9a-f-]+$/;
+  const box = () => page.getByLabelText("Agent rules", { exact: true });
+
+  /* The project route answers a patch; the board read after it carries it. */
+  function rulesRoute(data: BoardData): Answer {
+    const agents = agentsRoute([]);
+    let project = data.project;
+    return (sent) => {
+      if (sent.method === "PATCH" && PROJECT.test(sent.path)) {
+        project = { ...project, ...(sent.body as object) };
+        return { body: { project } };
+      }
+      if (sent.method === "GET" && sent.path.endsWith("/board")) {
+        return { body: { ...data, project } };
+      }
+      return agents(sent);
+    };
+  }
+
+  async function drawRules(data: BoardData = newProject()) {
+    const drawn = await renderWithBoard(<PeoplePanel mail={false} />, data, rulesRoute(data));
+    return { ...drawn, patches: () => drawn.sent("PATCH", PROJECT) };
+  }
+
+  test("they sit after the agents, and the field saves on blur", async () => {
+    const { patches } = await drawRules();
+    await expect
+      .poll(() =>
+        page
+          .getByRole("heading", { level: 2 })
+          .elements()
+          .map((h) => h.textContent),
+      )
+      .toEqual(["Members", "Agents", "Rules for every agent"]);
+
+    const rules = "Review means the option Done.\nAsk a person before you estimate.";
+    await box().fill(rules);
+    await expect
+      .element(page.getByTestId("agent-rules-count"))
+      .toHaveTextContent(`${rules.length} / 2,000 characters`);
+    await expect
+      .element(
+        page.getByText("Every agent reads this when it claims a task, and obeys it.", {
+          exact: false,
+        }),
+      )
+      .toBeVisible();
+    expect(patches()).toHaveLength(0);
+
+    (box().element() as HTMLTextAreaElement).blur();
+    await expect.poll(() => patches().length).toBe(1);
+    expect(patches()[0].body).toEqual({ agentRules: rules });
+
+    // One change, one write: a focus and a blur that changed nothing send none.
+    (box().element() as HTMLTextAreaElement).focus();
+    (box().element() as HTMLTextAreaElement).blur();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(patches()).toHaveLength(1);
+  });
+
+  test("a long text says that every run carries it", async () => {
+    await drawRules();
+    await box().fill("x".repeat(2100));
+    await expect
+      .element(
+        page.getByText("Every run carries the whole text, so a shorter one costs less.", {
+          exact: false,
+        }),
+      )
+      .toBeVisible();
+  });
+
+  test("the rules are saved although the tab was closed on the box", async () => {
+    const { patches } = await drawRules();
+    await box().fill("Done means merged.");
+
+    // The box still has the focus. A closed tab raises pagehide and no blur.
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    await expect.poll(() => patches().length).toBe(1);
+    expect(patches()[0].body).toEqual({ agentRules: "Done means merged." });
+    // Only a keepalive request outlives the page that sent it.
+    const leave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(leave?.[1]?.keepalive).toBe(true);
+  });
+
+  test("a member reads them and cannot change them", async () => {
+    const data = newProject();
+    data.project.role = "member";
+    data.project.agentRules = "Done means merged.";
+    await drawRules(data);
+    await expect.element(box()).toHaveValue("Done means merged.");
+    await expect.element(box()).toBeDisabled();
+    await expect
+      .element(page.getByText("Only the owner or an admin can change the agent rules."))
+      .toBeVisible();
+  });
+});

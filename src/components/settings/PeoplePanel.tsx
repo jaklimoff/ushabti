@@ -21,6 +21,7 @@ import {
   type Role,
 } from "@/lib/roles";
 import { isListening } from "@/lib/presence";
+import { AGENT_RULES_MAX, AGENT_RULES_SOFT, rulesCount } from "@/lib/agent-rules";
 import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -34,6 +35,7 @@ import {
   Input,
   Label,
   Select,
+  TextArea,
 } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, EmptyState, Foot, FootNote, Note, Row, Section, Tag } from "@/components/ui/Layout";
@@ -79,6 +81,7 @@ export function PeoplePanel({ mail }: { mail: boolean }) {
       />
       <Members mail={mail} />
       <Agents agents={agents} reload={loadAgents} />
+      <AgentRules />
     </>
   );
 }
@@ -1152,4 +1155,86 @@ function relativeDay(iso: string): string {
   if (days <= 0) return "today";
   if (days === 1) return "yesterday";
   return `${days} days ago`;
+}
+
+/* ------------------------------------------------------------------ */
+
+/*
+ * How an agent works on this board. No field is hardcoded, so only the
+ * project can say which option means review or what done means. The text
+ * goes into every run, which is what the count under it is for. It sits
+ * under the agents because that is where an admin sets one up.
+ */
+function AgentRules() {
+  const { data, notify, refresh, send } = useBoard();
+  const canEdit = canManage(data.project.role);
+  /* A person always reads the rules on the board; only an agent's is null. */
+  const savedRules = data.project.agentRules ?? "";
+  const [rules, setRules] = useState(savedRules);
+  const [typedRules, setTypedRules] = useState(false);
+  const url = `/api/projects/${data.project.id}`;
+
+  /* Unlike a name, the rules may be emptied on purpose, so an empty box is an
+     edit too. A blur saves it; a closed tab sends no blur, so the same answer
+     goes out on the way off the page. */
+  const rulesEdit = typedRules && rules.trim() !== savedRules ? rules.trim() : null;
+  useSaveOnLeave(() =>
+    rulesEdit !== null ? { method: "PATCH", url, body: { agentRules: rulesEdit } } : null,
+  );
+
+  async function save(agentRules: string) {
+    try {
+      await send.patch(url, { agentRules });
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not save.");
+      setRules(savedRules);
+    }
+  }
+
+  return (
+    <Section title="Rules for every agent">
+      <Card>
+        <Row>
+          <Field
+            label="Agent rules"
+            inline
+            note={
+              <>
+                <span data-testid="agent-rules-count">{rulesCount(rules)}</span>
+                {rules.length > AGENT_RULES_SOFT
+                  ? ". Every run carries the whole text, so a shorter one costs less."
+                  : ". Markdown. Every agent reads this when it claims a task, and obeys it."}
+              </>
+            }
+          >
+            <TextArea
+              className={styles.rulesBox}
+              aria-label="Agent rules"
+              rows={8}
+              value={rules}
+              maxLength={AGENT_RULES_MAX}
+              disabled={!canEdit}
+              placeholder={
+                "Which option means review, when to ask a person, what an estimate means, what done means."
+              }
+              onChange={(e) => {
+                setRules(e.target.value);
+                setTypedRules(true);
+              }}
+              onBlur={() => {
+                setTypedRules(false);
+                if (rulesEdit !== null) void save(rulesEdit);
+              }}
+            />
+          </Field>
+        </Row>
+        {!canEdit && (
+          <Row>
+            <Note>Only the owner or an admin can change the agent rules.</Note>
+          </Row>
+        )}
+      </Card>
+    </Section>
+  );
 }

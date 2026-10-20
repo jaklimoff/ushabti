@@ -20,11 +20,14 @@ test.describe("Settings pages", () => {
     for (const group of ["General", "Shape", "Integrations"]) {
       await expect(rail.getByRole("group", { name: group })).toBeVisible();
     }
-    // A new project has no types, and none reads as nothing.
-    await expect(rail.getByRole("link", { name: "Types", exact: true })).toBeVisible();
-    for (const title of ["General", "Agents", "Danger zone"]) {
+    // The types are ticked on their property, so the menu has no Types page.
+    await expect(rail.getByRole("link", { name: "Types", exact: true })).toHaveCount(0);
+    for (const title of ["General", "Danger zone"]) {
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     }
+    // The agent rules are on People, under the agents.
+    await expect(page.getByRole("heading", { name: "Agents", exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Agent rules", { exact: true })).toHaveCount(0);
     // Sprints are switched on their property now, on Properties.
     await expect(page.getByRole("heading", { name: "Work", exact: true })).toHaveCount(0);
     await expect(page.getByRole("switch", { name: /sprints/i })).toHaveCount(0);
@@ -36,6 +39,26 @@ test.describe("Settings pages", () => {
     await expect(page.getByLabel("Type the project key to confirm")).toBeFocused();
     await page.screenshot({ path: testInfo.outputPath("seen-project.png"), fullPage: true });
     await page.getByRole("button", { name: "Cancel" }).click();
+  });
+
+  test("People holds the rules for every agent, under the agents", async ({ page }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Rules"));
+    await gotoSettings(page, projectId, "people");
+
+    const headings = page.getByRole("heading", { level: 2 });
+    await expect(headings).toHaveText(["Members", "Agents", "Rules for every agent"]);
+    const box = page.getByLabel("Agent rules", { exact: true });
+    const saved = page.waitForResponse(
+      (r) => r.request().method() === "PATCH" && r.url().endsWith(`/api/projects/${projectId}`),
+    );
+    await box.fill("Done means merged.");
+    await box.blur();
+    expect((await saved).ok()).toBe(true);
+
+    await page.reload();
+    await expect(box).toHaveValue("Done means merged.");
+    await page.screenshot({ path: testInfo.outputPath("seen-people-rules.png"), fullPage: true });
   });
 
   test("an off role is turned on from its tile on Properties", async ({ page }, testInfo) => {

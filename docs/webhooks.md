@@ -32,7 +32,7 @@ you leave the box. Delete asks in its own row first.
 them. A change that writes no feed line — a view, a property, the card view —
 rings nothing.
 
-**`rules` rings when an admin changes the agent rules** in Settings → Project.
+**`rules` rings when an admin changes the agent rules** in Settings → People.
 It is a line about the project, so `taskId` and `taskKey` are null, and like
 every ring it carries no data: the new text and its hash are on the feed line.
 Read them from `/activity`.

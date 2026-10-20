@@ -7,10 +7,9 @@ import { ProjectPanel } from "./ProjectPanel";
 import { SettingsShell } from "./SettingsShell";
 
 /*
- * The Agent rules box of Settings -> Project: what it counts and what it
- * sends. Each test here was a test of `e2e/agent-rules.spec.ts`. Who may write
- * the rules, and that a claim carries them, are the route tests' half. The
- * Files and Export rows below name the specs they came from.
+ * What Settings -> Project draws and sends. The agent rules moved to People,
+ * and their tests with them. The Files and Export rows below name the specs
+ * they came from.
  */
 
 const PROJECT = /^\/api\/projects\/[0-9a-f-]+$/;
@@ -38,47 +37,6 @@ async function draw() {
 async function wrote(writes: () => Sent[], count: number) {
   await expect.poll(() => writes().length).toBe(count);
 }
-
-const box = () => page.getByLabelText("Agent rules", { exact: true });
-
-describe("Agent rules", () => {
-  /* The screen half of "an admin writes them; the claim carries them, and step
-     and beat do not". The claim, the step and the beat are route answers. */
-  test("an admin writes them, and the field saves on blur", async () => {
-    const { patches } = await draw();
-    const rules = "Review means the option Done.\nAsk a person before you estimate.";
-
-    await box().fill(rules);
-    await expect
-      .element(page.getByTestId("agent-rules-count"))
-      .toHaveTextContent(`${rules.length} / 2,000 characters`);
-    expect(patches()).toHaveLength(0);
-
-    (box().element() as HTMLTextAreaElement).blur();
-    await wrote(patches, 1);
-    expect(patches()[0].body).toEqual({ agentRules: rules });
-
-    // One change, one write: a focus and a blur that changed nothing send none.
-    (box().element() as HTMLTextAreaElement).focus();
-    (box().element() as HTMLTextAreaElement).blur();
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(patches()).toHaveLength(1);
-  });
-
-  // Was "the rules are saved although the tab was closed on the box".
-  test("the rules are saved although the tab was closed on the box", async () => {
-    const { patches } = await draw();
-    await box().fill("Done means merged.");
-
-    // The box still has the focus. A closed tab raises pagehide and no blur.
-    window.dispatchEvent(new PageTransitionEvent("pagehide"));
-    await wrote(patches, 1);
-    expect(patches()[0].body).toEqual({ agentRules: "Done means merged." });
-    // Only a keepalive request outlives the page that sent it.
-    const leave = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === "PATCH");
-    expect(leave?.[1]?.keepalive).toBe(true);
-  });
-});
 
 /* The native popup cannot be driven, so the list it is drawn from is the
    check. That the browser offers Europe/Berlin for "Berlin" is its own. */
@@ -324,7 +282,9 @@ describe("Settings on a laptop", () => {
           .elements()
           .map((h) => h.textContent),
       )
-      .toEqual(["General", "Agents", "Danger zone"]);
+      .toEqual(["General", "Danger zone"]);
+    // The agent rules are on People now.
+    expect(page.getByLabelText("Agent rules", { exact: true }).elements()).toHaveLength(0);
   });
 
   /* "Public changelog" is drawn only while releases are on (USH-226), so the
