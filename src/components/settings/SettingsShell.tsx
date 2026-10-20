@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
@@ -34,6 +34,12 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
   const { data, user, toasts } = useBoard();
   const pathname = usePathname();
   const base = `/p/${data.project.id}/settings`;
+  /* The view the board was on when Settings opened. It rides in the address
+     so a reload keeps it, and the rail hands it on. A view that is gone
+     reads as no view at all. */
+  const fromId = useSearchParams().get("from");
+  const from = data.views.find((v) => v.id === fromId) ?? null;
+  const carry = from ? `?from=${encodeURIComponent(from.id)}` : "";
   const rail = useRef<HTMLElement>(null);
   const [more, setMore] = useState(false);
 
@@ -109,7 +115,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
 
   return (
     <div className={styles.page}>
-      <ProjectBar project={data.project} here="Settings" user={user} />
+      <ProjectBar project={data.project} here="Settings" user={user} back={from} />
 
       <div className={styles.shell}>
         <nav
@@ -135,7 +141,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
                 return (
                   <Link
                     key={item.slug}
-                    href={href}
+                    href={href + carry}
                     aria-current={on ? "page" : undefined}
                     className={`${styles.railItem} ${on ? styles.railOn : ""}`}
                   >

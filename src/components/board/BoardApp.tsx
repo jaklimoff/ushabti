@@ -225,7 +225,7 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
             )}
             <AppAction
               className={styles.iconLink}
-              href={`/p/${data.project.id}/settings/properties`}
+              href={`/p/${data.project.id}/settings/properties${view ? `?from=${encodeURIComponent(view.id)}` : ""}`}
               title="Project settings"
             >
               Settings

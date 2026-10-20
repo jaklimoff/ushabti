@@ -15,16 +15,19 @@ import styles from "./ui.module.css";
  * leads Home, so the Ushabti mark comes back only where no sidebar is drawn. It says where you are, and it
  * always offers the way back. The name switches
  * projects, as it does on the board; **Back to board** is the one way back,
- * so the name is not a second one.
+ * so the name is not a second one. Settings names the view it was opened
+ * from instead, so the way back lands where the person left.
  */
 export function ProjectBar({
   project,
   here,
   user,
+  back,
 }: {
   project: { id: string; key: string; name: string; color?: string };
   here: string;
   user: SessionUser;
+  back?: { id: string; name: string } | null;
 }) {
   return (
     <AppBar
@@ -40,7 +43,15 @@ export function ProjectBar({
         </SidebarMark>,
         <AppCrumb key="here">{here}</AppCrumb>,
       ]}
-      actions={<AppAction href={`/p/${project.id}`}>Back to board</AppAction>}
+      actions={
+        back ? (
+          <AppAction href={`/p/${project.id}?view=${encodeURIComponent(back.id)}`}>
+            Back to {back.name}
+          </AppAction>
+        ) : (
+          <AppAction href={`/p/${project.id}`}>Back to board</AppAction>
+        )
+      }
     />
   );
 }
