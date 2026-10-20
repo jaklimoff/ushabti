@@ -307,7 +307,6 @@ function MemberRow({
   const { notify, send } = useBoard();
   const confirm = useConfirm();
   const reset = useConfirm();
-  const handOver = useConfirm();
   /** The link, held until the person leaves the page, as a token is. */
   const [link, setLink] = useState<{ link: string; emailed: boolean } | null>(null);
 
@@ -333,17 +332,6 @@ function MemberRow({
         confirmLabel={isSelf ? "Yes, leave" : "Yes, remove"}
         onConfirm={() => confirm.confirm(onRemove)}
         onCancel={confirm.cancel}
-      />
-    );
-  }
-
-  if (handOver.asking) {
-    return (
-      <ConfirmRow
-        question={`Make ${member.name} the owner? You become an admin.`}
-        confirmLabel="Yes, make owner"
-        onConfirm={() => handOver.confirm(() => onRole("owner"))}
-        onCancel={handOver.cancel}
       />
     );
   }
@@ -377,17 +365,13 @@ function MemberRow({
         <span className={styles.memberMeta}>
           <span className={styles.memberRole}>
             {roles.length > 0 ? (
-              /* Saves on change. Only the hand-over asks first, because it is
-                 the one change that takes something from the person making it. */
+              /* Saves on change. The hand-over is not here: it is the
+                 danger zone's, where it asks first. */
               <Select
                 aria-label={`Role of ${member.name}`}
                 block
                 value={member.role}
-                onChange={(picked) => {
-                  const next = picked as Role;
-                  if (next === "owner") handOver.ask();
-                  else onRole(next);
-                }}
+                onChange={(picked) => onRole(picked as Role)}
                 options={roles.map((role) => ({ value: role, label: roleWord(role) }))}
               />
             ) : (

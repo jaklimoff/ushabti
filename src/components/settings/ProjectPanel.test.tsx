@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
-import { ME, newProject, renderWithBoard, withTask, type Answer, type Sent } from "@/test/board";
+import {
+  ME,
+  newProject,
+  renderWithBoard,
+  withPerson,
+  withTask,
+  type Answer,
+  type Sent,
+} from "@/test/board";
 import { FILES_OFF_NOTE } from "@/lib/attachments";
 import { BoardShell } from "@/components/board/BoardApp";
 import { ProjectPanel } from "./ProjectPanel";
@@ -283,6 +291,19 @@ describe("Settings on a laptop", () => {
           .map((h) => h.textContent),
       )
       .toEqual(["General", "Danger zone"]);
+  });
+
+  test("with releases on, the page reads General, Sharing, Danger zone", async () => {
+    // A server with no bucket says so inside General, not under a heading of its own.
+    await renderWithBoard(<ProjectPanel files={false} />, releasesOn());
+    await expect
+      .poll(() =>
+        page
+          .getByRole("heading", { level: 2 })
+          .elements()
+          .map((h) => h.textContent),
+      )
+      .toEqual(["General", "Sharing", "Danger zone"]);
     // The agent rules are on People now.
     expect(page.getByLabelText("Agent rules", { exact: true }).elements()).toHaveLength(0);
   });
@@ -336,5 +357,66 @@ describe("Project colour", () => {
     data.project.role = "member";
     await renderWithBoard(<ProjectPanel files />, data, projectRoute(data));
     await expect.element(page.getByRole("radio", { name: "Pink" })).toBeDisabled();
+  });
+});
+
+/* The screen half of the hand-over. What the route writes, the old owner
+   made an admin in the same transaction, is `people-route.test.ts`. */
+describe("Hand over", () => {
+  const pick = () => page.getByLabelText("The admin to hand the project to");
+
+  test("the owner picks an admin, is asked in place, and yes sends the PATCH", async () => {
+    const data = newProject();
+    withPerson(data, "Mo Member");
+    const nia = withPerson(data, "Nia Next", "admin");
+    const { sent } = await renderWithBoard(<ProjectPanel files />, data, ({ method, path }) => {
+      if (method === "PATCH" && path.endsWith(`/members/${nia.id}`)) {
+        nia.role = "owner";
+        data.members[0].role = "admin";
+        data.project.role = "admin";
+        data.project.ownerId = nia.id;
+        return { body: {} };
+      }
+    });
+    await expect
+      .element(page.getByText("The new owner can delete the project. You stay an admin."))
+      .toBeVisible();
+
+    await pick().click();
+    // Only the admins: a member is not offered.
+    expect(page.getByRole("option", { name: "Mo Member" }).elements()).toHaveLength(0);
+    await page.getByRole("option", { name: "Nia Next" }).click();
+    await expect
+      .element(page.getByText("Make Nia Next the owner? You become an admin."))
+      .toBeVisible();
+    expect(sent("PATCH")).toEqual([]);
+
+    await page.getByRole("button", { name: "Yes, hand it over" }).click();
+    await expect
+      .poll(() => sent("PATCH").map((s) => [s.path, s.body]))
+      .toEqual([[`/api/projects/${data.project.id}/members/${nia.id}`, { role: "owner" }]]);
+    // An admin has no danger zone.
+    await expect
+      .element(page.getByRole("heading", { name: "Danger zone" }))
+      .not.toBeInTheDocument();
+  });
+
+  test("Cancel sends nothing and puts the select back", async () => {
+    const data = newProject();
+    withPerson(data, "Nia Next", "admin");
+    const { sent } = await renderWithBoard(<ProjectPanel files />, data);
+    await pick().click();
+    await page.getByRole("option", { name: "Nia Next" }).click();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect.element(pick()).toBeVisible();
+    expect(sent("PATCH")).toEqual([]);
+  });
+
+  test("with no admin the select is off and says why", async () => {
+    const data = newProject();
+    withPerson(data, "Mo Member");
+    await renderWithBoard(<ProjectPanel files />, data);
+    await expect.element(pick()).toBeDisabled();
+    await expect.element(page.getByText("Make somebody an admin first.")).toBeVisible();
   });
 });

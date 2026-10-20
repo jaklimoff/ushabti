@@ -17,6 +17,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- Settings → Project holds General, Sharing and the danger zone. The owner hands the project to an admin from the danger zone, after a question in place, and the role select on People no longer offers Owner.
 - The rules every agent reads sit on People, under the agents, as **Rules for every agent**. Project no longer holds them.
 - People shows each agent folded to one line: its face, its name, what it may do, how many tokens it has, and **Listening** or **Silent**. Click the line to open the switches, the tokens and the name, with **Remove** at the foot. An agent just added opens at once.
 - The property that holds the types shows a grid on Properties: every property down the side, every type across the top, and a tick where it shows. Unticking asks first with the count, a ticked cell says what a new task starts as, and its switch turns types off.

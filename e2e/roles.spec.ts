@@ -9,7 +9,7 @@ async function addMember(page: Page, email: string, name: string) {
 }
 
 /* What an admin and an agent may do is `people-route.test.ts`; the question
-   before Make owner is `PeoplePanel.test.tsx`. */
+   before a hand-over is `ProjectPanel.test.tsx`. */
 test.describe("Roles", () => {
   test(
     "a member adds a property and an option but deletes none; so does an agent",

@@ -83,7 +83,11 @@ export function roleChangeRefusal(change: {
   return null;
 }
 
-/** The roles a select on this row may offer; empty when it draws no select. */
+/**
+ * The roles a select on a People row may offer; empty when it draws no
+ * select. Never "owner": the hand-over is the danger zone's, where it asks
+ * first. The route still takes it, since that is how the danger zone sends it.
+ */
 export function rolesOffered(
   actor: string,
   target: string,
@@ -91,7 +95,9 @@ export function rolesOffered(
   self: boolean,
 ): Role[] {
   const offered = ROLES.filter(
-    (next) => next === target || !roleChangeRefusal({ actor, target, targetKind, next, self }),
+    (next) =>
+      next === target ||
+      (next !== "owner" && !roleChangeRefusal({ actor, target, targetKind, next, self })),
   );
   // A select with one choice changes nothing, so the row shows a tag instead.
   return offered.length > 1 ? offered : [];

@@ -339,48 +339,27 @@ describe("Agents in Settings -> People", () => {
 });
 
 describe("Members in Settings -> People", () => {
-  /* The screen half of e2e/roles.spec.ts "make owner asks first and leaves the
-     old owner an admin". What the hand-over writes is `people-route.test.ts`. */
-  test("make owner asks first, and the page holds still at phone width", async () => {
+  /* The hand-over is the danger zone's now, in `ProjectPanel.test.tsx`. */
+  test("the role select offers no Owner, and the page holds still at phone width", async () => {
     const data = newProject();
-    const nia = withPerson(data, "Nia Next");
-    const { sent } = await renderWithBoard(
-      <PeoplePanel mail={false} />,
-      data,
-      ({ method, path }) => {
-        if (path.endsWith("/agents")) return { body: { agents: [] } };
-        // The hand-over as the server makes it, read back by the refresh.
-        if (method === "PATCH" && path.endsWith(`/members/${nia.id}`)) {
-          nia.role = "owner";
-          data.members[0].role = "admin";
-          data.project.role = "admin";
-          data.project.ownerId = nia.id;
-          return { body: {} };
-        }
-      },
+    const nia = withPerson(data, "Nia Next", "admin");
+    const { sent } = await renderWithBoard(<PeoplePanel mail={false} />, data, ({ path }) =>
+      path.endsWith("/agents") ? { body: { agents: [] } } : undefined,
     );
 
-    // The page holds still at phone width with a select on the row.
     await page.viewport(375, 740);
     try {
-      const role = page.getByLabelText("Role of Nia Next");
+      const role = page.getByLabelText(`Role of ${nia.name}`);
       await expect.element(role).toBeVisible();
       const doc = document.documentElement;
       expect(doc.scrollWidth - doc.clientWidth).toBeLessThanOrEqual(0);
       await expect.element(page.getByLabelText("Role of Ada Tester")).not.toBeInTheDocument();
 
       await role.click();
-      await page.getByRole("option", { name: "Owner", exact: true }).click();
-      await expect
-        .element(page.getByText("Make Nia Next the owner? You become an admin."))
-        .toBeVisible();
-      expect(sent("PATCH")).toEqual([]);
-      await page.getByRole("button", { name: "Yes, make owner" }).click();
-      await expect.poll(() => sent("PATCH").map((s) => s.body)).toEqual([{ role: "owner" }]);
-
-      // Nobody can change the owner's role, and the old owner cannot change their own.
-      await expect.element(page.getByLabelText("Role of Nia Next")).not.toBeInTheDocument();
-      await expect.element(page.getByLabelText("Role of Ada Tester")).not.toBeInTheDocument();
+      await expect.element(page.getByRole("option", { name: "Admin", exact: true })).toBeVisible();
+      expect(page.getByRole("option", { name: "Owner", exact: true }).elements()).toHaveLength(0);
+      await page.getByRole("option", { name: "Member", exact: true }).click();
+      await expect.poll(() => sent("PATCH").map((s) => s.body)).toEqual([{ role: "member" }]);
     } finally {
       await page.viewport(1440, 900);
     }

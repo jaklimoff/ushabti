@@ -8,7 +8,7 @@ import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { Field, Input, ProjectColorSwatches } from "@/components/ui/Form";
+import { Field, Input, ProjectColorSwatches, Select } from "@/components/ui/Form";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
 import { Card, Note, Row, Section } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
@@ -61,6 +61,10 @@ export function ProjectPanel({ files }: { files: boolean }) {
   /* The colour on its way out shows as picked until the answer lands, and a
      second pick waits for it. */
   const [sendingColor, setSendingColor] = useState<string | null>(null);
+  /* The admin the row is asking about, by id: a refresh that takes their
+     admin role away drops the question rather than naming somebody else. */
+  const [heirId, setHeirId] = useState<string | null>(null);
+  const [handing, setHanding] = useState(false);
 
   /* Every task of the project, archived ones too: a rename renames their keys
      as well, and a delete takes them with it. */
@@ -129,6 +133,26 @@ export function ProjectPanel({ files }: { files: boolean }) {
     }
   }
 
+  /* Only an admin is offered: they already run the board, so the hand-over
+     moves one word. The route still takes any person the role rule allows. */
+  const admins = data.members.filter((m) => m.kind === "human" && m.role === "admin");
+  const heir = admins.find((m) => m.id === heirId) ?? null;
+
+  async function handOver(to: string) {
+    if (handing) return;
+    setHanding(true);
+    try {
+      await send.patch(`/api/projects/${data.project.id}/members/${to}`, { role: "owner" });
+      await refresh();
+      router.refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not hand the project over.");
+    } finally {
+      setHanding(false);
+      setHeirId(null);
+    }
+  }
+
   /* Who may change what is said once per card, under its last row. */
   const ownersOnly = (what: string) =>
     !canEdit && (
@@ -145,7 +169,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
     <>
       <PageHead
         title="Project"
-        note="The name and key every task carries, and how this project counts work."
+        note="The name and key every task carries, who can read what shipped, and the one thing only the owner does."
       />
 
       <Section title="General">
@@ -262,6 +286,11 @@ export function ProjectPanel({ files }: { files: boolean }) {
               )}
             </Field>
           </Row>
+          {!files && (
+            <Row>
+              <Note>{FILES_OFF_NOTE}</Note>
+            </Row>
+          )}
           {ownersOnly("the name, the key, the colour and the time zone")}
         </Card>
       </Section>
@@ -316,16 +345,6 @@ export function ProjectPanel({ files }: { files: boolean }) {
         </Section>
       )}
 
-      {!files && (
-        <Section title="Files">
-          <Card>
-            <Row>
-              <Note>{FILES_OFF_NOTE}</Note>
-            </Row>
-          </Card>
-        </Section>
-      )}
-
       {/*
        * The one loss so large that a second press is not enough: the row asks
        * for the key, in the same shape as every other question in settings.
@@ -333,6 +352,35 @@ export function ProjectPanel({ files }: { files: boolean }) {
       {isOwner && (
         <Section title="Danger zone">
           <Card className={styles.dangerCard}>
+            {heir ? (
+              <ConfirmRow
+                question={`Make ${heir.name} the owner? You become an admin.`}
+                confirmLabel="Yes, hand it over"
+                onConfirm={() => void handOver(heir.id)}
+                onCancel={() => setHeirId(null)}
+              />
+            ) : (
+              <Row className={styles.dangerRow}>
+                <div className={styles.dangerSay}>
+                  <span className={styles.dangerTitle}>Hand over</span>
+                  <Note>
+                    {admins.length > 0
+                      ? "The new owner can delete the project. You stay an admin."
+                      : "Make somebody an admin first."}
+                  </Note>
+                </div>
+                <Select
+                  aria-label="The admin to hand the project to"
+                  value=""
+                  disabled={admins.length === 0 || handing}
+                  onChange={(picked) => setHeirId(picked || null)}
+                  options={[
+                    { value: "", label: "Pick an admin", disabled: true },
+                    ...admins.map((m) => ({ value: m.id, label: m.name })),
+                  ]}
+                />
+              </Row>
+            )}
             {confirming ? (
               <ConfirmRow
                 question={

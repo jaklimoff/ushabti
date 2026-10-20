@@ -53,8 +53,9 @@ describe("roles", () => {
     expect(change("owner", "member", "viewer")?.status).toBe(400);
   });
 
-  it("offers a select only where it can change something", () => {
-    expect(rolesOffered("owner", "member", "human", false)).toEqual(["owner", "admin", "member"]);
+  it("offers a select only where it can change something, and never the owner", () => {
+    expect(rolesOffered("owner", "member", "human", false)).toEqual(["admin", "member"]);
+    expect(rolesOffered("owner", "admin", "human", false)).toEqual(["admin", "member"]);
     expect(rolesOffered("admin", "member", "human", false)).toEqual(["admin", "member"]);
     expect(rolesOffered("admin", "admin", "human", false)).toEqual([]);
     expect(rolesOffered("owner", "owner", "human", true)).toEqual([]);

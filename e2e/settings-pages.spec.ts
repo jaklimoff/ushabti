@@ -22,9 +22,15 @@ test.describe("Settings pages", () => {
     }
     // The types are ticked on their property, so the menu has no Types page.
     await expect(rail.getByRole("link", { name: "Types", exact: true })).toHaveCount(0);
-    for (const title of ["General", "Danger zone"]) {
-      await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    }
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText(["General", "Danger zone"]);
+    // Sharing holds the public changelog, so it shows once releases are on.
+    expect((await page.request.post(`/api/projects/${projectId}/releases`)).ok()).toBe(true);
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+      "General",
+      "Sharing",
+      "Danger zone",
+    ]);
     // The agent rules are on People, under the agents.
     await expect(page.getByRole("heading", { name: "Agents", exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Agent rules", { exact: true })).toHaveCount(0);
@@ -39,6 +45,45 @@ test.describe("Settings pages", () => {
     await expect(page.getByLabel("Type the project key to confirm")).toBeFocused();
     await page.screenshot({ path: testInfo.outputPath("seen-project.png"), fullPage: true });
     await page.getByRole("button", { name: "Cancel" }).click();
+  });
+
+  test("the owner hands the project to an admin from the danger zone", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const other = await browser.newContext();
+    const heir = await register(await other.newPage(), "Nia Next");
+    await other.close();
+    await register(page, "Olga Owner");
+    const projectId = await createProject(page, unique("Hand"));
+    await gotoSettings(page, projectId, "project");
+    const pick = page.getByLabel("The admin to hand the project to");
+    await expect(pick).toBeDisabled();
+    await expect(page.getByText("Make somebody an admin first.")).toBeVisible();
+
+    const added = await page.request.post(`/api/projects/${projectId}/members`, {
+      data: { email: heir.email, role: "admin" },
+    });
+    expect(added.ok()).toBe(true);
+    await page.reload();
+    await expect(
+      page.getByText("The new owner can delete the project. You stay an admin."),
+    ).toBeVisible();
+    await pick.click();
+    await page.getByRole("option", { name: "Nia Next" }).click();
+    await expect(page.getByText("Make Nia Next the owner? You become an admin.")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-hand-over.png"), fullPage: true });
+    const sent = page.waitForResponse(
+      (r) => r.request().method() === "PATCH" && r.url().includes(`/members/`),
+    );
+    await page.getByRole("button", { name: "Yes, hand it over" }).click();
+    expect((await sent).ok()).toBe(true);
+    // An admin has no danger zone.
+    await expect(page.getByRole("heading", { name: "Danger zone" })).toHaveCount(0);
+
+    // People offers no Owner in a role select.
+    await gotoSettings(page, projectId, "people");
+    await expect(page.getByText("Owner", { exact: true })).toBeVisible();
   });
 
   test("People holds the rules for every agent, under the agents", async ({ page }, testInfo) => {
