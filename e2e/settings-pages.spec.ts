@@ -33,6 +33,35 @@ test.describe("Settings pages", () => {
     await page.getByRole("button", { name: "Cancel" }).click();
   });
 
+  test("an off role is turned on from its tile on Properties", async ({ page }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Roles"));
+    await gotoSettings(page, projectId, "properties");
+    const tiles = page.getByTestId("role-strip").getByTestId("role-tile");
+
+    await tiles.nth(0).getByRole("button", { name: "Pick ▾" }).click();
+    const menu = page.getByRole("menu", { name: "Which property holds the types?" });
+    await expect(menu.getByRole("menuitem", { name: /^Priority/ })).toContainText(
+      /Select · \d+ options/,
+    );
+    await page.screenshot({ path: testInfo.outputPath("seen-role-pick.png"), fullPage: true });
+    await menu.getByRole("menuitem", { name: /^Priority/ }).click();
+    await expect(tiles.nth(0)).toContainText(/Priority · \d+ types/);
+    await expect(page.getByLabel("Name of the Priority property")).toBeFocused();
+
+    await tiles.nth(2).getByRole("button", { name: "Use releases" }).click();
+    await expect(tiles.nth(2)).not.toContainText("Not set");
+
+    await tiles.nth(3).getByRole("button", { name: "Use sprints" }).click();
+    const form = page.getByRole("form", { name: "Use sprints" });
+    await expect(form.getByLabel("Sprint length in days")).toHaveValue("14");
+    await page.screenshot({ path: testInfo.outputPath("seen-role-sprints.png"), fullPage: true });
+    await form.getByLabel("Sprint length in days").fill("7");
+    await form.getByRole("button", { name: "Use sprints" }).click();
+    await expect(tiles.nth(3)).toContainText("Sprint · 7 days");
+    await page.screenshot({ path: testInfo.outputPath("seen-role-on.png"), fullPage: true });
+  });
+
   test("a property says what uses it, and a card view row rings the card", async ({
     page,
   }, testInfo) => {

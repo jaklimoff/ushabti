@@ -714,15 +714,149 @@ describe("The role strip", () => {
     await renderWithBoard(<PropertiesPanel />, data);
     await expect.element(byTestId("role-strip")).toBeVisible();
     expect(tiles()).toEqual([
-      "The types Not set Every task shows every property.",
-      "Done when Not set Only archived tasks are done.",
-      "The releases Not set No releases.",
-      "The sprints Not set No sprints.",
+      "The types Not set Every task shows every property. Pick ▾",
+      "Done when Not set Only archived tasks are done. Pick ▾",
+      "The releases Not set No releases. Use releases",
+      "The sprints Not set No sprints. Use sprints",
     ]);
     expect(byTestId("role-strip").element().querySelector("a")).toBeNull();
     expect(document.querySelectorAll('[data-testid="property-box"] span[title]').length).toBe(
       data.properties.length,
     );
+  });
+
+  const writes = (sent: () => Sent[]) => sent().filter((r) => r.method !== "GET");
+  const offTile = (name: string) => byTestId("role-tile").filter({ hasText: name });
+
+  test("an admin picks Done when from the tile, and its last option is saved", async () => {
+    const data = newProject();
+    const status = propertyOf(data, "Status");
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, ({ method, path }) => {
+      if (method === "PATCH" && /^\/api\/projects\/[0-9a-f-]+$/.test(path))
+        data.project.doneWhen = { propertyId: status.id, optionIds: [status.options.at(-1)!.id] };
+      return undefined;
+    });
+    await offTile("Done when").getByRole("button", { name: "Pick ▾" }).click();
+    const menu = page.getByRole("menu", { name: "Which property says a task is done?" });
+    await expect.element(menu).toBeVisible();
+    const said = menu.element().textContent ?? "";
+    expect(said.startsWith("Which property says a task is done?")).toBe(true);
+    expect(said.endsWith("You tick its done options on the property.")).toBe(true);
+    const item = menu.getByRole("menuitem").filter({ hasText: "Status" });
+    await expect.element(item).toHaveTextContent(`StatusSelect · ${status.options.length} options`);
+    // Only a select with an option to name is offered.
+    for (const el of menu.getByRole("menuitem").elements())
+      expect(el.textContent).toMatch(/^.+Select · [1-9]\d* options?$/);
+    await item.click();
+    await expect.poll(() => writes(sent).length).toBe(1);
+    expect(writes(sent)[0]).toMatchObject({
+      method: "PATCH",
+      path: `/api/projects/${data.project.id}`,
+      body: { doneWhen: { propertyId: status.id, optionIds: [optionOf(data, "Status", "Done")] } },
+    });
+    await gone(menu);
+    await expect.element(page.getByLabelText("Name of the Status property")).toHaveFocus();
+    expect(tiles()[1]).toBe("Done when Status is Done");
+  });
+
+  test("an admin picks the types select from the keyboard, and typeBy is saved", async () => {
+    const data = newProject();
+    const selects = data.properties.filter((p) => p.type === "select");
+    expect(selects.length).toBeGreaterThan(1);
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data);
+    const pick = offTile("The types").getByRole("button", { name: "Pick ▾" });
+    await pick.click();
+    const menu = page.getByRole("menu", { name: "Which property holds the types?" });
+    const items = menu.getByRole("menuitem");
+    await expect.element(items.first()).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await gone(menu);
+    await expect.element(pick).toHaveFocus();
+    await pick.click();
+    await expect.element(items.first()).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.element(items.nth(1)).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => writes(sent).length).toBe(1);
+    expect(writes(sent)[0]).toMatchObject({
+      method: "PATCH",
+      path: `/api/projects/${data.project.id}`,
+      body: { typeBy: selects[1].id },
+    });
+    await expect
+      .element(page.getByLabelText(`Name of the ${selects[1].name} property`))
+      .toHaveFocus();
+  });
+
+  test("a click outside closes the menu and sends nothing", async () => {
+    const data = newProject();
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data);
+    await offTile("The types").getByRole("button", { name: "Pick ▾" }).click();
+    await expect.element(page.getByRole("menu")).toBeVisible();
+    await byTestId("role-tile")
+      .filter({ hasText: "The releases" })
+      .getByText("No releases.")
+      .click();
+    await gone(page.getByRole("menu"));
+    expect(writes(sent)).toEqual([]);
+  });
+
+  test("Use releases on the tile turns releases on through the releases route", async () => {
+    const data = newProject();
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data);
+    await offTile("The releases").getByRole("button", { name: "Use releases" }).click();
+    await expect.poll(() => writes(sent).length).toBe(1);
+    expect(writes(sent)[0]).toMatchObject({
+      method: "POST",
+      path: `/api/projects/${data.project.id}/releases`,
+    });
+  });
+
+  test("Use sprints opens a form with a length and a first day, and only its button sends", async () => {
+    const data = newProject();
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data);
+    const tile = offTile("The sprints");
+    await tile.getByRole("button", { name: "Use sprints" }).click();
+    const form = page.getByRole("form", { name: "Use sprints" });
+    const length = form.getByLabelText("Sprint length in days");
+    const start = form.getByLabelText("First day of the first sprint");
+    await expect.element(length).toHaveValue("14");
+    await expect.element(start).toHaveValue(data.today);
+    await expect.element(length).toHaveFocus();
+    // Typing and leaving a box sends nothing: the form makes a thing.
+    await length.fill("7");
+    await start.fill("2026-11-02");
+    await start.element().dispatchEvent(new FocusEvent("blur"));
+    await pause(100);
+    expect(writes(sent)).toEqual([]);
+    await userEvent.keyboard("{Escape}");
+    await gone(form);
+    expect(writes(sent)).toEqual([]);
+    await tile.getByRole("button", { name: "Use sprints" }).click();
+    await expect.element(form).toBeVisible();
+    await form.getByLabelText("Sprint length in days").fill("7");
+    await form.getByLabelText("First day of the first sprint").fill("2026-11-02");
+    await form.getByRole("button", { name: "Use sprints" }).click();
+    await expect.poll(() => writes(sent).length).toBe(1);
+    expect(writes(sent)[0]).toMatchObject({
+      method: "POST",
+      path: `/api/projects/${data.project.id}/sprints`,
+      body: { length: 7, startAt: "2026-11-02" },
+    });
+  });
+
+  test("a member sees no Pick and no Use button, only Not set", async () => {
+    const data = newProject();
+    data.project.role = "member";
+    await renderWithBoard(<PropertiesPanel />, data);
+    await expect.element(byTestId("role-strip")).toBeVisible();
+    expect(byTestId("role-strip").element().querySelector("button")).toBeNull();
+    expect(tiles()).toEqual([
+      "The types Not set Every task shows every property.",
+      "Done when Not set Only archived tasks are done.",
+      "The releases Not set No releases.",
+      "The sprints Not set No sprints.",
+    ]);
   });
 
   test("a member reads the same strip", async () => {

@@ -2201,9 +2201,85 @@ div.hookRow {
   color: var(--text-meta);
 }
 
+/* An off tile's way in sits at its foot, so the four tiles still line up. */
+.roleOffTile {
+  position: relative;
+}
+
+.roleAct {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* The menu of a Pick and the form of Use sprints hang under their tile. */
+.rolePop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 100%;
+  width: max-content;
+  max-width: 300px;
+  padding: 8px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-menu);
+  animation: ushabti-fade-in 120ms var(--ease);
+}
+
+/* A tile at the right edge hangs its pop leftward, so it stays on the page. */
+.roleOffTile:last-child .rolePop {
+  left: auto;
+  right: 0;
+}
+
+.rolePopHead {
+  padding: 2px 6px;
+}
+
+.rolePopItem {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  border-radius: var(--r-sm);
+  text-align: left;
+}
+
+.rolePopItem:hover,
+.rolePopItem:focus-visible {
+  background: var(--bg-menu-hover);
+  outline: none;
+}
+
+.rolePopName {
+  font-size: var(--t-body);
+  color: var(--text);
+}
+
+.rolePopNote {
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+.rolePopFoot {
+  padding: 6px 6px 2px;
+  border-top: 1px solid var(--line-soft);
+}
+
 @media (max-width: 620px) {
   .roleStrip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .roleOffTile:nth-child(2n) .rolePop {
+    left: auto;
+    right: 0;
   }
 }
 

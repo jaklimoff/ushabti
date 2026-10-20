@@ -1,6 +1,7 @@
 "use client";
 
-import { type ChangeEvent, type FocusEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FocusEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   DndContext,
@@ -24,9 +25,9 @@ import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { carriesDates, NOTE_MAX, optionEdit, splitShipped } from "@/lib/option-dates";
-import { cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
+import { CADENCE_DEFAULT, cadenceEdit, LENGTH_MAX, readCadence, type Cadence } from "@/lib/cadence";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Checkbox, Input, NameInput, Select, TextArea } from "@/components/ui/Form";
+import { Checkbox, Input, Label, NameInput, Select, TextArea } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
@@ -35,7 +36,14 @@ import { PALETTE, colorName } from "@/lib/colors";
 import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
-import { boardRoles, propertyAnchor, ROLE_NAME, rolesOf, type RoleTile } from "@/lib/board-roles";
+import {
+  type BoardRole,
+  boardRoles,
+  propertyAnchor,
+  ROLE_NAME,
+  rolesOf,
+  type RoleTile,
+} from "@/lib/board-roles";
 import {
   type BoardData,
   GROUPED_KINDS,
@@ -818,29 +826,40 @@ function UsedFor({ property, data }: { property: PropertyDTO; data: BoardData })
 
 /**
  * Who plays each board role, above the list. A role that is set links to its
- * property; one that is off says what the board does without it. It holds no
- * control, so a member reads the same strip.
+ * property; one that is off says what the board does without it, and offers
+ * an owner or an admin the way to turn it on. A member reads the same strip
+ * with no control on it.
  */
 function RoleStrip() {
   const { data } = useBoard();
+  const canEdit = canManage(data.project.role);
   return (
     <div className={styles.roleStrip} data-testid="role-strip">
       {boardRoles(data).map((tile) => (
-        <RoleTileView key={tile.role} tile={tile} />
+        <RoleTileView key={tile.role} tile={tile} canEdit={canEdit} />
       ))}
     </div>
   );
 }
 
-function RoleTileView({ tile }: { tile: RoleTile }) {
+/* Takes the page to a property's row and puts the caret in its name. */
+function goToProperty(propertyId: string) {
+  const row = document.getElementById(propertyAnchor(propertyId));
+  if (!row) return;
+  row.scrollIntoView({ block: "center", behavior: "smooth" });
+  row.querySelector<HTMLInputElement>(`.${styles.propName} input`)?.focus({ preventScroll: true });
+}
+
+function RoleTileView({ tile, canEdit }: { tile: RoleTile; canEdit: boolean }) {
   const { property } = tile;
   const label = <span className={styles.roleName}>{tile.name}</span>;
   if (!property) {
     return (
-      <div className={styles.roleTile} data-testid="role-tile">
+      <div className={`${styles.roleTile} ${styles.roleOffTile}`} data-testid="role-tile">
         {label}
         <span className={styles.roleOff}>Not set</span>
         <span className={styles.roleLine}>{tile.off}</span>
+        {canEdit && <RoleOn role={tile.role} />}
       </div>
     );
   }
@@ -852,12 +871,7 @@ function RoleTileView({ tile }: { tile: RoleTile }) {
       data-testid="role-tile"
       onClick={(e) => {
         e.preventDefault();
-        const row = document.getElementById(anchor);
-        if (!row) return;
-        row.scrollIntoView({ block: "center", behavior: "smooth" });
-        row
-          .querySelector<HTMLInputElement>(`.${styles.propName} input`)
-          ?.focus({ preventScroll: true });
+        goToProperty(property.id);
       }}
     >
       {label}
@@ -879,6 +893,243 @@ function RoleTileView({ tile }: { tile: RoleTile }) {
         )}
       </span>
     </a>
+  );
+}
+
+/** The way an off role is turned on, from its tile. Only an owner or an admin sees it. */
+function RoleOn({ role }: { role: BoardRole }) {
+  if (role === "types" || role === "done") return <RolePick role={role} />;
+  if (role === "releases") return <UseReleases />;
+  return <UseSprints />;
+}
+
+const PICK_QUESTION: Record<"types" | "done", string> = {
+  types: "Which property holds the types?",
+  done: "Which property says a task is done?",
+};
+
+/*
+ * Pick a select for Done when or the types. Done when needs an option to be
+ * an answer, so a pick names the last one, which is where a select that runs
+ * from start to finish keeps its end. The ticks are then the property's to
+ * change, which is where the page goes.
+ */
+function RolePick({ role }: { role: "types" | "done" }) {
+  const { data, send, refresh, notify } = useBoard();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  /* A pick waits for its answer, so a second one cannot land on top of it. */
+  const [sending, setSending] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useDismiss<HTMLDivElement>(close, open);
+  const menu = useRef<HTMLDivElement>(null);
+  /* What the route accepts: any select or sprint property, and for Done when
+     one with an option to name. */
+  const choices = data.properties.filter(
+    (p) => isSelect(p.type) && (role === "types" || p.options.length > 0),
+  );
+
+  useEffect(() => {
+    if (open) menu.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, [open]);
+
+  function walk(event: React.KeyboardEvent<HTMLDivElement>) {
+    const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+    if (items.length === 0) return;
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    const key = event.key;
+    let next: number | null = null;
+    if (key === "ArrowDown") next = (at + 1) % items.length;
+    else if (key === "ArrowUp") next = (at - 1 + items.length) % items.length;
+    else if (key === "Home") next = 0;
+    else if (key === "End") next = items.length - 1;
+    else if (key === "Tab") setOpen(false);
+    if (next === null) return;
+    event.preventDefault();
+    items[next].focus();
+  }
+
+  async function pick(property: PropertyDTO) {
+    if (sending) return;
+    setSending(true);
+    setOpen(false);
+    const last = property.options[property.options.length - 1];
+    try {
+      await send.patch(
+        `/api/projects/${data.project.id}`,
+        role === "types"
+          ? { typeBy: property.id }
+          : { doneWhen: { propertyId: property.id, optionIds: [last.id] } },
+      );
+      await refresh();
+      router.refresh();
+      goToProperty(property.id);
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not save.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className={styles.roleAct} ref={ref}>
+      <Button
+        variant="ghost"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={sending}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Pick ▾
+      </Button>
+      {open && (
+        <div
+          ref={menu}
+          className={styles.rolePop}
+          role="menu"
+          aria-label={PICK_QUESTION[role]}
+          onKeyDown={(e) => {
+            /* The press that opened it takes the focus back. */
+            if (e.key === "Escape") ref.current?.querySelector("button")?.focus();
+            walk(e);
+          }}
+        >
+          <Label className={styles.rolePopHead}>{PICK_QUESTION[role]}</Label>
+          {choices.length === 0 && (
+            <span className={styles.rolePopNote}>This board has no select property yet.</span>
+          )}
+          {choices.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              role="menuitem"
+              className={styles.rolePopItem}
+              onClick={() => void pick(p)}
+            >
+              <span className={styles.rolePopName}>{p.name}</span>
+              <span className={styles.rolePopNote}>
+                {PROPERTY_TYPE_LABEL[p.type]} · {p.options.length}{" "}
+                {p.options.length === 1 ? "option" : "options"}
+              </span>
+            </button>
+          ))}
+          {role === "done" && (
+            <span className={`${styles.rolePopNote} ${styles.rolePopFoot}`}>
+              You tick its done options on the property.
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Turns releases on through the route Project uses: it takes the first dated
+   select there is, or makes one and its roadmap. */
+function UseReleases() {
+  const { data, send, refresh, notify } = useBoard();
+  const [sending, setSending] = useState(false);
+
+  async function use() {
+    if (sending) return;
+    setSending(true);
+    try {
+      await send.post(`/api/projects/${data.project.id}/releases`, {});
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not turn releases on.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className={styles.roleAct}>
+      <Button variant="ghost" disabled={sending} onClick={() => void use()}>
+        Use releases
+      </Button>
+    </div>
+  );
+}
+
+/*
+ * Sprints make a property and its views from a length and a first day, so the
+ * press asks for both first. It is a form that makes a thing: nothing is sent
+ * until its own button.
+ */
+function UseSprints() {
+  const { data, send, refresh, notify } = useBoard();
+  const [open, setOpen] = useState(false);
+  const [length, setLength] = useState(String(CADENCE_DEFAULT.length));
+  const [startAt, setStartAt] = useState(data.today);
+  const [sending, setSending] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useDismiss<HTMLDivElement>(close, open);
+  const first = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) first.current?.focus();
+  }, [open]);
+
+  async function use() {
+    if (sending) return;
+    setSending(true);
+    try {
+      await send.post(`/api/projects/${data.project.id}/sprints`, {
+        length: Number(length.trim()),
+        startAt,
+      });
+      setOpen(false);
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not turn sprints on.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className={styles.roleAct} ref={ref}>
+      <Button
+        variant="ghost"
+        aria-expanded={open}
+        disabled={sending}
+        onClick={() => setOpen((v) => !v)}
+      >
+        Use sprints
+      </Button>
+      {open && (
+        <form
+          className={styles.rolePop}
+          aria-label="Use sprints"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void use();
+          }}
+        >
+          <label className={styles.cadenceBox}>
+            <Input
+              ref={first}
+              aria-label="Sprint length in days"
+              inputMode="numeric"
+              className={styles.cadenceInput}
+              value={length}
+              onChange={(e) => setLength(e.target.value)}
+            />
+            days, from
+          </label>
+          <Input
+            aria-label="First day of the first sprint"
+            type="date"
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+          />
+          <Button type="submit" disabled={sending}>
+            Use sprints
+          </Button>
+        </form>
+      )}
+    </div>
   );
 }
 
