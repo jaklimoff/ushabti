@@ -66,6 +66,66 @@ test.describe("Settings pages", () => {
     await page.screenshot({ path: testInfo.outputPath("seen-card-view.png") });
   });
 
+  test("dated options read as plain rows, and plain options keep their pills", async ({
+    page,
+  }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Rows"));
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Version", type: "select", options: ["v1", "v2", "v3"] },
+    });
+    expect(made.ok()).toBeTruthy();
+    const { id } = ((await made.json()) as { property: { id: string } }).property;
+    expect(
+      (await page.request.patch(`/api/properties/${id}`, { data: { dated: true } })).ok(),
+    ).toBeTruthy();
+
+    await gotoSettings(page, projectId, "properties");
+    const row = (name: string) =>
+      page.getByRole("button", { name: `Move the option ${name}` }).locator("..");
+    const look = (name: string) =>
+      row(name).evaluate((el) => {
+        const s = getComputedStyle(el);
+        return {
+          top: s.borderTopWidth,
+          left: s.borderLeftWidth,
+          bottom: s.borderBottomWidth,
+          line: s.borderBottomColor,
+          radius: s.borderTopLeftRadius,
+          fill: s.backgroundColor,
+        };
+      });
+    const soft = await page.evaluate(() => {
+      const probe = document.createElement("i");
+      probe.style.color = "var(--line-soft)";
+      document.body.append(probe);
+      const colour = getComputedStyle(probe).color;
+      probe.remove();
+      return colour;
+    });
+
+    await expect(row("v1")).toBeVisible();
+    for (const name of ["v1", "v2"]) {
+      expect(await look(name)).toEqual({
+        top: "0px",
+        left: "0px",
+        bottom: "1px",
+        line: soft,
+        radius: "0px",
+        fill: "rgba(0, 0, 0, 0)",
+      });
+    }
+    expect((await look("v3")).bottom).toBe("0px");
+
+    // Status carries no dates, so its options stay pills with an outline.
+    const pill = await look("Done");
+    expect(pill.top).toBe("1px");
+    expect(pill.radius).not.toBe("0px");
+
+    await propertyBox(page, "Version").scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("seen-dated-rows.png"), fullPage: true });
+  });
+
   test("on a phone the People rows keep their role and their button", async ({
     page,
   }, testInfo) => {
