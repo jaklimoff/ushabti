@@ -10,6 +10,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- On the card editor a chip drags to another place, onto the edge or off the card, by mouse or by keyboard: Space lifts it, the arrows move it and Space drops it. The edge shows as closed for a chip that has no colours.
 - Properties opens with a strip that says which property plays each board role: the types, done when, the releases and the sprints. A set tile takes you to its property, and that property carries the role as a tag.
 - An owner or an admin turns an off role on from its tile on Properties: **Pick** the select that says done or holds the types, or **Use releases** and **Use sprints**, which asks for the sprint length and first day.
 - People invites somebody as an admin as well as a member: pick the role beside the email. A pending invite shows its role, and the person joins with it.

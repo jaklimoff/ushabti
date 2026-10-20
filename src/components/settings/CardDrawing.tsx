@@ -1,6 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+  type DragStartEvent,
+  type KeyboardCoordinateGetter,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { useBoard } from "@/components/board/store";
 import { Chip } from "@/components/board/Chip";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -18,6 +32,7 @@ import {
   type CardItem,
 } from "@/lib/card-view";
 import { CARD_PLACE_LABEL, type CardMode, type CardPlace, type TaskDTO } from "@/lib/types";
+import { DROP_ZONES, zoneCollision, zoneToward, type DropZone } from "./card-drag";
 import styles from "./settings.module.css";
 
 type ChipPlace = (typeof CHIP_PLACES)[number];
@@ -39,9 +54,15 @@ const ZONE_EMPTY: Record<ChipPlace, string> = {
   footerR: "Drop a chip here for the end of the bottom line",
 };
 
+const ZONE_SAID: Record<DropZone, string> = {
+  ...ZONE_LABEL,
+  edge: "Edge",
+  off: "Not on the card",
+};
+
 /**
  * The card editor's own view: one card drawn big, each row as its chip in the
- * place it sits, and a click on a chip to change it. Every change is one of
+ * place it sits, and a click or a drag to change it. Every change is one of
  * the card view's own calls, handed up as the place or the mode; nothing here
  * decides what a card carries.
  */
@@ -71,6 +92,81 @@ export function CardDrawing({
   const title = items.find((i) => i.place === "title") ?? null;
   const off = items.filter((i) => i.place === "off");
 
+  const [lifted, setLifted] = useState<CardItem | null>(null);
+  const closed = useCallback(
+    (zone: DropZone) => zone === "edge" && !!lifted && !canEdge(lifted.kind),
+    [lifted],
+  );
+  /* The zone a lifted chip is over while the keyboard moves it. The arrows
+     walk the card as it is drawn, so they need to know where they are. */
+  const keyAt = useRef<DropZone | null>(null);
+  const closedNow = useRef(closed);
+  closedNow.current = closed;
+  /* Space drops the chip, and the button it lands on would read the same
+     key's release as a click and open its popover. */
+  const droppedAt = useRef(0);
+
+  const coordinates = useCallback<KeyboardCoordinateGetter>((event, { context }) => {
+    const from = keyAt.current;
+    if (!from || !event.code.startsWith("Arrow")) return undefined;
+    event.preventDefault();
+    /* An arrow pressed right after the lift comes before dnd-kit has measured
+       anything, so the zone's own box is read now. */
+    const chip = context.collisionRect;
+    const next = zoneToward(from, event.code, closedNow.current);
+    const node = next && context.droppableContainers.get(next)?.node.current;
+    if (!next || !node || !chip) return undefined;
+    const rect = node.getBoundingClientRect();
+    keyAt.current = next;
+    return {
+      x: rect.left + rect.width / 2 - chip.width / 2,
+      y: rect.top + rect.height / 2 - chip.height / 2,
+    };
+  }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: coordinates,
+      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] },
+    }),
+  );
+
+  const nameOf = (id: string | number) => items.find((i) => i.id === id)?.name ?? "The chip";
+  const zoneOf = (id: string | number | undefined) =>
+    id !== undefined && id in ZONE_SAID ? ZONE_SAID[id as DropZone].toLowerCase() : null;
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `Lifted ${nameOf(active.id)}.`,
+    onDragOver: ({ active, over }) =>
+      over
+        ? `${nameOf(active.id)} is over ${zoneOf(over.id)}.`
+        : `${nameOf(active.id)} is over no place that takes it.`,
+    onDragEnd: ({ active, over }) =>
+      over
+        ? `${nameOf(active.id)} dropped in ${zoneOf(over.id)}.`
+        : `${nameOf(active.id)} stays where it was.`,
+    onDragCancel: ({ active }) => `${nameOf(active.id)} stays where it was.`,
+  };
+
+  function start({ active }: DragStartEvent) {
+    const item = items.find((i) => i.id === active.id) ?? null;
+    setLifted(item);
+    keyAt.current = item && item.place !== "title" ? (item.place as DropZone) : null;
+    onOpen(null);
+  }
+
+  function end({ active, over }: DragEndEvent) {
+    setLifted(null);
+    keyAt.current = null;
+    droppedAt.current = Date.now();
+    const item = items.find((i) => i.id === active.id);
+    if (!item || !over) return;
+    const zone = over.id as DropZone;
+    /* A closed zone takes no drop, whatever the pointer says. */
+    if (!DROP_ZONES.includes(zone) || closed(zone) || zone === item.place) return;
+    onPlace(item.id, zone);
+  }
+
   const chipOf = (item: CardItem) => (
     <ChipButton
       key={item.id}
@@ -79,6 +175,7 @@ export function CardDrawing({
       task={task}
       edgeHolder={edgeHolder}
       open={open === item.id}
+      droppedAt={droppedAt}
       onOpen={onOpen}
       onNear={onNear}
       onPlace={onPlace}
@@ -89,9 +186,10 @@ export function CardDrawing({
   const zone = (place: ChipPlace, wide = false) => {
     const here = drawOrder(items.filter((i) => i.place === place));
     return (
-      <div
+      <DropBox
+        place={place}
+        lifted={!!lifted}
         className={`${styles.zone} ${wide ? styles.zoneWide : ""}`}
-        data-testid={`card-zone-${place}`}
       >
         <span className={styles.zoneLabel}>{ZONE_LABEL[place]}</span>
         {here.length ? (
@@ -99,44 +197,108 @@ export function CardDrawing({
         ) : (
           <span className={styles.zoneEmpty}>{ZONE_EMPTY[place]}</span>
         )}
-      </div>
+      </DropBox>
     );
   };
 
   return (
-    <div className={styles.drawing} data-testid="card-drawing">
-      <div className={styles.bigCard}>
-        <div className={styles.edgeRail} data-testid="card-zone-edge">
-          <span className={styles.edgeRailLabel}>Edge</span>
-          {edgeHolder && chipOf(edgeHolder)}
+    <DndContext
+      id="ushabti-card-drawing"
+      sensors={sensors}
+      collisionDetection={zoneCollision}
+      onDragStart={start}
+      onDragEnd={end}
+      onDragCancel={() => {
+        setLifted(null);
+        keyAt.current = null;
+        droppedAt.current = Date.now();
+      }}
+      accessibility={{
+        announcements,
+        screenReaderInstructions: {
+          draggable:
+            "Press Space to lift the chip. The arrow keys move it to another place, Space drops it and Escape puts it back.",
+        },
+      }}
+    >
+      <div className={styles.drawing} data-testid="card-drawing">
+        <div className={styles.bigCard}>
+          <DropBox
+            place="edge"
+            lifted={!!lifted}
+            closed={closed("edge")}
+            className={styles.edgeRail}
+          >
+            <span className={styles.edgeRailLabel}>Edge</span>
+            {edgeHolder && chipOf(edgeHolder)}
+          </DropBox>
+          <div className={styles.bigFace}>
+            <div className={styles.zoneRow}>
+              {zone("headerL")}
+              {zone("headerR")}
+            </div>
+            <div
+              className={styles.zoneTitle}
+              data-testid="card-zone-title"
+              data-closed={lifted ? "" : undefined}
+            >
+              <span className={styles.zoneLabel}>Title · always here</span>
+              <span className={styles.bigTitle} title={title?.name ?? "Title"}>
+                {task.title}
+              </span>
+            </div>
+            {zone("body", true)}
+            <div className={styles.zoneRow}>
+              {zone("footerL")}
+              {zone("footerR")}
+            </div>
+          </div>
         </div>
-        <div className={styles.bigFace}>
-          <div className={styles.zoneRow}>
-            {zone("headerL")}
-            {zone("headerR")}
-          </div>
-          <div className={styles.zoneTitle} data-testid="card-zone-title">
-            <span className={styles.zoneLabel}>Title · always here</span>
-            <span className={styles.bigTitle} title={title?.name ?? "Title"}>
-              {task.title}
-            </span>
-          </div>
-          {zone("body", true)}
-          <div className={styles.zoneRow}>
-            {zone("footerL")}
-            {zone("footerR")}
-          </div>
-        </div>
-      </div>
 
-      <div className={styles.offCard} data-testid="card-off">
-        <span className={styles.zoneLabel}>Not on the card</span>
-        {off.length ? (
-          <span className={styles.zoneChips}>{off.map(chipOf)}</span>
-        ) : (
-          <span className={styles.zoneEmpty}>Everything is on the card.</span>
-        )}
+        <DropBox place="off" lifted={!!lifted} className={styles.offCard}>
+          <span className={styles.zoneLabel}>Not on the card</span>
+          {off.length ? (
+            <span className={styles.zoneChips}>{off.map(chipOf)}</span>
+          ) : (
+            <span className={styles.zoneEmpty}>Everything is on the card.</span>
+          )}
+        </DropBox>
+
+        <Note>Drag a chip to another place, or off the card.</Note>
       </div>
+    </DndContext>
+  );
+}
+
+/**
+ * A zone a chip can land in. While a chip is lifted every zone says whether it
+ * takes it: a closed one is greyed and is no target at all.
+ */
+function DropBox({
+  place,
+  lifted,
+  closed = false,
+  className,
+  children,
+}: {
+  place: DropZone;
+  lifted: boolean;
+  closed?: boolean;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: place, disabled: closed });
+  const testId = place === "off" ? "card-off" : `card-zone-${place}`;
+  return (
+    <div
+      ref={setNodeRef}
+      className={className}
+      data-testid={testId}
+      data-open={lifted && !closed ? "" : undefined}
+      data-closed={lifted && closed ? "" : undefined}
+      data-over={isOver ? "" : undefined}
+    >
+      {children}
     </div>
   );
 }
@@ -151,6 +313,7 @@ function ChipButton({
   task,
   edgeHolder,
   open,
+  droppedAt,
   onOpen,
   onNear,
   onPlace,
@@ -161,6 +324,7 @@ function ChipButton({
   task: TaskDTO;
   edgeHolder: CardItem | null;
   open: boolean;
+  droppedAt: React.RefObject<number>;
   onOpen: (id: string | null) => void;
   onNear: (id: string | null) => void;
   onPlace: (id: string, place: CardPlace) => void;
@@ -171,22 +335,48 @@ function ChipButton({
     onOpen(null);
     button.current?.focus();
   }, [onOpen]);
-  const box = useDismiss<HTMLSpanElement>(close, open);
+  const boxRef = useDismiss<HTMLSpanElement>(close, open);
   const where = item.place === "off" ? "not on the card" : CARD_PLACE_LABEL[item.place];
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } =
+    useDraggable({ id: item.id, disabled: item.fixed });
+  const hold = useCallback(
+    (node: HTMLSpanElement | null) => {
+      boxRef.current = node;
+      setNodeRef(node);
+    },
+    [boxRef, setNodeRef],
+  );
+  const handle = useCallback(
+    (node: HTMLButtonElement | null) => {
+      button.current = node;
+      setActivatorNodeRef(node);
+    },
+    [setActivatorNodeRef],
+  );
 
   return (
-    <span className={styles.chipHold} ref={box}>
+    <span
+      className={`${styles.chipHold} ${isDragging ? styles.chipHoldLifted : ""}`}
+      ref={hold}
+      style={{ transform: CSS.Translate.toString(transform) }}
+    >
       <button
-        ref={button}
+        {...attributes}
+        {...listeners}
+        ref={handle}
         type="button"
         className={`${styles.chipButton} ${item.place === "edge" ? styles.chipButtonEdge : ""} ${open ? styles.chipButtonOpen : ""}`}
         data-testid="card-drawn"
         data-item={item.id}
         data-place={item.place}
+        aria-pressed={undefined}
         aria-expanded={open}
         aria-label={`${item.name}, ${where.toLowerCase()}`}
         title={item.name}
-        onClick={() => onOpen(open ? null : item.id)}
+        onClick={() => {
+          if (Date.now() - droppedAt.current < 400) return;
+          onOpen(open ? null : item.id);
+        }}
         onMouseEnter={() => onNear(item.id)}
         onMouseLeave={() => onNear(null)}
         onFocus={() => onNear(item.id)}

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { page, type Locator } from "vitest/browser";
+import { commands, page, userEvent, type Locator } from "vitest/browser";
 import { BoardShell } from "@/components/board/BoardApp";
 import type { BoardData, CardView } from "@/lib/types";
 import {
@@ -493,6 +493,148 @@ describe("The card drawn big", () => {
       await popover("Description").getByRole("button", { name: "Take off the card" }).click();
       await wrote(() => sent("PATCH", PROJECT_CARD), ++writes);
     }
+  });
+
+  const middle = (locator: Locator) => {
+    const r = locator.element().getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  };
+  /* The zones say they are open once dnd-kit has lifted the chip, and the
+     short pause is the frame in which it measures them. */
+  async function lift(chip: Locator) {
+    (chip.element() as HTMLElement).focus();
+    await userEvent.keyboard(" ");
+    await expect.element(zone("body")).toHaveAttribute("data-open");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  async function step(arrow: string, to: string) {
+    await userEvent.keyboard(arrow);
+    await expect.element(page.getByTestId(to)).toHaveAttribute("data-over");
+  }
+
+  test("a chip dragged to another zone saves its new place", async () => {
+    const data = newProject();
+    withTask(data, "Dragged", { Status: "Todo", Priority: "Urgent" });
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const priority = data.properties.find((p) => p.name === "Priority")!;
+
+    await commands.drag(middle(drawn("Priority")), middle(zone("footerR")));
+    await wrote(() => sent("PATCH", PROJECT_CARD), 1);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[0], priority.id)).toBe("footerR");
+    await expect
+      .element(zone("footerR").getByRole("button", { name: "Priority, footer right" }))
+      .toBeVisible();
+    // A drag is not a click, so no popover opens.
+    await gone(popover("Priority"));
+
+    // From the tray onto the card, and onto the edge.
+    await commands.drag(middle(drawn("Description")), middle(zone("body")));
+    await wrote(() => sent("PATCH", PROJECT_CARD), 2);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[1], "_desc")).toBe("body");
+    await commands.drag(middle(drawn("Priority")), middle(zone("edge")));
+    await wrote(() => sent("PATCH", PROJECT_CARD), 3);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[2], priority.id)).toBe("edge");
+    await expect.element(card("Dragged").getByTestId("card-edge")).toBeVisible();
+  });
+
+  test("a chip dragged to the tray comes off the card", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const priority = data.properties.find((p) => p.name === "Priority")!;
+
+    await commands.drag(middle(drawn("Priority")), middle(page.getByTestId("card-off")));
+    await wrote(() => sent("PATCH", PROJECT_CARD), 1);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[0], priority.id)).toBe("off");
+    await expect
+      .element(
+        page.getByTestId("card-off").getByRole("button", { name: "Priority, not on the card" }),
+      )
+      .toBeVisible();
+  });
+
+  test("dropping a chip on the edge takes the old edge holder off", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const priority = data.properties.find((p) => p.name === "Priority")!;
+    const status = data.properties.find((p) => p.name === "Status")!;
+
+    await commands.drag(middle(drawn("Priority")), middle(zone("edge")));
+    await wrote(() => sent("PATCH", PROJECT_CARD), 1);
+    await commands.drag(middle(drawn("Status")), middle(zone("edge")));
+    await wrote(() => sent("PATCH", PROJECT_CARD), 2);
+    const last = sent("PATCH", PROJECT_CARD)[1];
+    expect(placeOf(last, status.id)).toBe("edge");
+    expect(placeOf(last, priority.id)).toBe("off");
+  });
+
+  test("the edge refuses a chip whose kind cannot colour it", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+
+    // While a date is held, the edge shows as closed and the boxes as open.
+    await commands.hold(middle(drawn("Due")), middle(zone("edge")));
+    await expect.element(zone("edge")).toHaveAttribute("data-closed");
+    await expect.element(zone("body")).toHaveAttribute("data-open");
+    await expect.element(zone("edge")).not.toHaveAttribute("data-over");
+    await commands.letGo();
+    await expect.element(zone("edge")).not.toHaveAttribute("data-closed");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+    await gone(zone("edge").getByRole("button", { name: /^Due, / }));
+
+    // The keyboard steps over it: left from a box goes nowhere.
+    await lift(drawn("Due"));
+    await expect.element(zone("edge")).toHaveAttribute("data-closed");
+    await userEvent.keyboard("{ArrowLeft}");
+    await userEvent.keyboard(" ");
+    await expect.element(zone("edge")).not.toHaveAttribute("data-closed");
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+  });
+
+  test("the keyboard can move a chip between zones", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const priority = data.properties.find((p) => p.name === "Priority")!;
+
+    // Space lifts, the arrows walk the card, Space drops.
+    await lift(drawn("Priority"));
+    await step("{ArrowDown}", "card-zone-body");
+    await step("{ArrowDown}", "card-zone-footerL");
+    await step("{ArrowRight}", "card-zone-footerR");
+    await userEvent.keyboard(" ");
+    await wrote(() => sent("PATCH", PROJECT_CARD), 1);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[0], priority.id)).toBe("footerR");
+    await expect
+      .element(zone("footerR").getByRole("button", { name: "Priority, footer right" }))
+      .toBeVisible();
+    // The drop is not a click: the chip keeps its popover shut.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await gone(popover("Priority"));
+
+    // Down from the foot is the tray; Escape puts the chip back.
+    await lift(drawn("Priority"));
+    await step("{ArrowDown}", "card-off");
+    await userEvent.keyboard("{Escape}");
+    await expect.element(zone("body")).not.toHaveAttribute("data-open");
+    expect(sent("PATCH", PROJECT_CARD)).toHaveLength(1);
+
+    await lift(drawn("Priority"));
+    await step("{ArrowDown}", "card-off");
+    await userEvent.keyboard(" ");
+    await wrote(() => sent("PATCH", PROJECT_CARD), 2);
+    expect(placeOf(sent("PATCH", PROJECT_CARD)[1], priority.id)).toBe("off");
+  });
+
+  test("the hint under the editor says a chip drags", async () => {
+    await draw(newProject(), <CardViewPanel />, "Card");
+    await expect
+      .element(
+        page
+          .getByTestId("card-drawing")
+          .getByText("Drag a chip to another place, or off the card."),
+      )
+      .toBeVisible();
   });
 
   test("the List toggle shows the rows, and Card brings the drawing back", async () => {
