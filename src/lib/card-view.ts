@@ -703,7 +703,7 @@ function propertiesOf(items: CardItem[]): PropertyDTO[] {
  * the mode and never off a property, so it names nothing and moves with the
  * mode a person picks.
  */
-function wordless(item: CardItem): boolean {
+export function wordless(item: CardItem): boolean {
   return item.mode === "colour" || item.mode === "avatar";
 }
 

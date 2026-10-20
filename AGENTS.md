@@ -50,7 +50,10 @@ and what is easy to get wrong.
   `cardAccent()` asks the card view for the stripe the card wears, so moving the
   edge moves the panel with it and no screen names a property of its own.
 - **Properties have one order, and it is the Settings drag.** The card view
-  holds no order. `cardOrder()` in `card-view.ts` is the one place that says
+  holds no order. The card editor is a second handle on the same order: a
+  property chip dropped on another in its place calls `moveProperty`, naming
+  what it landed on, and writes nothing to the card view. A built-in chip is
+  no target and does not move. `cardOrder()` in `card-view.ts` is the one place that says
   which row comes first: `_key`, `_title` and `_desc`, then the properties in
   their `position`, then `_checklist`, `_parts` and `_comments`. The chips
   that share a place on a card, the columns of a list and the fields of the

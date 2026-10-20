@@ -2527,6 +2527,26 @@ div.hookRow {
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
+/* A property chip dropped on another moves along the order: the bar says
+   which side of it the property lands. */
+.chipHold[data-land]::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.chipHold[data-land="before"]::before {
+  left: -4px;
+}
+
+.chipHold[data-land="after"]::before {
+  right: -4px;
+}
+
 /* While a chip is lifted, every zone says whether it takes it. */
 .zone[data-open],
 .edgeRail[data-open],

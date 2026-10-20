@@ -26,13 +26,23 @@ import {
   canEdge,
   CHIP_PLACES,
   drawOrder,
+  wordless,
   MODES_FOR_KIND,
   OFF_EDGE,
   sampleTask,
   type CardItem,
 } from "@/lib/card-view";
 import { CARD_PLACE_LABEL, type CardMode, type CardPlace, type TaskDTO } from "@/lib/types";
-import { DROP_ZONES, zoneCollision, zoneToward, type DropZone } from "./card-drag";
+import {
+  DROP_ZONES,
+  spotId,
+  spotItem,
+  zoneCollision,
+  zoneToward,
+  type DropZone,
+  type LiftedData,
+  type SpotData,
+} from "./card-drag";
 import styles from "./settings.module.css";
 
 type ChipPlace = (typeof CHIP_PLACES)[number];
@@ -81,7 +91,10 @@ export function CardDrawing({
   onPlace: (id: string, place: CardPlace) => void;
   onMode: (id: string, mode: CardMode) => void;
 }) {
-  const { data } = useBoard();
+  const { data, moveProperty } = useBoard();
+  /* The order is the properties' own, so only somebody the property PATCH
+     answers may move it from here. */
+  const mayOrder = data.project.mayStructure;
   /* A stand-in that holds a value for every property, so every chip has a
      real value to show, however empty the project's own tasks are. */
   const task = useMemo(
@@ -93,6 +106,9 @@ export function CardDrawing({
   const off = items.filter((i) => i.place === "off");
 
   const [lifted, setLifted] = useState<CardItem | null>(null);
+  /* Said after a drop that moved a property where its chip cannot be drawn. */
+  const [stayedFirst, setStayedFirst] = useState<string | null>(null);
+  const rank = useMemo(() => new Map(data.properties.map((p, i) => [p.id, i])), [data.properties]);
   const closed = useCallback(
     (zone: DropZone) => zone === "edge" && !!lifted && !canEdge(lifted.kind),
     [lifted],
@@ -135,22 +151,31 @@ export function CardDrawing({
   const nameOf = (id: string | number) => items.find((i) => i.id === id)?.name ?? "The chip";
   const zoneOf = (id: string | number | undefined) =>
     id !== undefined && id in ZONE_SAID ? ZONE_SAID[id as DropZone].toLowerCase() : null;
+  const landSaid = (active: string | number, spot: string) =>
+    `${(rank.get(String(active)) ?? 0) < (rank.get(spot) ?? 0) ? "after" : "before"} ${nameOf(spot)}`;
   const announcements: Announcements = {
     onDragStart: ({ active }) => `Lifted ${nameOf(active.id)}.`,
-    onDragOver: ({ active, over }) =>
-      over
+    onDragOver: ({ active, over }) => {
+      const spot = over && spotItem(over.id);
+      if (spot) return `${nameOf(active.id)} would move ${landSaid(active.id, spot)}.`;
+      return over
         ? `${nameOf(active.id)} is over ${zoneOf(over.id)}.`
-        : `${nameOf(active.id)} is over no place that takes it.`,
-    onDragEnd: ({ active, over }) =>
-      over
+        : `${nameOf(active.id)} is over no place that takes it.`;
+    },
+    onDragEnd: ({ active, over }) => {
+      const spot = over && spotItem(over.id);
+      if (spot) return `${nameOf(active.id)} moved ${landSaid(active.id, spot)}.`;
+      return over
         ? `${nameOf(active.id)} dropped in ${zoneOf(over.id)}.`
-        : `${nameOf(active.id)} stays where it was.`,
+        : `${nameOf(active.id)} stays where it was.`;
+    },
     onDragCancel: ({ active }) => `${nameOf(active.id)} stays where it was.`,
   };
 
   function start({ active }: DragStartEvent) {
     const item = items.find((i) => i.id === active.id) ?? null;
     setLifted(item);
+    setStayedFirst(null);
     keyAt.current = item && item.place !== "title" ? (item.place as DropZone) : null;
     onOpen(null);
   }
@@ -161,6 +186,16 @@ export function CardDrawing({
     droppedAt.current = Date.now();
     const item = items.find((i) => i.id === active.id);
     if (!item || !over) return;
+    const spot = spotItem(over.id);
+    if (spot) {
+      const target = items.find((i) => i.id === spot);
+      /* Only a property moves, and only along the zone it already sits in. */
+      if (!mayOrder || !target || item.builtin || target.builtin) return;
+      if (target.place !== item.place || target.id === item.id) return;
+      if (wordless(item) !== wordless(target)) setStayedFirst(item.name);
+      void moveProperty(item.id, target.id);
+      return;
+    }
     const zone = over.id as DropZone;
     /* A closed zone takes no drop, whatever the pointer says. */
     if (!DROP_ZONES.includes(zone) || closed(zone) || zone === item.place) return;
@@ -176,6 +211,8 @@ export function CardDrawing({
       edgeHolder={edgeHolder}
       open={open === item.id}
       droppedAt={droppedAt}
+      spot={mayOrder && !item.builtin && (CHIP_PLACES as readonly string[]).includes(item.place)}
+      landsAfter={!!lifted && (rank.get(lifted.id) ?? 0) < (rank.get(item.id) ?? 0)}
       onOpen={onOpen}
       onNear={onNear}
       onPlace={onPlace}
@@ -264,7 +301,17 @@ export function CardDrawing({
           )}
         </DropBox>
 
-        <Note>Drag a chip to another place, or off the card.</Note>
+        <Note>
+          Drag a chip to another place, or off the card.
+          {mayOrder &&
+            " Drag it along its row to change the order. That order is the one order, so the task panel follows it."}
+        </Note>
+        {stayedFirst && (
+          <Note>
+            {stayedFirst} moved in the order. A chip with no words, a square or a face, is still
+            drawn first in its place, as on the board.
+          </Note>
+        )}
       </div>
     </DndContext>
   );
@@ -314,6 +361,8 @@ function ChipButton({
   edgeHolder,
   open,
   droppedAt,
+  spot,
+  landsAfter,
   onOpen,
   onNear,
   onPlace,
@@ -325,6 +374,10 @@ function ChipButton({
   edgeHolder: CardItem | null;
   open: boolean;
   droppedAt: React.RefObject<number>;
+  /** Whether another property chip may land on this one, to move along the order. */
+  spot: boolean;
+  /** Whether the chip lifted now would land after this one rather than before. */
+  landsAfter: boolean;
   onOpen: (id: string | null) => void;
   onNear: (id: string | null) => void;
   onPlace: (id: string, place: CardPlace) => void;
@@ -338,13 +391,23 @@ function ChipButton({
   const boxRef = useDismiss<HTMLSpanElement>(close, open);
   const where = item.place === "off" ? "not on the card" : CARD_PLACE_LABEL[item.place];
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } =
-    useDraggable({ id: item.id, disabled: item.fixed });
+    useDraggable({
+      id: item.id,
+      disabled: item.fixed,
+      data: { place: item.place, property: !item.builtin } satisfies LiftedData,
+    });
+  const { setNodeRef: setSpotRef, isOver } = useDroppable({
+    id: spotId(item.id),
+    disabled: !spot,
+    data: { place: item.place } satisfies SpotData,
+  });
   const hold = useCallback(
     (node: HTMLSpanElement | null) => {
       boxRef.current = node;
       setNodeRef(node);
+      setSpotRef(node);
     },
-    [boxRef, setNodeRef],
+    [boxRef, setNodeRef, setSpotRef],
   );
   const handle = useCallback(
     (node: HTMLButtonElement | null) => {
@@ -359,6 +422,7 @@ function ChipButton({
       className={`${styles.chipHold} ${isDragging ? styles.chipHoldLifted : ""}`}
       ref={hold}
       style={{ transform: CSS.Translate.toString(transform) }}
+      data-land={isOver ? (landsAfter ? "after" : "before") : undefined}
     >
       <button
         {...attributes}

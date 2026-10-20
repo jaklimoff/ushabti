@@ -637,6 +637,96 @@ describe("The card drawn big", () => {
       .toBeVisible();
   });
 
+  const PROPERTY = /^\/api\/properties\/[0-9a-f-]+$/;
+  /* The chips of one zone, in the order the card draws them. */
+  const inZone = (place: string) =>
+    Array.from(
+      zone(place).element().querySelectorAll<HTMLElement>("[data-testid=card-drawn]"),
+      (node) => node.title,
+    );
+
+  test("a property chip dragged along its zone moves the property", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const due = data.properties.find((p) => p.name === "Due")!;
+    const names = data.properties.map((p) => p.name);
+    expect(names.indexOf("Due")).toBeGreaterThan(names.indexOf("Estimate"));
+    const before = names[names.indexOf("Estimate") - 1];
+
+    await commands.drag(middle(drawn("Due")), middle(drawn("Estimate")));
+    await wrote(() => sent("PATCH", PROPERTY), 1);
+    const [move] = sent("PATCH", PROPERTY);
+    expect(move.path).toBe(`/api/properties/${due.id}`);
+    // Named by what it landed on, as the Properties drag names it.
+    expect(move.body).toEqual({
+      afterId: data.properties.find((p) => p.name === before)!.id,
+    });
+    await expect
+      .poll(() => inZone("footerL").indexOf("Due"))
+      .toBe(inZone("footerL").indexOf("Estimate") - 1);
+    // The order is the properties' own: the card view is not written.
+    expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+  });
+
+  test("built-in chips cannot be moved along the order", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const footer = inZone("footerL");
+
+    await commands.drag(middle(drawn("Checklist")), middle(drawn("Due")));
+    await commands.drag(middle(drawn("Due")), middle(drawn("Comments")));
+    await commands.drag(middle(drawn("Task ID")), middle(drawn("Priority")));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sent("PATCH", PROPERTY)).toEqual([]);
+    expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+    expect(inZone("footerL")).toEqual(footer);
+  });
+
+  test("a word chip dropped before a colour chip moves, and the hint says why it is not first", async () => {
+    const data = newProject();
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    const estimate = data.properties.find((p) => p.name === "Estimate")!;
+
+    await commands.drag(middle(drawn("Estimate")), middle(zone("headerL")));
+    await wrote(() => sent("PATCH", PROJECT_CARD), 1);
+    await expect
+      .element(zone("headerL").getByRole("button", { name: /^Estimate, / }))
+      .toBeVisible();
+
+    await commands.drag(middle(drawn("Estimate")), middle(drawn("Priority")));
+    await wrote(() => sent("PATCH", PROPERTY), 1);
+    expect(sent("PATCH", PROPERTY)[0].path).toBe(`/api/properties/${estimate.id}`);
+    await expect
+      .element(page.getByText("Estimate moved in the order. A chip with no words"))
+      .toBeVisible();
+    expect(inZone("headerL")[0]).toBe("Priority");
+  });
+
+  test("somebody who may not change the structure drags nothing along a zone", async () => {
+    const data = newProject();
+    data.project.mayStructure = false;
+    const { sent } = await draw(data, <CardViewPanel />, "Card");
+    await expect.element(page.getByText("Drag it along its row")).not.toBeInTheDocument();
+
+    await commands.drag(middle(drawn("Due")), middle(drawn("Estimate")));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sent("PATCH", PROPERTY)).toEqual([]);
+    expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+  });
+
+  test("the hint says the order is the one order", async () => {
+    await draw(newProject(), <CardViewPanel />, "Card");
+    await expect
+      .element(
+        page
+          .getByTestId("card-drawing")
+          .getByText(
+            "Drag it along its row to change the order. That order is the one order, so the task panel follows it.",
+          ),
+      )
+      .toBeVisible();
+  });
+
   test("the List toggle shows the rows, and Card brings the drawing back", async () => {
     await draw(newProject(), <CardViewPanel />, "Card");
     await expect.element(page.getByTestId("card-drawing")).toBeVisible();

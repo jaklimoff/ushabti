@@ -112,7 +112,7 @@ export function CardViewPanel({ viewId = null }: { viewId?: string | null }) {
       ) : (
         <PageHead
           title="Card view"
-          note="What a card on the board carries. Click a chip to say how it reads and where it sits. Chips sharing a place follow the order of the properties — drag them in Properties to change it."
+          note="What a card on the board carries. Click a chip to say how it reads and where it sits. Chips sharing a place follow the order of the properties, which a drag along a place changes here or in Properties."
         />
       )}
 
