@@ -47,8 +47,10 @@ docker run -d --rm --name "$name-s3" \
   -e RUSTFS_CORS_ALLOWED_ORIGINS="http://localhost:$port" -e RUSTFS_OBS_LOG_DIRECTORY= \
   -p "127.0.0.1:$s3:9000" rustfs/rustfs:1.0.1 >/dev/null
 
+# Over TCP: on first boot the image runs a server on the socket alone while it
+# sets up, then restarts it, and a socket check passes during that window.
 i=0
-until docker exec "$name" pg_isready -U ushabti -d ushabti >/dev/null 2>&1; do
+until docker exec "$name" pg_isready -h 127.0.0.1 -U ushabti -d ushabti >/dev/null 2>&1; do
   i=$((i + 1))
   [ "$i" -gt 60 ] && { echo "e2e: Postgres did not start"; exit 1; }
   sleep 1
