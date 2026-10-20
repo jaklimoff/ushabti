@@ -168,7 +168,7 @@ describe("Custom properties", () => {
       await renderWithBoard(<PropertiesPanel />, newProject());
       const status = propertyBox("Status");
       const tools = status.getByTestId("property-tools");
-      /* No switch for dates: Use releases and Use sprints say that now. */
+      /* No switch for dates: the releases and sprints tiles say that now. */
       await gone(tools.getByLabelText("Options carry dates"));
       const when = tools.getByRole("button", { name: "Show only when…" });
       await expect.element(when).toBeVisible();

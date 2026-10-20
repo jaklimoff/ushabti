@@ -381,7 +381,9 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
         </div>
       </div>
 
-      {property.type === "iteration" && <CadenceRow property={property} canEdit={canEdit} />}
+      {property.type === "iteration" && data.project.sprintBy !== property.id && (
+        <CadenceRow property={property} canEdit={canEdit} />
+      )}
       {(property.config.when || whenOpen) && (
         <WhenRow property={property} canEdit={canEdit} onClose={() => setWhenOpen(false)} />
       )}
@@ -503,6 +505,9 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
       )}
       {data.project.releaseBy === property.id && (
         <ReleasesPanel property={property} canEdit={canEdit} />
+      )}
+      {property.type === "iteration" && data.project.sprintBy === property.id && (
+        <SprintsPanel property={property} canEdit={canEdit} />
       )}
     </div>
   );
@@ -663,6 +668,68 @@ function ReleasesPanel({ property, canEdit }: { property: PropertyDTO; canEdit: 
         ) : (
           <span>{property.name} is the releases.</span>
         )}
+      </RoleRow>
+    </RolePanel>
+  );
+}
+
+/*
+ * The sprints, said on the iteration that is them, beside how long one is.
+ * Off asks first, as the releases do, and clears the pointer and nothing else.
+ */
+function SprintsPanel({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
+  const { data, send, refresh, notify } = useBoard();
+  const off = useConfirm();
+  const [sending, setSending] = useState(false);
+
+  async function turnOff() {
+    if (sending) return;
+    setSending(true);
+    try {
+      await send.del(`/api/projects/${data.project.id}/sprints`);
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not turn sprints off.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (canEdit && off.asking)
+    return (
+      <ConfirmRow
+        question={offQuestion("sprint", property, data.tasks, data.views)}
+        confirmLabel="Yes, turn off"
+        onConfirm={() => off.confirm(() => void turnOff())}
+        onCancel={off.cancel}
+      />
+    );
+
+  return (
+    <RolePanel label="The sprints">
+      <RoleRow label="The sprints" note="Close makes the next one.">
+        {canEdit ? (
+          <Checkbox
+            role="switch"
+            label={`${property.name} is the sprints`}
+            checked
+            disabled={sending}
+            onChange={() => off.ask()}
+          />
+        ) : (
+          <span>{property.name} is the sprints.</span>
+        )}
+      </RoleRow>
+      <RoleRow label="Cadence">
+        <CadenceBox
+          property={property}
+          field="length"
+          saved={readCadence(property.config).length}
+          max={LENGTH_MAX}
+          label="Sprint length in days"
+          unit="days a sprint"
+          canEdit={canEdit}
+        />
       </RoleRow>
     </RolePanel>
   );
@@ -1392,8 +1459,9 @@ function WhenRow({
 }
 
 /**
- * An iteration's cadence: how long a sprint is. The box saves on blur, and on
- * leave for a tab closed while it still has the focus.
+ * The cadence of an iteration that is not the sprints. The sprints carry
+ * theirs in their role panel. The box saves on blur, and on leave for a tab
+ * closed while it still has the focus.
  */
 function CadenceRow({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
   const cadence = readCadence(property.config);
@@ -1408,10 +1476,6 @@ function CadenceRow({ property, canEdit }: { property: PropertyDTO; canEdit: boo
         unit="days a sprint"
         canEdit={canEdit}
       />
-      <Note>
-        A sprint ends when somebody presses Close. If no open sprint follows, Close makes the next
-        one, named and dated after the last.
-      </Note>
     </div>
   );
 }

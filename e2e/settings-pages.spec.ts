@@ -22,9 +22,14 @@ test.describe("Settings pages", () => {
     }
     // A new project has no types, and none reads as nothing.
     await expect(rail.getByRole("link", { name: "Types", exact: true })).toBeVisible();
-    for (const title of ["General", "Work", "Agents", "Danger zone"]) {
+    for (const title of ["General", "Agents", "Danger zone"]) {
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     }
+    // Sprints are switched on their property now, on Properties.
+    await expect(page.getByRole("heading", { name: "Work", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: /sprints/i })).toHaveCount(0);
+    await expect(page.getByLabel("Sprint length in days")).toHaveCount(0);
+    await expect(page.getByLabel("First day of the first sprint")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Delete project" }).click();
     await expect(page.getByRole("button", { name: "Delete for good" })).toBeDisabled();
@@ -75,6 +80,34 @@ test.describe("Settings pages", () => {
     await form.getByRole("button", { name: "Use sprints" }).click();
     await expect(tiles.nth(3)).toContainText("Sprint · 7 days");
     await page.screenshot({ path: testInfo.outputPath("seen-role-on.png"), fullPage: true });
+
+    /* The sprint property carries its switch and its cadence. */
+    const sprints = page.getByRole("group", { name: "The sprints" });
+    await expect(sprints.getByText("Close makes the next one.")).toBeVisible();
+    const cadence = sprints.getByLabel("Sprint length in days of Sprint");
+    await expect(cadence).toHaveValue("7");
+    await expect(page.getByLabel("Sprint length in days of Sprint")).toHaveCount(1);
+    await cadence.fill("10");
+    await cadence.blur();
+    await expect(tiles.nth(3)).toContainText("Sprint · 10 days");
+    await sprints.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("seen-sprints-panel.png") });
+
+    /* Off asks first, and yes clears the pointer and nothing else. */
+    await sprints.getByRole("switch", { name: "Sprint is the sprints" }).click();
+    const sprintsOff = page.getByRole("alertdialog");
+    await expect(sprintsOff).toHaveAttribute(
+      "aria-label",
+      /^Turn sprints off\? Nothing is deleted/,
+    );
+    await page.screenshot({ path: testInfo.outputPath("seen-sprints-off.png") });
+    await sprintsOff.getByRole("button", { name: "Yes, turn off" }).click();
+    await expect(tiles.nth(3)).toContainText("Not set");
+    await expect(page.getByRole("group", { name: "The sprints" })).toHaveCount(0);
+    const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(after.project.sprintBy).toBeNull();
+    /* The iteration keeps its cadence, with no switch. */
+    await expect(page.getByLabel("Sprint length in days of Sprint")).toHaveValue("10");
   });
 
   test("a property says what uses it, and a card view row rings the card", async ({

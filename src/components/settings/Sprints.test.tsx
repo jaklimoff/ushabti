@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { page, type Locator } from "vitest/browser";
 import type { BoardData, PropertyDTO } from "@/lib/types";
-import { newProject, propertyOf, renderWithBoard, withTask, type Answer } from "@/test/board";
+import { newProject, renderWithBoard, withTask, type Answer } from "@/test/board";
 import { ProjectPanel } from "./ProjectPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 /*
- * Sprints in Settings: the switch of Settings -> Project, the releases row, the cadence
- * box and the shipped fold of the Properties page. Each test was a test of
+ * Sprints in Settings: the sprints and releases rows, the cadence box and the
+ * shipped fold of the Properties page. Each test was a test of
  * the end to end spec its block names, and carries its name or says which
  * half it is. What the routes make and keep is `sprint-route.test.ts`.
  */
@@ -93,50 +93,13 @@ describe("Use sprints and the releases", () => {
     };
   }
 
-  /* The screen half of e2e/cadence.spec.ts "Use sprints asks for the length
-     and the first day, and makes two sprints". */
-  test("Use sprints asks for the length and the first day, and makes two sprints", async () => {
-    const data = newProject();
-    const { sent } = await renderWithBoard(<ProjectPanel files={false} />, data, turning(data));
-
-    const length = page.getByLabelText("Sprint length in days");
-    await expect.element(length).toHaveValue("14");
-    await length.fill("7");
-    await page.getByLabelText("First day of the first sprint").fill("2036-11-02");
-    const toggle = page.getByRole("switch", { name: "Use sprints" });
-    await toggle.click();
-    await expect.element(toggle).toBeChecked();
-    /* On, the questions are answered and go. */
-    await gone(page.getByLabelText("Sprint length in days"));
-    const made = sent("POST", /\/sprints$/);
-    expect(made).toHaveLength(1);
-    expect(made[0].body).toEqual({ length: 7, startAt: "2036-11-02" });
-  });
-
   /* The screen half of e2e/sprints.spec.ts "an admin turns sprints on in one
-     press; a member and an agent are refused". */
-  test("an admin turns sprints on in one press; a member is not offered the switch", async () => {
-    const member = newProject();
-    member.project.role = "member";
-    const first = await renderWithBoard(<ProjectPanel files={false} />, member);
-    await expect.element(page.getByLabelText("Project name")).toBeVisible();
-    await gone(page.getByRole("switch", { name: "Use sprints" }));
-    await first.screen.unmount();
-
+     press; a member and an agent are refused". On is the tile on Properties;
+     off is the switch on the property that is the sprints. */
+  test("the sprints carry their switch and cadence, and off asks what stays", async () => {
     const data = newProject();
-    const on = await renderWithBoard(<ProjectPanel files={false} />, data, turning(data));
-    const toggle = page.getByRole("switch", { name: "Use sprints" });
-    await expect.element(toggle).not.toBeChecked();
-    await expect.element(page.getByText(/a sprint property Sprint with Sprint 1/)).toBeVisible();
-    await expect.element(page.getByText(/a list Backlog of the tasks in no sprint/)).toBeVisible();
-
-    await toggle.click();
-    await expect.element(toggle).toBeChecked();
-    await expect.element(page.getByText(/Sprints are the options of Sprint/)).toBeVisible();
-    expect(on.sent("POST", /\/sprints$/)).toHaveLength(1);
-
-    /* Off asks in place, in real numbers. Cancel leaves it on. */
-    const sprint = propertyOf(data, "Sprint");
+    const sprint = withSprints(data);
+    data.project.sprintBy = sprint.id;
     withTask(data, "Alpha", { Sprint: "Sprint 1" });
     data.views.push(
       {
@@ -155,8 +118,18 @@ describe("Use sprints and the releases", () => {
         filters: { rules: [{ propertyId: sprint.id, op: "is", values: ["__none__"] }] },
       },
     );
-    await on.screen.unmount();
-    const again = await renderWithBoard(<ProjectPanel files={false} />, data, turning(data));
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, turning(data));
+    const role = page.getByRole("group", { name: "The sprints" });
+    const toggle = role.getByRole("switch", { name: "Sprint is the sprints" });
+    await expect.element(toggle).toBeChecked();
+    await expect.element(role.getByText("Close makes the next one.")).toBeVisible();
+    await expect.element(role.getByText("Cadence", { exact: true })).toBeVisible();
+    await expect.element(role.getByLabelText("Sprint length in days of Sprint")).toHaveValue("14");
+    /* One cadence box: the old one above the options is gone. */
+    expect(page.getByLabelText("Sprint length in days of Sprint").elements()).toHaveLength(1);
+    await gone(page.getByText(/A sprint ends when somebody presses Close/));
+
+    /* Off asks in place, in real numbers. Cancel leaves it on. */
     await toggle.click();
     const question = page.getByRole("alertdialog");
     await expect
@@ -167,13 +140,27 @@ describe("Use sprints and the releases", () => {
       );
     await question.getByRole("button", { name: "Cancel" }).click();
     await expect.element(toggle).toBeChecked();
-    expect(again.sent("DELETE")).toHaveLength(0);
+    expect(sent("DELETE")).toHaveLength(0);
 
     await toggle.click();
     await page.getByRole("button", { name: "Yes, turn off" }).click();
-    await expect.element(toggle).not.toBeChecked();
-    expect(again.sent("DELETE", /\/sprints$/)).toHaveLength(1);
-    await expect.element(page.getByLabelText("Sprint length in days")).toBeVisible();
+    expect(sent("DELETE", /\/sprints$/)).toHaveLength(1);
+    await gone(page.getByRole("group", { name: "The sprints" }));
+    expect(data.project.sprintBy).toBeNull();
+    /* The iteration keeps its cadence, in a plain row with no switch. */
+    await expect.element(page.getByLabelText("Sprint length in days of Sprint")).toBeVisible();
+    await gone(page.getByRole("switch", { name: "Sprint is the sprints" }));
+  });
+
+  test("a member reads the sprints row with no switch", async () => {
+    const data = newProject();
+    data.project.sprintBy = withSprints(data).id;
+    data.project.role = "member";
+    await renderWithBoard(<PropertiesPanel />, data);
+    const role = page.getByRole("group", { name: "The sprints" });
+    await expect.element(role.getByText("Sprint is the sprints.")).toBeVisible();
+    expect(role.getByRole("switch").elements()).toHaveLength(0);
+    await expect.element(role.getByLabelText("Sprint length in days of Sprint")).toBeDisabled();
   });
 
   /* The screen half of e2e/sprints.spec.ts "an admin turns releases on: a
@@ -209,7 +196,7 @@ describe("Use sprints and the releases", () => {
     expect(data.project.releaseBy).toBeNull();
   });
 
-  test("a member reads the releases row with no switch, and Project has none", async () => {
+  test("a member reads the releases row with no switch, and Project has no plan switch", async () => {
     const data = newProject();
     const release = withSprints(data, ["1.0"]);
     release.name = "Release";
@@ -225,9 +212,12 @@ describe("Use sprints and the releases", () => {
 
     data.project.role = "owner";
     await renderWithBoard(<ProjectPanel files={false} />, data);
-    await expect.element(page.getByRole("switch", { name: "Use sprints" })).toBeVisible();
-    await gone(page.getByRole("switch", { name: /releases/i }));
+    await expect.element(page.getByLabelText("Project name")).toBeVisible();
+    await gone(page.getByRole("switch", { name: /releases|sprints/i }));
     await gone(page.getByText("Releases", { exact: true }));
+    await gone(page.getByText("Sprints", { exact: true }));
+    await gone(page.getByLabelText("Sprint length in days"));
+    await gone(page.getByLabelText("First day of the first sprint"));
   });
 });
 
@@ -242,28 +232,35 @@ describe("The cadence in Settings", () => {
 
   /* The screen half of "Settings shows the cadence, saved on blur and on
      leave". The member refused is the route test. */
-  test("Settings shows the cadence, saved on blur and on leave", async () => {
-    const data = newProject();
-    withSprints(data);
-    const { sent } = await renderWithBoard(<PropertiesPanel />, data);
-    const patches = () => sent("PATCH", /^\/api\/properties\/[0-9a-f-]+$/);
+  for (const sprints of [false, true])
+    test(`Settings shows the cadence, saved on blur and on leave${sprints ? ", on the sprints" : ""}`, async () => {
+      const data = newProject();
+      const sprint = withSprints(data);
+      if (sprints) data.project.sprintBy = sprint.id;
+      const { sent } = await renderWithBoard(<PropertiesPanel />, data);
+      const patches = () => sent("PATCH", /^\/api\/properties\/[0-9a-f-]+$/);
 
-    const length = lengthBox();
-    await expect.element(length).toHaveValue("14");
-    await gone(sprintBox().getByLabelText("Sprints kept ahead of Sprint"));
+      const length = lengthBox();
+      await expect.element(length).toHaveValue("14");
+      /* The sprints carry it in their role panel; any other iteration in a
+         plain row. */
+      expect(sprintBox().getByRole("group", { name: "The sprints" }).elements()).toHaveLength(
+        sprints ? 1 : 0,
+      );
+      await gone(sprintBox().getByLabelText("Sprints kept ahead of Sprint"));
 
-    await length.fill("7");
-    (length.element() as HTMLElement).blur();
-    await expect.poll(() => patches().length).toBe(1);
-    expect(patches()[0].body).toEqual({ cadence: { length: 7 } });
+      await length.fill("7");
+      (length.element() as HTMLElement).blur();
+      await expect.poll(() => patches().length).toBe(1);
+      expect(patches()[0].body).toEqual({ cadence: { length: 7 } });
 
-    await length.fill("10");
-    await expect.element(length).toHaveFocus();
-    // A closed tab raises pagehide and no blur.
-    window.dispatchEvent(new PageTransitionEvent("pagehide"));
-    await expect.poll(() => patches().length).toBe(2);
-    expect(patches()[1].body).toEqual({ cadence: { length: 10 } });
-  });
+      await length.fill("10");
+      await expect.element(length).toHaveFocus();
+      // A closed tab raises pagehide and no blur.
+      window.dispatchEvent(new PageTransitionEvent("pagehide"));
+      await expect.poll(() => patches().length).toBe(2);
+      expect(patches()[1].body).toEqual({ cadence: { length: 10 } });
+    });
 
   for (const [width, height] of [
     [1440, 900],

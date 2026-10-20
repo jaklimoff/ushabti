@@ -17,6 +17,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- Sprints are turned off on the sprint property, on Properties, beside how many days a sprint lasts. Project no longer holds the Sprints switch or its two boxes.
 - Releases are turned off on the releases property, on Properties, and no longer on Project. Its switch asks first and says what stays.
 - Done when and Progress by moved from Project to the property that says done, on Properties. A switch turns it off, and one pill per option says which count as done. The ship question with no Done when now points to Properties.
 - The way back from Settings names the view you opened it from, as "Back to Phases", and lands on it. It stays while you move between settings pages.

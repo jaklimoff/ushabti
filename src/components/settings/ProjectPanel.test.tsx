@@ -325,7 +325,7 @@ describe("Settings on a laptop", () => {
           .elements()
           .map((h) => h.textContent),
       )
-      .toEqual(["General", "Work", "Agents", "Danger zone"]);
+      .toEqual(["General", "Agents", "Danger zone"]);
   });
 
   /* "Public changelog" is drawn only while releases are on (USH-226), so the
@@ -334,7 +334,7 @@ describe("Settings on a laptop", () => {
     const data = releasesOn();
     const project = await renderWithBoard(<ProjectPanel files />, data);
     await expect.element(page.getByLabelText("Project name")).toBeVisible();
-    for (const label of ["Name", "Key", "Time zone", "Sprints", "Public changelog"]) {
+    for (const label of ["Name", "Key", "Time zone", "Public changelog"]) {
       expect(linesOf(label), `"${label}" takes ${linesOf(label)} lines`).toBe(1);
     }
     await project.screen.unmount();

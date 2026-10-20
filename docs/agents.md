@@ -428,10 +428,10 @@ It changes nothing about a rule — any select can still show a property.
 
 `project.releaseBy` and `project.sprintBy` are the ids of the select the
 project ships releases by and of the iteration it runs sprints by, or `null`
-when releases or sprints are off. Releases are turned on from their tile and
-off on their property in Settings → Properties; sprints by the **Use
-sprints** switch in Settings → Project. Both are read afresh, so a deleted property reads as `null`, and neither
-follows a name: a plain select named Sprint is just a select. Turning a switch
+when releases or sprints are off. Both are turned on from their tile and off
+on their property in Settings → Properties, where the sprint property also
+holds its cadence. Both are read afresh, so a deleted property reads as
+`null`, and neither follows a name: a plain select named Sprint is just a select. Turning a switch
 on is `POST /api/projects/{id}/releases` or `/sprints` and off is `DELETE` on
 the same address. Both are a person's who is the owner or an admin, and
 answer a token with `403`. On makes the property and its views, `201`, or

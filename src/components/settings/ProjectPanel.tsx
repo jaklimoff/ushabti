@@ -6,13 +6,11 @@ import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
 import { AGENT_RULES_MAX, AGENT_RULES_SOFT, rulesCount } from "@/lib/agent-rules";
-import { offQuestion } from "@/lib/plan-switch";
-import { CADENCE_DEFAULT } from "@/lib/cadence";
 import { useBoard } from "@/components/board/store";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import { Checkbox, Field, Input, ProjectColorSwatches, TextArea } from "@/components/ui/Form";
-import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
+import { Field, Input, ProjectColorSwatches, TextArea } from "@/components/ui/Form";
+import { ConfirmRow } from "@/components/ui/ConfirmRow";
 import { Card, Note, Row, Section } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -62,13 +60,6 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const [rules, setRules] = useState(savedRules);
   const [typedRules, setTypedRules] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  /* A press waits for its answer, so a second press cannot flip it back. */
-  const [switching, setSwitching] = useState(false);
-  const sprint = data.properties.find((p) => p.id === data.project.sprintBy) ?? null;
-  const sprintsOff = useConfirm();
-  /* What the cadence starts from. Nothing is saved until the switch. */
-  const [sprintLength, setSprintLength] = useState(String(CADENCE_DEFAULT.length));
-  const [sprintStart, setSprintStart] = useState(data.today);
   /* A press waits for its answer before it counts again: a second press on a
      switch that has not answered yet would flip it back. */
   const [flipping, setFlipping] = useState(false);
@@ -119,26 +110,6 @@ export function ProjectPanel({ files }: { files: boolean }) {
       setKey(data.project.key);
       setZone(data.project.timeZone);
       setRules(savedRules);
-    }
-  }
-
-  /*
-   * Use sprints. On makes the property and its views, or takes the one
-   * already there; off clears the switch and keeps everything. Releases are
-   * switched off on their property, in Properties.
-   */
-  async function setPlan(what: "sprints", on: boolean) {
-    if (switching) return;
-    setSwitching(true);
-    const at = `/api/projects/${data.project.id}/${what}`;
-    try {
-      if (!on) await send.del(at);
-      else await send.post(at, { length: Number(sprintLength.trim()), startAt: sprintStart });
-      await refresh();
-    } catch (err) {
-      notify(err instanceof Error ? err.message : `Could not turn ${what} ${on ? "on" : "off"}.`);
-    } finally {
-      setSwitching(false);
     }
   }
 
@@ -305,82 +276,6 @@ export function ProjectPanel({ files }: { files: boolean }) {
             </Field>
           </Row>
           {ownersOnly("the name, the key, the colour and the time zone")}
-        </Card>
-      </Section>
-
-      {/*
-       * How work is planned: whether the project works in sprints. Releases,
-       * what done means and what a bar sums sit on their properties, in
-       * Properties.
-       */}
-      <Section title="Work">
-        <Card>
-          {/*
-           * Sprints are a property and its views, nothing more, so the switch
-           * says which ones before it makes them. The switch reads
-           * the project's pointer, never a property's name.
-           */}
-          {canEdit &&
-            (sprintsOff.asking && sprint ? (
-              <ConfirmRow
-                question={offQuestion("sprint", sprint, data.tasks, data.views)}
-                confirmLabel="Yes, turn off"
-                onConfirm={() => sprintsOff.confirm(() => void setPlan("sprints", false))}
-                onCancel={sprintsOff.cancel}
-              />
-            ) : (
-              <Row>
-                <Field
-                  label="Sprints"
-                  inline
-                  note={
-                    sprint ? (
-                      <>
-                        Sprints are the options of <b>{sprint.name}</b>. A sprint is current while
-                        its dates hold today, and each Close makes the next one.
-                      </>
-                    ) : (
-                      <>
-                        Adds a sprint property <b>Sprint</b> with Sprint 1 from that day and Sprint
-                        2 after it, a board <b>Sprint</b> that shows the current sprint, and a list{" "}
-                        <b>Backlog</b> of the tasks in no sprint. A sprint is current while its
-                        dates hold today. Each Close makes the next sprint. You can rename or delete
-                        each one afterwards.
-                      </>
-                    )
-                  }
-                >
-                  <Checkbox
-                    role="switch"
-                    label="Use sprints"
-                    checked={sprint !== null}
-                    disabled={switching}
-                    onChange={() => (sprint ? sprintsOff.ask() : void setPlan("sprints", true))}
-                  />
-                  {!sprint && (
-                    <>
-                      <label className={styles.cadenceBox}>
-                        <Input
-                          aria-label="Sprint length in days"
-                          inputMode="numeric"
-                          className={styles.cadenceInput}
-                          value={sprintLength}
-                          onChange={(e) => setSprintLength(e.target.value)}
-                        />
-                        days, from
-                      </label>
-                      <Input
-                        aria-label="First day of the first sprint"
-                        type="date"
-                        value={sprintStart}
-                        onChange={(e) => setSprintStart(e.target.value)}
-                      />
-                    </>
-                  )}
-                </Field>
-              </Row>
-            ))}
-          {ownersOnly("how this project counts work")}
         </Card>
       </Section>
 

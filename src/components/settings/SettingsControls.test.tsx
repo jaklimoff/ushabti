@@ -163,11 +163,27 @@ describe("Settings draws its controls dark", () => {
     await userEvent.keyboard(" ");
     await expect.element(tick).not.toBeChecked();
 
-    /* The switches of Settings → Project are the same control. */
+    /* The switch of a role panel is the same control. */
     await drawn.screen.unmount();
-    await draw("project", <ProjectPanel files={false} />, data);
-    const sprints = page.getByRole("switch", { name: "Use sprints" });
-    expect(await checkboxGeometry(sprints)).toEqual(geometry);
+    const sprint: PropertyDTO = {
+      id: crypto.randomUUID(),
+      name: "Sprint",
+      type: "iteration",
+      position: "z",
+      config: { cadence: { length: 14 } },
+      options: [],
+    };
+    data.properties.push(sprint);
+    data.project.sprintBy = sprint.id;
+    await draw("properties", <PropertiesPanel />, data);
+    /* It is on, so it wears the accent; its shape is the same. */
+    const sprints = page.getByRole("switch", { name: "Sprint is the sprints" });
+    const { background: _off, border: _ring, ...shape } = geometry;
+    expect(await checkboxGeometry(sprints)).toEqual({
+      ...shape,
+      background: token("--accent"),
+      border: token("--accent"),
+    });
   });
 
   test("the file button of Import looks like a ghost button", async () => {
