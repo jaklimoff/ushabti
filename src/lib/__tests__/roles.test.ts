@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canManage, isOwner, outranks, roleChangeRefusal, rolesOffered } from "../roles";
+import { canManage, isOwner, maySaid, outranks, roleChangeRefusal, rolesOffered } from "../roles";
 
 const change = (
   actor: string,
@@ -60,5 +60,16 @@ describe("roles", () => {
     expect(rolesOffered("owner", "owner", "human", true)).toEqual([]);
     expect(rolesOffered("owner", "member", "agent", false)).toEqual([]);
     expect(rolesOffered("member", "member", "human", false)).toEqual([]);
+  });
+});
+
+describe("maySaid", () => {
+  it("names the acts switched off, by their short words", () => {
+    expect(maySaid({ delete: true })).toBe("May everything");
+    expect(maySaid({})).toBe("May everything but delete");
+    expect(maySaid({ ship: false })).toBe("May everything but delete and ship");
+    expect(maySaid({ create: false, checklist: false })).toBe(
+      "May everything but create, delete and checklists",
+    );
   });
 });

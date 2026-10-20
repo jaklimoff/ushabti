@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/client";
 import { emailedLine } from "@/lib/emailed";
@@ -10,6 +11,7 @@ import {
   AGENT_ACTS,
   AGENT_ACT_WORDS,
   agentMay,
+  maySaid,
   canManage,
   isOwner,
   outranks,
@@ -23,6 +25,7 @@ import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
+import { Chevron } from "@/components/ui/Marks";
 import {
   Checkbox,
   ColorSwatches,
@@ -33,17 +36,7 @@ import {
   Select,
 } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
-import {
-  Card,
-  EmptyState,
-  Foot,
-  FootNote,
-  Note,
-  Row,
-  Section,
-  Spacer,
-  Tag,
-} from "@/components/ui/Layout";
+import { Card, EmptyState, Foot, FootNote, Note, Row, Section, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { TokenRow } from "@/components/ui/TokenRow";
 import type { AgentDTO, InviteDTO, MemberDTO } from "@/lib/types";
@@ -500,6 +493,8 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
   const [busy, setBusy] = useState(false);
   /** The plain text of a token, held until the person leaves the page. */
   const [secrets, setSecrets] = useState<Record<string, string>>({});
+  /** The agents folded open. All start closed; one just added opens, so Connect is one press away. */
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const canEdit = canManage(data.project.role);
   const projectId = data.project.id;
 
@@ -508,8 +503,11 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
     if (!trimmed || busy) return;
     setBusy(true);
     try {
-      await send.post(`/api/projects/${projectId}/agents`, { name: trimmed });
+      const res = await send.post<{ agent: { id: string } }>(`/api/projects/${projectId}/agents`, {
+        name: trimmed,
+      });
       setName("");
+      setOpen((current) => new Set(current).add(res.agent.id));
       await reload();
       await refresh();
     } catch (err) {
@@ -619,6 +617,14 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
             projectId={projectId}
             canEdit={canEdit}
             secrets={secrets}
+            open={open.has(agent.id)}
+            onToggle={() =>
+              setOpen((current) => {
+                const next = new Set(current);
+                if (!next.delete(agent.id)) next.add(agent.id);
+                return next;
+              })
+            }
             onConnect={(tokenName) => connect(agent, tokenName)}
             onRevoke={(id) => void revoke(id)}
             onRemove={() => void remove(agent)}
@@ -639,12 +645,16 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void create()}
             />
-            <Button onClick={() => void create()} disabled={busy}>
+            <Button variant="ghost" onClick={() => void create()} disabled={busy}>
               Add agent
             </Button>
           </Foot>
         )}
       </Card>
+      <p className={styles.agentsAfter}>
+        A token that acts as you, not as an agent, is on your{" "}
+        <Link href="/account">Account page</Link>.
+      </p>
     </Section>
   );
 }
@@ -654,6 +664,8 @@ function AgentBox({
   projectId,
   canEdit,
   secrets,
+  open,
+  onToggle,
   onConnect,
   onRevoke,
   onRemove,
@@ -666,6 +678,8 @@ function AgentBox({
   projectId: string;
   canEdit: boolean;
   secrets: Record<string, string>;
+  open: boolean;
+  onToggle: () => void;
   onConnect: (tokenName: string) => Promise<boolean>;
   onRevoke: (tokenId: string) => void;
   onRemove: () => void;
@@ -675,7 +689,6 @@ function AgentBox({
   reload: () => Promise<void>;
 }) {
   const confirm = useConfirm();
-  const [editing, setEditing] = useState(false);
   /** The name of the token about to be made; null while nobody is making one. */
   const [naming, setNaming] = useState<string | null>(null);
   const [making, setMaking] = useState(false);
@@ -684,6 +697,9 @@ function AgentBox({
   /* The box holds a name that another tab can change under it, so only what
      this tab typed may be written back. */
   const [typed, setTyped] = useState(false);
+  const listening = agent.tokens.some((token) => isListening(token.listeningAt));
+  const tokens = agent.tokens.length;
+  const detail = useId();
 
   /* The name saves on blur, and a closed tab sends no blur. */
   useSaveOnLeave(() => {
@@ -708,157 +724,173 @@ function AgentBox({
 
   return (
     <div className={styles.agentBox} data-testid="agent-box">
-      {confirm.asking ? (
-        <ConfirmRow
-          question={`Remove ${agent.name}? Its tokens stop working at once. Its runs, its comments and its activity stay on the tasks.`}
-          confirmLabel="Yes, remove"
-          onConfirm={() => confirm.confirm(onRemove)}
-          onCancel={confirm.cancel}
+      {/* Folded, an agent is one line: who, what it may do, whether it hears. */}
+      <button
+        type="button"
+        className={styles.agentHead}
+        aria-expanded={open}
+        aria-controls={open ? detail : undefined}
+        onClick={onToggle}
+      >
+        <Avatar
+          name={agent.name}
+          color={face.color}
+          emoji={face.emoji}
+          size={30}
+          kind="agent"
+          square
         />
-      ) : (
-        <Row>
-          <Avatar name={agent.name} color={face.color} emoji={face.emoji} size={22} kind="agent" />
+        <span className={styles.agentWho}>
           <span className={styles.memberName}>{agent.name}</span>
-          <Tag>agent</Tag>
-          <Spacer />
-          {canEdit && (
-            <>
-              {/* Edit opens the name, the colour and the emoji. A token is
-                  how an agent connects, so the first one is Connect and
-                  every one after it is a new token. */}
-              <Button
-                variant="text"
-                aria-expanded={editing}
-                aria-label={`Edit ${agent.name}`}
-                onClick={() => setEditing((open) => !open)}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="text"
-                aria-expanded={naming !== null}
-                onClick={() => setNaming((open) => (open === null ? today() : null))}
-              >
-                {agent.tokens.length === 0 ? "Connect" : "New token"}
-              </Button>
-              <IconButton
-                danger
-                label={`Remove the agent ${agent.name}`}
-                title="Remove this agent"
-                onClick={confirm.ask}
-              >
-                ✕
-              </IconButton>
-            </>
-          )}
-        </Row>
-      )}
+          <span className={styles.agentSays}>
+            {maySaid(agent.acts)} ·{" "}
+            {tokens === 0 ? "no token" : `${tokens} ${tokens === 1 ? "token" : "tokens"}`}
+          </span>
+        </span>
+        <span className={listening ? styles.agentHears : styles.agentSilent}>
+          <span className={listening ? styles.agentDot : styles.agentDotOff} aria-hidden />
+          {listening ? "Listening" : "Silent"}
+        </span>
+        <Chevron size={12} className={styles.agentCaret} />
+      </button>
 
-      {canEdit && editing && (
-        <div className={styles.agentFace} data-testid="agent-face">
-          <Field
-            label="Name"
-            note="A mention of the new name wakes it. Its comments and runs show the new name; text already written keeps the old one."
-          >
-            <Input
-              key={agent.name}
-              ref={box}
-              width="medium"
-              maxLength={80}
-              aria-label={`Name of the agent ${agent.name}`}
-              defaultValue={agent.name}
-              onChange={() => setTyped(true)}
-              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-              onBlur={(e) => {
-                setTyped(false);
-                const input = e.currentTarget;
-                const edit = editedText(input.value, agent.name);
-                if (!edit) {
-                  input.value = agent.name;
-                  return;
-                }
-                void onRename(edit).then((saved) => {
-                  if (!saved) input.value = agent.name;
-                });
-              }}
-            />
-          </Field>
-          <Field label="Colour" note="Pick one no other agent and no person on the team wears.">
-            <ColorSwatches
-              name={agent.name}
-              emoji={face.emoji}
-              kind="agent"
-              label={`Colour of ${agent.name}`}
-              value={face.color}
-              onPick={(color) => face.pick({ color })}
-            />
-          </Field>
-          <Field
-            label="Emoji"
-            note="Worn on the colour in place of the ◆, with a small ◆ beside it."
-          >
-            <FaceSwatches
-              name={agent.name}
-              color={face.color}
-              kind="agent"
-              label={`Emoji of ${agent.name}`}
-              value={face.emoji}
-              onPick={(emoji) => face.pick({ emoji })}
-            />
-          </Field>
-        </div>
-      )}
+      {open && (
+        <div className={styles.agentDetail} id={detail}>
+          <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
 
-      <div className={styles.agentDetail}>
-        <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
-
-        <div className={styles.agentPart}>
-          <Label className={styles.agentLabel}>Tokens</Label>
-          <div className={styles.tokens}>
-            {agent.tokens.map((token) => (
-              <AgentTokenRow
-                key={token.id}
-                token={token}
-                others={agent.tokens.length - 1}
-                agentName={agent.name}
-                secret={secrets[token.id]}
-                canEdit={canEdit}
-                onRevoke={() => onRevoke(token.id)}
-                reload={reload}
-              />
-            ))}
-            {agent.tokens.length === 0 && naming === null && (
-              <span className={styles.tokensNone}>
-                {canEdit
-                  ? `None yet. Connect makes the first one, and shows how to use it.`
-                  : `None yet.`}
-              </span>
-            )}
-            {canEdit && naming !== null && (
-              <div className={styles.tokenNaming} data-testid="token-name">
-                <Input
-                  grow
-                  autoFocus
-                  maxLength={60}
-                  aria-label={`Name of the new token for ${agent.name}`}
-                  value={naming}
-                  onChange={(e) => setNaming(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void make();
-                    if (e.key === "Escape") setNaming(null);
-                  }}
+          <div className={styles.agentPart}>
+            <Label className={styles.agentLabel}>Tokens</Label>
+            <div className={styles.tokens}>
+              {agent.tokens.map((token) => (
+                <AgentTokenRow
+                  key={token.id}
+                  token={token}
+                  others={tokens - 1}
+                  agentName={agent.name}
+                  secret={secrets[token.id]}
+                  canEdit={canEdit}
+                  onRevoke={() => onRevoke(token.id)}
+                  reload={reload}
                 />
-                <Button onClick={() => void make()} disabled={making || !naming.trim()}>
-                  Make token
-                </Button>
-                <Button variant="ghost" onClick={() => setNaming(null)}>
-                  Cancel
+              ))}
+              {!canEdit && tokens === 0 && <span className={styles.tokensNone}>None yet.</span>}
+              {/* A token is how an agent connects, so the first one is
+                  Connect and every one after it is a new token. */}
+              {canEdit && naming === null && (
+                <div className={styles.tokenNaming}>
+                  <Button variant="ghost" onClick={() => setNaming(today())}>
+                    {tokens === 0 ? "Connect" : "New token"}
+                  </Button>
+                </div>
+              )}
+              {canEdit && naming !== null && (
+                <div className={styles.tokenNaming} data-testid="token-name">
+                  <Input
+                    grow
+                    autoFocus
+                    maxLength={60}
+                    aria-label={`Name of the new token for ${agent.name}`}
+                    value={naming}
+                    onChange={(e) => setNaming(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void make();
+                      if (e.key === "Escape") setNaming(null);
+                    }}
+                  />
+                  <Button onClick={() => void make()} disabled={making || !naming.trim()}>
+                    Make token
+                  </Button>
+                  <Button variant="ghost" onClick={() => setNaming(null)}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {canEdit && (
+            <div className={styles.agentPart} data-testid="agent-face">
+              <Label className={styles.agentLabel}>Name</Label>
+              <div className={styles.agentFace}>
+                {/* The part is labelled Name already, so the box carries no second label. */}
+                <div className={styles.agentName}>
+                  <Input
+                    key={agent.name}
+                    ref={box}
+                    width="medium"
+                    maxLength={80}
+                    aria-label={`Name of the agent ${agent.name}`}
+                    defaultValue={agent.name}
+                    onChange={() => setTyped(true)}
+                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                    onBlur={(e) => {
+                      setTyped(false);
+                      const input = e.currentTarget;
+                      const edit = editedText(input.value, agent.name);
+                      if (!edit) {
+                        input.value = agent.name;
+                        return;
+                      }
+                      void onRename(edit).then((saved) => {
+                        if (!saved) input.value = agent.name;
+                      });
+                    }}
+                  />
+                  <span className={styles.agentNameNote}>
+                    A mention of the new name wakes it. Its comments and runs show the new name;
+                    text already written keeps the old one.
+                  </span>
+                </div>
+                <Field
+                  label="Colour"
+                  note="Pick one no other agent and no person on the team wears."
+                >
+                  <ColorSwatches
+                    name={agent.name}
+                    emoji={face.emoji}
+                    kind="agent"
+                    label={`Colour of ${agent.name}`}
+                    value={face.color}
+                    onPick={(color) => face.pick({ color })}
+                  />
+                </Field>
+                <Field
+                  label="Emoji"
+                  note="Worn on the colour in place of the ◆, with a small ◆ beside it."
+                >
+                  <FaceSwatches
+                    name={agent.name}
+                    color={face.color}
+                    kind="agent"
+                    label={`Emoji of ${agent.name}`}
+                    value={face.emoji}
+                    onPick={(emoji) => face.pick({ emoji })}
+                  />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {canEdit &&
+            (confirm.asking ? (
+              <ConfirmRow
+                question={`Remove ${agent.name}? Its tokens stop working at once. Its runs, its comments and its activity stay on the tasks.`}
+                confirmLabel="Yes, remove"
+                onConfirm={() => confirm.confirm(onRemove)}
+                onCancel={confirm.cancel}
+              />
+            ) : (
+              <div className={styles.agentFoot}>
+                <span className={styles.agentFootSay}>
+                  A switch only takes away: it never gives {agent.name} more than a member has.
+                </span>
+                <Button variant="ghost" className={styles.agentRemove} onClick={confirm.ask}>
+                  Remove {agent.name}
                 </Button>
               </div>
-            )}
-          </div>
+            ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -914,11 +946,6 @@ function MayLine({
             />
           ))}
         </div>
-        {canEdit && (
-          <span className={styles.mayNote}>
-            Switch one off to stop {agent.name} doing it on this board.
-          </span>
-        )}
       </div>
     </div>
   );

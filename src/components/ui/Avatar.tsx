@@ -13,6 +13,7 @@ export function Avatar({
   kind = "human",
   live = false,
   gone = false,
+  square = false,
 }: {
   name: string;
   color: string;
@@ -26,6 +27,8 @@ export function Avatar({
   live?: boolean;
   /** Somebody who left the project: still named, drawn faint and grey. */
   gone?: boolean;
+  /** A rounded square: the agent's own row in People. */
+  square?: boolean;
 }) {
   const face = (
     <span
@@ -34,7 +37,7 @@ export function Avatar({
         width: size,
         height: size,
         flex: `0 0 ${size}px`,
-        borderRadius: "50%",
+        borderRadius: square ? "28%" : "50%",
         ...facePaint(color, Boolean(emoji)),
         display: "inline-flex",
         alignItems: "center",

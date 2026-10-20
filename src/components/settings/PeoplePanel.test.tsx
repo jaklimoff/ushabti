@@ -81,6 +81,13 @@ async function draw(agents: AgentDTO[], data: BoardData = newProject()) {
 
 const box = (name: string) => page.getByTestId("agent-box").filter({ hasText: name });
 
+/** An agent starts folded; its whole line is the button that opens it. */
+async function unfold(name: string) {
+  const head = box(name).getByRole("button", { expanded: false });
+  await head.click();
+  await expect.element(box(name).getByRole("button", { expanded: true })).toBeVisible();
+}
+
 /** Waits until `count` writes of a kind have gone out. */
 async function wrote(writes: () => Sent[], count: number) {
   await expect.poll(() => writes().length).toBe(count);
@@ -94,10 +101,51 @@ function today(): string {
 }
 
 describe("Agents in Settings -> People", () => {
+  test("each agent is one folded line that says what it may do and whether it hears", async () => {
+    const quiet = { ...agent("Quiet"), acts: { ship: false } };
+    const heard = agent("Heard");
+    heard.tokens = [
+      {
+        id: uuid(),
+        name: "Laptop",
+        prefix: "ush_abcdef",
+        createdAt: new Date().toISOString(),
+        lastUsedAt: new Date().toISOString(),
+        listeningAt: new Date().toISOString(),
+      },
+    ];
+    await draw([quiet, heard]);
+
+    const quietHead = box("Quiet").getByRole("button", { expanded: false });
+    await expect
+      .element(quietHead)
+      .toMatchTextContent("May everything but delete and ship · no token");
+    await expect.element(quietHead).toMatchTextContent("Silent");
+    await expect
+      .element(box("Heard").getByRole("button", { expanded: false }))
+      .toMatchTextContent(/May everything but delete · 1 token.*Listening/);
+    // Folded, nothing of the agent's insides is drawn.
+    await expect.element(page.getByTestId("agent-may")).not.toBeInTheDocument();
+    await expect.element(page.getByTestId("token-row")).not.toBeInTheDocument();
+
+    // Open, it reads May, Tokens, Name, and the foot that removes it.
+    await unfold("Quiet");
+    const open = box("Quiet");
+    const text = open.element().textContent ?? "";
+    const order = ["May", "Tokens", "Name", "A switch only takes away", "Remove Quiet"].map(
+      (word) => text.indexOf(word, text.indexOf("Silent")),
+    );
+    expect(order.every((at) => at > 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    await open.getByRole("button", { name: "Remove Quiet" }).click();
+    await expect.element(page.getByText(/^Remove Quiet\? Its tokens stop working/)).toBeVisible();
+  });
+
   // Was e2e/agents.spec.ts, the whole test.
   test("an agent's tokens can be told apart, and revoking one says what is left", async () => {
     const { sent } = await draw([agent("Twin")]);
     const twin = box("Twin");
+    await unfold("Twin");
     const rows = twin.getByTestId("token-row");
 
     // The name is today's date unless somebody says otherwise.
@@ -152,7 +200,7 @@ describe("Agents in Settings -> People", () => {
   test("an owner types any one emoji for an agent, and other text saves nothing", async () => {
     const { patches } = await draw([agent("Typist")]);
     const typist = box("Typist");
-    await typist.getByRole("button", { name: "Edit Typist" }).click();
+    await unfold("Typist");
     const emojis = typist.getByRole("radiogroup", { name: "Emoji of Typist" });
     const field = typist.getByRole("textbox", { name: "Or type any emoji" });
 
@@ -178,7 +226,7 @@ describe("Agents in Settings -> People", () => {
   test("an owner changes an agent's colour and emoji", async () => {
     const { patches } = await draw([agent("Painter", "#e0574d")]);
     const painter = box("Painter");
-    await painter.getByRole("button", { name: "Edit Painter" }).click();
+    await unfold("Painter");
 
     const colours = painter.getByRole("radiogroup", { name: "Colour of Painter" });
     await expect.poll(() => colours.getByRole("radio").all().length).toBe(11);
@@ -212,9 +260,13 @@ describe("Agents in Settings -> People", () => {
     data.project.role = "member";
     await draw([agent("Painter")], data);
 
-    await expect.element(box("Painter")).toBeVisible();
+    await unfold("Painter");
+    await expect.element(box("Painter").getByTestId("agent-may")).toBeVisible();
     await expect
-      .element(page.getByRole("button", { name: "Edit Painter" }))
+      .element(page.getByRole("textbox", { name: "Name of the agent Painter" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Remove Painter" }))
       .not.toBeInTheDocument();
   });
 
@@ -223,7 +275,7 @@ describe("Agents in Settings -> People", () => {
      and the clashes are the board read and the route. */
   test("an admin renames an agent, and the field saves on blur", async () => {
     const { patches } = await draw([agent("Scout")]);
-    await box("Scout").getByRole("button", { name: "Edit Scout" }).click();
+    await unfold("Scout");
     const field = page.getByRole("textbox", { name: "Name of the agent Scout" });
     await field.fill("  Ranger ");
     expect(patches()).toHaveLength(0);
@@ -238,7 +290,7 @@ describe("Agents in Settings -> People", () => {
   // The last part of the same e2e test.
   test("a name typed and left without a blur still saves", async () => {
     const { patches } = await draw([agent("Ranger")]);
-    await box("Ranger").getByRole("button", { name: "Edit Ranger" }).click();
+    await unfold("Ranger");
     await page.getByRole("textbox", { name: "Name of the agent Ranger" }).fill("Pathfinder");
 
     // The box still has the focus. A closed tab raises pagehide and no blur.
@@ -252,6 +304,7 @@ describe("Agents in Settings -> People", () => {
 
   test("an admin switches an act on or off on the May line, and it saves on click", async () => {
     const { patches } = await draw([agent("Keeper")]);
+    await unfold("Keeper");
     const may = box("Keeper").getByTestId("agent-may");
     await expect.element(may).toMatchTextContent(/^May/);
     // Delete starts off; the rest start on.
@@ -278,6 +331,7 @@ describe("Agents in Settings -> People", () => {
     const data = newProject();
     data.project.role = "member";
     await draw([{ ...agent("Keeper"), acts: { archive: false } }], data);
+    await unfold("Keeper");
     const archive = page.getByRole("checkbox", { name: "Keeper may archive tasks" });
     await expect.element(archive).not.toBeChecked();
     await expect.element(archive).toBeDisabled();

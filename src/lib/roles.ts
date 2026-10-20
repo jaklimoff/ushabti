@@ -114,30 +114,43 @@ export const AGENT_ACTS = [
 export type AgentAct = (typeof AGENT_ACTS)[number];
 export type AgentActs = Partial<Record<AgentAct, boolean>>;
 
-/** The name on the toggle, and the words of the refusal. */
-export const AGENT_ACT_WORDS: Record<AgentAct, { label: string; verb: string; note: string }> = {
-  create: { label: "Create tasks", verb: "create tasks", note: "Add a task to the board." },
+/** The name on the toggle, the words of the refusal, and the one word of a folded agent. */
+export const AGENT_ACT_WORDS: Record<
+  AgentAct,
+  { label: string; verb: string; note: string; short: string }
+> = {
+  create: {
+    label: "Create tasks",
+    verb: "create tasks",
+    note: "Add a task to the board.",
+    short: "create",
+  },
   delete: {
     label: "Delete tasks",
+    short: "delete",
     verb: "delete tasks",
     note: "Delete a task, and restore a deleted one.",
   },
   archive: {
+    short: "archive",
     label: "Archive tasks",
     verb: "archive tasks",
     note: "Archive a task, and put an archived one back.",
   },
   checklist: {
+    short: "checklists",
     label: "Edit checklists",
     verb: "edit checklists",
     note: "Reword or remove a checklist item. Adding and ticking one stay open.",
   },
   structure: {
+    short: "structure",
     label: "Change structure",
     verb: "change the structure",
     note: "Add a property, an option or a view; rename, recolour or reorder an option; rename a property; regroup or sort a view.",
   },
   ship: {
+    short: "ship",
     label: "Ship releases",
     verb: "ship releases",
     note: "Ship or close a release or a sprint. A ship archives, so it needs Archive tasks too.",
@@ -180,4 +193,12 @@ export function agentMay(acts: AgentActs, act: AgentAct): boolean {
 /** The acts switched off, in the order the toggles are drawn. */
 export function actsOff(acts: AgentActs): AgentAct[] {
   return AGENT_ACTS.filter((act) => !agentMay(acts, act));
+}
+
+/** What a folded agent says it may do: "May everything but delete and ship". */
+export function maySaid(acts: AgentActs): string {
+  const off = actsOff(acts).map((act) => AGENT_ACT_WORDS[act].short);
+  if (off.length === 0) return "May everything";
+  const last = off.pop();
+  return `May everything but ${off.length ? `${off.join(", ")} and ${last}` : last}`;
 }

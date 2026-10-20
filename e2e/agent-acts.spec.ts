@@ -35,9 +35,16 @@ test("an admin lets an agent delete tasks on the May line, and takes it back", a
   expect((await refused.json()).error).toBe("This project does not let Keeper delete tasks.");
 
   await gotoSettings(page, projectId, "people");
-  const may = page.getByTestId("agent-box").filter({ hasText: "Keeper" }).getByTestId("agent-may");
+  const box = page.getByTestId("agent-box").filter({ hasText: "Keeper" });
+  // Folded, the agent's line already says what it may not do.
+  const head = box.getByRole("button", { expanded: false });
+  await expect(head).toContainText("May everything but delete · 1 token");
+  await expect(head).toContainText("Silent");
+  await page.screenshot({ path: testInfo.outputPath("seen-agents-folded.png") });
+  await hydrated(head);
+  await head.click();
+  const may = box.getByTestId("agent-may");
   const del = may.getByRole("checkbox", { name: "Keeper may delete tasks" });
-  await hydrated(del);
   await expect(del).not.toBeChecked();
   await expect(may.getByRole("checkbox", { name: "Keeper may create tasks" })).toBeChecked();
 
@@ -50,6 +57,10 @@ test("an admin lets an agent delete tasks on the May line, and takes it back", a
   expect((await deleteOne()).status()).toBe(200);
 
   await page.reload();
+  // The page opens with every agent folded, and the line follows the switch.
+  await expect(head).toContainText("May everything · 1 token");
+  await hydrated(head);
+  await head.click();
   await expect(del).toBeChecked();
   await page.screenshot({ path: testInfo.outputPath("seen-agent-may.png") });
 

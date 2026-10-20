@@ -17,6 +17,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- People shows each agent folded to one line: its face, its name, what it may do, how many tokens it has, and **Listening** or **Silent**. Click the line to open the switches, the tokens and the name, with **Remove** at the foot. An agent just added opens at once.
 - The property that holds the types shows a grid on Properties: every property down the side, every type across the top, and a tick where it shows. Unticking asks first with the count, a ticked cell says what a new task starts as, and its switch turns types off.
 - The Types page is gone from Settings: types are set in the grid on their property. An old link to it lands there, and **See the types** on a when row goes there too.
 - Sprints are turned off on the sprint property, on Properties, beside how many days a sprint lasts. Project no longer holds the Sprints switch or its two boxes.

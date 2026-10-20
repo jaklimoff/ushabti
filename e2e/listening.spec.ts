@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-import { addTask, card, createProject, gotoSettings, register, unique } from "./helpers";
+import { addTask, card, createProject, gotoSettings, hydrated, register, unique } from "./helpers";
 
 // Playwright runs from the repository root, locally and on CI.
 const BOARD_MJS = path.resolve(process.cwd(), "examples/skill/ushabti/board.mjs");
@@ -66,6 +66,14 @@ test.describe("Agents that wait for work", () => {
       ).toBeVisible();
 
       await gotoSettings(page, projectId, "people");
+      // The folded agent says it listens, and its open token says which one.
+      const head = page
+        .getByTestId("agent-box")
+        .filter({ hasText: "Listener" })
+        .getByRole("button", { expanded: false });
+      await expect(head).toContainText("Listening");
+      await hydrated(head);
+      await head.click();
       await expect(page.getByText("listening now")).toBeVisible();
 
       await page.goto(`/p/${projectId}`);
