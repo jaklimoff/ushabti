@@ -13,6 +13,7 @@ import {
   canManage,
   isOwner,
   outranks,
+  roleChangeRefusal,
   rolesOffered,
   type AgentAct,
   type Role,
@@ -95,6 +96,7 @@ function Members({ mail }: { mail: boolean }) {
   const { data, refresh, notify, user, send } = useBoard();
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("member");
   const [error, setError] = useState<string | null>(null);
   /** The link, held until the person leaves the page, as a reset link is. */
   const [invited, setInvited] = useState<{ email: string; link: string; emailed: boolean } | null>(
@@ -112,7 +114,7 @@ function Members({ mail }: { mail: boolean }) {
     try {
       const answer = await send.post<{ invite?: InviteDTO; link?: string; emailed?: boolean }>(
         `/api/projects/${data.project.id}/members`,
-        { email: value },
+        { email: value, role },
       );
       // No account yet, so the email waits as an invite: say what happens next.
       if (answer.invite && answer.link) {
@@ -123,6 +125,7 @@ function Members({ mail }: { mail: boolean }) {
         });
       }
       setEmail("");
+      setRole("member");
       await refresh();
     } catch (err) {
       // Inline rather than a toast: the next step is the link underneath.
@@ -163,11 +166,28 @@ function Members({ mail }: { mail: boolean }) {
   }
 
   const people = data.members.filter((m) => m.kind === "human");
+  /* The route asks the role rule as if the new person were a member being
+     given this role, so the select offers what that rule allows. */
+  const inviteRoles = (["member", "admin"] as const).filter(
+    (next) =>
+      next === "member" ||
+      !roleChangeRefusal({
+        actor: data.project.role,
+        target: "member",
+        targetKind: "human",
+        next,
+        self: false,
+      }),
+  );
   const inviteLine = invited && emailedLine(mail, invited.emailed, invited.email);
 
   return (
     <Section title="Members">
       <Card>
+        <div className={`${styles.cardHead} ${styles.memberHead}`}>
+          <span className={styles.memberHeadWho}>Person</span>
+          <span className={styles.memberHeadRole}>Role</span>
+        </div>
         {people.map((member) => (
           <MemberRow
             key={member.id}
@@ -213,7 +233,18 @@ function Members({ mail }: { mail: boolean }) {
               }}
               onKeyDown={(e) => e.key === "Enter" && void invite()}
             />
-            <Button onClick={() => void invite()} disabled={busy}>
+            {inviteRoles.length > 1 && (
+              <span className={styles.inviteRole}>
+                <Select
+                  aria-label="Role of the new member"
+                  block
+                  value={role}
+                  onChange={(picked) => setRole(picked as Role)}
+                  options={inviteRoles.map((r) => ({ value: r, label: roleWord(r) }))}
+                />
+              </span>
+            )}
+            <Button variant="ghost" onClick={() => void invite()} disabled={busy}>
               {busy ? "Adding…" : "Add member"}
             </Button>
             {error ? (
@@ -338,10 +369,13 @@ function MemberRow({
           role, then what can be done to them. */}
       <Row className={styles.memberRow}>
         <span className={styles.memberFace}>
-          <Avatar name={member.name} color={member.color} emoji={member.emoji} size={22} />
+          <Avatar name={member.name} color={member.color} emoji={member.emoji} size={32} />
         </span>
         <span className={styles.memberWho}>
-          <span className={styles.memberName}>{member.name}</span>
+          <span className={styles.memberNameLine}>
+            <span className={styles.memberName}>{member.name}</span>
+            {isSelf && <Tag>you</Tag>}
+          </span>
           <span className={styles.memberMail}>{member.email}</span>
         </span>
         <span className={styles.memberMeta}>
@@ -423,7 +457,7 @@ function InviteRow({
   return (
     <Row data-testid="invite-row" className={styles.memberRow}>
       <span className={styles.memberFace}>
-        <Avatar name={invite.email} color="var(--text-muted)" size={22} />
+        <Avatar name={invite.email} color="var(--text-muted)" size={32} />
       </span>
       <span className={styles.memberWho}>
         <span className={styles.memberMail}>{invite.email}</span>
@@ -432,6 +466,9 @@ function InviteRow({
           adding the email again gives it a new link. */}
       <span className={styles.memberMeta}>
         <span className={styles.memberRole}>
+          <span className={styles.roleText}>{roleWord(invite.role)}</span>
+        </span>
+        <span className={styles.memberReset}>
           <Tag accent={invite.live}>{invite.live ? "invited" : "link expired"}</Tag>
         </span>
       </span>

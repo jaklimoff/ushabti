@@ -807,6 +807,8 @@ export type InviteDTO = {
   createdAt: string;
   /** False once its link is old, or for an invite made before links: inviting again mends it. */
   live: boolean;
+  /** The role the person joins with. */
+  role: "member" | "admin";
 };
 
 export type BoardData = {

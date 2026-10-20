@@ -11,9 +11,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 ### Added
 
 - Properties opens with a strip that says which property plays each board role: the types, done when, the releases and the sprints. A set tile takes you to its property, and that property carries the role as a tag.
+- People invites somebody as an admin as well as a member: pick the role beside the email. A pending invite shows its role, and the person joins with it.
 
 ### Changed
 
+- People lists the members as a table under Person and Role, with larger faces and a "you" tag on your own row. Add member is a quieter button.
 - The options of a dated select or a sprint read as plain rows split by a faint line, not a stack of boxes. Plain options keep their pills.
 
 ## 0.32.1 — 2026-10-19

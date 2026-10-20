@@ -1105,6 +1105,7 @@ async function loadProject(
         createdAt: projectInvites.createdAt,
         hash: projectInvites.hash,
         expiresAt: projectInvites.expiresAt,
+        role: projectInvites.role,
       })
       .from(projectInvites)
       .where(eq(projectInvites.projectId, projectId))
@@ -1298,6 +1299,7 @@ async function loadProject(
       email: i.email,
       createdAt: i.createdAt.toISOString(),
       live: inviteIsLive(i, new Date()),
+      role: i.role === "admin" ? ("admin" as const) : ("member" as const),
     })),
     properties: propertyList,
     views: viewList,

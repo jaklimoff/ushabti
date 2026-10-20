@@ -76,10 +76,12 @@ async function signUp(req: Request): Promise<Response> {
         emoji: users.avatarEmoji,
       });
     if (!token) return { user, joined: null };
-    const joined = await spendInvite(tx, token, email);
-    if (!joined) throw new HttpError(400, INVITE_IS_DEAD);
-    await joinProject(tx, { projectId: joined, userId: user.id, role: "member" });
-    return { user, joined };
+    const invite = await spendInvite(tx, token, email);
+    if (!invite) throw new HttpError(400, INVITE_IS_DEAD);
+    /* Anything but admin joins as a member, so a stray word gives nothing. */
+    const role = invite.role === "admin" ? "admin" : "member";
+    await joinProject(tx, { projectId: invite.projectId, userId: user.id, role });
+    return { user, joined: invite.projectId };
   });
 
   if (joined) await broadcast({ projectId: joined, scope: "project" });

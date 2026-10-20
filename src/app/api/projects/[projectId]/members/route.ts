@@ -20,6 +20,7 @@ import { projectName } from "@/lib/queries";
 import { joinProject } from "@/lib/membership";
 import { mintToken } from "@/lib/agents";
 import { INVITE_DAYS, INVITE_MS, INVITE_PREFIX } from "@/lib/invite-link";
+import { roleChangeRefusal } from "@/lib/roles";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -29,8 +30,23 @@ export const POST = route<Ctx>(async (req, ctx) => {
   adminOnly(actor, membership, "add members");
   signedInOnly(actor);
 
-  const input = await body<{ email?: string }>(req);
+  const input = await body<{ email?: string; role?: unknown }>(req);
   const email = str(input.email, "Email", { max: 200 }).toLowerCase();
+  const role = input.role ?? "member";
+  /* An invite makes somebody a member and then this role, so it asks the
+     rule a role change asks, and says what that rule says. */
+  const refusal = roleChangeRefusal({
+    actor: membership.role,
+    target: "member",
+    targetKind: "human",
+    next: String(role),
+    self: false,
+  });
+  if (refusal) throw new HttpError(refusal.status, refusal.message);
+  // The owner is handed over, never invited.
+  if (role !== "member" && role !== "admin") {
+    throw new HttpError(400, "An invite is for a member or an admin.");
+  }
 
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
@@ -54,6 +70,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         invitedBy: actor.id,
         hash: minted.hash,
         expiresAt: new Date(now.getTime() + INVITE_MS),
+        role,
       })
       .onConflictDoUpdate({
         target: [projectInvites.projectId, projectInvites.email],
@@ -62,10 +79,15 @@ export const POST = route<Ctx>(async (req, ctx) => {
           createdAt: now,
           hash: minted.hash,
           expiresAt: new Date(now.getTime() + INVITE_MS),
+          role,
         },
         setWhere: or(isNull(projectInvites.hash), lte(projectInvites.expiresAt, now)),
       })
-      .returning({ email: projectInvites.email, createdAt: projectInvites.createdAt });
+      .returning({
+        email: projectInvites.email,
+        createdAt: projectInvites.createdAt,
+        role: projectInvites.role,
+      });
     if (!invite) throw new HttpError(409, "That email is already invited.");
     await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
 
@@ -88,7 +110,12 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
     return json(
       {
-        invite: { email: invite.email, createdAt: invite.createdAt.toISOString(), live: true },
+        invite: {
+          email: invite.email,
+          createdAt: invite.createdAt.toISOString(),
+          live: true,
+          role: invite.role,
+        },
         link,
         emailed,
       },
@@ -103,7 +130,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     .limit(1);
   if (existing.length) throw new HttpError(409, "That person is already a member.");
 
-  await db.transaction((tx) => joinProject(tx, { projectId, userId: user.id, role: "member" }));
+  await db.transaction((tx) => joinProject(tx, { projectId, userId: user.id, role }));
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
   return json(
     {
@@ -113,7 +140,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         email: user.email,
         color: user.color,
         emoji: user.avatarEmoji,
-        role: "member",
+        role,
       },
       // Somebody with an account is in at once; nothing is emailed to them.
       emailed: false,

@@ -25,11 +25,15 @@ export async function inviteOfToken(
 }
 
 /**
- * Spends the invite inside the sign-up's transaction, and answers its project,
- * or null when the link is dead. The delete is the lock: two browsers on one
+ * Spends the invite inside the sign-up's transaction, and answers its project
+ * and the role it joins with, or null when the link is dead. The delete is the lock: two browsers on one
  * link leave one of them with nothing.
  */
-export async function spendInvite(tx: Tx, token: string, email: string): Promise<string | null> {
+export async function spendInvite(
+  tx: Tx,
+  token: string,
+  email: string,
+): Promise<{ projectId: string; role: string } | null> {
   const [spent] = await tx
     .delete(projectInvites)
     .where(
@@ -39,6 +43,6 @@ export async function spendInvite(tx: Tx, token: string, email: string): Promise
         gt(projectInvites.expiresAt, new Date()),
       ),
     )
-    .returning({ projectId: projectInvites.projectId });
-  return spent?.projectId ?? null;
+    .returning({ projectId: projectInvites.projectId, role: projectInvites.role });
+  return spent ?? null;
 }

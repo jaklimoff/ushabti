@@ -805,10 +805,39 @@
  */
 div.memberRow {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) 140px 128px 24px;
+  grid-template-columns: 32px minmax(0, 1fr) 140px 128px 24px;
   grid-template-areas: "face who role reset remove";
   align-items: center;
   column-gap: 12px;
+}
+
+/* The head takes the row's own columns, so Role sits over every role. */
+div.memberHead {
+  grid-template-columns: 32px minmax(0, 1fr) 140px 128px 24px;
+  grid-template-areas: "who who role . .";
+  column-gap: 12px;
+}
+
+.memberHeadWho {
+  grid-area: who;
+}
+
+/* The role select's text starts 10px in, as .roleText does. */
+.memberHeadRole {
+  grid-area: role;
+  padding-left: 10px;
+}
+
+.memberNameLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.inviteRole {
+  display: flex;
+  width: 120px;
 }
 
 .memberFace {
@@ -846,7 +875,7 @@ div.memberRow {
 
 @media (max-width: 620px) {
   div.memberRow {
-    grid-template-columns: 22px minmax(0, 1fr) 24px;
+    grid-template-columns: 32px minmax(0, 1fr) 24px;
     grid-template-areas:
       "face who remove"
       ". meta meta";
@@ -863,6 +892,11 @@ div.memberRow {
 
   .memberRole {
     width: 140px;
+  }
+
+  /* A phone moves the role under the name, so no column sits under Role. */
+  .memberHeadRole {
+    display: none;
   }
 }
 

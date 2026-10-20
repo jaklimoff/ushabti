@@ -246,6 +246,8 @@ export const projectInvites = pgTable(
     /** SHA-256 of the link's token. Null on an invite older than links. */
     hash: text("hash"),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** The role the person joins with: "member" or "admin", never "owner". */
+    role: text("role").notNull().default("member"),
   },
   (t) => [
     primaryKey({ columns: [t.projectId, t.email] }),

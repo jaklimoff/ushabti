@@ -144,7 +144,7 @@ beforeEach(() => {
   vi.mocked(spendInvite).mockReset();
   // A live link for EMAIL, until a test says otherwise.
   vi.mocked(inviteOfToken).mockResolvedValue(INVITE);
-  vi.mocked(spendInvite).mockResolvedValue("project-1");
+  vi.mocked(spendInvite).mockResolvedValue({ projectId: "project-1", role: "member" });
 });
 
 describe("sign-up", () => {
@@ -158,6 +158,13 @@ describe("sign-up", () => {
     expect(spendInvite).toHaveBeenCalledWith(expect.anything(), LINK, EMAIL);
     expect(vi.mocked(broadcast).mock.calls.map(([e]) => e.projectId)).toEqual(["project-1"]);
     expect(createSession).toHaveBeenCalledWith(user.id);
+  });
+
+  it("joins with the role the invite carries", async () => {
+    vi.mocked(spendInvite).mockResolvedValue({ projectId: "project-1", role: "admin" });
+    const res = await signUp({ invite: LINK });
+    expect(res.status).toBe(200);
+    expect(fake.rows("project_members").map((m) => m.role)).toEqual(["admin"]);
   });
 
   it("with sign-up open, an account made without the link joins no project", async () => {

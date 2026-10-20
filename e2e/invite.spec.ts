@@ -127,6 +127,43 @@ test.describe("Invites", () => {
     await expect(secondRow).toBeHidden();
   });
 
+  test("an invite as an admin shows its role, and its person joins as an admin", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { projectId, projectName } = await ownerOnPeople(page, "Invite admin");
+    const email = freshEmail("admin");
+
+    // The table reads Person and Role, and the owner's own row says "you".
+    await expect(page.getByText("Person", { exact: true })).toBeVisible();
+    await expect(page.getByText("you", { exact: true })).toBeVisible();
+
+    await page.getByLabel("Role of the new member").click();
+    await page.getByRole("option", { name: "Admin", exact: true }).click();
+    const invited = await add(page, email);
+    expect(invited.status).toBe(201);
+    const row = page.getByTestId("invite-row").filter({ hasText: email });
+    await expect(row.getByText("Admin", { exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-members-table.png") });
+
+    const guest = await stranger(browser);
+    await signUpOn(guest.page, invited.link!, null, "Admin Person");
+    await expect(guest.page.getByText(projectName)).toBeVisible();
+    await guest.context.close();
+
+    // The owner's page follows: the invite is an admin now.
+    await expect(row).toBeHidden();
+    await expect(page.getByLabel("Role of Admin Person")).toContainText("Admin");
+    const role = await inDatabase(async (client) => {
+      const { rows } = await client.query(
+        "select m.role from project_members m join users u on u.id = m.user_id where m.project_id = $1 and u.email = $2",
+        [projectId, email],
+      );
+      return rows[0]?.role as string;
+    });
+    expect(role).toBe("admin");
+  });
+
   test("an account made with an invited email but without the link joins nothing", async ({
     page,
     browser,

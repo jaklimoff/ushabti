@@ -333,6 +333,60 @@ describe("Members in Settings -> People", () => {
   });
 });
 
+describe("The members table", () => {
+  test("reads as Person and Role, with 32px faces and a you tag on the viewer's row", async () => {
+    const data = newProject();
+    withPerson(data, "Nia Next");
+    data.invites = [
+      { email: "new@example.com", createdAt: new Date().toISOString(), live: true, role: "admin" },
+    ];
+    await renderWithBoard(<PeoplePanel mail={false} />, data, ({ path }) =>
+      path.endsWith("/agents") ? { body: { agents: [] } } : undefined,
+    );
+    await expect.element(page.getByText("Person", { exact: true })).toBeVisible();
+    await expect.element(page.getByText("Role", { exact: true })).toBeVisible();
+    const faces = [...document.querySelectorAll("[class*=memberFace] > *")];
+    expect(faces.length).toBe(3);
+    for (const face of faces) expect(face.getBoundingClientRect().width).toBe(32);
+    // Only the viewer's own row says "you".
+    const you = page.getByText("you", { exact: true });
+    await expect.element(you).toBeVisible();
+    expect(you.elements()).toHaveLength(1);
+    expect(you.element().closest("[class*=memberWho]")?.textContent).toContain("Ada Tester");
+    // A pending invite shows the role it joins with.
+    await expect.element(page.getByTestId("invite-row")).toMatchTextContent(/Admin/);
+  });
+
+  test("an invite carries the role picked beside the email, Member by default", async () => {
+    const data = newProject();
+    const { sent } = await renderWithBoard(
+      <PeoplePanel mail={false} />,
+      data,
+      ({ method, path }) => {
+        if (path.endsWith("/agents")) return { body: { agents: [] } };
+        if (method === "POST") return { status: 201, body: {} };
+      },
+    );
+    const box = page.getByLabelText("Email of the new member");
+    await box.fill("bo@example.com");
+    await page.getByRole("button", { name: "Add member" }).click();
+    await expect
+      .poll(() => sent("POST").map((s) => s.body))
+      .toEqual([{ email: "bo@example.com", role: "member" }]);
+
+    await box.fill("cy@example.com");
+    await page.getByLabelText("Role of the new member").click();
+    await page.getByRole("option", { name: "Admin", exact: true }).click();
+    await page.getByRole("button", { name: "Add member" }).click();
+    await expect
+      .poll(() => sent("POST").map((s) => s.body)[1])
+      .toEqual({
+        email: "cy@example.com",
+        role: "admin",
+      });
+  });
+});
+
 describe("A member row on a phone", () => {
   test("at 390px every member row keeps its role and its remove button on screen", async () => {
     const data = newProject();
