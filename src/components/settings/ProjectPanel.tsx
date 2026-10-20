@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useState, useSyncExternalStore } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
@@ -65,13 +64,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const [confirming, setConfirming] = useState(false);
   /* A press waits for its answer, so a second press cannot flip it back. */
   const [switching, setSwitching] = useState(false);
-  const release = data.properties.find((p) => p.id === data.project.releaseBy) ?? null;
-  /* Where releases are seen, and made: a roadmap drawn by the release select. */
-  const roadmap = release
-    ? data.views.find((v) => v.kind === "roadmap" && v.groupById === release.id)
-    : undefined;
   const sprint = data.properties.find((p) => p.id === data.project.sprintBy) ?? null;
-  const releasesOff = useConfirm();
   const sprintsOff = useConfirm();
   /* What the cadence starts from. Nothing is saved until the switch. */
   const [sprintLength, setSprintLength] = useState(String(CADENCE_DEFAULT.length));
@@ -130,16 +123,16 @@ export function ProjectPanel({ files }: { files: boolean }) {
   }
 
   /*
-   * Use releases or Use sprints. On makes the property and its views, or takes
-   * the one already there; off clears the switch and keeps everything.
+   * Use sprints. On makes the property and its views, or takes the one
+   * already there; off clears the switch and keeps everything. Releases are
+   * switched off on their property, in Properties.
    */
-  async function setPlan(what: "releases" | "sprints", on: boolean) {
+  async function setPlan(what: "sprints", on: boolean) {
     if (switching) return;
     setSwitching(true);
     const at = `/api/projects/${data.project.id}/${what}`;
     try {
       if (!on) await send.del(at);
-      else if (what === "releases") await send.post(at, {});
       else await send.post(at, { length: Number(sprintLength.trim()), startAt: sprintStart });
       await refresh();
     } catch (err) {
@@ -316,65 +309,17 @@ export function ProjectPanel({ files }: { files: boolean }) {
       </Section>
 
       {/*
-       * How work is planned: whether the project works in releases and
-       * sprints. What done means, and what a bar sums, sit on the property
-       * that says done, in Properties.
+       * How work is planned: whether the project works in sprints. Releases,
+       * what done means and what a bar sums sit on their properties, in
+       * Properties.
        */}
       <Section title="Work">
         <Card>
           {/*
-           * Releases and sprints are a property and its views, nothing more, so
-           * each switch says which ones before it makes them. The switch reads
+           * Sprints are a property and its views, nothing more, so the switch
+           * says which ones before it makes them. The switch reads
            * the project's pointer, never a property's name.
            */}
-          {canEdit &&
-            (releasesOff.asking && release ? (
-              <ConfirmRow
-                question={offQuestion("release", release, data.tasks, data.views)}
-                confirmLabel="Yes, turn off"
-                onConfirm={() => releasesOff.confirm(() => void setPlan("releases", false))}
-                onCancel={releasesOff.cancel}
-              />
-            ) : (
-              <Row>
-                <Field
-                  label="Releases"
-                  inline
-                  note={
-                    release ? (
-                      <>
-                        Releases are the options of <b>{release.name}</b>. Each one has dates,
-                        ships, and has a bar on the roadmap.
-                        {roadmap && (
-                          <>
-                            {" "}
-                            Add them on{" "}
-                            <Link href={`/p/${data.project.id}?view=${roadmap.id}`}>
-                              {roadmap.name}
-                            </Link>
-                            .
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        Adds a property <b>Release</b> with no releases yet, and a roadmap{" "}
-                        <b>Roadmap</b> with a bar for each one. You can rename or delete each one
-                        afterwards.
-                      </>
-                    )
-                  }
-                >
-                  <Checkbox
-                    role="switch"
-                    label="Use releases"
-                    checked={release !== null}
-                    disabled={switching}
-                    onChange={() => (release ? releasesOff.ask() : void setPlan("releases", true))}
-                  />
-                </Field>
-              </Row>
-            ))}
           {canEdit &&
             (sprintsOff.asking && sprint ? (
               <ConfirmRow

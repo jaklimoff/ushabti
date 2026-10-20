@@ -333,7 +333,7 @@ test("a new project's Status carries Done when on Properties, and a pill saves i
   await page.screenshot({ path: testInfo.outputPath("seen-new-project-done-when.png") });
 
   await page.goto(`/p/${projectId}/settings/project`);
-  await expect(page.getByRole("switch", { name: "Use releases" })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Use sprints" })).toBeVisible();
   await expect(page.getByText("Done when", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Count progress by")).toHaveCount(0);
 });

@@ -166,8 +166,8 @@ describe("Settings draws its controls dark", () => {
     /* The switches of Settings → Project are the same control. */
     await drawn.screen.unmount();
     await draw("project", <ProjectPanel files={false} />, data);
-    const releases = page.getByRole("switch", { name: "Use releases" });
-    expect(await checkboxGeometry(releases)).toEqual(geometry);
+    const sprints = page.getByRole("switch", { name: "Use sprints" });
+    expect(await checkboxGeometry(sprints)).toEqual(geometry);
   });
 
   test("the file button of Import looks like a ghost button", async () => {

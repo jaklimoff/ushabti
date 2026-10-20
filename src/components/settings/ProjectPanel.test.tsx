@@ -131,29 +131,12 @@ describe("Files", () => {
 /* The screen half of two tests of `e2e/changelog.spec.ts`. What the
    changelog holds, for a member, an agent and a stranger, is
    `release-route.test.ts`; one shipped walk stays end to end. */
-/** A board with Use releases on, whose release select is Status. */
+/** A board with releases on, whose release select is Status. */
 function releasesOn() {
   const data = newProject();
   const select = data.properties.find((p) => p.type === "select")!;
   return { ...data, project: { ...data.project, releaseBy: select.id } };
 }
-
-test("the note under Use releases, when on, links to the roadmap", async () => {
-  const data = releasesOn();
-  const roadmap = {
-    ...data.views[0],
-    id: crypto.randomUUID(),
-    name: "Roadmap",
-    kind: "roadmap" as const,
-    groupById: data.project.releaseBy,
-    isDefault: false,
-  };
-  data.views.push(roadmap);
-  await renderWithBoard(<ProjectPanel files={false} />, data);
-  const link = page.getByRole("link", { name: "Roadmap", exact: true });
-  await expect.element(link).toBeVisible();
-  await expect.element(link).toHaveAttribute("href", `/p/${data.project.id}?view=${roadmap.id}`);
-});
 
 describe("Changelog", () => {
   afterEach(async () => {
@@ -351,7 +334,7 @@ describe("Settings on a laptop", () => {
     const data = releasesOn();
     const project = await renderWithBoard(<ProjectPanel files />, data);
     await expect.element(page.getByLabelText("Project name")).toBeVisible();
-    for (const label of ["Name", "Key", "Time zone", "Releases", "Sprints", "Public changelog"]) {
+    for (const label of ["Name", "Key", "Time zone", "Sprints", "Public changelog"]) {
       expect(linesOf(label), `"${label}" takes ${linesOf(label)} lines`).toBe(1);
     }
     await project.screen.unmount();

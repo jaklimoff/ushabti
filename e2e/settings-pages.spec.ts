@@ -52,6 +52,21 @@ test.describe("Settings pages", () => {
     await tiles.nth(2).getByRole("button", { name: "Use releases" }).click();
     await expect(tiles.nth(2)).not.toContainText("Not set");
 
+    /* Off is on the property that is the releases, and it asks first. */
+    const releases = page.getByRole("group", { name: "The releases" });
+    await expect(page.getByText("Ship and the changelog read it.")).toBeVisible();
+    await releases.getByRole("switch", { name: "Release is the releases" }).click();
+    const question = page.getByRole("alertdialog");
+    await expect(question).toHaveAttribute("aria-label", /^Turn releases off\? Nothing is deleted/);
+    await page.screenshot({ path: testInfo.outputPath("seen-releases-off.png"), fullPage: true });
+    await question.getByRole("button", { name: "Yes, turn off" }).click();
+    await expect(tiles.nth(2)).toContainText("Not set");
+    await expect(page.getByRole("group", { name: "The releases" })).toHaveCount(0);
+    const board = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
+    expect(board.project.releaseBy).toBeNull();
+    await tiles.nth(2).getByRole("button", { name: "Use releases" }).click();
+    await expect(tiles.nth(2)).not.toContainText("Not set");
+
     await tiles.nth(3).getByRole("button", { name: "Use sprints" }).click();
     const form = page.getByRole("form", { name: "Use sprints" });
     await expect(form.getByLabel("Sprint length in days")).toHaveValue("14");

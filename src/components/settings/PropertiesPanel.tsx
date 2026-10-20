@@ -36,6 +36,7 @@ import { PALETTE, colorName } from "@/lib/colors";
 import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
+import { offQuestion } from "@/lib/plan-switch";
 import type { DoneWhen } from "@/lib/links";
 import {
   type BoardRole,
@@ -500,6 +501,9 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
       {data.project.doneWhen?.propertyId === property.id && (
         <DonePanel property={property} canEdit={canEdit} />
       )}
+      {data.project.releaseBy === property.id && (
+        <ReleasesPanel property={property} canEdit={canEdit} />
+      )}
     </div>
   );
 }
@@ -607,6 +611,58 @@ function DonePanel({ property, canEdit }: { property: PropertyDTO; canEdit: bool
             ...numbers.map((p) => ({ value: p.id, label: p.name })),
           ]}
         />
+      </RoleRow>
+    </RolePanel>
+  );
+}
+
+/*
+ * The releases, said on the property that is them. Off asks first in real
+ * numbers, because a person who reads only "turn off?" fears for the data,
+ * and then clears the pointer and nothing else.
+ */
+function ReleasesPanel({ property, canEdit }: { property: PropertyDTO; canEdit: boolean }) {
+  const { data, send, refresh, notify } = useBoard();
+  const off = useConfirm();
+  const [sending, setSending] = useState(false);
+
+  async function turnOff() {
+    if (sending) return;
+    setSending(true);
+    try {
+      await send.del(`/api/projects/${data.project.id}/releases`);
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Could not turn releases off.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (canEdit && off.asking)
+    return (
+      <ConfirmRow
+        question={offQuestion("release", property, data.tasks, data.views)}
+        confirmLabel="Yes, turn off"
+        onConfirm={() => off.confirm(() => void turnOff())}
+        onCancel={off.cancel}
+      />
+    );
+
+  return (
+    <RolePanel label="The releases" note="Ship and the changelog read it.">
+      <RoleRow label="The releases">
+        {canEdit ? (
+          <Checkbox
+            role="switch"
+            label={`${property.name} is the releases`}
+            checked
+            disabled={sending}
+            onChange={() => off.ask()}
+          />
+        ) : (
+          <span>{property.name} is the releases.</span>
+        )}
       </RoleRow>
     </RolePanel>
   );

@@ -7,7 +7,7 @@ type Page = import("@playwright/test").Page;
 type Board = {
   today: string;
   properties: { id: string; name: string; options: { id: string; name: string }[] }[];
-  views: { name: string; kind: string; groupById: string | null }[];
+  views: { id: string; name: string; kind: string; groupById: string | null }[];
 };
 
 async function boardOf(page: Page, projectId: string): Promise<Board> {
@@ -197,16 +197,19 @@ test.describe("A roadmap on a laptop", () => {
 
 /*
  * A release is made where releases are seen. The walk a new project takes:
- * Use releases, the note's link to the roadmap, and the first release with
- * Enter. What the row sends, the next row, a member and a sprint roadmap are
+ * Use releases on its tile in Properties, the roadmap it made, and the first
+ * release with Enter. What the row sends, the next row, a member and a sprint roadmap are
  * `Roadmap.test.tsx`.
  */
-test("the first release is made on the roadmap the note links to", async ({ page }, testInfo) => {
+test("the first release is made on the roadmap Use releases makes", async ({ page }, testInfo) => {
   await register(page);
   const projectId = await createProject(page, unique("Releases"));
-  await page.goto(`/p/${projectId}/settings/project`);
-  await page.getByRole("switch", { name: "Use releases" }).click();
-  await page.getByRole("link", { name: "Roadmap", exact: true }).click();
+  await page.goto(`/p/${projectId}/settings/properties`);
+  const tile = page.getByTestId("role-tile").filter({ hasText: "The releases" });
+  await tile.getByRole("button", { name: "Use releases" }).click();
+  await expect(page.getByRole("switch", { name: "Release is the releases" })).toBeChecked();
+  const roadmap = (await boardOf(page, projectId)).views.find((v) => v.kind === "roadmap")!;
+  await page.goto(`/p/${projectId}?view=${roadmap.id}`);
 
   await expect(page.getByTestId("roadmap-add")).toContainText("No release yet");
   const { today } = await boardOf(page, projectId);

@@ -6,7 +6,7 @@ import { ProjectPanel } from "./ProjectPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 /*
- * Sprints in Settings: the two switches of Settings -> Project, the cadence
+ * Sprints in Settings: the switch of Settings -> Project, the releases row, the cadence
  * box and the shipped fold of the Properties page. Each test was a test of
  * the end to end spec its block names, and carries its name or says which
  * half it is. What the routes make and keep is `sprint-route.test.ts`.
@@ -67,7 +67,7 @@ function withSprints(data: BoardData, options = ["Sprint 1", "Sprint 2"]): Prope
 
 /* ---- e2e/cadence.spec.ts and e2e/sprints.spec.ts: the switches ----------- */
 
-describe("Use sprints and Use releases", () => {
+describe("Use sprints and the releases", () => {
   /* The server makes the property; the next read of the board finds it. */
   function turning(data: BoardData): Answer {
     return ({ method, path }) => {
@@ -121,7 +121,6 @@ describe("Use sprints and Use releases", () => {
     const first = await renderWithBoard(<ProjectPanel files={false} />, member);
     await expect.element(page.getByLabelText("Project name")).toBeVisible();
     await gone(page.getByRole("switch", { name: "Use sprints" }));
-    await gone(page.getByRole("switch", { name: "Use releases" }));
     await first.screen.unmount();
 
     const data = newProject();
@@ -178,19 +177,22 @@ describe("Use sprints and Use releases", () => {
   });
 
   /* The screen half of e2e/sprints.spec.ts "an admin turns releases on: a
-     dated Release with no options and a Roadmap on it". */
+     dated Release with no options and a Roadmap on it". On is the tile on
+     Properties; off is the switch on the property that is the releases. */
   test("an admin turns releases on, and off asks what stays", async () => {
     const data = newProject();
-    const { sent } = await renderWithBoard(<ProjectPanel files={false} />, data, turning(data));
-    const toggle = page.getByRole("switch", { name: "Use releases" });
-    await expect.element(toggle).not.toBeChecked();
-    await expect
-      .element(page.getByText(/Adds a property Release with no releases yet/))
-      .toBeVisible();
-
-    await toggle.click();
-    await expect.element(toggle).toBeChecked();
+    const { sent } = await renderWithBoard(<PropertiesPanel />, data, turning(data));
+    const tile = page.getByTestId("role-tile").filter({ hasText: "The releases" });
+    await tile.getByRole("button", { name: "Use releases" }).click();
     expect(sent("POST", /\/releases$/)).toHaveLength(1);
+
+    const role = page.getByRole("group", { name: "The releases" });
+    await expect.element(page.getByText("Ship and the changelog read it.")).toBeVisible();
+    const toggle = role.getByRole("switch", { name: "Release is the releases" });
+    await expect.element(toggle).toBeChecked();
+    /* The dates are drawn with no switch to learn. */
+    await expect.element(page.getByLabelText("Name of the Release property")).toBeInTheDocument();
+    await gone(page.getByLabelText("Options carry dates"));
 
     await toggle.click();
     await expect
@@ -199,15 +201,33 @@ describe("Use sprints and Use releases", () => {
         "aria-label",
         "Turn releases off? Nothing is deleted: Release keeps its 0 releases, no task holds a release, and 0 views stay.",
       );
+    expect(sent("DELETE", /\/releases$/)).toHaveLength(0);
     await page.getByRole("button", { name: "Yes, turn off" }).click();
-    await expect.element(toggle).not.toBeChecked();
     expect(sent("DELETE", /\/releases$/)).toHaveLength(1);
+    await gone(page.getByRole("group", { name: "The releases" }));
+    await expect.element(tile.getByRole("button", { name: "Use releases" })).toBeVisible();
+    expect(data.project.releaseBy).toBeNull();
+  });
 
-    /* The property page draws the dates, with no switch to learn. */
+  test("a member reads the releases row with no switch, and Project has none", async () => {
+    const data = newProject();
+    const release = withSprints(data, ["1.0"]);
+    release.name = "Release";
+    release.type = "select";
+    release.config = { dated: true };
+    data.project.releaseBy = release.id;
+    data.project.role = "member";
     const drawn = await renderWithBoard(<PropertiesPanel />, data);
-    await expect.element(page.getByLabelText("Name of the Release property")).toBeInTheDocument();
-    await gone(page.getByLabelText("Options carry dates"));
+    const role = page.getByRole("group", { name: "The releases" });
+    await expect.element(role.getByText("Release is the releases.")).toBeVisible();
+    expect(role.getByRole("switch").elements()).toHaveLength(0);
     await drawn.screen.unmount();
+
+    data.project.role = "owner";
+    await renderWithBoard(<ProjectPanel files={false} />, data);
+    await expect.element(page.getByRole("switch", { name: "Use sprints" })).toBeVisible();
+    await gone(page.getByRole("switch", { name: /releases/i }));
+    await gone(page.getByText("Releases", { exact: true }));
   });
 });
 
