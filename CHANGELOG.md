@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.32.2 — 2026-10-21
+
 ### Added
 
 - Views opens with the default card: one card drawn from it, and which views follow it and which have their own. **Edit the default card** opens its editor in place. The separate Card view pages are gone, and their old links land on Views.
