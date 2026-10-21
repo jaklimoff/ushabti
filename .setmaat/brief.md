@@ -16,6 +16,8 @@ before you change the code.
 - A change that a person sees adds or changes an e2e spec that opens that screen: the loop's reviewer sees the screenshots of the specs the task changed. When the end state of the test is not the screen, the spec saves it with `page.screenshot({ path: testInfo.outputPath("seen-<name>.png") })`.
 - Find the place with `grep -n` first, then read only the lines you need. Do not read a file of more than about 300 lines whole.
 - Never touch `infra/`, production or a deploy.
+- When the task needs a change in another project, ask its PO in the task thread: `setmaat reply "$SETMAAT_THREAD" "<request>" --to <project>/po`, as `setmaat/po`. Do not use `send`. Give in one message what, why, and where in the code. Do not wait for the answer: go on with the task, and give its task key in the done notes. When the task cannot be done without the change, `report blocked` with the key.
+- To file a new task or a note on a task of Ushabti, ask `ushabti/po` in the same way: `setmaat reply "$SETMAAT_THREAD" "<request>" --to ushabti/po`. You have no board token. Give what, why, and where; do not wait; give the key in the done notes.
 - Keep your plan in meta. At the start, run `setmaat meta set plan="[ ] step one; [ ] step two; ..."` with at most 8 steps. Each time you finish a step, set the whole plan again with that step as `[x]`. The dashboard shows it as a live checklist.
 
 ## When you prove it
