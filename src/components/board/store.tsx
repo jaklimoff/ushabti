@@ -274,6 +274,7 @@ type Store = {
       groupById?: string | null;
       filters?: ViewFilters;
       sort?: ViewSort | null;
+      startFolded?: string[];
     },
   ) => Promise<void>;
   deleteView: (viewId: string) => Promise<void>;

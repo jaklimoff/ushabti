@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { foldKey, readFolded, setFolded } from "../fold";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  foldKey,
+  foldedOf,
+  noFolds,
+  readFolded,
+  readStartFolded,
+  setFolded,
+  writeFolded,
+} from "../fold";
+import type { PropertyDTO } from "../types";
 
 describe("where a fold is kept", () => {
   it("names the view, because a column id means nothing outside one", () => {
@@ -45,5 +54,76 @@ describe("folding and opening", () => {
 
   it("says nothing about a column that is already open", () => {
     expect(setFolded(["o-done"], "o-shipped", false)).toEqual(["o-done"]);
+  });
+});
+
+const status = {
+  id: "p-status",
+  name: "Status",
+  type: "select",
+  position: "a",
+  config: {},
+  options: ["o-later", "o-todo", "o-done"].map((id, i) => ({
+    id,
+    name: id,
+    color: "#000",
+    position: String(i),
+    startAt: null,
+    targetAt: null,
+    shippedAt: null,
+    note: null,
+  })),
+} as PropertyDTO;
+const assignee = { ...status, id: "p-who", type: "person", options: [] } as PropertyDTO;
+
+describe("the columns a view starts with folded", () => {
+  it("answers the options of the grouping property, in their order", () => {
+    expect(readStartFolded(["o-done", "o-later"], "p-status", [status])).toEqual([
+      "o-later",
+      "o-done",
+    ]);
+  });
+
+  it("drops an option that was deleted", () => {
+    expect(readStartFolded(["o-gone", "o-later"], "p-status", [status])).toEqual(["o-later"]);
+  });
+
+  it("drops what belongs to another property since the grouping changed", () => {
+    expect(readStartFolded(["o-later"], "p-who", [status, assignee])).toEqual([]);
+    expect(readStartFolded(["o-later"], "p-gone", [status])).toEqual([]);
+    expect(readStartFolded(["o-later"], null, [status])).toEqual([]);
+  });
+
+  it("reads anything that is not a list as nothing", () => {
+    expect(readStartFolded("o-later", "p-status", [status])).toEqual([]);
+    expect(readStartFolded(undefined, "p-status", [status])).toEqual([]);
+  });
+});
+
+describe("whose fold a board draws", () => {
+  const store = new Map<string, string>();
+  beforeEach(() => {
+    store.clear();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+      },
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const start = ["o-later"];
+
+  it("draws the view's starting fold for a browser that never folded there", () => {
+    expect(foldedOf("v-1", start)).toBe(start);
+    expect(noFolds(start)).toBe(start);
+  });
+
+  it("draws the person's own folds once they wrote any, even none", () => {
+    writeFolded("v-1", ["o-todo"]);
+    expect(foldedOf("v-1", start)).toEqual(["o-todo"]);
+    writeFolded("v-1", []);
+    expect(foldedOf("v-1", start)).toEqual([]);
   });
 });

@@ -63,6 +63,9 @@ import { TaskCard } from "./TaskCard";
 import styles from "./board.module.css";
 import { isSelect } from "@/lib/types";
 
+/* One answer for a view with no starting fold, because React compares by identity. */
+const NO_START: string[] = [];
+
 const dropAnimation: DropAnimation = {
   duration: 210,
   easing: "cubic-bezier(0.18, 0.67, 0.28, 1)",
@@ -285,8 +288,14 @@ export function BoardCanvas({
 
   /* The columns this browser has folded, for the view on screen. A fold is one
      person's answer to their own screen, so it lives in their browser and
-     never in the project — nobody else's board moves. */
-  const folded = useSyncExternalStore(subscribeFolded, () => foldedOf(viewId), noFolds);
+     never in the project — nobody else's board moves. A browser that never
+     folded here starts from the view's starting fold. */
+  const start = view?.startFolded ?? NO_START;
+  const folded = useSyncExternalStore(
+    subscribeFolded,
+    () => foldedOf(viewId, start),
+    () => noFolds(start),
+  );
 
   /* A window too narrow to hold two columns beside each other. The server
      draws the board it always drew, because it cannot know the width any more

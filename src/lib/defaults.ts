@@ -1,6 +1,11 @@
 import type { PropertyType, ViewKind } from "./types";
 
-export type DefaultOption = { name: string; color: string };
+export type DefaultOption = {
+  name: string;
+  color: string;
+  /** Its column starts folded on a new project's boards: a parking column. */
+  folded?: true;
+};
 export type DefaultProperty = {
   name: string;
   type: PropertyType;
@@ -20,7 +25,7 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
     type: "select",
     endsInDone: true,
     options: [
-      { name: "Later", color: "#4b5563" },
+      { name: "Later", color: "#4b5563", folded: true },
       { name: "Backlog", color: "#6b7280" },
       { name: "Todo", color: "#9aa0aa" },
       { name: "In Progress", color: "#d1913a" },
@@ -90,4 +95,23 @@ export function suggestProjectKey(name: string): string {
     .slice(0, 3)
     .map((w) => w[0])
     .join("");
+}
+
+/**
+ * The config a default view starts with. A board starts with the parking
+ * columns of its property folded, named by `folded` on the option and never
+ * by its name. `optionIds` gives each default option's id by
+ * "property:option".
+ */
+export function defaultViewConfig(
+  view: (typeof DEFAULT_VIEWS)[number],
+  optionIds: Map<string, string>,
+): { startFolded?: string[] } {
+  if (view.kind !== "board" || !view.groupBy) return {};
+  const property = DEFAULT_PROPERTIES.find((p) => p.name === view.groupBy);
+  const startFolded = (property?.options ?? [])
+    .filter((o) => o.folded)
+    .map((o) => optionIds.get(`${property!.name}:${o.name}`))
+    .filter((id): id is string => id !== undefined);
+  return startFolded.length ? { startFolded } : {};
 }

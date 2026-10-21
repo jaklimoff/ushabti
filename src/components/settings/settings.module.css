@@ -2029,6 +2029,12 @@ textarea.rulesBox {
   text-decoration: underline;
 }
 
+.viewFolds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .viewFork {
   display: flex;
   flex-wrap: wrap;

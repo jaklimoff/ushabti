@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- A board view can start with columns folded. Open a board on Settings → Views and press the columns under **Starts folded**. Anybody who never folded a column on that board sees them folded, on the board and on Home; a fold of their own wins. A new project's Board starts with Later folded.
+
 ### Changed
 
 - A new project's Status starts with Later, a parking place in front of Backlog, and the project has no Phase property. It opens with two views: Board and List. Existing projects stay as they are.

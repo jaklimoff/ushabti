@@ -23,7 +23,7 @@ import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
 import { TaskCard } from "@/components/board/TaskCard";
 import { ReadRuleChips } from "@/components/board/Filters";
-import { Button, IconButton } from "@/components/ui/Button";
+import { Button, IconButton, Pill } from "@/components/ui/Button";
 import { Label, NameInput, Select } from "@/components/ui/Form";
 import { Chevron, ViewKindMark } from "@/components/ui/Marks";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -32,6 +32,7 @@ import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import {
   GROUPABLE_TYPES,
   GROUPED_KINDS,
+  hasOptions,
   isSelect,
   type PropertyDTO,
   VIEW_KIND_LABEL,
@@ -432,6 +433,7 @@ function ViewRow({
               Change them on the board
             </Link>
           </section>
+          {view.kind === "board" && <StartsFolded view={view} />}
           {draws && (
             <section className={styles.viewPart} aria-label={`Card of ${view.name}`}>
               <h3 className={styles.viewPartHead}>Its card</h3>
@@ -473,6 +475,62 @@ function ViewRow({
         </div>
       )}
     </div>
+  );
+}
+
+/*
+ * The columns a board starts with folded, for whoever never folded one there.
+ * Each press writes the whole list, worked out from the saved one, so a second
+ * press waits for the first answer rather than writing over it. A person's
+ * own fold on the board stays theirs, which is why there is no button for
+ * this on the column head.
+ */
+function StartsFolded({ view }: { view: ViewDTO }) {
+  const { data, updateView } = useBoard();
+  const [sending, setSending] = useState(false);
+  const group = data.properties.find((p) => p.id === view.groupById);
+
+  async function press(optionId: string) {
+    if (sending || !group) return;
+    const saved = view.startFolded;
+    const next = group.options
+      .map((o) => o.id)
+      .filter((id) => (id === optionId ? !saved.includes(id) : saved.includes(id)));
+    setSending(true);
+    try {
+      await updateView(view.id, { startFolded: next });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className={styles.viewPart} aria-label={`Starts folded of ${view.name}`}>
+      <h3 className={styles.viewPartHead}>Starts folded</h3>
+      {group && hasOptions(group.type) ? (
+        <>
+          <div
+            role="group"
+            aria-label={`The columns ${view.name} starts with folded`}
+            className={styles.viewFolds}
+          >
+            {group.options.map((o) => (
+              <Pill
+                key={o.id}
+                on={view.startFolded.includes(o.id)}
+                disabled={sending}
+                onClick={() => void press(o.id)}
+              >
+                {o.name}
+              </Pill>
+            ))}
+          </div>
+          <Note>For anybody who never folded a column here. A fold of their own wins.</Note>
+        </>
+      ) : (
+        <Note>Only the columns of a select can start folded.</Note>
+      )}
+    </section>
   );
 }
 

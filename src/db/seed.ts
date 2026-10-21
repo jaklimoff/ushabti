@@ -22,7 +22,7 @@ import {
   tasks,
   users,
 } from "./schema";
-import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "../lib/defaults";
+import { DEFAULT_PROPERTIES, DEFAULT_VIEWS, defaultViewConfig } from "../lib/defaults";
 import { joinProject } from "../lib/membership";
 import { rankSequence } from "../lib/rank";
 import { views } from "./schema";
@@ -267,7 +267,7 @@ async function main() {
       groupById: v.groupBy ? (propByName.get(v.groupBy) ?? null) : null,
       position: viewRanks[i],
       isDefault: v.isDefault,
-      config: {},
+      config: defaultViewConfig(v, optionByName),
     })),
   );
 

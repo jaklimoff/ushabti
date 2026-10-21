@@ -468,6 +468,14 @@ and what is easy to get wrong.
   `live-markdown-parity.test.ts` holds it to marked. The editor is a lazy chunk
   that imports none of those rules: imported from there, they move into one
   more chunk the board page has to fetch.
+- **A fold is the person's; a view's starting fold is only where a browser
+  starts.** `views.config.startFolded` names the options whose columns a
+  browser draws folded while it has never folded or opened a column on that
+  view, and the server draws it, so the first paint is right. Once a browser
+  writes any fold, even none at all, `foldedOf()` answers with its own for
+  good. `readStartFolded()` reads it afresh as a filter is read, and the
+  write is `humanOnly` for the same reason. The column head's fold button
+  stays "fold it for me".
 - **The sidebar's fold is the one browser preference the server reads.** It
   moves the whole page, so `FOLD_COOKIE` in `src/lib/sidebar.ts` is read in
   the `(app)` layout and the first paint is already right; anything else a

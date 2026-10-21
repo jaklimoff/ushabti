@@ -84,6 +84,7 @@ function view(over: Partial<ViewDTO>): ViewDTO {
     lens: EMPTY,
     sort: null,
     lensSort: null,
+    startFolded: [],
     cardView: null,
     ...over,
   };

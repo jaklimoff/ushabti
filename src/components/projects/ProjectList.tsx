@@ -639,10 +639,14 @@ function Goal({ heading }: { heading: Heading }) {
  * line names every column with its count, because a shade must never carry
  * the meaning alone. What this person folded on that view is read here, after
  * the page draws, exactly as the board reads it: the server cannot know a
- * browser.
+ * browser, so it draws the view's starting fold.
  */
 function Pulse({ pulse }: { pulse: ProjectPulse }) {
-  const folded = useSyncExternalStore(subscribeFolded, () => foldedOf(pulse.viewId ?? ""), noFolds);
+  const folded = useSyncExternalStore(
+    subscribeFolded,
+    () => foldedOf(pulse.viewId ?? "", pulse.startFolded),
+    () => noFolds(pulse.startFolded),
+  );
   const now = useNow(false);
   const agents = agentsLine(pulse.agents);
   return (

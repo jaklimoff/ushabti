@@ -338,6 +338,7 @@ describe("An empty section on Home", () => {
 
 const pulseOf = (over: Partial<ProjectPulse> = {}): ProjectPulse => ({
   viewId: null,
+  startFolded: [],
   columns: [
     { id: "c1", name: "Todo", color: "#e0574d", count: 9 },
     { id: "c2", name: "In Progress", color: "#3fb0c8", count: 3 },

@@ -8,6 +8,8 @@
  * draws it.
  */
 
+import { hasOptions, type PropertyDTO } from "./types";
+
 const KEY = "ushabti:folded:";
 
 export function foldKey(viewId: string): string {
@@ -37,6 +39,24 @@ export function setFolded(folded: string[], columnId: string, on: boolean): stri
   return folded.includes(columnId) ? folded : [...folded, columnId];
 }
 
+/**
+ * The columns a view starts with folded, for a browser that never folded or
+ * opened one there. It is read afresh, as a filter is: nothing cleans it up
+ * when an option is deleted or the view is grouped by another property, so
+ * an id that is not an option of the grouping property today is dropped
+ * here, on every read.
+ */
+export function readStartFolded(
+  raw: unknown,
+  groupById: string | null,
+  properties: PropertyDTO[],
+): string[] {
+  if (!Array.isArray(raw) || !groupById) return [];
+  const group = properties.find((p) => p.id === groupById);
+  if (!group || !hasOptions(group.type)) return [];
+  return group.options.map((o) => o.id).filter((id) => raw.includes(id));
+}
+
 /* ------------------------------------------------------------------ */
 /* The store the board subscribes to                                    */
 /* ------------------------------------------------------------------ */
@@ -44,8 +64,11 @@ export function setFolded(folded: string[], columnId: string, on: boolean): stri
 /*
  * The browser is not React's to see, so the board reads it as an outside
  * store rather than copying it into state after the first paint. The server
- * draws every column open, because it cannot know what one browser folded,
- * and the fold arrives the moment that browser takes over.
+ * draws the view's starting fold, because it cannot know what one browser
+ * folded, and the person's own fold arrives the moment that browser takes
+ * over. A browser that never wrote a fold for the view has no answer of its
+ * own and keeps the view's; once it folds or opens any column, even back to
+ * none, the answer is the person's for good.
  */
 
 const NOTHING: string[] = [];
@@ -65,28 +88,27 @@ export function subscribeFolded(listener: () => void): () => void {
   };
 }
 
-export function foldedOf(viewId: string): string[] {
+export function foldedOf(viewId: string, start: string[] = NOTHING): string[] {
   if (!viewId) return NOTHING;
   const key = foldKey(viewId);
   let raw: string | null = null;
   try {
     raw = window.localStorage.getItem(key);
   } catch {
-    return NOTHING; /* private mode */
+    return start; /* private mode */
   }
+  if (raw === null) return start;
   const held = cache.get(key);
   if (held && held.raw === raw) return held.value;
-  /* A board with nothing folded gives the server's own answer back, word for
-     word, so hydrating one costs no extra render. */
   const value = readFolded(raw);
   const fresh = { raw, value: value.length ? value : NOTHING };
   cache.set(key, fresh);
   return fresh.value;
 }
 
-/** What the server draws: a board nobody has folded yet. */
-export function noFolds(): string[] {
-  return NOTHING;
+/** What the server draws: the view's starting fold, or nothing. */
+export function noFolds(start: string[] = NOTHING): string[] {
+  return start;
 }
 
 export function writeFolded(viewId: string, folded: string[]): void {

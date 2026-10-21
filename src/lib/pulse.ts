@@ -70,6 +70,8 @@ export const QUIET_AFTER = 21 * 24 * 60 * 60 * 1000;
 export type ProjectPulse = {
   /** The main view, so the browser can read what this person folded on it. */
   viewId: string | null;
+  /** The main view's starting fold, for a browser that never folded on it. */
+  startFolded: string[];
   /** Null when the main view draws no columns: a list, a roadmap, or no grouping. */
   columns: PulseColumn[] | null;
   agents: AgentsAtWork;

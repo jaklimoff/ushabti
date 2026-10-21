@@ -31,8 +31,9 @@ import { HttpError } from "./auth";
 import { inviteIsLive } from "./invite-link";
 import { mainBoardGroupById, ownCardView, PREVIEW_COUNT, readCardView } from "./card-view";
 import { goesAt, sweepCutoff } from "./deleted";
-import { DEFAULT_PROPERTIES, DEFAULT_VIEWS } from "./defaults";
+import { DEFAULT_PROPERTIES, DEFAULT_VIEWS, defaultViewConfig } from "./defaults";
 import { readFilters } from "./filters";
+import { readStartFolded } from "./fold";
 import { readTimeZone, todayIn } from "./day";
 import {
   BLOCKS,
@@ -247,6 +248,7 @@ export async function listProjectsWithPulse(
       const [board, last, days] = await Promise.all([boardOf(row), lastChange(row.id), recent]);
       const pulse: ProjectPulse = {
         viewId: (board.views.find((v) => v.isDefault) ?? board.views[0])?.id ?? null,
+        startFolded: (board.views.find((v) => v.isDefault) ?? board.views[0])?.startFolded ?? [],
         columns: mainColumns(board, userId),
         agents: agentsAtWork(board.runs, now),
         last,
@@ -439,6 +441,7 @@ export async function createProject(userId: string, name: string, key: string) {
 
     const propRanks = rankSequence(DEFAULT_PROPERTIES.length);
     const byName = new Map<string, string>();
+    const optionByName = new Map<string, string>();
     let doneWhen: DoneWhen | null = null;
 
     for (let i = 0; i < DEFAULT_PROPERTIES.length; i += 1) {
@@ -468,6 +471,7 @@ export async function createProject(userId: string, name: string, key: string) {
             })),
           )
           .returning({ id: propertyOptions.id, name: propertyOptions.name });
+        for (const o of options) optionByName.set(`${def.name}:${o.name}`, o.id);
         /* Without a done rule nothing is ever over: Ship archives nothing and
            a blocker never frees. */
         const last = options.find((o) => o.name === def.options!.at(-1)!.name);
@@ -488,7 +492,7 @@ export async function createProject(userId: string, name: string, key: string) {
         groupById: v.groupBy ? (byName.get(v.groupBy) ?? null) : null,
         position: viewRanks[i],
         isDefault: v.isDefault,
-        config: {},
+        config: defaultViewConfig(v, optionByName),
       })),
     );
 
@@ -527,6 +531,11 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unkn
     lens: readFilters(lens, propertyList),
     sort: readSort((row.config as { sort?: unknown } | null)?.sort, propertyList),
     lensSort: readLensSort(lens, propertyList),
+    startFolded: readStartFolded(
+      (row.config as { startFolded?: unknown } | null)?.startFolded,
+      row.groupById,
+      propertyList,
+    ),
     cardView: ownCardView(row.cardView, propertyList),
   };
 }

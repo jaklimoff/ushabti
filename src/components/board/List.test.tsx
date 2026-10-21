@@ -102,6 +102,7 @@ function serving(data: BoardData): Answer {
         lens: { rules: [] },
         sort: null,
         lensSort: null,
+        startFolded: [],
         cardView: null,
       };
       server = { ...server, views: [...server.views, view] };

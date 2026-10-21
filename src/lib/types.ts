@@ -500,6 +500,12 @@ export type ViewDTO = {
    */
   lensSort: ViewSort | null;
   /**
+   * The options of the grouping property whose columns start folded, in the
+   * option order. Only where a browser that never folded on this view starts:
+   * a fold of the person's own wins.
+   */
+  startFolded: string[];
+  /**
    * This view's own card view, read afresh, or null when it draws the
    * project's. A list's columns are its card view, so a list keeps one here
    * too.

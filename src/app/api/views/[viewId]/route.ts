@@ -15,6 +15,7 @@ import {
   str,
 } from "@/lib/api";
 import { groupsAnew, readFilters, startsOnCurrent } from "@/lib/filters";
+import { readStartFolded } from "@/lib/fold";
 import { byPos } from "@/lib/order";
 import {
   groupPropertyId,
@@ -43,6 +44,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     groupById?: string | null;
     filters?: unknown;
     sort?: unknown;
+    startFolded?: unknown;
     afterId?: string | null;
     isDefault?: boolean;
   }>(req);
@@ -87,9 +89,16 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
      this one either. */
   const grouped = user.kind === "human" && groupsAnew(current, { kind, groupById });
 
-  if (input.filters !== undefined || input.sort !== undefined || grouped) {
+  if (
+    input.filters !== undefined ||
+    input.sort !== undefined ||
+    input.startFolded !== undefined ||
+    grouped
+  ) {
     const properties = await loadProperties(projectId);
-    let config = { ...((current.config ?? {}) as { filters?: unknown; sort?: unknown }) };
+    let config = {
+      ...((current.config ?? {}) as { filters?: unknown; sort?: unknown; startFolded?: unknown }),
+    };
 
     if (input.filters !== undefined) {
       // A filter says what everybody on this board can see. An agent writes
@@ -107,6 +116,17 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
          filters. The same reading the board does, so a column that is gone
          cannot be saved as an order. */
       config = { ...config, sort: readSort(input.sort, properties) };
+    }
+
+    if (input.startFolded !== undefined) {
+      /* What the team sees first is the people's call, for the reason a
+         filter is. Read against the grouping this same write leaves behind,
+         so an option of another property is never saved. */
+      humanOnly(user);
+      config = {
+        ...config,
+        startFolded: readStartFolded(input.startFolded, groupById, properties),
+      };
     }
 
     const group = grouped ? properties.find((p) => p.id === groupById) : undefined;
