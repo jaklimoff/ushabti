@@ -164,9 +164,16 @@ so an agent sees exactly what a person sees and nothing more.
 | What was deleted    | `GET /api/projects/{projectId}/deleted`             |
 | Add a checklist item| `POST /api/tasks/{taskId}/checklist`                |
 | Tick one, or untick | `PATCH /api/checklist/{itemId}` with `done`         |
+| Reword an item      | `PATCH /api/checklist/{itemId}` with `text`         |
+| Remove an item      | `DELETE /api/checklist/{itemId}`                    |
 | Comment             | `POST /api/tasks/{taskId}/comments`                 |
 | What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
+
+Rewording and removing a checklist item are the **Edit checklists** act, which
+an owner or an admin can switch off for an agent; adding and ticking stay open.
+`board.mjs check-edit USH-14 2 "<new words>"` or `check --rename` and
+`board.mjs check-rm USH-14 2` or `check --remove` are the short way.
 
 **A create gets the type's defaults.** When the project names a select as its
 Type, a property can say what a new task of each type starts with: "a Bug

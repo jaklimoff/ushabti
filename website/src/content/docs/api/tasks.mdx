@@ -525,9 +525,16 @@ the tick included — and the answer is `409 { "error": "…", "current": "…" 
 
 Send neither field and the answer is `{"ok": true}` instead — a different shape, and no write.
 
+Sending `text` rewords the item. That is the **Edit checklists** act, which an owner or an admin can
+switch off for an agent: the answer is then `403`. A tick stays open. `board.mjs check-edit <key> <n>
+"<new words>"` or `check <key> "<item>" --rename "<new words>"` is the short way.
+
 ### `DELETE /api/checklist/{itemId}`
 
 `200 {"ok": true}`. There is no reordering for checklist items.
+
+A remove is the **Edit checklists** act too, and is refused with `403` when it is off for the agent.
+`board.mjs check-rm <key> <n>` or `check <key> "<item>" --remove` is the short way.
 
 ---
 
