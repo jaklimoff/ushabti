@@ -52,7 +52,6 @@ const SEED_TASKS: {
   title: string;
   status: string;
   priority: string;
-  phase: string;
   estimate: string;
   labels: string[];
   who: number;
@@ -65,7 +64,6 @@ const SEED_TASKS: {
     title: "Custom properties: select, multi-select, person, date",
     status: "Done",
     priority: "Urgent",
-    phase: "PoC",
     estimate: "L",
     labels: ["feature", "infra"],
     who: 0,
@@ -76,7 +74,6 @@ const SEED_TASKS: {
     title: "Board grouped by any property you choose",
     status: "Ready",
     priority: "High",
-    phase: "MVP",
     estimate: "L",
     labels: ["feature"],
     who: 0,
@@ -87,7 +84,6 @@ const SEED_TASKS: {
     title: "Drag and drop that feels right",
     status: "In Progress",
     priority: "Urgent",
-    phase: "MVP",
     estimate: "M",
     labels: ["ux"],
     who: 1,
@@ -106,7 +102,6 @@ const SEED_TASKS: {
     title: "Live updates over server-sent events",
     status: "In Progress",
     priority: "High",
-    phase: "MVP",
     estimate: "M",
     labels: ["infra"],
     who: 0,
@@ -116,7 +111,6 @@ const SEED_TASKS: {
     title: "Invite a friend by email",
     status: "Todo",
     priority: "Medium",
-    phase: "MVP",
     estimate: "S",
     labels: ["feature"],
     who: 1,
@@ -126,7 +120,6 @@ const SEED_TASKS: {
     title: "Filter and sort inside a view",
     status: "Backlog",
     priority: "Medium",
-    phase: "MMP",
     estimate: "M",
     labels: ["feature"],
     who: 0,
@@ -135,7 +128,6 @@ const SEED_TASKS: {
     title: "Keyboard shortcuts for the board",
     status: "Backlog",
     priority: "Low",
-    phase: "MMP",
     estimate: "S",
     labels: ["ux"],
     who: 1,
@@ -144,7 +136,6 @@ const SEED_TASKS: {
     title: "Import a Trello board",
     status: "Todo",
     priority: "Low",
-    phase: "Pilot",
     estimate: "L",
     labels: ["feature"],
     who: 0,
@@ -153,7 +144,6 @@ const SEED_TASKS: {
     title: "Archive instead of delete",
     status: "Backlog",
     priority: "Low",
-    phase: "GA",
     estimate: "S",
     labels: [],
     who: 1,
@@ -303,7 +293,6 @@ async function main() {
         propertyId: propByName.get("Priority")!,
         value: optionByName.get(`Priority:${t.priority}`),
       },
-      { propertyId: propByName.get("Phase")!, value: optionByName.get(`Phase:${t.phase}`) },
       {
         propertyId: propByName.get("Estimate")!,
         value: optionByName.get(`Estimate:${t.estimate}`),

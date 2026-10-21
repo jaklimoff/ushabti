@@ -338,7 +338,7 @@ test.describe("Columns", () => {
     const names = async () =>
       (await page.getByTestId("column-name").allInnerTexts()).map((t) => t.trim().toUpperCase());
 
-    expect(await names()).toEqual(["BACKLOG", "TODO", "IN PROGRESS", "READY", "DONE"]);
+    expect(await names()).toEqual(["LATER", "BACKLOG", "TODO", "IN PROGRESS", "READY", "DONE"]);
 
     const grip = page.getByRole("button", { name: "Reorder the column Backlog" });
     const from = (await grip.boundingBox())!;

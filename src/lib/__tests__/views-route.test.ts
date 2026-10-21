@@ -19,10 +19,22 @@ type Property = { id: string; name: string };
 async function setUp() {
   const owner = await person("Views Owner");
   const p = await project(owner);
+  const me = api(owner);
+  // A second select and a board of it, which a new project no longer has.
+  const { property: phase } = await ok<{ property: Property }>(
+    me.post(`/api/projects/${p.id}/properties`, {
+      name: "Phase",
+      type: "select",
+      options: ["PoC", "MVP", "GA"],
+    }),
+  );
+  await ok(
+    me.post(`/api/projects/${p.id}/views`, { name: "Phases", kind: "board", groupById: phase.id }),
+  );
   const read = await board(owner, p.id);
   const view = (name: string) => (read.views as View[]).find((v) => v.name === name)!;
   const property = (name: string) => (read.properties as Property[]).find((x) => x.name === name)!;
-  return { owner, project: p, me: api(owner), view, property };
+  return { owner, project: p, me, view, property };
 }
 
 describe("A list view", () => {
@@ -45,8 +57,9 @@ describe("A list view", () => {
     const { owner, project: p, me, view, property } = await setUp();
 
     // Take away every property a board could use for its columns, as the spec
-    // did: Phases goes, the main view becomes a list, and the three go.
+    // did: the other boards go, the main view becomes a list, and the three go.
     await ok(me.del(`/api/views/${view("Phases").id}`));
+    await ok(me.del(`/api/views/${view("List").id}`));
     await ok(me.patch(`/api/views/${view("Board").id}`, { kind: "list" }));
     for (const name of ["Status", "Assignee", "Phase"]) {
       await ok(me.del(`/api/properties/${property(name).id}`));

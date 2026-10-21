@@ -106,6 +106,49 @@ export function newProject(): BoardData {
   };
 }
 
+/**
+ * A project somebody arranged with a second select and a board of it: Phase,
+ * and the view Phases in the place of List. A new project has neither, and
+ * many tests need a second select and a second board.
+ */
+export function withPhases(data: BoardData): BoardData {
+  const phase: PropertyDTO = {
+    id: id(),
+    name: "Phase",
+    type: "select",
+    position: rank(data.properties.length),
+    config: {},
+    options: ["PoC", "MVP", "MMP", "Pilot", "GA"].map((name, j) => ({
+      id: id(),
+      name,
+      color: ["#8b8f98", "#3fb0c8", "#6d5bd0", "#d1913a", "#4f8a5b"][j],
+      position: rank(j),
+      startAt: null,
+      targetAt: null,
+      shippedAt: null,
+      note: null,
+    })),
+  };
+  data.properties.push(phase);
+  data.views = data.views
+    .filter((v) => v.kind !== "list")
+    .concat({
+      id: id(),
+      name: "Phases",
+      kind: "board",
+      groupById: phase.id,
+      position: rank(1),
+      isDefault: false,
+      filters: { rules: [] },
+      lens: { rules: [] },
+      sort: null,
+      lensSort: null,
+      cardView: null,
+    });
+  data.cardView = defaultCardView(data.properties, data.views[0].groupById);
+  return data;
+}
+
 export function propertyOf(data: BoardData, name: string): PropertyDTO {
   const property = data.properties.find((p) => p.name === name);
   if (!property) throw new Error(`No property is called ${name}.`);

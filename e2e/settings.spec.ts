@@ -29,23 +29,22 @@ test.describe("Settings", () => {
     await expect(page.getByRole("button", { name: "Make Board the main view" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Delete the view Board" })).toHaveCount(0);
 
-    await saved(page, () =>
-      page.getByRole("button", { name: "Make Phases the main view" }).click(),
-    );
+    await saved(page, () => page.getByRole("button", { name: "Make List the main view" }).click());
 
     // One view is main, so the word moved rather than spread.
     await expect(page.getByRole("button", { name: "Make Board the main view" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Make Phases the main view" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Make List the main view" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Delete the view Board" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Delete the view Phases" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Delete the view List" })).toHaveCount(0);
 
     await page.reload();
     await expect(page.getByRole("button", { name: "Make Board the main view" })).toBeVisible();
 
     // Nobody has picked a view in this browser, so the board opens on the main
-    // one: the Phase columns, and not the Status ones.
+    // one: the list, and not the Status columns.
     await page.goto(`/p/${projectId}`);
-    await expect(column(page, "PoC")).toBeVisible();
+    await expect(page.getByTestId("list-view")).toBeVisible();
+    await expect(column(page, "Todo")).toHaveCount(0);
   });
 
   test("a view row says its card and its filters, and opens on both", async ({

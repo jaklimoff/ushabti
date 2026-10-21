@@ -7,6 +7,7 @@ import {
   optionOf,
   propertyOf,
   renderWithBoard,
+  withPhases,
   withTask,
   type Answer,
   type Sent,
@@ -338,9 +339,9 @@ describe("Custom properties", () => {
   test("the keyboard moves an option, and the columns follow it", async () => {
     const data = newProject();
     const { sent } = await draw(data, undefined, keepsOptionMoves(data));
-    await expect.poll(() => columnNames().slice(0, 2)).toEqual(["BACKLOG", "TODO"]);
+    await expect.poll(() => columnNames().slice(1, 3)).toEqual(["BACKLOG", "TODO"]);
 
-    const todo = propertyOf(data, "Status").options[1].id;
+    const todo = propertyOf(data, "Status").options[2].id;
     const status = propertyBox("Status");
     const grip = status.getByRole("button", { name: "Move the option Backlog" });
     (grip.element() as HTMLElement).focus();
@@ -349,10 +350,10 @@ describe("Custom properties", () => {
        carries no dates, so its options sit in a row and move right. */
     await keyboardDrag(grip, "{ArrowRight}");
 
-    await expect.poll(() => optionOrder(status).slice(0, 2)).toEqual(["Todo", "Backlog"]);
+    await expect.poll(() => optionOrder(status).slice(1, 3)).toEqual(["Todo", "Backlog"]);
     await wrote(() => sent("PATCH", OPTION), 1);
     expect(sent("PATCH", OPTION)[0].body).toEqual({ afterId: todo });
-    await expect.poll(() => columnNames().slice(0, 2)).toEqual(["TODO", "BACKLOG"]);
+    await expect.poll(() => columnNames().slice(1, 3)).toEqual(["TODO", "BACKLOG"]);
   });
 
   test("text, number and checkbox properties keep their value", async () => {
@@ -468,7 +469,7 @@ describe("Settings", () => {
     release();
     await expect.element(yes).toBeEnabled();
     await expect
-      .element(page.getByText("Delete Status? 5 options and 1 value go with it."))
+      .element(page.getByText("Delete Status? 6 options and 1 value go with it."))
       .toBeVisible();
   });
 
@@ -554,8 +555,8 @@ describe("Settings on a phone", () => {
     await renderWithBoard(<PropertiesPanel />, newProject());
 
     await expect.element(page.getByRole("heading", { name: "Properties" })).toBeVisible();
-    // Seven properties of the new project, five of them with options.
-    await expect.poll(() => byTestId("property-box").elements()).toHaveLength(7);
+    // Six properties of the new project, four of them with options.
+    await expect.poll(() => byTestId("property-box").elements()).toHaveLength(6);
 
     const doc = document.documentElement;
     expect(Math.max(doc.scrollWidth - doc.clientWidth, 0)).toBe(0);
@@ -563,17 +564,17 @@ describe("Settings on a phone", () => {
     const names = [
       ...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" property"]'),
     ];
-    expect(names).toHaveLength(7);
+    expect(names).toHaveLength(6);
     for (const name of names) {
       const cut = name.scrollWidth - name.clientWidth;
       expect(cut, `"${name.value}" is cut off by ${cut} px`).toBeLessThanOrEqual(0);
     }
     // The option grips say "Move" too, so the property grips are named in full.
     const words = names.map((b) => b.value);
-    forAFinger(page.getByRole("button", { name: new RegExp(`^Move (${words.join("|")})$`) }), 7);
-    forAFinger(page.getByRole("button", { name: /^Colour of / }), 24);
-    forAFinger(page.getByRole("button", { name: /^Delete the option / }), 24);
-    forAFinger(page.getByRole("button", { name: /^Move the option / }), 24);
+    forAFinger(page.getByRole("button", { name: new RegExp(`^Move (${words.join("|")})$`) }), 6);
+    forAFinger(page.getByRole("button", { name: /^Colour of / }), 20);
+    forAFinger(page.getByRole("button", { name: /^Delete the option / }), 20);
+    forAFinger(page.getByRole("button", { name: /^Move the option / }), 20);
   });
 });
 
@@ -591,7 +592,7 @@ function forAFinger(targets: Locator, count: number) {
 
 describe("What uses a property", () => {
   test("a property shows what uses it, and the GROUPABLE badge is gone", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const status = propertyOf(data, "Status");
     data.views.push({
       ...data.views[0],
@@ -629,7 +630,7 @@ describe("The role strip", () => {
   /* A project with every role on: Kind holds the types, Status says done,
      Phase holds the releases and Sprint the sprints. */
   function allFour(): BoardData {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phase = propertyOf(data, "Phase");
     const status = propertyOf(data, "Status");
     const kind = {

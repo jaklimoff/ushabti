@@ -103,6 +103,7 @@ describe("The menu of a select", () => {
     const statusId = propertyOf(data, "Status").id;
     const made = server.properties.find((p) => p.id === statusId)!.options;
     expect(made.map((o) => o.name)).toEqual([
+      "Later",
       "Backlog",
       "Todo",
       "In Progress",
@@ -110,7 +111,7 @@ describe("The menu of a select", () => {
       "Done",
       "Blocked",
     ]);
-    expect(server.tasks[0].values[statusId]).toBe(made[5].id);
+    expect(server.tasks[0].values[statusId]).toBe(made[6].id);
     expect(byTestId("column").elements()).toHaveLength(columns + 1);
   });
 
@@ -193,7 +194,7 @@ describe("The menu of a select", () => {
     const statusId = propertyOf(data, "Status").id;
     const ready = optionOf(data, "Status", "Ready");
     expect(server.tasks.map((t) => t.values[statusId])).toEqual([ready, ready]);
-    expect(server.properties.find((p) => p.id === statusId)!.options).toHaveLength(5);
+    expect(server.properties.find((p) => p.id === statusId)!.options).toHaveLength(6);
     await expect.poll(() => column("Ready").getByTestId("card").elements().length).toBe(2);
     expect(byTestId("column").elements()).toHaveLength(columns);
   });

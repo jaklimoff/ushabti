@@ -181,12 +181,12 @@ describe("A chart", () => {
     const { property, option } = await shape(me, p.id);
     await addChart(me, p.id, property("Status").id, option("Status", "Backlog"));
     await addChart(me, p.id, property("Priority").id, option("Priority", "Low"));
-    await addChart(me, p.id, property("Phase").id, property("Phase").options[0].id);
+    await addChart(me, p.id, property("Estimate").id, property("Estimate").options[0].id);
     expect(await chartsFor(me)).toHaveLength(3);
 
     await ok(api(me).del(`/api/options/${option("Status", "Backlog")}`));
     await ok(api(me).del(`/api/properties/${property("Priority").id}`));
-    expect((await chartsFor(me)).map((c) => c.sources[0].property)).toEqual(["Phase"]);
+    expect((await chartsFor(me)).map((c) => c.sources[0].property)).toEqual(["Estimate"]);
 
     const q = await project(owner);
     await join(q.id, me, "member");

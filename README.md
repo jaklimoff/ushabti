@@ -99,7 +99,7 @@ Small teams deserve neat tools. Write the work down. Let your ushabti answer.
 ## What it does
 
 ```
-Board  ·  Phases  ·  By assignee            ← views you create
+Board  ·  List  ·  By assignee              ← views you create
 ┌── BACKLOG ─┐ ┌── TODO ────┐ ┌── IN PROGRESS ┐
 │  USH-7     │ │  USH-5     │ │  USH-3        │
 │  ...       │ │  ...       │ │  ...          │

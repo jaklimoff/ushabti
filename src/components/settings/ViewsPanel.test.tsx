@@ -6,6 +6,7 @@ import {
   optionOf,
   propertyOf,
   renderWithBoard,
+  withPhases,
   withTask,
   type Sent,
 } from "@/test/board";
@@ -49,7 +50,7 @@ async function forAFinger(targets: Locator, count: number) {
 
 describe("Settings", () => {
   test("a view made in the strip is deleted from settings, which makes none", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     // The view the strip made, as the next read of the board carries it.
     data.views.push({
       ...data.views[1],
@@ -74,7 +75,7 @@ describe("Settings", () => {
   });
 
   test("a view is dragged into its place, and stays there", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const { sent } = await renderWithBoard(
       <>
@@ -109,7 +110,7 @@ describe("Settings", () => {
   });
 
   test("the keyboard moves a view as well as the pointer", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const [board, phases] = data.views;
     const { sent } = await renderWithBoard(<ViewsPanel />, data);
     const grip = page.getByRole("button", { name: "Reorder the view Board" });
@@ -135,7 +136,7 @@ describe("A view row says its card and its filters", () => {
   /** Board keeps two rules for everyone and a card of its own; Phases has
       neither; Road is a roadmap. */
   function project() {
-    const data = newProject();
+    const data = withPhases(newProject());
     const [board, phases] = data.views;
     board.filters = {
       rules: [
@@ -308,7 +309,7 @@ describe("Settings on a phone", () => {
 
   test("the views page fits the screen and keeps its names whole", async () => {
     await page.viewport(390, 780);
-    await renderWithBoard(<ViewsPanel />, newProject());
+    await renderWithBoard(<ViewsPanel />, withPhases(newProject()));
 
     await expect.element(page.getByRole("heading", { name: "Views", level: 1 })).toBeVisible();
     expect(viewRowOrder()).toEqual(["BOARD", "PHASES"]);

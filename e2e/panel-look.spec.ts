@@ -9,7 +9,7 @@ type Board = {
  * The task panel's look. In a new project Priority fits as a row of buttons
  * and Status, with "In Progress", does not, so it is a menu. High and In
  * Progress share one colour, so the two picked looks can be held side by side.
- * A phone draws the first column, so a task looked at there sits in Backlog.
+ * A phone draws the first column, so a task looked at there sits in Later.
  */
 async function openTask(page: Page, status = "In Progress") {
   await register(page, "Panel Person");
@@ -156,11 +156,11 @@ test.describe("The task panel under a finger", () => {
   test("its buttons and rows are about 32px and its text boxes 16px", async ({
     page,
   }, testInfo) => {
-    const panel = await openTask(page, "Backlog");
+    const panel = await openTask(page, "Later");
     const height = async (el: Locator) => (await el.boundingBox())!.height;
 
     expect(await height(field(panel, "Priority").getByRole("button", { name: "High" }))).toBe(32);
-    expect(await height(field(panel, "Status").getByRole("button", { name: /Backlog/ }))).toBe(32);
+    expect(await height(field(panel, "Status").getByRole("button", { name: /Later/ }))).toBe(32);
     expect(await height(panel.getByRole("button", { name: "Mark as done" }))).toBe(18);
     expect(await height(panel.getByRole("button", { name: "Task menu" }))).toBe(32);
 
@@ -184,7 +184,7 @@ test.describe("The task panel under a finger", () => {
   });
 
   test("the description and a comment's edit box open at 16px", async ({ page }, testInfo) => {
-    const panel = await openTask(page, "Backlog");
+    const panel = await openTask(page, "Later");
     const size = (el: Locator) => el.evaluate((node) => getComputedStyle(node).fontSize);
 
     await panel.getByTestId("markdown").first().click();
@@ -202,6 +202,10 @@ test.describe("The task panel under a finger", () => {
     expect(parseFloat(await size(code))).toBeLessThan(16);
     await page.screenshot({ path: testInfo.outputPath("seen-panel-touch-description.png") });
 
+    /* The box closes on a blur and the panel moves up under it, so it closes
+       before the press on Edit, or the press lands on what moved there. */
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await expect(editor).toHaveCount(0);
     await panel.getByRole("button", { name: "Edit" }).click();
     const box = panel.getByTestId("comment-editor");
     await expect(box).toBeVisible();

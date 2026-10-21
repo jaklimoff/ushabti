@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- A new project's Status starts with Later, a parking place in front of Backlog, and the project has no Phase property. It opens with two views: Board and List. Existing projects stay as they are.
+
 ## 0.32.2 — 2026-10-21
 
 ### Added

@@ -23,6 +23,13 @@ test.describe("Card view", () => {
   }) => {
     await register(page);
     const projectId = await createProject(page, unique("Order"));
+    // A second select, which a new project no longer has. It is made last, so
+    // it sits after Estimate.
+    const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+      data: { name: "Phase", type: "select", options: ["PoC", "MVP"] },
+    });
+    expect(made.status()).toBe(201);
+    await page.reload();
     await addTask(page, "Todo", "Two in the footer");
     await page.locator('[data-property="Phase"]').getByRole("button", { name: "MVP" }).click();
     await page
@@ -37,7 +44,7 @@ test.describe("Card view", () => {
     );
     await expect(footer).toHaveCount(2);
     const tips = async () => footer.evaluateAll((els) => els.map((e) => e.getAttribute("title")));
-    expect(await tips()).toEqual(["Phase · MVP", "Estimate · M"]);
+    expect(await tips()).toEqual(["Estimate · M", "Phase · MVP"]);
 
     // The card view has no order of its own to change.
     await gotoSettings(page, projectId, "views");
@@ -46,27 +53,27 @@ test.describe("Card view", () => {
 
     // One drag in Properties is the one order.
     await gotoSettings(page, projectId);
-    // Status is a tall row now, so Estimate starts by the bottom edge, where
+    // Status is a tall row now, so Phase starts by the bottom edge, where
     // the drag would scroll the page under the pointer.
     await page
-      .getByLabel("Name of the Phase property")
+      .getByLabel("Name of the Estimate property")
       .evaluate((el) => el.scrollIntoView({ block: "center" }));
     await dragOnto(
       page,
-      page.getByRole("button", { name: "Move Estimate" }),
-      page.getByLabel("Name of the Phase property"),
+      page.getByRole("button", { name: "Move Phase" }),
+      page.getByLabel("Name of the Estimate property"),
       /^\/api\/properties\/[0-9a-f-]+$/,
     );
 
     await page.goto(`/p/${projectId}`);
     await expect(footer).toHaveCount(2);
-    expect(await tips()).toEqual(["Estimate · M", "Phase · MVP"]);
+    expect(await tips()).toEqual(["Phase · MVP", "Estimate · M"]);
 
     await card(page, "Two in the footer").click();
     const fields = await page
       .locator("[data-property]")
       .evaluateAll((els) => els.map((e) => e.getAttribute("data-property")));
-    expect(fields.indexOf("Estimate")).toBeLessThan(fields.indexOf("Phase"));
+    expect(fields.indexOf("Phase")).toBeLessThan(fields.indexOf("Estimate"));
     await page.getByRole("button", { name: "Close task" }).click();
 
     // A list draws the same columns in the same order, after the key and the title.
@@ -75,7 +82,7 @@ test.describe("Card view", () => {
       t.trim().toUpperCase(),
     );
     expect(heads.slice(0, 2)).toEqual(["TASK ID", "TITLE"]);
-    expect(heads.indexOf("ESTIMATE")).toBeLessThan(heads.indexOf("PHASE"));
+    expect(heads.indexOf("PHASE")).toBeLessThan(heads.indexOf("ESTIMATE"));
   });
 
   test("a chip clicked on the big card changes how it reads and where it sits", async ({
@@ -123,7 +130,10 @@ test.describe("Card view", () => {
     await page.screenshot({ path: testInfo.outputPath("seen-card-drawing.png"), fullPage: true });
 
     // The list is the same editor as rows.
-    await page.getByRole("button", { name: "List", exact: true }).click();
+    await page
+      .getByRole("group", { name: "Arrange the card as" })
+      .getByRole("button", { name: "List", exact: true })
+      .click();
     await expect(
       page
         .getByTestId("card-row")

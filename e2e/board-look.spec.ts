@@ -248,10 +248,8 @@ test.describe("A column header under a finger", () => {
 
   test("keeps its buttons in the row, with no hover", async ({ page }, testInfo) => {
     await project(page);
-    const head = column(page, "Backlog");
-    const set = head
-      .getByRole("button", { name: "Add a task to the top of Backlog" })
-      .locator("..");
+    const head = column(page, "Later");
+    const set = head.getByRole("button", { name: "Add a task to the top of Later" }).locator("..");
     await expect(set).toHaveCSS("opacity", "1");
     await expect(set).toHaveCSS("position", "static");
     await page.screenshot({ path: testInfo.outputPath("seen-column-touch.png") });

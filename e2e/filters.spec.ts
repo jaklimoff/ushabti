@@ -73,9 +73,9 @@ test.describe("Filters inside a view", () => {
     await expect(chip(page, "Priority is Urgent")).toBeVisible();
 
     // The other view was never filtered and must not be.
-    await page.getByRole("button", { name: /^Phases/ }).click();
+    await page.getByRole("button", { name: /^List/ }).click();
     await expect(page.getByTestId("filter-row")).toHaveCount(0);
-    await expect(card(page, "Only task")).toBeVisible();
+    await expect(page.getByTestId("list-row").filter({ hasText: "Only task" })).toBeVisible();
 
     await page.getByRole("button", { name: /^Board/ }).click();
     await expect(chip(page, "Priority is Urgent")).toBeVisible();

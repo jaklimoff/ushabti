@@ -9,6 +9,7 @@ import {
   optionOf,
   propertyOf,
   renderWithBoard,
+  withPhases,
   withTask,
   type Answer,
   type Sent,
@@ -245,7 +246,7 @@ describe("A list view", () => {
   /* The screen half. That the view keeps its grouping property is the views
      route's, in `views-route.test.ts`. */
   test("keeps its columns when it becomes a board and comes back", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views.find((v) => v.name === "Phases")!;
     const { sent } = await renderWithBoard(<ViewsPanel />, data);
 
@@ -397,10 +398,10 @@ describe("A list view", () => {
      route's, in `views-route.test.ts`. */
   test("can be made on a project with nothing to group by", async () => {
     const data = newProject();
-    const deleted = new Set(["Status", "Assignee", "Phase"]);
+    const deleted = new Set(["Status", "Assignee"]);
     data.properties = data.properties.filter((p) => !deleted.has(p.name));
     data.views = data.views
-      .filter((v) => v.name !== "Phases")
+      .filter((v) => v.name !== "List")
       .map((v) => ({ ...v, kind: "list" as const, groupById: null }));
     data.cardView = defaultCardView(data.properties, null);
     const { sent } = await draw(data);

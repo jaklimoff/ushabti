@@ -205,7 +205,7 @@ test.describe("Settings pages", () => {
     await gotoSettings(page, projectId, "card");
     await expect(page).toHaveURL(new RegExp(`/p/${projectId}/settings/views$`));
     await expect(page.getByTestId("default-card-followers")).toHaveText(
-      "Board and Phases follow it.",
+      "Board and List follow it.",
     );
     await expect(page.getByRole("navigation", { name: "Settings sections" })).not.toContainText(
       "Card view",

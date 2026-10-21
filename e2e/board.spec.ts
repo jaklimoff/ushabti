@@ -46,11 +46,11 @@ test.describe("Ushabti board", () => {
       await register(page, "Ada Lovelace");
       await createProject(page, unique("Roadmap"));
 
-      for (const name of ["BACKLOG", "TODO", "IN PROGRESS", "READY", "DONE"]) {
+      for (const name of ["LATER", "BACKLOG", "TODO", "IN PROGRESS", "READY", "DONE"]) {
         await expect(column(page, name)).toBeVisible();
       }
       await expect(page.getByRole("button", { name: /^Board/ })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^Phases/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^List/ })).toBeVisible();
     },
   );
 

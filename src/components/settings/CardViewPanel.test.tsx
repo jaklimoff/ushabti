@@ -57,7 +57,10 @@ async function draw(data: BoardData, settings = <CardEditor />, shape: "Card" | 
 
 /** The page opens on the card drawn big; the rows are one press away. */
 async function asList() {
-  await page.getByRole("button", { name: "List", exact: true }).click();
+  await page
+    .getByRole("group", { name: "Arrange the card as" })
+    .getByRole("button", { name: "List", exact: true })
+    .click();
 }
 
 const byTestId = (id: string) => page.getByTestId(id);
@@ -115,16 +118,16 @@ describe("Card view", () => {
     await expect.element(card("Striped").getByTestId("card-edge")).toBeVisible();
 
     // Taking the edge takes whoever held it off the card, and says so first.
-    await opener("Phase").click();
+    await opener("Estimate").click();
     await expect
       .element(page.getByText("Taking the edge takes Priority off the card."))
       .toBeVisible();
-    await page.getByRole("button", { name: "Put Phase in the edge stripe" }).click();
-    await expect.element(row("Phase")).toHaveAttribute("data-place", "edge");
+    await page.getByRole("button", { name: "Put Estimate in the edge stripe" }).click();
+    await expect.element(row("Estimate")).toHaveAttribute("data-place", "edge");
     await expect.element(row("Priority")).toHaveAttribute("data-place", "off");
     await wrote(() => sent("PATCH", PROJECT_CARD), 2);
 
-    // The task carries no phase, so there is nothing to paint the stripe with.
+    // The task carries no estimate, so there is nothing to paint the stripe with.
     await gone(card("Striped").getByTestId("card-edge"));
   });
 

@@ -86,7 +86,11 @@ test.describe("The project list shows how every project is going", () => {
     expect((await page.request.delete(`/api/tasks/${deleted.id}`)).ok()).toBeTruthy();
 
     /* The view's rule is everybody's; the lens is only mine. */
-    const viewRule = { propertyId: status.id, op: "is_not", values: [opt(status, "Backlog")] };
+    const viewRule = {
+      propertyId: status.id,
+      op: "is_not",
+      values: [opt(status, "Later"), opt(status, "Backlog")],
+    };
     expect(
       (
         await page.request.patch(`/api/views/${main.id}`, {

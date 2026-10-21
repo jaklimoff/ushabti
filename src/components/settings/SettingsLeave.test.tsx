@@ -84,9 +84,9 @@ const cases: {
   {
     name: "a view's name",
     panel: () => <ViewsPanel />,
-    label: () => "Name of the view Phases",
+    label: () => "Name of the view List",
     words: "Stages",
-    path: (data) => `/api/views/${data.views.find((v) => v.name === "Phases")!.id}`,
+    path: (data) => `/api/views/${data.views.find((v) => v.name === "List")!.id}`,
     body: { name: "Stages" },
   },
   {

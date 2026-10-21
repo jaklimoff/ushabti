@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { BoardData } from "@/lib/types";
-import { newProject, renderWithBoard } from "@/test/board";
+import { newProject, renderWithBoard, withPhases } from "@/test/board";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -32,7 +32,7 @@ async function openMenu(name: string) {
 
 describe("The menu of the open view", () => {
   test("holds Rename, the columns, Card, Copy link, Make main and Delete", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     await draw(data);
     await openMenu("Phases");
 
@@ -47,7 +47,7 @@ describe("The menu of the open view", () => {
   });
 
   test("picks the columns with the same write the Views page makes", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const status = data.properties.find((p) => p.name === "Status")!;
     const { sent } = await draw(data);
@@ -63,7 +63,7 @@ describe("The menu of the open view", () => {
   });
 
   test("a list has no columns to pick, and a roadmap no card", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     data.views[1] = { ...data.views[1], kind: "list", groupById: null };
     const first = await draw(data);
     await openMenu("Phases");
@@ -71,7 +71,7 @@ describe("The menu of the open view", () => {
     expect(words()).toContain("Card");
     await first.screen.unmount();
 
-    const road = newProject();
+    const road = withPhases(newProject());
     road.views[1] = { ...road.views[1], kind: "roadmap" };
     await draw(road);
     await openMenu("Phases");
@@ -80,7 +80,7 @@ describe("The menu of the open view", () => {
   });
 
   test("Card opens the card panel", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     await draw(data);
     await openMenu("Phases");
     await item("Card").click();
@@ -88,7 +88,7 @@ describe("The menu of the open view", () => {
   });
 
   test("works with the keyboard and hands the focus back to the pill", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
     await draw(data);
@@ -125,7 +125,7 @@ describe("The menu of the open view", () => {
   });
 
   test("a pill is still picked with Space and Enter", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     await draw(data);
     (pill("Phases").element() as HTMLElement).focus();
     await userEvent.keyboard(" ");
@@ -141,7 +141,7 @@ describe("Renaming a view from its menu", () => {
   const box = () => page.getByRole("textbox", { name: "Name of the view Phases" });
 
   test("saves on Enter and hands the focus back to the pill", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const { sent } = await draw(data);
     await openMenu("Phases");
@@ -157,7 +157,7 @@ describe("Renaming a view from its menu", () => {
   });
 
   test("saves on blur", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const { sent } = await draw(data);
     await openMenu("Phases");
@@ -172,7 +172,7 @@ describe("Renaming a view from its menu", () => {
   });
 
   test("a name typed and left without a blur still saves", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const { sent } = await draw(data);
     await openMenu("Phases");
@@ -191,7 +191,7 @@ describe("Renaming a view from its menu", () => {
   });
 
   test("Escape puts the name back and writes nothing", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const { sent } = await draw(data);
     await openMenu("Phases");
     await item("Rename").click();
@@ -205,7 +205,7 @@ describe("Renaming a view from its menu", () => {
 
 describe("Make main and Delete", () => {
   test("show to an admin on a view that is not main, and Delete asks first", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const { sent } = await draw(data);
     await openMenu("Phases");
@@ -230,7 +230,7 @@ describe("Make main and Delete", () => {
   });
 
   test("Make main moves the word with the same write as the Views page", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     const { sent } = await draw(data);
     await openMenu("Phases");
@@ -247,14 +247,14 @@ describe("Make main and Delete", () => {
   });
 
   test("are not offered on the main view", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     await draw(data);
     await openMenu("Board");
     expect(words()).toEqual(["Rename", "Card", "Copy link"]);
   });
 
   test("are not offered to a member", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     data.project.role = "member";
     await draw(data);
     await openMenu("Phases");

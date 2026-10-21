@@ -308,7 +308,7 @@ test("a new project's Status carries Done when on Properties, and a pill saves i
     panel.getByRole("switch", { name: "Status says when a task is done" }),
   ).toBeChecked();
   const pills = panel.getByRole("group", { name: "The options that say a task is done" });
-  await expect(pills.getByRole("button")).toHaveCount(5);
+  await expect(pills.getByRole("button")).toHaveCount(6);
   await expect(pills.getByRole("button", { name: "Done", exact: true })).toHaveAttribute(
     "aria-pressed",
     "true",

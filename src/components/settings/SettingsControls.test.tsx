@@ -234,7 +234,7 @@ describe("A button in Views looks like a button", () => {
   test("Make main is a text button; Shows as stays a label", async () => {
     await draw("views", <ViewsPanel />);
 
-    await expectTextButton(page.getByRole("button", { name: "Make Phases the main view" }));
+    await expectTextButton(page.getByRole("button", { name: "Make List the main view" }));
 
     const label = page.getByText("Shows as", { exact: true }).first();
     expect(await textLook(label)).toMatchObject({ transform: "uppercase", mono: true });

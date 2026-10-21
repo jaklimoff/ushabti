@@ -189,7 +189,7 @@ describe("Picking several cards", () => {
     /* What is picked belongs to the board on screen, so another view ends it
        rather than carrying a handful of cards across. */
     await pick("Aardvark", "Beetle");
-    await page.getByRole("button", { name: /^Phases/ }).click();
+    await page.getByRole("button", { name: /^List/ }).click();
     await gone(byTestId("pick-bar"));
     await page.getByRole("button", { name: /^Board/ }).click();
     await gone(byTestId("pick-bar"));

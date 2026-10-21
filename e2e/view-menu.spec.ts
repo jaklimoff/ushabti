@@ -12,14 +12,24 @@ test.describe("View menu", () => {
     page,
   }, testInfo) => {
     await register(page);
-    await createProject(page, unique("Menu"));
+    const projectId = await createProject(page, unique("Menu"));
+    // A second board, which a new project no longer has.
+    const board = (await (await page.request.get(`/api/projects/${projectId}/board`)).json()) as {
+      properties: { id: string; name: string }[];
+    };
+    const priority = board.properties.find((p) => p.name === "Priority")!;
+    const made = await page.request.post(`/api/projects/${projectId}/views`, {
+      data: { name: "Priorities", kind: "board", groupById: priority.id },
+    });
+    expect(made.status()).toBe(201);
+    await page.reload();
     const pill = (name: string) => page.getByTestId("view-pill").filter({ hasText: name });
 
-    await pill("Phases").click();
-    await expect(pill("Phases")).toHaveAttribute("aria-current", "true");
-    await pill("Phases").hover();
-    await page.getByRole("button", { name: "More for Phases" }).click();
-    const menu = page.getByRole("menu", { name: "More for Phases" });
+    await pill("Priorities").click();
+    await expect(pill("Priorities")).toHaveAttribute("aria-current", "true");
+    await pill("Priorities").hover();
+    await page.getByRole("button", { name: "More for Priorities" }).click();
+    const menu = page.getByRole("menu", { name: "More for Priorities" });
     await expect(menu.getByRole("menuitem")).toHaveText([
       "Rename",
       "Card",
@@ -32,7 +42,7 @@ test.describe("View menu", () => {
 
     // Rename: the pill becomes a box, and Enter saves.
     await menu.getByRole("menuitem", { name: "Rename" }).click();
-    const box = page.getByRole("textbox", { name: "Name of the view Phases" });
+    const box = page.getByRole("textbox", { name: "Name of the view Priorities" });
     await expect(box).toBeFocused();
     await page.screenshot({ path: testInfo.outputPath("seen-view-rename.png") });
     await box.fill("Stages");

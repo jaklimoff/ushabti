@@ -33,7 +33,7 @@ test.describe("Card panel", () => {
     await expect(panel.getByText(`How a card reads on ${boardName}`)).toBeVisible();
     const note = page.getByTestId("card-panel-note");
     await expect(note).toContainText(
-      `${boardName} follows the default card, with Phases and Rows. Your first change here gives ${boardName} a card of its own.`,
+      `${boardName} follows the default card, with List and Rows. Your first change here gives ${boardName} a card of its own.`,
     );
     await expect(note.getByRole("button", { name: "Change the default instead" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("seen-card-panel.png") });
@@ -73,7 +73,7 @@ test.describe("Card panel", () => {
     // The default can be edited from here too, and it names who draws it.
     await note.getByRole("button", { name: "Change the default instead" }).click();
     await expect(note).toContainText(
-      `This is the default card. ${boardName}, Phases and Rows draw it.`,
+      `This is the default card. ${boardName}, List and Rows draw it.`,
     );
     await expect(note.getByRole("button", { name: `Back to ${boardName}` })).toBeVisible();
 

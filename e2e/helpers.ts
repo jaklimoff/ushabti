@@ -61,9 +61,9 @@ export async function createProject(page: Page, name: string): Promise<string> {
   await input.fill(name);
   await page.getByRole("button", { name: "Create project" }).click();
   await page.waitForURL(/\/p\/[0-9a-f-]{36}/);
-  /* By the column and not by the words: a phone draws the name twice, once
-     on the column and once on its pill in the strip above. */
-  await expect(column(page, "Backlog")).toBeVisible();
+  /* By the first column and not by the words: a phone draws only that one,
+     and its name twice, once on the column and once on its pill above. */
+  await expect(column(page, "Later")).toBeVisible();
   return page.url().split("/p/")[1].split("?")[0];
 }
 

@@ -119,10 +119,10 @@ describe("Custom properties", () => {
   it("the keyboard moves an option, and the columns follow it", async () => {
     const { me, property } = await setUp();
     const status = await property("Status");
-    expect(status.options.slice(0, 2).map((o) => o.name)).toEqual(["Backlog", "Todo"]);
+    expect(status.options.slice(1, 3).map((o) => o.name)).toEqual(["Backlog", "Todo"]);
 
-    await ok(me.patch(`/api/options/${status.options[0].id}`, { afterId: status.options[1].id }));
-    expect((await property("Status")).options.slice(0, 2).map((o) => o.name)).toEqual([
+    await ok(me.patch(`/api/options/${status.options[1].id}`, { afterId: status.options[2].id }));
+    expect((await property("Status")).options.slice(1, 3).map((o) => o.name)).toEqual([
       "Todo",
       "Backlog",
     ]);

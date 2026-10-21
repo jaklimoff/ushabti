@@ -20,6 +20,7 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
     type: "select",
     endsInDone: true,
     options: [
+      { name: "Later", color: "#4b5563" },
       { name: "Backlog", color: "#6b7280" },
       { name: "Todo", color: "#9aa0aa" },
       { name: "In Progress", color: "#d1913a" },
@@ -38,17 +39,6 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
     ],
   },
   { name: "Assignee", type: "person" },
-  {
-    name: "Phase",
-    type: "select",
-    options: [
-      { name: "PoC", color: "#8b8f98" },
-      { name: "MVP", color: "#3fb0c8" },
-      { name: "MMP", color: "#6d5bd0" },
-      { name: "Pilot", color: "#d1913a" },
-      { name: "GA", color: "#4f8a5b" },
-    ],
-  },
   {
     name: "Estimate",
     type: "select",
@@ -85,7 +75,7 @@ export const DEFAULT_VIEWS: {
   isDefault: boolean;
 }[] = [
   { name: "Board", kind: "board", groupBy: "Status", isDefault: true },
-  { name: "Phases", kind: "board", groupBy: "Phase", isDefault: false },
+  { name: "List", kind: "list", groupBy: null, isDefault: false },
 ];
 
 export function suggestProjectKey(name: string): string {

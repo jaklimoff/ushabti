@@ -8,6 +8,7 @@ import {
   optionOf,
   propertyOf,
   renderWithBoard,
+  withPhases,
   withTask,
   type Answer,
   type Sent,
@@ -278,7 +279,7 @@ describe("Ushabti board", () => {
   /* The order on screen moves at once; what keeps it is the server's rank,
      which the write names by the pill it landed on. */
   test("a pill is dragged along the strip, and the order keeps", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const { sent } = await draw(data);
     const pills = byTestId("view-pill");
     const order = () => texts(pills).map((t) => t.toUpperCase());
@@ -304,7 +305,7 @@ describe("Ushabti board", () => {
   });
 
   test("a link with ?view= opens that view over the remembered one", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const [main, phases] = data.views;
     window.localStorage.setItem(`ushabti:view:${data.project.id}`, phases.id);
     window.history.replaceState(null, "", `?view=${main.id}`);
@@ -320,7 +321,7 @@ describe("Ushabti board", () => {
   });
 
   test("a link to a view this project lacks opens the remembered one", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const phases = data.views[1];
     window.localStorage.setItem(`ushabti:view:${data.project.id}`, phases.id);
     window.history.replaceState(null, "", "?view=00000000-0000-4000-8000-000000000000");
@@ -332,7 +333,7 @@ describe("Ushabti board", () => {
   });
 
   test("a pick after landing on a link rewrites the address, so a reload keeps it", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     const [main, phases] = data.views;
     window.history.replaceState(null, "", `?view=${phases.id}`);
     const first = await draw(data);
@@ -350,7 +351,7 @@ describe("Ushabti board", () => {
 
   /* The copy moved into the open view's menu; `ViewMenu.test.tsx` holds it. */
   test("only the open pill carries a menu", async () => {
-    const data = newProject();
+    const data = withPhases(newProject());
     await draw(data);
     const pill = (name: string) => byTestId("view-pill").filter({ hasText: name });
 
@@ -397,7 +398,7 @@ describe("Ushabti board", () => {
     await expect.poll(() => byTestId("column").elements().length).toBe(1);
     await gone(column("Todo"));
     await gone(page.getByRole("button", { name: /^Fold the column / }));
-    await expect.poll(() => byTestId("column-pill").elements().length).toBe(5);
+    await expect.poll(() => byTestId("column-pill").elements().length).toBe(6);
 
     await page.viewport(1440, 900);
     await expect.element(open).toBeVisible();
@@ -548,13 +549,14 @@ describe("A board on a phone", () => {
     await page.viewport(390, 780);
     const data = newProject();
     aColumnEach(data);
+    withTask(data, "Pangolin", { Status: "Later" });
     const { sent } = await draw(data);
 
     // A phone opens on the first column, every time.
     await expect.poll(() => byTestId("column").elements().length).toBe(1);
-    await expect.element(column("Backlog")).toBeVisible();
-    await expect.element(card("Aardvark")).toBeVisible();
-    await gone(card("Beetle"));
+    await expect.element(column("Later")).toBeVisible();
+    await expect.element(card("Pangolin")).toBeVisible();
+    await gone(card("Aardvark"));
 
     // Full width, and nowhere to push the board sideways.
     expect(box(byTestId("column")).width).toBeGreaterThan(340);
@@ -563,15 +565,16 @@ describe("A board on a phone", () => {
 
     // The strip names every column of the view and says what is in each.
     const pills = byTestId("column-pill");
-    await forAFinger(pills, 5);
+    await forAFinger(pills, 6);
     expect(texts(pills.getByTestId("column-pill-name")).map((t) => t.toUpperCase())).toEqual([
+      "LATER",
       "BACKLOG",
       "TODO",
       "IN PROGRESS",
       "READY",
       "DONE",
     ]);
-    expect(texts(pills.getByTestId("column-pill-count"))).toEqual(["1", "1", "1", "0", "0"]);
+    expect(texts(pills.getByTestId("column-pill-count"))).toEqual(["1", "1", "1", "1", "0", "0"]);
 
     // A pill is one way to another column.
     await columnPill("Todo").click();
@@ -600,7 +603,7 @@ describe("A board on a phone", () => {
     await expect.element(card("Dingo")).toBeVisible();
     await page.getByRole("button", { name: "Close task" }).click();
     await expect.poll(() => column("Todo").getByTestId("card").elements().length).toBe(2);
-    expect(texts(pills.getByTestId("column-pill-count"))).toEqual(["1", "2", "1", "0", "0"]);
+    expect(texts(pills.getByTestId("column-pill-count"))).toEqual(["1", "1", "2", "1", "0", "0"]);
   });
 
   test("a card moves by the panel, and the strip says where it went", async () => {
@@ -634,7 +637,7 @@ describe("A board on a phone", () => {
     await page.getByRole("button", { name: "Close task" }).click();
 
     const counts = () => texts(byTestId("column-pill").getByTestId("column-pill-count"));
-    await expect.poll(counts).toEqual(["1", "0", "1", "1", "0"]);
+    await expect.poll(counts).toEqual(["0", "1", "0", "1", "1", "0"]);
     await gone(card("Beetle"));
 
     await columnPill("Ready").click();
@@ -661,7 +664,7 @@ describe("A board on a phone", () => {
     await gone(card("Beetle"));
     await expect
       .poll(() => texts(byTestId("column-pill").getByTestId("column-pill-count")))
-      .toEqual(["1", "0", "1", "0", "0"]);
+      .toEqual(["0", "1", "0", "1", "0", "0"]);
   });
 
   test("the strip scrolls to the column you are on, and fades where there is more", async () => {
@@ -670,7 +673,7 @@ describe("A board on a phone", () => {
     aColumnEach(data);
     await draw(data);
 
-    /* Five pills are wider than a phone, so the row pans — and the scrollbar
+    /* Six pills are wider than a phone, so the row pans — and the scrollbar
        is hidden, so the fade at the end is the only thing that says so. */
     const pills = byTestId("column-pills");
     await expect.element(pills).toBeVisible();
@@ -701,9 +704,9 @@ describe("A board on a phone", () => {
     expect(getComputedStyle(strip()).maskImage).toContain("linear-gradient");
 
     /* And back the other way: the strip goes to the start with it. */
-    await columnPill("Backlog").click();
-    await expect.element(column("Backlog")).toBeVisible();
-    await inside(columnPill("Backlog"));
+    await columnPill("Later").click();
+    await expect.element(column("Later")).toBeVisible();
+    await inside(columnPill("Later"));
     await expect.poll(() => strip().scrollLeft).toBe(0);
   });
 });
