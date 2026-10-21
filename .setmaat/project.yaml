@@ -7,6 +7,18 @@ agents:
   reviewer:
     model: claude-opus-5-5
     tools: [Read, Grep, Glob, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"]
+  # Answers the PO service: a request from another project becomes a task or
+  # a reason (USH-397). It reads the code and never the board; the service
+  # holds the token and applies the limits (docs/PO.md in Setmaat).
+  # docs/product-owner.md is the owner's page, kept out of git.
+  product-owner:
+    mode: headless
+    autostart: true
+    max: 1
+    idle_stop: 30m
+    model: claude-opus-5-5
+    tools: [Read, Grep, Glob]
+    page: docs/product-owner.md
 loop:
   board:
     kind: ushabti
@@ -45,6 +57,17 @@ loop:
 programs:
   # The release program of Setmaat, started by `setmaat up` (USH-311).
   release: "setmaat:examples/release.mjs"
+  # The PO service: agents of other projects ask ushabti/po for a feature,
+  # and it files an unrefined backlog task with the prefix [po] (USH-397).
+  po: "setmaat:examples/po.mjs"
+# The PO service reads this key; Setmaat does not (docs/PO.md in Setmaat).
+# The token is the agent user "Product Owner", in .envrc. The runner drops it
+# from every agent turn (SET-413).
+po:
+  role: product-owner
+  requests_per_day: 20
+  tasks_per_day: 5
+  token_env: USHABTI_PO_TOKEN
 # A release ships what is in Ready: the check, the tag, the push, the deploy,
 # then the tasks move to Shipped (docs/RELEASE-PROGRAM.md in Setmaat).
 release:

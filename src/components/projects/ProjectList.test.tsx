@@ -137,8 +137,8 @@ describe("The projects on Home", () => {
 
     (keyOf(1).closest("a") as HTMLElement).focus();
     await userEvent.keyboard("{Tab}");
-    await settled();
-    expect(document.activeElement).toBe(keyOf(2).closest("a"));
+    // A real key: under load its focus move can land after a fixed pause.
+    await expect.poll(() => document.activeElement).toBe(keyOf(2).closest("a"));
     await expect
       .poll(() => getComputedStyle(keyOf(2)).backgroundColor)
       .toBe(rgb(keyTint("#7aa8f0").background));
