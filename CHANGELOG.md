@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- The board's **Card** panel shows a real card, as wide as the cards on the board, above the drawing. It changes as you arrange, and the part under the pointer lights up. The drawing's chips are the board's size, and the top line has room for an assignee and two labels.
+
 ## 0.33.0 — 2026-10-21
 
 ### Added

@@ -14,6 +14,7 @@ import {
   mainBoardGroupById,
   MODES_FOR_KIND,
   previewTasks,
+  sampleTask,
   setCardMode,
   setCardPlace,
   viewOf,
@@ -35,14 +36,19 @@ import styles from "./settings.module.css";
  * the project's cannot; the first change to a view with no copy writes one.
  * Views draws the default one beside a preview; a view's row and the board's
  * Card panel draw it bare, and say above it what a view's own card means.
+ * The panel also draws one board card above it, because the drawing alone
+ * reads as a card twice the size of the ones behind it.
  */
 export function CardEditor({
   viewId = null,
   bare = false,
+  sample = false,
 }: {
   viewId?: string | null;
   /** No preview and no "Use the default" in the foot: the board panel has both. */
   bare?: boolean;
+  /** One board card on the stand-in task above the editor. */
+  sample?: boolean;
 }) {
   const { data, cardItemsOf, setCardView, resetCardView } = useBoard();
   /* The drawing is the way a pointer arranges the card; the list is the same
@@ -82,6 +88,8 @@ export function CardEditor({
 
   return (
     <>
+      {sample && <SampleCard items={cardItems} lit={near ?? open} />}
+
       <div className={styles.shapeToggle} role="group" aria-label="Arrange the card as">
         {(["card", "list"] as const).map((s) => (
           <Pill
@@ -432,10 +440,68 @@ function Preview({ items, lit }: { items: CardItem[]; lit: string | null }) {
     [data.members, data.project.key, data.properties, data.tasks],
   );
 
-  /* The row a person is on points at its part of the card. The chips say
-     which row they were drawn for; the title, the description and the edge
-     are the card's own parts and are found by what they are. Marked from
-     here, so the card itself still draws and decides nothing. */
+  useLit(cards, items, lit, tasks);
+
+  return (
+    <aside className={styles.preview} aria-label="What a card looks like">
+      <div className={styles.previewHead}>
+        <span className={styles.previewTitle}>On the board</span>
+        <span className={styles.previewLive}>live</span>
+      </div>
+      <div className={styles.previewCards} ref={cards}>
+        {tasks.map((task) => (
+          <TaskCard key={task.id} task={task} items={items} />
+        ))}
+      </div>
+      <Note>
+        A card only draws what a task actually holds, so a task with no due date has a shorter
+        footer than the one beside it.
+      </Note>
+    </aside>
+  );
+}
+
+/**
+ * The board panel's preview: one card, as wide as a board card, on the
+ * stand-in task, so every row that is on the card has a value to show.
+ */
+function SampleCard({ items, lit }: { items: CardItem[]; lit: string | null }) {
+  const { data } = useBoard();
+  const cards = useRef<HTMLDivElement>(null);
+  const task = useMemo(
+    () => sampleTask(data.properties, data.members, data.project.key),
+    [data.members, data.project.key, data.properties],
+  );
+  useLit(cards, items, lit, task);
+
+  /* Inert: it is a picture of a card, so it takes no click and no tab stop. */
+  return (
+    <div
+      className={styles.sampleCard}
+      ref={cards}
+      data-testid="card-sample"
+      aria-label="What a card looks like"
+      role="img"
+    >
+      <div inert>
+        <TaskCard task={task} items={items} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The row a person is on points at its part of the card. The chips say which
+ * row they were drawn for; the title, the description and the edge are the
+ * card's own parts and are found by what they are. Marked from here, so the
+ * card itself still draws and decides nothing.
+ */
+function useLit(
+  cards: React.RefObject<HTMLDivElement | null>,
+  items: CardItem[],
+  lit: string | null,
+  drawn: unknown,
+) {
   useEffect(() => {
     const root = cards.current;
     const item = items.find((i) => i.id === lit);
@@ -456,23 +522,5 @@ function Preview({ items, lit }: { items: CardItem[]; lit: string | null }) {
       for (const el of found) el.removeAttribute("data-lit");
       root.removeAttribute("data-lighting");
     };
-  }, [items, lit, tasks]);
-
-  return (
-    <aside className={styles.preview} aria-label="What a card looks like">
-      <div className={styles.previewHead}>
-        <span className={styles.previewTitle}>On the board</span>
-        <span className={styles.previewLive}>live</span>
-      </div>
-      <div className={styles.previewCards} ref={cards}>
-        {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} items={items} />
-        ))}
-      </div>
-      <Note>
-        A card only draws what a task actually holds, so a task with no due date has a shorter
-        footer than the one beside it.
-      </Note>
-    </aside>
-  );
+  }, [cards, items, lit, drawn]);
 }

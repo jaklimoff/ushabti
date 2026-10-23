@@ -15,9 +15,10 @@ function namesSaid(names: string[]): string {
 }
 
 /**
- * The card editor, beside the board it arranges. It has no preview of its
- * own: the cards behind it are the preview, and they change as somebody
- * clicks. It edits the open view's card, or the project's when asked to,
+ * The card editor, beside the board it arranges. One board card on the
+ * stand-in task sits above it, because the cards behind may hold too little
+ * to show a row, and the drawing alone reads as a card twice their size. It
+ * edits the open view's card, or the project's when asked to,
  * through the same store calls the Settings page makes, so no new route.
  */
 export function CardPanel({ onClose }: { onClose: () => void }) {
@@ -119,7 +120,12 @@ export function CardPanel({ onClose }: { onClose: () => void }) {
         </div>
         <div className={styles.cardPanelEditor}>
           {/* Keyed, so a chip menu open on one card does not stay open on the other. */}
-          <CardEditor key={project ? "default" : view.id} viewId={project ? null : view.id} bare />
+          <CardEditor
+            key={project ? "default" : view.id}
+            viewId={project ? null : view.id}
+            bare
+            sample
+          />
         </div>
       </div>
     </aside>

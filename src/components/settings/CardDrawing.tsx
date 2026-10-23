@@ -270,7 +270,7 @@ export function CardDrawing({
             {edgeHolder && chipOf(edgeHolder)}
           </DropBox>
           <div className={styles.bigFace}>
-            <div className={styles.zoneRow}>
+            <div className={`${styles.zoneRow} ${styles.zoneRowHead}`}>
               {zone("headerL")}
               {zone("headerR")}
             </div>
@@ -285,7 +285,7 @@ export function CardDrawing({
               </span>
             </div>
             {zone("body", true)}
-            <div className={styles.zoneRow}>
+            <div className={`${styles.zoneRow} ${styles.zoneRowFoot}`}>
               {zone("footerL")}
               {zone("footerR")}
             </div>

@@ -1631,17 +1631,33 @@ label.act > input {
 
 /* The row a person is on, pointed at on the card: its part gets the accent
    ring and the other chips step back. */
-.previewCards [data-lit] {
+/* The board panel's one card: a column's ground at a column's width, so the
+   card inside is exactly as wide as the ones behind the panel. */
+.sampleCard {
+  box-sizing: border-box;
+  width: 272px;
+  max-width: 100%;
+  margin-bottom: 12px;
+  padding: 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--bg-column);
+}
+
+.previewCards [data-lit],
+.sampleCard [data-lit] {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
   border-radius: 3px;
 }
 
-.previewCards[data-lighting] [data-testid="card-chip"]:not([data-lit]) {
+.previewCards[data-lighting] [data-testid="card-chip"]:not([data-lit]),
+.sampleCard[data-lighting] [data-testid="card-chip"]:not([data-lit]) {
   opacity: 0.45;
 }
 
-.previewCards [data-testid="card-chip"] {
+.previewCards [data-testid="card-chip"],
+.sampleCard [data-testid="card-chip"] {
   transition: opacity 140ms var(--ease);
 }
 
@@ -2484,6 +2500,7 @@ div.hookRow {
 }
 
 .drawing {
+  container: drawing / inline-size;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -2673,6 +2690,84 @@ div.hookRow {
   height: 64px;
   border-radius: 3px;
   background: var(--line-dash);
+}
+
+/*
+ * The board's Card panel is about as wide as two board cards, and there the
+ * drawing is drawn at the board's own size: chips unzoomed, a slim rail, a
+ * one-line title and body, and the side of a row that holds more given more
+ * room, so an assignee and two labels share the top line as they do on the
+ * board. It keys off the drawing's own width, so it is the same editor, and
+ * Settings, which is always wider, never meets it.
+ */
+@container drawing (max-width: 380px) {
+  .bigCard {
+    gap: 6px;
+  }
+
+  .bigCard .chipButton {
+    zoom: 1;
+  }
+
+  .edgeRail {
+    width: 22px;
+    flex: 0 0 22px;
+  }
+
+  .bigFace {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .zoneRowHead {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 8px;
+  }
+
+  .zoneRowFoot {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 8px;
+  }
+
+  .zone,
+  .zoneTitle {
+    padding: 6px 8px;
+  }
+
+  .zoneChips {
+    gap: 4px;
+  }
+
+  .zoneTitle,
+  .zoneWide {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .zoneTitle .zoneLabel,
+  .zoneWide .zoneLabel {
+    flex: none;
+  }
+
+  .zoneWide .zoneChips {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .bigTitle,
+  .zoneWide .zoneEmpty,
+  .zoneWide .descSample {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .bigTitle {
+    font-size: var(--t-body);
+  }
 }
 
 .chipSample {
