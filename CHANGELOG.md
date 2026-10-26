@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.34.0 — 2026-10-26
+
 ### Added
 
 - A new setting, `DATABASE_DIRECT_URL`, names a direct connection to the database. Set it when `DATABASE_URL` points at a pooler in transaction mode, such as PgBouncer: live updates and the migrations use it, and the queries stay on the pooler. Without it, live updates through such a pooler go quiet with no error.
