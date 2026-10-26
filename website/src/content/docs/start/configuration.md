@@ -37,8 +37,25 @@ echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 
 How many Postgres connections one Ushabti process may hold. **Default 12.**
 
-Live updates take **one more on top, per open board**: every server-sent-events stream holds a
-`LISTEN` connection outside the pool. Lower this on a shared managed cluster.
+Live updates take **one more on top, per process**: each Ushabti process holds one `LISTEN`
+connection outside the pool, however many boards and tabs are open. Lower this on a shared managed
+cluster.
+
+### `DATABASE_DIRECT_URL`
+
+A direct connection to the same database as `DATABASE_URL`. **Default: unset**, and an empty value
+counts as unset.
+
+Set it when `DATABASE_URL` points at a connection pooler in transaction mode, such as PgBouncer or
+DigitalOcean's pool. `LISTEN` needs a session of its own, which such a pooler does not keep, so live
+updates would go quiet with no error. With this set, the live-updates `LISTEN` connection and the
+migrations in `scripts/migrate.mjs` and `scripts/baseline.mjs` use it, and every query still goes
+through `DATABASE_URL`. Unset, everything uses `DATABASE_URL`.
+
+```bash
+DATABASE_URL=postgres://user:pass@pool-host:25061/ushabti-pool
+DATABASE_DIRECT_URL=postgres://user:pass@db-host:25060/ushabti
+```
 
 ### `USHABTI_SIGNUP`
 

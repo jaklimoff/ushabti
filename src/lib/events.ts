@@ -1,7 +1,7 @@
 import "server-only";
 import { Client } from "pg";
 import { pool } from "@/db";
-import { databaseUrl } from "@/db/url";
+import { directDatabaseUrl } from "@/db/url";
 import type { PresenceSaid } from "./presence";
 
 const CHANNEL = "ushabti_events";
@@ -50,7 +50,7 @@ async function ensureListener(): Promise<void> {
   if (hub.connecting) return hub.connecting;
 
   hub.connecting = (async () => {
-    const client = new Client({ connectionString: databaseUrl() });
+    const client = new Client({ connectionString: directDatabaseUrl() });
     client.on("error", () => {
       hub.client = null;
       hub.connecting = null;

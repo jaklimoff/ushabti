@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { poolMax } from "@/db/url";
+import { directDatabaseUrl, poolMax } from "@/db/url";
 import { signupIsOpen } from "../signup";
 import { privateAddressesAllowed } from "../webhook-address";
 
@@ -9,7 +9,12 @@ import { privateAddressesAllowed } from "../webhook-address";
  * file does not name never reaches the server. Each one is passed empty when
  * unset, which is why an empty value has to read exactly as a missing one.
  */
-const SETTINGS = ["USHABTI_SIGNUP", "USHABTI_WEBHOOK_PRIVATE", "DATABASE_POOL_MAX"];
+const SETTINGS = [
+  "USHABTI_SIGNUP",
+  "USHABTI_WEBHOOK_PRIVATE",
+  "DATABASE_POOL_MAX",
+  "DATABASE_DIRECT_URL",
+];
 
 function appEnvironment(): string {
   const file = readFileSync(new URL("../../../docker-compose.prod.yml", import.meta.url), "utf8");
@@ -42,5 +47,11 @@ describe("an empty setting reads as an unset one", () => {
     expect(poolMax({})).toBe(12);
     expect(poolMax({ DATABASE_POOL_MAX: "5" })).toBe(5);
     expect(poolMax({ DATABASE_POOL_MAX: "0" })).toBe(12);
+  });
+
+  it("keeps live updates on DATABASE_URL", () => {
+    const url = "postgres://u:p@db:5432/ushabti";
+    expect(directDatabaseUrl({ DATABASE_URL: url, DATABASE_DIRECT_URL: "" })).toBe(url);
+    expect(directDatabaseUrl({ DATABASE_URL: url })).toBe(url);
   });
 });

@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- A new setting, `DATABASE_DIRECT_URL`, names a direct connection to the database. Set it when `DATABASE_URL` points at a pooler in transaction mode, such as PgBouncer: live updates and the migrations use it, and the queries stay on the pooler. Without it, live updates through such a pooler go quiet with no error.
+
 ### Changed
 
 - The board's **Card** panel shows a real card, as wide as the cards on the board, above the drawing. It changes as you arrange, and the part under the pointer lights up. The drawing's chips are the board's size, and the top line has room for an assignee and two labels.

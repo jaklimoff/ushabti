@@ -161,7 +161,7 @@ The app service in `docker-compose.prod.yml` has a healthcheck that asks it, so
 
 ## A database you already have
 
-Point `DATABASE_URL` at it and drop the `db` service. Two things about managed clusters:
+Point `DATABASE_URL` at it and drop the `db` service. Three things about managed clusters:
 
 <Tabs>
   <TabItem label="TLS">
@@ -181,9 +181,23 @@ DATABASE_URL="postgres://user:pass@host:5432/ushabti?sslmode=verify-full&sslroot
 DATABASE_POOL_MAX=6
 ```
 
-One Ushabti process otherwise holds up to **twelve** connections, and takes **one more per open
-browser tab** for live updates — every SSE stream keeps a `LISTEN` connection outside the pool.
-DigitalOcean's smallest managed cluster allows 25 connections for everything.
+One Ushabti process otherwise holds up to **twelve** connections, and takes **one more per
+process** for live updates — a single `LISTEN` connection outside the pool, however many tabs are
+open. DigitalOcean's smallest managed cluster allows 25 connections for everything.
+
+  </TabItem>
+  <TabItem label="Pooler">
+
+```bash
+DATABASE_URL="postgres://user:pass@pool-host:25061/ushabti-pool?sslmode=verify-full&sslrootcert=/etc/ssl/ca.crt"
+DATABASE_DIRECT_URL="postgres://user:pass@db-host:25060/ushabti?sslmode=verify-full&sslrootcert=/etc/ssl/ca.crt"
+```
+
+When `DATABASE_URL` points at a pooler in **transaction mode**, such as PgBouncer or
+DigitalOcean's connection pool, set [`DATABASE_DIRECT_URL`](/start/configuration/#database_direct_url)
+to a direct connection to the same database. Live updates `LISTEN`, which needs a session of its
+own; through a transaction pooler they go quiet with no error. The `LISTEN` connection and the
+migrations use the direct URL, and the queries stay on the pooler.
 
   </TabItem>
 </Tabs>

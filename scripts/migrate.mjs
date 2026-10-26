@@ -5,7 +5,9 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
-const connectionString = process.env.DATABASE_URL;
+// A migration wants a session of its own, so it skips a pooler when it can.
+// An empty DATABASE_DIRECT_URL is unset, as `directDatabaseUrl()` reads it.
+const connectionString = process.env.DATABASE_DIRECT_URL || process.env.DATABASE_URL;
 if (!connectionString) {
   console.error("DATABASE_URL is not set.");
   process.exit(1);

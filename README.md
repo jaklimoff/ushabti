@@ -233,15 +233,20 @@ has the commands.
 
 #### Using a database you already have
 
-Point `DATABASE_URL` at it instead of running the `db` service. Two things to
-know about managed clusters:
+Point `DATABASE_URL` at it instead of running the `db` service. Three things
+to know about managed clusters:
 
 - `node-postgres` verifies the certificate when the URL says `sslmode=require`,
   which is stricter than `libpq` and than most other drivers. Give it the
   provider's CA and ask for
   `?sslmode=verify-full&sslrootcert=/path/to/ca.crt`.
 - Set `DATABASE_POOL_MAX` below the share of connections you can spare. One
-  process otherwise holds up to twelve, and takes one more for live updates.
+  process otherwise holds up to twelve, and takes one more for live updates:
+  one `LISTEN` connection per process, not per tab or board.
+- When `DATABASE_URL` points at a pooler in transaction mode, such as
+  PgBouncer, set `DATABASE_DIRECT_URL` to a direct connection to the same
+  database. Live updates and the migrations use it, because `LISTEN` needs a
+  session of its own; the queries stay on the pooler.
 
 #### Files on a task
 
