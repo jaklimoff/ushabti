@@ -259,7 +259,7 @@ test.describe("Agents on the board", () => {
     await expect(page.getByTestId("past-run").first()).toContainText("lost");
     await expect(page.getByTestId("panel-run")).toBeHidden();
     await page.getByRole("tab", { name: /^Activity/ }).click();
-    await expect(page.getByText("stopped answering")).toBeVisible();
+    await expect(page.getByText("stopped answering, so the board closed")).toBeVisible();
   });
 
   test("dragging a card an agent holds takes it over", async ({ page, request }) => {
