@@ -40,6 +40,7 @@ import { rankBetween } from "@/lib/rank";
 import { trackWrites } from "@/lib/writes";
 import type {
   AgentRunDTO,
+  StoppedRunDTO,
   ArchivedTaskDTO,
   BoardData,
   CardView,
@@ -139,6 +140,8 @@ type Store = {
   resetCardView: (viewId?: string | null) => Promise<void>;
   /** The open run of a task, or null. One task holds one run at a time. */
   runOf: (taskId: string) => AgentRunDTO | null;
+  /** The run of a task the lease closed and nobody has answered, or null. */
+  stoppedOf: (taskId: string) => StoppedRunDTO | null;
   /** Pause, resume or stop is a request. Take over ends the run at once. */
   controlRun: (runId: string, control: RunControl | "take_over") => Promise<void>;
   live: boolean;
@@ -849,6 +852,16 @@ export function BoardProvider({
   const runOf = useCallback<Store["runOf"]>(
     (taskId) => runsByTask.get(taskId) ?? null,
     [runsByTask],
+  );
+
+  const stoppedByTask = useMemo(
+    () => new Map(data.stopped.map((run) => [run.taskId, run])),
+    [data.stopped],
+  );
+
+  const stoppedOf = useCallback<Store["stoppedOf"]>(
+    (taskId) => stoppedByTask.get(taskId) ?? null,
+    [stoppedByTask],
   );
 
   /* --- helpers -------------------------------------------------------- */
@@ -1737,6 +1750,7 @@ export function BoardProvider({
     setCardView,
     resetCardView,
     runOf,
+    stoppedOf,
     controlRun,
     live,
     toasts,

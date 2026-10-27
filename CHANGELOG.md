@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- A card whose agent stopped answering says so, in one quiet line where the agent strip was: "Reis stopped answering · 15:38". It shows when the board closed the run for silence, and goes away when a new run starts on the task or a person changes any of its values. A run the agent ended itself leaves no line.
+
 ## 0.34.0 — 2026-10-26
 
 ### Added

@@ -1826,6 +1826,14 @@
  * be in: the warm colour of "waiting" across the whole strip, and a bar that
  * stands full and still. A hand-over waits too, for the next agent.
  */
+/* A run the lease closed: no ground of its own and the meta grey, so a board
+   with a few of them still reads as quiet as one with none. */
+.runStopped {
+  --run-ground: transparent;
+  --run-text: var(--text-meta);
+  box-shadow: inset 0 1px 0 var(--line);
+}
+
 .runStrip[data-status="waiting"],
 .runStrip[data-status="handed_over"] {
   --run-ground: rgba(201, 146, 90, 0.11);

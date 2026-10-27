@@ -691,6 +691,9 @@ export type AgentRunDTO = AgentRunRowDTO & {
   lastLog: string | null;
 };
 
+/** A run the lease closed, as the card's one quiet line draws it. */
+export type StoppedRunDTO = Pick<AgentRunRowDTO, "id" | "taskId" | "agent"> & { endedAt: string };
+
 export type AgentRunDetailDTO = AgentRunDTO & {
   steps: AgentRunStepDTO[];
   /** The newest forty lines, oldest first. */
@@ -856,6 +859,11 @@ export type BoardData = {
   archivedUnder: Record<string, ArchivedUnder>;
   /** Only the runs that are still open. One per task at most. */
   runs: AgentRunDTO[];
+  /**
+   * The tasks whose newest run the lease closed and nobody has touched since,
+   * one per task at most. Worked out afresh on every read; nothing clears it.
+   */
+  stopped: StoppedRunDTO[];
   /**
    * Every task of the project, live and archived, when `tasks` holds only a
    * few of them. Settings reads that: it carries the tasks the card view

@@ -9,6 +9,8 @@ import {
   leaseLeft,
   lifeOf,
   lostBy,
+  stoppedAnswering,
+  stoppedAt,
   MAX_REPORT_FOR_MS,
   obeys,
   pastRunWords,
@@ -397,5 +399,50 @@ describe("the two things a lost run says", () => {
   it("says nothing new about a run that ended any other way", () => {
     expect(endedWord({ ...shutDown, status: "done" })).toBe("finished");
     expect(endedWord({ ...shutDown, status: "stopped" })).toBe("stopped");
+  });
+});
+
+describe("the card of a run nobody answers", () => {
+  // SET-418's run: the last report at 15:08, the sweep at 15:38.
+  const swept = {
+    status: "lost" as const,
+    updatedAt: "2026-10-27T15:08:00.000Z",
+    reportDueAt: null,
+    endedAt: "2026-10-27T15:38:00.000Z",
+  };
+
+  it("says so when the lease closed the newest run", () => {
+    expect(stoppedAnswering(swept, null)).toBe(true);
+  });
+
+  it("says nothing of a run the agent ended itself", () => {
+    const shutDown = { ...swept, endedAt: "2026-10-27T15:10:00.000Z" };
+    expect(lostBy(shutDown)).toBe("agent");
+    expect(stoppedAnswering(shutDown, null)).toBe(false);
+    for (const status of ["done", "stopped", "handed_over", "failed"] as const) {
+      expect(stoppedAnswering({ ...swept, status }, null)).toBe(false);
+    }
+  });
+
+  it("says nothing once a new run started", () => {
+    // The caller hands the newest run, and a new one is open.
+    const open = { ...swept, status: "running" as const, endedAt: null };
+    expect(stoppedAnswering(open, null)).toBe(false);
+    expect(stoppedAnswering(null, null)).toBe(false);
+  });
+
+  it("goes away when a person changed a value after the run ended", () => {
+    expect(stoppedAnswering(swept, "2026-10-27T16:02:00.000Z")).toBe(false);
+    // A change from before the run ended is no answer to it.
+    expect(stoppedAnswering(swept, "2026-10-27T15:00:00.000Z")).toBe(true);
+  });
+
+  it("names the time alone on the day, and the day after that", () => {
+    expect(stoppedAt(swept.endedAt, "UTC", "2026-10-27")).toBe("15:38");
+    expect(stoppedAt(swept.endedAt, "Europe/Berlin", "2026-10-27")).toBe("16:38");
+    expect(stoppedAt(swept.endedAt, "UTC", "2026-10-28")).toBe("27 Oct 15:38");
+    expect(stoppedAt(swept.endedAt, "UTC", "2027-01-02")).toBe("27 Oct 2026 15:38");
+    // Past midnight in the zone is the next day there.
+    expect(stoppedAt("2026-10-27T23:30:00.000Z", "Europe/Berlin", "2026-10-28")).toBe("00:30");
   });
 });

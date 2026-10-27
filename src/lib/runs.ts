@@ -14,14 +14,14 @@ import {
   type SQL,
 } from "drizzle-orm";
 import { db } from "@/db";
-import { agentRunLog, agentRunSteps, agentRuns, tasks, users } from "@/db/schema";
+import { activity, agentRunLog, agentRunSteps, agentRuns, tasks, users } from "@/db/schema";
 import { logActivity } from "./activity";
 import { sweepUnready } from "./attachment-rows";
 import { readId } from "./api";
 import { HttpError } from "./auth";
 import { publish } from "./events";
 import type { Tx } from "./queries";
-import { lostBy, REPORT_LEASE_MS, WAITING_STATUSES } from "./run-state";
+import { lostBy, REPORT_LEASE_MS, stoppedAnswering, WAITING_STATUSES } from "./run-state";
 import type {
   AgentRunDTO,
   AgentRunDetailDTO,
@@ -31,6 +31,7 @@ import type {
   RunControl,
   RunStatus,
   RunStepState,
+  StoppedRunDTO,
 } from "./types";
 
 /** The panel shows the tail of the log. The table keeps everything. */
@@ -271,6 +272,54 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
     .orderBy(asc(agentRuns.startedAt));
 
   return shapeMany(rows);
+}
+
+/**
+ * The tasks whose agent stopped answering, for the card's quiet line.
+ *
+ * It reads after `loadOpenRuns`, whose sweep is what closes a silent run, so
+ * a run closed on this very read is already here. The newest run of each task
+ * is the only one asked about, and only a lost one goes on to the second
+ * statement: the newest value a person wrote on that task. An agent is a row
+ * in `users` too, so the person is told apart by `kind`.
+ */
+export async function loadStoppedRuns(projectId: string): Promise<StoppedRunDTO[]> {
+  const newest = await db
+    .selectDistinctOn([agentRuns.taskId], runColumns)
+    .from(agentRuns)
+    .innerJoin(users, eq(users.id, agentRuns.agentId))
+    .where(and(eq(agentRuns.projectId, projectId), ON_A_TASK_YOU_CAN_SEE))
+    .orderBy(agentRuns.taskId, desc(agentRuns.startedAt), desc(agentRuns.id));
+
+  const lost = newest.filter((row) => row.status === "lost" && row.endedAt !== null);
+  if (lost.length === 0) return [];
+
+  const wrote = await db
+    .select({ taskId: activity.taskId, at: sql<Date | string>`max(${activity.createdAt})` })
+    .from(activity)
+    .innerJoin(users, eq(users.id, activity.actorId))
+    .where(
+      and(
+        inArray(
+          activity.taskId,
+          lost.map((row) => row.taskId),
+        ),
+        eq(activity.kind, "value"),
+        eq(users.kind, "human"),
+      ),
+    )
+    .groupBy(activity.taskId);
+  const wroteAt = new Map(wrote.map((w) => [w.taskId, new Date(w.at).toISOString()]));
+
+  return lost
+    .map(shapeRow)
+    .filter((run) => stoppedAnswering(run, wroteAt.get(run.taskId) ?? null))
+    .map((run) => ({
+      id: run.id,
+      taskId: run.taskId,
+      agent: run.agent,
+      endedAt: run.endedAt ?? run.updatedAt,
+    }));
 }
 
 /**

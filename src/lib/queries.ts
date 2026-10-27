@@ -51,7 +51,7 @@ import { readReleaseBy } from "./releases";
 import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
-import { loadOpenRuns, loadTaskRuns, sweepLostIn } from "./runs";
+import { loadOpenRuns, loadStoppedRuns, loadTaskRuns, sweepLostIn } from "./runs";
 import {
   agentsAtWork,
   agentsNamed,
@@ -1146,8 +1146,14 @@ async function loadProject(
     taskIds.length
       ? db.select().from(taskValues).where(inArray(taskValues.taskId, taskIds))
       : Promise.resolve([]),
-    /* Settings draws no run. */
-    preview ? [] : loadOpenRuns(projectId),
+    /* Settings draws no run. The stopped ones read after the open ones,
+       because the sweep inside the first is what closes a silent run. */
+    preview
+      ? { open: [], stopped: [] }
+      : loadOpenRuns(projectId).then(async (open) => ({
+          open,
+          stopped: await loadStoppedRuns(projectId),
+        })),
     /* Only what the cards on this board wait on. What they block is the
        panel's half of the chain, and the panel asks for it itself. */
     taskIds.length ? waitingLinks(taskIds) : Promise.resolve([]),
@@ -1325,7 +1331,8 @@ async function loadProject(
         },
       ]),
     ),
-    runs,
+    runs: runs.open,
+    stopped: runs.stopped,
     ...(taskCount === undefined ? {} : { taskCount }),
   };
 }

@@ -104,6 +104,7 @@ export function newProject(): BoardData {
     archived: [],
     archivedUnder: {},
     runs: [],
+    stopped: [],
   };
 }
 

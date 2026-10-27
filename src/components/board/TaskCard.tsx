@@ -1,9 +1,9 @@
 "use client";
 
 import { forwardRef, useMemo } from "react";
-import type { AgentRunDTO, TaskDTO } from "@/lib/types";
+import type { AgentRunDTO, StoppedRunDTO, TaskDTO } from "@/lib/types";
 import { buildCard, type CardChip, type CardItem } from "@/lib/card-view";
-import { isOpen, lifeOf, runClock, runIsStill, runLine } from "@/lib/run-state";
+import { isOpen, lifeOf, runClock, runIsStill, runLine, stoppedAt } from "@/lib/run-state";
 import { Avatar } from "@/components/ui/Avatar";
 import { useNow } from "@/components/ui/useElapsed";
 import { Chip } from "./Chip";
@@ -43,9 +43,11 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   { task, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps, items },
   ref,
 ) {
-  const { cardItems: viewItems, data, isPicked, picked, runOf } = useBoard();
+  const { cardItems: viewItems, data, isPicked, picked, runOf, stoppedOf } = useBoard();
   const cardItems = items ?? viewItems;
   const run = runOf(task.id);
+  /* A new run answers the line, so the two never share a card. */
+  const stopped = run ? null : stoppedOf(task.id);
 
   /* The card wears a border and nothing more. The check stays on the whole
      board while anything is picked, so the way out of a pick is where the way
@@ -208,6 +210,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
       )}
 
       {run && <CardRun run={run} overlay={overlay === true} />}
+      {stopped && <CardStopped run={stopped} timeZone={data.project.timeZone} today={data.today} />}
     </div>
   );
 });
@@ -325,6 +328,45 @@ function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
           className={`${styles.runScanFill} ${runIsStill(run, now) ? styles.runScanPaused : ""}`}
         />
       </span>
+    </div>
+  );
+}
+
+/**
+ * What is left on the strip's place when the board closed a run for silence:
+ * who, that it stopped answering, and when. It is quieter than a live run on
+ * purpose, with no scan and no step, because nothing is happening any more.
+ * The server decides whether it is drawn, and a new run or a person's change
+ * takes it away on the next read.
+ */
+function CardStopped({
+  run,
+  timeZone,
+  today,
+}: {
+  run: StoppedRunDTO;
+  timeZone: string;
+  today: string;
+}) {
+  const at = stoppedAt(run.endedAt, timeZone, today);
+  return (
+    <div className={`${styles.runStrip} ${styles.runStopped}`} data-testid="card-stopped">
+      <div className={styles.runStripRow}>
+        <Avatar
+          name={run.agent.name}
+          color={run.agent.color}
+          emoji={run.agent.emoji}
+          kind="agent"
+          size={14}
+        />
+        <span
+          className={styles.runText}
+          data-testid="card-stopped-text"
+          title={`${run.agent.name} stopped answering · ${at}`}
+        >
+          {run.agent.name} stopped answering · {at}
+        </span>
+      </div>
     </div>
   );
 }

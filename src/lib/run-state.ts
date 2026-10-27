@@ -1,4 +1,5 @@
 import { longAgo } from "./board";
+import { todayIn } from "./day";
 import {
   CLOSED_STATUSES,
   type AgentRunDTO,
@@ -172,6 +173,51 @@ type RunEnding = RunLease & Partial<Pick<AgentRunRowDTO, "endedAt">>;
 export function lostBy(run: RunEnding): "lease" | "agent" {
   const ended = new Date(run.endedAt ?? run.updatedAt).getTime();
   return ended >= leaseEndsAt(run) ? "lease" : "agent";
+}
+
+/**
+ * Whether a card still says its agent stopped answering.
+ *
+ * Only the newest run of the task counts: a new run is somebody on the task
+ * again. Only the lease's own `lost` counts: an agent that ended its run said
+ * goodbye, and the card has nothing to warn about. And a person who changed a
+ * value after the run ended has seen the task and acted, so the line has done
+ * its work. An agent's write is not that, which is why the caller passes the
+ * newest value a person wrote and nothing else.
+ *
+ * Nothing is written to clear it. The board works it out on every read.
+ */
+export function stoppedAnswering(
+  newest: (Pick<AgentRunRowDTO, "status"> & RunEnding) | null,
+  personWroteAt: string | null,
+): boolean {
+  if (!newest || newest.status !== "lost" || !newest.endedAt) return false;
+  if (lostBy(newest) !== "lease") return false;
+  return !personWroteAt || new Date(personWroteAt).getTime() < new Date(newest.endedAt).getTime();
+}
+
+/**
+ * When a run stopped, as the card says it: the time alone on the day it
+ * ended in the project's zone, and the day before it after that. `today` is
+ * the board's one clock, so the server and the browser write the same words.
+ */
+export function stoppedAt(endedAt: string, timeZone: string, today: string): string {
+  const at = new Date(endedAt);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(at);
+  const day = todayIn(timeZone, at);
+  if (day === today) return time;
+  const said = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    ...(day.slice(0, 4) === today.slice(0, 4) ? {} : { year: "numeric" }),
+  }).format(at);
+  return `${said} ${time}`;
 }
 
 /**

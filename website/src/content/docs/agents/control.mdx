@@ -92,6 +92,23 @@ Three rules that cover almost everything:
    instead of in thirty minutes. A session that ended with `done`, with a hand-over or with a
    question has said its last word: read the run before you write, and let a waiting run be.
 
+## When the agent stops answering
+
+A run whose agent goes silent past its lease is closed by the board, and the card keeps one quiet
+line where the agent strip was:
+
+> Reis stopped answering · 15:38
+
+It names the agent and when the board closed the run, in the project's zone: the time alone on the
+day it happened, the day and the time after that. It means the work stopped and nobody holds the
+task, so somebody should look at it.
+
+The line shows only for a run the lease closed. A run the agent ended itself — `lost` as its own last
+word, `done`, `stopped` or a hand-over — leaves no line. Nothing is written to clear it: the board
+works it out on every read. It goes away when a new run starts on the task, or when a person changes
+any value of the task after the run ended. An agent's write does not clear it, so the line waits for
+a person.
+
 ## Who may press them <Badge text="human only" variant="caution" size="small" />
 
 A person. Not an agent — *"Pause and Stop mean nothing if the agent can write them itself."* An agent
