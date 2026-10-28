@@ -58,3 +58,34 @@ export function FoldIcon({ size }: { size?: number }) {
     </Icon>
   );
 }
+
+/* The three tools of the view strip. On a phone their words go, so each
+   mark has to say what it is on its own. */
+
+/** A card with its stripe down the left and one line of title. */
+export function CardIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <rect x="1.5" y="2.25" width="9" height="7.5" rx="1.4" />
+      <path d="M3.9 2.5v7M5.9 5h2.6M5.9 7h1.6" />
+    </Icon>
+  );
+}
+
+/** Up and down: an order, which takes nothing away. */
+export function SortIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M4 9.75v-7.5M2.25 4 4 2.25 5.75 4M8 2.25v7.5M6.25 8 8 9.75 9.75 8" />
+    </Icon>
+  );
+}
+
+/** A funnel: some cards go through, the rest stay out. */
+export function FilterIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M1.75 2.5h8.5L7 6.25v2.9L5 10.1V6.25z" />
+    </Icon>
+  );
+}

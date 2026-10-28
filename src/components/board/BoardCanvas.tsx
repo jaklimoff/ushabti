@@ -916,7 +916,7 @@ function AddColumn() {
       ) : (
         <button className={styles.addColumnButton} onClick={() => setAdding(true)}>
           <PlusIcon />
-          New column
+          <span className={styles.addColumnWord}>New column</span>
         </button>
       )}
     </div>

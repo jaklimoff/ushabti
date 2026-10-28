@@ -29,7 +29,7 @@ import { editedText } from "@/lib/leave";
 import { canManage } from "@/lib/roles";
 import { useEdgeFade } from "./edges";
 import { FilterButton, SortButton } from "./Filters";
-import { PlusIcon } from "./icons";
+import { CardIcon, PlusIcon } from "./icons";
 import { copyText } from "@/lib/clipboard";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
@@ -199,7 +199,9 @@ export function ViewStrip({
           title={`Arrange what a card on ${view.name} carries`}
           onClick={onCard}
         >
-          <span className={styles.cardMark} aria-hidden />
+          <span className={styles.toolMark}>
+            <CardIcon size={13} />
+          </span>
           <span className={styles.toolWord}>Card</span>
         </button>
       )}

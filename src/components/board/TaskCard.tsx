@@ -299,9 +299,15 @@ function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
         {/* The face and colour of the agent, so the one at work is not
             mistaken for the person the task is assigned to. A run that waits
             keeps the face and lends the name's room to its question. */}
+        {/* The colour is handed over as a property rather than set, so a
+            paused or silent strip can still take it back to grey. */}
         <span
           className={styles.runAgent}
-          style={{ color: `color-mix(in srgb, ${run.agent.color} 62%, var(--text-2))` }}
+          style={
+            {
+              "--run-agent": `color-mix(in srgb, ${run.agent.color} 62%, var(--text-2))`,
+            } as React.CSSProperties
+          }
         >
           <Avatar
             name={run.agent.name}
