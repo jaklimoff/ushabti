@@ -23,6 +23,7 @@ const sidebar = () => byTestId("sidebar");
 const square = (name: string) =>
   page.getByRole("link", { name: new RegExp(`^${name}:`) }).and(byTestId("sidebar-project"));
 const card = (title: string) => byTestId("card").filter({ hasText: title });
+const rectOf = (el: Element) => el.getBoundingClientRect();
 
 const other = (n: number) => `00000000-0000-4000-a000-${String(n).padStart(12, "0")}`;
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -119,8 +120,13 @@ describe("The folded sidebar", () => {
     expect(names).toEqual(["Harbour", "Lantern"]);
     await expect.element(square("Lantern")).toHaveAttribute("aria-current", "page");
     await expect.element(square("Harbour")).not.toHaveAttribute("aria-current");
-    /* The first letter of the key, on the project's colour. */
-    expect(square("Harbour").element().textContent?.[0]).toBe("H");
+    /* The start of the key, on the project's colour: one letter made USH
+       and USHA the same square. */
+    expect(square("Harbour").getByTestId("sidebar-square").element().textContent).toBe("HAR");
+    /* A board is open, so Home is not marked. */
+    await expect
+      .element(sidebar().getByRole("link", { name: "Home", exact: true }))
+      .not.toHaveAttribute("aria-current");
 
     await square("Harbour").click();
     expect(followed.at(-1)).toBe(`/p/${made.harbour.id}`);
@@ -283,9 +289,43 @@ describe("The open sidebar", () => {
       byTestId("sidebar-row").filter({ hasText: "Silent one" }).getByTestId("sidebar-dot"),
     );
 
+    /* The count and the dot stand at the row's end, off the square's letters. */
+    const busy = byTestId("sidebar-row").filter({ hasText: "Busy" });
+    expect(busy.getByTestId("sidebar-square").element().textContent).toBe("BUS");
+    await expect.element(busy.getByTestId("sidebar-count")).toHaveTextContent("1");
+    const end = rectOf(busy.getByTestId("sidebar-count").element());
+    expect(end.right).toBeGreaterThan(rectOf(busy.getByTestId("sidebar-line").element()).right);
+
     await expect.element(byTestId("sidebar-list")).toHaveTextContent("≡Mine to do");
     await byTestId("sidebar-list").click();
     expect(followed.at(-1)).toBe(`/lists/${other(9)}`);
+  });
+
+  test("names the brand once and marks Home when you are on it", async () => {
+    const made = twoProjects();
+    await draw(made, false);
+    const head = sidebar().getByRole("link", { name: "Ushabti", exact: true });
+    await expect.element(head).toHaveAttribute("href", "/projects");
+    const home = byTestId("sidebar-home");
+    await expect.element(home).toHaveAccessibleName("Home");
+    /* A board is open: the Home row is a way there, not where you are. */
+    await expect.element(home).not.toHaveAttribute("aria-current");
+    await expect
+      .element(byTestId("sidebar-row").filter({ hasText: "Lantern" }))
+      .toHaveAttribute("aria-current", "page");
+  });
+
+  test("on Home, the Home row and the rail's mark say you are there", async () => {
+    const made = twoProjects();
+    at.pathname = "/projects";
+    await draw(made, false);
+    await expect.element(byTestId("sidebar-home")).toHaveAttribute("aria-current", "page");
+    /* No project is open, so Home is the only place marked. */
+    expect(sidebar().element().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+
+    await byTestId("sidebar-fold").click();
+    const mark = sidebar().getByRole("link", { name: "Home", exact: true });
+    await expect.element(mark).toHaveAttribute("aria-current", "page");
   });
 
   test("the age ticks", async () => {

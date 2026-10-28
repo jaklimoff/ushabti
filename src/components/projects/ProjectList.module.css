@@ -118,9 +118,19 @@
 }
 
 /* A card that asks something of the person carries the strip's amber on its
-   edge, so it can be found in a grid of six. */
-.cardWrap[data-waiting] > .card {
-  box-shadow: inset 2px 0 0 var(--waiting);
+   edge, so it can be found in a grid of six. A bar inset from the corners,
+   as the board's edge is: a shadow on the rounded corner drew a sliver. */
+.cardWrap[data-waiting]::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  z-index: 1;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--waiting);
+  pointer-events: none;
 }
 
 .cardTop {
@@ -175,13 +185,14 @@
 
 /* Nobody wrote here for three weeks. It goes quiet by colour, never by
    fading: a faded name drops under the contrast words need. The square goes
-   grey, and the name to the quietest grey that still reads. */
-.cardWrap[data-quiet] .key {
+   grey, and the name to the quietest grey that still reads. A card that
+   waits for the person is never quiet, however long nobody wrote. */
+.cardWrap[data-quiet]:not([data-waiting]) .key {
   background: var(--bg-hover);
   color: var(--text-meta);
 }
 
-.cardWrap[data-quiet] .cardName {
+.cardWrap[data-quiet]:not([data-waiting]) .cardName {
   color: var(--text-meta);
 }
 
@@ -246,34 +257,12 @@
 .goalTo,
 .goalCount {
   flex: none;
+  margin-left: auto;
   white-space: nowrap;
 }
 
-.goalTo {
-  margin-left: auto;
-}
-
 .goalCount {
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
   color: var(--text-meta);
-}
-
-/* Grey, never the accent: progress asks nothing of anybody. */
-.goalTrack {
-  flex: 1 1 auto;
-  max-width: 120px;
-  min-width: 24px;
-  height: 3px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: var(--line);
-}
-
-.goalFill {
-  display: block;
-  height: 100%;
-  background: var(--text-4);
 }
 
 .noColumns {
@@ -290,7 +279,7 @@
 .track {
   display: flex;
   gap: 2px;
-  height: 5px;
+  height: 6px;
   border-radius: 3px;
   overflow: hidden;
   background: var(--line);
@@ -309,7 +298,7 @@
   gap: 3px 12px;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  color: var(--muted);
+  color: var(--text-4);
 }
 
 .count {
@@ -412,8 +401,8 @@
 
 .face {
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -468,17 +457,34 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   padding: 14px 15px;
   background: var(--bg-column);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-lg);
 }
 
-.row {
+/* Sans, as every create form names itself: caps are for labels. */
+.formTitle {
+  margin: 0;
+  font-size: var(--t-ui);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The first project's form stands where the panel was, in the same dashed
+   frame, so pressing New project does not throw the page to the left. */
+.firstForm {
   display: flex;
-  align-items: center;
-  gap: 7px;
+  justify-content: center;
+  padding: 30px 26px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+}
+
+.firstForm > .form {
+  width: 100%;
+  max-width: 400px;
 }
 
 .error {
@@ -517,27 +523,61 @@
 
 .firstPanel .panelLine {
   max-width: 440px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.panelPlus {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px dashed var(--panel-line);
-  border-radius: var(--r-md);
-  color: var(--accent-soft);
-  font-size: 18px;
-  line-height: 1;
+/* A board in outlines: three columns with a head and cards. It turns to the
+   accent with the panel, as the other panels' drawings do. */
+.boardShapes {
+  display: flex;
+  gap: 6px;
+  width: 120px;
+  height: 56px;
+  margin-bottom: 8px;
+}
+
+.boardColumn {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 4px;
+  border: 1px solid var(--panel-shape);
+  border-radius: var(--r-xs);
   transition: border-color 150ms var(--ease);
 }
 
+.boardHead {
+  width: 55%;
+  height: 1px;
+  margin-bottom: 2px;
+  background: var(--panel-shape);
+  transition: background 150ms var(--ease);
+}
+
+.boardCard {
+  height: 12px;
+  border: 1px solid var(--panel-shape);
+  border-radius: 2px;
+  transition: border-color 150ms var(--ease);
+}
+
+/* Bigger than the section heading over it: this panel is the page. */
 .panelTitle {
   margin: 0;
-  font-size: var(--t-ui);
+  font-size: var(--t-title);
   font-weight: 600;
   color: var(--text);
+}
+
+.panelInvite {
+  margin: 6px 0 0;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+.panelEmail {
+  color: var(--text-4);
 }
 
 .panelLine {
@@ -549,7 +589,7 @@
 }
 
 .panelNote {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: var(--t-small);
   color: var(--text-meta);
 }
@@ -672,11 +712,6 @@
     flex: none;
     width: 160px;
   }
-}
-
-.hint {
-  font-size: var(--t-small);
-  color: var(--text-meta);
 }
 
 /* The card is a link, so the grip and the gear sit beside it rather than

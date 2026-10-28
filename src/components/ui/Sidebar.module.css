@@ -49,14 +49,35 @@
   padding: 0 8px 0 14px;
 }
 
-.home {
+/* The brand leads Home and is not a place of its own, so it reads as the
+   app's name and the Home row below marks where you are. */
+.brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  height: 30px;
+  padding: 0 6px 0 2px;
   font-size: var(--t-ui);
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-2);
   border-radius: var(--r-sm);
+}
+
+.brand:hover {
+  color: var(--text);
+}
+
+/* The brand in the rail: the Home item. On Home it wears the ring a square
+   wears for the open project, so the rail always says where you are. */
+.railBrand {
+  display: flex;
+  border-radius: var(--r-sm);
+}
+
+.railBrand[data-current] {
+  box-shadow:
+    0 0 0 2px var(--bg-top),
+    0 0 0 3.5px var(--accent);
 }
 
 .railList {
@@ -135,16 +156,18 @@
   height: 22px;
   border-radius: var(--r-card);
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: var(--t-small);
-  font-weight: 500;
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: -0.04em;
   line-height: 1;
+  white-space: nowrap;
 }
 
+/* Four letters of the key fit the rail's square at the card's own size. */
 .squareBig {
   width: 30px;
   height: 30px;
   border-radius: var(--r-md);
-  font-size: var(--t-ui);
 }
 
 /* The open project wears the accent as a ring, a step outside the square. */
@@ -169,17 +192,50 @@
 .count {
   position: absolute;
   right: -6px;
-  bottom: -5px;
-  min-width: 15px;
-  height: 15px;
+  bottom: -6px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 4px;
   border-radius: 8px;
   background: var(--waiting);
   box-shadow: 0 0 0 2px var(--bg-top);
   color: var(--accent-ink);
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 600;
-  line-height: 15px;
+  letter-spacing: 0;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* In the open sidebar the same two signs stand at the row's end, where they
+   line up down the list and cover no letter. */
+.rowEnd {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.rowDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--live);
+  animation: ushabti-pulse 2.2s ease-in-out infinite;
+}
+
+.rowCount {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--waiting-soft);
+  color: var(--waiting);
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-weight: 600;
+  line-height: 18px;
   text-align: center;
 }
 
@@ -300,10 +356,12 @@
 }
 
 .glyph {
+  display: flex;
   flex: 0 0 22px;
-  font-size: 12px;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--t-body);
   line-height: 1;
-  text-align: center;
 }
 
 /* The mark in the top bar, a plain mark until a phone makes it the way to

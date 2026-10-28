@@ -273,9 +273,46 @@ describe("An empty section on Home", () => {
     expect(page.getByTestId("list-new").elements()).toHaveLength(0);
     expect(page.getByTestId("chart-new").elements()).toHaveLength(0);
 
+    /* Somebody who came to join a team is told how, with their own address. */
+    expect(first.element().textContent).toContain(
+      `Joining a team? Ask its owner to invite ${ME.email}.`,
+    );
+    /* The title outranks the section heading over it. */
+    const title = page.getByRole("heading", { name: "Create your first project" }).element();
+    expect(parseFloat(getComputedStyle(title).fontSize)).toBeGreaterThan(
+      parseFloat(getComputedStyle(heads[0]).fontSize),
+    );
+
     await first.getByRole("button", { name: "New project" }).click();
-    await expect.element(page.getByRole("textbox", { name: "Project name" })).toHaveFocus();
+    const nameBox = page.getByRole("textbox", { name: "Project name" });
+    await expect.element(nameBox).toHaveFocus();
     expect(first.elements()).toHaveLength(0);
+    /* A create form: a label over each box, Cancel then the primary at the right. */
+    const form = page.getByRole("form", { name: "New project" });
+    expect(
+      form
+        .getByText(/^(Name|Key)$/)
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(["Name", "Key"]);
+    expect(
+      form
+        .getByRole("button")
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(["Cancel", "Create project"]);
+    /* The hint follows the name, and the key box stays empty until it is left. */
+    const said = () => form.element().textContent ?? "";
+    expect(said()).toContain("Task keys will look like WEB-14.");
+    await userEvent.type(nameBox, "Harbour lights");
+    await expect.poll(said).toContain("Task keys will look like HL-14.");
+    await expect.element(page.getByRole("textbox", { name: "Project key" })).toHaveValue("");
+    /* An empty name is said under the box, and the box takes the focus. */
+    await userEvent.clear(nameBox);
+    await form.getByRole("button", { name: "Create project" }).click();
+    await expect.poll(said).toContain("Give the project a name.");
+    await expect.element(nameBox).toHaveFocus();
+    await expect.element(nameBox).toHaveAttribute("aria-invalid", "true");
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect
       .element(page.getByRole("group", { name: "Create your first project" }))
@@ -432,7 +469,7 @@ describe("A project card", () => {
       .not.toBe("none");
   });
 
-  test("shares the board out in greys, each count named, and the footer names who is on it", async () => {
+  test("shares the board out in its own colours, each count named, and the footer names who is on it", async () => {
     const harbour = { ...rows[0], pulse: pulseOf({ agents: { names: ["Builder"], silent: [] } }) };
     await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
     const counts = page.getByTestId("project-column").elements();
@@ -444,16 +481,23 @@ describe("A project card", () => {
     ]);
     const shares = page.getByTestId("project-bar").element().querySelectorAll("[data-column]");
     expect(shares).toHaveLength(3);
-    const light = (el: Element) => {
-      const parts = getComputedStyle(el)
-        .backgroundColor.match(/[\d.]+/g)!
-        .map(Number);
-      return parts[0] + parts[1] + parts[2];
+    /* Each column wears its option's colour, held back toward the card, so
+       the card looks like the board it opens. */
+    const tone = (el: Element) => {
+      const said = getComputedStyle(el).backgroundColor;
+      const parts = said
+        .match(/[\d.]+/g)!
+        .map(Number)
+        .slice(0, 3);
+      return said.startsWith("color(") ? parts.map((n) => Math.round(n * 255)) : parts;
     };
-    expect(light(shares[0])).toBeLessThan(light(shares[1]));
-    expect(light(shares[1])).toBeLessThan(light(shares[2]));
-    /* No column colour reaches the card. */
-    expect(getComputedStyle(shares[0]).backgroundColor).not.toBe("rgb(224, 87, 77)");
+    const [tr, tg, tb] = tone(shares[0]);
+    expect(tr).toBeGreaterThan(tg + 40);
+    expect(tr).toBeGreaterThan(tb + 40);
+    expect(tr).toBeLessThan(224);
+    const [ir, ig, ib] = tone(shares[1]);
+    expect(ib).toBeGreaterThan(ir + 40);
+    expect(ig).toBeGreaterThan(ir + 40);
     expect(getComputedStyle(counts[0].firstElementChild!).backgroundColor).toBe(
       getComputedStyle(shares[0]).backgroundColor,
     );
@@ -591,6 +635,30 @@ describe("A project card", () => {
     expect(look("Lighthouse").color).not.toBe(META);
     expect(look("LIG").color).not.toBe(META);
   });
+
+  test("a quiet card that waits for me is never dimmed", async () => {
+    const projects = [{ ...rows[0], waiting: 1, pulse: pulseOf({ quiet: true }) }];
+    await renderWithBoard(<ProjectList user={ME} projects={projects} />, newProject());
+    const META = "rgb(130, 136, 146)";
+    expect(getComputedStyle(squareOf("Harbour")).color).not.toBe(META);
+    expect(getComputedStyle(squareOf("HAR")).color).not.toBe(META);
+    /* The amber edge is a bar inset from the corners. */
+    const card = page.getByTestId("project-card").element();
+    const edge = getComputedStyle(card, "::before");
+    expect(edge.width).toBe("3px");
+    expect(edge.top).toBe("14px");
+  });
+
+  test("says how long ago once: Quiet for 3 weeks leaves the footer to the agents", async () => {
+    const at = new Date(Date.now() - 22 * 86_400_000).toISOString();
+    const last = { ...pulseOf().last!, at };
+    const projects = [{ ...rows[0], pulse: pulseOf({ days: Array(14).fill(0), last }) }];
+    await renderWithBoard(<ProjectList user={ME} projects={projects} />, newProject());
+    await expect
+      .element(page.getByTestId("project-changes"))
+      .toHaveTextContent("Quiet for 3 weeks");
+    expect(page.getByTestId("project-last").elements()).toHaveLength(0);
+  });
 });
 
 describe("A project card's fourteen days", () => {
@@ -652,7 +720,7 @@ describe("A project card's fourteen days", () => {
 });
 
 describe("A project card's second row", () => {
-  test("reads the release, its ship day and a grey bar of done over total", async () => {
+  test("reads the release, its ship day and how much is done, with no second bar", async () => {
     const heading = {
       kind: "release" as const,
       property: "Release",
@@ -665,15 +733,14 @@ describe("A project card's second row", () => {
     const harbour = { ...rows[0], pulse: pulseOf({ heading }) };
     await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
     const row = page.getByTestId("project-release");
-    await expect.element(row).toHaveTextContent("Release 0.23 · ships Oct 1412 / 18");
-    const bar = row.element().querySelector("[aria-hidden]")!;
-    expect(Math.round(bar.getBoundingClientRect().width)).toBeLessThanOrEqual(120);
-    const fill = bar.firstElementChild!;
-    expect(getComputedStyle(fill).backgroundColor).toBe("rgb(164, 170, 179)");
-    expect(fill.getBoundingClientRect().width / bar.getBoundingClientRect().width).toBeCloseTo(
-      12 / 18,
-      1,
-    );
+    await expect.element(row).toHaveTextContent("Release 0.23 · ships Oct 1412 of 18 done");
+    /* The columns under it are the card's one bar. */
+    expect(row.element().querySelector("[aria-hidden]")).toBeNull();
+    /* Tab reads the name, and the rest as one short line. */
+    const link = page.getByRole("link", { name: "Harbour", exact: true });
+    await expect
+      .element(link)
+      .toHaveAccessibleDescription("Release 0.23 ships Oct 14, 12 of 18 done.");
   });
 
   test("reads the sprint and the days it has left", async () => {
@@ -690,7 +757,7 @@ describe("A project card's second row", () => {
     await renderWithBoard(<ProjectList user={ME} projects={[harbour]} />, newProject());
     await expect
       .element(page.getByTestId("project-sprint"))
-      .toHaveTextContent("Sprint 14 · 3 days left1 / 2");
+      .toHaveTextContent("Sprint 14 · 3 days left1 of 2 done");
   });
 
   test("reads who did what to which task, and the column it went to", async () => {

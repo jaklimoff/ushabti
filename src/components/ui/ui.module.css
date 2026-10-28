@@ -1426,6 +1426,14 @@ p.outsidePitch {
   }
 }
 
+/* The mark the sidebar leads Home with, drawn in the bar only where the
+   sidebar is not: on a phone. */
+@media (min-width: 561px) {
+  .appPhoneOnly {
+    display: none;
+  }
+}
+
 /* The project's name in the trail, beside its mark. */
 .projCrumb {
   font-size: var(--t-ui);
