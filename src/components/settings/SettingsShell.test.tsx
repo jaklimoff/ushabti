@@ -90,7 +90,7 @@ describe("Settings", () => {
     const groups = rail().getByRole("group");
     expect(groups.elements().map((g) => g.getAttribute("aria-labelledby"))).toEqual([
       "rail-General",
-      "rail-Shape",
+      "rail-Structure",
       "rail-Integrations",
     ]);
     const names = (title: string) =>
@@ -98,7 +98,7 @@ describe("Settings", () => {
         (a) => a.firstChild?.textContent,
       );
     expect(names("General")).toEqual(["Project", "People"]);
-    expect(names("Shape")).toEqual(["Properties", "Views"]);
+    expect(names("Structure")).toEqual(["Properties", "Views"]);
     expect(names("Integrations")).toEqual(["Webhooks", "Import and export"]);
 
     // The default card sits on Views, so the rail has no Card view.

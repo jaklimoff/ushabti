@@ -4,7 +4,7 @@ import styles from "@/components/settings/settings.module.css";
 
 /* The rail as it will arrive: its groups and their items, so the page does
    not jump when the real one lands. A member sees one group fewer. */
-const GROUPS = [2, 4, 2];
+const GROUPS = [2, 2, 2];
 
 export default function Loading() {
   return (

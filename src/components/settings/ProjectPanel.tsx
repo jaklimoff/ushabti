@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { formatDate } from "@/lib/board";
 import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
@@ -11,6 +12,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Field, Input, ProjectColorSwatches, Select } from "@/components/ui/Form";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
+import { CopyField } from "@/components/ui/CopyField";
 import { Card, Note, Row, Section } from "@/components/ui/Layout";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
@@ -35,6 +37,11 @@ function zonesInBrowser(): string[] {
 }
 const zonesOnServer = () => NO_ZONES;
 
+/* The board's own address, for the public link a person copies and sends.
+   The server render has none, so the box fills in once the page is held. */
+const originInBrowser = () => window.location.origin;
+const originOnServer = () => "";
+
 /** `files` is whether the server has a bucket for attachments; off, the page says what to set. */
 export function ProjectPanel({ files }: { files: boolean }) {
   const { data, notify, refresh, send } = useBoard();
@@ -54,6 +61,12 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const [typedKey, setTypedKey] = useState(false);
   const [typedZone, setTypedZone] = useState(false);
   const zones = useSyncExternalStore(tellNobody, zonesInBrowser, zonesOnServer);
+  const origin = useSyncExternalStore(tellNobody, originInBrowser, originOnServer);
+  /* People is a sibling page, so it keeps the view the rail carries. */
+  const from = useSearchParams().get("from");
+  const peopleHref = `/p/${data.project.id}/settings/people${
+    from ? `?from=${encodeURIComponent(from)}` : ""
+  }`;
   const zoneList = useId();
   const [confirming, setConfirming] = useState(false);
   /* A press waits for its answer before it counts again: a second press on a
@@ -170,10 +183,10 @@ export function ProjectPanel({ files }: { files: boolean }) {
     <>
       <PageHead
         title="Project"
-        note="The name and key every task carries, who can read what shipped, and the one thing only the owner does."
+        note="The name, key and colour every task carries, and who can read what shipped."
       />
 
-      <Section title="General">
+      <Section title="Name and look">
         <Card>
           <Row>
             <Field label="Name" inline>
@@ -316,13 +329,13 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   data.project.publicChangelog ? (
                     <>
                       Anyone with the address reads the shipped options and the titles of their
-                      tasks, with no keys and no people:{" "}
-                      <a
-                        href={`/changelog/${changelogSlug(data.project.key)}`}
-                        data-testid="public-changelog-link"
-                      >
-                        /changelog/{changelogSlug(data.project.key)}
-                      </a>
+                      tasks, with no keys and no people.
+                      <span className={styles.publicAddress} data-testid="public-changelog-link">
+                        <CopyField
+                          value={`${origin}/changelog/${changelogSlug(data.project.key)}`}
+                          label="the public changelog address"
+                        />
+                      </span>
                     </>
                   ) : (
                     "Only the members of this project read its changelog."
@@ -337,7 +350,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
                   {data.project.publicChangelog ? "Make it private" : "Make it public"}
                 </Button>
                 <ButtonLink variant="text" href={`/p/${data.project.id}/changelog`}>
-                  Changelog
+                  Open changelog
                 </ButtonLink>
               </Field>
             </Row>
@@ -361,13 +374,22 @@ export function ProjectPanel({ files }: { files: boolean }) {
                 onCancel={() => setHeirId(null)}
               />
             ) : (
-              <Row className={styles.dangerRow}>
-                <div className={styles.dangerSay}>
-                  <span className={styles.dangerTitle}>Hand over</span>
+              <Row className={styles.actionRow}>
+                <div className={styles.actionSay}>
+                  <span className={styles.actionTitle}>Hand over</span>
                   <Note>
-                    {admins.length > 0
-                      ? "The new owner can delete the project. You stay an admin."
-                      : "Make somebody an admin first."}
+                    {admins.length > 0 ? (
+                      "The new owner can delete the project. You stay an admin."
+                    ) : (
+                      /* A dead end that names the way out: roles are on People. */
+                      <>
+                        Make somebody an admin on{" "}
+                        <Link href={peopleHref} className={styles.inlineLink}>
+                          People
+                        </Link>{" "}
+                        first.
+                      </>
+                    )}
                   </Note>
                 </div>
                 <Select
@@ -397,9 +419,9 @@ export function ProjectPanel({ files }: { files: boolean }) {
                 onCancel={() => setConfirming(false)}
               />
             ) : (
-              <Row className={styles.dangerRow}>
-                <div className={styles.dangerSay}>
-                  <span className={styles.dangerTitle}>Delete this project</span>
+              <Row className={styles.actionRow}>
+                <div className={styles.actionSay}>
+                  <span className={styles.actionTitle}>Delete this project</span>
                   <Note>
                     The board, its {taskCount} {taskCount === 1 ? "task" : "tasks"}, its properties,
                     its views and its agents go with it. There is no undo.

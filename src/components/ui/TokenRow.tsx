@@ -26,6 +26,7 @@ export function TokenRow({
   question,
   onRevoke,
   fresh = false,
+  flush = false,
   testId,
   children,
 }: {
@@ -39,6 +40,9 @@ export function TokenRow({
   onRevoke: (() => void) | null;
   /** The row just made, while its secret sits under it. */
   fresh?: boolean;
+  /** No side padding: the row sits in a column that already has its edge,
+      so its name starts where the buttons under it do. */
+  flush?: boolean;
   testId: string;
   children?: React.ReactNode;
 }) {
@@ -59,7 +63,7 @@ export function TokenRow({
 
   return (
     <div className={fresh ? `${styles.item} ${styles.fresh}` : styles.item}>
-      <div className={styles.row} data-testid={testId}>
+      <div className={flush ? `${styles.row} ${styles.flush}` : styles.row} data-testid={testId}>
         <div className={styles.line}>
           <span className={styles.name} title={name}>
             {name}

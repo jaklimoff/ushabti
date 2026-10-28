@@ -78,7 +78,7 @@ export function PeoplePanel({ mail }: { mail: boolean }) {
     <>
       <PageHead
         title="People"
-        note="Everybody here can create, edit and move tasks. An admin also adds people and agents and changes the shape of the project; only the owner can delete it. An agent is always a member — it just signs in with a token."
+        note="Who works on this board, people and agents, and what each may do."
       />
       <Members mail={mail} />
       <Agents agents={agents} reload={loadAgents} />
@@ -100,11 +100,19 @@ function Members({ mail }: { mail: boolean }) {
     null,
   );
   const [busy, setBusy] = useState(false);
+  const emailBox = useRef<HTMLInputElement>(null);
   const canEdit = canManage(data.project.role);
 
   async function invite() {
     const value = email.trim();
-    if (!value || busy) return;
+    if (busy) return;
+    /* The button is never off for an empty box: a press says what is
+       missing, under the box, and puts the cursor there. */
+    if (!value) {
+      setError("Type the email of the person to add.");
+      emailBox.current?.focus();
+      return;
+    }
     setBusy(true);
     setError(null);
     setInvited(null);
@@ -179,7 +187,10 @@ function Members({ mail }: { mail: boolean }) {
   const inviteLine = invited && emailedLine(mail, invited.emailed, invited.email);
 
   return (
-    <Section title="Members">
+    <Section
+      title="Members"
+      note="An admin adds people and changes the structure. Only the owner deletes the project."
+    >
       <Card>
         <div className={`${styles.cardHead} ${styles.memberHead}`}>
           <span className={styles.memberHeadWho}>Person</span>
@@ -218,6 +229,7 @@ function Members({ mail }: { mail: boolean }) {
         {canEdit && (
           <Foot>
             <Input
+              ref={emailBox}
               grow
               aria-label="Email of the new member"
               value={email}
@@ -479,6 +491,9 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
   const { data, notify, refresh, send } = useBoard();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  /* What the last press lacked, said under the box rather than in a toast. */
+  const [missing, setMissing] = useState<string | null>(null);
+  const nameBox = useRef<HTMLInputElement>(null);
   /** The plain text of a token, held until the person leaves the page. */
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   /** The agents folded open. All start closed; one just added opens, so Connect is one press away. */
@@ -488,7 +503,12 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
 
   async function create() {
     const trimmed = name.trim();
-    if (!trimmed || busy) return;
+    if (busy) return;
+    if (!trimmed) {
+      setMissing("Name the agent after the job it does.");
+      nameBox.current?.focus();
+      return;
+    }
     setBusy(true);
     try {
       const res = await send.post<{ agent: { id: string } }>(`/api/projects/${projectId}/agents`, {
@@ -626,16 +646,28 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
         {canEdit && (
           <Foot>
             <Input
+              ref={nameBox}
               grow
               aria-label="Name of the new agent"
               value={name}
+              invalid={missing !== null}
               placeholder="Builder"
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setMissing(null);
+              }}
               onKeyDown={(e) => e.key === "Enter" && void create()}
             />
             <Button onClick={() => void create()} busy={busy}>
               Add agent
             </Button>
+            {missing && (
+              <FootNote>
+                <span className={styles.footError} role="alert">
+                  {missing}
+                </span>
+              </FootNote>
+            )}
           </Foot>
         )}
       </Card>
@@ -680,6 +712,8 @@ function AgentBox({
   /** The name of the token about to be made; null while nobody is making one. */
   const [naming, setNaming] = useState<string | null>(null);
   const [making, setMaking] = useState(false);
+  const [unnamed, setUnnamed] = useState(false);
+  const tokenBox = useRef<HTMLInputElement>(null);
   const face = usePickedFace(agent, onFace);
   const box = useRef<HTMLInputElement>(null);
   /* The box holds a name that another tab can change under it, so only what
@@ -703,7 +737,12 @@ function AgentBox({
 
   async function make() {
     const tokenName = (naming ?? "").trim();
-    if (!tokenName || making) return;
+    if (making) return;
+    if (!tokenName) {
+      setUnnamed(true);
+      tokenBox.current?.focus();
+      return;
+    }
     setMaking(true);
     const made = await onConnect(tokenName);
     setMaking(false);
@@ -742,10 +781,11 @@ function AgentBox({
         <Chevron size={12} className={styles.agentCaret} />
       </button>
 
+      {/* Open, each part is a row with its label in the side column, in the
+          order a new agent is set up: tokens first, because connecting is why
+          it was opened, then what it may do, then how it looks. */}
       {open && (
         <div className={styles.agentDetail} id={detail}>
-          <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
-
           <div className={styles.agentPart}>
             <Label className={styles.agentLabel}>Tokens</Label>
             <div className={styles.tokens}>
@@ -774,34 +814,46 @@ function AgentBox({
               {canEdit && naming !== null && (
                 <div className={styles.tokenNaming} data-testid="token-name">
                   <Input
+                    ref={tokenBox}
                     grow
                     autoFocus
                     maxLength={60}
                     aria-label={`Name of the new token for ${agent.name}`}
                     value={naming}
-                    onChange={(e) => setNaming(e.target.value)}
+                    invalid={unnamed}
+                    onChange={(e) => {
+                      setNaming(e.target.value);
+                      setUnnamed(false);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") void make();
                       if (e.key === "Escape") setNaming(null);
                     }}
                   />
-                  <Button onClick={() => void make()} disabled={making || !naming.trim()}>
-                    Make token
-                  </Button>
                   <Button variant="ghost" onClick={() => setNaming(null)}>
                     Cancel
                   </Button>
+                  <Button onClick={() => void make()} busy={making}>
+                    Make token
+                  </Button>
+                  {unnamed && (
+                    <span className={styles.tokenNamingError} role="alert">
+                      Name the token, so you can tell it from the next one.
+                    </span>
+                  )}
                 </div>
               )}
             </div>
           </div>
 
+          <MayLine agent={agent} canEdit={canEdit} onAct={onAct} />
+
           {canEdit && (
-            <div className={styles.agentPart} data-testid="agent-face">
-              <Label className={styles.agentLabel}>Name</Label>
-              <div className={styles.agentFace}>
+            <>
+              <div className={styles.agentPart} data-testid="agent-face">
+                <Label className={styles.agentLabel}>Name</Label>
                 {/* The part is labelled Name already, so the box carries no second label. */}
-                <div className={styles.agentName}>
+                <div className={styles.agentField}>
                   <Input
                     key={agent.name}
                     ref={box}
@@ -824,15 +876,15 @@ function AgentBox({
                       });
                     }}
                   />
-                  <span className={styles.agentNameNote}>
+                  <span className={styles.agentNote}>
                     A mention of the new name wakes it. Its comments and runs show the new name;
                     text already written keeps the old one.
                   </span>
                 </div>
-                <Field
-                  label="Colour"
-                  note="Pick one no other agent and no person on the team wears."
-                >
+              </div>
+              <div className={styles.agentPart}>
+                <Label className={styles.agentLabel}>Colour</Label>
+                <div className={styles.agentField}>
                   <ColorSwatches
                     name={agent.name}
                     emoji={face.emoji}
@@ -841,11 +893,14 @@ function AgentBox({
                     value={face.color}
                     onPick={(color) => face.pick({ color })}
                   />
-                </Field>
-                <Field
-                  label="Emoji"
-                  note="Worn on the colour in place of the ◆, with a small ◆ beside it."
-                >
+                  <span className={styles.agentNote}>
+                    Pick one no other agent and no person on the team wears.
+                  </span>
+                </div>
+              </div>
+              <div className={styles.agentPart}>
+                <Label className={styles.agentLabel}>Emoji</Label>
+                <div className={styles.agentField}>
                   <FaceSwatches
                     name={agent.name}
                     color={face.color}
@@ -854,9 +909,12 @@ function AgentBox({
                     value={face.emoji}
                     onPick={(emoji) => face.pick({ emoji })}
                   />
-                </Field>
+                  <span className={styles.agentNote}>
+                    Worn on the colour in place of the ◆, with a small ◆ beside it.
+                  </span>
+                </div>
               </div>
-            </div>
+            </>
           )}
 
           {canEdit &&
@@ -869,9 +927,6 @@ function AgentBox({
               />
             ) : (
               <div className={styles.agentFoot}>
-                <span className={styles.agentFootSay}>
-                  A switch only takes away: it never gives {agent.name} more than a member has.
-                </span>
                 <Button variant="danger" onClick={confirm.ask}>
                   Remove {agent.name}
                 </Button>
@@ -934,6 +989,9 @@ function MayLine({
             />
           ))}
         </div>
+        <span className={styles.agentNote}>
+          A switch only takes away: it never gives {agent.name} more than a member has.
+        </span>
       </div>
     </div>
   );
@@ -988,6 +1046,7 @@ function AgentTokenRow({
 }) {
   return (
     <TokenRow
+      flush
       name={token.name}
       prefix={token.prefix}
       testId="token-row"

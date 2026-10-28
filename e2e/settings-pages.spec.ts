@@ -17,17 +17,20 @@ test.describe("Settings pages", () => {
 
     await gotoSettings(page, projectId, "project");
     const rail = page.getByRole("navigation", { name: "Settings sections" });
-    for (const group of ["General", "Shape", "Integrations"]) {
+    for (const group of ["General", "Structure", "Integrations"]) {
       await expect(rail.getByRole("group", { name: group })).toBeVisible();
     }
     // The types are ticked on their property, so the menu has no Types page.
     await expect(rail.getByRole("link", { name: "Types", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("heading", { level: 2 })).toHaveText(["General", "Danger zone"]);
+    await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+      "Name and look",
+      "Danger zone",
+    ]);
     // Sharing holds the public changelog, so it shows once releases are on.
     expect((await page.request.post(`/api/projects/${projectId}/releases`)).ok()).toBe(true);
     await page.reload();
     await expect(page.getByRole("heading", { level: 2 })).toHaveText([
-      "General",
+      "Name and look",
       "Sharing",
       "Danger zone",
     ]);
@@ -59,7 +62,7 @@ test.describe("Settings pages", () => {
     await gotoSettings(page, projectId, "project");
     const pick = page.getByLabel("The admin to hand the project to");
     await expect(pick).toBeDisabled();
-    await expect(page.getByText("Make somebody an admin first.")).toBeVisible();
+    await expect(page.getByText("Make somebody an admin on People first.")).toBeVisible();
 
     const added = await page.request.post(`/api/projects/${projectId}/members`, {
       data: { email: heir.email, role: "admin" },

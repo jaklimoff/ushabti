@@ -128,17 +128,46 @@ describe("Agents in Settings -> People", () => {
     await expect.element(page.getByTestId("agent-may")).not.toBeInTheDocument();
     await expect.element(page.getByTestId("token-row")).not.toBeInTheDocument();
 
-    // Open, it reads May, Tokens, Name, and the foot that removes it.
+    /* Open, it reads Tokens, then May with what a switch is under it, then
+       Name, Colour and Emoji, and the foot that removes it. */
     await unfold("Quiet");
     const open = box("Quiet");
     const text = open.element().textContent ?? "";
-    const order = ["May", "Tokens", "Name", "A switch only takes away", "Remove Quiet"].map(
-      (word) => text.indexOf(word, text.indexOf("Silent")),
-    );
+    const order = [
+      "Tokens",
+      "May",
+      "A switch only takes away",
+      "Name",
+      "Colour",
+      "Emoji",
+      "Remove Quiet",
+    ].map((word) => text.indexOf(word, text.indexOf("Silent")));
     expect(order.every((at) => at > 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     await open.getByRole("button", { name: "Remove Quiet" }).click();
     await expect.element(page.getByText(/^Remove Quiet\? Its tokens stop working/)).toBeVisible();
+  });
+
+  /* An add button is never off for an empty box: the press says what is
+     missing under the box, puts the cursor there, and sends nothing. */
+  test("an empty name or email is said under its box, and nothing is sent", async () => {
+    const { sent } = await draw([agent("Twin")]);
+    const addAgent = page.getByRole("button", { name: "Add agent" });
+    await expect.element(addAgent).toBeEnabled();
+    await addAgent.click();
+    await expect.element(page.getByText("Name the agent after the job it does.")).toBeVisible();
+    await expect.element(page.getByLabelText("Name of the new agent")).toHaveFocus();
+
+    await page.getByRole("button", { name: "Add member" }).click();
+    await expect.element(page.getByText("Type the email of the person to add.")).toBeVisible();
+    await expect.element(page.getByLabelText("Email of the new member")).toHaveFocus();
+
+    await unfold("Twin");
+    await box("Twin").getByRole("button", { name: "Connect" }).click();
+    await box("Twin").getByLabelText("Name of the new token for Twin").fill("  ");
+    await box("Twin").getByRole("button", { name: "Make token" }).click();
+    await expect.element(page.getByText(/^Name the token/)).toBeVisible();
+    expect(sent("POST")).toEqual([]);
   });
 
   // Was e2e/agents.spec.ts, the whole test.
