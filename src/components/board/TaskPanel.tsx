@@ -12,6 +12,7 @@ import {
   shortDay,
 } from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
+import { ink } from "@/lib/colors";
 import { commentDraftKey } from "@/lib/draft";
 import { editedText } from "@/lib/leave";
 import {
@@ -71,6 +72,7 @@ import { changeAsked, droppedBy, droppedSaid, isShown, withoutHidden } from "@/l
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
 import { canManage } from "@/lib/roles";
 import { Label } from "@/components/ui/Form";
+import { Meter } from "@/components/ui/Layout";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -544,6 +546,34 @@ export function TaskPanel({
      nothing left to wait for before the head is drawn. */
   if (!shown) return null;
 
+  const panelLinks: PanelLinks | null = detail
+    ? {
+        ...detail.links,
+        parent: detail.parent ? [detail.parent] : [],
+        children: detail.children,
+      }
+    : null;
+  /* Links sit between the fields and the description, where "why is this not
+     moving" belongs. A task with none offers them last instead, so the
+     description still comes first. */
+  const hasLinks = LINK_LISTS.some((way) => (panelLinks?.[way] ?? []).length > 0);
+  /* Its own state — what is typed, and the line a refusal left — belongs to
+     one task, so the key throws it away when another one opens. */
+  const linksBlock = (
+    <Links
+      key={taskId}
+      taskId={taskId}
+      links={panelLinks}
+      adding={addingLink}
+      setAdding={(way) => setLinking(way ? { taskId, way } : null)}
+      reload={reload}
+      counted={counted}
+      onError={notify}
+      onInfo={(message) => notify(message, "info")}
+      onOpenTask={onOpenTask}
+    />
+  );
+
   return (
     <aside
       className={styles.panel}
@@ -640,7 +670,7 @@ export function TaskPanel({
           <IconButton
             size={28}
             label="Task menu"
-            className={menuOpen ? styles.iconButtonOn : undefined}
+            className={`${styles.headButton} ${menuOpen ? styles.iconButtonOn : ""}`}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             title="More"
@@ -648,7 +678,13 @@ export function TaskPanel({
           >
             ⋯
           </IconButton>
-          <IconButton size={28} label="Close task" title="Close (Esc)" onClick={onClose}>
+          <IconButton
+            size={28}
+            label="Close task"
+            title="Close (Esc)"
+            className={styles.headButton}
+            onClick={onClose}
+          >
             ✕
           </IconButton>
           {menuOpen && (
@@ -826,29 +862,7 @@ export function TaskPanel({
             </div>
 
             <div className={styles.section}>
-              {/* Its own state — what is typed, and the line a refusal
-                  left — belongs to one task, so the key throws it away when
-                  another one opens. */}
-              <Links
-                key={taskId}
-                taskId={taskId}
-                links={
-                  detail
-                    ? {
-                        ...detail.links,
-                        parent: detail.parent ? [detail.parent] : [],
-                        children: detail.children,
-                      }
-                    : null
-                }
-                adding={addingLink}
-                setAdding={(way) => setLinking(way ? { taskId, way } : null)}
-                reload={reload}
-                counted={counted}
-                onError={notify}
-                onInfo={(message) => notify(message, "info")}
-                onOpenTask={onOpenTask}
-              />
+              {hasLinks && linksBlock}
 
               <Description
                 taskId={taskId}
@@ -881,6 +895,9 @@ export function TaskPanel({
                 signOf={(itemId) => editingSaid(editing(checklistField(itemId)), "this item")}
                 inField={inField}
               />
+
+              {/* No links yet: the offer, and the box it opens, sit last. */}
+              {!hasLinks && (detail || addingLink) && linksBlock}
             </div>
 
             <PanelTabs
@@ -1080,6 +1097,16 @@ const LINK_WORDS: Record<LinkWay, { head: string; add: string; ask: string; empt
   },
 };
 
+/** The lists in the order the panel draws them. */
+const LINK_LISTS: LinkWay[] = ["blockedBy", "blocks", "parent", "children"];
+
+/** The three ways in that the task menu offers too, in its words. */
+const LINK_OFFER: { way: LinkWay; label: string }[] = [
+  { way: "blockedBy", label: "Blocked by…" },
+  { way: "parent", label: "Part of…" },
+  { way: "children", label: "Add a part…" },
+];
+
 /** What the panel holds of a task's links: the chain and its parts. */
 type PanelLinks = {
   blockedBy: TaskLinkDTO[];
@@ -1096,10 +1123,10 @@ type PanelLinks = {
  * grid above. It sits between the properties and the description because that
  * is where "why is this not moving" belongs.
  *
- * A task with no links draws nothing at all. The way in is the task menu, so
- * the panel at rest reads exactly as it did before links existed — a heading
- * over an empty list on every task in the project would be a worse trade than
- * one more line in a menu nobody opens by accident.
+ * A task with no links draws one quiet row, "Link a task", in the place of
+ * the checklist's "Add item": without it nothing in the panel says a task can
+ * wait on another. It is a row and not a heading over an empty list, and the
+ * task menu keeps its three entries.
  *
  * The ✕ asks nothing. Unlinking costs one key to undo, and `ConfirmRow` is
  * for what cannot be undone.
@@ -1204,13 +1231,12 @@ function Links({
     }
   }
 
-  const lists: LinkWay[] = ["blockedBy", "blocks", "parent", "children"];
-  const anything = lists.some((way) => (links?.[way] ?? []).length > 0);
-  if (!anything && !adding) return null;
+  const anything = LINK_LISTS.some((way) => (links?.[way] ?? []).length > 0);
+  if (!anything && !adding) return <LinkOffer onPick={setAdding} />;
 
   return (
     <div className={styles.block} data-testid="task-links">
-      {lists.map((way) => {
+      {LINK_LISTS.map((way) => {
         const list = links?.[way] ?? [];
         if (list.length === 0 && adding !== way) return null;
         const words = LINK_WORDS[way];
@@ -1221,10 +1247,9 @@ function Links({
             <div className={styles.blockHead}>
               <Label>{way === "children" ? childrenHead(list) : words.head}</Label>
               <span className={styles.spacer} />
-              <button
+              <IconButton
                 className={styles.linkAdd}
-                aria-label={words.add}
-                title={words.add}
+                label={words.add}
                 onClick={() => {
                   setQuery("");
                   setRefused(null);
@@ -1232,7 +1257,7 @@ function Links({
                 }}
               >
                 +
-              </button>
+              </IconButton>
             </div>
 
             {list.map((row) => (
@@ -1252,14 +1277,15 @@ function Links({
                     {row.title}
                   </span>
                 </button>
-                <button
+                <IconButton
+                  danger
                   className={styles.linkRemove}
-                  aria-label={`Unlink ${row.key}`}
+                  label={`Unlink ${row.key}`}
                   title="Unlink"
                   onClick={() => void remove(way, row.id)}
                 >
                   ✕
-                </button>
+                </IconButton>
               </div>
             ))}
 
@@ -1301,6 +1327,72 @@ function Links({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * The row a task with no links ends its writing with. A press shows the three
+ * ways a link can go, and a pick opens the same search the task menu opens.
+ * Escape, or a press anywhere else, folds it back.
+ */
+function LinkOffer({ onPick }: { onPick: (way: LinkWay) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useDismiss<HTMLDivElement>(() => setOpen(false), open);
+  const first = useRef<HTMLButtonElement>(null);
+  const offer = useRef<HTMLButtonElement>(null);
+  /* Escape gives the focus back to the row it came from; a press elsewhere
+     leaves it where it landed. */
+  const back = useRef(false);
+
+  useEffect(() => {
+    if (open) first.current?.focus();
+    else if (back.current) {
+      back.current = false;
+      offer.current?.focus();
+    }
+  }, [open]);
+
+  if (!open) {
+    return (
+      <div className={styles.linkOffer} data-testid="link-offer">
+        <button ref={offer} className={styles.linkOfferButton} onClick={() => setOpen(true)}>
+          <LinkIcon />
+          Link a task
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={styles.linkOffer}
+      data-testid="link-offer"
+      ref={ref}
+      role="group"
+      aria-label="Link a task"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          back.current = true;
+          setOpen(false);
+        }
+      }}
+    >
+      <LinkIcon />
+      {LINK_OFFER.map(({ way, label }, i) => (
+        <button
+          key={way}
+          ref={i === 0 ? first : undefined}
+          className={styles.linkChoice}
+          onClick={() => {
+            setOpen(false);
+            onPick(way);
+          }}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -1591,8 +1683,11 @@ function RunPlan({
                   ? `${styles.runStepActive} ${since ? "" : styles.runStepStill}`
                   : ""
             }`}
-            style={step.state === "done" ? { background: color } : undefined}
-          />
+            /* The tick takes the ink that reads on the agent's own colour. */
+            style={step.state === "done" ? { background: color, color: ink(color) } : undefined}
+          >
+            {step.state === "done" && <Tick size={8} />}
+          </span>
           <span
             className={`${styles.runStepText} ${step.state === "done" ? styles.runStepStruck : ""}`}
           >
@@ -2276,16 +2371,28 @@ function Description({
     if (words !== undefined && !ref.current?.owns?.(document.activeElement)) close(words);
   }
 
+  /* How tall the words were when the box opened, less the border both
+     share, so the editor opens at their height and nothing under it moves. */
+  const words = useRef<HTMLDivElement>(null);
+  const [openedAt, setOpenedAt] = useState<number | null>(null);
+
   /* Nothing reads the draft until the editor opens, so the click that opens it
      is what fills it in. */
   function edit() {
+    const height = words.current?.offsetHeight;
+    setOpenedAt(height ? height - 2 : null);
     setDraft(shown);
     setTyped(false);
     setEditing(true);
   }
 
   return (
-    <div className={`${styles.block} ${styles.descBlock}`}>
+    <div
+      className={`${styles.block} ${styles.descBlock}`}
+      style={
+        openedAt === null ? undefined : ({ "--desc-h": `${openedAt}px` } as React.CSSProperties)
+      }
+    >
       <div className={styles.blockHead}>
         <Label>Description</Label>
         <span className={styles.spacer} />
@@ -2361,6 +2468,7 @@ function Description({
         </>
       ) : (
         <div
+          ref={words}
           className={`${styles.desc} ${shown.trim() ? "" : styles.descEmpty}`}
           onClick={edit}
           role="button"
@@ -2379,10 +2487,47 @@ function Description({
   );
 }
 
-/** The tick in a done box. Drawn, because a glyph sits off centre at 14px. */
-function Tick() {
+/** Two links of a chain: the offer is a link, not one more checklist box. */
+function LinkIcon() {
   return (
-    <svg aria-hidden width="10" height="10" viewBox="0 0 10 10" fill="none">
+    <svg
+      aria-hidden
+      className={styles.linkIcon}
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+    >
+      <path
+        d="M6 8a2.5 2.5 0 003.5 0l2-2A2.5 2.5 0 008 2.5l-.8.8M8 6a2.5 2.5 0 00-3.5 0l-2 2A2.5 2.5 0 006 11.5l.8-.8"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Edit, drawn for the same reason as the tick: a glyph sits off centre. */
+function PencilIcon() {
+  return (
+    <svg aria-hidden width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path
+        d="M7.6 2.4l2 2M2 10l.5-2.4L8.3 1.8a.9.9 0 011.3 0l.6.6a.9.9 0 010 1.3L4.4 9.5 2 10z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** The tick in a done box. Drawn, because a glyph sits off centre at 14px. */
+function Tick({ size = 10 }: { size?: number }) {
+  return (
+    <svg aria-hidden width={size} height={size} viewBox="0 0 10 10" fill="none">
       <path
         d="M2 5.2l2 2L8 3"
         stroke="currentColor"
@@ -2498,26 +2643,28 @@ function Checklist({
   }
 
   return (
-    <div className={styles.block}>
+    <div className={`${styles.block} ${styles.checklist}`}>
       <div className={styles.blockHead}>
         <Label>Checklist</Label>
         <span className={styles.spacer} />
         {local.length > 0 && (
-          <span className={styles.count}>
+          <span
+            className={`${styles.count} ${
+              done === local.length ? styles.countAll : done > 0 ? styles.countSome : ""
+            }`}
+          >
             {done} / {local.length}
           </span>
         )}
       </div>
 
       {local.length > 0 && (
-        <div className={styles.progress}>
-          {local.map((item, i) => (
-            <span
-              key={item.id}
-              className={`${styles.progressCell} ${i < done ? styles.progressDone : ""}`}
-            />
-          ))}
-        </div>
+        <Meter
+          className={styles.progress}
+          done={done}
+          total={local.length}
+          color={done === local.length ? "var(--shipped)" : undefined}
+        />
       )}
 
       {loading && local.length === 0 && <span className={styles.quiet}>Loading…</span>}
@@ -2576,9 +2723,10 @@ function Checklist({
                 {item.text}
               </span>
             )}
-            <button
+            <IconButton
+              danger
               className={styles.checkRemove}
-              aria-label={`Remove ${item.text}`}
+              label={`Remove ${item.text}`}
               title="Remove"
               onClick={() => {
                 change((list) => list.filter((i) => i.id !== item.id));
@@ -2586,7 +2734,7 @@ function Checklist({
               }}
             >
               ✕
-            </button>
+            </IconButton>
           </div>
           <EditingSign said={signOf(item.id)} item />
         </Fragment>
@@ -2891,7 +3039,7 @@ function CommentItem({
         color={comment.author?.color ?? "#3f4650"}
         emoji={comment.author?.emoji}
         kind={comment.author?.kind}
-        size={20}
+        size={24}
       />
       <div className={styles.commentBody}>
         <div className={styles.commentHead}>
@@ -2915,19 +3063,25 @@ function CommentItem({
           )}
           <span className={styles.spacer} />
           {mine && !editing && refused === null && !asking && (
-            <button className={styles.commentUse} title="Edit this comment" onClick={open}>
-              Edit
-            </button>
+            <IconButton
+              className={styles.commentUse}
+              label="Edit"
+              title="Edit this comment"
+              onClick={open}
+            >
+              <PencilIcon />
+            </IconButton>
           )}
           {(mine || admin) && !asking && (
-            <button
+            <IconButton
+              danger
               className={styles.commentDelete}
-              aria-label={mine ? "Delete comment" : `Delete ${author}'s comment`}
+              label={mine ? "Delete comment" : `Delete ${author}'s comment`}
               title="Delete"
               onClick={() => setAsking(true)}
             >
               ✕
-            </button>
+            </IconButton>
           )}
         </div>
         {asking ? (
