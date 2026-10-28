@@ -271,9 +271,11 @@ test.describe("Settings pages", () => {
     }
     expect((await look("v3")).bottom).toBe("0px");
 
-    // Status carries no dates, so its options stay pills with an outline.
+    // Status carries no dates, so its options stay chips: no outline, a
+    // ground of their own and round corners.
     const pill = await look("Done");
-    expect(pill.top).toBe("1px");
+    expect(pill.top).toBe("0px");
+    expect(pill.fill).not.toBe("rgba(0, 0, 0, 0)");
     expect(pill.radius).not.toBe("0px");
 
     await propertyBox(page, "Version").scrollIntoViewIfNeeded();

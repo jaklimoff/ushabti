@@ -120,9 +120,9 @@ export function CardEditor({
           ) : (
             <>
               <div className={styles.cardHead}>
-                <span className={styles.cardHeadName}>Shows on the card</span>
+                <span className={styles.cardHeadName}>On the card</span>
                 <span className={styles.cardHeadType}>Type</span>
-                <span className={styles.cardHeadPlace}>On card</span>
+                <span className={styles.cardHeadPlace}>Place</span>
               </div>
 
               {cardItems.map((item) => (

@@ -30,6 +30,7 @@ import { Button, IconButton, Pill } from "@/components/ui/Button";
 import { Checkbox, Input, Label, NameInput, Select, TextArea } from "@/components/ui/Form";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
+import { Chevron } from "@/components/ui/Marks";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { PALETTE, colorName } from "@/lib/colors";
@@ -342,33 +343,43 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
             }}
           />
         </div>
+        {/* What it is, then the role it plays. A dated select is still a
+            select, so "dated" is a fact about it and reads as its type does;
+            only a role takes the accent and its dot. */}
         <div className={styles.propTags}>
           <Tag title={PROPERTY_TYPE_HINT[property.type]}>{PROPERTY_TYPE_LABEL[property.type]}</Tag>
           {dated && property.type !== "iteration" && (
-            <Tag accent title="Each option has a start and a target date">
-              dated
-            </Tag>
+            <Tag title="Each option has a start and a target date">dated</Tag>
           )}
           {rolesOf(property, data).map((role) => (
-            <Tag key={role} accent title="The role this property plays for the whole board">
+            <Tag
+              key={role}
+              accent
+              dot="var(--accent)"
+              title="The role this property plays for the whole board"
+            >
               {ROLE_NAME[role]}
             </Tag>
           ))}
         </div>
         <UsedFor property={property} data={data} />
+        {/* Said at rest, because it is how a newcomer learns that a property
+            can be conditional. It sits with the words, away from the ✕ that
+            deletes the property. */}
+        {!property.config.when &&
+          !whenOpen &&
+          canEdit &&
+          whenCandidates(property, data.properties).length > 0 && (
+            <Button
+              variant="text"
+              className={styles.propWhen}
+              title="Show this property only on some types or values"
+              onClick={() => setWhenOpen(true)}
+            >
+              Show only when…
+            </Button>
+          )}
         <div className={styles.propTools} data-testid="property-tools">
-          {!property.config.when &&
-            !whenOpen &&
-            canEdit &&
-            whenCandidates(property, data.properties).length > 0 && (
-              <Button
-                variant="text"
-                title="Show this property only on some types or values"
-                onClick={() => setWhenOpen(true)}
-              >
-                Show only when…
-              </Button>
-            )}
           {canEdit && (
             <IconButton
               danger
@@ -386,7 +397,7 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
         <CadenceRow property={property} canEdit={canEdit} />
       )}
       {(property.config.when || whenOpen) && (
-        <WhenRow property={property} canEdit={canEdit} onClose={() => setWhenOpen(false)} />
+        <WhenRow property={property} canEdit={canEdit} open={whenOpen} onOpen={setWhenOpen} />
       )}
       {hasOptions(property.type) && dropConfirm.asking && dropping && (
         <ConfirmRow
@@ -568,9 +579,10 @@ function DonePanel({ property, canEdit }: { property: PropertyDTO; canEdit: bool
   }
 
   return (
-    <RolePanel label="Done when" note="A done task frees what it blocks, fills progress and ships.">
-      {canEdit && (
-        <RoleRow label="Done when">
+    <RolePanel
+      label="Done when"
+      head={
+        canEdit && (
           <Checkbox
             role="switch"
             label={`${property.name} says when a task is done`}
@@ -578,8 +590,10 @@ function DonePanel({ property, canEdit }: { property: PropertyDTO; canEdit: bool
             disabled={saving || sending !== null}
             onChange={() => void turnOff()}
           />
-        </RoleRow>
-      )}
+        )
+      }
+      said="A done task frees what it blocks, fills progress and ships."
+    >
       <RoleRow label="Counts as done">
         <div
           role="group"
@@ -658,9 +672,10 @@ function ReleasesPanel({ property, canEdit }: { property: PropertyDTO; canEdit: 
     );
 
   return (
-    <RolePanel label="The releases" note="Ship and the changelog read it.">
-      <RoleRow label="The releases">
-        {canEdit ? (
+    <RolePanel
+      label="The releases"
+      head={
+        canEdit ? (
           <Checkbox
             role="switch"
             label={`${property.name} is the releases`}
@@ -670,9 +685,10 @@ function ReleasesPanel({ property, canEdit }: { property: PropertyDTO; canEdit: 
           />
         ) : (
           <span>{property.name} is the releases.</span>
-        )}
-      </RoleRow>
-    </RolePanel>
+        )
+      }
+      said="Ship and the changelog read it."
+    />
   );
 }
 
@@ -709,9 +725,10 @@ function SprintsPanel({ property, canEdit }: { property: PropertyDTO; canEdit: b
     );
 
   return (
-    <RolePanel label="The sprints">
-      <RoleRow label="The sprints" note="Close makes the next one.">
-        {canEdit ? (
+    <RolePanel
+      label="The sprints"
+      head={
+        canEdit ? (
           <Checkbox
             role="switch"
             label={`${property.name} is the sprints`}
@@ -721,8 +738,10 @@ function SprintsPanel({ property, canEdit }: { property: PropertyDTO; canEdit: b
           />
         ) : (
           <span>{property.name} is the sprints.</span>
-        )}
-      </RoleRow>
+        )
+      }
+      said="Close makes the next one."
+    >
       <RoleRow label="Cadence">
         <CadenceBox
           property={property}
@@ -769,7 +788,13 @@ function OptionChip({
 
   return (
     <span
-      className={`${styles.option} ${isDragging ? styles.rowLifted : ""}`}
+      className={[
+        styles.option,
+        dated ? "" : styles.optionTight,
+        isDragging ? styles.rowLifted : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       ref={(node) => {
         ref.current = node;
         setNodeRef(node);
@@ -919,8 +944,13 @@ function OptionPlan({
       <OptionField option={option} field="targetAt" label="Target" type="date" />
       <OptionField option={option} field="note" label="Note" type="text" />
       {option.shippedAt && (
-        <span className={styles.optionShipped} title={`Shipped ${formatDate(option.shippedAt)}`}>
-          {shippedOn(option.shippedAt)}
+        <span className={styles.optionShipped}>
+          <span
+            className={styles.optionShippedOn}
+            title={`Shipped ${formatDate(option.shippedAt)}`}
+          >
+            {shippedOn(option.shippedAt)}
+          </span>
           {/* Unship is an admin's, so a member reads the date and nothing more. */}
           {canEdit && (
             <button
@@ -1051,8 +1081,10 @@ function UsedFor({ property, data }: { property: PropertyDTO; data: BoardData })
   if (boards.length) parts.push(`Columns of ${boards.join(", ")}`);
   if (roadmaps.length) parts.push(`Rows of ${roadmaps.join(", ")}`);
   if (!parts.length) return null;
+  /* One line, cut at the end, so a long list of views never makes the head
+     two lines tall. The whole of it is in the title. */
   return (
-    <span className={styles.propUse} data-testid="property-use">
+    <span className={styles.propUse} data-testid="property-use" title={parts.join(" · ")}>
       {parts.map((part, i) => (
         <span key={i}>
           {i > 0 && <span className={styles.propUseDot}> · </span>}
@@ -1381,15 +1413,23 @@ function whenCandidates(property: PropertyDTO, all: PropertyDTO[]): PropertyDTO[
  * "Shown when Type is Bug or Story": a select, then its options. Each tick
  * saves at once, as the dated switch does. Untick the last one and the rule
  * goes, because an empty set would read as always shown anyway.
+ *
+ * A rule at rest is one chip that says it in words; a press opens it, and
+ * the open row reads as the same sentence with boxes in it, so the words are
+ * not said twice. The way out is a word, never a ✕ beside the ✕ that
+ * deletes the property.
  */
 function WhenRow({
   property,
   canEdit,
-  onClose,
+  open,
+  onOpen,
 }: {
   property: PropertyDTO;
   canEdit: boolean;
-  onClose: () => void;
+  /** Whether the boxes are out. A new rule starts open. */
+  open: boolean;
+  onOpen: (open: boolean) => void;
 }) {
   const { data } = useBoard();
   const { rule, asking, toggle, write, confirm, cancel } = useWhenWrite(property);
@@ -1399,20 +1439,45 @@ function WhenRow({
   const [picked, setPicked] = useState<string | null>(null);
   const shownBy = candidates.find((p) => p.id === (picked ?? rule?.propertyId)) ?? null;
   const ticked = rule && shownBy && rule.propertyId === shownBy.id ? rule.optionIds : [];
+  const editing = canEdit && (open || !rule);
 
   function clear() {
     setPicked(null);
-    onClose();
+    onOpen(false);
     if (rule) void write(null);
   }
 
   return (
-    <div className={styles.when}>
-      <span className={styles.whenSaid} data-testid="when-said">
-        {rule ? whenSaid(rule, data.properties) : "Shown when"}
-      </span>
+    <div
+      className={styles.when}
+      onKeyDown={(e) => {
+        /* Escape folds a rule back into its chip; a new one has nothing to
+           fold into, so it goes. */
+        if (e.key !== "Escape" || !editing || asking) return;
+        if (rule) onOpen(false);
+        else clear();
+      }}
+    >
+      {rule && canEdit ? (
+        <button
+          type="button"
+          className={`${styles.whenChip} ${open ? styles.whenChipOpen : ""}`}
+          aria-expanded={open}
+          title={open ? "Fold the rule" : "Change the rule"}
+          onClick={() => onOpen(!open)}
+        >
+          <span data-testid="when-said">
+            {open ? "Shown when" : whenSaid(rule, data.properties)}
+          </span>
+          <Chevron size={10} className={styles.whenChipCaret} />
+        </button>
+      ) : (
+        <span className={styles.whenSaid} data-testid="when-said">
+          {rule ? whenSaid(rule, data.properties) : "Shown when"}
+        </span>
+      )}
       {/* The grid on the types property reads every such rule at once. */}
-      {rule && rule.propertyId === data.project.typeBy && (
+      {rule && !editing && rule.propertyId === data.project.typeBy && (
         <a
           className={styles.whenLink}
           href={`#${propertyAnchor(rule.propertyId)}`}
@@ -1424,7 +1489,7 @@ function WhenRow({
           See the types
         </a>
       )}
-      {canEdit && (
+      {editing && (
         <>
           <Select
             aria-label={`Shown when of ${property.name}`}
@@ -1436,6 +1501,7 @@ function WhenRow({
               ...candidates.map((p) => ({ value: p.id, label: p.name })),
             ]}
           />
+          {shownBy && <span className={styles.whenIs}>is</span>}
           {shownBy &&
             [...shownBy.options.map((o) => o.id), NO_VALUE_KEY].map((id) => (
               <Checkbox
@@ -1445,13 +1511,15 @@ function WhenRow({
                 onChange={(e) => void toggle(shownBy, id, e.target.checked)}
               />
             ))}
-          <IconButton
-            label={rule ? `Always show ${property.name}` : "Cancel"}
-            title={rule ? "Clear the rule: always show this property" : "Cancel"}
+          <Button
+            variant="text"
+            className={styles.whenOut}
+            aria-label={rule ? `Always show ${property.name}` : "Cancel"}
+            title={rule ? "Clear the rule: always show this property" : undefined}
             onClick={clear}
           >
-            ✕
-          </IconButton>
+            {rule ? "Always show" : "Cancel"}
+          </Button>
         </>
       )}
       {asking && (

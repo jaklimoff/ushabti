@@ -171,7 +171,9 @@ describe("Custom properties", () => {
       const tools = status.getByTestId("property-tools");
       /* No switch for dates: the releases and sprints tiles say that now. */
       await gone(tools.getByLabelText("Options carry dates"));
-      const when = tools.getByRole("button", { name: "Show only when…" });
+      /* Show only when sits with the words of the head, away from the ✕. */
+      const when = status.getByRole("button", { name: "Show only when…" });
+      expect(tools.getByRole("button", { name: "Show only when…" }).elements()).toHaveLength(0);
       await expect.element(when).toBeVisible();
       await expect
         .element(tools.getByRole("button", { name: "Delete the property Status" }))
@@ -323,11 +325,15 @@ describe("Custom properties", () => {
     expect(optionOrder(prop)).toEqual(["Urgent", "High", "Medium", "Low"]);
 
     const from = box(prop.getByRole("button", { name: "Move the option Low" }));
+    const low = box(prop.getByLabelText("Name of the option Low"));
     const to = box(prop.getByLabelText("Name of the option Urgent"));
-    await commands.drag(
-      { x: from.x + from.width / 2, y: from.y + from.height / 2 },
-      { x: to.x + to.width / 2, y: to.y + to.height / 2 },
-    );
+    /* The grip sits beside the chip, so the drop is aimed by the chip's name:
+       Low's name lands where Urgent's is. */
+    const grab = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
+    await commands.drag(grab, {
+      x: to.x + to.width / 2 - (low.x + low.width / 2 - grab.x),
+      y: to.y + to.height / 2,
+    });
     await wrote(() => sent("PATCH", OPTION), 1);
     expect(optionOrder(prop)).toEqual(["Low", "Urgent", "High", "Medium"]);
     expect(sent("PATCH", OPTION)[0].body).toEqual({ afterId: null });
@@ -721,9 +727,11 @@ describe("The role strip", () => {
       "The sprints Not set No sprints. Use sprints",
     ]);
     expect(byTestId("role-strip").element().querySelector("a")).toBeNull();
-    expect(document.querySelectorAll('[data-testid="property-box"] span[title]').length).toBe(
-      data.properties.length,
-    );
+    expect(
+      document.querySelectorAll(
+        '[data-testid="property-box"] span[title]:not([data-testid="property-use"])',
+      ).length,
+    ).toBe(data.properties.length);
   });
 
   const writes = (sent: () => Sent[]) => sent().filter((r) => r.method !== "GET");

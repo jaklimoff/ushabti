@@ -217,10 +217,8 @@ describe("The types grid", () => {
         .getByRole("button", { name: /^Assignee on Bug starts/ })
         .elements(),
     ).toHaveLength(0);
-    await says(
-      grid().getByRole("button", { name: "Priority on Story starts empty" }),
-      "starts empty",
-    );
+    // An empty start is not said in every cell; the button offers one.
+    await says(grid().getByRole("button", { name: "Priority on Story starts empty" }), "+ start");
 
     await minor.click();
     const starts = grid().getByTestId("types-grid-starts");

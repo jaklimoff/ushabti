@@ -139,7 +139,8 @@ function DefaultCard() {
       title="Default card"
       action={
         <Button variant="ghost" aria-expanded={editing} onClick={() => setEditing((on) => !on)}>
-          {editing ? "Done" : "Edit the default card"}
+          {/* Not "Done": nothing here waits for a press to be saved. */}
+          {editing ? "Close editor" : "Edit the default card"}
         </Button>
       }
     >
@@ -374,22 +375,31 @@ function ViewRow({
           )}
           {/* What the row hides when it is shut: whose card it draws and what
             it hides from everybody. A roadmap draws no card. */}
+          {/* One line, so every row is one height and the column starts at one
+              x: a roadmap says it has no card rather than leaving a hole. */}
           <span className={`${styles.viewPair} ${styles.viewCard}`} data-testid="view-summary">
-            {draws && (
-              <Tag
-                title={
-                  own
+            <span
+              className={!draws ? styles.viewCardNone : own ? styles.viewCardOwn : undefined}
+              title={
+                !draws
+                  ? "A roadmap draws bars, not cards."
+                  : own
                     ? "This view keeps a card of its own."
                     : "This view draws the project's default card."
-                }
-              >
-                {own ? "own card" : "default card"}
-              </Tag>
-            )}
-            <span className={styles.viewFilters}>
+              }
+            >
+              {!draws ? "No card" : own ? "Own card" : "Default card"}
+            </span>
+            <span className={styles.viewCardDot} aria-hidden>
+              ·
+            </span>
+            <span
+              className={styles.viewFilters}
+              title={rules.length ? "Everybody who opens this view sees these filters." : undefined}
+            >
               {rules.length === 0
                 ? "no filters"
-                : `${rules.length} ${rules.length === 1 ? "filter" : "filters"} for everyone`}
+                : `${rules.length} ${rules.length === 1 ? "filter" : "filters"}`}
             </span>
           </span>
         </div>
@@ -436,7 +446,11 @@ function ViewRow({
           {view.kind === "board" && <StartsFolded view={view} />}
           {draws && (
             <section className={styles.viewPart} aria-label={`Card of ${view.name}`}>
-              <h3 className={styles.viewPartHead}>Its card</h3>
+              {/* A list draws the same card view as columns, so that is what it
+                  is called here. */}
+              <h3 className={styles.viewPartHead}>
+                {view.kind === "list" ? "Its columns" : "Its card"}
+              </h3>
               {/* Throwing a copy away loses what somebody arranged, so it asks
                 in place, as deleting does. */}
               {unCopy.asking ? (
@@ -469,7 +483,9 @@ function ViewRow({
                   </Note>
                 </div>
               )}
-              <CardEditor viewId={view.id} bare />
+              {/* A board view shows one card at the board's size above the
+                  drawing, as the board's own Card panel does. */}
+              <CardEditor viewId={view.id} bare sample={view.kind === "board"} />
             </section>
           )}
         </div>

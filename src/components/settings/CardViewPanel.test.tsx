@@ -436,7 +436,7 @@ describe("The card drawn big", () => {
       .toHaveAttribute("aria-pressed", "true");
 
     // The edge is a switch, and the chip moves to the rail.
-    await pop.getByRole("switch", { name: "Colour the edge of the card" }).click();
+    await pop.getByRole("switch", { name: "Colour the card's edge" }).click();
     await wrote(() => sent("PATCH", PROJECT_CARD), 2);
     expect(placeOf(sent("PATCH", PROJECT_CARD)[1], priority.id)).toBe("edge");
     await expect

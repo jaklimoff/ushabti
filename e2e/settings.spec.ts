@@ -58,8 +58,8 @@ test.describe("Settings", () => {
     await gotoSettings(page, projectId, "views");
     await hydrated(page.getByLabel("Name of the view Board"));
     const summaries = page.getByTestId("view-summary");
-    await expect(summaries.nth(0)).toHaveText("default card1 filter for everyone");
-    await expect(summaries.nth(1)).toHaveText("default cardno filters");
+    await expect(summaries.nth(0)).toHaveText("Default card·1 filter");
+    await expect(summaries.nth(1)).toHaveText("Default card·no filters");
 
     await summaries.nth(0).click();
     await expect(page.getByRole("button", { name: "Close the view Board" })).toHaveAttribute(

@@ -107,7 +107,7 @@ test.describe("Card view", () => {
       "aria-pressed",
       "true",
     );
-    await expect(pop.getByRole("switch", { name: "Colour the edge of the card" })).toBeVisible();
+    await expect(pop.getByRole("switch", { name: "Colour the card's edge" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("seen-chip-popover.png") });
 
     // An off chip goes back in from its own popover.

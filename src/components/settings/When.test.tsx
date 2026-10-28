@@ -165,9 +165,13 @@ describe("A property says when it shows", () => {
     await expect.element(bugBox).toBeChecked();
     await expect.poll(() => sent("PATCH", PROPERTY).length).toBe(1);
     await storyBox.click();
+    // Open, the boxes finish the sentence; folded, the chip says all of it.
+    await expect.element(box.getByTestId("when-said")).toHaveTextContent("Shown when");
+    await box.getByRole("button", { name: /^Shown when/ }).click();
     await expect
       .element(box.getByTestId("when-said"))
       .toHaveTextContent("Shown when Type is Bug or Story");
+    await box.getByRole("button", { name: /^Shown when/ }).click();
     await expect.poll(() => sent("PATCH", PROPERTY).length).toBe(2);
     expect(sent("PATCH", PROPERTY)[1].path).toBe(`/api/properties/${priority.id}`);
     // What the server keeps of it is the route's to say.

@@ -532,11 +532,18 @@ function ChipPopover({
               title={mode.label}
               onClick={() => onMode(mode.id)}
             >
-              <Sample
-                items={items}
-                item={{ ...item, mode: mode.id, place: sampleAt }}
-                task={task}
-              />
+              <span className={styles.modeSampleDraw}>
+                <Sample
+                  items={items}
+                  item={{ ...item, mode: mode.id, place: sampleAt }}
+                  task={task}
+                />
+              </span>
+              {/* The same word the list's editor uses, so one choice has one
+                  name wherever it is made. */}
+              <span className={styles.modeSampleName} aria-hidden>
+                {mode.label}
+              </span>
             </button>
           ))}
         </span>
@@ -546,7 +553,7 @@ function ChipPopover({
         <div className={styles.chipPopField}>
           <Checkbox
             role="switch"
-            label="Colour the edge of the card"
+            label="Colour the card's edge"
             checked={onEdge}
             onChange={() => onPlace(onEdge ? OFF_EDGE : "edge")}
           />

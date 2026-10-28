@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBoard } from "@/components/board/store";
 import { canStartAs, readWhens, whenSaid } from "@/lib/when";
 import { NO_VALUE_KEY, type PropertyDTO, type TaskValue, type When } from "@/lib/types";
-import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Form";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
-import { RolePanel, RoleRow } from "./RolePanel";
+import { RolePanel } from "./RolePanel";
 import { StartsAs } from "./StartsAs";
 import { useWhenWrites } from "./useWhenWrite";
 import styles from "./settings.module.css";
@@ -20,6 +20,7 @@ import styles from "./settings.module.css";
  * It stores nothing of its own. A tick is a reading of the property's `when`,
  * and a press writes that rule through the one hook every page uses, which
  * asks first with the count. The question sits under the grid, one at a time.
+ * What a type starts as opens in a row under the property that asked.
  */
 export function TypesGrid({ type, canEdit }: { type: PropertyDTO; canEdit: boolean }) {
   const { data, send, refresh, notify } = useBoard();
@@ -63,9 +64,10 @@ export function TypesGrid({ type, canEdit }: { type: PropertyDTO; canEdit: boole
   }
 
   return (
-    <RolePanel label="The types">
-      <RoleRow label="The types" note="A task shows the properties its type ticks.">
-        {canEdit ? (
+    <RolePanel
+      label="The types"
+      head={
+        canEdit ? (
           <Checkbox
             role="switch"
             label="Each option is a type"
@@ -75,11 +77,20 @@ export function TypesGrid({ type, canEdit }: { type: PropertyDTO; canEdit: boole
           />
         ) : (
           <span>Each option of {type.name} is a type.</span>
-        )}
-      </RoleRow>
+        )
+      }
+      said={
+        <>
+          A task shows the properties its type ticks.
+          {canEdit && " Unticking takes values away. You are asked first, with the count."}
+        </>
+      }
+    >
       {type.options.length > 0 && rows.length > 0 && (
         <div className={styles.typeGridScroll} data-testid="types-grid">
-          <table className={styles.typeGrid}>
+          {/* The grid is mostly ticks, so a tick is quiet and the gaps are what
+              the eye finds: a type that hides a property says so in words. */}
+          <table className={styles.typeGrid} style={{ minWidth: 160 + type.options.length * 104 }}>
             <thead>
               <tr>
                 <th scope="col" className={styles.typeGridHead}>
@@ -107,62 +118,94 @@ export function TypesGrid({ type, canEdit }: { type: PropertyDTO; canEdit: boole
                   );
                 const ticked = when ? when.optionIds : all;
                 const tickedTypes = all.filter((id) => ticked.includes(id));
+                const startsHere = canEdit && open?.propertyId === property.id;
                 return (
-                  <tr key={property.id}>
-                    <th scope="row" className={styles.typeGridName}>
-                      {property.name}
-                    </th>
-                    {type.options.map((o) => {
-                      const on = ticked.includes(o.id);
-                      /* The last type is not taken away here: what shows then
-                         is a question for the property's own row. */
-                      const last = on && tickedTypes.length === 1;
-                      const starts = property.config.defaults?.[o.id] ?? null;
-                      const isOpen = open?.propertyId === property.id && open.optionId === o.id;
-                      return (
-                        <td key={o.id} className={styles.typeGridCell}>
-                          <Checkbox
-                            label=""
-                            aria-label={`${property.name} on ${o.name}`}
-                            checked={on}
-                            disabled={!canEdit || last}
-                            onChange={() => press(property, o.id, !on)}
-                          />
-                          {on && canStartAs(property.type) && (
-                            <StartsSaid
-                              said={startsSaid(property, starts)}
-                              label={`${property.name} on ${o.name} starts`}
-                              open={isOpen}
-                              canEdit={canEdit}
-                              onPress={() =>
-                                setOpen(isOpen ? null : { propertyId: property.id, optionId: o.id })
+                  <Fragment key={property.id}>
+                    <tr className={startsHere ? styles.typeGridRowOpen : undefined}>
+                      <th scope="row" className={styles.typeGridName}>
+                        {property.name}
+                      </th>
+                      {type.options.map((o) => {
+                        const on = ticked.includes(o.id);
+                        /* The last type is not taken away here: what shows then
+                           is a question for the property's own row. */
+                        const last = on && tickedTypes.length === 1;
+                        const starts = property.config.defaults?.[o.id] ?? null;
+                        const isOpen = open?.propertyId === property.id && open.optionId === o.id;
+                        return (
+                          <td
+                            key={o.id}
+                            className={`${styles.typeGridCell} ${on ? "" : styles.typeGridOff} ${isOpen ? styles.typeGridCellOpen : ""}`}
+                          >
+                            <Checkbox
+                              className={styles.typeCheck}
+                              label={
+                                on ? "" : <span className={styles.typeGridHidden}>hidden</span>
                               }
+                              aria-label={`${property.name} on ${o.name}`}
+                              checked={on}
+                              disabled={!canEdit || last}
+                              onChange={() => press(property, o.id, !on)}
                             />
-                          )}
+                            {on && canStartAs(property.type) && (
+                              <StartsSaid
+                                said={startsSaid(property, starts)}
+                                label={`${property.name} on ${o.name} starts`}
+                                open={isOpen}
+                                canEdit={canEdit}
+                                onPress={() =>
+                                  setOpen(
+                                    isOpen ? null : { propertyId: property.id, optionId: o.id },
+                                  )
+                                }
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {/* What a new task starts as opens under the row that asked,
+                        so the answer sits beside the question. */}
+                    {startsHere && opened && openedType && canStartAs(opened.type) && (
+                      <tr className={styles.typeGridStartsRow}>
+                        <td colSpan={type.options.length + 1}>
+                          <div
+                            className={styles.typeGridStarts}
+                            data-testid="types-grid-starts"
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape" && !e.defaultPrevented) setOpen(null);
+                            }}
+                          >
+                            <span className={styles.typeGridStartsWho}>
+                              <span
+                                className={styles.typeDot}
+                                style={{ background: openedType.color }}
+                              />
+                              {openedType.name}
+                            </span>
+                            <StartsAs
+                              key={`${opened.id}:${openedType.id}`}
+                              property={opened}
+                              optionId={openedType.id}
+                              canEdit
+                            />
+                            <IconButton
+                              className={styles.typeGridStartsClose}
+                              label={`Close what ${openedType.name} starts as`}
+                              title="Close"
+                              onClick={() => setOpen(null)}
+                            >
+                              ✕
+                            </IconButton>
+                          </div>
                         </td>
-                      );
-                    })}
-                  </tr>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
           </table>
-        </div>
-      )}
-      {canEdit && opened && openedType && canStartAs(opened.type) && (
-        <div className={styles.typeGridStarts} data-testid="types-grid-starts">
-          <span>
-            <b>{opened.name}</b> on <b>{openedType.name}</b>
-          </span>
-          <StartsAs
-            key={`${opened.id}:${openedType.id}`}
-            property={opened}
-            optionId={openedType.id}
-            canEdit
-          />
-          <Button variant="text" onClick={() => setOpen(null)}>
-            Done
-          </Button>
         </div>
       )}
       {writes.asking && askedOf && (
@@ -174,11 +217,6 @@ export function TypesGrid({ type, canEdit }: { type: PropertyDTO; canEdit: boole
             onCancel={writes.cancel}
           />
         </div>
-      )}
-      {canEdit && (
-        <span className={styles.rolePanelRowNote}>
-          Unticking takes values away. You are asked first, with the count.
-        </span>
       )}
     </RolePanel>
   );
@@ -198,9 +236,12 @@ function StartsSaid({
   canEdit: boolean;
   onPress: () => void;
 }) {
+  /* Empty is what nearly every cell starts as, so it is not said in each one:
+     the way to set a start shows under the pointer or the keys. */
+  if (said === null && !canEdit) return null;
   const words =
     said === null ? (
-      <>starts empty</>
+      <>+ start</>
     ) : (
       <>
         starts <b>{said}</b>
@@ -210,7 +251,7 @@ function StartsSaid({
   return (
     <button
       type="button"
-      className={styles.typeGridStartsSaid}
+      className={`${styles.typeGridStartsSaid} ${said === null ? styles.typeGridStartsNone : ""}`}
       aria-label={`${label} ${said ?? "empty"}`}
       aria-expanded={open}
       onClick={onPress}

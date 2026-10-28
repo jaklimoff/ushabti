@@ -178,10 +178,10 @@ describe("A view row says its card and its filters", () => {
     await expect.element(page.getByRole("heading", { name: "Views", level: 2 })).toBeVisible();
     await expect.element(page.getByText("3", { exact: true })).toBeVisible();
 
-    await expect.poll(() => summary("Board")?.textContent).toBe("own card2 filters for everyone");
-    expect(summary("Phases")?.textContent).toBe("default cardno filters");
-    // A roadmap draws no card, so it says nothing about one.
-    expect(summary("Road")?.textContent).toBe("no filters");
+    await expect.poll(() => summary("Board")?.textContent).toBe("Own card·2 filters");
+    expect(summary("Phases")?.textContent).toBe("Default card·no filters");
+    // A roadmap draws no card, and says so, so the column keeps its place.
+    expect(summary("Road")?.textContent).toBe("No card·no filters");
     // The old way to the card page has left the row.
     expect(page.getByRole("link", { name: /^Card view of / }).elements()).toHaveLength(0);
   });
@@ -283,7 +283,7 @@ describe("A view row says its card and its filters", () => {
     await wrote(() => sent("PATCH", /^\/api\/projects\/[0-9a-f-]+\/card-view$/), 1);
     expect(sent("PATCH", /^\/api\/views\/[0-9a-f-]+\/card-view$/)).toEqual([]);
 
-    await page.getByRole("button", { name: "Done" }).click();
+    await page.getByRole("button", { name: "Close editor" }).click();
     await gone(top.getByRole("group", { name: "Arrange the card as" }));
     await expect.poll(() => top.getByTestId("card").elements().length).toBe(1);
   });
