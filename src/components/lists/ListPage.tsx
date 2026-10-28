@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { longAgo } from "@/lib/board";
 import type { ListGroup } from "@/lib/lists";
 import { ButtonPageLink } from "@/components/ui/Button";
-import { Card, EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
+import { Card, EmptyState, PageHead, PageShell, TaskLine } from "@/components/ui/Layout";
 import { ProjectMark } from "@/components/ui/Marks";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { AppBar, AppCrumb } from "@/components/ui/AppBar";
@@ -65,46 +64,45 @@ export function ListPage({
             {group.rows.length === 0 ? (
               <p className={styles.none}>No task passes these rules.</p>
             ) : (
-              <ul className={styles.rows}>
+              <Card>
                 {group.rows.map((row) => (
-                  <li key={row.id}>
-                    <Link
-                      href={`/p/${row.projectId}?task=${row.key}`}
-                      className={styles.row}
-                      data-testid="list-row"
-                    >
-                      <span className={styles.rowKey}>{row.key}</span>
-                      <span className={styles.rowTitle}>{row.title}</span>
-                      {row.waiting && (
-                        <span className={styles.waiting} data-testid="list-row-waiting">
-                          Waiting for you
-                        </span>
-                      )}
-                      {row.agent && (
-                        <span
-                          className={styles.agent}
-                          title={row.silent ? "Not heard from for a while" : "At work on it"}
-                        >
-                          {row.agent}
-                        </span>
-                      )}
-                      {row.chip && (
-                        <span className={styles.chip}>
+                  <TaskLine
+                    key={row.id}
+                    data-testid="list-row"
+                    taskKey={row.key}
+                    title={row.title}
+                    href={`/p/${row.projectId}?task=${row.key}`}
+                    meta={
+                      <>
+                        {row.waiting && (
+                          <span className={styles.waiting} data-testid="list-row-waiting">
+                            Waiting for you
+                          </span>
+                        )}
+                        {row.agent && (
                           <span
-                            className={styles.dot}
-                            style={{ background: row.chip.color }}
-                            aria-hidden
-                          />
-                          {row.chip.text}
-                        </span>
-                      )}
-                      <span className={styles.age} suppressHydrationWarning>
-                        {longAgo(row.createdAt, now)}
-                      </span>
-                    </Link>
-                  </li>
+                            className={styles.agent}
+                            title={row.silent ? "Not heard from for a while" : "At work on it"}
+                          >
+                            {row.agent}
+                          </span>
+                        )}
+                        {row.chip && (
+                          <span className={styles.chip}>
+                            <span
+                              className={styles.dot}
+                              style={{ background: row.chip.color }}
+                              aria-hidden
+                            />
+                            {row.chip.text}
+                          </span>
+                        )}
+                        <span suppressHydrationWarning>{longAgo(row.createdAt, now)}</span>
+                      </>
+                    }
+                  />
                 ))}
-              </ul>
+              </Card>
             )}
           </section>
         ))}

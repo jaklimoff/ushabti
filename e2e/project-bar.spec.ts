@@ -56,14 +56,17 @@ test.describe("A project's top bar", () => {
     await page.screenshot({ path: testInfo.outputPath("seen-settings-bar.png") });
   });
 
-  test("pages with no project keep the mark and the word", async ({ page }) => {
+  test("pages with no project lead Home once, from the sidebar", async ({ page }) => {
     await register(page, "Bar Keeper");
     await twoProjects(page);
     for (const path of ["/projects", "/account", "/lists/new"]) {
       await page.goto(path);
-      const home = where(page).getByRole("link", { name: "Ushabti" });
-      await expect(home, path).toBeVisible();
-      await expect(home, path).toHaveAttribute("href", "/projects");
+      /* The sidebar's mark leads Home, so the bar does not repeat it. */
+      await expect(
+        sidebar(page).getByRole("link", { name: "Home", exact: true }),
+        path,
+      ).toHaveAttribute("href", "/projects");
+      await expect(where(page).getByRole("link", { name: "Ushabti" }), path).toHaveCount(0);
     }
   });
 

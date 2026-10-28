@@ -123,7 +123,7 @@ test.describe("The project list shows how every project is going", () => {
 
     await page.goto("/projects");
     const card = page.locator(`[data-testid="project-card"] > a[href="/p/${projectId}"]`);
-    await expect(card.getByTestId("project-waiting")).toHaveText("2 waiting");
+    await expect(card.getByTestId("project-waiting")).toHaveText("2 for you");
     /* The strip over the projects says it once, and leads to the board. */
     const strip = page.getByRole("navigation", { name: "Waiting for you" });
     await expect(strip).toContainText("2 waiting for you");

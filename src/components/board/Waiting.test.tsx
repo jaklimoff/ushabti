@@ -133,19 +133,19 @@ describe("The questions that wait on a person", () => {
     });
     await renderWithBoard(<BoardShell initialTask={null} />, data, details(data));
 
-    await expect.element(count).toHaveTextContent("2 waiting");
+    await expect.element(count).toHaveTextContent("2 for you");
     await expect.element(card("Newer question")).toBeVisible();
     await gone(card("Older question"));
 
     // Folding the column hides the newer one as well.
     await page.getByRole("button", { name: "Fold the column Todo" }).click();
     await gone(card("Newer question"));
-    await expect.element(count).toHaveTextContent("2 waiting");
+    await expect.element(count).toHaveTextContent("2 for you");
 
     // A list counts the same.
     await byTestId("view-pill").filter({ hasText: "Rows" }).click();
     await expect.element(byTestId("list-view")).toBeVisible();
-    await expect.element(count).toHaveTextContent("2 waiting");
+    await expect.element(count).toHaveTextContent("2 for you");
     await count.click();
     await expect.poll(() => rows.elements().length).toBe(2);
   });
@@ -155,7 +155,7 @@ describe("The questions that wait on a person", () => {
     const { ring } = await renderWithBoard(<BoardShell initialTask={null} />, data, details(data));
 
     try {
-      await expect.element(count).toHaveTextContent("3 waiting");
+      await expect.element(count).toHaveTextContent("3 for you");
       await count.click();
       await expect.poll(() => rows.elements().length).toBe(3);
       await userEvent.keyboard("{ArrowDown}");
@@ -188,7 +188,7 @@ describe("The questions that wait on a person", () => {
       const { data } = askTwice();
       await renderWithBoard(<BoardShell initialTask={null} />, data, details(data));
 
-      await expect.element(count).toHaveTextContent("2 waiting");
+      await expect.element(count).toHaveTextContent("2 for you");
       expect(pastTheBar()).toBe(0);
 
       await count.click();

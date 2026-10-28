@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
+import { tokenAgo, tokenExpiry } from "@/lib/token-dates";
 import type { PersonalTokenDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
@@ -17,38 +18,6 @@ const EXPIRIES = [
   { value: "365", label: "1 year" },
   { value: "never", label: "Never" },
 ];
-
-const DAY_MS = 86_400_000;
-/* An expiry this close is worth a colour: the script stops soon. */
-const SOON_DAYS = 14;
-
-/* Written out by hand, because a browser's own short month differs by
-   version ("Sep" or "Sept"), and the list should read the same everywhere. */
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function day(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-/** Whole days back, as Settings writes an agent's token, then a date past a month. */
-function ago(iso: string, now: number): string {
-  const days = Math.floor((now - new Date(iso).getTime()) / DAY_MS);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 31) return `${days} days ago`;
-  return day(iso);
-}
-
-/** How far off the end is. Near, it counts the days; far, it names the date. */
-function expiry(iso: string | null, now: number): { text: string; soon: boolean } {
-  if (!iso) return { text: "never expires", soon: false };
-  const days = Math.ceil((new Date(iso).getTime() - now) / DAY_MS);
-  if (days > SOON_DAYS) return { text: `expires ${day(iso)}`, soon: false };
-  if (days <= 0) return { text: "expires today", soon: true };
-  if (days === 1) return { text: "expires tomorrow", soon: true };
-  return { text: `expires in ${days} days`, soon: true };
-}
 
 /**
  * Tokens a script uses to act as you. The secret is shown once, right after
@@ -187,7 +156,7 @@ function PersonalTokenRow({
     if (secret) shown.current?.querySelector<HTMLButtonElement>("button")?.focus();
   }, [secret]);
 
-  const ends = expiry(token.expiresAt, now);
+  const ends = tokenExpiry(token.expiresAt, now);
 
   return (
     <TokenRow
@@ -199,9 +168,9 @@ function PersonalTokenRow({
       onRevoke={onRevoke}
       meta={
         <>
-          made {ago(token.createdAt, now)} ·{" "}
+          made {tokenAgo(token.createdAt, now)} ·{" "}
           <span className={ends.soon ? styles.tokenSoon : undefined}>{ends.text}</span> ·{" "}
-          {token.lastUsedAt ? `last used ${ago(token.lastUsedAt, now)}` : "never used"}
+          {token.lastUsedAt ? `last used ${tokenAgo(token.lastUsedAt, now)}` : "never used"}
         </>
       }
     >

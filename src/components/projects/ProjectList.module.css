@@ -139,7 +139,7 @@
   min-width: 22px;
   padding: 0 2px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--t-label);
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -151,7 +151,7 @@
   height: 22px;
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  border-radius: var(--r-card);
   background: var(--project);
   color: var(--project-ink);
 }
@@ -173,22 +173,31 @@
   color: var(--text-meta);
 }
 
-/* Nobody wrote here for three weeks. */
-.cardWrap[data-quiet] .key,
+/* Nobody wrote here for three weeks. It goes quiet by colour, never by
+   fading: a faded name drops under the contrast words need. The square goes
+   grey, and the name to the quietest grey that still reads. */
+.cardWrap[data-quiet] .key {
+  background: var(--bg-hover);
+  color: var(--text-meta);
+}
+
 .cardWrap[data-quiet] .cardName {
-  opacity: 0.45;
+  color: var(--text-meta);
 }
 
 /* The colour of the top bar's count. */
 .waiting {
   flex: none;
   margin-left: auto;
-  padding: 1px 7px;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
   border-radius: 999px;
   background: var(--waiting-soft);
   color: var(--waiting);
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
+  font-size: var(--t-small);
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -412,13 +421,13 @@
      reads as the project's. */
   background: color-mix(in srgb, var(--face, var(--bg-hover)) 55%, var(--bg-hover));
   color: var(--text);
-  font-size: 8px;
+  font-size: var(--t-label);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .face[data-kind="agent"] {
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .last,
@@ -432,7 +441,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--accent);
+  color: var(--agent-text);
 }
 
 .working[data-silent] {
@@ -707,7 +716,7 @@
   height: 22px;
   grid-template-areas: "one";
   place-items: center;
-  border-radius: 6px;
+  border-radius: var(--r-card);
   background: var(--project);
   color: var(--project-ink);
   box-shadow:
@@ -912,7 +921,7 @@
 
 .listRowKey {
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--bg-hover);
   font-family: var(--font-mono);
   font-size: var(--t-chip);
@@ -1020,7 +1029,7 @@
   color: var(--icon);
   font-size: var(--t-micro);
   padding: 2px 4px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .chartDelete:hover,

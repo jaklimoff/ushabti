@@ -14,7 +14,6 @@ import {
 import { cardAccent } from "@/lib/card-view";
 import { commentDraftKey } from "@/lib/draft";
 import { editedText } from "@/lib/leave";
-import { tint } from "@/lib/colors";
 import {
   duration,
   elapsed,
@@ -49,7 +48,7 @@ import type {
   TaskValue,
 } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -434,7 +433,8 @@ export function TaskPanel({
      one thing, so they read the same colour out of the same place. */
   const accent = useMemo(
     () =>
-      (boardTask ? cardAccent(cardItems, boardTask, data.members, data.former) : null) ?? "#3f4650",
+      (boardTask ? cardAccent(cardItems, boardTask, data.members, data.former) : null) ??
+      "var(--faint-3)",
     [boardTask, cardItems, data.members, data.former],
   );
 
@@ -592,7 +592,9 @@ export function TaskPanel({
         </div>
       )}
 
-      <div className={styles.head} style={{ background: tint(accent, 0.06) }} ref={menuRef}>
+      {/* The head takes no tint of the card's colour: an Urgent task's head
+          read as red, and red is for loss. The band above says the colour. */}
+      <div className={styles.head} ref={menuRef}>
         <div className={styles.headRow}>
           <button
             type="button"
@@ -635,24 +637,20 @@ export function TaskPanel({
               ))}
             </span>
           )}
-          <button
-            className={`${styles.iconButton} ${menuOpen ? styles.iconButtonOn : ""}`}
-            aria-label="Task menu"
+          <IconButton
+            size={28}
+            label="Task menu"
+            className={menuOpen ? styles.iconButtonOn : undefined}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             title="More"
             onClick={() => setMenuOpen((v) => !v)}
           >
             ⋯
-          </button>
-          <button
-            className={styles.iconButton}
-            aria-label="Close task"
-            title="Close (Esc)"
-            onClick={onClose}
-          >
+          </IconButton>
+          <IconButton size={28} label="Close task" title="Close (Esc)" onClick={onClose}>
             ✕
-          </button>
+          </IconButton>
           {menuOpen && (
             <div className={styles.menu}>
               <button

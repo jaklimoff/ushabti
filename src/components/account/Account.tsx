@@ -374,7 +374,7 @@ function PasswordSection({ onChanged }: { onChanged: () => void }) {
           <Spacer />
           {/* Not greyed out while a box looks empty: a box a password manager
               filled looks empty to React, and the button would stay dead. */}
-          <Button size="lg" onClick={() => void change()} disabled={busy}>
+          <Button size="lg" onClick={() => void change()} busy={busy}>
             {busy ? "Changing…" : "Change password"}
           </Button>
         </Foot>

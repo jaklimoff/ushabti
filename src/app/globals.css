@@ -13,6 +13,13 @@
   --bg-menu: #14171b;
   --bg-hover: #1b1e24;
   --bg-seg: #121418;
+  /* The ground of a value on a card or in a row: an option, a person, a
+     boxed date. It has no border, so a card of chips is not a card of boxes.
+     It is a wash and not a grey, so it still shows on a hovered card. */
+  --bg-chip: rgba(255, 255, 255, 0.045);
+  /* A column with a card over it, and a card in the air. */
+  --bg-column-over: #0f1216;
+  --bg-card-drag: #1a1e24;
 
   --line: #1c1f24;
   --line-soft: #17191e;
@@ -44,10 +51,15 @@
   --focus-glow: rgba(63, 176, 200, 0.16);
   /* The faintest teal: the ground of a quote. */
   --accent-wash: rgba(63, 176, 200, 0.05);
+  /* A picked card or row: a fill, not a third ring, so a run of picks reads
+     as one block and the cursor's ring stays the only ring. */
+  --accent-pick: rgba(63, 176, 200, 0.08);
 
   /* Somebody is needed: an agent asked and waits. */
   --waiting: #c9925a;
   --waiting-soft: rgba(201, 146, 90, 0.14);
+  /* The waiting colour as an edge: a run that asks, in the panel and on a card. */
+  --waiting-line: rgba(201, 146, 90, 0.4);
   /* An agent at work names itself in these: its words, its time, and its
      words while it waits. A card and a list row read the same ones. */
   --agent-text: #94b6bf;
@@ -89,11 +101,17 @@
   --control-h: 28px;
   --control-h-lg: 34px;
 
-  /* Radius. */
+  /* Radius. --r-xs is a chip, a tag and a key cap; --r-card is a card. */
+  --r-xs: 4px;
   --r-sm: 5px;
   --r-md: 8px;
   --r-lg: 10px;
   --r-xl: 12px;
+  --r-card: 6px;
+
+  /* The label column of every inline form: settings rows, the role panel,
+     the card editor. One width, so the boxes of a page start in one place. */
+  --label-col: 140px;
 
   /* Page widths, by name, so no page writes a width of its own. */
   --page-narrow: 560px;
@@ -109,6 +127,8 @@
   --t-body: 12.5px;
   --t-ui: 13px;
   --t-h2: 15px;
+  /* The name of the task the panel holds. */
+  --t-title: 17px;
   --t-h1: 20px;
 
   /* Space. */
@@ -156,6 +176,11 @@ a {
 }
 a:hover {
   color: var(--accent-soft);
+}
+
+/* A link's ring follows the corners every button has. */
+a:focus-visible {
+  border-radius: var(--r-sm);
 }
 
 button {

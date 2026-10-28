@@ -27,7 +27,7 @@ import { suggestProjectKey } from "@/lib/defaults";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Form";
 import type { SessionUser } from "@/components/ui/UserMenu";
-import { AppBar } from "@/components/ui/AppBar";
+import { AppBar, AppCrumb } from "@/components/ui/AppBar";
 import { PageHead, PageShell } from "@/components/ui/Layout";
 import { ProjectMark } from "@/components/ui/Marks";
 import { canManage, isOwner } from "@/lib/roles";
@@ -112,7 +112,7 @@ export function ProjectList({
 
   return (
     <div className={styles.page}>
-      <AppBar user={user} />
+      <AppBar user={user} trail={[<AppCrumb key="here">Home</AppCrumb>]} />
 
       <PageShell width="wide">
         <PageHead title="Home" />
@@ -199,7 +199,7 @@ export function ProjectList({
                       </div>
                     )}
                     <div className={styles.row}>
-                      <Button type="submit" disabled={busy}>
+                      <Button type="submit" busy={busy}>
                         {busy ? "Creating…" : "Create project"}
                       </Button>
                       <Button variant="ghost" onClick={() => setAdding(false)}>
@@ -428,7 +428,7 @@ function ProjectCard({ project }: { project: ProjectRow }) {
           )}
           {project.waiting > 0 && (
             <span className={styles.waiting} data-testid="project-waiting">
-              {project.waiting} waiting
+              {project.waiting} for you
             </span>
           )}
           {/* The gear's place, held so nothing moves when it fades in. */}

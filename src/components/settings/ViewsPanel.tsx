@@ -518,6 +518,7 @@ function StartsFolded({ view }: { view: ViewDTO }) {
               <Pill
                 key={o.id}
                 on={view.startFolded.includes(o.id)}
+                color={o.color}
                 disabled={sending}
                 onClick={() => void press(o.id)}
               >

@@ -86,13 +86,13 @@ test.describe("The questions that wait on a person", () => {
     const count = page.getByTestId("waiting-count");
 
     /* Only an ask counts. A hand-over waits for nobody in particular. */
-    await expect(count).toHaveText("2 waiting");
+    await expect(count).toHaveText("2 for you");
     await expect(page).toHaveTitle(/^\(2\) /);
 
     /* A filter hides the older one, and the count still knows it. */
     await addFilter(page, "Status", "Todo");
     await expect(card(page, "Older question")).toHaveCount(0);
-    await expect(count).toHaveText("2 waiting");
+    await expect(count).toHaveText("2 for you");
 
     /* The keyboard opens the list, and the list has the arrows. */
     await count.focus();
@@ -123,7 +123,7 @@ test.describe("The questions that wait on a person", () => {
 
     /* The agent reads the answer and works again: the row goes, live. */
     await api.patch(`/api/runs/${newer}`, { status: "running", step: "Reading the answer" });
-    await expect(count).toHaveText("1 waiting");
+    await expect(count).toHaveText("1 for you");
     await expect(page).toHaveTitle(/^\(1\) /);
     await count.click();
     await expect(rows).toHaveCount(1);

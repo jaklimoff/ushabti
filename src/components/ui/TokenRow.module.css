@@ -57,10 +57,11 @@
   grid-row: 1 / span 2;
 }
 
-/* Quiet until needed, where there is a mouse. A touch screen keeps it. */
+/* Quiet until needed, where there is a mouse, but there: a row says it can be
+   removed without shouting. A touch screen keeps it whole. */
 @media (hover: hover) {
   .revoke {
-    opacity: 0;
+    opacity: 0.45;
     transition: opacity 140ms var(--ease);
   }
 

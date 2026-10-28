@@ -126,29 +126,16 @@
   color: var(--text-2);
 }
 
-.iconButton {
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-sm);
-  color: var(--icon);
-  font-size: var(--t-ui);
-  transition:
-    background 140ms var(--ease),
-    color 140ms var(--ease);
-}
-
-.iconButton:hover,
-.iconButtonOn {
+/* The task menu's button while its menu is open: lit as under the pointer. */
+.headRow .iconButtonOn {
   background: var(--bg-hover);
   color: var(--text-2);
 }
 
 .menu {
   position: absolute;
-  top: 30px;
-  right: 35px;
+  top: 32px;
+  right: 37px;
   z-index: 40;
   width: 184px;
   padding: 5px;
@@ -181,6 +168,8 @@
 
 .menuItem:focus-visible {
   outline-offset: -2px;
+  background: var(--bg-menu-hover);
+  color: var(--text);
 }
 
 /* The menu reads in three groups: the link, the links to other tasks, and
@@ -204,7 +193,7 @@
 /* The title is a box like every other value, so it says so under the
    pointer. The box reaches past the words, so they do not move. */
 .title {
-  font-size: 17px;
+  font-size: var(--t-title);
   font-weight: 600;
   line-height: 1.28;
   text-wrap: pretty;
@@ -257,7 +246,7 @@
   font-size: var(--t-chip);
   font-weight: 500;
   line-height: 1.3;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
   color: var(--text-meta);
@@ -311,7 +300,7 @@
 
 .kbd {
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   border: 1px solid var(--line-menu);
 }
 
@@ -413,9 +402,10 @@
 
 .changedLabel {
   margin-top: 3px;
+  font-family: var(--font-mono);
   font-size: var(--t-chip);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
 }
@@ -546,7 +536,7 @@
   display: block;
   max-width: 100%;
   max-height: 240px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
 }
 .descEditor :global(.cm-lp-task) {
   margin: 0 6px 0 0;
@@ -584,7 +574,7 @@
 .markdown code,
 .descEditor :global(.cm-lp-code:not(.cm-line)) {
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--bg-card);
   border: 1px solid var(--line-dash);
   font-family: var(--font-mono);
@@ -716,7 +706,7 @@
   height: 14px;
   margin-top: 3px;
   flex: 0 0 14px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   border: 1px solid var(--faint);
   color: var(--accent-ink);
   transition:
@@ -827,7 +817,7 @@
   width: 14px;
   height: 14px;
   flex: 0 0 14px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   border: 1px dashed var(--faint);
 }
 
@@ -853,11 +843,9 @@
   align-items: center;
   gap: 6px;
   padding: 10px 0 9px;
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
+  /* A tab goes somewhere, so it reads as navigation, not as a label. */
+  font-size: var(--t-ui);
   font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-meta);
   transition:
     color 140ms var(--ease),
@@ -875,6 +863,7 @@
 
 .tabOn {
   color: var(--text);
+  font-weight: 600;
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
@@ -1217,7 +1206,7 @@
 /* A run that waits for somebody reads in the amber the card strip wears for
    it, so the panel never says "waiting" in the colour of work. */
 .run[data-waiting] {
-  border-color: rgba(201, 146, 90, 0.4);
+  border-color: var(--waiting-line);
 }
 
 .runAgent {
@@ -1233,7 +1222,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent-soft);
 }
@@ -1458,7 +1447,7 @@
 .pastEnded {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
 }
@@ -1673,7 +1662,7 @@
 
 .optionName {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--t-title);
   font-weight: 600;
   line-height: 1.28;
   color: var(--text);
@@ -1756,7 +1745,7 @@
   flex: none;
   width: 40px;
   height: 30px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   object-fit: cover;
   background: var(--bg-input);
 }

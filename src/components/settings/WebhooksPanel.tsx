@@ -10,6 +10,7 @@ import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { CopyField } from "@/components/ui/CopyField";
 import { Input } from "@/components/ui/Form";
 import { Card, EmptyState, Foot, FootNote, Note, Row, Section, Tag } from "@/components/ui/Layout";
+import { KeyPrefix } from "@/components/ui/TokenRow";
 import { useElapsed } from "@/components/ui/useElapsed";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { WEBHOOK_KIND_LABEL, WEBHOOK_KINDS, type WebhookDTO, type WebhookKind } from "@/lib/types";
@@ -165,7 +166,7 @@ function Hooks({
             }}
             onKeyDown={(e) => e.key === "Enter" && void add()}
           />
-          <Button onClick={() => void add()} disabled={busy}>
+          <Button onClick={() => void add()} busy={busy}>
             Add webhook
           </Button>
           <FootNote>
@@ -352,7 +353,7 @@ function HookBox({
         )}
 
         <div className={styles.hookTools}>
-          <span className={styles.tokenPrefix}>{hook.prefix}…</span>
+          <KeyPrefix prefix={hook.prefix} />
           <Button variant="text" onClick={roll.ask}>
             Roll the secret
           </Button>

@@ -84,7 +84,7 @@ export function ForgotForm({ on }: { on: boolean }) {
               </div>
             )}
 
-            <Button size="lg" block type="submit" disabled={busy}>
+            <Button size="lg" block type="submit" busy={busy}>
               {busy ? "One moment…" : "Email me a link"}
             </Button>
           </form>

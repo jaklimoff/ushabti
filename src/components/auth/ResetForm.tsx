@@ -87,7 +87,7 @@ export function ResetForm({ token }: { token: string }) {
           </div>
         )}
 
-        <Button size="lg" block type="submit" disabled={busy}>
+        <Button size="lg" block type="submit" busy={busy}>
           {busy ? "One moment…" : "Set the password"}
         </Button>
       </form>

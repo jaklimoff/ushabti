@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CardEditor } from "@/components/settings/CardViewPanel";
-import { Button } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { isTyping } from "./keys";
 import { useBoard } from "./store";
@@ -65,14 +65,9 @@ export function CardPanel({ onClose }: { onClose: () => void }) {
         <div className={styles.headRow}>
           <h2 className={styles.optionName}>Card</h2>
           <span style={{ flex: 1 }} />
-          <button
-            className={styles.iconButton}
-            aria-label="Close the card"
-            title="Close (Esc)"
-            onClick={onClose}
-          >
+          <IconButton size={28} label="Close the card" title="Close (Esc)" onClick={onClose}>
             ✕
-          </button>
+          </IconButton>
         </div>
         <div className={styles.cardPanelSub}>How a card reads on {view.name}</div>
       </div>

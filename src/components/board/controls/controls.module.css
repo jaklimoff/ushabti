@@ -117,7 +117,8 @@
 }
 
 .triggerText {
-  font-size: var(--t-body);
+  font-size: var(--t-small);
+  font-weight: 500;
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -125,12 +126,9 @@
 }
 
 /* An option reads in the card's chip font, so a value looks the same on the
-   card and in the panel. */
+   card and in the panel: a word somebody named is in the sans. */
 .picked .triggerText {
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: var(--t-chip);
-  letter-spacing: 0.04em;
-  color: var(--text);
+  color: var(--text-2);
 }
 
 /* An empty value is still a button, so it is read, not hinted at. */
@@ -192,7 +190,8 @@
     color 120ms var(--ease);
 }
 
-.menuItem:hover {
+.menuItem:hover,
+.menuItem:focus-visible {
   background: var(--bg-menu-hover);
   color: var(--text);
 }
@@ -255,9 +254,8 @@
   gap: 6px;
   padding: 0 4px 0 8px;
   border-radius: var(--r-sm);
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: var(--t-chip);
-  letter-spacing: 0.04em;
+  font-size: var(--t-small);
+  font-weight: 500;
 }
 
 .chipRemove {

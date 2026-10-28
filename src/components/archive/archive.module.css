@@ -45,69 +45,12 @@
 
 /* ---- a row ---------------------------------------------------------- */
 
-.row {
-  min-width: 0;
-}
-
-/* The key and the title open the task, because a table is read from the
-   left — the same answer a list row gives. */
-.open {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  flex: 1;
-  min-width: 0;
-}
-
-.open:hover .title {
-  color: var(--text);
-}
-
-/* The same two words on a deleted row, which opens nothing: every route about
-   a deleted task answers 404, so there is no panel behind it. */
-.gone {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  flex: 1;
-  min-width: 0;
-}
-
-/* The task key, as the changelog and the lists draw it: mono, readable grey,
-   and wide enough for most keys so the titles start in one place. */
-.key {
-  flex: 0 0 auto;
-  min-width: 7ch;
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-meta);
-}
-
-.title {
-  min-width: 0;
-  font-size: var(--t-body);
-  color: var(--text-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color 140ms var(--ease);
-}
-
-.when {
-  flex: 0 0 auto;
-  font-size: var(--t-small);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
 /* How long is left. It is the one word on the row that runs out, so it is a
    tag and is read before the others. */
 .left {
   flex: 0 0 auto;
   padding: 2px 7px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--bg-tag);
   font-size: var(--t-small);
   font-variant-numeric: tabular-nums;
@@ -119,31 +62,4 @@
 .soon {
   background: var(--warn-soft);
   color: var(--warn);
-}
-
-/* A phone. The line the task is named on takes the whole width, and the
-   moment, the days left and the button share the one below it. */
-@media (max-width: 560px) {
-  .row {
-    flex-wrap: wrap;
-  }
-
-  .open,
-  .gone {
-    flex: 1 0 100%;
-  }
-
-  .when {
-    margin-right: auto;
-  }
-
-  /* A deleted row has two words where an archived one has one. They stay
-     together at the left, so the days left is what pushes the button over. */
-  .dead .when {
-    margin-right: 0;
-  }
-
-  .left {
-    margin-right: auto;
-  }
 }

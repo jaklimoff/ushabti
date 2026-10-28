@@ -193,10 +193,17 @@ const MONTHS = [
   "December",
 ];
 
-/** How the changelog dates an entry. */
+/**
+ * How the changelog dates an entry: "✓ Oct 1, 2026", the board's shipped mark
+ * with the year, because the record runs across years and the board does not.
+ */
 export function shippedSaid(entry: { shippedAt: string }): string {
-  return `Shipped ${shippedDay(entry.shippedAt)}`;
+  const [y, m, d] = entry.shippedAt.split("-").map(Number);
+  const month = SHORT_MONTHS[m - 1];
+  return month && d ? `✓ ${month} ${d}, ${y}` : `✓ ${entry.shippedAt}`;
 }
+
+const SHORT_MONTHS = MONTHS.map((month) => month.slice(0, 3));
 
 /**
  * The day an option shipped, in words. It is cut from the string and never

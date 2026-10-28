@@ -21,6 +21,7 @@ import {
   type Role,
 } from "@/lib/roles";
 import { isListening } from "@/lib/presence";
+import { tokenAgo } from "@/lib/token-dates";
 import { AGENT_RULES_MAX, AGENT_RULES_SOFT, rulesCount } from "@/lib/agent-rules";
 import { useBoard } from "@/components/board/store";
 import { Avatar } from "@/components/ui/Avatar";
@@ -240,7 +241,7 @@ function Members({ mail }: { mail: boolean }) {
                 />
               </span>
             )}
-            <Button variant="ghost" onClick={() => void invite()} disabled={busy}>
+            <Button onClick={() => void invite()} busy={busy}>
               {busy ? "Adding…" : "Add member"}
             </Button>
             {error ? (
@@ -632,7 +633,7 @@ function Agents({ agents, reload }: { agents: AgentDTO[] | null; reload: () => P
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void create()}
             />
-            <Button variant="ghost" onClick={() => void create()} disabled={busy}>
+            <Button onClick={() => void create()} busy={busy}>
               Add agent
             </Button>
           </Foot>
@@ -871,7 +872,7 @@ function AgentBox({
                 <span className={styles.agentFootSay}>
                   A switch only takes away: it never gives {agent.name} more than a member has.
                 </span>
-                <Button variant="ghost" className={styles.agentRemove} onClick={confirm.ask}>
+                <Button variant="danger" onClick={confirm.ask}>
                   Remove {agent.name}
                 </Button>
               </div>
@@ -999,11 +1000,11 @@ function AgentTokenRow({
       onRevoke={canEdit ? onRevoke : null}
       meta={
         <>
-          made {relativeDay(token.createdAt)} ·{" "}
+          made {tokenAgo(token.createdAt)} ·{" "}
           {isListening(token.listeningAt) ? (
             <span className={styles.tokenLive}>listening now</span>
           ) : token.lastUsedAt ? (
-            `last used ${relativeDay(token.lastUsedAt)}`
+            `last used ${tokenAgo(token.lastUsedAt)}`
           ) : (
             "never used"
           )}
@@ -1131,14 +1132,6 @@ function today(): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
-/** Whole days, so the token list never has to tick. */
-function relativeDay(iso: string): string {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return "today";
-  if (days === 1) return "yesterday";
-  return `${days} days ago`;
 }
 
 /* ------------------------------------------------------------------ */

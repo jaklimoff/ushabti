@@ -2,7 +2,7 @@
 
 import { Fragment } from "react";
 import Link from "next/link";
-import { BrandMark } from "./Marks";
+import { BrandMark, Chevron } from "./Marks";
 import { useSidebar } from "./SidebarProvider";
 import { UserMenu, type SessionUser } from "./UserMenu";
 import styles from "./ui.module.css";
@@ -13,16 +13,16 @@ import styles from "./ui.module.css";
  * of them led home. Here the Ushabti mark links Home, the trail says where
  * you are, and the actions are quiet words at the end.
  *
- * `home={false}` drops the mark, and the trail then opens with no slash. A
- * project page drops it while the sidebar leads Home: the project's own mark
- * and name are the ones that matter there. `word` keeps the name Ushabti
- * beside the mark.
+ * The mark shows only where no sidebar does: the sidebar already leads Home
+ * with the same mark, and two of them side by side read as two places. The
+ * trail then opens with no slash. `home` overrides that; `word` keeps the
+ * name Ushabti beside the mark.
  */
 export function AppBar({
   user,
   trail = [],
   actions,
-  home = true,
+  home,
   word = true,
   homeTestId,
 }: {
@@ -34,13 +34,16 @@ export function AppBar({
   word?: boolean;
   homeTestId?: string;
 }) {
+  const sidebar = useSidebar();
+  /* No provider is no sidebar: the mark is then the only way Home. */
+  const showHome = home ?? (sidebar === null || !sidebar.shown);
   return (
     <header className={styles.appBar}>
       <nav className={styles.appTrail} aria-label="Where you are">
-        {home && <AppHome word={word} testId={homeTestId} />}
+        {showHome && <AppHome word={word} testId={homeTestId} />}
         {trail.map((item, i) => (
           <Fragment key={i}>
-            {(home || i > 0) && <AppSep />}
+            {(showHome || i > 0) && <AppSep />}
             {item}
           </Fragment>
         ))}
@@ -108,18 +111,29 @@ export function AppCrumb({
   );
 }
 
-/** An action of the bar: words, sentence case, no box until the pointer is on it. */
+/**
+ * An action of the bar: words, sentence case, no box until the pointer is on
+ * it. `current` marks the page you are on, with a box that stays. `back` puts
+ * a chevron turned left before the words, for the way back.
+ */
 export function AppAction({
   href,
+  current = false,
+  back = false,
   className,
+  children,
   ...rest
-}: React.ComponentProps<typeof Link> & { href: string }) {
+}: React.ComponentProps<typeof Link> & { href: string; current?: boolean; back?: boolean }) {
   return (
     <Link
       href={href}
+      aria-current={current ? "page" : undefined}
       {...rest}
       className={[styles.appAction, className ?? ""].filter(Boolean).join(" ")}
-    />
+    >
+      {back && <Chevron size={12} className={styles.appBack} />}
+      {children}
+    </Link>
   );
 }
 

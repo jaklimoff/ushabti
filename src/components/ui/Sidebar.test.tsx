@@ -271,7 +271,7 @@ describe("The open sidebar", () => {
     const line = (name: string) =>
       byTestId("sidebar-row").filter({ hasText: name }).getByTestId("sidebar-line");
     await expect.element(line("Harbour")).toHaveTextContent("Builder on HAR-3 · 2m");
-    await expect.element(line("Quiet one")).toHaveTextContent("Quiet");
+    await expect.element(line("Quiet one")).toHaveTextContent("No changes yet");
     /* Waiting outranks working, and the dot still says it works. */
     await expect.element(line("Busy")).toHaveTextContent("1 waiting for you");
     await expect

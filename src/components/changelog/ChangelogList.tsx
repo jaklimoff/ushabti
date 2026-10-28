@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { CHANGELOG_PAGE, shippedSaid } from "@/lib/changelog";
 import { Markdown } from "@/components/board/Markdown";
 import { ButtonPageLink } from "@/components/ui/Button";
-import { Card, Row, Tag } from "@/components/ui/Layout";
+import { Card, Tag, TaskLine } from "@/components/ui/Layout";
 import styles from "./changelog.module.css";
 
 const several = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
@@ -67,16 +66,14 @@ export function ChangelogList({
             {entry.tasks.length > 0 && (
               <div className={styles.tasks}>
                 {entry.tasks.map((task, j) => (
-                  <Row key={task.key ?? j} className={styles.row} data-testid="changelog-task">
-                    {projectId && task.key ? (
-                      <Link className={styles.task} href={`/p/${projectId}?task=${task.key}`}>
-                        <span className={styles.key}>{task.key}</span>
-                        <span className={styles.title}>{task.title}</span>
-                      </Link>
-                    ) : (
-                      <span className={styles.title}>{task.title}</span>
-                    )}
-                  </Row>
+                  <TaskLine
+                    key={task.key ?? j}
+                    className={styles.row}
+                    data-testid="changelog-task"
+                    taskKey={projectId ? task.key : undefined}
+                    title={task.title}
+                    href={projectId && task.key ? `/p/${projectId}?task=${task.key}` : undefined}
+                  />
                 ))}
               </div>
             )}

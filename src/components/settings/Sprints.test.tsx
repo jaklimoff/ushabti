@@ -384,7 +384,7 @@ describe("A shipped option in Settings", () => {
 
     await fold.click();
     await expect.element(box.getByLabelText("Start of S1")).toBeVisible();
-    await expect.element(box.getByText(/^Shipped \d{4}-\d{2}-\d{2}/)).toBeVisible();
+    await expect.element(box.getByText(/^✓ [A-Z][a-z]{2} \d{1,2}/)).toBeVisible();
     await box.getByRole("button", { name: "Unship S1" }).click();
     await box.getByRole("button", { name: "Yes, unship" }).click();
     await expect.poll(() => sent("PATCH", /^\/api\/options\//).length).toBe(1);

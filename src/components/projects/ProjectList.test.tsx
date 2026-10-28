@@ -390,7 +390,7 @@ describe("A project card", () => {
     expect(getComputedStyle(name).fontSize).toBe("15px");
     expect(getComputedStyle(name).fontWeight).toBe("600");
     await expect.element(page.getByText("admin", { exact: true })).toBeVisible();
-    await expect.element(card.getByTestId("project-waiting")).toHaveTextContent("2 waiting");
+    await expect.element(card.getByTestId("project-waiting")).toHaveTextContent("2 for you");
     /* The strip over the projects says it once for all of them. */
     const strip = page.getByRole("navigation", { name: "Waiting for you" });
     await expect.element(strip).toBeVisible();
@@ -581,11 +581,15 @@ describe("A project card", () => {
       { ...rows[1], pulse: pulseOf() },
     ];
     await renderWithBoard(<ProjectList user={ME} projects={projects} />, newProject());
-    const opacity = (text: string) => getComputedStyle(squareOf(text)).opacity;
-    expect(opacity("Harbour")).toBe("0.45");
-    expect(opacity("HAR")).toBe("0.45");
-    expect(opacity("Lighthouse")).toBe("1");
-    expect(opacity("LIG")).toBe("1");
+    /* Dimmed by colour, to the quietest grey words may take, and never by
+       fading under it. */
+    const META = "rgb(130, 136, 146)";
+    const look = (text: string) => getComputedStyle(squareOf(text));
+    expect(look("Harbour").opacity).toBe("1");
+    expect(look("Harbour").color).toBe(META);
+    expect(look("HAR").color).toBe(META);
+    expect(look("Lighthouse").color).not.toBe(META);
+    expect(look("LIG").color).not.toBe(META);
   });
 });
 

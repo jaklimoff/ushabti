@@ -64,7 +64,7 @@ test.describe("How many tasks wait in each project", () => {
     await page.goto(`/p/${projectId}`);
     /* The top bar lists questions. The sidebar counts what waits for a
        person, so the hand-over is in its number too. */
-    await expect(page.getByTestId("waiting-count")).toHaveText("1 waiting");
+    await expect(page.getByTestId("waiting-count")).toHaveText("1 for you");
     const square = page
       .getByTestId("sidebar-project")
       .and(page.locator(`[href="/p/${projectId}"]`));

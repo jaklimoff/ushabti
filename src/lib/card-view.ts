@@ -501,7 +501,8 @@ export type CardChip = {
   text: string | null;
   /** A hairline box around it. */
   boxed: boolean;
-  /** Monospace, like the key and the dates. Off for words a person wrote. */
+  /** Monospace, like the key and the dates. Off for words a person wrote or
+   *  named: a description, an option, a person. */
   mono: boolean;
   /** The checklist bar. */
   bar: { done: number; total: number } | null;
@@ -630,8 +631,11 @@ function chipsFor(
                 : { color: option.color, round: item.mode === "both" },
             fill: filled ? option.color : null,
             text: item.mode === "colour" ? null : option.name,
-            /* The fill is the box. A second outline around it says nothing. */
+            /* The fill is the box. A second ground under it says nothing. */
             boxed: item.mode !== "colour" && !filled,
+            /* An option is a word somebody named, so it reads in the sans;
+               the mono is for codes: keys, counts, days. */
+            mono: false,
           }),
         );
       }
@@ -647,6 +651,8 @@ function chipsFor(
           person: item.mode === "text" ? null : person,
           text: item.mode === "avatar" ? null : name,
           boxed: item.mode === "both",
+          /* A name is a word, not a code. */
+          mono: false,
         }),
       ];
     }

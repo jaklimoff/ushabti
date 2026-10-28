@@ -1,4 +1,5 @@
 import type { ProjectNow } from "./queries";
+import { longAgo } from "./board";
 import { elapsed } from "./run-state";
 
 /**
@@ -45,7 +46,9 @@ export type Line = {
 /**
  * The line under a project's name. Something waiting for the person is what
  * they came for, so it outranks an agent at work. A silent agent reads as
- * Home reads it: named, and silent.
+ * Home reads it: named, and silent. At rest it says when the project last
+ * changed; "Quiet" is Home's word for three weeks of nothing, and one word
+ * must not mean two things.
  */
 export function lineOf(project: ProjectNow, now: number = Date.now()): Line {
   if (project.waiting > 0) return { kind: "waiting", text: `${project.waiting} waiting for you` };
@@ -64,7 +67,10 @@ export function lineOf(project: ProjectNow, now: number = Date.now()): Line {
   const silent = project.agents.filter((a) => !a.working);
   if (silent.length > 0)
     return { kind: "silent", text: `${silent[0].name} silent${more(silent.length)}` };
-  return { kind: "quiet", text: "Quiet" };
+  return {
+    kind: "quiet",
+    text: project.lastAt ? `Changed ${longAgo(project.lastAt, now)}` : "No changes yet",
+  };
 }
 
 /** Whether a project has an agent at work, which is what the dot says. */

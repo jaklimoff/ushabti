@@ -39,6 +39,45 @@
   width: 100%;
 }
 
+/* A press that is under way: the button keeps its paint and its words, a
+   little dimmer, and a ring turns before them. */
+.btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.primary[aria-busy="true"] {
+  opacity: 0.75;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  animation: ushabti-spin 700ms linear infinite;
+}
+
+.primary .spinner {
+  border-color: var(--accent-ink);
+  border-right-color: transparent;
+}
+
+@keyframes ushabti-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Under reduced motion the ring holds still: a quarter gone still says
+   "working", and nothing spins. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
 .primary {
   background: var(--accent);
   color: var(--accent-ink);
@@ -113,6 +152,7 @@
 .pill {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   height: 26px;
   padding: 0 11px;
   border: 1px solid var(--line-ghost);
@@ -139,12 +179,17 @@
   font-weight: 600;
 }
 
+/* Already used: quieter by colour and a fainter edge, never by fading the
+   words under what they need to be read. */
 .pillQuiet {
-  opacity: 0.5;
+  border-color: var(--line);
+  color: var(--text-meta);
 }
 
 .pillQuiet[aria-pressed="true"] {
-  opacity: 0.75;
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--text-4);
 }
 
 .iconBtn {
@@ -171,9 +216,23 @@
   cursor: default;
 }
 
+.iconBtnLg {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
 .iconBtnDanger:hover:not(:disabled) {
   background: var(--danger-bg);
   color: var(--danger-soft);
+}
+
+/* The swatch beside a word. */
+.dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
 }
 
 /* ---- inputs -------------------------------------------------------- */
@@ -540,7 +599,7 @@
    is wider than ours, the label grows past the column instead. */
 .fieldRow {
   display: grid;
-  grid-template-columns: minmax(140px, max-content) minmax(0, 1fr);
+  grid-template-columns: minmax(var(--label-col), max-content) minmax(0, 1fr);
   column-gap: var(--s-4);
   row-gap: 6px;
   align-items: center;
@@ -559,6 +618,14 @@
   display: flex;
   align-items: center;
   min-height: var(--control-h);
+}
+
+/* A field in a row takes what the row leaves, so its box and its note run
+   to the card's edge instead of stopping at their own width. */
+.row > .fieldRow,
+.row > .field {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* The control and what sits beside it: the ticks, "days, from", a date. */
@@ -582,15 +649,16 @@
   }
 }
 
-/* The one label the app writes: a field, a table head, a section eyebrow.
-   Mono capitals for words the app writes; sentence case for words people
-   write, and for every link and button. It never wraps mid-phrase. `Field`
-   and `Label` both draw it. */
+/* The one label the app writes: a field, a table head, a section eyebrow, a
+   tag. Mono capitals for words the app writes; sentence case for words people
+   write, and for every link, tab and button, which go somewhere or act. It
+   never wraps mid-phrase. `Field`, `Label` and `Tag` all draw it: mono,
+   --t-chip, 500, 0.08em. */
 .fieldLabel {
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--text-meta);
@@ -685,10 +753,13 @@
 /* ---- tag ----------------------------------------------------------- */
 
 .tag {
-  padding: 2px 7px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  border-radius: var(--r-xs);
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: var(--t-label);
+  font-size: var(--t-chip);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -703,6 +774,158 @@
 .tagAccent {
   background: var(--accent-bg);
   color: var(--accent-soft);
+}
+
+/* ---- task line ----------------------------------------------------- */
+
+/* One task on one line, off the board. 40 px, a hairline between rows, and
+   the whole row is the link when there is one. */
+.taskLine {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 40px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line-soft);
+  transition: background 120ms var(--ease);
+}
+
+.taskLine:last-child {
+  border-bottom: 0;
+}
+
+.taskLineName {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+}
+
+/* The link covers the row, so the row is one target. */
+.taskLineLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.taskLineLink:hover {
+  color: inherit;
+}
+
+.taskLineLink:focus-visible {
+  outline: none;
+}
+
+.taskLine:has(> .taskLineLink:hover) {
+  background: var(--bg-hover-wash);
+}
+
+.taskLine:has(> .taskLineLink:hover) .taskLineTitle {
+  color: var(--text);
+}
+
+.taskLine:has(> .taskLineLink:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--accent-ring);
+}
+
+/* The key, wide enough for most keys so the titles start in one place. */
+.taskLineKey {
+  flex: 0 0 auto;
+  min-width: 7ch;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-micro);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
+}
+
+.taskLineTitle {
+  min-width: 0;
+  font-size: var(--t-ui);
+  font-weight: 500;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 120ms var(--ease);
+}
+
+/* What the row says about the task: when, how long is left, who. Sans, one
+   size, one grey. It sits above the link so its own parts can be pressed. */
+.taskLineMeta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 0 0 auto;
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+
+.taskLineAction {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: 0 0 auto;
+}
+
+.taskLineDim .taskLineTitle {
+  color: var(--text-4);
+}
+
+/* A phone: the task's name takes the line, and the rest shares the next. */
+@media (max-width: 560px) {
+  .taskLine {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .taskLineName {
+    flex: 1 0 100%;
+  }
+
+  .taskLineMeta {
+    margin-right: auto;
+  }
+}
+
+/* ---- meter ---------------------------------------------------------- */
+
+/* How much is done: a 4 px track and a fill. Give it a width where it sits. */
+.meter {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-menu);
+  overflow: hidden;
+}
+
+.meterFill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 200ms var(--ease);
+}
+
+/* ---- form actions --------------------------------------------------- */
+
+/* Cancel, then the primary, at the right end of a form that makes a thing. */
+.formActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--s-2);
 }
 
 /* ---- empty state --------------------------------------------------- */
@@ -726,8 +949,8 @@
 }
 
 .emptyMark {
-  color: var(--faint-2);
-  font-size: var(--t-micro);
+  color: var(--text-meta);
+  font-size: var(--t-small);
 }
 
 .emptyBody {
@@ -814,7 +1037,7 @@
   flex: 0 0 auto;
   height: 24px;
   padding: 0 9px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   border: 1px solid var(--line-dash);
   color: var(--muted);
   font-size: var(--t-micro);
@@ -853,7 +1076,7 @@
      it does on the avatar, and the picked border frames the face. */
   background-clip: padding-box;
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 9px;
+  font-size: var(--t-label);
   font-weight: 600;
   transition: border-color 140ms var(--ease);
 }
@@ -879,7 +1102,7 @@
   width: auto;
   min-width: 26px;
   padding: 0 5px;
-  border-radius: 6px;
+  border-radius: var(--r-card);
 }
 
 .swatchKey:disabled {
@@ -972,7 +1195,12 @@
   align-content: start;
   padding: clamp(40px, 12vh, 112px) var(--s-4) var(--s-6);
   background:
-    radial-gradient(900px 520px at 50% -10%, rgba(63, 176, 200, 0.08), transparent 70%), var(--bg);
+    radial-gradient(
+      900px 520px at 50% -10%,
+      color-mix(in srgb, var(--accent) 8%, transparent),
+      transparent 70%
+    ),
+    var(--bg);
 }
 
 .frameColumn {
@@ -1002,21 +1230,35 @@
   }
 }
 
-/* ---- status pages -------------------------------------------------- */
-
-.statusBrand {
+/* The brand above every outside card. It stands a step further from the
+   card than the column's gap, so the line under the name belongs to the
+   brand and not to the card. */
+.outsideBrand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s-3);
+  margin-bottom: calc(var(--s-6) - var(--s-5));
+  text-align: center;
 }
 
-.statusName {
-  font-size: var(--t-h2);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+.outsideName {
+  margin-top: var(--s-3);
+  font-size: var(--t-h1);
+  font-weight: 650;
+  letter-spacing: -0.015em;
   line-height: 1.2;
 }
+
+p.outsidePitch {
+  max-width: 32ch;
+  margin: 6px 0 0;
+  font-size: var(--t-ui);
+  line-height: 1.5;
+  color: var(--text-4);
+  text-wrap: balance;
+}
+
+/* ---- status pages -------------------------------------------------- */
 
 .statusCard {
   gap: var(--s-2);
@@ -1138,6 +1380,7 @@
 .appAction {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   height: var(--control-h);
   padding: 0 10px;
   border-radius: var(--r-sm);
@@ -1153,6 +1396,34 @@
 .appAction:hover {
   background: var(--bg-hover);
   color: var(--text-2);
+}
+
+/* The page you are on, among its siblings: a box that stays. */
+.appAction[aria-current="page"] {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* The way back: a chevron turned to point left. */
+.appBack {
+  margin-left: -2px;
+  transform: rotate(90deg);
+}
+
+/* A hairline between the sibling pages and the way back. */
+.appActionsSep {
+  width: 1px;
+  height: 16px;
+  margin: 0 6px;
+  background: var(--line-menu);
+}
+
+/* A phone has room for the way back and nothing else. */
+@media (max-width: 560px) {
+  .appSibling,
+  .appActionsSep {
+    display: none;
+  }
 }
 
 /* The project's name in the trail, beside its mark. */

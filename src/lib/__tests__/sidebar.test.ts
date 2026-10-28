@@ -52,8 +52,12 @@ describe("when the sidebar is drawn", () => {
 });
 
 describe("the line under a project", () => {
-  it("reads Quiet when nothing happens", () => {
-    expect(lineOf(project(), NOW)).toEqual({ kind: "quiet", text: "Quiet" });
+  it("says when it last changed when nothing happens", () => {
+    expect(lineOf(project(), NOW)).toEqual({ kind: "quiet", text: "No changes yet" });
+    expect(lineOf(project({ lastAt: ago(3) }), NOW)).toEqual({
+      kind: "quiet",
+      text: "Changed 3 minutes ago",
+    });
   });
 
   it("names the newest agent at work, its task and its age, and counts the rest", () => {

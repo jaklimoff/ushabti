@@ -118,7 +118,7 @@
     font-family: var(--font-mono);
     font-size: var(--t-chip);
     font-weight: 500;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-meta);
   }
@@ -131,11 +131,9 @@
   min-height: 30px;
   padding: 0 10px;
   border-radius: var(--r-sm);
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  /* A place to go, so it reads as navigation: sans, sentence case. The caps
+     are for labels. */
+  font-size: var(--t-ui);
   color: var(--text-4);
   white-space: nowrap;
   transition:
@@ -154,6 +152,7 @@
 .railOn:hover {
   background: var(--bg-hover);
   color: var(--text);
+  font-weight: 600;
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
@@ -529,7 +528,7 @@
     font-family: var(--font-mono);
     font-size: var(--t-chip);
     font-weight: 500;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
     color: var(--text-meta);
@@ -633,6 +632,7 @@
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  color: var(--shipped);
 }
 
 .optionUnship {
@@ -641,11 +641,13 @@
   font-size: inherit;
 }
 
+/* The option's colour, round as it is beside a word everywhere else. It is
+   a button, so it is larger than the 6 px dot it stands for. */
 .swatchBtn {
   width: 11px;
   height: 11px;
   flex: 0 0 11px;
-  border-radius: 3px;
+  border-radius: 50%;
   border: 0;
   padding: 0;
 }
@@ -670,7 +672,7 @@
 .swatchChip {
   width: 16px;
   height: 16px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   border: 2px solid transparent;
 }
 
@@ -739,8 +741,7 @@
     height: 24px;
     flex: 0 0 24px;
     padding: 6px;
-    /* 9 px less the 6 px of padding leaves the 3 px corner it always had. */
-    border-radius: 9px;
+    border-radius: 50%;
     background-clip: content-box;
   }
   .optionRemove {
@@ -1065,14 +1066,6 @@ div.memberHead {
   color: var(--muted);
 }
 
-.agentFoot .agentRemove {
-  color: var(--danger-ink);
-}
-
-.agentFoot .agentRemove:hover:not(:disabled) {
-  color: var(--danger-soft);
-}
-
 /* Personal tokens live elsewhere; a line under the card says where. */
 .agentsAfter {
   margin: 10px 0 0;
@@ -1281,7 +1274,7 @@ label.act > input {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--text-meta);
@@ -1350,7 +1343,7 @@ label.act > input {
 
 /* A row that is off the card says so by going quiet, not by disappearing. */
 .cardRowOff {
-  color: var(--faint-2);
+  color: var(--text-meta);
 }
 
 .cardRowType {
@@ -1456,7 +1449,7 @@ label.act > input {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--text-meta);
@@ -1483,7 +1476,7 @@ label.act > input {
 .mode {
   height: 22px;
   padding: 0 10px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: var(--t-small);
   color: var(--text-meta);
   transition:
@@ -1525,7 +1518,7 @@ label.act > input {
 .placeBox,
 .placeWide,
 .placeEdge {
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--bg-card-hover);
   box-shadow: inset 0 0 0 1px var(--line-dash);
   font-family: var(--font-mono);
@@ -1606,7 +1599,7 @@ label.act > input {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
 }
@@ -1614,7 +1607,7 @@ label.act > input {
 .previewLive {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent-soft);
 }
@@ -1893,7 +1886,7 @@ textarea.rulesBox {
     font-family: var(--font-mono);
     font-size: var(--t-chip);
     font-weight: 500;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
     color: var(--text-meta);
@@ -1944,7 +1937,7 @@ textarea.rulesBox {
   .viewNone {
     padding-left: 10px;
     font-size: var(--t-small);
-    color: var(--faint);
+    color: var(--text-meta);
   }
   .viewCard {
     grid-column: 6;
@@ -2031,7 +2024,7 @@ textarea.rulesBox {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
 }
@@ -2244,9 +2237,9 @@ div.hookRow {
 
 /* A type: its colour, then its name. */
 .typeDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   flex: none;
 }
 
@@ -2306,9 +2299,10 @@ div.hookRow {
 }
 
 .roleName {
-  font-size: var(--t-label);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent-soft);
 }
@@ -2330,8 +2324,8 @@ div.hookRow {
 
 .roleDot {
   display: inline-block;
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   margin-right: 4px;
   border-radius: 50%;
   vertical-align: 1px;
@@ -2448,7 +2442,7 @@ div.hookRow {
 
 .rolePanelRow {
   display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: var(--label-col) minmax(0, 1fr);
   align-items: baseline;
   gap: 4px 12px;
 }
@@ -2533,7 +2527,7 @@ div.hookRow {
   transform: rotate(180deg);
   font-family: var(--font-mono);
   font-size: var(--t-chip);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
 }
@@ -2577,7 +2571,7 @@ div.hookRow {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
 }
@@ -2612,7 +2606,7 @@ div.hookRow {
   align-items: center;
   max-width: 100%;
   padding: 2px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   transition: box-shadow 140ms var(--ease);
 }
@@ -2792,7 +2786,7 @@ div.hookRow {
 /* A row with nothing to draw reads as its name, in a chip of its own. */
 .emptySample {
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   box-shadow: inset 0 0 0 1px var(--line-soft);
   font-size: var(--t-small);
   color: var(--text-meta);
@@ -2847,7 +2841,7 @@ div.hookRow {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
 }

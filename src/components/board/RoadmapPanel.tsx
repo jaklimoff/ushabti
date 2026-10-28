@@ -10,6 +10,7 @@ import { Markdown, type TaskKeyLinks } from "./Markdown";
 import { countOf, endOf, useRoadmap } from "./RoadmapCanvas";
 import { useBoard } from "./store";
 import boardStyles from "./board.module.css";
+import { IconButton } from "@/components/ui/Button";
 import styles from "./panel.module.css";
 
 type Openable = { id: string; key: string };
@@ -128,14 +129,14 @@ export function RoadmapPanel({
             {formatDate(row.start)} – {endOf(row)}
           </span>
           <span style={{ flex: 1 }} />
-          <button
-            className={styles.iconButton}
-            aria-label={`Close ${option.name}`}
+          <IconButton
+            size={28}
+            label={`Close ${option.name}`}
             title="Close (Esc)"
             onClick={onClose}
           >
             ✕
-          </button>
+          </IconButton>
         </div>
         <h2 className={styles.optionName}>{option.name}</h2>
         {/* The one number the bar stands for, where the bar is read. */}

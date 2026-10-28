@@ -6,8 +6,7 @@ import { useRef, useState } from "react";
 import { ApiError, api } from "@/lib/client";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Form";
-import { BrandMark } from "@/components/ui/Marks";
-import { OutsideFrame, outsideCard } from "@/components/ui/OutsideFrame";
+import { OutsideBrand, OutsideFrame, outsideCard } from "@/components/ui/OutsideFrame";
 import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
 import styles from "./AuthForm.module.css";
 
@@ -233,7 +232,7 @@ export function AuthForm({
           </div>
         )}
 
-        <Button size="lg" block type="submit" disabled={busy}>
+        <Button size="lg" block type="submit" busy={busy}>
           {busy ? "One moment…" : register ? "Create account" : "Sign in"}
         </Button>
       </form>
@@ -254,10 +253,6 @@ function passwordNote(forgotOn: boolean) {
  *
  * The block hangs from a fixed height and grows down, so the brand stays put
  * from page to page and an error never moves what is above it.
- *
- * The line under the name is who we are, not a pitch. A signed-out visit to
- * `/` lands on Sign in, so a teammate given the URL decides there; one line
- * tells them they are in the right place and costs a returning person nothing.
  */
 export function AuthCard({
   title,
@@ -271,11 +266,7 @@ export function AuthCard({
 }) {
   return (
     <OutsideFrame>
-      <div className={styles.brand}>
-        <BrandMark size={32} />
-        <div className={styles.name}>Ushabti</div>
-        <p className={styles.what}>A task board where people and AI agents work the same tasks.</p>
-      </div>
+      <OutsideBrand />
       <section className={`${outsideCard} ${styles.card}`}>
         {title && <h1 className={styles.h1}>{title}</h1>}
         {children}

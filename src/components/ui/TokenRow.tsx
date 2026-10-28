@@ -5,6 +5,15 @@ import { ConfirmRow, useConfirm } from "./ConfirmRow";
 import styles from "./TokenRow.module.css";
 
 /**
+ * The first letters of a secret, so a person can tell two apart without the
+ * secret itself: an agent's token, a personal token, a webhook's secret. One
+ * chip for all three.
+ */
+export function KeyPrefix({ prefix }: { prefix: string }) {
+  return <span className={styles.prefix}>{prefix}…</span>;
+}
+
+/**
  * One token: its name and prefix, then its dates, with the ✕ that revokes it.
  * Account and Settings → People list tokens of two kinds, and used to draw
  * two rows that looked related and were not. What sits under the row (a
@@ -55,7 +64,7 @@ export function TokenRow({
           <span className={styles.name} title={name}>
             {name}
           </span>
-          <span className={styles.prefix}>{prefix}…</span>
+          <KeyPrefix prefix={prefix} />
         </div>
         <span className={styles.meta}>{meta}</span>
         {onRevoke && (

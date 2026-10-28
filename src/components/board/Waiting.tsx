@@ -11,7 +11,7 @@ import { useBoard } from "./store";
 import styles from "./board.module.css";
 
 /**
- * "N waiting" in the top bar, and the questions behind it.
+ * "N for you" in the top bar, and the questions behind it.
  *
  * An ask used to show only on its own card, so a filter, a lens or a folded
  * column could keep it from everybody for hours. This reads the whole project,
@@ -111,7 +111,7 @@ export function Waiting({ onAnswer }: { onAnswer: (task: Searchable) => void }) 
         }}
       >
         <span className={styles.waitDot} aria-hidden />
-        {count} waiting
+        {count} for you
       </button>
 
       {open && (

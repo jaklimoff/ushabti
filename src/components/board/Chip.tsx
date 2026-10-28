@@ -3,6 +3,7 @@
 import type { CardChip } from "@/lib/card-view";
 import { ink } from "@/lib/colors";
 import { Avatar } from "@/components/ui/Avatar";
+import { Meter } from "@/components/ui/Layout";
 import styles from "./board.module.css";
 
 /**
@@ -46,17 +47,12 @@ export function Chip({ chip }: { chip: CardChip }) {
           emoji={chip.person.emoji}
           kind={chip.person.kind}
           gone={chip.person.gone}
-          size={17}
+          size={18}
         />
       )}
       {chip.bubble && <CommentIcon />}
       {chip.bar && (
-        <span className={styles.cardProgressBar}>
-          <span
-            className={styles.cardProgressFill}
-            style={{ width: `${(chip.bar.done / chip.bar.total) * 100}%` }}
-          />
-        </span>
+        <Meter done={chip.bar.done} total={chip.bar.total} className={styles.cardProgressBar} />
       )}
       {chip.text !== null && (
         <span className={chip.mono ? styles.cardChipText : styles.cardChipWords}>{chip.text}</span>

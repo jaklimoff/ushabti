@@ -126,10 +126,7 @@ describe("the changelog", () => {
 describe("the date of an entry", () => {
   it("says shipped", () => {
     const log = buildChangelog(input());
-    expect(log.entries.map((e) => shippedSaid(e))).toEqual([
-      "Shipped October 1, 2026",
-      "Shipped September 1, 2026",
-    ]);
+    expect(log.entries.map((e) => shippedSaid(e))).toEqual(["✓ Oct 1, 2026", "✓ Sep 1, 2026"]);
   });
 });
 

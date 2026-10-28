@@ -339,10 +339,11 @@ describe("A new chart", () => {
     const all = ["o", "o2", "o3"].map((optionId) => charting(source({ optionId })));
     await openPicker(all);
     expect(pressed()).toEqual(["Done"]);
-    const quiet = getComputedStyle(pill("Done").element()).opacity;
+    /* Already charted reads quieter, by colour: words are never faded. */
+    const quiet = getComputedStyle(pill("Done").element()).color;
     await pickIn("Property", "Priority");
-    const fresh = getComputedStyle(pill("High").element()).opacity;
-    expect(Number(quiet)).toBeLessThan(Number(fresh));
+    const fresh = getComputedStyle(pill("High").element()).color;
+    expect(quiet).not.toBe(fresh);
     await expect.element(page.getByTestId("chart-taken")).not.toBeInTheDocument();
     await pickIn("Property", "Status");
     await expect

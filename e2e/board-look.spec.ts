@@ -123,9 +123,10 @@ test.describe("The board reads cleanly", () => {
     await expect(strip("Asks").getByText("Runner")).not.toBeInViewport();
     await expect(strip("Works").getByText("Runner")).toBeVisible();
 
-    /* A silent run's words fade. */
+    /* A silent run's words go quiet by colour, never by fading. */
     const step = strip("Gone quiet").getByTestId("card-run-step");
-    await expect(step).toHaveCSS("opacity", "0.6");
+    await expect(step).toHaveCSS("opacity", "1");
+    await expect(step).toHaveCSS("color", "rgb(130, 136, 146)");
     /* The whole step is a hover away. */
     await expect(strip("Asks").getByTestId("card-run-step")).toHaveAttribute(
       "title",

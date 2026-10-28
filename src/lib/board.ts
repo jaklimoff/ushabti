@@ -300,6 +300,15 @@ export function formatDate(value: string): string {
 }
 
 /**
+ * A release that shipped, the one way every screen writes it: "✓ Oct 28",
+ * in `--shipped`. The board's column, the roadmap, Settings and the changelog
+ * used to write it four ways.
+ */
+export function shippedOn(day: string): string {
+  return `✓ ${formatDate(day)}`;
+}
+
+/**
  * How long ago, in words rather than in the short form a feed uses. One row
  * says it, at the top of an archived task, and a row of prose says "3 days
  * ago" where a timestamp column says "3d".

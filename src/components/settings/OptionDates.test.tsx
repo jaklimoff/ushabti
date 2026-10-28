@@ -216,7 +216,7 @@ describe("An option carries a plan", () => {
     const { sent } = await draw(data);
     const patches = writes(sent);
     const status = box("Status");
-    await expect.element(status.getByText("Shipped 2026-10-02")).toBeVisible();
+    await expect.element(status.getByText("✓ Oct 2")).toBeVisible();
     expect(status.getByRole("button", { name: /^Unship / }).elements()).toHaveLength(1);
     // Shown, never typed into: there is no box for it.
     expect(status.getByLabelText(/^Shipped of /).elements()).toHaveLength(0);
@@ -227,14 +227,14 @@ describe("An option carries a plan", () => {
       .poll(() => status.getByRole("alertdialog").query()?.textContent)
       .toContain("Unship Ready?");
     await status.getByRole("button", { name: "Cancel" }).click();
-    await expect.element(status.getByText("Shipped 2026-10-02")).toBeVisible();
+    await expect.element(status.getByText("✓ Oct 2")).toBeVisible();
     expect(patches()).toHaveLength(0);
 
     await status.getByRole("button", { name: "Unship Ready" }).click();
     await status.getByRole("button", { name: "Yes, unship" }).click();
     await sentCount(patches, 1);
     expect(patches()[0].body).toEqual({ shippedAt: null });
-    expect(status.getByText("Shipped 2026-10-02").elements()).toHaveLength(0);
+    expect(status.getByText("✓ Oct 2").elements()).toHaveLength(0);
     expect(status.getByRole("button", { name: /^Unship / }).elements()).toHaveLength(0);
   });
 
@@ -274,7 +274,7 @@ describe("An option carries a plan", () => {
     option(data, "Ready").shippedAt = "2026-10-03";
     await draw(data);
     const status = box("Status");
-    await expect.element(status.getByText("Shipped 2026-10-03")).toBeVisible();
+    await expect.element(status.getByText("✓ Oct 3")).toBeVisible();
     expect(status.getByRole("button", { name: /^Unship / }).elements()).toHaveLength(0);
   });
 });

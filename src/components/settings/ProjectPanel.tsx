@@ -2,6 +2,7 @@
 
 import { useId, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/board";
 import { changelogSlug } from "@/lib/changelog";
 import { canManage, isOwner as isOwnerRole } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
@@ -256,7 +257,7 @@ export function ProjectPanel({ files }: { files: boolean }) {
               inline
               note={
                 <>
-                  Today is {data.today} here. A filter that says <b>Due this week</b> or{" "}
+                  Today is {formatDate(data.today)} here. A filter that says <b>Due this week</b> or{" "}
                   <b>Overdue</b> is worked out in this zone, for everybody on the board.
                 </>
               }

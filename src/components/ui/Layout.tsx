@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import styles from "./ui.module.css";
 
 export function Section({
@@ -49,7 +50,14 @@ export function Foot({ children, className }: { children: React.ReactNode; class
   return <div className={[styles.foot, className ?? ""].filter(Boolean).join(" ")}>{children}</div>;
 }
 
-/** What a foot says under its form, on a line of its own. */
+/**
+ * What a foot says under its form, on a line of its own.
+ *
+ * The button that commits a foot's add form is the primary one: it is the
+ * act the foot is for. A named destroy act ("Delete project", "Remove
+ * Builder") is `variant="danger"`, and a row's own remove is the ✕
+ * `IconButton danger`. No tinted ghost buttons.
+ */
 export function FootNote({ children }: { children: React.ReactNode }) {
   return <div className={styles.footNote}>{children}</div>;
 }
@@ -58,13 +66,21 @@ export function Spacer() {
   return <span className={styles.spacer} />;
 }
 
+/**
+ * A word the app writes about a row, in the label's voice: mono capitals.
+ * `dot` puts a 6 px dot of that colour before it, so a tag that stands for a
+ * thing with a colour (a role, an option) differs from a type by more than
+ * its tint.
+ */
 export function Tag({
   children,
   accent = false,
+  dot,
   title,
 }: {
   children: React.ReactNode;
   accent?: boolean;
+  dot?: string;
   title?: string;
 }) {
   return (
@@ -72,13 +88,117 @@ export function Tag({
       title={title}
       className={`${styles.tag} ${accent ? styles.tagAccent : styles.tagNeutral}`}
     >
+      {dot && <span className={styles.dot} style={{ background: dot }} aria-hidden="true" />}
       {children}
+    </span>
+  );
+}
+
+/**
+ * One task on one line, off the board: the archive, the changelog, a list.
+ * Every such row used to be built where it was used, at 36, 39 and 51 px.
+ *
+ * With an `href` the whole row is the link and the whole row takes the focus
+ * ring; `meta` and `action` sit above the link, so a button in the row still
+ * gets its own press. `dim` is a row that opens nothing, such as a deleted
+ * task: it reads quieter and does not light under the pointer.
+ */
+export function TaskLine({
+  taskKey,
+  title,
+  href,
+  meta,
+  action,
+  dim = false,
+  className,
+  ...rest
+}: Omit<React.ComponentProps<"div">, "title"> & {
+  taskKey?: string;
+  title: React.ReactNode;
+  href?: string;
+  meta?: React.ReactNode;
+  action?: React.ReactNode;
+  dim?: boolean;
+}) {
+  const name = (
+    <>
+      {taskKey && <span className={styles.taskLineKey}>{taskKey}</span>}
+      <span className={styles.taskLineTitle}>{title}</span>
+    </>
+  );
+  return (
+    <div
+      {...rest}
+      className={[styles.taskLine, dim ? styles.taskLineDim : "", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {href && !dim ? (
+        <Link href={href} className={`${styles.taskLineName} ${styles.taskLineLink}`}>
+          {name}
+        </Link>
+      ) : (
+        <span className={styles.taskLineName}>{name}</span>
+      )}
+      {meta && <span className={styles.taskLineMeta}>{meta}</span>}
+      {action && <span className={styles.taskLineAction}>{action}</span>}
+    </div>
+  );
+}
+
+/**
+ * How much of something is done, as one 4 px bar: a checklist, a release, a
+ * project's columns. The card drew it first; everything else draws the same
+ * one. With a `label` it is a progressbar a screen reader hears; without, the
+ * count beside it already says it and the bar is decoration.
+ */
+export function Meter({
+  done,
+  total,
+  color,
+  label,
+  className,
+}: {
+  done: number;
+  total: number;
+  /** The fill. The accent by default; `var(--shipped)` once a release is out. */
+  color?: string;
+  label?: string;
+  className?: string;
+}) {
+  const share = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
+  return (
+    <span
+      className={[styles.meter, className ?? ""].filter(Boolean).join(" ")}
+      {...(label
+        ? {
+            role: "progressbar",
+            "aria-label": label,
+            "aria-valuemin": 0,
+            "aria-valuemax": total,
+            "aria-valuenow": done,
+          }
+        : { "aria-hidden": true })}
+    >
+      <span
+        className={styles.meterFill}
+        style={{ width: `${share * 100}%`, ...(color ? { background: color } : {}) }}
+      />
     </span>
   );
 }
 
 export function Note({ children }: { children: React.ReactNode }) {
   return <span className={styles.note}>{children}</span>;
+}
+
+/**
+ * The end of a form that makes a thing: Cancel, then the primary, at the
+ * right. The primary is never disabled because a box is empty; the form
+ * checks itself on submit and says what is missing under the box.
+ */
+export function FormActions({ children }: { children: React.ReactNode }) {
+  return <div className={styles.formActions}>{children}</div>;
 }
 
 export function EmptyState({

@@ -166,7 +166,10 @@ test.describe("The sidebar", () => {
     await page.goto(`/p/${open}`);
     await expect(sidebar(page)).toBeVisible();
     await expect(square(page, other).getByTestId("sidebar-dot")).toHaveCount(0);
-    await expect(square(page, other)).toHaveAttribute("aria-label", /: Quiet$/);
+    await expect(square(page, other)).toHaveAttribute(
+      "aria-label",
+      /: (Changed .+|No changes yet)$/,
+    );
 
     const started = await request.post(`/api/tasks/${task}/run`, {
       headers: agent,

@@ -50,12 +50,21 @@ export function Avatar({
               fontSize: Math.max(8, size * 0.62),
               lineHeight: 1,
             }
-          : {
-              fontFamily: "var(--font-mono)",
-              fontWeight: 500,
-              fontSize: Math.max(7.5, size * (kind === "agent" ? 0.5 : 0.44)),
-              letterSpacing: "0.02em",
-            }),
+          : size < 20 && kind !== "agent"
+            ? {
+                /* Under 20 px the mono's wide letters crowd the circle; two
+                   initials in the sans, a little heavier, still read. */
+                fontFamily: "var(--font-sans)",
+                fontWeight: 600,
+                fontSize: size * 0.46,
+                letterSpacing: 0,
+              }
+            : {
+                fontFamily: "var(--font-mono)",
+                fontWeight: 500,
+                fontSize: Math.max(7.5, size * (kind === "agent" ? 0.5 : 0.44)),
+                letterSpacing: "0.02em",
+              }),
         userSelect: "none",
         position: "relative",
         ...(gone ? { opacity: 0.5, filter: "grayscale(1)" } : {}),

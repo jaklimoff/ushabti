@@ -308,7 +308,7 @@ function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
             color={run.agent.color}
             emoji={run.agent.emoji}
             kind="agent"
-            size={14}
+            size={16}
           />
           <span className={styles.runName}>{run.agent.name}</span>
         </span>
@@ -357,7 +357,7 @@ function CardStopped({
           color={run.agent.color}
           emoji={run.agent.emoji}
           kind="agent"
-          size={14}
+          size={16}
         />
         <span
           className={styles.runText}

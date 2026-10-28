@@ -41,7 +41,7 @@
 .day {
   margin-left: auto;
   font-size: var(--t-small);
-  color: var(--text-meta);
+  color: var(--shipped);
   white-space: nowrap;
 }
 
@@ -62,50 +62,6 @@
 .tasks .row {
   padding-left: 16px;
   padding-right: 16px;
-}
-
-.row {
-  min-width: 0;
-}
-
-/* A title reads as a title and not as a link: a release of fifteen tasks in
-   the accent would outshout its own name. The hover says it opens. */
-.task {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  flex: 1;
-  min-width: 0;
-  color: var(--text-2);
-}
-
-.task:hover {
-  color: var(--text-2);
-}
-
-.task:hover .title {
-  color: var(--text);
-}
-
-/* The task key, as the archive and the lists draw it. */
-.key {
-  flex: 0 0 auto;
-  min-width: 7ch;
-  font-family: var(--font-mono);
-  font-size: var(--t-micro);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-meta);
-}
-
-.title {
-  min-width: 0;
-  font-size: var(--t-body);
-  color: var(--text-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color 140ms var(--ease);
 }
 
 .older {

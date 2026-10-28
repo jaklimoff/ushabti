@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { archiveOrder, narrowArchive } from "@/lib/archive";
 import { longAgo } from "@/lib/board";
@@ -10,7 +9,7 @@ import type { ArchivedTaskDTO, BoardData, DeletedTaskDTO } from "@/lib/types";
 import { BoardProvider, useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
-import { Card, EmptyState, PageHead, PageShell, Row, Section } from "@/components/ui/Layout";
+import { Card, EmptyState, PageHead, PageShell, Section, TaskLine } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import { Toasts } from "@/components/ui/Toasts";
 import { useNow } from "@/components/ui/useElapsed";
@@ -179,41 +178,38 @@ function ArchiveRow({ task, now }: { task: ArchivedTaskDTO; now: number }) {
   const { data, restoreTask, notify } = useBoard();
   const [putting, setPutting] = useState(false);
 
+  /* The key and the title open the task, exactly as a list row does, and
+     the panel there is the one every other screen opens. The moment is drawn
+     on the server and again here, so it counts rather than reads a calendar.
+     Putting a task back is the undo, not a loss, so it asks nothing first.
+     The row goes when the board answers. */
   return (
-    <Row className={styles.row} data-testid="archive-row">
-      {/* The key and the title open the task, exactly as a list row does, and
-          the panel there is the one every other screen opens. */}
-      <Link className={styles.open} href={`/p/${data.project.id}?task=${task.key}`}>
-        <span className={styles.key}>{task.key}</span>
-        <span className={styles.title}>{task.title}</span>
-      </Link>
-
-      {/* Drawn on the server and again here, so it counts rather than reads a
-          calendar. */}
-      <span className={styles.when} suppressHydrationWarning>
-        Archived {longAgo(task.archivedAt, now)}
-      </span>
-
-      {/* Putting a task back is the undo, not a loss, so it asks nothing
-          first. The row goes when the board answers. */}
-      <Button
-        variant="ghost"
-        disabled={putting}
-        data-testid="archive-put-back"
-        aria-label={`Put ${task.key} back`}
-        onClick={async () => {
-          /* The row goes only when the board comes back, so the press has to
-             say it was heard. A restore that fails leaves the row, and the
-             button has to work again. */
-          setPutting(true);
-          const back = await restoreTask(task.id);
-          setPutting(false);
-          if (back) notify(`${task.key} is back on the board.`, "info");
-        }}
-      >
-        Put back
-      </Button>
-    </Row>
+    <TaskLine
+      data-testid="archive-row"
+      taskKey={task.key}
+      title={task.title}
+      href={`/p/${data.project.id}?task=${task.key}`}
+      meta={<span suppressHydrationWarning>Archived {longAgo(task.archivedAt, now)}</span>}
+      action={
+        <Button
+          variant="ghost"
+          busy={putting}
+          data-testid="archive-put-back"
+          aria-label={`Put ${task.key} back`}
+          onClick={async () => {
+            /* The row goes only when the board comes back, so the press has
+               to say it was heard. A restore that fails leaves the row, and
+               the button has to work again. */
+            setPutting(true);
+            const back = await restoreTask(task.id);
+            setPutting(false);
+            if (back) notify(`${task.key} is back on the board.`, "info");
+          }}
+        >
+          Put back
+        </Button>
+      }
+    />
   );
 }
 
@@ -236,39 +232,40 @@ function DeletedRow({
 }) {
   const [putting, setPutting] = useState(false);
 
+  /* How long is left is the one number that is about to run out, so it is
+     the one drawn as a tag. In its last week it turns amber. */
   return (
-    <Row className={`${styles.row} ${styles.dead}`} data-testid="deleted-row">
-      <span className={styles.gone}>
-        <span className={styles.key}>{task.key}</span>
-        <span className={styles.title}>{task.title}</span>
-      </span>
-
-      <span className={styles.when} suppressHydrationWarning>
-        Deleted {longAgo(task.deletedAt, now)}
-      </span>
-
-      {/* The one number that is about to run out, so it is the one drawn as
-          a tag. In its last week it turns amber. */}
-      <span
-        className={`${styles.left} ${daysLeft(task.goesAt, now) <= SOON_DAYS ? styles.soon : ""}`}
-        suppressHydrationWarning
-      >
-        {saysLeft(task.goesAt, now)}
-      </span>
-
-      <Button
-        variant="ghost"
-        disabled={putting}
-        data-testid="deleted-put-back"
-        aria-label={`Put ${task.key} back`}
-        onClick={async () => {
-          setPutting(true);
-          await onPutBack(task);
-          setPutting(false);
-        }}
-      >
-        Put back
-      </Button>
-    </Row>
+    <TaskLine
+      data-testid="deleted-row"
+      dim
+      taskKey={task.key}
+      title={task.title}
+      meta={
+        <>
+          <span suppressHydrationWarning>Deleted {longAgo(task.deletedAt, now)}</span>
+          <span
+            className={`${styles.left} ${daysLeft(task.goesAt, now) <= SOON_DAYS ? styles.soon : ""}`}
+            suppressHydrationWarning
+          >
+            {saysLeft(task.goesAt, now)}
+          </span>
+        </>
+      }
+      action={
+        <Button
+          variant="ghost"
+          busy={putting}
+          data-testid="deleted-put-back"
+          aria-label={`Put ${task.key} back`}
+          onClick={async () => {
+            setPutting(true);
+            await onPutBack(task);
+            setPutting(false);
+          }}
+        >
+          Put back
+        </Button>
+      }
+    />
   );
 }

@@ -207,7 +207,7 @@
   flex: 0 0 auto;
   height: var(--control-h);
   padding: 0 4px 0 8px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   background: var(--bg-hover);
   box-shadow: inset 0 0 0 1px var(--accent-line);
 }
@@ -216,7 +216,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--accent-soft);
@@ -225,11 +225,10 @@
 .pickSet {
   height: 20px;
   padding: 0 7px;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  border-radius: var(--r-xs);
+  /* A button, so it reads as Card, Sort and Filter do: sans, sentence case. */
+  font-size: var(--t-small);
+  font-weight: 500;
   white-space: nowrap;
   color: var(--text-4);
   transition:
@@ -259,7 +258,7 @@
   height: 20px;
   display: grid;
   place-items: center;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   font-size: var(--t-chip);
   color: var(--icon);
   transition:
@@ -356,7 +355,7 @@
   height: 26px;
   gap: 7px;
   padding: 0 10px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   white-space: nowrap;
   font-size: var(--t-body);
   font-weight: 500;
@@ -373,7 +372,7 @@
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
 }
 
 /* Hidden but still in the tab order, so focus is what shows it. No width
@@ -386,7 +385,7 @@
   height: 22px;
   overflow: hidden;
   opacity: 0;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   color: var(--muted);
   transition:
     opacity 140ms var(--ease),
@@ -421,7 +420,7 @@
   min-width: 60px;
   padding: 0 9px;
   border: 1px solid var(--accent);
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   outline: 0;
   background: var(--bg-tag);
   color: var(--text);
@@ -448,7 +447,7 @@
   gap: 7px;
   height: 28px;
   padding: 0 9px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   font-size: var(--t-small);
   color: var(--text-2);
   text-align: left;
@@ -522,7 +521,7 @@
   height: 24px;
   display: grid;
   place-items: center;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   color: var(--text-meta);
   transition:
     background 140ms var(--ease),
@@ -649,7 +648,7 @@
   height: 24px;
   gap: 7px;
   padding: 0 9px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   font-size: var(--t-small);
   color: var(--muted);
   transition:
@@ -678,7 +677,7 @@
 .primary {
   height: var(--control-h);
   padding: 0 11px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   background: var(--accent);
   color: var(--accent-ink);
   font-size: var(--t-small);
@@ -693,7 +692,7 @@
 .ghost {
   height: var(--control-h);
   padding: 0 10px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line-ghost);
   color: var(--muted);
   font-size: var(--t-small);
@@ -760,7 +759,7 @@
   height: 28px;
   flex: 0 0 auto;
   padding: 0 9px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   white-space: nowrap;
   font-size: var(--t-body);
   font-weight: 500;
@@ -791,7 +790,7 @@
 .columnStrip .addColumnButton {
   height: 28px;
   padding: 0 10px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
 }
 
 /* The strip is one row high and the form is four, so it hangs below it. */
@@ -843,7 +842,7 @@
 
 .columnOver {
   border-color: var(--accent-ring);
-  background: #0f1216;
+  background: var(--bg-column-over);
 }
 
 .columnDragging {
@@ -1044,7 +1043,7 @@
   height: 22px;
   display: grid;
   place-items: center;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   color: var(--text-meta);
   transition:
     background 140ms var(--ease),
@@ -1115,7 +1114,7 @@
 .colConfirmYes,
 .colConfirmNo {
   padding: 3px 9px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   font-size: var(--t-micro);
   transition:
     background 140ms var(--ease),
@@ -1149,7 +1148,7 @@
 
 .colShipAnswer {
   padding: 3px 9px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--accent-line);
   font-size: var(--t-micro);
   color: var(--accent-soft);
@@ -1252,7 +1251,7 @@
   justify-content: flex-start;
   gap: 6px;
   padding: 0 9px;
-  border-radius: 6px;
+  border-radius: var(--r-card);
   border: 1px dashed transparent;
   color: transparent;
   font-size: var(--t-small);
@@ -1291,7 +1290,7 @@
   flex: 0 0 auto;
   gap: 8px;
   padding: 11px 12px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-card);
   overflow: hidden;
   background: var(--bg-card);
   cursor: pointer;
@@ -1310,11 +1309,14 @@
   box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
 
-/* A picked card wears a border and nothing more. The step count, the count in
-   the bar and the rest of it are in the top bar, where a board of forty cards
-   can still be read. */
-.cardPicked {
-  box-shadow: inset 0 0 0 1px var(--accent);
+/* A picked card wears a fill and nothing more: not a third ring, so the open
+   card's ring and the cursor's stay the only rings. The step count, the count
+   in the bar and the rest of it are in the top bar, where a board of forty
+   cards can still be read. The fill lies over the card's own ground, so it
+   holds under the pointer too. */
+.cardPicked,
+.cardPicked:hover {
+  background-image: linear-gradient(var(--accent-pick), var(--accent-pick));
 }
 
 /*
@@ -1437,7 +1439,7 @@
 .cardOverlay {
   cursor: grabbing;
   box-shadow: var(--shadow-drag);
-  background: #1a1e24;
+  background: var(--bg-card-drag);
   transform: rotate(1.4deg) scale(1.028);
   animation: ushabti-pickup 160ms var(--ease);
 }
@@ -1513,16 +1515,18 @@
   min-width: 0;
 }
 
+/* A value on a quiet ground and no border, so a card of chips is not a card
+   of boxes. */
 .cardChipBoxed {
-  padding: 2px 6px 2px 5px;
-  border: 1px solid var(--line-dash);
-  border-radius: 4px;
+  padding: 2px 7px 2px 6px;
+  border-radius: var(--r-xs);
+  background: var(--bg-chip);
 }
 
 /* The option's own colour behind its name, the way a label reads. */
 .cardChipFill {
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .cardChipSquare {
@@ -1532,10 +1536,11 @@
   border-radius: 2px;
 }
 
+/* The swatch beside a word: the one 6 px dot the app draws everywhere. */
 .cardChipDot {
-  width: 5px;
-  height: 5px;
-  flex: 0 0 5px;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
   border-radius: 50%;
 }
 
@@ -1563,10 +1568,12 @@
   color: inherit;
 }
 
-/* Words a person wrote read as words, not as data. */
+/* Words a person wrote or named read as words, not as data: an option, a
+   name. One size and one grey on a card and in a list cell. */
 .cardChipWords {
   font-size: var(--t-small);
-  color: var(--muted);
+  font-weight: 500;
+  color: var(--text-4);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1594,21 +1601,10 @@
   flex-wrap: wrap;
 }
 
-.cardProgressBar {
-  display: block;
+/* The shared `Meter`, at the width a card gives it. */
+.cardChip > .cardProgressBar {
   width: 34px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--line-menu);
-  overflow: hidden;
-}
-
-.cardProgressFill {
-  display: block;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-  transition: width 200ms var(--ease);
+  flex: 0 0 34px;
 }
 
 /* --------------------------------------------------- inline composers */
@@ -1621,7 +1617,7 @@
   /* The `@` list is measured from here, and sits under the whole composer. */
   position: relative;
   padding: 9px 10px;
-  border-radius: 6px;
+  border-radius: var(--r-card);
   background: var(--bg-card);
   box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
@@ -1758,8 +1754,8 @@
  * than as one more badge. The card therefore has to clip it.
  */
 .runStrip {
-  --run-ground: rgba(63, 176, 200, 0.07);
-  --run-line: rgba(63, 176, 200, 0.16);
+  --run-ground: color-mix(in srgb, var(--accent) 7%, transparent);
+  --run-line: color-mix(in srgb, var(--accent) 16%, transparent);
   --run-text: var(--agent-text);
   --run-time: var(--agent-time);
   --run-bar: var(--accent);
@@ -1836,8 +1832,8 @@
 
 .runStrip[data-status="waiting"],
 .runStrip[data-status="handed_over"] {
-  --run-ground: rgba(201, 146, 90, 0.11);
-  --run-line: rgba(201, 146, 90, 0.4);
+  --run-ground: color-mix(in srgb, var(--waiting) 11%, transparent);
+  --run-line: var(--waiting-line);
   --run-text: var(--agent-waiting-text);
   --run-bar: var(--waiting);
 }
@@ -1853,7 +1849,7 @@
 
 .runStrip[data-status="waiting"] .runScan,
 .runStrip[data-status="handed_over"] .runScan {
-  background: rgba(201, 146, 90, 0.12);
+  background: color-mix(in srgb, var(--waiting) 12%, transparent);
 }
 
 .runStrip[data-status="waiting"] .runScanFill,
@@ -1865,19 +1861,19 @@
 
 /* Paused: alive and still. The strip goes grey, so it is not read as work. */
 .runStrip[data-status="paused"] {
-  --run-ground: rgba(139, 145, 155, 0.06);
-  --run-line: rgba(139, 145, 155, 0.18);
+  --run-ground: color-mix(in srgb, var(--muted) 6%, transparent);
+  --run-line: color-mix(in srgb, var(--muted) 18%, transparent);
   --run-text: var(--muted);
   --run-bar: var(--muted-2);
 }
 
-/* Silent: nobody has heard from it. The words fade, and the time in the warm
-   colour says for how long. */
+/* Silent: nobody has heard from it. The words go to the quietest grey that
+   still reads, and the time in the warning colour says for how long. */
 .runStrip[data-life="silent"]:not([data-status="waiting"]):not([data-status="handed_over"])
   .runAgent,
 .runStrip[data-life="silent"]:not([data-status="waiting"]):not([data-status="handed_over"])
   .runText {
-  opacity: 0.6;
+  color: var(--text-meta);
 }
 
 /*
@@ -1886,14 +1882,14 @@
  * heard from it" is the same slot answering a harder question.
  */
 .runTimeStale {
-  color: var(--waiting);
+  color: var(--warn);
 }
 
 .runScan {
   display: block;
   height: 2px;
   overflow: hidden;
-  background: rgba(63, 176, 200, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .runScanFill {
@@ -1990,7 +1986,7 @@
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
   white-space: nowrap;
@@ -2014,7 +2010,7 @@ button.listHeadCell:focus-visible {
   outline: none;
   color: var(--text-3);
   box-shadow: inset 0 0 0 2px var(--accent);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .listHeadOn,
@@ -2099,7 +2095,6 @@ button.listHeadCell:focus-visible .listHeadHint {
  * line, which read as a fault exactly where people look.
  */
 .listRowSelected::after,
-.listRowPicked::after,
 .listRow:focus-visible::after {
   content: "";
   position: absolute;
@@ -2114,11 +2109,12 @@ button.listHeadCell:focus-visible .listHeadHint {
   background: var(--bg-card);
 }
 
-/* A picked row wears the border a picked card wears, and nothing more. It
-   comes after the open row and before the cursor, exactly as a card's does:
-   a pick is louder than the panel being open, and the cursor is loudest. */
-.listRowPicked::after {
-  box-shadow: inset 0 0 0 1px var(--accent);
+/* A picked row wears the fill a picked card wears, and no ring, so a run of
+   picked rows reads as one block, the way a selection does in any table. The
+   open row keeps its ring and the cursor its own. */
+.listRowPicked,
+.listRowPicked:hover {
+  background: var(--accent-pick);
 }
 
 /*
@@ -2152,7 +2148,7 @@ button.listHeadCell:focus-visible .listHeadHint {
    as a broken table at 1000. */
 .listRowOverlay {
   cursor: grabbing;
-  border-radius: 6px;
+  border-radius: var(--r-card);
   background: var(--bg-card-hover);
   box-shadow: var(--shadow-drag);
 }
@@ -2227,7 +2223,7 @@ button.listHeadCell:focus-visible .listHeadHint {
   width: 14px;
   height: 14px;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   color: var(--accent);
   font-size: 9px;
   line-height: 1;
@@ -2334,11 +2330,9 @@ button.listHeadCell:focus-visible .listHeadHint {
  */
 .listRunAgent {
   flex: 0 0 auto;
-  font-family: var(--font-mono);
-  font-size: var(--t-label);
+  /* A name, so it is a word in the sans and not a label. */
+  font-size: var(--t-small);
   font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--agent-text);
   white-space: nowrap;
 }
@@ -2586,7 +2580,7 @@ button.listHeadCell:focus-visible .listHeadHint {
   max-width: 46%;
   height: 20px;
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--bg-menu-hover);
   color: var(--text-3);
   font-size: var(--t-small);
@@ -2657,19 +2651,21 @@ button.listHeadCell:focus-visible .listHeadHint {
 .filterItem {
   cursor: default;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 8px;
   height: 26px;
   padding: 0 6px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   font-size: var(--t-small);
   color: var(--text-4);
   text-align: left;
   white-space: nowrap;
 }
 
-.filterItem:hover {
-  background: var(--bg-hover);
+.filterItem:hover,
+.filterItem:focus-visible {
+  background: var(--bg-menu-hover);
   color: var(--text);
 }
 
@@ -2693,6 +2689,7 @@ button.listHeadCell:focus-visible .listHeadHint {
    arrows and the highlight walk past it. */
 .filterGroup {
   display: block;
+  flex: 0 0 auto;
   font-size: var(--t-small);
   color: var(--muted);
   padding: 8px 6px 2px;
@@ -2756,7 +2753,7 @@ button.listHeadCell:focus-visible .listHeadHint {
   display: flex;
   align-items: center;
   height: 22px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   background: var(--bg-tag);
   border: 1px solid var(--line);
   white-space: nowrap;
@@ -2815,7 +2812,7 @@ button.listHeadCell:focus-visible .listHeadHint {
 .filterClear {
   padding: 0 7px;
   height: 22px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   font-size: var(--t-small);
   color: var(--muted);
 }
@@ -2848,7 +2845,7 @@ button.listHeadCell:focus-visible .listHeadHint {
 .filterPromote {
   padding: 0 7px;
   height: 22px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   font-size: var(--t-small);
   color: var(--muted);
   text-decoration: underline;
@@ -2957,7 +2954,7 @@ button.listHeadCell:focus-visible .listHeadHint {
   width: 16px;
   height: 16px;
   border: 1px solid var(--line-menu);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   pointer-events: none;
   font-family: var(--font-mono);
   font-size: var(--t-chip);
@@ -2988,11 +2985,11 @@ button.listHeadCell:focus-visible .listHeadHint {
   flex-direction: column;
   gap: 2px;
   padding: 5px 6px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
 }
 
 .searchItem:hover {
-  background: var(--bg-hover);
+  background: var(--bg-menu-hover);
 }
 
 /* The row the arrow keys are on. It is not focus: the box keeps that. */
@@ -3064,12 +3061,11 @@ button.listHeadCell:focus-visible .listHeadHint {
   align-items: center;
   gap: 6px;
   border: 0;
-  border-radius: 5px;
-  background: var(--bg-hover);
+  border-radius: var(--r-sm);
+  background: var(--waiting-soft);
   color: var(--waiting);
-  font-family: var(--font-mono);
-  font-size: var(--t-chip);
-  letter-spacing: 0.06em;
+  font-size: var(--t-small);
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -3255,13 +3251,13 @@ button.listHeadCell:focus-visible .listHeadHint {
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-radius: 5px;
+  border-radius: var(--r-sm);
   min-width: 0;
   flex: 0 0 auto;
 }
 
 .mentionItem:hover {
-  background: var(--bg-hover);
+  background: var(--bg-menu-hover);
 }
 
 /* The row the arrow keys are on. It is not focus: the box keeps that. */
@@ -3283,7 +3279,7 @@ button.listHeadCell:focus-visible .listHeadHint {
   font-family: var(--font-mono);
   font-size: var(--t-label);
   letter-spacing: 0.05em;
-  color: var(--faint-3);
+  color: var(--text-meta);
 }
 
 /* ---- the roadmap ----------------------------------------------------- */
@@ -3364,7 +3360,7 @@ button.listHeadCell:focus-visible .listHeadHint {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-meta);
   white-space: nowrap;

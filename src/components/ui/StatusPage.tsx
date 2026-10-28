@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { BrandMark } from "./Marks";
-import { OutsideFrame, outsideCard } from "./OutsideFrame";
+import { OutsideBrand, OutsideFrame, outsideCard } from "./OutsideFrame";
 import styles from "./ui.module.css";
 
 /**
@@ -27,10 +26,7 @@ export function StatusPage({
 }) {
   return (
     <OutsideFrame>
-      <div className={styles.statusBrand}>
-        <BrandMark size={32} />
-        <span className={styles.statusName}>Ushabti</span>
-      </div>
+      <OutsideBrand />
       <section className={`${outsideCard} ${styles.statusCard}`}>
         <h1 className={styles.statusTitle}>{title}</h1>
         <p className={styles.statusBody}>{children}</p>

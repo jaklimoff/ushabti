@@ -22,7 +22,7 @@ test.describe("Personal tokens", () => {
     const row = page.getByTestId("personal-token-row").filter({ hasText: "Laptop script" });
     await expect(row).toContainText(secret.slice(0, 13));
     await expect(row).toContainText("made today");
-    await expect(row).toContainText(/expires \d+ \w+ \d{4}/);
+    await expect(row).toContainText(/expires [A-Z][a-z]{2} \d{1,2}(, \d{4})?/);
     await expect(row).toContainText("never used");
 
     const as = { Authorization: `Bearer ${secret}` };

@@ -78,11 +78,11 @@ test.describe("The changelog", () => {
     const entries = page.getByTestId("changelog-entry");
     await expect(entries).toHaveCount(2);
     await expect(entries.nth(0).getByRole("heading")).toHaveText("v2");
-    await expect(entries.nth(0)).toContainText("October 1, 2026");
+    await expect(entries.nth(0)).toContainText("✓ Oct 1, 2026");
     await expect(entries.nth(0)).toContainText("1 task");
     await expect(entries.nth(1)).toContainText("2 tasks");
     await expect(entries.nth(1).getByRole("heading")).toHaveText("v1");
-    await expect(entries.nth(1)).toContainText("September 1, 2026");
+    await expect(entries.nth(1)).toContainText("✓ Sep 1, 2026");
     /* The note is markdown, drawn. */
     await expect(entries.nth(1).locator("strong")).toHaveText("first");
     /* The archived task is read, and the tasks keep the board order. */

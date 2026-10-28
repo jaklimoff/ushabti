@@ -20,6 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useBoard } from "@/components/board/store";
+import { formatDate, shippedOn } from "@/lib/board";
 import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
@@ -589,6 +590,7 @@ function DonePanel({ property, canEdit }: { property: PropertyDTO; canEdit: bool
             <Pill
               key={o.id}
               on={ticks.includes(o.id)}
+              color={o.color}
               disabled={!canEdit || sending !== null || saving}
               onClick={() => void press(o.id)}
             >
@@ -900,7 +902,7 @@ function OptionPlan({
     return (
       <span className={`${styles.optionPlan} ${styles.optionPlanAsk}`}>
         <ConfirmRow
-          question={`Unship ${option.name}? Shipped ${option.shippedAt} is lost.`}
+          question={`Unship ${option.name}? The day it shipped, ${formatDate(option.shippedAt ?? "")}, is lost.`}
           confirmLabel="Yes, unship"
           onConfirm={() => unship.confirm(() => void patchOption(option.id, { shippedAt: null }))}
           onCancel={unship.cancel}
@@ -917,8 +919,8 @@ function OptionPlan({
       <OptionField option={option} field="targetAt" label="Target" type="date" />
       <OptionField option={option} field="note" label="Note" type="text" />
       {option.shippedAt && (
-        <span className={styles.optionShipped}>
-          Shipped {option.shippedAt}
+        <span className={styles.optionShipped} title={`Shipped ${formatDate(option.shippedAt)}`}>
+          {shippedOn(option.shippedAt)}
           {/* Unship is an admin's, so a member reads the date and nothing more. */}
           {canEdit && (
             <button
