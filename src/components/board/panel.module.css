@@ -81,12 +81,11 @@
   flex: 0 0 auto;
   /* The title's `@` list is measured from here, so it sits under the head. */
   position: relative;
-  padding: 12px 16px 16px;
+  padding: 10px 16px 12px;
   border-bottom: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: background 220ms var(--ease);
+  gap: 6px;
 }
 
 .stamp {
@@ -229,19 +228,25 @@
 
 .props {
   flex: 0 0 auto;
-  padding: 12px 16px;
+  padding: 6px 16px 8px;
   display: grid;
   grid-template-columns: 88px 1fr;
   align-items: center;
 }
 
 /* The one label of the app, as in globals.css. A long property name may take
-   a second line rather than run under its value. */
+   a second line rather than run under its value. A row is 32px: the 26px
+   control and 3px either side, so the comments start higher. */
 .propLabel {
   align-self: stretch;
   display: flex;
   align-items: center;
-  padding: 8px 10px 8px 0;
+  padding: 5px 10px 5px 0;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  transition:
+    background 120ms var(--ease),
+    box-shadow 120ms var(--ease),
+    color 120ms var(--ease);
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
@@ -252,9 +257,51 @@
   color: var(--text-meta);
 }
 
+/* The cell fills the row, so its wash is as tall as the label's, and holds
+   its control in the middle when a long name takes two lines. */
 .propValue {
-  padding: 5px 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 2.5px 0;
   min-width: 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  transition:
+    background 120ms var(--ease),
+    box-shadow 120ms var(--ease);
+}
+
+.propValue > * {
+  max-width: 100%;
+}
+
+/* A field (a menu, chips, a box) spans the cell; a bare button keeps its own
+   width, as it did before the cell stretched. */
+.propValue > div,
+.propValue > input {
+  align-self: stretch;
+}
+
+/* A row is one thing to change: the label lights with its value, from
+   either cell, so the name says which value the pointer is on. The wash
+   reaches 8px past both cells by a shadow, so no word and no hairline moves. */
+.propLabel:hover,
+.propLabel:has(+ .propValue:hover) {
+  background: var(--bg-hover-wash);
+  box-shadow: -8px 0 0 var(--bg-hover-wash);
+}
+
+.propValue:hover,
+.propLabel:hover + .propValue {
+  background: var(--bg-hover-wash);
+  box-shadow: 8px 0 0 var(--bg-hover-wash);
+}
+
+.propLabel:hover,
+.propLabel:has(+ .propValue:hover) {
+  color: var(--text-4);
 }
 
 /* A value that hides others asks under its own row, across both cells. */
@@ -267,12 +314,15 @@
   border-top: 1px solid var(--line-faint);
 }
 
+/* The writing starts under a rule, as the fields start under the head: the
+   panel reads head, fields, writing, conversation. */
 .section {
   flex: 0 0 auto;
-  padding: 8px 16px 20px;
+  border-top: 1px solid var(--line);
+  padding: 14px 16px 14px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .block {
@@ -318,7 +368,9 @@
 
 /* The words wear the editor's box, unseen, so opening it moves nothing: the
    border and the padding are the editor's, and the margin takes them back
-   out to the column's edge. A pointer on it shows the box it will become. */
+   out to the column's edge. A pointer on it shows the box it will become.
+   No `text-wrap: pretty` here: the editor cannot match it, so the first line
+   rewrapped the moment the box opened. */
 .desc {
   margin: 0 -11px;
   padding: 9px 10px;
@@ -327,7 +379,6 @@
   font-size: var(--t-body);
   line-height: 1.6;
   color: var(--text-4);
-  text-wrap: pretty;
   cursor: text;
   transition:
     background 140ms var(--ease),
@@ -438,12 +489,18 @@
   min-height: 120px;
   padding: 9px 10px;
 }
+/* The description opens exactly as tall as its words were, so nothing
+   under it moves. `--desc-h` is measured on the click that opens it. */
+.descLive :global(.cm-editor) {
+  min-height: var(--desc-h, 40px);
+}
 /* The description's editor lies where its words lay. CodeMirror pads a
    line and the content of its own, which moved every word when the box
    opened, so both go. Its theme is added after this sheet, hence the extra
    class on each. */
 .descLive {
   width: calc(100% + 22px);
+  min-height: 0;
   margin: 0 -11px;
 }
 .descLive:focus-within {
@@ -653,30 +710,37 @@
   margin: 12px 0;
 }
 
-/* The count beside the checklist's label, in the accent the cells fill with. */
+/* The count beside the checklist's label. Nothing done is not news, so it
+   is quiet at 0; it takes the accent once something is done, and the shipped
+   green when all of it is. */
 .count {
   font-family: var(--font-mono);
   font-size: var(--t-chip);
   font-weight: 500;
+  color: var(--text-meta);
+}
+
+.countSome {
   color: var(--accent-soft);
 }
 
+.countAll {
+  color: var(--shipped);
+}
+
+/* The card's bar, so progress reads one way on the card and in the panel. */
 .progress {
-  display: flex;
-  gap: 4px;
-  margin: 0 0 4px;
+  margin: 0 0 6px;
 }
 
-.progressCell {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line-menu);
-  transition: background 200ms var(--ease);
+/* The items are one list, so they sit closer than the blocks around them;
+   each row's own padding is what a pointer lands on. */
+.checklist {
+  gap: 2px;
 }
 
-.progressDone {
-  background: var(--accent);
+.checklist > .blockHead {
+  margin-bottom: 6px;
 }
 
 .quiet {
@@ -689,13 +753,21 @@
   gap: 9px;
   align-items: flex-start;
   margin: 0 -8px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: var(--r-sm);
   transition: background 140ms var(--ease);
 }
 
 .check:hover {
   background: var(--bg-card-hover);
+}
+
+/* An item being written in is a box, as every other field is while it is
+   open: an edit and a new item look alike, and neither looks like a hover. */
+.check:has(.checkInput),
+.check:has(.checkInput):hover {
+  background: var(--bg-input);
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
 }
 
 .box {
@@ -760,15 +832,10 @@
   padding: 0;
 }
 
-.checkRemove {
-  width: 20px;
-  height: 20px;
-  margin: -1px 0;
-  display: grid;
-  place-items: center;
-  flex: none;
-  border-radius: var(--r-sm);
-  color: var(--icon);
+/* The ✕ is the shared IconButton; this only hides it until the row is
+   pointed at. The row's scope outranks the button's own transition. */
+.check .checkRemove {
+  margin: -2px 0;
   font-size: 10px;
   opacity: 0;
   transition:
@@ -778,13 +845,8 @@
 }
 
 .check:hover .checkRemove,
-.checkRemove:focus-visible {
+.check .checkRemove:focus-visible {
   opacity: 1;
-}
-
-.checkRemove:hover {
-  color: var(--danger-soft);
-  background: var(--danger-bg);
 }
 
 .addItem {
@@ -792,7 +854,7 @@
   align-items: center;
   gap: 9px;
   margin: 0 -8px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: var(--r-sm);
   color: var(--text-meta);
   font-size: var(--t-body);
@@ -842,7 +904,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 0 9px;
+  padding: 9px 0 8px;
   /* A tab goes somewhere, so it reads as navigation, not as a label. */
   font-size: var(--t-ui);
   font-weight: 500;
@@ -908,7 +970,7 @@
 
 .feed {
   flex: 0 0 auto;
-  padding: 16px 16px 20px;
+  padding: 14px 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -916,7 +978,7 @@
 
 .comment {
   display: flex;
-  gap: 9px;
+  gap: 10px;
 }
 
 .commentBody {
@@ -999,57 +1061,33 @@
   min-width: 0;
 }
 
-.commentDelete {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--r-sm);
+/* Edit and ✕ are the shared IconButton, quiet until the comment is pointed
+   at. The head line is short, so they sit in it without making it taller. */
+.comment .commentUse,
+.comment .commentDelete {
+  margin: -4px 0;
+  align-self: center;
   opacity: 0;
+  transition:
+    opacity 140ms var(--ease),
+    color 140ms var(--ease),
+    background 140ms var(--ease);
+}
+
+.comment .commentDelete {
   font-size: 10px;
-  color: var(--icon);
-  transition:
-    opacity 140ms var(--ease),
-    color 140ms var(--ease),
-    background 140ms var(--ease);
-}
-
-.commentDelete:hover {
-  color: var(--danger-soft);
-  background: var(--danger-bg);
-}
-
-/* Quiet until the comment is pointed at, like the delete beside it. A draft an
-   agent left is a comment first; the button is for when it earns the place. */
-.commentUse {
-  height: 20px;
-  padding: 0 6px;
-  border-radius: var(--r-sm);
-  opacity: 0;
-  font-size: var(--t-small);
-  color: var(--muted);
-  transition:
-    opacity 140ms var(--ease),
-    color 140ms var(--ease),
-    background 140ms var(--ease);
 }
 
 .comment:hover .commentUse,
 .comment:hover .commentDelete,
-.commentUse:focus-visible,
-.commentDelete:focus-visible {
+.comment .commentUse:focus-visible,
+.comment .commentDelete:focus-visible {
   opacity: 1;
-}
-
-.commentUse:hover {
-  color: var(--text);
-  background: var(--bg-hover);
 }
 
 .composer {
   display: flex;
   gap: 10px;
-  margin-top: 3px;
 }
 
 .composerBox {
@@ -1059,7 +1097,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 10px 12px 8px;
+  padding: 9px 12px 7px;
   border-radius: var(--r-md);
   background: var(--bg-input);
   box-shadow: inset 0 0 0 1px var(--line-strong);
@@ -1074,7 +1112,7 @@
 
 .composerInput {
   width: 100%;
-  min-height: 54px;
+  min-height: 40px;
   resize: none;
   border: 0;
   outline: 0;
@@ -1093,7 +1131,7 @@
 /* The live composer is the description's editor without its frame: the box
    around it is the frame. */
 .composerInput :global(.cm-editor) {
-  min-height: 54px;
+  min-height: 40px;
   padding: 0;
 }
 
@@ -1101,8 +1139,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
 }
 
@@ -1301,6 +1339,8 @@
 }
 
 .runStepBox {
+  display: grid;
+  place-items: center;
   width: 12px;
   height: 12px;
   flex: 0 0 12px;
@@ -1308,8 +1348,11 @@
   border: 1px solid var(--line-dash);
 }
 
+/* A done step draws the tick a done checklist box draws, so the two lists
+   of things to finish read as one kind of list. */
 .runStepDone {
   border-color: transparent;
+  color: var(--accent-ink);
 }
 
 .runStepActive {
@@ -1475,28 +1518,18 @@
 /* What a task waits on                                                */
 /* ------------------------------------------------------------------ */
 
-.linkAdd {
-  width: 20px;
-  height: 20px;
-  border: 0;
-  border-radius: var(--r-sm);
-  background: none;
-  color: var(--icon);
+.blockHead .linkAdd {
+  margin: -4px 0;
+  align-self: center;
   font-size: var(--t-ui);
   line-height: 1;
-  cursor: pointer;
-}
-
-.linkAdd:hover {
-  background: var(--bg-hover);
-  color: var(--text);
 }
 
 .linkRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 22px;
+  min-height: 24px;
 }
 
 .linkOpen {
@@ -1541,23 +1574,92 @@
   text-decoration: line-through;
 }
 
-.linkRemove {
-  flex: none;
-  border: 0;
-  background: none;
-  color: var(--icon);
-  font-size: var(--t-micro);
-  cursor: pointer;
+:is(.linkRow, .file) .linkRemove {
+  font-size: 10px;
   opacity: 0;
+  transition:
+    opacity 140ms var(--ease),
+    color 140ms var(--ease),
+    background 140ms var(--ease);
 }
 
 .linkRow:hover .linkRemove,
-.linkRemove:focus-visible {
+:is(.linkRow, .file) .linkRemove:focus-visible {
   opacity: 1;
 }
 
-.linkRemove:hover {
-  color: var(--text);
+/* No links yet: one quiet row says a task can wait on another, where the
+   links would be. It opens the three ways the task menu offers. */
+.linkOffer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 26px;
+  /* It closes the checklist's "Add item" row rather than opening a block. */
+  margin-top: -14px;
+}
+
+.linkOfferButton {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 -8px;
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  color: var(--text-meta);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  width: calc(100% + 16px);
+  text-align: left;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.linkOfferButton:hover {
+  background: var(--bg-card-hover);
+  color: var(--accent-soft);
+}
+
+.linkOfferButton:focus-visible {
+  outline-offset: -2px;
+}
+
+.linkIcon {
+  flex: 0 0 14px;
+  color: var(--icon);
+  transition: color 140ms var(--ease);
+}
+
+/* Open, the icon stands where the row's icon stood, so the choices start
+   where its words did. */
+.linkOffer > .linkIcon {
+  margin-right: 3px;
+}
+
+.linkOfferButton:hover .linkIcon {
+  color: var(--accent-soft);
+}
+
+.linkChoice {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font-size: var(--t-small);
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.linkChoice:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-2);
 }
 
 /* The sentence a refused upload came back with, under the box. */
@@ -1575,15 +1677,11 @@
   /* There is no hover to wait for, and the ✕ is the only way a link goes. It
      is drawn, and given the 24 px a finger needs, exactly as the check that
      picks a card is. The same goes for every press that waits for a hover. */
-  .linkRemove,
-  .checkRemove,
-  .commentDelete {
+  :is(.linkRow, .file) .linkRemove,
+  .check .checkRemove,
+  .comment .commentDelete,
+  .comment .commentUse {
     width: 28px;
-    height: 28px;
-    opacity: 1;
-  }
-
-  .commentUse {
     height: 28px;
     opacity: 1;
   }
@@ -1592,8 +1690,12 @@
     display: none;
   }
 
-  .iconButton {
+  .headRow .headButton {
     width: 32px;
+    height: 32px;
+  }
+
+  .linkChoice {
     height: 32px;
   }
 
@@ -1616,7 +1718,8 @@
   }
 
   .check,
-  .addItem {
+  .addItem,
+  .linkOfferButton {
     padding-top: 7px;
     padding-bottom: 7px;
   }
