@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { editedText } from "@/lib/leave";
@@ -64,7 +64,7 @@ export function WebhooksPanel() {
     <>
       <PageHead
         title="Webhooks"
-        note="Ushabti posts to a URL whenever the board changes. The body says what changed and where; the receiver reads the rest."
+        note="Ushabti posts to a URL when the board changes. The receiver reads the rest."
       />
       {canEdit ? (
         <Hooks hooks={hooks} reload={reload} projectId={projectId} />
@@ -101,10 +101,18 @@ function Hooks({
   const [error, setError] = useState<string | null>(null);
   /** The plain secrets, held until the person leaves the page. */
   const [secrets, setSecrets] = useState<Record<string, string>>({});
+  const urlBox = useRef<HTMLInputElement>(null);
 
   async function add() {
     const trimmed = url.trim();
-    if (!trimmed || busy) return;
+    if (busy) return;
+    /* The button is never off for an empty box: a press says what is
+       missing, under the box, and puts the cursor there. */
+    if (!trimmed) {
+      setError("Paste the address Ushabti should post to.");
+      urlBox.current?.focus();
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -155,6 +163,7 @@ function Hooks({
 
         <Foot>
           <Input
+            ref={urlBox}
             grow
             aria-label="URL of the new webhook"
             value={url}
@@ -302,7 +311,12 @@ function HookBox({
   }
 
   return (
-    <div className={styles.hookBox} data-testid="webhook-box">
+    /* A hook that is off is quieter by colour, never faded: its words are
+       still read, to turn it back on. */
+    <div
+      className={hook.active ? styles.hookBox : `${styles.hookBox} ${styles.hookOff}`}
+      data-testid="webhook-box"
+    >
       <Row className={styles.hookRow}>
         <Input
           grow
@@ -340,7 +354,7 @@ function HookBox({
           </span>
         )}
 
-        <Kinds kinds={hook.kinds} onPick={(kinds) => void save({ kinds })} />
+        <Kinds kinds={hook.kinds} quiet={!hook.active} onPick={(kinds) => void save({ kinds })} />
 
         {secret && (
           <div className={styles.hookSecret} data-testid="webhook-secret">
@@ -370,27 +384,68 @@ function HookBox({
 
 /**
  * Which kinds ring this webhook. Nothing picked means every kind, which is
- * what a new webhook is and what most people want.
+ * what a new webhook is and what most people want, so that is the first of
+ * two answers and the list of kinds shows only under the second.
+ *
+ * It writes what the old wall of pills wrote: every change is `[]`, and a
+ * kind pressed adds or takes away that one kind. Asking for "only these"
+ * writes nothing until a kind is pressed, because `[]` already means every
+ * change.
  */
-function Kinds({ kinds, onPick }: { kinds: WebhookKind[]; onPick: (kinds: string[]) => void }) {
+function Kinds({
+  kinds,
+  quiet,
+  onPick,
+}: {
+  kinds: WebhookKind[];
+  quiet: boolean;
+  onPick: (kinds: string[]) => void;
+}) {
+  const [choosing, setChoosing] = useState(false);
   const all = kinds.length === 0;
+  const only = !all || choosing;
   return (
     <div className={styles.kinds} role="group" aria-label="What rings this webhook">
-      <Pill on={all} onClick={() => onPick([])}>
-        Everything
-      </Pill>
-      {WEBHOOK_KINDS.map((kind) => {
-        const on = kinds.includes(kind);
-        return (
-          <Pill
-            key={kind}
-            on={on}
-            onClick={() => onPick(on ? kinds.filter((k) => k !== kind) : [...kinds, kind])}
-          >
-            {WEBHOOK_KIND_LABEL[kind]}
-          </Pill>
-        );
-      })}
+      <div className={styles.kindsChoice}>
+        <span className={styles.kindsLead} aria-hidden="true">
+          Posts on
+        </span>
+        <Pill
+          on={!only}
+          quiet={quiet}
+          onClick={() => {
+            setChoosing(false);
+            if (!all) onPick([]);
+          }}
+        >
+          Every change
+        </Pill>
+        <Pill on={only} quiet={quiet} onClick={() => setChoosing(true)}>
+          Only these…
+        </Pill>
+      </div>
+      {only && (
+        <div className={styles.kindsList}>
+          {WEBHOOK_KINDS.map((kind) => {
+            const on = kinds.includes(kind);
+            return (
+              <Pill
+                key={kind}
+                on={on}
+                quiet={quiet}
+                onClick={() => onPick(on ? kinds.filter((k) => k !== kind) : [...kinds, kind])}
+              >
+                {WEBHOOK_KIND_LABEL[kind]}
+              </Pill>
+            );
+          })}
+          {all && (
+            <span className={styles.kindsSaid}>
+              None picked yet, so every change still rings it.
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

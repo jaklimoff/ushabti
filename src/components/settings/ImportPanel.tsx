@@ -7,9 +7,19 @@ import { CLIENT_ID } from "@/lib/client";
 import { canManage } from "@/lib/roles";
 import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { useBoard } from "@/components/board/store";
-import { Button, ButtonLink, Pill } from "@/components/ui/Button";
-import { Field, FileInput, Select } from "@/components/ui/Form";
-import { Card, EmptyState, Foot, Note, Row, Section, Spacer, Tag } from "@/components/ui/Layout";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { Checkbox, Field, FileInput, Select } from "@/components/ui/Form";
+import {
+  Card,
+  EmptyState,
+  Foot,
+  FormActions,
+  Note,
+  Row,
+  Section,
+  Spacer,
+  Tag,
+} from "@/components/ui/Layout";
 import {
   isSelect,
   type ImportMadeDTO,
@@ -106,7 +116,7 @@ export function ImportPanel() {
     <>
       <PageHead
         title="Import and export"
-        note="Take the whole project out as one file, or bring a board in from Trello. Its lists become the columns, its cards become tasks, and nothing is made twice."
+        note="Take the project out as one file, or bring a board in from Trello."
       />
 
       {/*
@@ -117,16 +127,20 @@ export function ImportPanel() {
       {canEdit && (
         <Section title="Export">
           <Card>
-            <Row>
-              <Field
-                label="Export"
-                inline
-                note="One JSON file with the properties, views, members, and every live and archived task with its values, checklist and comments."
-              >
-                <ButtonLink variant="ghost" href={`/api/projects/${projectId}/export`} download>
-                  Download
-                </ButtonLink>
-              </Field>
+            {/* One act, so it reads as the danger zone's rows do: what it
+                is on the left, the button on the right. The heading already
+                says Export, so the row does not say it again. */}
+            <Row className={styles.actionRow}>
+              <div className={styles.actionSay}>
+                <span className={styles.actionTitle}>The whole project as one JSON file</span>
+                <Note>
+                  The properties, views and members, and every live and archived task with its
+                  values, checklist and comments.
+                </Note>
+              </div>
+              <ButtonLink variant="ghost" href={`/api/projects/${projectId}/export`} download>
+                Download
+              </ButtonLink>
             </Row>
           </Card>
         </Section>
@@ -142,7 +156,7 @@ export function ImportPanel() {
         </Section>
       ) : (
         <>
-          <Section title="The file">
+          <Section title="Import from Trello">
             <Card>
               <Row>
                 <Field
@@ -152,8 +166,9 @@ export function ImportPanel() {
                   note={
                     ready ? (
                       <>
-                        In Trello: <b>Board menu → More → Print and export → Export as JSON</b>. Up
-                        to 5 MB and 2000 cards at a time. Trello only, for now.
+                        In Trello: <b>Board menu → More → Print and export → Export as JSON</b>. Its
+                        lists become columns and its cards tasks, and nothing is made twice. Up to 5
+                        MB and 2000 cards at a time.
                       </>
                     ) : (
                       "One moment — the page is still loading."
@@ -279,13 +294,13 @@ function Preview({
       <Section title={preview.board} note="What this import will do.">
         <Card>
           <Row>
-            <span>Tasks</span>
-            <Spacer />
-            <Tag accent>{preview.tasks.coming} coming</Tag>
-            {preview.tasks.already > 0 && <Tag>{preview.tasks.already} already here</Tag>}
+            <Field label="Tasks" inline>
+              <Tag accent>{preview.tasks.coming} coming</Tag>
+              {preview.tasks.already > 0 && <Tag>{preview.tasks.already} already here</Tag>}
+            </Field>
           </Row>
           <Row>
-            <Field label="Columns" inline>
+            <Field label="Columns" inline note="Each list becomes an option of this property.">
               <Select
                 aria-label="The property the lists become options of"
                 value={preview.group.propertyId ?? ""}
@@ -302,24 +317,24 @@ function Preview({
                   ...selects.map((p) => ({ value: p.id, label: p.name })),
                 ]}
               />
-              <Note>Each list becomes an option of this property.</Note>
             </Field>
           </Row>
-          <Row>
-            <span>Archived cards</span>
-            <Spacer />
-            <Pill
-              on={preview.archived.coming}
-              disabled={busy}
-              onClick={() => onAsk({ ...ask, archived: !ask.archived })}
-            >
-              {preview.archived.inFile === 0
-                ? "None in the file"
-                : preview.archived.coming
-                  ? `Bring ${preview.archived.inFile} in, archived`
-                  : `Leave ${preview.archived.inFile} behind`}
-            </Pill>
-          </Row>
+          {/* The box names the choice, so its words hold still when it is
+              ticked. A file with no archived cards has nothing to choose. */}
+          {preview.archived.inFile > 0 && (
+            <Row>
+              <Field label="Archived cards" inline>
+                <Checkbox
+                  label={`Bring the ${preview.archived.inFile} archived ${
+                    preview.archived.inFile === 1 ? "card" : "cards"
+                  } in, archived`}
+                  checked={preview.archived.coming}
+                  disabled={busy}
+                  onChange={() => onAsk({ ...ask, archived: !ask.archived })}
+                />
+              </Field>
+            </Row>
+          )}
           {preview.properties.some((p) => p.making) && (
             <Row>
               <Note>
@@ -377,18 +392,17 @@ function Preview({
         </Card>
       </Section>
 
-      <Card>
-        <Foot>
-          <Button onClick={onImport} disabled={busy || nothing}>
-            {nothing ? "Nothing new to bring in" : `Import ${preview.tasks.coming} tasks`}
-          </Button>
-          <Button variant="ghost" onClick={onAgain} disabled={busy}>
-            Choose another file
-          </Button>
-          <Spacer />
-          {nothing && <Note>Every card of this file is already on the board.</Note>}
-        </Foot>
-      </Card>
+      {/* The end of the flow, after every choice it confirms: the way out,
+          then the act, at the right, as every form that makes things ends. */}
+      <FormActions>
+        {nothing && <Note>Every card of this file is already on the board.</Note>}
+        <Button variant="ghost" onClick={onAgain} disabled={busy}>
+          Choose another file
+        </Button>
+        <Button onClick={onImport} disabled={nothing} busy={busy}>
+          {nothing ? "Nothing new to bring in" : `Import ${preview.tasks.coming} tasks`}
+        </Button>
+      </FormActions>
     </>
   );
 }

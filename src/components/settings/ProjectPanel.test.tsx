@@ -120,7 +120,7 @@ describe("Changelog", () => {
     await board.screen.unmount();
 
     await renderWithBoard(<ProjectPanel files={false} />, data);
-    const link = page.getByRole("link", { name: "Changelog", exact: true });
+    const link = page.getByRole("link", { name: "Open changelog", exact: true });
     await expect.element(link).toBeVisible();
     await expect.element(link).toHaveAttribute("href", `/p/${data.project.id}/changelog`);
   });
@@ -141,7 +141,7 @@ describe("Changelog", () => {
     await makePublic.click();
     await expect
       .element(page.getByTestId("public-changelog-link"))
-      .toHaveTextContent("/changelog/tst");
+      .toMatchTextContent(/^http:\/\/\S+\/changelog\/tst/);
     expect(patches().at(-1)!.body).toEqual({ publicChangelog: true });
 
     // And off again is off at once.
@@ -170,12 +170,16 @@ describe("Changelog", () => {
     // With nothing to share there is no Sharing heading, and no export: it is on Import and export.
     expect(page.getByRole("heading", { name: "Sharing" }).elements()).toHaveLength(0);
     expect(page.getByRole("link", { name: "Download" }).elements()).toHaveLength(0);
-    expect(page.getByRole("link", { name: "Changelog", exact: true }).elements()).toHaveLength(0);
+    expect(page.getByRole("link", { name: "Open changelog", exact: true }).elements()).toHaveLength(
+      0,
+    );
     expect(page.getByRole("button", { name: "Make it public" }).elements()).toHaveLength(0);
     await panel.screen.unmount();
 
     await renderWithBoard(<ProjectPanel files={false} />, on);
-    await expect.element(page.getByRole("link", { name: "Changelog", exact: true })).toBeVisible();
+    await expect
+      .element(page.getByRole("link", { name: "Open changelog", exact: true }))
+      .toBeVisible();
     await expect.element(page.getByRole("button", { name: "Make it public" })).toBeVisible();
     await expect.element(page.getByRole("heading", { name: "Sharing", exact: true })).toBeVisible();
     expect(page.getByRole("link", { name: "Download" }).elements()).toHaveLength(0);
@@ -290,11 +294,11 @@ describe("Settings on a laptop", () => {
           .elements()
           .map((h) => h.textContent),
       )
-      .toEqual(["General", "Danger zone"]);
+      .toEqual(["Name and look", "Danger zone"]);
   });
 
-  test("with releases on, the page reads General, Sharing, Danger zone", async () => {
-    // A server with no bucket says so inside General, not under a heading of its own.
+  test("with releases on, the page reads Name and look, Sharing, Danger zone", async () => {
+    // A server with no bucket says so inside Name and look, not under a heading of its own.
     await renderWithBoard(<ProjectPanel files={false} />, releasesOn());
     await expect
       .poll(() =>
@@ -303,7 +307,7 @@ describe("Settings on a laptop", () => {
           .elements()
           .map((h) => h.textContent),
       )
-      .toEqual(["General", "Sharing", "Danger zone"]);
+      .toEqual(["Name and look", "Sharing", "Danger zone"]);
     // The agent rules are on People now.
     expect(page.getByLabelText("Agent rules", { exact: true }).elements()).toHaveLength(0);
   });
@@ -417,6 +421,6 @@ describe("Hand over", () => {
     withPerson(data, "Mo Member");
     await renderWithBoard(<ProjectPanel files />, data);
     await expect.element(pick()).toBeDisabled();
-    await expect.element(page.getByText("Make somebody an admin first.")).toBeVisible();
+    await expect.element(page.getByText("Make somebody an admin on People first.")).toBeVisible();
   });
 });

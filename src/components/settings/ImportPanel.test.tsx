@@ -78,7 +78,7 @@ test("an admin is offered the download before the import, and a member sees no r
       .getByRole("heading", { level: 2 })
       .elements()
       .map((h) => h.textContent),
-  ).toEqual(["Export", "The file"]);
+  ).toEqual(["Export", "Import from Trello"]);
   await admin.screen.unmount();
 
   const member = newProject();

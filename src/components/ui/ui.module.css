@@ -966,11 +966,14 @@
  * The board has no dialogs, so a destructive control turns its own row into
  * the question instead. The cost is always spelled out in real numbers.
  */
+/* As tall as the member, invite and agent rows it stands in for (a 32px face
+   and 12px above and under), so pressing ✕ moves nothing below it. */
 .confirm {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
+  min-height: 56px;
   padding: 11px 13px;
   background: color-mix(in srgb, var(--danger) 6%, transparent);
   box-shadow: inset 2px 0 0 var(--danger-line);

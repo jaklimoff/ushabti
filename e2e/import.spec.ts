@@ -62,7 +62,10 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   const rail = page.getByRole("navigation", { name: "Settings sections" });
   await expect(rail.getByRole("link", { name: "Import and export" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Import and export" })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2 })).toHaveText(["Export", "The file"]);
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+    "Export",
+    "Import from Trello",
+  ]);
   await expect(page.getByRole("link", { name: "Download" })).toHaveAttribute(
     "href",
     `/api/projects/${projectId}/export`,

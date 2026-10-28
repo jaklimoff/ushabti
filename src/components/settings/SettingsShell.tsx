@@ -73,7 +73,8 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
 
   /* Three groups, so the eye finds a page by what it is about: the project
      and its people first, which is what a newcomer comes to change, then the
-     shape of the board, then what goes in and out of it. */
+     structure of the board, then what goes in and out of it. "Structure" is
+     the word the agent switch "Change structure" uses for the same pages. */
   const groups: RailGroup[] = [
     {
       title: "General",
@@ -83,7 +84,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
       ],
     },
     {
-      title: "Shape",
+      title: "Structure",
       items: [
         { slug: "properties", label: "Properties", count: data.properties.length },
         { slug: "views", label: "Views", count: data.views.length },

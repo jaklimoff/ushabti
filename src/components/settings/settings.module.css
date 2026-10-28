@@ -1,8 +1,8 @@
 /*
- * Settings is several pages behind one rail, not one scroll. The rail is the
- * board's own column-header idiom — mono, uppercase, tracked — applied to
- * navigation, so it reads as the same product. It is set larger than a
- * column header because it is read as a list, not glanced at as labels.
+ * Settings is several pages behind one rail, not one scroll. The rail is
+ * navigation, so its items are sentence-case sans, as every other place to go
+ * in the app is. Only the group titles wear the mono caps, because they are
+ * labels: they name a group and go nowhere.
  */
 
 .page {
@@ -12,8 +12,9 @@
 
 /* ---- the rail and the body ----------------------------------------- */
 
-/* The rail and a content column, so wider than one named page width; the
-   title still starts where every other page's does. */
+/* The rail and a content column, so wider than one named page width. The
+   title starts right of the rail, so it sits further in than on a page
+   without one. */
 .shell {
   max-width: 1040px;
   margin: 0 auto;
@@ -101,7 +102,7 @@
   }
 
   .railGroup + .railGroup {
-    margin-top: 16px;
+    margin-top: var(--s-5);
   }
 
   .railGroup + .railGroup > .railItem:first-of-type {
@@ -114,7 +115,7 @@
 
   .railGroupTitle {
     display: block;
-    padding: 0 10px 6px;
+    padding: 0 10px 4px;
     font-family: var(--font-mono);
     font-size: var(--t-chip);
     font-weight: 500;
@@ -128,12 +129,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 30px;
+  min-height: 32px;
   padding: 0 10px;
   border-radius: var(--r-sm);
   /* A place to go, so it reads as navigation: sans, sentence case. The caps
      are for labels. */
   font-size: var(--t-ui);
+  font-weight: 500;
   color: var(--text-4);
   white-space: nowrap;
   transition:
@@ -141,19 +143,28 @@
     color 140ms var(--ease);
 }
 
-/* Hover is quieter than "you are here": a darker fill and no bar, so the
-   item under the pointer never reads as the page that is open. */
+/* Hover is quieter than "you are here": a wash and no bar, so the item
+   under the pointer never reads as the page that is open. */
 .railItem:hover {
-  background: var(--bg-card);
+  background: var(--bg-hover-wash);
   color: var(--text-2);
 }
 
+/* On a phone the rail is a strip, so "here" is a bar under the item, as a
+   tab's is. A wide screen stands the rail up and moves the bar to its left. */
 .railOn,
 .railOn:hover {
   background: var(--bg-hover);
   color: var(--text);
   font-weight: 600;
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+@media (min-width: 900px) {
+  .railOn,
+  .railOn:hover {
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
 }
 
 .railItem:focus-visible {
@@ -163,8 +174,8 @@
 
 .railCount {
   margin-left: auto;
-  font-size: var(--t-chip);
-  letter-spacing: 0.04em;
+  font-size: var(--t-small);
+  font-weight: 400;
   color: var(--text-meta);
   font-variant-numeric: tabular-nums;
 }
@@ -993,9 +1004,10 @@ div.memberHead {
   white-space: nowrap;
 }
 
+/* Listening is live, not accent: accent means "you can act here". */
 .agentHears {
-  background: var(--accent-bg);
-  color: var(--accent-soft);
+  background: color-mix(in srgb, var(--live) 12%, transparent);
+  color: var(--live);
 }
 
 .agentSilent {
@@ -1012,7 +1024,7 @@ div.memberHead {
 }
 
 .agentDot {
-  background: var(--accent);
+  background: var(--live);
   animation: ushabti-pulse 2.2s ease-in-out infinite;
 }
 
@@ -1030,40 +1042,29 @@ div.memberHead {
   transform: rotate(180deg);
 }
 
-.agentFace {
+/* One part's control and the sentence under it, as a field's. */
+.agentField {
   display: flex;
   flex-direction: column;
-  gap: 13px;
+  align-items: flex-start;
+  gap: 6px;
   min-width: 0;
 }
 
-.agentName {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.agentNameNote {
+.agentNote {
   font-size: var(--t-small);
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--muted);
+  text-wrap: pretty;
 }
 
-/* What a switch is, and the one way to remove the agent, closing it. */
+/* The one way to remove the agent closes it, at the right, where a named
+   destroy act sits on every settings page. */
 .agentFoot {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--s-2) 16px;
+  justify-content: flex-end;
   padding-top: 12px;
   border-top: 1px solid var(--line-soft);
-}
-
-.agentFootSay {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--t-small);
-  color: var(--muted);
 }
 
 /* Personal tokens live elsewhere; a line under the card says where. */
@@ -1077,34 +1078,39 @@ div.memberHead {
   color: var(--text-2);
 }
 
-/* What the agent may do and how it signs in, under its name. Each part is a
-   label and what it labels, the label in a column of its own, as a field's. */
+/* How the agent signs in, what it may do and how it looks, under its name.
+   Each part is a label and what it labels, in the one label column every
+   settings card uses, so the controls start where the rules box below does. */
 .agentDetail {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 4px 13px 14px 55px;
+  gap: 18px;
+  padding: 14px 13px;
+  border-top: 1px solid var(--line-soft);
 }
 
 .agentPart {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  column-gap: 16px;
+  grid-template-columns: var(--label-col) minmax(0, 1fr);
+  column-gap: var(--s-4);
   align-items: start;
 }
 
 .agentLabel {
-  line-height: 24px;
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
 }
 
 @media (max-width: 620px) {
-  .agentDetail {
-    padding-left: 13px;
-  }
-
   .agentPart {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 6px;
+  }
+
+  /* The label is on top of its control, so it needs no control's height. */
+  .agentLabel {
+    min-height: 0;
   }
 }
 
@@ -1173,7 +1179,18 @@ label.act > input {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--s-2);
-  padding-top: 4px;
+}
+
+/* After a token, the button steps off the row's hairline. */
+.tokens > * + .tokenNaming {
+  padding-top: 10px;
+}
+
+.tokenNamingError {
+  flex-basis: 100%;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--danger-text);
 }
 
 /* The recipe under a token just made, inside the row's own edge. */
@@ -1699,13 +1716,15 @@ div.dangerCard {
   border-color: color-mix(in srgb, var(--danger) 28%, transparent);
 }
 
-div.dangerRow {
+/* A row that is one act: what it is and what it costs on the left, the
+   button on the right. The danger zone and the export both read this way. */
+div.actionRow {
   flex-wrap: wrap;
   gap: 12px 16px;
-  padding: 14px 16px;
+  padding: 14px 13px;
 }
 
-.dangerSay {
+.actionSay {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1713,10 +1732,30 @@ div.dangerRow {
   flex: 1 1 280px;
 }
 
-.dangerTitle {
+.actionTitle {
   font-size: var(--t-ui);
   font-weight: 600;
   color: var(--text);
+}
+
+/* A link inside a sentence: the words say where it goes, so it only needs
+   to read as a link. */
+.inlineLink {
+  color: var(--accent-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 2px;
+}
+
+.inlineLink:hover {
+  color: var(--accent);
+}
+
+/* The public address, whole, under the sentence that says who reads it. */
+.publicAddress {
+  display: block;
+  margin-top: 8px;
+  max-width: 520px;
 }
 
 /* The key a task will carry, set as it will be: in the mono of a task key. */
@@ -2151,11 +2190,50 @@ div.hookRow {
   padding: 0 13px 13px;
 }
 
+/* Two answers first, then, under "Only these…", the kinds to pick from. */
 .kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kindsChoice,
+.kindsList {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+}
+
+/* The kinds belong to "Only these…", so they sit in from it on a rule. */
+.kindsList {
+  margin-left: 2px;
+  padding: 2px 0 2px 12px;
+  border-left: 1px solid var(--line);
+  animation: ushabti-fade-in 140ms var(--ease);
+}
+
+.kindsLead {
+  margin-right: 4px;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+.kindsSaid {
+  flex-basis: 100%;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+/* A hook that is off: its address and its last line drop to the quietest
+   grey that is still read. */
+.hookOff .hookUrl {
+  color: var(--text-meta);
+}
+
+.hookOff .hookLast,
+.hookOff .hookFail {
+  color: var(--text-meta);
 }
 
 /* One line: delivered 2m ago, or failed 4m ago — 500. */

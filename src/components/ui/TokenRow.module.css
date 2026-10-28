@@ -17,6 +17,11 @@
   padding: 10px 13px;
 }
 
+/* In a column that has its own edge, the name lines up with what is under it. */
+.row.flush {
+  padding: 10px 0;
+}
+
 .line {
   display: flex;
   align-items: center;
@@ -75,4 +80,10 @@
 .fresh {
   box-shadow: inset 2px 0 0 var(--accent);
   background: var(--bg-sub);
+}
+
+/* A fresh row wears a bar on its left, so a flush one steps off it. */
+.fresh .row.flush {
+  padding-left: 12px;
+  padding-right: 8px;
 }
