@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { isTyping } from "@/components/board/keys";
 import { PROJECT_INK } from "@/lib/colors";
@@ -18,7 +19,14 @@ function said(project: ProjectNow, line: Line): string {
   return `${project.name}: ${line.text}`;
 }
 
-/** A project's colour and the first letter of its key, with what is going on there. */
+/**
+ * A project's colour and the start of its key, as the card and the board's
+ * bar show it: one letter made USH and USHA, or MOB and MKT, the same square.
+ * The rail has nothing beside a square, so it takes four letters; the open
+ * sidebar names the project beside it, so three fit its smaller square. The
+ * rail has no words either, so the dot and the count sit on the square there;
+ * the open sidebar says them at the row's end instead, off the letters.
+ */
 function Square({
   project,
   big,
@@ -36,15 +44,54 @@ function Square({
       style={{ background: project.color, color: PROJECT_INK }}
       aria-hidden
     >
-      {project.key.slice(0, 1)}
-      {isWorking(project) && <span className={styles.dot} data-testid="sidebar-dot" />}
-      {project.waiting > 0 && (
+      {project.key.slice(0, big ? 4 : 3)}
+      {big && isWorking(project) && <span className={styles.dot} data-testid="sidebar-dot" />}
+      {big && project.waiting > 0 && (
         <span className={styles.count} data-testid="sidebar-count">
           {project.waiting}
         </span>
       )}
     </span>
   );
+}
+
+/** What the open sidebar says at a row's end: the dot of an agent at work, then what waits. */
+function RowEnd({ project }: { project: ProjectNow }) {
+  const working = isWorking(project);
+  if (!working && project.waiting === 0) return null;
+  return (
+    <span className={styles.rowEnd} aria-hidden>
+      {working && <span className={styles.rowDot} data-testid="sidebar-dot" />}
+      {project.waiting > 0 && (
+        <span className={styles.rowCount} data-testid="sidebar-count">
+          {project.waiting}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** A house, for the one row that is Home. */
+function HomeGlyph() {
+  return (
+    <svg
+      aria-hidden
+      width={14}
+      height={14}
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.3}
+      strokeLinejoin="round"
+    >
+      <path d="M2 6.2 7 2l5 4.2V12H8.6V8.6H5.4V12H2z" />
+    </svg>
+  );
+}
+
+/** Whether this page is Home, which the sidebar marks as it marks the open project. */
+function useOnHome(): boolean {
+  return usePathname() === "/projects";
 }
 
 /** The `[` key folds and unfolds, as a key and not a letter, on every layout. */
@@ -116,6 +163,7 @@ export function Sidebar() {
 
 function Rail() {
   const { projects, current, toggle } = useSidebar()!;
+  const home = useOnHome();
   const working = projects.some(isWorking);
   const now = useNow(working);
   /* One Tab stop: the arrows walk the rail, and Tab leaves it. */
@@ -161,9 +209,12 @@ function Rail() {
           data-item="_home"
           tabIndex={tab("_home")}
           aria-label="Home"
+          aria-current={home ? "page" : undefined}
           title="Home"
         >
-          <BrandMark />
+          <span className={styles.railBrand} data-current={home || undefined}>
+            <BrandMark size={22} />
+          </span>
         </Link>
       </div>
       <div className={styles.railList}>
@@ -259,6 +310,7 @@ function Rows({ onPick, menu }: { onPick?: () => void; menu?: boolean }) {
                 {line.text}
               </span>
             </span>
+            <RowEnd project={project} />
           </Link>
         );
       })}
@@ -291,6 +343,7 @@ function Rows({ onPick, menu }: { onPick?: () => void; menu?: boolean }) {
 
 function Open() {
   const { toggle } = useSidebar()!;
+  const home = useOnHome();
   return (
     <nav
       className={`${styles.sidebar} ${styles.open}`}
@@ -299,9 +352,10 @@ function Open() {
       data-folded="false"
     >
       <div className={styles.head}>
-        <Link href="/projects" className={styles.home}>
+        {/* The brand, once: it leads Home, and the Home row below says where you are. */}
+        <Link href="/projects" className={styles.brand} title="Home">
           <BrandMark />
-          <span>Home</span>
+          <span>Ushabti</span>
         </Link>
         <button
           type="button"
@@ -316,6 +370,17 @@ function Open() {
         </button>
       </div>
       <div className={styles.openList}>
+        <Link
+          href="/projects"
+          className={`${styles.row} ${styles.listRow}`}
+          aria-current={home ? "page" : undefined}
+          data-testid="sidebar-home"
+        >
+          <span className={styles.glyph} aria-hidden>
+            <HomeGlyph />
+          </span>
+          <span className={styles.rowName}>Home</span>
+        </Link>
         <Rows />
       </div>
       <Link href="/projects?new" className={`${styles.row} ${styles.newRow}`}>
@@ -415,7 +480,7 @@ function Sheet({ children, className }: { children: React.ReactNode; className?:
             onClick={() => setOpen(false)}
           >
             <span className={styles.glyph} aria-hidden>
-              →
+              <HomeGlyph />
             </span>
             <span className={styles.rowName}>Home</span>
           </Link>

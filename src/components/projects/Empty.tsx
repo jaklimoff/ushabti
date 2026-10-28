@@ -41,8 +41,12 @@ export function HomeSection({
   );
 }
 
-/** The first thing a new person sees: what a project is, and one way to make it. */
-export function FirstProjectPanel({ onCreate }: { onCreate: () => void }) {
+/**
+ * The first thing a new person sees: what a project is, and one way to make
+ * it. Somebody who signed up to join a team has nothing to make, so the panel
+ * also says how they get in, with the address the owner needs.
+ */
+export function FirstProjectPanel({ email, onCreate }: { email: string; onCreate: () => void }) {
   const id = useId();
   return (
     <div
@@ -51,19 +55,41 @@ export function FirstProjectPanel({ onCreate }: { onCreate: () => void }) {
       aria-labelledby={id}
       data-testid="first-project"
     >
-      <span className={styles.panelPlus} aria-hidden="true">
-        +
-      </span>
+      <Board />
       <h3 id={id} className={styles.panelTitle}>
         Create your first project
       </h3>
       <p className={styles.panelLine}>
         A project is one board of tasks, shared with the people and agents you invite.
       </p>
-      <Button onClick={onCreate}>New project</Button>
+      <Button size="lg" onClick={onCreate}>
+        New project
+      </Button>
+      <p className={styles.panelInvite}>
+        Joining a team? Ask its owner to invite <span className={styles.panelEmail}>{email}</span>.
+      </p>
       {/* One line, in place of two more boxes that could only say "not yet". */}
       <p className={styles.panelNote}>Lists and charts appear here once you have a project.</p>
     </div>
+  );
+}
+
+/* Three columns of a board, the last one empty: what a project will look
+   like, drawn in outlines as the other panels draw theirs. */
+const BOARD = [2, 2, 1];
+
+function Board() {
+  return (
+    <span className={styles.boardShapes} aria-hidden="true" data-testid="first-shapes">
+      {BOARD.map((cards, i) => (
+        <span key={i} className={styles.boardColumn}>
+          <span className={styles.boardHead} />
+          {Array.from({ length: cards }, (_, j) => (
+            <span key={j} className={styles.boardCard} />
+          ))}
+        </span>
+      ))}
+    </span>
   );
 }
 

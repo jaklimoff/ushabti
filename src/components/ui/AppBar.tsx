@@ -15,8 +15,9 @@ import styles from "./ui.module.css";
  *
  * The mark shows only where no sidebar does: the sidebar already leads Home
  * with the same mark, and two of them side by side read as two places. The
- * trail then opens with no slash. `home` overrides that; `word` keeps the
- * name Ushabti beside the mark.
+ * trail then opens with no slash. A phone draws no sidebar, so there the
+ * mark comes back. `home` overrides all of that; `word` keeps the name
+ * Ushabti beside the mark.
  */
 export function AppBar({
   user,
@@ -37,13 +38,17 @@ export function AppBar({
   const sidebar = useSidebar();
   /* No provider is no sidebar: the mark is then the only way Home. */
   const showHome = home ?? (sidebar === null || !sidebar.shown);
+  /* The sidebar is hidden on a phone, so its mark is drawn there and only there. */
+  const phoneHome = home === undefined && !showHome;
+  const phone = phoneHome ? styles.appPhoneOnly : undefined;
   return (
     <header className={styles.appBar}>
       <nav className={styles.appTrail} aria-label="Where you are">
-        {showHome && <AppHome word={word} testId={homeTestId} />}
+        {(showHome || phoneHome) && <AppHome word={word} testId={homeTestId} className={phone} />}
         {trail.map((item, i) => (
           <Fragment key={i}>
             {(showHome || i > 0) && <AppSep />}
+            {phoneHome && i === 0 && <AppSep className={phone} />}
             {item}
           </Fragment>
         ))}
@@ -66,11 +71,19 @@ export function useHomeInBar(): boolean {
 }
 
 /** Ushabti's mark, the way Home. */
-export function AppHome({ word = true, testId }: { word?: boolean; testId?: string }) {
+export function AppHome({
+  word = true,
+  testId,
+  className,
+}: {
+  word?: boolean;
+  testId?: string;
+  className?: string;
+}) {
   return (
     <Link
       href="/projects"
-      className={styles.appHome}
+      className={[styles.appHome, className ?? ""].filter(Boolean).join(" ")}
       title="Home"
       aria-label={word ? undefined : "Home"}
       data-testid={testId}
@@ -82,9 +95,9 @@ export function AppHome({ word = true, testId }: { word?: boolean; testId?: stri
 }
 
 /** The slash between two steps of the trail. */
-export function AppSep() {
+export function AppSep({ className }: { className?: string }) {
   return (
-    <span className={styles.appSep} aria-hidden>
+    <span className={[styles.appSep, className ?? ""].filter(Boolean).join(" ")} aria-hidden>
       /
     </span>
   );

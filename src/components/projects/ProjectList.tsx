@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -25,10 +25,10 @@ import { SILENCE_CHECK_MS, homeReader, type HomeReader } from "@/lib/home-live";
 import { trackWrites, type Reading, type Writes } from "@/lib/writes";
 import { suggestProjectKey } from "@/lib/defaults";
 import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
-import { Input, Label } from "@/components/ui/Form";
+import { Field, Input } from "@/components/ui/Form";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { AppBar, AppCrumb } from "@/components/ui/AppBar";
-import { PageHead, PageShell } from "@/components/ui/Layout";
+import { FormActions, PageHead, PageShell } from "@/components/ui/Layout";
 import { ProjectMark } from "@/components/ui/Marks";
 import { canManage, isOwner } from "@/lib/roles";
 import { formatDate, longAgo } from "@/lib/board";
@@ -82,33 +82,11 @@ export function ProjectList({
   chartChoices?: ChartChoice[];
   adding?: boolean;
 }) {
-  const router = useRouter();
   const first = projects.length === 0;
   const [adding, setAdding] = useState(asked);
-  const [name, setName] = useState("");
-  const [key, setKey] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const live = useLive(projects);
   const sidebar = useSidebar()?.shown ?? false;
   const order = useOrder(projects, live);
-
-  async function create(event: React.FormEvent) {
-    event.preventDefault();
-    if (!name.trim() || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const { project } = await api.post<{ project: { id: string } }>("/api/projects", {
-        name: name.trim(),
-        key: key.trim() || suggestProjectKey(name),
-      });
-      router.push(`/p/${project.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the project.");
-      setBusy(false);
-    }
-  }
 
   return (
     <div className={styles.page}>
@@ -137,7 +115,7 @@ export function ProjectList({
                 </Button>
               )
             }
-            empty={<FirstProjectPanel onCreate={() => setAdding(true)} />}
+            empty={<FirstProjectPanel email={user.email} onCreate={() => setAdding(true)} />}
           >
             {order.error && (
               <div className={styles.error} role="alert">
@@ -145,7 +123,14 @@ export function ProjectList({
               </div>
             )}
 
-            {(!first || adding) && (
+            {/* The first project's form opens where the panel was, in its frame. */}
+            {first && adding && (
+              <div className={styles.firstForm}>
+                <NewProjectForm onCancel={() => setAdding(false)} />
+              </div>
+            )}
+
+            {!first && (
               <div className={styles.grid}>
                 {/* Cards of one size in a grid, so dnd-kit's own answers are the
               right ones, as on the views page. */}
@@ -165,49 +150,7 @@ export function ProjectList({
                   </SortableContext>
                 </DndContext>
 
-                {adding && (
-                  <form className={styles.form} onSubmit={create}>
-                    <Label>New project</Label>
-                    <Input
-                      block
-                      autoFocus
-                      value={name}
-                      aria-label="Project name"
-                      placeholder="Project name"
-                      onChange={(e) => setName(e.target.value)}
-                      onBlur={() => {
-                        // A suggestion you can edit beats one that flickers in grey
-                        // as you type and looks disabled.
-                        if (!key && name.trim()) setKey(suggestProjectKey(name));
-                      }}
-                    />
-                    <Input
-                      block
-                      value={key}
-                      aria-label="Project key"
-                      placeholder="Key, e.g. USH"
-                      maxLength={6}
-                      invalid={error !== null}
-                      onChange={(e) =>
-                        setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-                      }
-                    />
-                    <span className={styles.hint}>Task keys look like {key || "USH"}-14.</span>
-                    {error && (
-                      <div className={styles.error} role="alert">
-                        {error}
-                      </div>
-                    )}
-                    <div className={styles.row}>
-                      <Button type="submit" busy={busy}>
-                        {busy ? "Creating…" : "Create project"}
-                      </Button>
-                      <Button variant="ghost" onClick={() => setAdding(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                )}
+                {adding && !first && <NewProjectForm onCancel={() => setAdding(false)} />}
               </div>
             )}
           </HomeSection>
@@ -222,6 +165,94 @@ export function ProjectList({
         </div>
       </PageShell>
     </div>
+  );
+}
+
+/**
+ * The form that makes a project, laid out as every create form is: a label
+ * over each box, Cancel then the primary at the right. The key stays empty
+ * until the name is left, so it never flickers as somebody types; the hint
+ * under it follows the name instead, so the example is theirs from the start.
+ */
+function NewProjectForm({ onCancel }: { onCancel: () => void }) {
+  const router = useRouter();
+  const titleId = useId();
+  const nameBox = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [key, setKey] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const sample = key || (name.trim() ? suggestProjectKey(name) : "WEB");
+
+  async function create(event: React.FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    if (!name.trim()) {
+      setNameError("Give the project a name.");
+      nameBox.current?.focus();
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { project } = await api.post<{ project: { id: string } }>("/api/projects", {
+        name: name.trim(),
+        key: key.trim() || suggestProjectKey(name),
+      });
+      router.push(`/p/${project.id}`);
+    } catch (err) {
+      const said = err instanceof Error ? err.message : "Could not create the project.";
+      /* The answer lands on the box it is about. */
+      if (/name/i.test(said)) setNameError(said);
+      else setError(said);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className={styles.form} onSubmit={create} aria-labelledby={titleId} noValidate>
+      <h3 id={titleId} className={styles.formTitle}>
+        New project
+      </h3>
+      <Field label="Name" error={nameError}>
+        <Input
+          ref={nameBox}
+          block
+          autoFocus
+          value={name}
+          aria-label="Project name"
+          placeholder="Project name"
+          onChange={(e) => {
+            setName(e.target.value);
+            if (nameError) setNameError(null);
+          }}
+          onBlur={() => {
+            // A suggestion you can edit beats one that flickers in grey
+            // as you type and looks disabled.
+            if (!key && name.trim()) setKey(suggestProjectKey(name));
+          }}
+        />
+      </Field>
+      <Field label="Key" error={error} note={`Task keys will look like ${sample}-14.`}>
+        <Input
+          block
+          value={key}
+          aria-label="Project key"
+          placeholder="e.g. WEB"
+          maxLength={6}
+          onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+        />
+      </Field>
+      <FormActions>
+        <Button variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" busy={busy}>
+          {busy ? "Creating…" : "Create project"}
+        </Button>
+      </FormActions>
+    </form>
   );
 }
 
@@ -384,11 +415,35 @@ function useLive(projects: ProjectRow[]): Live {
 }
 
 /**
+ * What a card says to somebody who cannot see it, in one line: the link is
+ * named by the project, and this describes it, so Tab does not read out every
+ * count on the card.
+ */
+function cardSummary(project: ProjectRow): string {
+  const said: string[] = [];
+  if (project.waiting > 0) said.push(`${project.waiting} waiting for you.`);
+  const agents = project.pulse ? agentsLine(project.pulse.agents) : "";
+  if (agents) said.push(`${agents}.`);
+  const heading = project.pulse?.heading;
+  if (heading && heading.kind !== "change") {
+    const when =
+      heading.kind === "release" ? `ships ${formatDate(heading.day)}` : daysSaid(heading.left);
+    said.push(
+      `${heading.property} ${heading.name} ${when}, ${heading.done} of ${heading.total} done.`,
+    );
+  }
+  return said.join(" ");
+}
+
+/**
  * A project in five rows that line up with the cards beside it: the project,
  * its goal line, how its board is shared out, its activity, and who is on it.
- * The project's colour is the only colour, besides what needs the person.
+ * The bar wears the board's own option colours, so the card looks like the
+ * board it opens; the words under it still name every column.
  */
 function ProjectCard({ project }: { project: ProjectRow }) {
+  const id = useId();
+  const summary = cardSummary(project);
   const {
     attributes,
     listeners,
@@ -417,10 +472,17 @@ function ProjectCard({ project }: { project: ProjectRow }) {
       data-waiting={project.waiting > 0 || undefined}
       data-testid="project-card"
     >
-      <Link href={`/p/${project.id}`} className={styles.card}>
+      <Link
+        href={`/p/${project.id}`}
+        className={styles.card}
+        aria-labelledby={`${id}-name`}
+        aria-describedby={summary ? `${id}-said` : undefined}
+      >
         <div className={styles.cardTop}>
           <span className={styles.key}>{project.key}</span>
-          <span className={styles.cardName}>{project.name}</span>
+          <span id={`${id}-name`} className={styles.cardName}>
+            {project.name}
+          </span>
           {/* Owner is what a person is on a project they made, so it says
               nothing; admin is the one role worth a word. */}
           {canManage(project.role) && !isOwner(project.role) && (
@@ -439,6 +501,12 @@ function ProjectCard({ project }: { project: ProjectRow }) {
         </div>
         {project.pulse && <Pulse pulse={project.pulse} />}
       </Link>
+      {/* Beside the link, not in it, so a reader does not meet it twice. */}
+      {summary && (
+        <span id={`${id}-said`} className={styles.srOnly} aria-hidden="true">
+          {summary}
+        </span>
+      )}
       <IconButton
         ref={setActivatorNodeRef}
         className={styles.cardGrip}
@@ -601,7 +669,8 @@ function ListCard({ list }: { list: ListSummary }) {
 
 /**
  * Where the project is heading: the release or sprint that is on, or the
- * newest change. The fill is grey, because progress asks nothing of anybody.
+ * newest change. It has no bar of its own: the columns under it are the
+ * card's one bar, and a second grey one read as the same thing twice.
  */
 function Goal({ heading }: { heading: Heading }) {
   if (heading.kind === "change") {
@@ -616,18 +685,14 @@ function Goal({ heading }: { heading: Heading }) {
       </div>
     );
   }
-  const share = heading.total > 0 ? Math.min(1, heading.done / heading.total) : 0;
   return (
     <div className={styles.goal} data-testid={`project-${heading.kind}`}>
       <span className={styles.goalText}>
         {heading.property} <strong className={styles.goalName}>{heading.name}</strong> ·{" "}
         {heading.kind === "release" ? `ships ${formatDate(heading.day)}` : daysSaid(heading.left)}
       </span>
-      <span className={styles.goalTrack} aria-hidden="true">
-        <span className={styles.goalFill} style={{ width: `${share * 100}%` }} />
-      </span>
       <span className={styles.goalCount}>
-        {heading.done} / {heading.total}
+        {heading.done} of {heading.total} done
       </span>
     </div>
   );
@@ -649,6 +714,8 @@ function Pulse({ pulse }: { pulse: ProjectPulse }) {
   );
   const now = useNow(false);
   const agents = agentsLine(pulse.agents);
+  /* "Quiet for 3 weeks" above already says when it last changed. */
+  const saidQuiet = pulse.days.every((n) => n === 0) && pulse.last !== null;
   return (
     <>
       {pulse.columns ? (
@@ -687,7 +754,8 @@ function Pulse({ pulse }: { pulse: ProjectPulse }) {
             {agents}
           </span>
         ) : (
-          pulse.last && (
+          pulse.last &&
+          !saidQuiet && (
             <span className={styles.last} data-testid="project-last" suppressHydrationWarning>
               {longAgo(pulse.last.at, now)}
             </span>
@@ -746,10 +814,13 @@ function Activity({ days, last, now }: { days: number[]; last: string | null; no
   );
 }
 
-/** The first column darkest, the last lightest: a shade says where, the words say what. */
-function shadeOf(index: number, count: number): string {
-  const light = count <= 1 ? 50 : Math.round((index / (count - 1)) * 100);
-  return `color-mix(in srgb, var(--text-4) ${light}%, var(--faint-3))`;
+/**
+ * A column in its option's own colour, held back toward the card so a bar of
+ * five reads as one quiet strip. It is the colour the board draws the column
+ * in, so nothing new is said by it; the words under the bar say what.
+ */
+function shadeOf(color: string): string {
+  return `color-mix(in srgb, ${color} 70%, var(--bg-column))`;
 }
 
 function Columns({ columns, folded }: { columns: PulseColumn[]; folded: readonly string[] }) {
@@ -761,23 +832,23 @@ function Columns({ columns, folded }: { columns: PulseColumn[]; folded: readonly
       <div className={styles.track} aria-hidden="true" data-testid="project-bar">
         {total > 0 &&
           open.map(
-            (c, i) =>
+            (c) =>
               c.count > 0 && (
                 <span
                   key={c.id}
                   className={styles.share}
-                  style={{ flexGrow: c.count, background: shadeOf(i, open.length) }}
+                  style={{ flexGrow: c.count, background: shadeOf(c.color) }}
                   data-column={c.name}
                 />
               ),
           )}
       </div>
       <div className={styles.counts} data-testid="project-columns">
-        {open.map((c, i) => (
+        {open.map((c) => (
           <span key={c.id} className={styles.count} data-testid="project-column">
             <span
               className={styles.countDot}
-              style={{ background: shadeOf(i, open.length) }}
+              style={{ background: shadeOf(c.color) }}
               aria-hidden="true"
             />
             {c.name} {c.count}

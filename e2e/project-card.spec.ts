@@ -145,7 +145,7 @@ test.describe("The project list shows how every project is going", () => {
     ]);
     const bar = card.getByTestId("project-bar");
     await expect(bar.locator("[data-column]")).toHaveCount(3);
-    /* Greys, lighter from the first column to the last, each the shade of its dot. */
+    /* The board's own option colours, each the colour of its dot. */
     const shade = (el: Element) => getComputedStyle(el).backgroundColor;
     const todo = await bar.locator('[data-column="Todo"]').evaluate(shade);
     const shippedShade = await bar.locator('[data-column="Done"]').evaluate(shade);
@@ -310,7 +310,7 @@ test.describe("The project list shows how every project is going", () => {
     expect(sprints.status()).toBe(201);
     await page.reload();
     await expect(card.getByTestId("project-sprint")).toHaveText(
-      /^Sprint .+ · (\d+ days? left|last day)\d+ \/ \d+$/,
+      /^Sprint .+ · (\d+ days? left|last day)\d+ of \d+ done$/,
     );
 
     /* Releases on win over sprints, and count done by the project's own rule. */
@@ -348,7 +348,7 @@ test.describe("The project list shows how every project is going", () => {
     await page.reload();
     const release = card.getByTestId("project-release");
     await expect(release).toHaveText(
-      `Version 0.23 · ships ${months[target.getMonth()]} ${target.getDate()}1 / 2`,
+      `Version 0.23 · ships ${months[target.getMonth()]} ${target.getDate()}1 of 2 done`,
     );
     await expect(card.getByTestId("project-sprint")).toHaveCount(0);
   });
