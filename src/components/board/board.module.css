@@ -503,6 +503,15 @@
   color: var(--text-2);
 }
 
+/* The strip scrolls sideways, so it clips anything drawn outside a pill.
+   The ring is drawn inside instead, as the column pills do. */
+.pill:focus-visible,
+.pillMore:focus-visible,
+.plus:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
 .pillActive {
   background: var(--bg-tag);
   color: var(--text);
@@ -580,10 +589,10 @@
    a filter the button already carries how many rules there are. */
 @media (max-width: 560px) {
   .tool {
-    min-width: 28px;
-    height: 28px;
+    min-width: 32px;
+    height: 32px;
     justify-content: center;
-    padding: 0 8px;
+    padding: 0 9px;
   }
 
   .toolWord {
@@ -791,6 +800,26 @@
   height: 28px;
   padding: 0 10px;
   border-radius: var(--r-sm);
+}
+
+/* On a phone the strip is for the columns, so the way to a new one is a
+   plus. The words stay for a screen reader. */
+@media (max-width: 560px) {
+  .columnStrip .addColumnButton {
+    width: 28px;
+    justify-content: center;
+    padding: 0;
+    gap: 0;
+  }
+
+  .columnStrip .addColumnWord {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* The strip is one row high and the form is four, so it hangs below it. */
@@ -1293,6 +1322,10 @@
   border-radius: var(--r-card);
   overflow: hidden;
   background: var(--bg-card);
+  /* A hairline outside the card, so it lifts off the column. It is a shadow
+     and not a border, so the stripe and the run strip still reach the edge,
+     and the rings below simply take its place. */
+  box-shadow: 0 0 0 1px var(--line);
   cursor: pointer;
   touch-action: manipulation;
   transition:
@@ -1436,6 +1469,23 @@
   filter: saturate(0.5);
 }
 
+/* On a board the card leaves a slot where it was: an empty place with a
+   dashed edge, not a stain of the card. */
+.card.cardGhost {
+  opacity: 1;
+  filter: none;
+  background: transparent;
+  box-shadow: none;
+  outline: 1px dashed var(--focus-ring);
+  outline-offset: -1px;
+}
+
+/* Faded out rather than hidden: the card is still in the page, still where
+   the keyboard put it, and still named to anything that reads the board. */
+.card.cardGhost > * {
+  opacity: 0;
+}
+
 .cardOverlay {
   cursor: grabbing;
   box-shadow: var(--shadow-drag);
@@ -1513,6 +1563,12 @@
   align-items: center;
   gap: 5px;
   min-width: 0;
+}
+
+/* The key is what people copy and paste, so it never gives up a letter.
+   The chips beside it shorten first. It is a built-in row, not a property. */
+.cardChip[data-item="_key"] {
+  flex: none;
 }
 
 /* A value on a quiet ground and no border, so a card of chips is not a card
@@ -1754,8 +1810,10 @@
  * than as one more badge. The card therefore has to clip it.
  */
 .runStrip {
-  --run-ground: color-mix(in srgb, var(--accent) 7%, transparent);
-  --run-line: color-mix(in srgb, var(--accent) 16%, transparent);
+  /* Low on purpose: a board of ten runs has to stay readable, and the one
+     strip that waits for a person has to be the one that stands out. */
+  --run-ground: color-mix(in srgb, var(--accent) 4.5%, transparent);
+  --run-line: color-mix(in srgb, var(--accent) 10%, transparent);
   --run-text: var(--agent-text);
   --run-time: var(--agent-time);
   --run-bar: var(--accent);
@@ -1795,7 +1853,8 @@
   max-width: 45%;
   overflow: hidden;
   font-size: var(--t-small);
-  font-weight: 600;
+  font-weight: 500;
+  color: var(--run-agent, var(--run-text));
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1832,8 +1891,8 @@
 
 .runStrip[data-status="waiting"],
 .runStrip[data-status="handed_over"] {
-  --run-ground: color-mix(in srgb, var(--waiting) 11%, transparent);
-  --run-line: var(--waiting-line);
+  --run-ground: color-mix(in srgb, var(--waiting) 12%, transparent);
+  --run-line: color-mix(in srgb, var(--waiting) 55%, transparent);
   --run-text: var(--agent-waiting-text);
   --run-bar: var(--waiting);
 }
@@ -1845,6 +1904,28 @@
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+}
+
+/* The question is the one sentence on the board somebody has to read, so it
+   gets a second line. The tooltip still holds all of it. */
+.runStrip[data-status="waiting"] .runStripRow,
+.runStrip[data-status="handed_over"] .runStripRow {
+  align-items: flex-start;
+}
+
+.runStrip[data-status="waiting"] .runText,
+.runStrip[data-status="handed_over"] .runText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.runStrip[data-status="waiting"] .runTime,
+.runStrip[data-status="handed_over"] .runTime {
+  line-height: 16px;
 }
 
 .runStrip[data-status="waiting"] .runScan,
@@ -1864,7 +1945,22 @@
   --run-ground: color-mix(in srgb, var(--muted) 6%, transparent);
   --run-line: color-mix(in srgb, var(--muted) 18%, transparent);
   --run-text: var(--muted);
+  --run-time: var(--text-meta);
   --run-bar: var(--muted-2);
+}
+
+/* Somebody paused it on purpose, so nothing about it is the agent's colour
+   at work or the warning colour of a run gone quiet. */
+.runStrip[data-status="paused"] .runAgent {
+  color: var(--muted);
+}
+
+.runStrip[data-status="paused"] .runAgent > :first-child {
+  filter: saturate(0);
+}
+
+.runStrip[data-status="paused"] .runTimeStale {
+  color: var(--run-time);
 }
 
 /* Silent: nobody has heard from it. The words go to the quietest grey that
@@ -1887,17 +1983,19 @@
 
 .runScan {
   display: block;
-  height: 2px;
+  height: 1.5px;
   overflow: hidden;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
+/* Thin and slow, so ten of them on one board are not ten things moving. */
 .runScanFill {
   display: block;
   width: 32%;
-  height: 2px;
+  height: 1.5px;
+  opacity: 0.7;
   background: var(--run-bar);
-  animation: ushabti-scan 1.9s linear infinite;
+  animation: ushabti-scan 2.8s linear infinite;
 }
 
 /* A paused run is alive but still. The bar says so by not moving. */
@@ -2503,62 +2601,20 @@ button.listHeadCell:focus-visible .listHeadHint {
   color: var(--text);
 }
 
-/* Three bars, narrowing. A funnel at this size is a smudge. */
-.filterMark {
-  width: 8px;
-  height: 6px;
-  flex: 0 0 8px;
-  background: currentColor;
-  opacity: 0.75;
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% 1.5px,
-    0 1.5px,
-    0 2.25px,
-    87% 2.25px,
-    87% 3.75px,
-    0 3.75px,
-    0 4.5px,
-    62% 4.5px,
-    62% 6px,
-    0 6px
-  );
+/* The mark of Card, Sort and Filter. On a phone the words go and the mark is
+   all that is left, so it is a drawn icon at full strength, not a smudge. */
+.toolMark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--icon);
+  transition: color 140ms var(--ease);
 }
 
-/* Three bars, growing. The funnel above takes cards away; this one only puts
-   them in order, so it reads the other way round and nothing is cut off. */
-/* A small card on its side: a frame with a stripe down its left edge. */
-.cardMark {
-  width: 9px;
-  height: 7px;
-  flex: 0 0 9px;
-  border: 1.5px solid currentColor;
-  border-left-width: 3px;
-  border-radius: 1.5px;
-  opacity: 0.75;
-}
-
-.sortMark {
-  width: 8px;
-  height: 6px;
-  flex: 0 0 8px;
-  background: currentColor;
-  opacity: 0.75;
-  clip-path: polygon(
-    0 0,
-    50% 0,
-    50% 1.5px,
-    0 1.5px,
-    0 2.25px,
-    75% 2.25px,
-    75% 3.75px,
-    0 3.75px,
-    0 4.5px,
-    100% 4.5px,
-    100% 6px,
-    0 6px
-  );
+.tool:hover .toolMark,
+.tool[aria-expanded="true"] .toolMark,
+.filterOn .toolMark {
+  color: var(--text);
 }
 
 /* The property and the box sit on one line: picking a property turns it into
@@ -2685,6 +2741,13 @@ button.listHeadCell:focus-visible .listHeadHint {
   padding: 4px 6px;
 }
 
+/* A finger needs a taller row than a pointer does. */
+@media (hover: none) {
+  .filterItem {
+    height: 36px;
+  }
+}
+
 /* A heading among the rows, such as "Left the project". It is not a row: the
    arrows and the highlight walk past it. */
 .filterGroup {
@@ -2729,6 +2792,12 @@ button.listHeadCell:focus-visible .listHeadHint {
   padding: 0;
   border-bottom: 0;
   background: none;
+}
+
+/* With no chip before it, "+ Rule" starts on the line the words above it
+   start on, rather than a button's padding further in. */
+.filterRowBare > .filterAnchor:first-child > .tool {
+  margin-left: -10px;
 }
 
 /*

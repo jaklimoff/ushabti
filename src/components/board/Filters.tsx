@@ -41,6 +41,7 @@ import { useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { AskBox, BUILTIN_DOT, propertyColor, Rows, step, type Row } from "./Ask";
+import { FilterIcon, SortIcon } from "./icons";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 import { Label } from "@/components/ui/Form";
@@ -446,7 +447,9 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
         title={count ? "Change what this view shows" : "Show only some of the tasks"}
         onClick={() => setOpen(!open)}
       >
-        <span className={styles.filterMark} aria-hidden />
+        <span className={styles.toolMark}>
+          <FilterIcon size={13} />
+        </span>
         <span className={styles.toolWord}>Filter</span>
         {count ? ` ${count}` : ""}
       </button>
@@ -839,7 +842,9 @@ export function SortButton({ open, setOpen }: { open: boolean; setOpen: (v: bool
         title={sort ? "Change the order the cards are in" : "Order the cards in every column"}
         onClick={() => (open ? close() : setOpen(true))}
       >
-        <span className={styles.sortMark} aria-hidden />
+        <span className={styles.toolMark}>
+          <SortIcon size={13} />
+        </span>
         <span className={styles.toolWord}>Sort</span>
       </button>
 
