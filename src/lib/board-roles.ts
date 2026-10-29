@@ -96,10 +96,15 @@ export function rolesOf(
 export const propertyAnchor = (propertyId: string) => `prop-${propertyId}`;
 
 /**
- * Where a board role is set: the property's row on Properties when one is
- * known, else the page, whose strip turns it on.
+ * Where a board role is set, or a roadmap bar's dates: the property's row on
+ * Properties when one is known, else the page, whose strip turns it on.
  */
-export function propertySettingsHref(projectId: string, propertyId?: string | null): string {
-  const page = `/p/${projectId}/settings/properties`;
+export function propertySettingsHref(
+  projectId: string,
+  propertyId?: string | null,
+  /** The view to come back to, which the settings rail keeps. */
+  from?: string | null,
+): string {
+  const page = `/p/${projectId}/settings/properties${from ? `?from=${encodeURIComponent(from)}` : ""}`;
   return propertyId ? `${page}#${propertyAnchor(propertyId)}` : page;
 }

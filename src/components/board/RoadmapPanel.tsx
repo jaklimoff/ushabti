@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 import { formatDate, sortByPosition } from "@/lib/board";
+import { propertySettingsHref } from "@/lib/board-roles";
 import { isOver } from "@/lib/links";
 import { optionTasks } from "@/lib/roadmap";
 import { sortTasks } from "@/lib/sort";
@@ -38,7 +40,7 @@ export function RoadmapPanel({
   onGone: () => void;
   onOpenTask: (task: Openable) => void;
 }) {
-  const { data, visibleTasks, groupProperty, sort, cardItems } = useBoard();
+  const { data, view, visibleTasks, groupProperty, sort, cardItems } = useBoard();
   const { drawn, countBy } = useRoadmap();
   const panelRef = useRef<HTMLElement>(null);
 
@@ -147,6 +149,15 @@ export function RoadmapPanel({
             <span style={{ width: `${row.share * 100}%`, background: option.color }} />
           </span>
         </div>
+        {/* Only the right end of a bar drags. A pull on the body opens this
+            panel, so it says where the rest of the dates live. */}
+        <Link
+          className={boardStyles.roadmapPanelSettings}
+          data-testid="roadmap-panel-settings"
+          href={propertySettingsHref(data.project.id, groupProperty?.id, view?.id)}
+        >
+          Dates are set in Settings →
+        </Link>
         {option.note?.trim() && (
           <div className={styles.optionNote} data-testid="roadmap-panel-note">
             <Markdown text={option.note} links={links} />

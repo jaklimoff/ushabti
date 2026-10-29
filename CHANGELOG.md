@@ -10,6 +10,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- On the roadmap, the shipped releases sit under a **Shipped · N** label, so it is clear why they come after the open ones. A bar's panel ends its head with **Dates are set in Settings →**, which opens that property's row, and the way back returns to the roadmap.
 - An archived task that left in a release says which one: its row on the Archived page reads "✓ Shipped in 0.1" before when it was archived. A task archived by hand, a closed sprint and a release that was unshipped show nothing extra.
 
 ### Changed

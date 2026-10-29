@@ -3665,6 +3665,34 @@ button.listHeadCell:focus-visible .listHeadHint {
   color: var(--muted);
 }
 
+/* Where the shipped rows start, in the corner's words. It holds to the left
+   edge with the names, so it still reads with the plan scrolled. */
+.roadmapDivider {
+  display: flex;
+  height: 24px;
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.roadmapDividerName {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex: 0 0 var(--rm-name);
+  width: var(--rm-name);
+  display: flex;
+  align-items: flex-end;
+  padding: 0 10px 4px 14px;
+  border-right: 1px solid var(--line);
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+
 /* A bar the screen cannot reach says where it went, and brings it back. */
 .roadmapOffLayer {
   position: absolute;
@@ -3876,6 +3904,20 @@ button.listHeadCell:focus-visible .listHeadHint {
 .roadmapPanelLine > span {
   display: block;
   height: 100%;
+}
+
+/* Where a bar's dates are changed: a quiet way out, not a control. */
+.roadmapPanelSettings {
+  align-self: flex-start;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+  text-decoration: none;
+  transition: color 120ms var(--ease);
+}
+
+.roadmapPanelSettings:hover,
+.roadmapPanelSettings:focus-visible {
+  color: var(--accent);
 }
 
 /* A task that is over, in the list of what a release holds. */

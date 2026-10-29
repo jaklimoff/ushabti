@@ -96,7 +96,7 @@ and what is easy to get wrong.
   decides nothing new, and only for somebody that PATCH answers: the board
   carries `project.mayStructure`, false for an agent with **Change
   structure** off. A bar's start, a whole bar and a row's place do not drag;
-  those stay in Settings.
+  those stay in Settings, and the panel a bar opens says so with a link.
 - **An iteration is a select whose options always carry dates.** It shares
   everything with a dated select: the option ids, the columns, the header date,
   Ship, "is current", the roadmap, the changelog and the option drag. So a

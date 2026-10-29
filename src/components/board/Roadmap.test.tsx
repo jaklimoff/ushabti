@@ -149,6 +149,41 @@ describe("A roadmap", () => {
     await says(rows().first(), "Beta");
   });
 
+  test("the shipped rows sit under a label that counts them, after the open ones", async () => {
+    const data = versions();
+    await renderWithBoard(<BoardShell initialTask={null} />, data);
+    await expect.poll(() => rows().elements()).toHaveLength(2);
+    const label = byTestId("roadmap-shipped");
+    await expect.element(label).toHaveTextContent("Shipped · 1");
+    // It sits between the last open row and the first shipped one.
+    const [beta, alpha] = rows().elements();
+    expect(beta.textContent).toContain("Beta");
+    expect(alpha.textContent).toContain("Alpha");
+    const at = label.element().getBoundingClientRect().top;
+    expect(at).toBeGreaterThan(beta.getBoundingClientRect().top);
+    expect(at).toBeLessThan(alpha.getBoundingClientRect().top);
+  });
+
+  test("a plan with nothing shipped draws no label", async () => {
+    const data = versions();
+    versionOf(data, "Alpha").shippedAt = null;
+    await renderWithBoard(<BoardShell initialTask={null} />, data);
+    await expect.poll(() => rows().elements()).toHaveLength(2);
+    await gone(byTestId("roadmap-shipped"));
+  });
+
+  test("a bar's panel says the dates are set in Settings, and links to its property", async () => {
+    const data = versions();
+    await renderWithBoard(<BoardShell initialTask={null} />, data);
+    await bars().first().click();
+    const link = byTestId("roadmap-panel-settings");
+    await expect.element(link).toHaveTextContent("Dates are set in Settings →");
+    const plan = data.views.find((v) => v.name === "Plan")!;
+    expect(link.element().getAttribute("href")).toBe(
+      `/p/${data.project.id}/settings/properties?from=${plan.id}#prop-${propertyOf(data, "Version").id}`,
+    );
+  });
+
   test("reads at phone width: the axis scrolls and the page does not", async () => {
     await page.viewport(390, 800);
     await renderWithBoard(<BoardShell initialTask={null} />, versions());
