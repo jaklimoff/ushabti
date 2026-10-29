@@ -469,7 +469,7 @@ function ViewRow({
                   </Note>
                 </div>
               )}
-              <CardEditor viewId={view.id} bare />
+              <CardEditor viewId={view.id} bare startOn={view.kind === "list" ? "list" : "card"} />
             </section>
           )}
         </div>

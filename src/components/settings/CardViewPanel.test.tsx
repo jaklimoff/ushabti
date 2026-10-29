@@ -323,6 +323,37 @@ describe("Card view", () => {
   });
 });
 
+describe("Where a view's card editor starts", () => {
+  test("a list view's opens on the rows, a board view's on the card", async () => {
+    const data = newProject();
+    data.views.push({
+      ...data.views[0],
+      id: "00000000-0000-4000-8000-777777777778",
+      name: "Rows",
+      kind: "list" as const,
+      position: "z0000000",
+      isDefault: false,
+    });
+    await renderWithBoard(<ViewsPanel />, data, serving(data));
+    const shape = (name: "Card" | "List") =>
+      page
+        .getByRole("group", { name: "Arrange the card as" })
+        .getByRole("button", { name, exact: true });
+
+    await page.getByRole("button", { name: "Open the view Rows" }).click();
+    await expect.element(shape("List")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(byTestId("card-row").first()).toBeVisible();
+    await gone(byTestId("card-drawing"));
+    // The other shape is one press away, and it edits the same card view.
+    await shape("Card").click();
+    await expect.element(byTestId("card-drawing")).toBeVisible();
+
+    await page.getByRole("button", { name: `Open the view ${data.views[0].name}` }).click();
+    await expect.element(shape("Card")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(byTestId("card-drawing")).toBeVisible();
+  });
+});
+
 /* Was "the card view preview in Settings still draws real tasks" in
    `e2e/settings-load.spec.ts`. Settings is handed the few tasks its loader
    read, which `settings-route.test.ts` holds, and asks the board for none. */
