@@ -23,3 +23,9 @@
   border-color: var(--focus-ring);
   color: var(--accent-soft);
 }
+
+/* Beside a box of the default height, as on Account. */
+.revealMd {
+  width: var(--control-h);
+  height: var(--control-h);
+}

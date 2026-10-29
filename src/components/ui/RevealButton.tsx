@@ -20,15 +20,19 @@ export function RevealButton({
   shown,
   onToggle,
   what = "the password",
+  size = "lg",
 }: {
   shown: boolean;
   onToggle: () => void;
   what?: string;
+  /** The height of the box beside it. The pages outside the app draw their
+      boxes at `lg`; a settings-like form draws them at the default. */
+  size?: "md" | "lg";
 }) {
   return (
     <button
       type="button"
-      className={styles.reveal}
+      className={size === "md" ? `${styles.reveal} ${styles.revealMd}` : styles.reveal}
       aria-pressed={shown}
       aria-label={`${shown ? "Hide" : "Show"} ${what}`}
       onClick={onToggle}

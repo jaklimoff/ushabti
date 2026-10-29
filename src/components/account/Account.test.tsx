@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { page, type Locator } from "vitest/browser";
+import { page, userEvent, type Locator } from "vitest/browser";
 import { ME, newProject, renderWithBoard, type Answer } from "@/test/board";
 import { AVATAR_COLORS, colorName } from "@/lib/colors";
 import type { PersonalTokenDTO } from "@/lib/types";
@@ -48,7 +48,7 @@ function fillWithNoEvent(box: Locator, value: string) {
 }
 
 describe("Your own account", () => {
-  test("opens with a lead line, then Profile, Email, Password, Sessions and Personal tokens", async () => {
+  test("opens with a lead line, then Profile, Sign in, Personal tokens and Notifications", async () => {
     await draw(null, undefined, true);
     await expect
       .element(page.getByText("How you look to your team, and how you sign in."))
@@ -58,25 +58,27 @@ describe("Your own account", () => {
         .getByRole("heading", { level: 2 })
         .elements()
         .map((h) => h.textContent);
-    await expect
-      .poll(headings)
-      .toEqual(["Profile", "Email", "Password", "Sessions", "Personal tokens"]);
+    await expect.poll(headings).toEqual(["Profile", "Sign in", "Personal tokens", "Notifications"]);
   });
 
-  test("with mail off there is no Email section, and the order holds", async () => {
+  test("with mail off there is no Notifications section, and the order holds", async () => {
     await draw();
     const headings = () =>
       page
         .getByRole("heading", { level: 2 })
         .elements()
         .map((h) => h.textContent);
-    await expect.poll(headings).toEqual(["Profile", "Password", "Sessions", "Personal tokens"]);
+    await expect.poll(headings).toEqual(["Profile", "Sign in", "Personal tokens"]);
   });
 
   // The screen half of e2e "a name and a colour can be changed, and the board follows".
   test("a name and a colour can be changed", async () => {
     const { patches } = await draw();
-    await expect.element(page.getByText(ME.email)).toBeVisible();
+    // The email sits under Sign in, read-only, and is the password manager's username.
+    const email = page.getByLabelText("Your email");
+    await expect.element(email).toHaveValue(ME.email);
+    await expect.element(email).toHaveAttribute("readonly");
+    await expect.element(email).toHaveAttribute("autocomplete", "username");
 
     const name = page.getByLabelText("Your name");
     await name.fill("Ada Lovelace");
@@ -175,9 +177,15 @@ describe("Your own account", () => {
       .element(page.getByLabelText("The password you want"))
       .not.toHaveAttribute("aria-invalid");
 
+    await page.getByRole("button", { name: "Show the new password" }).click();
     await page.getByLabelText("The password you use now").fill("ushabti-secret");
-    await page.getByRole("button", { name: "Change password" }).click();
+    // It is a form: Enter in the current box sends it too.
+    await userEvent.keyboard("{Enter}");
     await expect.element(page.getByText("Password changed.")).toBeVisible();
+    // An eye left open would show the next password in clear.
+    await expect
+      .element(page.getByLabelText("The password you want"))
+      .toHaveAttribute("type", "password");
     expect(sent("POST", /^\/api\/auth\/password$/).map((s) => s.body)).toEqual([
       { current: "not-the-password", next: "a-longer-secret" },
       { current: "ushabti-secret", next: "a-longer-secret" },
@@ -240,6 +248,8 @@ describe("Your own account", () => {
     await change.click();
     await expect.element(page.getByText("Type the password you use now.")).toBeVisible();
     await expect.element(now).toHaveAttribute("aria-invalid", "true");
+    // The box the sentence is about takes the focus.
+    await expect.element(now).toHaveFocus();
 
     fillWithNoEvent(now, "ushabti-secret");
     await want.fill("a-second-secret");
@@ -308,7 +318,7 @@ describe("Your own account", () => {
         lastUsedAt: at(-1),
       },
     ];
-    await draw(null, ({ path, method }) => {
+    const { sent } = await draw(null, ({ path, method }) => {
       if (path !== "/api/auth/tokens") return;
       if (method === "POST") {
         tokens.unshift(made);
@@ -322,8 +332,18 @@ describe("Your own account", () => {
       .poll(() => laptop.element().textContent)
       .toContain("made 3 days ago · expires in 6 days · last used yesterday");
 
+    // An empty name is said under the box on the press, never by a dead button.
+    const make = page.getByRole("button", { name: "Make token" });
+    await expect.element(make).not.toBeDisabled();
+    await make.click();
+    await expect
+      .element(page.getByText("Name the token, so you know what to revoke later."))
+      .toBeVisible();
+    await expect.element(page.getByLabelText("Token name")).toHaveFocus();
+    expect(sent("POST", /^\/api\/auth\/tokens$/)).toEqual([]);
+
     await page.getByLabelText("Token name").fill("Raycast");
-    await page.getByRole("button", { name: "Make token" }).click();
+    await make.click();
     const secret = page.getByTestId("personal-secret");
     await expect.poll(() => secret.element().textContent).toContain("ushp_77e2secret");
     // The secret sits under its own row, and the keyboard waits on Copy.
@@ -331,5 +351,23 @@ describe("Your own account", () => {
     expect(row.textContent).toContain("Raycast");
     expect(row.textContent).toContain("made today");
     await expect.element(page.getByRole("button", { name: "Copy the token" })).toHaveFocus();
+    // And it says how a script sends it.
+    await expect
+      .poll(() => secret.element().textContent)
+      .toContain(`export USHABTI_TOKEN=ushp_77e2secret`);
+    await expect.element(page.getByText("Authorization: Bearer <token>")).toBeVisible();
+  });
+
+  test("a sessions count that failed can be asked again", async () => {
+    let fail = true;
+    await draw(null, ({ path }) =>
+      path === "/api/auth/sessions" && fail ? { status: 500, body: { error: "x" } } : undefined,
+    );
+    await expect.element(page.getByText("Other sessions could not be counted.")).toBeVisible();
+    fail = false;
+    await page.getByRole("button", { name: "Try again" }).click();
+    await expect
+      .element(page.getByText("You are signed in here and in 3 other sessions."))
+      .toBeVisible();
   });
 });

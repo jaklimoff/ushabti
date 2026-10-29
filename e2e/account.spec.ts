@@ -22,7 +22,7 @@ test.describe("Your own account", () => {
     await page.getByRole("menuitem", { name: "Account" }).click();
     await expect(page).toHaveURL(/\/account$/);
     await expect(page.getByRole("heading", { name: "Account" })).toBeVisible();
-    await expect(page.getByText(account.email)).toBeVisible();
+    await expect(page.getByLabel("Your email")).toHaveValue(account.email);
 
     const name = page.getByLabel("Your name");
     await name.fill("Ada Lovelace");

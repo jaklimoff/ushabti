@@ -7,7 +7,7 @@ import { editedText } from "@/lib/leave";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
-import { Checkbox, ColorSwatches, FaceSwatches, Field, Input } from "@/components/ui/Form";
+import { Checkbox, ColorSwatches, FaceSwatches, Field, Input, Label } from "@/components/ui/Form";
 import { PasswordRow, RevealButton } from "@/components/ui/RevealButton";
 import { Card, Foot, PageHead, PageShell, Row, Section, Spacer } from "@/components/ui/Layout";
 import { Toasts, type Toast } from "@/components/ui/Toasts";
@@ -66,8 +66,9 @@ export function Account({
 
   /* Counted here, not in the sessions card, because a password change ends
      the other sessions too and the card has to say so. */
-  const [others, setOthers] = useState<number | null>(null);
+  const [others, setOthers] = useState<number | null | undefined>(undefined);
   const loadSessions = useCallback(async () => {
+    setOthers(undefined);
     try {
       const res = await api.get<{ others: number }>("/api/auth/sessions");
       setOthers(res.others);
@@ -113,32 +114,28 @@ export function Account({
         trail={[<AppCrumb key="here">Account</AppCrumb>]}
       />
 
-      <PageShell width="narrow">
+      <PageShell width="content">
         <PageHead title="Account" lead="How you look to your team, and how you sign in." />
 
-        <Section title="Profile">
+        {/* Everything in Profile saves as it is made; everything under Sign in
+            and Personal tokens waits for its button. The two halves of the
+            lead are the two save models, so the page groups by them. */}
+        <Section title="Profile" note="Saved as you go.">
           <Card>
             {/* The circle and the name as the team sees them, drawn from what
                 is on this page now, so every pick below shows here first. */}
             <div className={styles.preview} data-testid="account-preview">
-              <Avatar name={shownName} color={color} emoji={emoji} size={40} title={null} />
+              <Avatar name={shownName} color={color} emoji={emoji} size={44} title={null} />
               <div className={styles.who}>
+                <Label aria-hidden="true">How you appear</Label>
                 <span className={styles.whoName}>{shownName}</span>
-                <span className={styles.whoMail}>{user.email}</span>
-                <span className={styles.whoAside}>
-                  You sign in with this email. It cannot be changed yet.
-                </span>
               </div>
-              <span className={styles.previewLabel} aria-hidden="true">
-                How you appear
-              </span>
             </div>
 
-            <Row className={styles.stack}>
-              <Field label="Name" note="Cards, comments and the activity log use this.">
+            <Row>
+              <Field label="Name" inline note="Cards, comments and the activity log use this.">
                 <Input
-                  size="lg"
-                  block
+                  width="long"
                   aria-label="Your name"
                   value={name}
                   maxLength={80}
@@ -155,10 +152,11 @@ export function Account({
               </Field>
             </Row>
 
-            <Row className={styles.stack}>
+            <Row>
               <Field
                 label="Colour"
-                note="Your circle on every card. Pick one nobody else on your team is using."
+                inline
+                note="Your circle on every card. Pick one nobody else on your team uses."
               >
                 <ColorSwatches
                   name={shownName}
@@ -172,11 +170,8 @@ export function Account({
               </Field>
             </Row>
 
-            <Row className={styles.stack}>
-              <Field
-                label="Face"
-                note="Worn on your colour in place of your initials, so two people with the same initials still look different."
-              >
+            <Row>
+              <Field label="Face" inline note="Worn on your colour instead of your initials.">
                 <FaceSwatches
                   name={shownName}
                   color={color}
@@ -200,13 +195,14 @@ export function Account({
           </Card>
         </Section>
 
-        {askMailOn && <EmailSection on={user.askMail} notify={notify} />}
-
-        <PasswordSection onChanged={loadSessions} />
-
-        <SessionsSection others={others} notify={notify} reload={loadSessions} />
+        <Section title="Sign in">
+          <PasswordSection email={user.email} onChanged={loadSessions} />
+          <SessionsSection others={others} notify={notify} reload={loadSessions} />
+        </Section>
 
         <PersonalTokens notify={notify} />
+
+        {askMailOn && <EmailSection on={user.askMail} notify={notify} />}
 
         <span className={styles.version}>Ushabti {version}</span>
       </PageShell>
@@ -240,10 +236,12 @@ function EmailSection({ on: saved, notify }: { on: boolean; notify: Notify }) {
     }
   }
 
+  // Called Notifications and not Email, so it is not read as the email you
+  // sign in with, which sits under Sign in.
   return (
-    <Section title="Email">
+    <Section title="Notifications">
       <Card>
-        <Row className={`${styles.stack} ${styles.mailRow}`}>
+        <Row className={styles.mailRow}>
           <Checkbox
             className={styles.mailCheck}
             label="Email me when an agent asks me something and nobody answers for 15 minutes"
@@ -265,8 +263,11 @@ function EmailSection({ on: saved, notify }: { on: boolean; notify: Notify }) {
  * The way back from a password you think has leaked, and still know. Changing
  * it ends every other session. One you cannot remember is a different way
  * back: an admin of a project makes a link.
+ *
+ * It is a real form, so Enter in either box sends it, and the email above the
+ * boxes is the username a password manager files the new password under.
  */
-function PasswordSection({ onChanged }: { onChanged: () => void }) {
+function PasswordSection({ email, onChanged }: { email: string; onChanged: () => void }) {
   // Both passwords are read from their boxes, never kept in state, as on the
   // sign-in page: a password manager can write a box with no event React
   // hears, and a controlled box then empties itself on the next render.
@@ -286,44 +287,74 @@ function PasswordSection({ onChanged }: { onChanged: () => void }) {
     setDone(false);
   }
 
+  /* The box an error is about takes the focus, so the next key goes where
+     the sentence points. */
+  function wrong(on: "current" | "next", text: string) {
+    setError({ on, text });
+    (on === "current" ? currentBox : nextBox).current?.focus();
+  }
+
   async function change() {
     if (busy) return;
     typing();
     const current = currentBox.current?.value ?? "";
     const next = nextBox.current?.value ?? "";
-    if (!current) return setError({ on: "current", text: "Type the password you use now." });
-    if (next.length < 8) {
-      return setError({ on: "next", text: "The new password must have at least 8 characters." });
-    }
+    if (!current) return wrong("current", "Type the password you use now.");
+    if (next.length < 8) return wrong("next", "The new password must have at least 8 characters.");
     setBusy(true);
     try {
       await api.post("/api/auth/password", { current, next });
       if (currentBox.current) currentBox.current.value = "";
       if (nextBox.current) nextBox.current.value = "";
+      // An eye left open would show the next password typed in clear.
+      setShowCurrent(false);
+      setShowNext(false);
       setDone(true);
       onChanged();
     } catch (err) {
       // The route answers 403 only when the current password is wrong, so
       // that sentence goes under the box that holds it.
-      setError({
-        on: err instanceof ApiError && err.status === 403 ? "current" : "next",
-        text: err instanceof Error ? err.message : "Could not change the password.",
-      });
+      wrong(
+        err instanceof ApiError && err.status === 403 ? "current" : "next",
+        err instanceof Error ? err.message : "Could not change the password.",
+      );
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Section title="Password">
-      <Card>
-        <Row className={styles.stack}>
-          <Field label="Current password" error={error?.on === "current" ? error.text : null}>
+    <Card>
+      <form
+        className={styles.form}
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void change();
+        }}
+      >
+        <Row>
+          <Field label="Email" inline note="You sign in with this email. It cannot be changed yet.">
+            <Input
+              className={styles.email}
+              width="long"
+              readOnly
+              aria-label="Your email"
+              autoComplete="username"
+              value={email}
+            />
+          </Field>
+        </Row>
+        <Row>
+          <Field
+            label="Current password"
+            inline
+            error={error?.on === "current" ? error.text : null}
+          >
             <PasswordRow>
               <Input
                 ref={currentBox}
-                size="lg"
-                block
+                width="long"
                 type={showCurrent ? "text" : "password"}
                 autoComplete="current-password"
                 aria-label="The password you use now"
@@ -331,6 +362,7 @@ function PasswordSection({ onChanged }: { onChanged: () => void }) {
                 onChange={typing}
               />
               <RevealButton
+                size="md"
                 shown={showCurrent}
                 onToggle={() => setShowCurrent((v) => !v)}
                 what="the current password"
@@ -338,26 +370,26 @@ function PasswordSection({ onChanged }: { onChanged: () => void }) {
             </PasswordRow>
           </Field>
         </Row>
-        <Row className={styles.stack}>
+        <Row>
           <Field
             label="New password"
+            inline
             error={error?.on === "next" ? error.text : null}
             note="At least 8 characters. Keep it somewhere safe: a password nobody knows needs a link from an admin of your project."
           >
             <PasswordRow>
               <Input
                 ref={nextBox}
-                size="lg"
-                block
+                width="long"
                 type={showNext ? "text" : "password"}
                 autoComplete="new-password"
                 aria-label="The password you want"
                 minLength={8}
                 invalid={error?.on === "next"}
                 onChange={typing}
-                onKeyDown={(e) => e.key === "Enter" && void change()}
               />
               <RevealButton
+                size="md"
                 shown={showNext}
                 onToggle={() => setShowNext((v) => !v)}
                 what="the new password"
@@ -366,7 +398,7 @@ function PasswordSection({ onChanged }: { onChanged: () => void }) {
           </Field>
         </Row>
         <Foot>
-          <span className={done ? styles.done : styles.footNote} role="status">
+          <span className={done ? styles.done : styles.footSay} role="status">
             {done
               ? "Password changed. Every other session is signed out."
               : "Changing it signs you out everywhere else."}
@@ -374,12 +406,12 @@ function PasswordSection({ onChanged }: { onChanged: () => void }) {
           <Spacer />
           {/* Not greyed out while a box looks empty: a box a password manager
               filled looks empty to React, and the button would stay dead. */}
-          <Button size="lg" onClick={() => void change()} busy={busy}>
+          <Button type="submit" busy={busy}>
             {busy ? "Changing…" : "Change password"}
           </Button>
         </Foot>
-      </Card>
-    </Section>
+      </form>
+    </Card>
   );
 }
 
@@ -396,7 +428,8 @@ function SessionsSection({
   notify,
   reload,
 }: {
-  others: number | null;
+  /** Undefined until the first count comes back; null when it failed. */
+  others: number | null | undefined;
   notify: Notify;
   reload: () => Promise<void>;
 }) {
@@ -412,31 +445,41 @@ function SessionsSection({
   }
 
   return (
-    <Section title="Sessions">
-      <Card>
-        {confirm.asking && others ? (
-          <ConfirmRow
-            question={`Sign out ${sessions(others)}? This one stays.`}
-            confirmLabel="Yes, sign them out"
-            onConfirm={() => confirm.confirm(() => void signOutOthers())}
-            onCancel={confirm.cancel}
-          />
-        ) : (
-          <Row>
-            <span className={styles.sessionText}>
-              {others === null
-                ? "Other sessions could not be counted."
-                : others === 0
-                  ? "You are signed in here only."
-                  : `You are signed in here and in ${sessions(others)}.`}
+    <Card>
+      {confirm.asking && others ? (
+        <ConfirmRow
+          question={`Sign out ${sessions(others)}? This one stays.`}
+          confirmLabel="Yes, sign them out"
+          onConfirm={() => confirm.confirm(() => void signOutOthers())}
+          onCancel={confirm.cancel}
+        />
+      ) : (
+        <Row>
+          <Field label="Sessions" inline>
+            <span className={styles.sessionText} role="status">
+              {others === undefined
+                ? "Counting your other sessions…"
+                : others === null
+                  ? "Other sessions could not be counted."
+                  : others === 0
+                    ? "You are signed in here only."
+                    : `You are signed in here and in ${sessions(others)}.`}
             </span>
             <Spacer />
-            <Button variant="ghost" disabled={!others} onClick={confirm.ask}>
-              Sign out the others
-            </Button>
-          </Row>
-        )}
-      </Card>
-    </Section>
+            {/* A failed count is asked again; a button that cannot be pressed
+                left no way forward. */}
+            {others === null ? (
+              <Button variant="text" onClick={() => void reload()}>
+                Try again
+              </Button>
+            ) : (
+              <Button variant="ghost" disabled={!others} onClick={confirm.ask}>
+                Sign out the others
+              </Button>
+            )}
+          </Field>
+        </Row>
+      )}
+    </Card>
   );
 }

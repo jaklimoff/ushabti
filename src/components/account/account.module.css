@@ -3,26 +3,16 @@
   background: var(--bg);
 }
 
-/* Each field takes the full width of the card, label above control. */
-.stack {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-}
-
-.stack > * {
-  width: 100%;
-}
-
 /* ---- profile preview ---------------------------------------------- */
 
 /* The person as the team sees them. It sits on the card's lighter paint so
-   it reads as a picture of the result, not as one more field. */
+   it reads as a picture of the result, not as one more field. The picture
+   leads; the words under the eyebrow stay below a section heading. */
 .preview {
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  padding: 16px 13px;
+  padding: 14px 13px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--line-soft);
 }
@@ -30,13 +20,13 @@
 .who {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   flex: 1;
 }
 
 .whoName {
-  font-size: var(--t-h2);
+  font-size: var(--t-ui);
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -44,65 +34,22 @@
   white-space: nowrap;
 }
 
-.whoMail {
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--text-4);
-  overflow-wrap: anywhere;
+/* ---- sign in -------------------------------------------------------- */
+
+/* The form is the card's body, so its rows keep the card's column. */
+.form {
+  display: flex;
+  flex-direction: column;
 }
 
-.whoAside {
-  font-size: var(--t-small);
-  line-height: 1.5;
-  color: var(--muted);
+/* A box you cannot change takes no ring from a click, but the keyboard still
+   has to see where it is. The dashes and the ground keep it read-only. */
+input.email[readonly]:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-glow);
 }
 
-.previewLabel {
-  align-self: flex-start;
-  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
-  font-size: var(--t-chip);
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--text-meta);
-}
-
-/* A phone needs the room for the name. */
-@media (max-width: 520px) {
-  .previewLabel {
-    display: none;
-  }
-}
-
-/* ---- email, password, sessions ------------------------------------- */
-
-.mailCheck {
-  font-size: var(--t-ui);
-  color: var(--text-2);
-  align-items: flex-start;
-  line-height: 1.45;
-}
-
-/* The box lines up with the first line of words, not their middle. */
-.mailCheck > input {
-  margin-top: 2px;
-}
-
-/* The note reads with the box above it, so it sits close and under the words. */
-.mailRow {
-  gap: 0;
-}
-
-.rowNote {
-  padding-left: 20px;
-  font-size: var(--t-small);
-  line-height: 1.55;
-  color: var(--muted);
-  text-wrap: pretty;
-}
-
-.footNote {
+.footSay {
   font-size: var(--t-small);
   line-height: 1.55;
   color: var(--muted);
@@ -120,12 +67,65 @@
   color: var(--text-3);
 }
 
+/* ---- notifications ------------------------------------------------- */
+
+/* The note reads with the box above it, so it sits close and under the words. */
+.mailRow {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.mailCheck {
+  font-size: var(--t-ui);
+  color: var(--text-2);
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+/* The box lines up with the first line of words, not their middle. */
+.mailCheck > input {
+  margin-top: 2px;
+}
+
+.rowNote {
+  padding-left: 20px;
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
 /* ---- personal tokens ----------------------------------------------- */
 
 .tokenSoon {
   color: var(--warn);
 }
 
+/* Name, expiry, then the button, on one line with their labels above. The
+   button's own empty label keeps it on the line of the boxes, also while an
+   error under the name makes that field taller. */
+.tokenForm {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-2) var(--s-3);
+  min-width: 0;
+}
+
+.tokenName {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.tokenGo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* The secret, how to use it, and the warning that it is shown once. */
 .secret {
   display: flex;
   flex-direction: column;
@@ -133,19 +133,26 @@
   padding: 0 13px 13px;
 }
 
+.secretHead {
+  margin-top: 6px;
+}
+
+.secretSay {
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.secretSay code {
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-micro);
+  color: var(--text-3);
+}
+
 .secretNote {
   font-size: var(--t-small);
   line-height: 1.55;
   color: var(--accent-soft);
-}
-
-.tokenNameBox {
-  flex: 1 1 180px;
-  min-width: 0;
-}
-
-.tokenFoot > .footNote {
-  flex-basis: 100%;
 }
 
 .version {
