@@ -66,7 +66,14 @@ test.describe("The design foundation", () => {
         "href",
         "/projects",
       );
-      if (here) await expect(header.locator('[aria-current="page"]')).toHaveText(here);
+      /* The trail says where you are; a sibling link to the same page may be
+         marked current too, so read the trail's own. */
+      if (here)
+        await expect(
+          header
+            .getByRole("navigation", { name: "Where you are" })
+            .locator('[aria-current="page"]'),
+        ).toHaveText(here);
       if (path.startsWith("/p/")) {
         const mark = header.getByText(project.key, { exact: true });
         await expect(mark).toBeVisible();
