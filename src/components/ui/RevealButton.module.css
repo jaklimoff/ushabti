@@ -19,6 +19,11 @@
     color 140ms var(--ease);
 }
 
+.revealXl {
+  width: var(--control-h-xl);
+  height: var(--control-h-xl);
+}
+
 .reveal:hover {
   border-color: var(--focus-ring);
   color: var(--accent-soft);

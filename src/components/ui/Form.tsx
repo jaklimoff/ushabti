@@ -73,7 +73,8 @@ export function Input({
   className,
   ...rest
 }: Omit<React.ComponentPropsWithRef<"input">, "size" | "width"> & {
-  size?: "sm" | "md" | "lg";
+  /** `xl` is the sign-in pages' front door, and nowhere else. */
+  size?: "sm" | "md" | "lg" | "xl";
   width?: "short" | "medium" | "long";
   grow?: boolean;
   block?: boolean;
@@ -93,7 +94,13 @@ export function Input({
       aria-invalid={invalid || undefined}
       className={[
         styles.input,
-        size === "lg" ? styles.inputLg : size === "sm" ? styles.inputSm : "",
+        size === "lg"
+          ? styles.inputLg
+          : size === "xl"
+            ? styles.inputXl
+            : size === "sm"
+              ? styles.inputSm
+              : "",
         width === "short" ? styles.inputShort : "",
         width === "medium" ? styles.inputMedium : "",
         width === "long" ? styles.inputLong : "",

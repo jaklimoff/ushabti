@@ -121,3 +121,38 @@ describe("A form that says what is wrong on the box", () => {
     await expect.element(page.getByLabelText("Your password")).toHaveFocus();
   });
 });
+
+describe("What the outside offers", () => {
+  test("a closed board offers no sign-up page from sign in", async () => {
+    await draw(<AuthForm mode="login" signupOpen={false} />);
+    await expect
+      .element(page.getByText("New here? Open the invite link an admin sent you."))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("link", { name: "Create an account" }))
+      .not.toBeInTheDocument();
+  });
+
+  test("an open board links to sign up", async () => {
+    await draw(<AuthForm mode="login" />);
+    await expect
+      .element(page.getByRole("link", { name: "Create an account" }))
+      .toHaveAttribute("href", "/register");
+  });
+
+  test("an invite says Join, and whose account it opens", async () => {
+    await draw(
+      <AuthForm
+        mode="register"
+        invite={{ token: "ushi_abc", email: "ada@example.com", project: "Engine" }}
+      />,
+    );
+    await expect.element(page.getByRole("heading", { name: "Join Engine" })).toBeVisible();
+    await expect
+      .element(page.getByTestId("invite-tagline"))
+      .toHaveTextContent("Invited as ada@example.com. Your account opens Engine at once.");
+    await expect
+      .element(page.getByRole("button", { name: "Create account and join" }))
+      .toBeVisible();
+  });
+});

@@ -113,44 +113,50 @@ export function AuthForm({
 
   return (
     <AuthCard
-      title={register ? "Create an account" : "Sign in"}
+      title={invite ? `Join ${invite.project}` : register ? "Create an account" : "Sign in"}
       below={
         register ? (
           <>
             Already have an account? <Link href="/login">Sign in</Link>
           </>
-        ) : (
+        ) : signupOpen ? (
           <>
             New here? <Link href="/register">Create an account</Link>
           </>
+        ) : (
+          // A closed board offers no page that would only say it is closed.
+          <>New here? Open the invite link an admin sent you.</>
         )
       }
     >
       {/* A closed board keeps the form: an invited email still gets in, and
-          the server refuses the rest. */}
+          the server refuses the rest. What is about you reads as a notice,
+          so it is not mistaken for the pitch above. */}
       {invite && (
-        <p className={styles.tagline} data-testid="invite-tagline">
-          You are invited to <strong className={styles.project}>{invite.project}</strong>. Create an
-          account with {invite.email}, and you are in the project at once.
-        </p>
-      )}
-      {register && !invite && signupOpen && (
-        <p className={styles.tagline}>
-          You define the fields. The board, the list and the roadmap follow them.
+        <p className={styles.notice} data-testid="invite-tagline">
+          Invited as {invite.email}. Your account opens {invite.project} at once.
         </p>
       )}
       {register && !invite && !signupOpen && (
-        <p className={styles.tagline}>
+        <p className={styles.notice}>
           This board is closed. It takes a new account only from an invite link, so open the one an
           admin of your project sent you.
         </p>
+      )}
+
+      {/* Above the boxes, so it is read first and never lands under the
+          pointer that pressed the button. */}
+      {error && (
+        <div className={styles.error} role="alert">
+          {error}
+        </div>
       )}
 
       <form className={styles.form} onSubmit={submit} noValidate>
         {register && (
           <Field label="Name" error={wrong.name}>
             <Input
-              size="lg"
+              size="xl"
               block
               autoFocus
               ref={nameBox}
@@ -166,13 +172,9 @@ export function AuthForm({
             />
           </Field>
         )}
-        <Field
-          label="Email"
-          error={wrong.email}
-          note={invite ? "The invite is for this email." : undefined}
-        >
+        <Field label="Email" error={wrong.email}>
           <Input
-            size="lg"
+            size="xl"
             block
             autoFocus={!register}
             ref={emailBox}
@@ -198,7 +200,7 @@ export function AuthForm({
           >
             <PasswordRow>
               <Input
-                size="lg"
+                size="xl"
                 block
                 ref={passwordBox}
                 type={show ? "text" : "password"}
@@ -213,7 +215,7 @@ export function AuthForm({
                * an admin of a project for a way back in, which is a person's
                * afternoon rather than a second field's.
                */}
-              <RevealButton shown={show} onToggle={() => setShow((v) => !v)} />
+              <RevealButton size="xl" shown={show} onToggle={() => setShow((v) => !v)} />
             </PasswordRow>
           </Field>
           {/* Always there, because /forgot says what to do when mail is off.
@@ -226,14 +228,14 @@ export function AuthForm({
           )}
         </div>
 
-        {error && (
-          <div className={styles.error} role="alert">
-            {error}
-          </div>
-        )}
-
-        <Button size="lg" block type="submit" busy={busy}>
-          {busy ? "One moment…" : register ? "Create account" : "Sign in"}
+        <Button size="xl" block type="submit" busy={busy}>
+          {busy
+            ? "One moment…"
+            : invite
+              ? "Create account and join"
+              : register
+                ? "Create account"
+                : "Sign in"}
         </Button>
       </form>
     </AuthCard>

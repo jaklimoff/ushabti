@@ -2,12 +2,14 @@
   gap: var(--s-4);
 }
 
+/* A step under the brand's name, so the name is the one 20px on the page.
+   It stays the page's h1: a screen reader still hears "Sign in". */
 .h1 {
   margin: 0;
-  font-size: var(--t-h1);
+  font-size: var(--t-h2);
   font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 /* The heading and the sentence under it read as one block. */
@@ -24,10 +26,24 @@ p.tagline,
   text-wrap: pretty;
 }
 
-/* The project is the one word an invited person is looking for. */
-.project {
-  color: var(--text-2);
-  font-weight: 600;
+/* Something about you, not about Ushabti: an invite, a closed board, a
+   link on its way. One box, so it always reads one way and is never taken
+   for the pitch. */
+p.notice,
+.notice {
+  margin: 0;
+  padding: 10px var(--s-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--text-3);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.h1 + .notice {
+  margin-top: calc(var(--s-3) - var(--s-4));
 }
 
 .form {
@@ -43,20 +59,37 @@ p.tagline,
   position: relative;
 }
 
-/* The padding gives a thumb more to land on without moving the words. */
+/* The box is the label's line and a little more, so its rounded ring fits
+   in the gap above the eye and never runs into it. The negative margin keeps
+   the words where they were. */
 .forgot {
   position: absolute;
-  top: -8px;
+  top: -2px;
   right: 0;
-  padding: 6px 0;
+  margin-right: -6px;
+  padding: 2px 6px;
   font-size: var(--t-small);
-  line-height: 1.5;
+  line-height: 14px;
   color: var(--muted);
   transition: color 140ms var(--ease);
 }
 
+.forgot:focus-visible {
+  outline-offset: 0;
+}
+
+/* A thumb gets more to land on than the ring shows, upward only: below is
+   the eye, and a press there must stay the eye's. */
+.forgot::after {
+  content: "";
+  position: absolute;
+  inset: -8px 0 -2px;
+}
+
 .forgot:hover {
   color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .error {

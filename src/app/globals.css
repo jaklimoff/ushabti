@@ -96,10 +96,12 @@
   /* A light wash under the pointer, for a row on any ground. */
   --bg-hover-wash: rgba(255, 255, 255, 0.04);
 
-  /* Control geometry. Every button and input picks one of these two heights,
-     which is why the same button is the same size on every screen. */
+  /* Control geometry. Every button and input picks one of these heights,
+     which is why the same button is the same size on every screen. The
+     third is the front door's alone: the sign-in pages, and nowhere else. */
   --control-h: 28px;
   --control-h-lg: 34px;
+  --control-h-xl: 40px;
 
   /* Radius. --r-xs is a chip, a tag and a key cap; --r-card is a card. */
   --r-xs: 4px;
