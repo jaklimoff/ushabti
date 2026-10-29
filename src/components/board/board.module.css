@@ -1920,10 +1920,21 @@
   --list-row-h: 32px;
   /* A table head is 30 px wherever the app draws one. */
   --list-head-h: 30px;
+  position: relative;
   flex: 1;
   display: flex;
   min-height: 0;
   background: var(--bg);
+}
+
+/* A finger needs a taller row, and a phone needs the title to hold more of
+   it: the key and the title are both held, and at 40 % only one property
+   fitted beside them. */
+@media (pointer: coarse) {
+  .list {
+    --list-row-h: 40px;
+    --list-title-share: 55vw;
+  }
 }
 
 .listScroll {
@@ -1932,13 +1943,41 @@
   overflow: auto;
   /* The last row must not sit against the bottom of the window. */
   padding-bottom: 40px;
+  /* A row brought into view stops below the sticky head, not under it. */
+  scroll-padding-top: var(--list-head-h);
 }
 
-/* As wide as its widest line, so a narrow window scrolls the whole table
-   rather than squeezing the title away. The header, the sections and the rows
-   are all children of this, so they scroll as one. */
+/*
+ * The one grid. The header, every row, the way in and the composer are
+ * subgrids of it, so a column is as wide as the widest thing in it — heading
+ * or value — and every line agrees. As wide as its narrowest fit, so a narrow
+ * window scrolls the whole table rather than squeezing a value away.
+ */
 .listGrid {
+  display: grid;
+  grid-template-columns: var(--list-cols);
+  column-gap: 8px;
   min-width: min-content;
+}
+
+/* The table goes on past the right edge. Overlay scrollbars hide the only
+   other sign of it. */
+.list::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--bg));
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
+}
+
+.list[data-more-x]::after {
+  opacity: 1;
 }
 
 /* ---- the header ----------------------------------------------------- */
@@ -1950,21 +1989,21 @@
  * would have nowhere to be.
  */
 /*
- * The head is a band of its own, a step lighter than the rows, so it reads as
- * the names of the columns and not as one more faint row. Once the rows slide
- * under it, it lifts with a soft shadow, so the seam says which is which.
+ * The head is the caps labels over a hairline, as every table head in the app
+ * is. A band a step lighter than the rows was too faint to read as a band and
+ * only made this head unlike the others. Once the rows slide under it, it
+ * lifts with a soft shadow, so the seam says which is which.
  */
 .listHead {
   position: sticky;
   top: 0;
   z-index: 3;
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: var(--list-cols);
+  grid-template-columns: subgrid;
   align-items: stretch;
-  gap: 8px;
   height: var(--list-head-h);
-  padding: 0 12px 0 0;
-  background: var(--bg-top);
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
   transition: box-shadow 160ms var(--ease);
 }
@@ -1979,7 +2018,6 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  min-width: 0;
   padding-right: 4px;
   border: 0;
   background: none;
@@ -1990,7 +2028,9 @@
   text-transform: uppercase;
   color: var(--text-meta);
   white-space: nowrap;
-  overflow: hidden;
+  /* Clipped rather than hidden: a hidden box may be squeezed to nothing, and
+     a heading is what keeps its column from being narrower than its name. */
+  overflow: clip;
   text-overflow: ellipsis;
   text-align: left;
   transition: color 140ms var(--ease);
@@ -2067,15 +2107,14 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 .listRow {
   position: relative;
+  grid-column: 1 / -1;
   display: grid;
   /* Opaque on purpose: the pinned cells take this background with `inherit`,
      so the rows sliding under them must have something to hide behind. */
   background: var(--bg);
-  grid-template-columns: var(--list-cols);
+  grid-template-columns: subgrid;
   align-items: stretch;
-  gap: 8px;
   min-height: var(--list-row-h);
-  padding: 0 12px 0 0;
   border-bottom: 1px solid var(--line-faint);
   cursor: pointer;
   touch-action: manipulation;
@@ -2111,10 +2150,15 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 /* A picked row wears the fill a picked card wears, and no ring, so a run of
    picked rows reads as one block, the way a selection does in any table. The
-   open row keeps its ring and the cursor its own. */
-.listRowPicked,
+   open row keeps its ring and the cursor its own. The fill is laid over an
+   opaque ground, because the held cells take this background too and a see-
+   through one would show the cells sliding under them. */
+.listRowPicked {
+  background: linear-gradient(var(--accent-pick), var(--accent-pick)) var(--bg);
+}
+
 .listRowPicked:hover {
-  background: var(--accent-pick);
+  background: linear-gradient(var(--accent-pick), var(--accent-pick)) var(--bg-card);
 }
 
 /*
@@ -2131,6 +2175,12 @@ button.listHeadCell:focus-visible .listHeadHint {
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
+/* The cursor on a picked row keeps the pick: the ring says where you are,
+   the fill says what is in hand, and neither may hide the other. */
+.listRowPicked:focus-visible {
+  background: linear-gradient(var(--accent-pick), var(--accent-pick)) var(--bg-card-hover);
+}
+
 /*
  * The colour the card wears, worn down the side of the line. The padding does
  * not move with it, which is the one deliberate difference from a card: in a
@@ -2145,8 +2195,11 @@ button.listHeadCell:focus-visible .listHeadHint {
 }
 
 /* A wide bar does not rotate. The card's 1.4° reads as a lift at 250 px and
-   as a broken table at 1000. */
+   as a broken table at 1000. It is drawn outside the grid, so it takes the
+   columns in pixels, measured from the head when it was lifted. */
 .listRowOverlay {
+  grid-template-columns: var(--list-cols);
+  column-gap: 8px;
   cursor: grabbing;
   border-radius: var(--r-card);
   background: var(--bg-card-hover);
@@ -2217,12 +2270,14 @@ button.listHeadCell:focus-visible .listHeadHint {
   transition: opacity 120ms var(--ease);
 }
 
+/* The edge is --muted-2, the grey for a glyph: a check drawn in a hairline
+   grey is a smudge, not a control. */
 .listPickBox {
   display: grid;
   place-items: center;
   width: 14px;
   height: 14px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--muted-2);
   border-radius: var(--r-xs);
   color: var(--accent);
   font-size: 9px;
@@ -2234,10 +2289,6 @@ button.listHeadCell:focus-visible .listHeadHint {
 .listRow:hover .listPick,
 .listPick[data-on="true"] {
   opacity: 1;
-}
-
-.listPick[data-on="true"] .listPickBox {
-  border-color: var(--line-menu);
 }
 
 .listRowPicked .listPickBox {
@@ -2274,27 +2325,34 @@ button.listHeadCell:focus-visible .listHeadHint {
   white-space: nowrap;
 }
 
+/* The column is as wide as the longest title, so the longest one would touch
+   the first property without the lane every cell keeps on its right. */
 .listTitle {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  padding-right: 10px;
 }
 
+/* The name of the task, set as a card sets it. It is what a list is read
+   for, so it is the loudest thing on the line. */
 .listTitleText {
   flex: 0 1 auto;
   min-width: 0;
-  font-size: var(--t-body);
-  color: var(--text-3);
+  font-size: var(--t-ui);
+  font-weight: 500;
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* The description, when the card view puts it on the card. It gives way
-   before the title does, because the title is the name of the thing. */
+/* The description, when the card view puts it on the card. It starts from
+   nothing and takes only what the title leaves, so the title is cut only
+   against the cell, never against the description. */
 .listDesc {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   font-size: var(--t-small);
   color: var(--text-meta);
@@ -2312,10 +2370,22 @@ button.listHeadCell:focus-visible .listHeadHint {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
   padding-right: 10px;
-  overflow: hidden;
+  /* Clipped rather than hidden: a hidden box may be squeezed to nothing, and
+     a cell is never narrower than what it holds unless its column's ceiling
+     says so. */
+  overflow: clip;
   mask-image: linear-gradient(90deg, #000 calc(100% - 10px), transparent 100%);
+}
+
+/* The column is the box. A value in a cell keeps its dot and its words and
+   loses its ground, so the row's hairline is the only line, and the words
+   start where the heading does. A filled label keeps its colour: that is
+   the value, not chrome. */
+.listChips .cardChipBoxed {
+  padding-left: 0;
+  padding-right: 0;
+  background: none;
 }
 
 .listChipsRight {
@@ -2377,6 +2447,7 @@ button.listHeadCell:focus-visible .listHeadHint {
 /* Its + stands where every key starts, so the way in reads as the next row of
    the table and not as a link left under it. */
 .listAdd {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2429,10 +2500,10 @@ button.listHeadCell:focus-visible .listHeadHint {
  * stops where the title stops instead of running across the whole window.
  */
 .listCompose {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: var(--list-cols);
-  gap: 8px;
-  padding: 4px 12px 6px 0;
+  grid-template-columns: subgrid;
+  padding: 4px 0 6px;
   border-bottom: 1px solid var(--line-faint);
   background: var(--bg-card);
 }
@@ -2442,6 +2513,26 @@ button.listHeadCell:focus-visible .listHeadHint {
   min-width: 0;
   /* The box's own padding brings the words to the key's 28 px. */
   margin-left: 18px;
+}
+
+/* What a list is, said under the way in to an empty one. It stays at the
+   left edge when a wide table is scrolled, as the words of the way in do. */
+.listFirst {
+  grid-column: 1 / -1;
+  position: sticky;
+  left: 0;
+  justify-self: start;
+  max-width: min(560px, 100vw - 48px);
+  margin: 0;
+  padding: 14px 12px 0 28px;
+  font-size: var(--t-small);
+  line-height: 1.6;
+  color: var(--text-4);
+  text-wrap: pretty;
+}
+
+.listFirst a {
+  color: var(--accent-soft);
 }
 
 /*

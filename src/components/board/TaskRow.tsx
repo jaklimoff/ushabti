@@ -2,7 +2,7 @@
 
 import { forwardRef, useMemo } from "react";
 import { buildRow } from "@/lib/card-view";
-import type { ListColumn } from "@/lib/list-view";
+import { cellCap, type ListColumn } from "@/lib/list-view";
 import { isOpen, lifeOf, runClock, runIsStill, runLine } from "@/lib/run-state";
 import type { AgentRunDTO, TaskDTO } from "@/lib/types";
 import { useNow } from "@/components/ui/useElapsed";
@@ -160,7 +160,11 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
 
         if (column.id === "_title") {
           return (
-            <span key={column.id} {...held} className={`${styles.listTitle} ${held.className}`}>
+            <span
+              key={column.id}
+              style={{ ...held.style, ...capOf(column) }}
+              className={`${styles.listTitle} ${held.className}`}
+            >
               {edge}
               {check}
               <span
@@ -180,6 +184,7 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
           <span
             key={column.id}
             className={`${styles.listChips} ${column.right ? styles.listChipsRight : ""}`}
+            style={capOf(column)}
             data-testid="list-cell"
           >
             {slots.cells[column.id]?.map((chip) => (
@@ -211,6 +216,12 @@ export function pinProps(
     className: [styles.listPin, lead, last ? styles.listPinLast : ""].filter(Boolean).join(" "),
     style: { left: column.pin },
   };
+}
+
+/** The ceiling `cellCap` sets, as a style. The header's cells wear it too. */
+export function capOf(column: ListColumn): React.CSSProperties | undefined {
+  const cap = cellCap(column);
+  return cap === null ? undefined : { maxWidth: cap };
 }
 
 /**
