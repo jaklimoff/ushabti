@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- Changing the project key asks first when the project has tasks: leaving the box turns the row into "Rename N tasks from USH- to USHX-?" with **Yes, rename** and **Put it back**, and the focus waits on **Put it back**. A closed tab no longer renames anything. A long confirm question keeps its two answers together on one line.
+
 ## 0.35.0 — 2026-10-27
 
 ### Added

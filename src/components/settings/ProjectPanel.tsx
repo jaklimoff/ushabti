@@ -64,6 +64,8 @@ export function ProjectPanel({ files }: { files: boolean }) {
   /* The admin the row is asking about, by id: a refresh that takes their
      admin role away drops the question rather than naming somebody else. */
   const [heirId, setHeirId] = useState<string | null>(null);
+  /* The key a blur would rename the tasks to, while the row asks first. */
+  const [renameTo, setRenameTo] = useState<string | null>(null);
   const [handing, setHanding] = useState(false);
 
   /* Every task of the project, archived ones too: a rename renames their keys
@@ -80,7 +82,8 @@ export function ProjectPanel({ files }: { files: boolean }) {
   const keyEdit = typedKey ? editedText(key, data.project.key) : null;
   const zoneEdit = typedZone ? editedText(zone, data.project.timeZone) : null;
   useSaveOnLeave(() => (nameEdit ? { method: "PATCH", url, body: { name: nameEdit } } : null));
-  useSaveOnLeave(() => (keyEdit ? { method: "PATCH", url, body: { key: keyEdit } } : null));
+  /* The key owes nothing on the way out. A new key renames every task, and a
+     closed tab must not rename work nobody said yes to. */
   useSaveOnLeave(() => (zoneEdit ? { method: "PATCH", url, body: { timeZone: zoneEdit } } : null));
 
   async function save(patch: {
@@ -193,40 +196,60 @@ export function ProjectPanel({ files }: { files: boolean }) {
               />
             </Field>
           </Row>
-          <Row>
-            <Field label="Key" inline>
-              <Input
-                width="short"
-                aria-label="Project key"
-                value={key}
-                maxLength={6}
-                disabled={!canEdit}
-                onChange={(e) => {
-                  setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
-                  setTypedKey(true);
-                }}
-                onBlur={() => {
-                  setTypedKey(false);
-                  if (!key) return setKey(data.project.key);
-                  if (keyEdit) void save({ key: keyEdit });
-                }}
-              />
-              <Note>
-                Task keys look like <span className={styles.keySample}>{key || "USH"}-14</span>.
-              </Note>
-            </Field>
-          </Row>
+          {renameTo !== null ? (
+            <ConfirmRow
+              question={`Rename ${taskCount} ${taskCount === 1 ? "task" : "tasks"} from ${data.project.key}- to ${renameTo}-? Links and agent instructions that use the old key stop working.`}
+              confirmLabel="Yes, rename"
+              cancelLabel="Put it back"
+              unasked
+              onConfirm={() => {
+                setRenameTo(null);
+                void save({ key: renameTo });
+              }}
+              onCancel={() => {
+                setRenameTo(null);
+                setKey(data.project.key);
+              }}
+            />
+          ) : (
+            <Row>
+              <Field label="Key" inline>
+                <Input
+                  width="short"
+                  aria-label="Project key"
+                  value={key}
+                  maxLength={6}
+                  disabled={!canEdit}
+                  onChange={(e) => {
+                    setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+                    setTypedKey(true);
+                  }}
+                  onBlur={() => {
+                    setTypedKey(false);
+                    if (!key) return setKey(data.project.key);
+                    if (!keyEdit) return;
+                    /* A blur saves, but this one would rename every task, so
+                       the row asks first. A project with no tasks loses nothing. */
+                    if (taskCount > 0) setRenameTo(keyEdit);
+                    else void save({ key: keyEdit });
+                  }}
+                />
+                <Note>
+                  Task keys look like <span className={styles.keySample}>{key || "USH"}-14</span>.
+                </Note>
+              </Field>
+            </Row>
+          )}
           {/*
            * A task key is built from this prefix, never stored. Changing it
            * renames every task at once, which breaks every link somebody pasted
            * and every key an agent was told to work on.
            */}
-          {keyChanged && taskCount > 0 && (
+          {keyChanged && taskCount > 0 && renameTo === null && (
             <Row>
               <span className={styles.keyWarn} role="alert">
                 ⚠ {taskCount} {taskCount === 1 ? "task is" : "tasks are"} called {data.project.key}
-                -… today. Leaving this box renames all of them. Links and agent instructions that
-                use the old key stop working.
+                -… today. Leaving this box asks before it renames them.
               </span>
             </Row>
           )}

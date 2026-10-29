@@ -429,7 +429,10 @@ and what is easy to get wrong.
   must not rewrite it: its edit box saves nothing on a blur and nothing on a
   closed tab.
   `ConfirmRow` is the answer to "the board has no dialogs": the row becomes the
-  question, and the question names the cost in real numbers. **A closed tab
+  question, and the question names the cost in real numbers. When a blur would
+  itself be the loss, the blur asks: the project key renames every task, so
+  leaving its box turns the row into **Yes, rename** or **Put it back**, and a
+  closed tab sends nothing for it. **A closed tab
   sends no blur**, so every such field also says what it owes to
   `useSaveOnLeave`, which sends that one request with `keepalive` on
   `pagehide` — a closed or navigated-away tab; not a tab switched away on a
