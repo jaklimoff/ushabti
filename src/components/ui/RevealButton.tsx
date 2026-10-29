@@ -25,13 +25,21 @@ export function RevealButton({
   shown: boolean;
   onToggle: () => void;
   what?: string;
-  /** The height of the box beside it, so the row stays one control. */
-  size?: "lg" | "xl";
+  /** The height of the box beside it, so the row stays one control. The
+      pages outside the app draw their boxes at `xl`; a settings-like form
+      draws them at the default, `md`. */
+  size?: "md" | "lg" | "xl";
 }) {
   return (
     <button
       type="button"
-      className={size === "xl" ? `${styles.reveal} ${styles.revealXl}` : styles.reveal}
+      className={
+        size === "xl"
+          ? `${styles.reveal} ${styles.revealXl}`
+          : size === "md"
+            ? `${styles.reveal} ${styles.revealMd}`
+            : styles.reveal
+      }
       aria-pressed={shown}
       aria-label={`${shown ? "Hide" : "Show"} ${what}`}
       onClick={onToggle}

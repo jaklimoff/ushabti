@@ -17,7 +17,7 @@ test.describe("Personal tokens", () => {
     await page.goto("/account");
     await page.getByLabel("Token name").fill("Laptop script");
     await page.getByRole("button", { name: "Make token" }).click();
-    const secret = await page.getByTestId("personal-secret").locator("code").innerText();
+    const secret = await page.getByTestId("personal-secret").locator("code").first().innerText();
     expect(secret).toMatch(/^ushp_/);
     const row = page.getByTestId("personal-token-row").filter({ hasText: "Laptop script" });
     await expect(row).toContainText(secret.slice(0, 13));

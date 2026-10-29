@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { api } from "@/lib/client";
 import { tokenAgo, tokenExpiry } from "@/lib/token-dates";
 import type { PersonalTokenDTO } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { CopyField } from "@/components/ui/CopyField";
-import { Input, Select } from "@/components/ui/Form";
-import { Card, EmptyState, Foot, Section } from "@/components/ui/Layout";
+import { Field, Input, Label, Select } from "@/components/ui/Form";
+import { Card, EmptyState, Foot, FootNote, Note, Section } from "@/components/ui/Layout";
 import type { Toast } from "@/components/ui/Toasts";
 import { TokenRow } from "@/components/ui/TokenRow";
 import styles from "./account.module.css";
@@ -35,6 +35,8 @@ export function PersonalTokens({
   const [name, setName] = useState("");
   const [expiresIn, setExpiresIn] = useState("90");
   const [busy, setBusy] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const nameBox = useRef<HTMLInputElement>(null);
   const [made, setMade] = useState<{ id: string; secret: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -59,8 +61,15 @@ export function PersonalTokens({
   }, []);
 
   async function create() {
+    if (busy) return;
     const trimmed = name.trim();
-    if (!trimmed || busy) return;
+    /* The button is never dead while the box is empty: a press says what is
+       missing, under the box, and puts the cursor there. */
+    if (!trimmed) {
+      setNameError("Name the token, so you know what to revoke later.");
+      nameBox.current?.focus();
+      return;
+    }
     setBusy(true);
     try {
       const res = await api.post<{ token: PersonalTokenDTO; secret: string }>("/api/auth/tokens", {
@@ -108,29 +117,54 @@ export function PersonalTokens({
             Make one below for a script or an agent that should act as you.
           </EmptyState>
         )}
-        <Foot className={styles.tokenFoot}>
-          <Input
-            className={styles.tokenNameBox}
-            aria-label="Token name"
-            placeholder="What it is for"
-            value={name}
-            maxLength={80}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void create()}
-          />
-          <Select
-            aria-label="Expires after"
-            value={expiresIn}
-            onChange={setExpiresIn}
-            options={EXPIRIES}
-          />
-          <Button onClick={() => void create()} disabled={busy || !name.trim()}>
-            {busy ? "Making…" : "Make token"}
-          </Button>
-          <span className={styles.footNote}>
-            A script or an agent with a token acts as you, on every project you are in. Everything
-            it does is signed with your name. It cannot add people, agents or tokens.
-          </span>
+        <Foot>
+          <form
+            className={styles.tokenForm}
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              void create();
+            }}
+          >
+            <div className={styles.tokenName}>
+              <Field label="Token name" error={nameError}>
+                <Input
+                  ref={nameBox}
+                  block
+                  aria-label="Token name"
+                  placeholder="e.g. CI release script"
+                  value={name}
+                  maxLength={80}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setNameError(null);
+                  }}
+                />
+              </Field>
+            </div>
+            <Field label="Expires after">
+              <Select
+                aria-label="Expires after"
+                value={expiresIn}
+                onChange={setExpiresIn}
+                options={EXPIRIES}
+              />
+            </Field>
+            {/* An empty label above the button, so it sits on the line of the
+                boxes and not on the line of their labels. */}
+            <div className={styles.tokenGo}>
+              <Label aria-hidden="true">&nbsp;</Label>
+              <Button type="submit" busy={busy}>
+                {busy ? "Making…" : "Make token"}
+              </Button>
+            </div>
+          </form>
+          <FootNote>
+            <Note>
+              A script or an agent with a token acts as you, on every project you are in. Everything
+              it does is signed with your name. It cannot add people, agents or tokens.
+            </Note>
+          </FootNote>
         </Foot>
       </Card>
     </Section>
@@ -157,6 +191,13 @@ function PersonalTokenRow({
   }, [secret]);
 
   const ends = tokenExpiry(token.expiresAt, now);
+  // The board knows its own address, so the recipe says it. Read through a
+  // store so the server render stays empty, as Connect in Settings does.
+  const origin = useSyncExternalStore(
+    subscribeNothing,
+    () => window.location.origin,
+    () => "",
+  );
 
   return (
     <TokenRow
@@ -177,6 +218,14 @@ function PersonalTokenRow({
       {secret && (
         <div ref={shown} className={styles.secret} data-testid="personal-secret">
           <CopyField value={secret} label="the token" loud />
+          <Label className={styles.secretHead}>Use it</Label>
+          <CopyField
+            value={`export USHABTI_URL=${origin}\nexport USHABTI_TOKEN=${secret}`}
+            label="the environment"
+          />
+          <span className={styles.secretSay}>
+            Or send it in a header: <code>Authorization: Bearer {"<token>"}</code>
+          </span>
           <span className={styles.secretNote}>
             Copy it now. It is not shown again; a lost one is revoked and made anew.
           </span>
@@ -184,4 +233,9 @@ function PersonalTokenRow({
       )}
     </TokenRow>
   );
+}
+
+/** window.location never changes under us, so there is nothing to subscribe to. */
+function subscribeNothing() {
+  return () => {};
 }
