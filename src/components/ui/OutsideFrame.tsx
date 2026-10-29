@@ -1,3 +1,4 @@
+import { version } from "../../../package.json";
 import { BrandMark } from "./Marks";
 import styles from "./ui.module.css";
 
@@ -11,6 +12,9 @@ export function OutsideFrame({ children }: { children: React.ReactNode }) {
   return (
     <main className={styles.frame}>
       <div className={styles.frameColumn}>{children}</div>
+      {/* A page that asks for a password says whose it is. The version is
+          read once, at build, so it is the build that answers. */}
+      <footer className={styles.frameFoot}>Ushabti {version} · self-hosted</footer>
     </main>
   );
 }

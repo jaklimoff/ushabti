@@ -21,7 +21,8 @@ export function Button({
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
-  size?: "md" | "lg";
+  /** `xl` is the sign-in pages' front door, and nowhere else. */
+  size?: "md" | "lg" | "xl";
   block?: boolean;
   busy?: boolean;
 }) {
@@ -35,7 +36,7 @@ export function Button({
       className={[
         styles.btn,
         styles[variant],
-        size === "lg" ? styles.btnLg : "",
+        size === "lg" ? styles.btnLg : size === "xl" ? styles.btnXl : "",
         block ? styles.btnBlock : "",
         className ?? "",
       ]

@@ -96,8 +96,9 @@ test.describe("Invites", () => {
 
     const guest = await stranger(browser);
     await guest.page.goto(link);
-    await expect(guest.page.getByTestId("invite-tagline")).toContainText(
-      `You are invited to ${projectName}.`,
+    await expect(guest.page.getByRole("heading", { name: `Join ${projectName}` })).toBeVisible();
+    await expect(guest.page.getByTestId("invite-tagline")).toHaveText(
+      `Invited as ${email}. Your account opens ${projectName} at once.`,
     );
     await expect(guest.page.getByLabel("Your email")).toHaveValue(email);
     await expect(guest.page.getByLabel("Your email")).not.toBeEditable();

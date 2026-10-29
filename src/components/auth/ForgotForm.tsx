@@ -48,7 +48,7 @@ export function ForgotForm({ on }: { on: boolean }) {
       {!on && <p className={styles.tagline}>{FORGOT_OFF}</p>}
 
       {on && sent && (
-        <p className={styles.tagline} role="status">
+        <p className={styles.notice} role="status">
           {FORGOT_SENT}
         </p>
       )}
@@ -58,10 +58,15 @@ export function ForgotForm({ on }: { on: boolean }) {
           <p className={styles.tagline}>
             Type the email of your account, and we email it a link to set a new password.
           </p>
+          {error && (
+            <div className={styles.error} role="alert">
+              {error}
+            </div>
+          )}
           <form className={styles.form} onSubmit={submit} noValidate>
             <Field label="Email" error={wrong}>
               <Input
-                size="lg"
+                size="xl"
                 block
                 autoFocus
                 ref={emailBox}
@@ -78,13 +83,7 @@ export function ForgotForm({ on }: { on: boolean }) {
               />
             </Field>
 
-            {error && (
-              <div className={styles.error} role="alert">
-                {error}
-              </div>
-            )}
-
-            <Button size="lg" block type="submit" busy={busy}>
+            <Button size="xl" block type="submit" busy={busy}>
               {busy ? "One moment…" : "Email me a link"}
             </Button>
           </form>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { api } from "@/lib/client";
@@ -52,16 +53,22 @@ export function ResetForm({ token }: { token: string }) {
   }
 
   return (
-    <AuthCard title="Set a new password">
+    <AuthCard title="Set a new password" below={<Link href="/login">Back to sign in</Link>}>
       <p className={styles.tagline}>
         This link sets a new password for your account. Using it signs you out everywhere else.
       </p>
+
+      {error && (
+        <div className={styles.error} role="alert">
+          {error}
+        </div>
+      )}
 
       <form className={styles.form} onSubmit={submit} noValidate>
         <Field label="New password" error={wrong} note={`At least ${PASSWORD_MIN} characters.`}>
           <PasswordRow>
             <Input
-              size="lg"
+              size="xl"
               block
               autoFocus
               ref={passwordBox}
@@ -77,17 +84,11 @@ export function ResetForm({ token }: { token: string }) {
             />
             {/* The same reveal as sign-up, and for the same reason: nobody is
                 typing this one twice. */}
-            <RevealButton shown={show} onToggle={() => setShow((v) => !v)} />
+            <RevealButton size="xl" shown={show} onToggle={() => setShow((v) => !v)} />
           </PasswordRow>
         </Field>
 
-        {error && (
-          <div className={styles.error} role="alert">
-            {error}
-          </div>
-        )}
-
-        <Button size="lg" block type="submit" busy={busy}>
+        <Button size="xl" block type="submit" busy={busy}>
           {busy ? "One moment…" : "Set the password"}
         </Button>
       </form>

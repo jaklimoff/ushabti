@@ -20,15 +20,18 @@ export function RevealButton({
   shown,
   onToggle,
   what = "the password",
+  size = "lg",
 }: {
   shown: boolean;
   onToggle: () => void;
   what?: string;
+  /** The height of the box beside it, so the row stays one control. */
+  size?: "lg" | "xl";
 }) {
   return (
     <button
       type="button"
-      className={styles.reveal}
+      className={size === "xl" ? `${styles.reveal} ${styles.revealXl}` : styles.reveal}
       aria-pressed={shown}
       aria-label={`${shown ? "Hide" : "Show"} ${what}`}
       onClick={onToggle}
