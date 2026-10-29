@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { formatDate, sortByPosition } from "@/lib/board";
+import { formatDate, shippedOn, sortByPosition } from "@/lib/board";
 import { isOver } from "@/lib/links";
 import { optionTasks } from "@/lib/roadmap";
 import { sortTasks } from "@/lib/sort";
 import { isTyping } from "./keys";
 import { Markdown, type TaskKeyLinks } from "./Markdown";
-import { countOf, endOf, useRoadmap } from "./RoadmapCanvas";
+import { countOf, useRoadmap } from "./RoadmapCanvas";
 import { useBoard } from "./store";
 import boardStyles from "./board.module.css";
 import { IconButton } from "@/components/ui/Button";
+import { Meter } from "@/components/ui/Layout";
 import styles from "./panel.module.css";
 
 type Openable = { id: string; key: string };
@@ -126,7 +127,11 @@ export function RoadmapPanel({
             className={`${styles.optionDates} ${boardStyles.roadmapPanelDates}`}
             data-testid="roadmap-panel-dates"
           >
-            {formatDate(row.start)} – {endOf(row)}
+            {/* The plan, then the day it shipped: a slip reads in one line. */}
+            {formatDate(row.start)} – {formatDate(row.targetAt)}
+            {row.shippedAt && (
+              <span className={boardStyles.roadmapPanelShipped}> · {shippedOn(row.shippedAt)}</span>
+            )}
           </span>
           <span style={{ flex: 1 }} />
           <IconButton
@@ -141,12 +146,13 @@ export function RoadmapPanel({
         <h2 className={styles.optionName}>{option.name}</h2>
         {/* The one number the bar stands for, where the bar is read. */}
         <div className={boardStyles.roadmapPanelProgress} data-testid="roadmap-panel-progress">
-          <span className={boardStyles.roadmapPanelSaid}>
-            {countOf(row, (total) => (countBy ? countBy.name : total === 1 ? "task" : "tasks"))}
-          </span>
-          <span className={boardStyles.roadmapPanelLine} aria-hidden>
-            <span style={{ width: `${row.share * 100}%`, background: option.color }} />
-          </span>
+          <span className={boardStyles.roadmapPanelSaid}>{countOf(row, countBy)}</span>
+          {/* The meter every progress line in the app is. Shipped is whole. */}
+          <Meter
+            done={row.shippedAt ? 1 : row.done}
+            total={row.shippedAt ? 1 : row.total}
+            color={row.shippedAt ? "var(--shipped)" : undefined}
+          />
         </div>
         {option.note?.trim() && (
           <div className={styles.optionNote} data-testid="roadmap-panel-note">

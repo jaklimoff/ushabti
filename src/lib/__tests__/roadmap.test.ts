@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   daysIn,
+  daysLate,
   movedTarget,
   nextStart,
   optionTasks,
@@ -11,6 +12,7 @@ import {
   roadmapState,
   type RoadmapRow,
   type RoadmapTask,
+  weekLines,
 } from "../roadmap";
 import type { PropertyDTO, PropertyOptionDTO } from "../types";
 
@@ -345,5 +347,27 @@ describe("an iteration on a roadmap", () => {
       type: "iteration",
     };
     expect(roadmapRows(sprints, [], [], rule, "UTC").map((r) => r.id)).toEqual(["s1"]);
+  });
+});
+
+describe("a shipped release's slip", () => {
+  it("counts the days it shipped after its target", () => {
+    expect(daysLate({ targetAt: "2026-10-16", shippedAt: "2026-10-28" })).toBe(12);
+  });
+
+  it("is nothing for one shipped early, on the day, or not shipped", () => {
+    expect(daysLate({ targetAt: "2026-10-16", shippedAt: "2026-10-10" })).toBe(0);
+    expect(daysLate({ targetAt: "2026-10-16", shippedAt: "2026-10-16" })).toBe(0);
+    expect(daysLate({ targetAt: "2026-10-16", shippedAt: null })).toBe(0);
+  });
+});
+
+describe("the week lines", () => {
+  it("drops a week line a month line stands within three days of", () => {
+    // Mondays from Oct 19: Oct 26, Nov 2 (a day after Nov 1), Nov 30 (a day before Dec 1).
+    const axis = roadmapAxis([{ start: "2026-10-26", end: "2026-12-07" }], "2026-10-28");
+    const kept = weekLines(axis, roadmapMonths(axis));
+    const dropped = axis.weeks.filter((_, i) => !kept[i]);
+    expect(dropped).toEqual(["2026-11-02", "2026-11-30"]);
   });
 });
