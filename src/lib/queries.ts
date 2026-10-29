@@ -1192,12 +1192,11 @@ async function loadProject(
 
   /* The card a project has before anybody arranges one is the card it drew
      before this page existed, and that card leaves out the columns. So the
-     default view says which property those are. */
-  const defaultView = viewList.find((v) => v.isDefault) ?? viewList[0] ?? null;
+     main board says which property those are. */
   const cardView: CardView = readCardView(
     projectRow.cardView,
     propertyList,
-    defaultView?.groupById ?? null,
+    mainBoardGroupById(viewList),
   );
 
   /*

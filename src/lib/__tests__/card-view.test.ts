@@ -270,6 +270,62 @@ describe("a view's own card view", () => {
   });
 });
 
+describe("a view that follows the project's card", () => {
+  /* The project's card as it comes back from the project: never arranged,
+     so the main board's columns, Status, are off it. */
+  const project = readCardView(null, PROPERTIES, "p-status");
+  const follow = (follower: { kind: string; groupById: string | null }, own: unknown = null) =>
+    readCardView(own, PROPERTIES, "p-status", project, follower);
+
+  it("puts the main board's columns on a list, at the home of their kind", () => {
+    const view = follow({ kind: "list", groupById: "p-status" });
+    expect(view.rows["p-status"]).toEqual({ place: "footerL", mode: "both" });
+    expect(listColumns(cardItems(view, PROPERTIES)).map((c) => c.id)).toContain("p-status");
+  });
+
+  it("asks the main board, not the list's own grouping, which a list never reads", () => {
+    const view = follow({ kind: "list", groupById: "p-prio" });
+    expect(view.rows["p-status"].place).toBe("footerL");
+    expect(view.rows["p-prio"]).toEqual(project.rows["p-prio"]);
+  });
+
+  it("takes a second board's own columns off its cards", () => {
+    expect(project.rows["p-prio"].place).not.toBe("off");
+    const view = follow({ kind: "board", groupById: "p-prio" });
+    expect(view.rows["p-prio"].place).toBe("off");
+    expect(view.rows["p-prio"].mode).toBe(project.rows["p-prio"].mode);
+    // The main board's columns stay as the project's card has them.
+    expect(view.rows["p-status"]).toEqual(project.rows["p-status"]);
+  });
+
+  it("changes nothing for a view with a copy of its own", () => {
+    const copy = {
+      rows: {
+        "p-prio": { place: "headerR", mode: "text" },
+        "p-status": { place: "off", mode: "both" },
+      },
+    };
+    expect(follow({ kind: "board", groupById: "p-prio" }, copy).rows["p-prio"].place).toBe(
+      "headerR",
+    );
+    expect(follow({ kind: "list", groupById: "p-status" }, copy).rows["p-status"].place).toBe(
+      "off",
+    );
+  });
+
+  it("leaves the project's own card alone, which is what Settings arranges", () => {
+    expect(readCardView(null, PROPERTIES, "p-status", project).rows["p-status"].place).toBe("off");
+  });
+
+  it("is the card a first change copies, so the copy keeps what the view drew", () => {
+    const drawn = follow({ kind: "board", groupById: "p-prio" });
+    const copy = setCardPlace(viewOf(cardItems(drawn, PROPERTIES)), "p-due", "headerR");
+    const own = ownCardView(copy, PROPERTIES)!;
+    expect(own.rows["p-prio"].place).toBe("off");
+    expect(own.rows["p-due"].place).toBe("headerR");
+  });
+});
+
 describe("the order of the rows", () => {
   it("is the order of the properties, with the task's own parts fixed around them", () => {
     expect(items(null).map((i) => i.id)).toEqual([

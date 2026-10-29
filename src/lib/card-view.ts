@@ -294,18 +294,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *
  * A view may keep a copy of its own. It is passed first and the project's card
  * view second, so one reader answers both: a view with no copy draws the
- * project's, and moves when the project's moves.
+ * project's, and moves when the project's moves. Such a view is `follower`,
+ * and the project's card is read through it: see `followed`.
  */
 export function readCardView(
   saved: unknown,
   properties: PropertyDTO[],
   groupById: string | null,
   project?: unknown,
+  follower?: Follower,
 ): CardView {
   if (!hasRows(saved)) {
-    return project === undefined
-      ? defaultCardView(properties, groupById)
-      : readCardView(project, properties, groupById);
+    if (project === undefined) return defaultCardView(properties, groupById);
+    const read = readCardView(project, properties, groupById);
+    return follower ? followed(read, properties, groupById, follower) : read;
   }
 
   const kinds = new Map<string, CardKind>();
@@ -351,6 +353,43 @@ export function readCardView(
   }
 
   return { rows };
+}
+
+/** A view that has no copy of its own: what it is, and what its columns are. */
+export type Follower = { kind: string; groupById: string | null };
+
+/**
+ * The project's card is arranged for the main board, which leaves its own
+ * columns off. A view that follows it reads it once more for what it is. A
+ * board leaves its own columns off as well, so the cards under 0.2 do not all
+ * say 0.2. A list has no columns, so the property the main board groups by
+ * comes back on, at the home of its kind: a list with no Status is the
+ * hardest read there is.
+ *
+ * Nothing is written. A view's first change writes a copy of what it drew,
+ * so the copy starts from this answer and keeps it.
+ */
+function followed(
+  view: CardView,
+  properties: PropertyDTO[],
+  mainGroupById: string | null,
+  follower: Follower,
+): CardView {
+  if (follower.kind === "board") {
+    const id = follower.groupById;
+    const row = id ? view.rows[id] : undefined;
+    if (!id || !row || row.place === "off") return view;
+    return { rows: { ...view.rows, [id]: { place: "off", mode: row.mode } } };
+  }
+  if (follower.kind === "list") {
+    const property = properties.find((p) => p.id === mainGroupById);
+    const row = property ? view.rows[property.id] : undefined;
+    if (!property || !row || row.place !== "off") return view;
+    const home = fallbackRow(KIND_OF_TYPE[property.type]).place;
+    const place = home === "off" ? "footerL" : home;
+    return { rows: { ...view.rows, [property.id]: { place, mode: row.mode } } };
+  }
+  return view;
 }
 
 function hasRows(saved: unknown): saved is { rows: Record<string, unknown> } {

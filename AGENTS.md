@@ -67,8 +67,9 @@ and what is easy to get wrong.
   view an order again, and do not let a task row move among the properties.
 - **A view has a kind, and a list is the same tasks lying down.** `views.kind`
   is `board`, `list` or `roadmap`, and nothing else about a view changes with it: one
-  filter set, one card view, one card order. A list groups by nothing on
-  purpose — sections would need a second drop model, where a drag writes a
+  filter set, one card view, one card order. The kind touches the card view in
+  one place, `readCardView()` for a view with no copy, below. A list groups by
+  nothing on purpose — sections would need a second drop model, where a drag writes a
   property value, which is what a board already is. It keeps `groupById`
   unread, so turning it back into a board restores the same columns; that is
   also why the property delete route counts only the kinds in `GROUPED_KINDS`,
@@ -224,7 +225,12 @@ and what is easy to get wrong.
   view draws the project's and follows it. `readCardView()` takes the view's
   rows first and the project's second, so there is still one reader; the store
   asks it once for the open view, and `cardAccent()` and `listColumns()` read
-  that answer. A copy is a whole card view, never a set of changes on top of
+  that answer. The project's card is arranged for the main board, so a view
+  that follows it reads it once more for what it is, in that reader and
+  nowhere else: a board leaves its own columns off, so a card under 0.2 does
+  not say 0.2 again, and a list puts the main board's columns on, so a list
+  has its Status. Nothing is written. The first change to such a view copies
+  what it drew, so the copy keeps both. A copy is a whole card view, never a set of changes on top of
   the project's: a diff would need its own rules for a row the project later
   moved. It holds no order and no edge rule of its own, for the reasons above.
 - **Eight rows of the card view are not properties.** `_key`, `_title`,
