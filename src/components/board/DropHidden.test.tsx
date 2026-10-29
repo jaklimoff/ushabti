@@ -290,6 +290,8 @@ describe("A rule in Settings", () => {
     await chooseIn(box.getByLabelText("Shown when of Size"), "Priority");
     await box.getByLabelText("Urgent", { exact: true }).click();
     await expect.poll(() => sent("PATCH", PROPERTY).length).toBe(1);
+    /* An open rule reads as the sentence with its boxes; folded, it says it. */
+    await box.getByTitle("Fold the rule").click();
     await says(propertyBox("Size").getByTestId("when-said"), "Shown when Priority is Urgent");
     await says(propertyBox("Type").getByTestId("when-said"), "Shown when Size is Small");
     await says(propertyBox("Area").getByTestId("when-said"), "Shown when Type is Bug");
@@ -319,6 +321,7 @@ describe("A rule in Settings", () => {
     expect(sent("PATCH", PROPERTY)[0].body).toEqual({
       when: { propertyId: type.id, optionIds: [bug] },
     });
+    await box.getByTitle("Fold the rule").click();
     await says(box.getByTestId("when-said"), "Shown when Type is Bug");
   });
 });
