@@ -25,7 +25,6 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - The account page has a Profile that saves as you go and a Sign in half with buttons, and a new token says how to use it.
 - Sign in and the other outside pages are a little larger, say which server and version answer, and put an error above the boxes. An invite says **Join**.
 - The changelog sits on a date rail, the archive groups its rows by day, and a public changelog a stranger cannot read has a not-found of its own.
-
 - With releases off, the changelog says what it is for and how to turn them on. An owner or an admin gets **Turn on releases in Settings**, which opens Settings → Properties; a member reads that an admin turns them on.
 - A list view's card editor opens on the **List** shape, the columns the list draws, in Settings → Views and in the board's Card panel. A board view and the default card still open on **Card**, and the other shape is one press away.
 - A role in Settings — Done when, the releases, the sprints and the types — now says who plays it and ends that line with a **Turn off** word, in place of a box that was always ticked.
