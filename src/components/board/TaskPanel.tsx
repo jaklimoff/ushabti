@@ -57,6 +57,7 @@ import { useDraft } from "@/components/ui/useDraft";
 import { useModKey } from "@/components/ui/useModKey";
 import { AskBox, Rows, type Row } from "./Ask";
 import { PropertyControl } from "./controls/PropertyControl";
+import { RunRow, useRunNow } from "./RunRow";
 import { isTyping } from "./keys";
 import { Markdown, type TaskKeyLinks } from "./Markdown";
 import { FilesStrip } from "./FilesStrip";
@@ -539,6 +540,9 @@ export function TaskPanel({
      opens on is drawn at once and not after a moment on Comments. */
   const anyRun = run ?? pastRuns[0] ?? runOf(taskId);
   const shownTab = tab === "agent" && !anyRun ? "comments" : tab;
+  /* The open run the card's strip is drawn from, so the head and the card
+     say the same thing; the detail answers until the board has it. */
+  const headRun = runOf(taskId) ?? run;
 
   /* The board knows every task this panel can be opened on, so there is
      nothing left to wait for before the head is drawn. */
@@ -748,6 +752,21 @@ export function TaskPanel({
             }
             creator={detail.creator?.name ?? null}
             timeZone={data.project.timeZone}
+          />
+        )}
+        {headRun && (
+          <HeadRun
+            run={headRun}
+            onOpen={() => {
+              setTab("agent");
+              /* The tabs sit under the fields, a scroll away, and the press
+                 is a way there. */
+              requestAnimationFrame(() =>
+                document
+                  .getElementById(`${ids}-tab-agent`)
+                  ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+              );
+            }}
           />
         )}
       </div>
@@ -967,6 +986,29 @@ export function TaskPanel({
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * A running agent in the head: the card's own strip, as one line that opens
+ * the Agent tab. The tab sits under the fields, so without this line a task
+ * an agent is working on opens on fields and no sign of the agent. The plan,
+ * the log and the buttons stay on the tab.
+ */
+function HeadRun({ run, onOpen }: { run: AgentRunDTO; onOpen: () => void }) {
+  const { life, clock } = useRunNow(run);
+  return (
+    <button
+      type="button"
+      className={`${boardStyles.runStrip} ${styles.headRun}`}
+      data-testid="panel-head-run"
+      data-life={life}
+      data-status={run.status}
+      aria-label={`${run.agent.name}: ${runLine(run)}, ${clock.text}. Open the Agent tab`}
+      onClick={onOpen}
+    >
+      <RunRow run={run} clock={clock} />
+    </button>
   );
 }
 

@@ -39,7 +39,9 @@ and what is easy to get wrong.
   plan, the log and the buttons belong to the Agent tab of the panel, which
   exists only while a run does. A board with ten runs on it has to stay
   readable, which is why the step count and the log ticker never reached the
-  card.
+  card. The panel head carries the card's one line and nothing more, drawn by
+  the same `RunRow`, as a button to that tab: the tab sits under the fields,
+  and a task an agent is working on must not open on fields alone.
 - **A card draws the card view and decides nothing.** What a card carries is
   `projects.card_view`, one object of `rows` that everybody on the board shares:
   where each row sits and how it reads. `TaskCard` knows how to draw a chip and
