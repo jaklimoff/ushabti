@@ -4,6 +4,7 @@ import { changelogSlug, readShown } from "@/lib/changelog";
 import { loadPublicChangelog } from "@/lib/changelog-load";
 import { ChangelogList } from "@/components/changelog/ChangelogList";
 import { Card, EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
+import { BrandMark } from "@/components/ui/Marks";
 import styles from "@/components/changelog/changelog.module.css";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,9 @@ type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ shown?: string | string[] }>;
 };
+
+/** Where a stranger who liked the page finds the thing that drew it. */
+const USHABTI = "https://github.com/jaklimoff/ushabti";
 
 /* The title and the page ask once between them. */
 const read = cache(loadPublicChangelog);
@@ -39,9 +43,15 @@ export default async function PublicChangelogPage({ params, searchParams }: Prop
   return (
     <div className={styles.page}>
       {/* A stranger has no account here, so the bar names the project and
-          offers nothing to sign in to. */}
+          offers nothing to sign in to. The mark says whose page this is, as
+          it does on every other page of ours a stranger sees. */}
       <header className={styles.publicBar}>
+        <BrandMark />
         <span className={styles.publicName}>{log.project.name}</span>
+        <span className={styles.publicSep} aria-hidden>
+          /
+        </span>
+        <span className={styles.publicHere}>Changelog</span>
       </header>
       <PageShell className={styles.publicShell}>
         <PageHead title="Changelog" lead={`What shipped in ${log.project.name}, newest first.`} />
@@ -59,7 +69,12 @@ export default async function PublicChangelogPage({ params, searchParams }: Prop
           </div>
         )}
       </PageShell>
-      <footer className={styles.publicFoot}>Kept with Ushabti</footer>
+      <footer className={styles.publicFoot}>
+        Kept with{" "}
+        <a className={styles.publicFootLink} href={USHABTI}>
+          Ushabti
+        </a>
+      </footer>
     </div>
   );
 }

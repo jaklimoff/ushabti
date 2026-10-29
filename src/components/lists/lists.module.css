@@ -45,13 +45,65 @@
   color: var(--muted);
 }
 
-.rules {
+/* A list page's group head: the project, its rules, and its count at the
+   end. A long project name gives way before the rules do. */
+.listHead {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.listHead .groupName {
   min-width: 0;
+  max-width: 40%;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.rules {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* A rule to read, drawn as the editor's chip draws it, with nothing to
+   press. */
+.ruleChip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  max-width: 100%;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-tag);
   font-size: var(--t-small);
-  color: var(--muted);
+  color: var(--text-3);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.or,
+.every {
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+/* As a page's count reads beside its title. */
+.listCount {
+  margin-left: auto;
+  font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
+  font-size: var(--t-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
+}
+
+/* The name box holds a name of two words, so it is not a page wide. */
+.nameBox {
+  max-width: 360px;
 }
 
 /* The colour of the top bar's count. */

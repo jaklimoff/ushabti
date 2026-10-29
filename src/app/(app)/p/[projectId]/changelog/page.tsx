@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, requireMembership, HttpError } from "@/lib/auth";
-import { readShown } from "@/lib/changelog";
-import { changelogProject, loadChangelog } from "@/lib/changelog-load";
+import { changelogSlug, readShown } from "@/lib/changelog";
+import { changelogIsPublic, changelogProject, loadChangelog } from "@/lib/changelog-load";
+import { canManage } from "@/lib/roles";
 import { ChangelogList } from "@/components/changelog/ChangelogList";
+import { ChangelogShare } from "@/components/changelog/ChangelogShare";
 import { Card, EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import styles from "@/components/changelog/changelog.module.css";
@@ -27,14 +29,18 @@ export default async function ChangelogPage({
   if (!user) redirect("/login");
 
   const { projectId } = await params;
+  let role: string;
   try {
-    await requireMembership(user.id, projectId);
+    role = (await requireMembership(user.id, projectId)).role;
   } catch (err) {
     if (err instanceof HttpError) notFound();
     throw err;
   }
 
-  const log = await loadChangelog(projectId, readShown((await searchParams).shown));
+  const [log, isPublic] = await Promise.all([
+    loadChangelog(projectId, readShown((await searchParams).shown)),
+    changelogIsPublic(projectId),
+  ]);
   if (!log) {
     // A member was let in above, so the project is there and only releases are
     // off. Not found would tell them they cannot see it, which is false.
@@ -60,7 +66,14 @@ export default async function ChangelogPage({
       <PageShell>
         <PageHead
           title="Changelog"
-          lead="Every release that shipped, newest first, with its note and its tasks. A note is written on its release in Settings."
+          lead="Every release that shipped, newest first."
+          actions={
+            <ChangelogShare
+              path={`/changelog/${changelogSlug(log.project.key)}`}
+              isPublic={isPublic}
+              settingsHref={canManage(role) ? `/p/${log.project.id}/settings/project` : null}
+            />
+          }
         />
         {log.entries.length === 0 ? (
           <Card>
