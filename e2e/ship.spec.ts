@@ -354,9 +354,10 @@ test("an archived task says which release shipped it", async ({ page }, testInfo
   await expect(page.getByTestId("archive-row")).toHaveCount(4);
   for (const title of ["Alpha", "Bravo", "Delta"]) {
     await expect(row(title).getByTestId("archive-shipped")).toHaveText("✓Shipped in v1");
-    await expect(row(title)).toContainText(/Shipped in v1\s*Archived/);
+    // The page is the archive, so a row says only when; the word is its title.
+    await expect(row(title)).toContainText(/Shipped in v1\s*(just now|\d)/);
   }
-  await expect(row("Echo")).toContainText("Archived");
+  await expect(row("Echo")).toContainText(/just now|ago/);
   await expect(row("Echo").getByTestId("archive-shipped")).toHaveCount(0);
   await expect(row("Alpha").getByTestId("archive-shipped")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("seen-archive-shipped-in.png") });
