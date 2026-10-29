@@ -14,6 +14,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - An archived task that left in a release says which one: its row on the Archived page reads "✓ Shipped in 0.1" before when it was archived. A task archived by hand, a closed sprint and a release that was unshipped show nothing extra.
 
 ### Changed
+
 - Every page was redesigned so the app reads as one product. Words are set in sans and codes in mono, a label has one voice, a colour means one thing wherever it shows, a day is written one way, and no text people read drops below the contrast floor. Buttons, boxes, tags and cards come from one set of shared pieces, at the same heights everywhere.
 - Home names the brand once and has a Home row of its own. The rail shows up to four letters of a key, so USH and USHA read apart, and a project card's bar wears its columns' colours.
 - On the board, a card with an agent at work is calmer, a strip that waits for a person stands out and can wrap its question to two lines, and a paused run reads grey rather than as a fault. Card, Sort and Filter have icons, and a dragged card leaves a dashed slot.
