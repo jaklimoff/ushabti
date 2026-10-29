@@ -23,7 +23,7 @@ async function aTaskWithFour(page: Page) {
 
 async function share(page: Page) {
   const bar = card(page, "Four things").first().locator("[class*='cardProgressBar']");
-  const fill = bar.locator("[class*='cardProgressFill']");
+  const fill = bar.locator("[class*='meterFill']");
   // the fill eases to its width, so read it once it has settled
   await page.waitForTimeout(300);
   const track = (await bar.boundingBox())!.width;
