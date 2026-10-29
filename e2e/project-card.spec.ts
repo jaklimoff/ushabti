@@ -135,7 +135,9 @@ test.describe("The project list shows how every project is going", () => {
     const square = await keyBox.boundingBox();
     await card.hover();
     const grip = await page.getByRole("button", { name: `Move the project ${name}` }).boundingBox();
-    expect(square && Math.round(square.width)).toBe(22);
+    /* At least the square's 22 px; a long key, or another system's mono
+       font, makes it a pixel wider, and the grip still has to frame it. */
+    expect(square && Math.round(square.width)).toBeGreaterThanOrEqual(22);
     expect(grip).toEqual(square);
     await expect(card.getByTestId("project-column")).toHaveText([
       "Todo 2",

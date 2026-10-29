@@ -14,6 +14,16 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - An archived task that left in a release says which one: its row on the Archived page reads "✓ Shipped in 0.1" before when it was archived. A task archived by hand, a closed sprint and a release that was unshipped show nothing extra.
 
 ### Changed
+- Every page was redesigned so the app reads as one product. Words are set in sans and codes in mono, a label has one voice, a colour means one thing wherever it shows, a day is written one way, and no text people read drops below the contrast floor. Buttons, boxes, tags and cards come from one set of shared pieces, at the same heights everywhere.
+- Home names the brand once and has a Home row of its own. The rail shows up to four letters of a key, so USH and USHA read apart, and a project card's bar wears its columns' colours.
+- On the board, a card with an agent at work is calmer, a strip that waits for a person stands out and can wrap its question to two lines, and a paused run reads grey rather than as a fault. Card, Sort and Filter have icons, and a dragged card leaves a dashed slot.
+- A list no longer cuts its titles: each column is as wide as what it holds, a cell has no box, and picked, open and cursor rows look different.
+- On the roadmap, a shipped release is quiet history and says how late it shipped, "ended, not shipped" is the loudest state, and the timeline fills the screen.
+- A task's panel fits its comment box on screen when it opens, and every value you can change has one resting look.
+- Settings reads as navigation, webhook kinds are one choice of **Every change** or **Only these…**, an add button checks its box instead of turning grey, option chips are as wide as their words, and the types grid shows only the exceptions.
+- The account page has a Profile that saves as you go and a Sign in half with buttons, and a new token says how to use it.
+- Sign in and the other outside pages are a little larger, say which server and version answer, and put an error above the boxes. An invite says **Join**.
+- The changelog sits on a date rail, the archive groups its rows by day, and a public changelog a stranger cannot read has a not-found of its own.
 
 - With releases off, the changelog says what it is for and how to turn them on. An owner or an admin gets **Turn on releases in Settings**, which opens Settings → Properties; a member reads that an admin turns them on.
 - A list view's card editor opens on the **List** shape, the columns the list draws, in Settings → Views and in the board's Card panel. A board view and the default card still open on **Card**, and the other shape is one press away.
