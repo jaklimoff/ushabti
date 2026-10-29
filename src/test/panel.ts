@@ -258,7 +258,7 @@ export function serving(data: BoardData, user: SessionUser = ME, archived: TaskD
       const archivedAt = new Date().toISOString();
       for (const t of going) {
         const { id, number, key, title, position } = t;
-        server.archived.push({ id, number, key, title, position, archivedAt });
+        server.archived.push({ id, number, key, title, position, archivedAt, shippedIn: null });
       }
       return { body: { archived: going.length } };
     }

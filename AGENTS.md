@@ -86,8 +86,11 @@ and what is easy to get wrong.
   takes rows away through `allowedColumns`, exactly as it takes columns. An
   archived task carries no values on the board, so the board sends what a
   roadmap needs of them in `archivedUnder`: the oldest day and the count per
-  dated option. One thing on a roadmap drags: the right end of a bar that has
-  not shipped, which moves its target by whole days, and the arrow keys do
+  dated option. An archived task does carry `shippedIn`, the name of the
+  shipped release the changelog lists it under, so the Archived page can say
+  why it left. That is a word worked out on the read, not a value: nothing
+  writes it, and no filter, sort or card reads it. One thing on a roadmap
+  drags: the right end of a bar that has not shipped, which moves its target by whole days, and the arrow keys do
   the same from a focused bar, with Enter to write and Escape to put it back.
   It writes `targetAt` through the option PATCH Settings uses, so the roadmap
   decides nothing new, and only for somebody that PATCH answers: the board

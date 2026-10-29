@@ -115,6 +115,20 @@
   white-space: nowrap;
 }
 
+/* The release a ship archived it in. The tick is the changelog's, so a
+   shipped task reads one way on both pages; the words stay the meta's. */
+.shipped {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 10px;
+  color: var(--text-3);
+}
+
+.shippedTick {
+  color: var(--shipped);
+}
+
 /* The last week. */
 .soon {
   background: var(--warn-soft);

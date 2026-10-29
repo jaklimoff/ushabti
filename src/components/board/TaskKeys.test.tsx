@@ -36,6 +36,7 @@ test("a key in a description and in a comment opens its task", async () => {
     title: old.title,
     position: old.position,
     archivedAt: old.archivedAt,
+    shippedIn: null,
   });
   const prefix = blocker.key.split("-")[0];
 

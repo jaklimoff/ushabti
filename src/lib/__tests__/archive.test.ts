@@ -9,6 +9,7 @@ function row(over: Partial<ArchivedTaskDTO> & { number: number }): ArchivedTaskD
     title: "",
     position: String(over.number).padStart(3, "0"),
     archivedAt: "2026-02-01T00:00:00.000Z",
+    shippedIn: null,
     ...over,
   };
 }

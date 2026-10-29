@@ -190,8 +190,18 @@ function ArchiveRow({ task, now }: { task: ArchivedTaskDTO; now: number }) {
 
       {/* Drawn on the server and again here, so it counts rather than reads a
           calendar. */}
-      <span className={styles.when} suppressHydrationWarning>
-        Archived {longAgo(task.archivedAt, now)}
+      <span className={styles.when}>
+        {/* Why it left, when a ship took it: the question people bring here.
+            A hand archive says nothing more than when. */}
+        {task.shippedIn && (
+          <span className={styles.shipped} data-testid="archive-shipped">
+            <span className={styles.shippedTick} aria-hidden>
+              ✓
+            </span>
+            Shipped in {task.shippedIn}
+          </span>
+        )}
+        <span suppressHydrationWarning>Archived {longAgo(task.archivedAt, now)}</span>
       </span>
 
       {/* Putting a task back is the undo, not a loss, so it asks nothing

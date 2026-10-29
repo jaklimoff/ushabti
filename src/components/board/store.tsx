@@ -1080,6 +1080,9 @@ export function BoardProvider({
               title: task.title,
               position: task.position,
               archivedAt: at,
+              /* By hand: a ship archives on the server, and the next read
+                 says which release. */
+              shippedIn: null,
             },
           ],
         };

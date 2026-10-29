@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- An archived task that left in a release says which one: its row on the Archived page reads "✓ Shipped in 0.1" before when it was archived. A task archived by hand, a closed sprint and a release that was unshipped show nothing extra.
+
 ### Changed
 
 - A task an agent is working on says so at the top of its panel: the card's own line, with who, what and how long. Pressing it opens the Agent tab and scrolls to it.

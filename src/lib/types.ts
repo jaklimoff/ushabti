@@ -188,6 +188,10 @@ export type TaskDTO = {
  * through. `GET /api/projects/{id}/search` looks through them there instead.
  * Everything else comes from `GET /api/tasks/{id}`, which the panel asks for
  * anyway.
+ *
+ * `shippedIn` is not a value of the task. It is the name of the shipped
+ * release the changelog lists the task under, worked out on the read the same
+ * way, so the Archived page can say why a task left. Null is a hand archive.
  */
 export type ArchivedTaskDTO = {
   id: string;
@@ -196,6 +200,7 @@ export type ArchivedTaskDTO = {
   title: string;
   position: string;
   archivedAt: string;
+  shippedIn: string | null;
 };
 
 /**

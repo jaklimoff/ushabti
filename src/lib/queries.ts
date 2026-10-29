@@ -48,6 +48,7 @@ import {
 import { readProgressBy } from "./progress";
 import { readDefaults, readTypeBy, readWhens } from "./when";
 import { readReleaseBy } from "./releases";
+import { isRelease } from "./changelog";
 import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
@@ -69,7 +70,7 @@ import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
 import { joinProject } from "./membership";
 import { kickSender } from "./webhooks";
-import { GROUPABLE_TYPES, isSelect, VIEW_KINDS } from "./types";
+import { GROUPABLE_TYPES, isSelect, PROPERTY_TYPES, VIEW_KINDS } from "./types";
 import type {
   PropertyOptionDTO,
   ActivityDTO,
@@ -822,6 +823,26 @@ function archivedTaskRows(projectId: string) {
       title: tasks.title,
       position: tasks.position,
       archivedAt: tasks.archivedAt,
+      /* The release the changelog lists it under, read as `readShipped`
+         reads it: a shipped option of a release type, never a closed
+         sprint. The newest one wins when two releases name it. The tables
+         are named by hand, because a one-table select writes its columns
+         bare and the inner ones would read as the outer task's. */
+      shippedIn: sql<string | null>`(
+        select po.name
+        from ${taskValues} tv
+        join ${properties} pr on pr.id = tv.property_id
+        join ${propertyOptions} po on po.property_id = pr.id
+          and tv.value = to_jsonb(po.id::text)
+        where tv.task_id = ${tasks}.id
+          and po.shipped_at is not null
+          and pr.type in (${sql.join(
+            PROPERTY_TYPES.filter(isRelease).map((type) => sql`${type}`),
+            sql`, `,
+          )})
+        order by po.shipped_at desc
+        limit 1
+      )`,
     })
     .from(tasks)
     .where(
@@ -1272,6 +1293,7 @@ async function loadProject(
     title: t.title,
     position: t.position,
     archivedAt: (t.archivedAt as Date).toISOString(),
+    shippedIn: t.shippedIn,
   }));
 
   const members: MemberDTO[] = memberRows.map((m) => ({

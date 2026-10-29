@@ -72,6 +72,7 @@ function archive(data: BoardData, ...tasks: TaskDTO[]): TaskDTO[] {
       title: t.title,
       position: t.position,
       archivedAt,
+      shippedIn: null,
     });
     return { ...t, archivedAt };
   });
@@ -98,6 +99,7 @@ function drawing(data: BoardData, shelf: TaskDTO[] = []) {
         title: task.title,
         position: task.position,
         archivedAt: now,
+        shippedIn: null,
       });
       const whole = fake.taskOf(task.id)!;
       whole.archivedAt = now;
@@ -495,6 +497,23 @@ describe("A read that crosses a write", () => {
   });
 });
 
+describe("Why a task left", () => {
+  test("a row a ship archived names the release, and a hand archive does not", async () => {
+    const data = newProject();
+    const tasks = ["Shipped with the release", "Put away by hand"].map((title) =>
+      withTask(data, title, { Status: "Todo" }),
+    );
+    archive(data, ...tasks);
+    data.archived[0].shippedIn = "0.1";
+    await renderWithBoard(<Archive initial={data} deleted={[]} user={ME} />, data);
+
+    const row = (title: string) => byTestId("archive-row").filter({ hasText: title });
+    await says(row("Shipped with the release").getByTestId("archive-shipped"), "Shipped in 0.1");
+    await gone(row("Put away by hand").getByTestId("archive-shipped"));
+    await says(row("Put away by hand"), "Archived");
+  });
+});
+
 describe("The archive on a phone", () => {
   test("the archive page fits the screen, and every way back is pressable", async () => {
     await page.viewport(390, 780);
@@ -503,6 +522,8 @@ describe("The archive on a phone", () => {
       (title) => withTask(data, title, { Status: "Todo" }),
     );
     archive(data, ...tasks);
+    // The longest meta a row has: the release that shipped it, and when.
+    data.archived[1].shippedIn = "2026.10";
     await renderWithBoard(<Archive initial={data} deleted={[]} user={ME} />, data);
 
     await expect.poll(() => byTestId("archive-row").elements().length).toBe(2);

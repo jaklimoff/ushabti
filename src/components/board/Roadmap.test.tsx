@@ -109,6 +109,7 @@ function archivedUnder(data: BoardData, option: string, title: string) {
     title,
     position: "z",
     archivedAt: "2026-09-25T10:00:00.000Z",
+    shippedIn: null,
   });
   data.archivedUnder[versionOf(data, option).id] = {
     firstAt: "2026-09-01T10:00:00.000Z",
