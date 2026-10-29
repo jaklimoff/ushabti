@@ -104,7 +104,8 @@ test.describe("The design foundation", () => {
       .and(page.locator(`[href="/p/${projectId}"]`))
       .getByTestId("sidebar-square");
     await expect(square).toBeVisible();
-    await expect(square).toHaveText(project.key.slice(0, 1));
+    /* The rail's square carries the start of the key, up to four letters. */
+    await expect(square).toHaveText(project.key.slice(0, 4));
     await expect(square).toHaveCSS("background-color", colour);
     await page.screenshot({ path: testInfo.outputPath("seen-sidebar-mark.png") });
   });
