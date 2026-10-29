@@ -207,7 +207,7 @@ test("the first release is made on the roadmap Use releases makes", async ({ pag
   await page.goto(`/p/${projectId}/settings/properties`);
   const tile = page.getByTestId("role-tile").filter({ hasText: "The releases" });
   await tile.getByRole("button", { name: "Use releases" }).click();
-  await expect(page.getByRole("switch", { name: "Release is the releases" })).toBeChecked();
+  await expect(page.getByRole("button", { name: "Turn off the releases" })).toBeVisible();
   const roadmap = (await boardOf(page, projectId)).views.find((v) => v.kind === "roadmap")!;
   await page.goto(`/p/${projectId}?view=${roadmap.id}`);
 

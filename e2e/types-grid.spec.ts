@@ -96,7 +96,7 @@ test.describe("The types grid", () => {
 
     /* Off clears the pointer. */
     await page.setViewportSize({ width: 1280, height: 800 });
-    await grid.getByRole("switch", { name: "Each option is a type" }).click();
+    await grid.getByRole("button", { name: "Turn off the types" }).click();
     await expect(page.getByRole("group", { name: "The types" })).toHaveCount(0);
     const after = await (await page.request.get(`/api/projects/${projectId}/board`)).json();
     expect(after.project.typeBy).toBeNull();

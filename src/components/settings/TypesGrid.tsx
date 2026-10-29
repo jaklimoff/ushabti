@@ -8,7 +8,7 @@ import { NO_VALUE_KEY, type PropertyDTO, type TaskValue, type When } from "@/lib
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Form";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
-import { RolePanel, RoleRow } from "./RolePanel";
+import { RolePanel } from "./RolePanel";
 import { StartsAs } from "./StartsAs";
 import { useWhenWrites } from "./useWhenWrite";
 import styles from "./settings.module.css";
@@ -63,20 +63,13 @@ export function TypesGrid({ type, canEdit }: { type: PropertyDTO; canEdit: boole
   }
 
   return (
-    <RolePanel label="The types">
-      <RoleRow label="The types" note="A task shows the properties its type ticks.">
-        {canEdit ? (
-          <Checkbox
-            role="switch"
-            label="Each option is a type"
-            checked
-            disabled={sending}
-            onChange={() => void turnOff()}
-          />
-        ) : (
-          <span>Each option of {type.name} is a type.</span>
-        )}
-      </RoleRow>
+    <RolePanel
+      label="The types"
+      head={`Each option of ${type.name} is a type.`}
+      onOff={canEdit ? () => void turnOff() : undefined}
+      offBusy={sending}
+      said="A task shows the properties its type ticks."
+    >
       {type.options.length > 0 && rows.length > 0 && (
         <div className={styles.typeGridScroll} data-testid="types-grid">
           <table className={styles.typeGrid}>

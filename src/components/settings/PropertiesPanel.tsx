@@ -567,18 +567,13 @@ function DonePanel({ property, canEdit }: { property: PropertyDTO; canEdit: bool
   }
 
   return (
-    <RolePanel label="Done when" note="A done task frees what it blocks, fills progress and ships.">
-      {canEdit && (
-        <RoleRow label="Done when">
-          <Checkbox
-            role="switch"
-            label={`${property.name} says when a task is done`}
-            checked
-            disabled={saving || sending !== null}
-            onChange={() => void turnOff()}
-          />
-        </RoleRow>
-      )}
+    <RolePanel
+      label="Done when"
+      head={`${property.name} says when a task is done.`}
+      onOff={canEdit ? () => void turnOff() : undefined}
+      offBusy={saving || sending !== null}
+      said="A done task frees what it blocks, fills progress and ships."
+    >
       <RoleRow label="Counts as done">
         <div
           role="group"
@@ -656,21 +651,13 @@ function ReleasesPanel({ property, canEdit }: { property: PropertyDTO; canEdit: 
     );
 
   return (
-    <RolePanel label="The releases" note="Ship and the changelog read it.">
-      <RoleRow label="The releases">
-        {canEdit ? (
-          <Checkbox
-            role="switch"
-            label={`${property.name} is the releases`}
-            checked
-            disabled={sending}
-            onChange={() => off.ask()}
-          />
-        ) : (
-          <span>{property.name} is the releases.</span>
-        )}
-      </RoleRow>
-    </RolePanel>
+    <RolePanel
+      label="The releases"
+      head={`${property.name} is the releases.`}
+      onOff={canEdit ? off.ask : undefined}
+      offBusy={sending}
+      said="Ship and the changelog read it."
+    />
   );
 }
 
@@ -707,20 +694,13 @@ function SprintsPanel({ property, canEdit }: { property: PropertyDTO; canEdit: b
     );
 
   return (
-    <RolePanel label="The sprints">
-      <RoleRow label="The sprints" note="Close makes the next one.">
-        {canEdit ? (
-          <Checkbox
-            role="switch"
-            label={`${property.name} is the sprints`}
-            checked
-            disabled={sending}
-            onChange={() => off.ask()}
-          />
-        ) : (
-          <span>{property.name} is the sprints.</span>
-        )}
-      </RoleRow>
+    <RolePanel
+      label="The sprints"
+      head={`${property.name} is the sprints.`}
+      onOff={canEdit ? off.ask : undefined}
+      offBusy={sending}
+      said="Close makes the next one."
+    >
       <RoleRow label="Cadence">
         <CadenceBox
           property={property}

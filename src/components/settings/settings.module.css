@@ -2446,6 +2446,37 @@ div.hookRow {
   background: var(--accent-wash);
 }
 
+.rolePanelHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.rolePanelWords {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rolePanelWho {
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--text-3);
+}
+
+.rolePanelSaid {
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--text-meta);
+}
+
+/* The way to stop sits at the end of the line that says who plays the role. */
+.rolePanelOff {
+  flex: 0 0 auto;
+  margin: -6px -8px 0 0;
+}
+
 .rolePanelRow {
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
@@ -2467,11 +2498,6 @@ div.hookRow {
 
 .rolePanelRowNote {
   flex-basis: 100%;
-  font-size: var(--t-small);
-  color: var(--text-meta);
-}
-
-.rolePanelNote {
   font-size: var(--t-small);
   color: var(--text-meta);
 }

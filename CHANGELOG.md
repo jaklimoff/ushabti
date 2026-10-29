@@ -14,6 +14,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- A role in Settings — Done when, the releases, the sprints and the types — now says who plays it and ends that line with a **Turn off** word, in place of a box that was always ticked.
 - A task an agent is working on says so at the top of its panel: the card's own line, with who, what and how long. Pressing it opens the Agent tab and scrolls to it.
 - A view nobody has arranged a card for reads the project's card for what it is: a second board no longer repeats its own column on every card, and a list shows the main board's columns, such as Status. The first change to such a view copies what it drew.
 - Changing the project key asks first when the project has tasks: leaving the box turns the row into "Rename N tasks from USH- to USHX-?" with **Yes, rename** and **Put it back**, and the focus waits on **Put it back**. A closed tab no longer renames anything. A long confirm question keeps its two answers together on one line.

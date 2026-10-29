@@ -120,8 +120,8 @@ describe("Use sprints and the releases", () => {
     );
     const { sent } = await renderWithBoard(<PropertiesPanel />, data, turning(data));
     const role = page.getByRole("group", { name: "The sprints" });
-    const toggle = role.getByRole("switch", { name: "Sprint is the sprints" });
-    await expect.element(toggle).toBeChecked();
+    const toggle = role.getByRole("button", { name: "Turn off the sprints" });
+    await expect.element(role.getByText("Sprint is the sprints.")).toBeVisible();
     await expect.element(role.getByText("Close makes the next one.")).toBeVisible();
     await expect.element(role.getByText("Cadence", { exact: true })).toBeVisible();
     await expect.element(role.getByLabelText("Sprint length in days of Sprint")).toHaveValue("14");
@@ -139,7 +139,7 @@ describe("Use sprints and the releases", () => {
         "Turn sprints off? Nothing is deleted: Sprint keeps its 2 sprints, 1 task keeps its sprint, and 2 views stay.",
       );
     await question.getByRole("button", { name: "Cancel" }).click();
-    await expect.element(toggle).toBeChecked();
+    await expect.element(toggle).toBeVisible();
     expect(sent("DELETE")).toHaveLength(0);
 
     await toggle.click();
@@ -149,17 +149,17 @@ describe("Use sprints and the releases", () => {
     expect(data.project.sprintBy).toBeNull();
     /* The iteration keeps its cadence, in a plain row with no switch. */
     await expect.element(page.getByLabelText("Sprint length in days of Sprint")).toBeVisible();
-    await gone(page.getByRole("switch", { name: "Sprint is the sprints" }));
+    await gone(page.getByRole("button", { name: "Turn off the sprints" }));
   });
 
-  test("a member reads the sprints row with no switch", async () => {
+  test("a member reads the sprints row with no Turn off", async () => {
     const data = newProject();
     data.project.sprintBy = withSprints(data).id;
     data.project.role = "member";
     await renderWithBoard(<PropertiesPanel />, data);
     const role = page.getByRole("group", { name: "The sprints" });
     await expect.element(role.getByText("Sprint is the sprints.")).toBeVisible();
-    expect(role.getByRole("switch").elements()).toHaveLength(0);
+    expect(role.getByRole("button", { name: /^Turn off/ }).elements()).toHaveLength(0);
     await expect.element(role.getByLabelText("Sprint length in days of Sprint")).toBeDisabled();
   });
 
@@ -175,8 +175,8 @@ describe("Use sprints and the releases", () => {
 
     const role = page.getByRole("group", { name: "The releases" });
     await expect.element(page.getByText("Ship and the changelog read it.")).toBeVisible();
-    const toggle = role.getByRole("switch", { name: "Release is the releases" });
-    await expect.element(toggle).toBeChecked();
+    const toggle = role.getByRole("button", { name: "Turn off the releases" });
+    await expect.element(role.getByText("Release is the releases.")).toBeVisible();
     /* The dates are drawn with no switch to learn. */
     await expect.element(page.getByLabelText("Name of the Release property")).toBeInTheDocument();
     await gone(page.getByLabelText("Options carry dates"));
@@ -196,7 +196,7 @@ describe("Use sprints and the releases", () => {
     expect(data.project.releaseBy).toBeNull();
   });
 
-  test("a member reads the releases row with no switch, and Project has no plan switch", async () => {
+  test("a member reads the releases row with no Turn off, and Project has no plan switch", async () => {
     const data = newProject();
     const release = withSprints(data, ["1.0"]);
     release.name = "Release";
@@ -207,7 +207,7 @@ describe("Use sprints and the releases", () => {
     const drawn = await renderWithBoard(<PropertiesPanel />, data);
     const role = page.getByRole("group", { name: "The releases" });
     await expect.element(role.getByText("Release is the releases.")).toBeVisible();
-    expect(role.getByRole("switch").elements()).toHaveLength(0);
+    expect(role.getByRole("button", { name: /^Turn off/ }).elements()).toHaveLength(0);
     await drawn.screen.unmount();
 
     data.project.role = "owner";
