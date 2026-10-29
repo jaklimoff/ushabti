@@ -120,6 +120,7 @@ export function CardPanel({ onClose }: { onClose: () => void }) {
             viewId={project ? null : view.id}
             bare
             sample
+            startOn={!project && view.kind === "list" ? "list" : "card"}
           />
         </div>
       </div>

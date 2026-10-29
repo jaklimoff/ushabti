@@ -115,6 +115,12 @@ test.describe("The changelog", () => {
     expect(answer!.status()).toBe(200);
     await expect(page.getByText("Releases are off")).toBeVisible();
     await expect(page.getByTestId("changelog-entry")).toHaveCount(0);
+    // It says what the page is for, and the owner gets the way to turn them on.
+    await expect(page.getByText("Every release that shipped, newest first.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Turn on releases in Settings" })).toHaveAttribute(
+      "href",
+      `/p/${projectId}/settings/properties`,
+    );
     await page.screenshot({ path: testInfo.outputPath("seen-releases-off.png"), fullPage: true });
 
     const stranger = await browser.newPage();

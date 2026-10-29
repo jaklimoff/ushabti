@@ -43,17 +43,24 @@ export function CardEditor({
   viewId = null,
   bare = false,
   sample = false,
+  startOn = "card",
 }: {
   viewId?: string | null;
   /** No preview and no "Use the default" in the foot: the board panel has both. */
   bare?: boolean;
   /** One board card on the stand-in task above the editor. */
   sample?: boolean;
+  /**
+   * The shape the editor opens on. A list draws columns and never a card, so
+   * a list view's editor starts on the rows. Only where it starts: the card
+   * view is one object, and the other shape is one press away.
+   */
+  startOn?: "card" | "list";
 }) {
   const { data, cardItemsOf, setCardView, resetCardView } = useBoard();
   /* The drawing is the way a pointer arranges the card; the list is the same
      editor as rows, and stays whole for the keyboard and a screen reader. */
-  const [shape, setShape] = useState<"card" | "list">("card");
+  const [shape, setShape] = useState<"card" | "list">(startOn);
   const [open, setOpen] = useState<string | null>(null);
   /* The row under the pointer or the keys. It and the open row point at
      their chip on the preview, so the list and the card read as one. */

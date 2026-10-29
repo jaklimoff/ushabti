@@ -30,7 +30,7 @@ type ShipBoard = {
     options: { id: string; name: string; shippedAt: string | null }[];
   }[];
   tasks: { id: string; title: string; values: Record<string, unknown> }[];
-  archived: { id: string; title: string }[];
+  archived: { id: string; title: string; shippedIn: string | null }[];
 };
 
 /*
@@ -146,6 +146,33 @@ describe("Ship on a column", () => {
     expect(version.options.find((o) => o.id === v1.id)!.shippedAt).toBeNull();
     expect(b.tasks.map((t) => t.title).sort()).toEqual(["Charlie", "Echo", "Foxtrot"]);
     expect(b.archived.map((t) => t.title).sort()).toEqual(["Alpha", "Bravo", "Delta"]);
+  });
+});
+
+/*
+ * The Archived page says why a task left. The word is the changelog's, read
+ * on the board answer: the shipped release a task carries, or nothing.
+ */
+describe("An archived task says what shipped it", () => {
+  it("names the release a ship archived it in, and nothing for a hand archive", async () => {
+    const { me, read, v1 } = await releaseBoard();
+    const echo = (await read()).tasks.find((t) => t.title === "Echo")!;
+    await ok(me.post(`/api/tasks/${echo.id}/archive`));
+    await ok(me.post(`/api/options/${v1.id}/ship`, { rest: "leave" }));
+
+    const shippedIn = (b: ShipBoard) =>
+      Object.fromEntries(b.archived.map((t) => [t.title, t.shippedIn]));
+    expect(shippedIn(await read())).toEqual({
+      Alpha: "v1",
+      Bravo: "v1",
+      Delta: "v1",
+      // v3 has not shipped, so Echo went by hand.
+      Echo: null,
+    });
+
+    // Unship throws the day away, and the changelog with it, so the word goes too.
+    await ok(me.patch(`/api/options/${v1.id}`, { shippedAt: null }));
+    expect(Object.values(shippedIn(await read()))).toEqual([null, null, null, null]);
   });
 });
 

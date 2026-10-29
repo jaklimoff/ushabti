@@ -485,7 +485,12 @@ function ViewRow({
               )}
               {/* A board view shows one card at the board's size above the
                   drawing, as the board's own Card panel does. */}
-              <CardEditor viewId={view.id} bare sample={view.kind === "board"} />
+              <CardEditor
+                viewId={view.id}
+                bare
+                sample={view.kind === "board"}
+                startOn={view.kind === "list" ? "list" : "card"}
+              />
             </section>
           )}
         </div>

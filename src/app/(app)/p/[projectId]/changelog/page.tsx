@@ -6,6 +6,7 @@ import { canManage } from "@/lib/roles";
 import { ChangelogList } from "@/components/changelog/ChangelogList";
 import { ChangelogShare } from "@/components/changelog/ChangelogShare";
 import { Card, EmptyState, PageHead, PageShell } from "@/components/ui/Layout";
+import { ReleasesOff } from "@/components/changelog/ReleasesOff";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import styles from "@/components/changelog/changelog.module.css";
 
@@ -31,7 +32,7 @@ export default async function ChangelogPage({
   const { projectId } = await params;
   let role: string;
   try {
-    role = (await requireMembership(user.id, projectId)).role;
+    ({ role } = await requireMembership(user.id, projectId));
   } catch (err) {
     if (err instanceof HttpError) notFound();
     throw err;
@@ -51,10 +52,8 @@ export default async function ChangelogPage({
       <div className={styles.page}>
         <ProjectBar project={named} here="Changelog" user={user} />
         <PageShell>
-          <PageHead title="Changelog" />
-          <Card>
-            <EmptyState title="Releases are off" />
-          </Card>
+          <PageHead title="Changelog" lead="Every release that shipped, newest first." />
+          <ReleasesOff projectId={projectId} role={role} />
         </PageShell>
       </div>
     );

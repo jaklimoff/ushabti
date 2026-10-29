@@ -304,9 +304,8 @@ test("a new project's Status carries Done when on Properties, and a pill saves i
 
   const panel = page.getByTestId("role-panel");
   await expect(panel).toHaveCount(1);
-  await expect(
-    panel.getByRole("switch", { name: "Status says when a task is done" }),
-  ).toBeChecked();
+  await expect(panel.getByText("Status says when a task is done.")).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Turn off Done when" })).toBeVisible();
   const pills = panel.getByRole("group", { name: "The options that say a task is done" });
   await expect(pills.getByRole("button")).toHaveCount(6);
   await expect(pills.getByRole("button", { name: "Done", exact: true })).toHaveAttribute(
@@ -336,4 +335,37 @@ test("a new project's Status carries Done when on Properties, and a pill saves i
   await expect(page.getByLabel("Project name")).toBeVisible();
   await expect(page.getByText("Done when", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Count progress by")).toHaveCount(0);
+});
+
+/* The Archived page says why a task left: the release a ship took it in.
+   A task put away by hand says only when, and so does every row once the
+   release is unshipped. */
+test("an archived task says which release shipped it", async ({ page }, testInfo) => {
+  const { projectId, read, v1 } = await releaseBoard(page);
+  const echo = (await read()).tasks.find((t) => t.title === "Echo")!;
+  expect((await page.request.post(`/api/tasks/${echo.id}/archive`)).ok()).toBeTruthy();
+  const shipped = await page.request.post(`/api/options/${v1.id}/ship`, {
+    data: { rest: "leave" },
+  });
+  expect(shipped.ok()).toBeTruthy();
+
+  await page.goto(`/p/${projectId}/archived`);
+  const row = (title: string) => page.getByTestId("archive-row").filter({ hasText: title });
+  await expect(page.getByTestId("archive-row")).toHaveCount(4);
+  for (const title of ["Alpha", "Bravo", "Delta"]) {
+    await expect(row(title).getByTestId("archive-shipped")).toHaveText("✓Shipped in v1");
+    await expect(row(title)).toContainText(/Shipped in v1\s*Archived/);
+  }
+  await expect(row("Echo")).toContainText("Archived");
+  await expect(row("Echo").getByTestId("archive-shipped")).toHaveCount(0);
+  await expect(row("Alpha").getByTestId("archive-shipped")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("seen-archive-shipped-in.png") });
+
+  const unshipped = await page.request.patch(`/api/options/${v1.id}`, {
+    data: { shippedAt: null },
+  });
+  expect(unshipped.ok()).toBeTruthy();
+  await page.reload();
+  await expect(page.getByTestId("archive-row")).toHaveCount(4);
+  await expect(page.getByTestId("archive-shipped")).toHaveCount(0);
 });

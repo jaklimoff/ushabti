@@ -273,18 +273,22 @@ describe("Card view", () => {
       });
     await byTestId("view-pill").filter({ hasText: "Dense" }).click();
     await expect.element(byTestId("list-view")).toBeVisible();
-    // The board's columns are Status, so the project's card leaves it off.
-    await gone(listHead("Status"));
+    /* The project's card leaves the board's columns, Status, off. A list that
+       follows it puts them back on, and writes nothing to do it. */
+    await expect.element(listHead("Status")).toBeVisible();
+    await expect.element(listHead("Due")).toBeVisible();
+    await expect.element(row("Status")).toHaveAttribute("data-place", "footerL");
 
     // Nobody has changed a view yet, so no view has a copy to throw away.
     await gone(page.getByRole("button", { name: /^Use the default card/ }));
     await expect
       .poll(() => byTestId("view-fork").element().textContent)
       .toContain("Dense follows the default card");
+    expect(sent("PATCH", VIEW_CARD)).toEqual([]);
 
-    await opener("Status").click();
-    await page.getByRole("button", { name: "Put Status in the footer left" }).click();
-    await expect.element(row("Status")).toHaveAttribute("data-place", "footerL");
+    await opener("Due").click();
+    await page.getByRole("button", { name: "Take off the card" }).click();
+    await expect.element(row("Due")).toHaveAttribute("data-place", "off");
     await expect
       .element(page.getByRole("button", { name: "Use the default card for Dense" }))
       .toBeVisible();
@@ -293,10 +297,14 @@ describe("Card view", () => {
       .toContain("Dense has a card of its own");
     await wrote(() => sent("PATCH", VIEW_CARD), 1);
     expect(sent("PATCH", VIEW_CARD)[0].path).toBe(`/api/views/${dense.id}/card-view`);
+    // The copy starts from what the list drew, so Status stays a column.
+    const status = data.properties.find((p) => p.name === "Status")!;
+    expect(placeOf(sent("PATCH", VIEW_CARD)[0], status.id)).toBe("footerL");
     // The project's card view is untouched.
     expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
 
-    // The list draws its copy: the grouping property is a column now.
+    // The list draws its copy.
+    await gone(listHead("Due"));
     await expect.element(listHead("Status")).toBeVisible();
     await expect
       .poll(() => byTestId("list-row").filter({ hasText: "Seen twice" }).element().textContent)
@@ -310,7 +318,39 @@ describe("Card view", () => {
     await gone(back);
     await wrote(() => sent("PATCH", VIEW_CARD), 2);
     expect(sent("PATCH", VIEW_CARD)[1].body).toEqual({ cardView: null });
-    await gone(listHead("Status"));
+    await expect.element(listHead("Due")).toBeVisible();
+    await expect.element(listHead("Status")).toBeVisible();
+  });
+});
+
+describe("Where a view's card editor starts", () => {
+  test("a list view's opens on the rows, a board view's on the card", async () => {
+    const data = newProject();
+    data.views.push({
+      ...data.views[0],
+      id: "00000000-0000-4000-8000-777777777778",
+      name: "Rows",
+      kind: "list" as const,
+      position: "z0000000",
+      isDefault: false,
+    });
+    await renderWithBoard(<ViewsPanel />, data, serving(data));
+    const shape = (name: "Card" | "List") =>
+      page
+        .getByRole("group", { name: "Arrange the card as" })
+        .getByRole("button", { name, exact: true });
+
+    await page.getByRole("button", { name: "Open the view Rows" }).click();
+    await expect.element(shape("List")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(byTestId("card-row").first()).toBeVisible();
+    await gone(byTestId("card-drawing"));
+    // The other shape is one press away, and it edits the same card view.
+    await shape("Card").click();
+    await expect.element(byTestId("card-drawing")).toBeVisible();
+
+    await page.getByRole("button", { name: `Open the view ${data.views[0].name}` }).click();
+    await expect.element(shape("Card")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(byTestId("card-drawing")).toBeVisible();
   });
 });
 

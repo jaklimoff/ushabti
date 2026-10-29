@@ -232,12 +232,24 @@ function ArchiveRow({ task, now }: { task: ArchivedTaskDTO; now: number }) {
       title={task.title}
       href={`/p/${data.project.id}?task=${task.key}`}
       meta={
-        <span
-          title={`Archived ${fullTime(task.archivedAt, data.project.timeZone)}`}
-          suppressHydrationWarning
-        >
-          {longAgo(task.archivedAt, now)}
-        </span>
+        <>
+          {/* Why it left, when a ship took it: the question people bring
+              here. A hand archive says nothing more than when. */}
+          {task.shippedIn && (
+            <span className={styles.shipped} data-testid="archive-shipped">
+              <span className={styles.shippedTick} aria-hidden>
+                ✓
+              </span>
+              Shipped in {task.shippedIn}
+            </span>
+          )}
+          <span
+            title={`Archived ${fullTime(task.archivedAt, data.project.timeZone)}`}
+            suppressHydrationWarning
+          >
+            {longAgo(task.archivedAt, now)}
+          </span>
+        </>
       }
       action={
         <Button

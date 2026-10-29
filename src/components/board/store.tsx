@@ -746,8 +746,7 @@ export function BoardProvider({
    * that names a property somebody has just deleted must stop holding a place
    * on the card at once, and not when the next board arrives.
    */
-  const defaultGroupById =
-    (data.views.find((v) => v.isDefault) ?? data.views[0])?.groupById ?? null;
+  const defaultGroupById = mainBoardGroupById(data.views);
 
   const projectCardView = useMemo(
     () => readCardView(data.cardView, data.properties, defaultGroupById),
@@ -755,19 +754,28 @@ export function BoardProvider({
   );
 
   /* A view with a copy of its own draws it; one without draws the project's,
-     and so moves when the project's moves. */
+     read for what the view is, and so moves when the project's moves. */
+  const viewKind = view?.kind;
+  const viewGroupById = view?.groupById ?? null;
   const cardView = useMemo(
-    () => readCardView(view?.cardView, data.properties, defaultGroupById, projectCardView),
-    [view?.cardView, data.properties, defaultGroupById, projectCardView],
+    () =>
+      readCardView(
+        view?.cardView,
+        data.properties,
+        defaultGroupById,
+        projectCardView,
+        viewKind ? { kind: viewKind, groupById: viewGroupById } : undefined,
+      ),
+    [view?.cardView, data.properties, defaultGroupById, projectCardView, viewKind, viewGroupById],
   );
 
   const items = useMemo(() => cardItems(cardView, data.properties), [cardView, data.properties]);
 
   const cardItemsOf = useCallback<Store["cardItemsOf"]>(
     (viewId) => {
-      const own = viewId ? data.views.find((v) => v.id === viewId)?.cardView : null;
+      const target = viewId ? data.views.find((v) => v.id === viewId) : undefined;
       return cardItems(
-        readCardView(own, data.properties, defaultGroupById, projectCardView),
+        readCardView(target?.cardView, data.properties, defaultGroupById, projectCardView, target),
         data.properties,
       );
     },
@@ -1072,6 +1080,9 @@ export function BoardProvider({
               title: task.title,
               position: task.position,
               archivedAt: at,
+              /* By hand: a ship archives on the server, and the next read
+                 says which release. */
+              shippedIn: null,
             },
           ],
         };

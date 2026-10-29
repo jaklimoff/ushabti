@@ -234,11 +234,11 @@ describe("The types grid", () => {
     await says(grid().getByRole("button", { name: /^Severity on Bug starts/ }), "starts Major");
   });
 
-  test("the switch off clears typeBy", async () => {
+  test("Turn off clears typeBy", async () => {
     const { data } = typed();
     const { sent } = await renderWithBoard(<PropertiesPanel />, data, serving(data));
     await says(grid(), "A task shows the properties its type ticks.");
-    await grid().getByRole("switch", { name: "Each option is a type" }).click();
+    await grid().getByRole("button", { name: "Turn off the types" }).click();
     await expect.poll(() => sent("PATCH", PROJECT).length).toBe(1);
     expect(sent("PATCH", PROJECT)[0].body).toEqual({ typeBy: null });
     await expect.element(grid()).not.toBeInTheDocument();
@@ -250,7 +250,11 @@ describe("The types grid", () => {
     await renderWithBoard(<PropertiesPanel />, data, serving(data));
     await expect.element(cell("Priority", "Bug")).toBeDisabled();
     await expect.element(cell("Severity", "Story")).toBeDisabled();
-    expect(grid().getByRole("switch").elements()).toHaveLength(0);
+    expect(
+      grid()
+        .getByRole("button", { name: /^Turn off/ })
+        .elements(),
+    ).toHaveLength(0);
     await says(grid(), "starts Minor");
     expect(
       grid()

@@ -161,9 +161,12 @@ describe("Settings draws its controls dark", () => {
     await looks(tick, "outline-style", "solid");
     await userEvent.keyboard(" ");
     await expect.element(tick).not.toBeChecked();
-
-    /* The switch of a role panel is the same control. */
     await drawn.screen.unmount();
+  });
+
+  /* A role is turned off by a word, not by a box that is always ticked. */
+  test("a role panel offers Turn off as a text button, not a checkbox", async () => {
+    const data = newProject();
     const sprint: PropertyDTO = {
       id: crypto.randomUUID(),
       name: "Sprint",
@@ -175,14 +178,12 @@ describe("Settings draws its controls dark", () => {
     data.properties.push(sprint);
     data.project.sprintBy = sprint.id;
     await draw("properties", <PropertiesPanel />, data);
-    /* It is on, so it wears the accent; its shape is the same. */
-    const sprints = page.getByRole("switch", { name: "Sprint is the sprints" });
-    const { background: _off, border: _ring, ...shape } = geometry;
-    expect(await checkboxGeometry(sprints)).toEqual({
-      ...shape,
-      background: token("--accent"),
-      border: token("--accent"),
-    });
+    const role = page.getByRole("group", { name: "The sprints" });
+    const off = role.getByRole("button", { name: "Turn off the sprints" });
+    await expect.element(off).toHaveTextContent("Turn off");
+    expect(role.getByRole("switch").elements()).toHaveLength(0);
+    expect(role.getByRole("checkbox").elements()).toHaveLength(0);
+    await looks(off, "background-color", "rgba(0, 0, 0, 0)");
   });
 
   test("the file button of Import looks like a ghost button", async () => {

@@ -39,7 +39,9 @@ and what is easy to get wrong.
   plan, the log and the buttons belong to the Agent tab of the panel, which
   exists only while a run does. A board with ten runs on it has to stay
   readable, which is why the step count and the log ticker never reached the
-  card.
+  card. The panel head carries the card's one line and nothing more, drawn by
+  the same `RunRow`, as a button to that tab: the tab sits under the fields,
+  and a task an agent is working on must not open on fields alone.
 - **A card draws the card view and decides nothing.** What a card carries is
   `projects.card_view`, one object of `rows` that everybody on the board shares:
   where each row sits and how it reads. `TaskCard` knows how to draw a chip and
@@ -67,8 +69,9 @@ and what is easy to get wrong.
   view an order again, and do not let a task row move among the properties.
 - **A view has a kind, and a list is the same tasks lying down.** `views.kind`
   is `board`, `list` or `roadmap`, and nothing else about a view changes with it: one
-  filter set, one card view, one card order. A list groups by nothing on
-  purpose — sections would need a second drop model, where a drag writes a
+  filter set, one card view, one card order. The kind touches the card view in
+  one place, `readCardView()` for a view with no copy, below. A list groups by
+  nothing on purpose — sections would need a second drop model, where a drag writes a
   property value, which is what a board already is. It keeps `groupById`
   unread, so turning it back into a board restores the same columns; that is
   also why the property delete route counts only the kinds in `GROUPED_KINDS`,
@@ -83,14 +86,17 @@ and what is easy to get wrong.
   takes rows away through `allowedColumns`, exactly as it takes columns. An
   archived task carries no values on the board, so the board sends what a
   roadmap needs of them in `archivedUnder`: the oldest day and the count per
-  dated option. One thing on a roadmap drags: the right end of a bar that has
-  not shipped, which moves its target by whole days, and the arrow keys do
+  dated option. An archived task does carry `shippedIn`, the name of the
+  shipped release the changelog lists it under, so the Archived page can say
+  why it left. That is a word worked out on the read, not a value: nothing
+  writes it, and no filter, sort or card reads it. One thing on a roadmap
+  drags: the right end of a bar that has not shipped, which moves its target by whole days, and the arrow keys do
   the same from a focused bar, with Enter to write and Escape to put it back.
   It writes `targetAt` through the option PATCH Settings uses, so the roadmap
   decides nothing new, and only for somebody that PATCH answers: the board
   carries `project.mayStructure`, false for an agent with **Change
   structure** off. A bar's start, a whole bar and a row's place do not drag;
-  those stay in Settings.
+  those stay in Settings, and the panel a bar opens says so with a link.
 - **An iteration is a select whose options always carry dates.** It shares
   everything with a dated select: the option ids, the columns, the header date,
   Ship, "is current", the roadmap, the changelog and the option drag. So a
@@ -224,7 +230,12 @@ and what is easy to get wrong.
   view draws the project's and follows it. `readCardView()` takes the view's
   rows first and the project's second, so there is still one reader; the store
   asks it once for the open view, and `cardAccent()` and `listColumns()` read
-  that answer. A copy is a whole card view, never a set of changes on top of
+  that answer. The project's card is arranged for the main board, so a view
+  that follows it reads it once more for what it is, in that reader and
+  nowhere else: a board leaves its own columns off, so a card under 0.2 does
+  not say 0.2 again, and a list puts the main board's columns on, so a list
+  has its Status. Nothing is written. The first change to such a view copies
+  what it drew, so the copy keeps both. A copy is a whole card view, never a set of changes on top of
   the project's: a diff would need its own rules for a row the project later
   moved. It holds no order and no edge rule of its own, for the reasons above.
 - **Eight rows of the card view are not properties.** `_key`, `_title`,
@@ -429,7 +440,10 @@ and what is easy to get wrong.
   must not rewrite it: its edit box saves nothing on a blur and nothing on a
   closed tab.
   `ConfirmRow` is the answer to "the board has no dialogs": the row becomes the
-  question, and the question names the cost in real numbers. **A closed tab
+  question, and the question names the cost in real numbers. When a blur would
+  itself be the loss, the blur asks: the project key renames every task, so
+  leaving its box turns the row into **Yes, rename** or **Put it back**, and a
+  closed tab sends nothing for it. **A closed tab
   sends no blur**, so every such field also says what it owes to
   `useSaveOnLeave`, which sends that one request with `keepalive` on
   `pagehide` — a closed or navigated-away tab; not a tab switched away on a

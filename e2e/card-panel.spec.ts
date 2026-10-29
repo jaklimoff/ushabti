@@ -213,4 +213,35 @@ test.describe("Card panel", () => {
     await expect(lit).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("seen-card-panel-list.png") });
   });
+
+  test("a list view's editor opens on the List shape, a board view's on the Card", async ({
+    page,
+  }, testInfo) => {
+    await register(page);
+    await createProject(page, unique("Shapes"));
+    await addListView(page, "Rows");
+
+    const panel = page.getByTestId("card-panel");
+    const shape = (name: "Card" | "List") =>
+      panel
+        .getByRole("group", { name: "Arrange the card as" })
+        .getByRole("button", { name, exact: true });
+
+    await page.getByTestId("card-button").click();
+    await expect(shape("List")).toHaveAttribute("aria-pressed", "true");
+    await expect(panel.getByTestId("card-row").first()).toBeVisible();
+    await expect(panel.getByTestId("card-drawing")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("seen-card-panel-list-start.png") });
+
+    // The default card is the main board's, so it opens on the card.
+    await panel.getByRole("button", { name: "Change the default instead" }).click();
+    await expect(shape("Card")).toHaveAttribute("aria-pressed", "true");
+    await expect(panel.getByTestId("card-drawing")).toBeVisible();
+
+    // A board view opens on the card, and the list is one press away.
+    await page.getByTestId("view-pill").filter({ hasText: "Board" }).click();
+    await expect(shape("Card")).toHaveAttribute("aria-pressed", "true");
+    await shape("List").click();
+    await expect(panel.getByTestId("card-row").first()).toBeVisible();
+  });
 });

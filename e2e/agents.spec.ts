@@ -62,7 +62,7 @@ test.describe("Agents on the board", () => {
   test(
     "an agent takes a token, opens a run, and the board shows it",
     { tag: "@smoke" },
-    async ({ page, request }) => {
+    async ({ page, request }, testInfo) => {
       await register(page, "Agent Owner");
       const projectId = await createProject(page, unique("Agents"));
       await addTask(page, "Todo", "Work for a machine");
@@ -133,8 +133,16 @@ test.describe("Agents on the board", () => {
       /* ---- the panel shows the plan and the log ------------------------ */
 
       await held.click();
+      // The head carries the card's own line, and a press on it is the way to
+      // the Agent tab, a scroll away under the fields.
+      const headLine = page.getByTestId("panel-head-run");
+      await expect(headLine.getByTestId("card-run-step")).toHaveText("Writing the change");
+      await expect(headLine).toContainText("Builder");
+      await page.getByRole("tab", { name: /^Comments/ }).click();
+      await page.screenshot({ path: testInfo.outputPath("seen-panel-head-run.png") });
+      await headLine.click();
       // The run has a tab of its own, and the dot on it says the agent is live.
-      await page.getByTestId("agent-tab").click();
+      await expect(page.getByTestId("agent-tab")).toHaveAttribute("aria-selected", "true");
       const panel = page.getByTestId("panel-run");
       await expect(panel).toBeVisible();
       await expect(panel.getByText("Builder")).toBeVisible();
@@ -183,6 +191,7 @@ test.describe("Agents on the board", () => {
       await expect(page.getByTestId("past-run").first()).toContainText("taken over");
       await expect(page.getByTestId("panel-run")).toBeHidden();
       await expect(held.getByTestId("card-run")).toBeHidden();
+      await expect(page.getByTestId("panel-head-run")).toBeHidden();
 
       const afterTakeOver = await api.patch(`/api/runs/${run.id}`, { step: "Still going" });
       expect(afterTakeOver.status()).toBe(409);

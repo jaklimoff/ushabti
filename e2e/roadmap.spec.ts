@@ -102,6 +102,50 @@ test.describe("A roadmap", () => {
   );
 });
 
+test("labels the shipped rows, and a bar's panel leads to its dates in Settings and back", async ({
+  page,
+}, testInfo) => {
+  await register(page);
+  const projectId = await createProject(page, unique("Shipped"));
+  const { version } = await versions(page, projectId);
+  await addRoadmap(page, projectId);
+
+  /* The label sits between the last open row and the first shipped one. */
+  const label = page.getByTestId("roadmap-shipped");
+  await expect(label).toHaveText("Shipped · 1");
+  const rows = page.getByTestId("roadmap-row");
+  const above = (await rows.nth(1).boundingBox())!;
+  const at = (await label.boundingBox())!;
+  const below = (await rows.nth(2).boundingBox())!;
+  expect(at.y).toBeGreaterThan(above.y);
+  expect(at.y).toBeLessThan(below.y);
+
+  await rows.filter({ hasText: "Beta" }).getByTestId("roadmap-bar").click();
+  const link = page.getByTestId("roadmap-panel-settings");
+  await expect(link).toHaveText("Dates are set in Settings →");
+  await page.screenshot({ path: testInfo.outputPath("seen-roadmap-panel.png") });
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`/settings/properties\\?from=.+#prop-${version.id}$`));
+  await expect(page.locator(`#prop-${version.id}`)).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("seen-roadmap-settings.png") });
+
+  await page.getByRole("link", { name: "Back to Plan" }).click();
+  await expect(page.getByTestId("roadmap-view")).toBeVisible();
+  await expect(page.getByTestId("roadmap-shipped")).toHaveText("Shipped · 1");
+});
+
+test("draws no shipped label when nothing has shipped", async ({ page }) => {
+  await register(page);
+  const projectId = await createProject(page, unique("Open"));
+  await datedVersions(page, projectId, {
+    Soon: { start: -10, target: 4 },
+    Later: { start: 5, target: 60 },
+  });
+  await addRoadmap(page, projectId);
+  await expect(page.getByTestId("roadmap-row")).toHaveCount(2);
+  await expect(page.getByTestId("roadmap-shipped")).toHaveCount(0);
+});
+
 /* A Version select whose options are dated so many days from today. */
 async function datedVersions(
   page: Page,
@@ -207,7 +251,7 @@ test("the first release is made on the roadmap Use releases makes", async ({ pag
   await page.goto(`/p/${projectId}/settings/properties`);
   const tile = page.getByTestId("role-tile").filter({ hasText: "The releases" });
   await tile.getByRole("button", { name: "Use releases" }).click();
-  await expect(page.getByRole("switch", { name: "Release is the releases" })).toBeChecked();
+  await expect(page.getByRole("button", { name: "Turn off the releases" })).toBeVisible();
   const roadmap = (await boardOf(page, projectId)).views.find((v) => v.kind === "roadmap")!;
   await page.goto(`/p/${projectId}?view=${roadmap.id}`);
 

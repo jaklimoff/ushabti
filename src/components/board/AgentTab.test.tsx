@@ -266,6 +266,64 @@ describe("The Agent tab", () => {
     await expect.element(byTestId("agent-tab")).toBeVisible();
   });
 
+  test("the panel head carries the card's line, and it opens the Agent tab", async () => {
+    const data = newProject();
+    const task = withTask(data, "Being worked on", { Status: "Todo" });
+    const run = withRun(data, task, agentIn(data, "Worker"), { step: "Reading the route" });
+    await draw(data, serve({ task, open: run, past: [], plans: {}, logs: {} }));
+
+    const held = card("Being worked on");
+    await held.click();
+    const line = byTestId("panel-head-run");
+    // Who, what and how long, in the card's own words.
+    await expect.element(line).toMatchTextContent(/Worker/);
+    await expect
+      .element(line.getByTestId("card-run-step"))
+      .toHaveTextContent(held.getByTestId("card-run-step").element().textContent!);
+    await expect
+      .element(line.getByTestId("card-run-time"))
+      .toHaveTextContent(held.getByTestId("card-run-time").element().textContent!);
+
+    // A press takes the person from wherever they were to the Agent tab.
+    await page.getByRole("tab", { name: /^Comments/ }).click();
+    await expect.element(byTestId("comment-box")).toBeVisible();
+    await line.click();
+    await expect.element(byTestId("agent-tab")).toHaveAttribute("aria-selected", "true");
+    await expect.element(byTestId("panel-run")).toBeVisible();
+    // The plan, the log and the buttons stay on the tab, not in the head.
+    expect(line.getByRole("button").elements()).toHaveLength(0);
+  });
+
+  test("a waiting run's line in the head says what the card says", async () => {
+    const data = newProject();
+    const task = withTask(data, "Make the queue retry", { Status: "Todo" });
+    const run = withRun(data, task, agentIn(data, "Asker"), {
+      status: "waiting",
+      step: "Which service owns the queue?",
+    });
+    const fake = { task, open: run, past: [], plans: {}, logs: {} };
+    await draw(data, serve(fake));
+    const held = card("Make the queue retry");
+    await held.click();
+    const line = byTestId("panel-head-run");
+    await expect.element(line).toHaveAttribute("data-status", "waiting");
+    await expect
+      .element(line.getByTestId("card-run-step"))
+      .toHaveTextContent("Which service owns the queue?");
+    await expect
+      .element(line.getByTestId("card-run-time"))
+      .toHaveTextContent(held.getByTestId("card-run-time").element().textContent!);
+  });
+
+  test("a task with no open run has no line in the head", async () => {
+    const data = newProject();
+    const task = withTask(data, "Quiet", { Status: "Todo" });
+    await draw(data, serve({ task, open: null, past: [], plans: {}, logs: {} }));
+    await card("Quiet").click();
+    await expect.element(byTestId("comment-box")).toBeVisible();
+    await gone(byTestId("panel-head-run"));
+  });
+
   /* Was e2e/listening.spec.ts, the screen half. The feed that carries the
      answer and the lease that leaves a waiting run alone are route tests. */
   test("a waiting run shows its question, keeps its card, and hears the answer", async () => {

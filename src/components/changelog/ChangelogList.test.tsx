@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ChangelogList } from "./ChangelogList";
+import { ReleasesOff } from "./ReleasesOff";
 
 /*
  * **Older** is the one thing the list adds to a page of releases. Which ten
@@ -38,5 +39,28 @@ describe("The changelog list", () => {
     await expect
       .element(page.getByTestId("changelog-day").nth(1))
       .toHaveTextContent("✓ Oct 1, 2026");
+  });
+});
+
+describe("A changelog with releases off", () => {
+  test("says what it is for, and hands an admin the way to turn releases on", async () => {
+    await render(<ReleasesOff projectId="p1" role="admin" />);
+    await expect.element(page.getByText("Releases are off")).toBeVisible();
+    await expect
+      .element(page.getByText(/A changelog lists each release that shipped/))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("link", { name: "Turn on releases in Settings" }))
+      .toHaveAttribute("href", "/p/p1/settings/properties");
+  });
+
+  test("tells a member who turns them on, and offers no link", async () => {
+    await render(<ReleasesOff projectId="p1" role="member" />);
+    await expect
+      .element(page.getByText("An admin turns them on in Settings → Properties."))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("link", { name: "Turn on releases in Settings" }))
+      .not.toBeInTheDocument();
   });
 });

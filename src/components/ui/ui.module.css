@@ -972,6 +972,12 @@
   text-wrap: pretty;
 }
 
+.emptyAction {
+  margin-top: 5px;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
 /* ---- confirm in place ---------------------------------------------- */
 
 /*
@@ -993,6 +999,8 @@
 }
 
 .confirmText {
+  flex: 1 1 32ch;
+  min-width: 0;
   font-size: var(--t-body);
   line-height: 1.5;
   color: var(--danger-text);
@@ -1003,6 +1011,15 @@
   font-family: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   font-weight: 600;
   color: var(--text);
+}
+
+/* The answers, at the end of the line while the question leaves room. */
+.confirmActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
 }
 
 /* The box a typed answer goes in. It wears the red the row does, so it reads

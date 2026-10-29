@@ -196,6 +196,7 @@ describe("Finding an archived task", () => {
       title,
       position: `a${number}`,
       archivedAt: "2026-09-01T10:00:00.000Z",
+      shippedIn: null,
     };
     data.archived.push(row);
     return row;

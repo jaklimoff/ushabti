@@ -3,10 +3,10 @@
 import { forwardRef, useMemo } from "react";
 import type { AgentRunDTO, StoppedRunDTO, TaskDTO } from "@/lib/types";
 import { buildCard, type CardChip, type CardItem } from "@/lib/card-view";
-import { isOpen, lifeOf, runClock, runIsStill, runLine, stoppedAt } from "@/lib/run-state";
+import { stoppedAt } from "@/lib/run-state";
 import { Avatar } from "@/components/ui/Avatar";
-import { useNow } from "@/components/ui/useElapsed";
 import { Chip } from "./Chip";
+import { RunRow, useRunNow } from "./RunRow";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 
@@ -280,10 +280,7 @@ function Strip({
  * row of the card view, because a run is not a field of a task.
  */
 function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
-  const now = useNow(isOpen(run.status));
-  const life = lifeOf(run, now);
-  const clock = runClock(run, now);
-  const line = overlay ? "Drop to take over" : runLine(run);
+  const { life, clock, still } = useRunNow(run);
 
   /* The status rides on the strip beside the life, so a run that waits for a
      person can wear its own warm ground. Nothing is added to the card: the
@@ -295,44 +292,9 @@ function CardRun({ run, overlay }: { run: AgentRunDTO; overlay: boolean }) {
       data-life={life}
       data-status={run.status}
     >
-      <div className={styles.runStripRow}>
-        {/* The face and colour of the agent, so the one at work is not
-            mistaken for the person the task is assigned to. A run that waits
-            keeps the face and lends the name's room to its question. */}
-        {/* The colour is handed over as a property rather than set, so a
-            paused or silent strip can still take it back to grey. */}
-        <span
-          className={styles.runAgent}
-          style={
-            {
-              "--run-agent": `color-mix(in srgb, ${run.agent.color} 62%, var(--text-2))`,
-            } as React.CSSProperties
-          }
-        >
-          <Avatar
-            name={run.agent.name}
-            color={run.agent.color}
-            emoji={run.agent.emoji}
-            kind="agent"
-            size={16}
-          />
-          <span className={styles.runName}>{run.agent.name}</span>
-        </span>
-        {/* The line is cut to fit the card, so the whole of it is a hover away. */}
-        <span className={styles.runText} data-testid="card-run-step" title={line}>
-          {line}
-        </span>
-        <span
-          className={`${styles.runTime} ${clock.stale ? styles.runTimeStale : ""}`}
-          data-testid="card-run-time"
-        >
-          {clock.text}
-        </span>
-      </div>
+      <RunRow run={run} clock={clock} line={overlay ? "Drop to take over" : undefined} />
       <span className={styles.runScan} aria-hidden>
-        <span
-          className={`${styles.runScanFill} ${runIsStill(run, now) ? styles.runScanPaused : ""}`}
-        />
+        <span className={`${styles.runScanFill} ${still ? styles.runScanPaused : ""}`} />
       </span>
     </div>
   );

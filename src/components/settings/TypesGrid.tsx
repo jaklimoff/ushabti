@@ -66,25 +66,10 @@ export function TypesGrid({ type, canEdit }: { type: PropertyDTO; canEdit: boole
   return (
     <RolePanel
       label="The types"
-      head={
-        canEdit ? (
-          <Checkbox
-            role="switch"
-            label="Each option is a type"
-            checked
-            disabled={sending}
-            onChange={() => void turnOff()}
-          />
-        ) : (
-          <span>Each option of {type.name} is a type.</span>
-        )
-      }
-      said={
-        <>
-          A task shows the properties its type ticks.
-          {canEdit && " Unticking takes values away. You are asked first, with the count."}
-        </>
-      }
+      head={`Each option of ${type.name} is a type.`}
+      onOff={canEdit ? () => void turnOff() : undefined}
+      offBusy={sending}
+      said="A task shows the properties its type ticks."
     >
       {type.options.length > 0 && rows.length > 0 && (
         <div className={styles.typeGridScroll} data-testid="types-grid">

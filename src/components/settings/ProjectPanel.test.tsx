@@ -198,6 +198,65 @@ describe("Settings", () => {
     await expect.element(page.getByText(/1 task is called .*today/)).toBeVisible();
   });
 
+  test("a blur that would rename the tasks asks first, and Put it back sends nothing", async () => {
+    const data = newProject();
+    withTask(data, "Named after the key", { Status: "Todo" });
+    withTask(data, "Also named after it", { Status: "Todo" });
+    const { sent } = await renderWithBoard(
+      <ProjectPanel files={false} />,
+      data,
+      projectRoute(data),
+    );
+    const box = page.getByLabelText("Project key", { exact: true });
+
+    await box.fill("ZZZ");
+    await expect
+      .element(page.getByText(/Leaving this box asks before it renames them/))
+      .toBeVisible();
+    (box.element() as HTMLInputElement).blur();
+    await expect
+      .element(page.getByRole("alertdialog"))
+      .toHaveAccessibleName(
+        `Rename 2 tasks from ${data.project.key}- to ZZZ-? Links and agent instructions that use the old key stop working.`,
+      );
+    // The question came from a blur, so the focus waits on the way back.
+    await expect.element(page.getByRole("button", { name: "Put it back" })).toHaveFocus();
+    expect(sent("PATCH", PROJECT)).toEqual([]);
+
+    await page.getByRole("button", { name: "Put it back" }).click();
+    await expect
+      .element(page.getByLabelText("Project key", { exact: true }))
+      .toHaveValue(data.project.key);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sent("PATCH", PROJECT)).toEqual([]);
+  });
+
+  test("Yes, rename sends the new key", async () => {
+    const data = newProject();
+    withTask(data, "Named after the key", { Status: "Todo" });
+    const { sent } = await renderWithBoard(
+      <ProjectPanel files={false} />,
+      data,
+      projectRoute(data),
+    );
+    const box = page.getByLabelText("Project key", { exact: true });
+    await box.fill("ZZZ");
+    (box.element() as HTMLInputElement).blur();
+    await page.getByRole("button", { name: "Yes, rename" }).click();
+    await wrote(() => sent("PATCH", PROJECT), 1);
+    expect(sent("PATCH", PROJECT)[0].body).toEqual({ key: "ZZZ" });
+  });
+
+  test("a project with no tasks takes a new key on the blur", async () => {
+    const { patches } = await draw();
+    const box = page.getByLabelText("Project key", { exact: true });
+    await box.fill("ZZZ");
+    (box.element() as HTMLInputElement).blur();
+    await wrote(patches, 1);
+    expect(patches()[0].body).toEqual({ key: "ZZZ" });
+    expect(page.getByRole("alertdialog").elements()).toHaveLength(0);
+  });
+
   test("the project delete asks for the key", async () => {
     const data = newProject();
     const { sent } = await renderWithBoard(<ProjectPanel files={false} />, data);
@@ -249,6 +308,20 @@ describe("An edit the tab was closed on", () => {
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
     await wrote(patches, 1);
     expect(patches()[0].body).toEqual({ timeZone: "Asia/Kolkata" });
+  });
+
+  test("a tab closed on a new key renames nothing", async () => {
+    const data = newProject();
+    withTask(data, "Named after the key", { Status: "Todo" });
+    const { sent } = await renderWithBoard(
+      <ProjectPanel files={false} />,
+      data,
+      projectRoute(data),
+    );
+    await page.getByLabelText("Project key", { exact: true }).fill("ZZZ");
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(sent("PATCH")).toEqual([]);
   });
 
   /*

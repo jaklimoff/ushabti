@@ -39,7 +39,7 @@ test.describe("Settings pages", () => {
     await expect(page.getByLabel("Agent rules", { exact: true })).toHaveCount(0);
     // Sprints are switched on their property now, on Properties.
     await expect(page.getByRole("heading", { name: "Work", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("switch", { name: /sprints/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Turn off the sprints/ })).toHaveCount(0);
     await expect(page.getByLabel("Sprint length in days")).toHaveCount(0);
     await expect(page.getByLabel("First day of the first sprint")).toHaveCount(0);
 
@@ -131,7 +131,7 @@ test.describe("Settings pages", () => {
     /* Off is on the property that is the releases, and it asks first. */
     const releases = page.getByRole("group", { name: "The releases" });
     await expect(page.getByText("Ship and the changelog read it.")).toBeVisible();
-    await releases.getByRole("switch", { name: "Release is the releases" }).click();
+    await releases.getByRole("button", { name: "Turn off the releases" }).click();
     const question = page.getByRole("alertdialog");
     await expect(question).toHaveAttribute("aria-label", /^Turn releases off\? Nothing is deleted/);
     await page.screenshot({ path: testInfo.outputPath("seen-releases-off.png"), fullPage: true });
@@ -165,7 +165,7 @@ test.describe("Settings pages", () => {
     await page.screenshot({ path: testInfo.outputPath("seen-sprints-panel.png") });
 
     /* Off asks first, and yes clears the pointer and nothing else. */
-    await sprints.getByRole("switch", { name: "Sprint is the sprints" }).click();
+    await sprints.getByRole("button", { name: "Turn off the sprints" }).click();
     const sprintsOff = page.getByRole("alertdialog");
     await expect(sprintsOff).toHaveAttribute(
       "aria-label",

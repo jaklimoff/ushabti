@@ -168,6 +168,7 @@ describe("The drawer on a phone", () => {
       title: archived.title,
       position: archived.position,
       archivedAt: new Date(Date.now() - 60_000).toISOString(),
+      shippedIn: null,
     });
     const now = Date.now();
     const deleted: DeletedTaskDTO[] = [

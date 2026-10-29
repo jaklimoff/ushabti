@@ -321,6 +321,7 @@ export function RoadmapCanvas({
   }
 
   const word = nounOf(groupProperty.name);
+  const shippedCount = drawn.filter((r) => r.shippedAt).length;
   /* The days on screen, for the chips that point at a bar off it. */
   const lastDay = room === null ? Infinity : leftDay + room / day;
 
@@ -482,7 +483,7 @@ export function RoadmapCanvas({
             data-testid="roadmap-today"
           />
 
-          {drawn.map((drawnRow) => {
+          {drawn.map((drawnRow, i) => {
             /* A moved end is drawn where it will land: the bar, its date and
                its words all read the day it is held at. */
             const held = moving?.id === drawnRow.id ? moving : null;
@@ -556,6 +557,13 @@ export function RoadmapCanvas({
             const ship = row.shippedAt ? null : offerShip(row);
             return (
               <Fragment key={row.id}>
+                {/* `roadmapRows` keeps the shipped rows below the open ones,
+                    which breaks the run of dates; the label says why. */}
+                {row.shippedAt && !drawn[i - 1]?.shippedAt && (
+                  <div className={styles.roadmapDivider} data-testid="roadmap-shipped">
+                    <span className={styles.roadmapDividerName}>Shipped · {shippedCount}</span>
+                  </div>
+                )}
                 <div
                   className={[
                     styles.roadmapRow,

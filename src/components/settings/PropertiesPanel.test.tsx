@@ -923,13 +923,14 @@ describe("The Done when panel", () => {
       return undefined;
     };
 
-  test("the property that says done carries a switch, the done options and Progress by", async () => {
+  test("the property that says done carries Turn off, the done options and Progress by", async () => {
     const data = doneBoard();
     await renderWithBoard(<PropertiesPanel />, data, keeps(data));
     await expect.element(panel()).toBeVisible();
+    await expect.element(panel().getByText("Status says when a task is done.")).toBeVisible();
     await expect
-      .element(panel().getByRole("switch", { name: "Status says when a task is done" }))
-      .toBeChecked();
+      .element(panel().getByRole("button", { name: "Turn off Done when" }))
+      .toHaveTextContent("Turn off");
     await expect.element(pill("Done")).toHaveAttribute("aria-pressed", "true");
     await expect.element(pill("Won't do")).toHaveAttribute("aria-pressed", "false");
     await expect
@@ -972,10 +973,10 @@ describe("The Done when panel", () => {
     expect(tiles()[1]).toBe("Done when Not set Only archived tasks are done. Pick ▾");
   });
 
-  test("the switch off saves no Done when, and the tile reads Not set", async () => {
+  test("Turn off saves no Done when, and the tile reads Not set", async () => {
     const data = doneBoard();
     const { sent } = await renderWithBoard(<PropertiesPanel />, data, keeps(data));
-    await panel().getByRole("switch", { name: "Status says when a task is done" }).click();
+    await panel().getByRole("button", { name: "Turn off Done when" }).click();
     await expect.poll(() => sent("PATCH", PROJECT).length).toBe(1);
     expect(sent("PATCH", PROJECT)[0].body).toEqual({ doneWhen: null });
     await gone(byTestId("role-panel"));
@@ -993,12 +994,16 @@ describe("The Done when panel", () => {
     await expect.element(box).toHaveTextContent("Points");
   });
 
-  test("a member reads the panel with no switch, and cannot change it", async () => {
+  test("a member reads the panel with no Turn off, and cannot change it", async () => {
     const data = doneBoard();
     data.project.role = "member";
     const { sent } = await renderWithBoard(<PropertiesPanel />, data, keeps(data));
     await expect.element(panel()).toBeVisible();
-    expect(panel().getByRole("switch").elements()).toHaveLength(0);
+    expect(
+      panel()
+        .getByRole("button", { name: /^Turn off/ })
+        .elements(),
+    ).toHaveLength(0);
     for (const name of ["Done", "Won't do"]) await expect.element(pill(name)).toBeDisabled();
     await expect.element(pill("Done")).toHaveAttribute("aria-pressed", "true");
     const box = panel().getByLabelText("Progress by", { exact: true });

@@ -581,17 +581,9 @@ function DonePanel({ property, canEdit }: { property: PropertyDTO; canEdit: bool
   return (
     <RolePanel
       label="Done when"
-      head={
-        canEdit && (
-          <Checkbox
-            role="switch"
-            label={`${property.name} says when a task is done`}
-            checked
-            disabled={saving || sending !== null}
-            onChange={() => void turnOff()}
-          />
-        )
-      }
+      head={`${property.name} says when a task is done.`}
+      onOff={canEdit ? () => void turnOff() : undefined}
+      offBusy={saving || sending !== null}
       said="A done task frees what it blocks, fills progress and ships."
     >
       <RoleRow label="Counts as done">
@@ -674,19 +666,9 @@ function ReleasesPanel({ property, canEdit }: { property: PropertyDTO; canEdit: 
   return (
     <RolePanel
       label="The releases"
-      head={
-        canEdit ? (
-          <Checkbox
-            role="switch"
-            label={`${property.name} is the releases`}
-            checked
-            disabled={sending}
-            onChange={() => off.ask()}
-          />
-        ) : (
-          <span>{property.name} is the releases.</span>
-        )
-      }
+      head={`${property.name} is the releases.`}
+      onOff={canEdit ? off.ask : undefined}
+      offBusy={sending}
       said="Ship and the changelog read it."
     />
   );
@@ -727,19 +709,9 @@ function SprintsPanel({ property, canEdit }: { property: PropertyDTO; canEdit: b
   return (
     <RolePanel
       label="The sprints"
-      head={
-        canEdit ? (
-          <Checkbox
-            role="switch"
-            label={`${property.name} is the sprints`}
-            checked
-            disabled={sending}
-            onChange={() => off.ask()}
-          />
-        ) : (
-          <span>{property.name} is the sprints.</span>
-        )
-      }
+      head={`${property.name} is the sprints.`}
+      onOff={canEdit ? off.ask : undefined}
+      offBusy={sending}
       said="Close makes the next one."
     >
       <RoleRow label="Cadence">

@@ -151,7 +151,7 @@ export function linking(data: BoardData) {
       task.archivedAt = archivedAt;
       server.tasks = server.tasks.filter((t) => t.id !== task.id);
       const { id, number, key, title, position } = task;
-      server.archived.push({ id, number, key, title, position, archivedAt });
+      server.archived.push({ id, number, key, title, position, archivedAt, shippedIn: null });
       return { body: { ok: true } };
     }
 
