@@ -289,25 +289,14 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
           </div>
         )}
 
-        {/* A roadmap says what it needs in its own blank. */}
-        {data.tasks.length === 0 && view?.kind !== "roadmap" && (
+        {/* A roadmap says what it needs in its own blank, and a list under
+            its own way in. */}
+        {data.tasks.length === 0 && view?.kind !== "roadmap" && view?.kind !== "list" && (
           <div className={styles.firstHint}>
             <div className={styles.firstHintInner}>
-              {view?.kind === "list" ? (
-                <>
-                  The columns of a list are what a card carries, which you arrange in{" "}
-                  <Link href={`/p/${data.project.id}/settings/views`}>Views</Link>. Every field on a
-                  task is a property of yours — Status, Priority, Assignee and the rest — so you can
-                  rename or delete any of them.
-                </>
-              ) : (
-                <>
-                  The columns come from a property called <b>{groupProperty?.name ?? "Status"}</b>.
-                  So do Priority, Assignee and the rest — every field on a task is yours to rename
-                  or delete in{" "}
-                  <Link href={`/p/${data.project.id}/settings/properties`}>Settings</Link>.
-                </>
-              )}
+              The columns come from a property called <b>{groupProperty?.name ?? "Status"}</b>. So
+              do Priority, Assignee and the rest — every field on a task is yours to rename or
+              delete in <Link href={`/p/${data.project.id}/settings/properties`}>Settings</Link>.
             </div>
           </div>
         )}

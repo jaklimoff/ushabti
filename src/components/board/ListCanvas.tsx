@@ -21,9 +21,10 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
-import { listColumns, listTemplate } from "@/lib/list-view";
+import { listColumns, listTemplate, sortArrow } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
 import { startsWith } from "@/lib/when";
 import { canSort, pressSort, sortTasks, sortWayInline } from "@/lib/sort";
@@ -31,7 +32,7 @@ import type { TaskDTO } from "@/lib/types";
 import { useCursorBack, useShortcut } from "./keys";
 import { Composer } from "./Column";
 import { useBoard } from "./store";
-import { TaskRow, pinProps } from "./TaskRow";
+import { TaskRow, capOf, pinProps } from "./TaskRow";
 import styles from "./board.module.css";
 
 const dropAnimation: DropAnimation = {
@@ -57,27 +58,36 @@ function rowIdOf(target: EventTarget | null): string | null {
 }
 
 /*
- * Whether anything has slid under the head or under the held cells. Written
- * straight onto the scroller, because a scroll event re-rendering forty rows
- * to move one shadow would be the slowest way to draw a hairline.
+ * Whether anything has slid under the head or under the held cells, and
+ * whether the table goes on past the right edge. Written straight onto the
+ * elements, because a scroll event re-rendering forty rows to move one shadow
+ * would be the slowest way to draw a hairline.
  */
 function markScrolled(el: HTMLElement) {
   el.toggleAttribute("data-scrolled", el.scrollTop > 0);
   el.toggleAttribute("data-scrolled-x", el.scrollLeft > 0);
+  /* A scrollbar that only shows while it is touched says nothing, so the edge
+     of a table that goes on fades instead. It sits on the frame, which does
+     not scroll, so the fade stays at the edge of the window. */
+  el.parentElement?.toggleAttribute(
+    "data-more-x",
+    el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
+  );
 }
 
 /** Which way a heading orders: both ways while it only offers, one once it does. */
 const ARROW = {
   none: "M3 4l2-2 2 2M3 6l2 2 2-2",
-  asc: "M5 8.5V1.5M2.5 4L5 1.5 7.5 4",
-  desc: "M5 1.5v7M2.5 6L5 8.5 7.5 6",
+  up: "M5 8.5V1.5M2.5 4L5 1.5 7.5 4",
+  down: "M5 1.5v7M2.5 6L5 8.5 7.5 6",
 };
 
-function SortArrow({ way }: { way: "asc" | "desc" | null }) {
+/** The arrow follows the words beside it; see `sortArrow`. */
+function SortArrow({ way }: { way: keyof typeof ARROW }) {
   return (
     <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden focusable="false">
       <path
-        d={ARROW[way ?? "none"]}
+        d={ARROW[way]}
         fill="none"
         stroke="currentColor"
         strokeWidth="1.2"
@@ -88,11 +98,22 @@ function SortArrow({ way }: { way: "asc" | "desc" | null }) {
   );
 }
 
+/*
+ * Brings a row into view up and down, and never sideways. The key and the
+ * title are held in place, so a row is always named wherever the table sits;
+ * a sideways jump only hid the first property under the title.
+ */
+function showRow(root: HTMLElement | null, row: HTMLElement) {
+  const left = root?.scrollLeft ?? 0;
+  row.scrollIntoView({ block: "nearest" });
+  if (root) root.scrollLeft = left;
+}
+
 function focusRow(root: HTMLElement | null, taskId: string) {
   const row = root?.querySelector<HTMLElement>(`[data-task-id="${taskId}"]`);
   if (!row) return;
   row.focus({ preventScroll: true });
-  row.scrollIntoView({ block: "nearest", inline: "nearest" });
+  showRow(root, row);
 }
 
 /**
@@ -135,6 +156,14 @@ export function ListCanvas({
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  /* Where the table sat sideways before the last scroll, so a focus that
+     scrolled it can be put back. The scroll event comes a frame after the
+     focus, so this still holds the old place when the focus arrives. */
+  const restingLeft = useRef(0);
+  /* The lifted row is drawn outside the grid, so it is handed the columns as
+     they stand in pixels. */
+  const [liftedCols, setLiftedCols] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // A list has one composer, at the end, so `n` has one place to open it.
@@ -223,10 +252,22 @@ export function ListCanvas({
   useEffect(() => {
     if (!selectedTaskId || scrolledTo.current === selectedTaskId) return;
     scrolledTo.current = selectedTaskId;
-    scrollRef.current
-      ?.querySelector<HTMLElement>(`[data-task-id="${selectedTaskId}"]`)
-      ?.scrollIntoView({ block: "nearest" });
+    const row = scrollRef.current?.querySelector<HTMLElement>(`[data-task-id="${selectedTaskId}"]`);
+    if (row) showRow(scrollRef.current, row);
   }, [selectedTaskId]);
+
+  /* The edges are read again whenever the table or its window changes size,
+     not only on a scroll: a list that opens wider than its window has to say
+     so before anybody touches it. */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    markScrolled(el);
+    const observer = new ResizeObserver(() => markScrolled(el));
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
 
   /*
    * A list has no columns, so nothing else decides the grouping property and
@@ -244,6 +285,8 @@ export function ListCanvas({
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;
 
   function onDragStart(event: DragStartEvent) {
+    /* A grid's computed template is its tracks as laid out, in pixels. */
+    setLiftedCols(gridRef.current ? getComputedStyle(gridRef.current).gridTemplateColumns : null);
     setPreview([...base]);
     setActiveTaskId(String(event.active.id));
   }
@@ -327,10 +370,16 @@ export function ListCanvas({
   });
 
   /* Focus and the cursor are the same thing, so a click or a Tab onto a row
-     moves the cursor with it. */
+     moves the cursor with it. The browser scrolls a focused row into view
+     sideways too, and the first Tab slid Priority under the title; the held
+     key and title already name the row, so the table is put back where it
+     was. */
   function onRowFocus(event: React.FocusEvent<HTMLDivElement>) {
     const id = rowIdOf(event.target);
-    if (id) setCursor(id);
+    if (!id) return;
+    setCursor(id);
+    const el = event.currentTarget;
+    if (el.scrollLeft !== restingLeft.current) el.scrollLeft = restingLeft.current;
   }
 
   function onRowKeys(event: React.KeyboardEvent<HTMLDivElement>) {
@@ -382,10 +431,13 @@ export function ListCanvas({
           ref={scrollRef}
           onFocus={onRowFocus}
           onKeyDown={onRowKeys}
-          onScroll={(event) => markScrolled(event.currentTarget)}
+          onScroll={(event) => {
+            restingLeft.current = event.currentTarget.scrollLeft;
+            markScrolled(event.currentTarget);
+          }}
           style={{ "--list-cols": template } as React.CSSProperties}
         >
-          <div className={styles.listGrid}>
+          <div className={styles.listGrid} ref={gridRef}>
             {/* A heading that can order the list is a button. The order is
                 mine and writes no rank, so the rank everybody shares is still
                 the one the boards draw; see `pressSort`. A list has no Sort
@@ -419,9 +471,11 @@ export function ListCanvas({
                   .filter(Boolean)
                   .join(" ");
 
+                const style = { ...held.style, ...capOf(column) };
+
                 if (!canSort(column.item)) {
                   return (
-                    <span key={column.id} style={held.style} className={className}>
+                    <span key={column.id} style={style} className={className}>
                       {column.name}
                     </span>
                   );
@@ -431,7 +485,7 @@ export function ListCanvas({
                   <button
                     key={column.id}
                     type="button"
-                    style={held.style}
+                    style={style}
                     className={className}
                     data-testid="list-head-cell"
                     /* `aria-sort` belongs to a columnheader, and nothing here
@@ -454,7 +508,7 @@ export function ListCanvas({
                       className={`${styles.listHeadArrow} ${on ? "" : styles.listHeadHint}`}
                       aria-hidden
                     >
-                      <SortArrow way={on} />
+                      <SortArrow way={on ? sortArrow(column.item, on) : "none"} />
                     </span>
                   </button>
                 );
@@ -512,13 +566,25 @@ export function ListCanvas({
                 </span>
               </button>
             )}
+
+            {/* The first list a person sees is a row of headings over nothing.
+                The words that explain it sit under the way in, where the eye
+                already is, and not at the foot of the window. */}
+            {data.tasks.length === 0 && (
+              <p className={styles.listFirst} data-testid="list-first">
+                The columns of a list are what a card carries, which you arrange in{" "}
+                <Link href={`/p/${data.project.id}/settings/views`}>Views</Link>. Every field on a
+                task is a property of yours — Status, Priority, Assignee and the rest — so you can
+                rename or delete any of them.
+              </p>
+            )}
           </div>
         </div>
       </div>
 
       <DragOverlay dropAnimation={dropAnimation} zIndex={300}>
         {activeTask && (
-          <div style={{ ["--list-cols" as string]: template }}>
+          <div style={{ ["--list-cols" as string]: liftedCols ?? template }}>
             <TaskRow task={activeTask} columns={columns} overlay />
           </div>
         )}

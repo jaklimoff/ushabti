@@ -1,5 +1,5 @@
 import type { CardItem } from "./card-view";
-import type { CardBuiltin, PropertyType } from "./types";
+import type { CardBuiltin, CardKind, PropertyType, SortDirection } from "./types";
 
 /**
  * What a list carries, and how wide.
@@ -15,7 +15,11 @@ export type ListColumn = {
   id: string;
   name: string;
   item: CardItem;
-  /** Pixels. The title alone is flexible and carries 0. */
+  /**
+   * The most room the column takes, in pixels. A column is as wide as its
+   * widest value or its heading, whichever is wider, up to this. The title
+   * alone is flexible and carries 0.
+   */
   width: number;
   /** A number reads from the right, so its column does too. */
   right: boolean;
@@ -32,18 +36,19 @@ export type ListColumn = {
 export const TITLE_MIN_WIDTH = 200;
 
 /**
- * How wide the title is allowed to grow. Without a ceiling it takes every
- * pixel the window has spare and pushes the properties into a huddle at the
- * far right, which is the one thing a person came to a list to compare.
+ * How wide the title is allowed to grow. Without a ceiling one long title
+ * would push every property off the window, which is the one thing a person
+ * came to a list to compare.
  */
 export const TITLE_MAX_WIDTH = 520;
 
 /**
  * How much of a narrow window the title may hold before it gives way. The key
  * and the title are both held in place, and on a phone a 200 px title left
- * room for one property at a time.
+ * room for one property at a time. A variable, so a touch screen can give the
+ * title more of a phone without a second template.
  */
-export const TITLE_MIN_SHARE = "40vw";
+export const TITLE_MIN_SHARE = "var(--list-title-share, 40vw)";
 
 /**
  * The narrowest a column may be. A cell can afford to be small — a comment
@@ -56,10 +61,11 @@ const HEADING_WIDTH = 80;
 const LIST_GAP = 8;
 
 /**
- * How much room a value needs. This keys off the property type and not off the
- * card kind, because width is about the shape of the content rather than how
- * it reads: a number is short where the text beside it is long, and the two
- * share a kind.
+ * The most room a value may take. A column shrinks to what it holds, so this
+ * is a ceiling and not a size: Estimate holding "S" is as wide as its heading.
+ * It keys off the property type and not off the card kind, because it is about
+ * the shape of the content rather than how it reads: a number is short where
+ * the text beside it is long, and the two share a kind.
  */
 const WIDTH_OF_TYPE: Record<PropertyType, number> = {
   select: 112,
@@ -76,7 +82,9 @@ const WIDTH_OF_TYPE: Record<PropertyType, number> = {
 const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
   /* The gutter comes out of the first column, and the key is nearly always
      it. So the key carries the room the gutter takes, and its heading still
-     has the same space to name itself in. */
+     has the same space to name itself in. It is the one column with a fixed
+     width, because the title is held in place just after it and has to know
+     where that is. */
   _key: 100,
   _title: 0,
   _desc: 0,
@@ -164,18 +172,57 @@ export function listColumns(items: CardItem[]): ListColumn[] {
 
 /**
  * The one grid template the header and every row share. Written once onto the
- * scroller as a custom property, so a column and its heading cannot drift.
+ * grid, and the header and the rows are subgrids of it, so a column and its
+ * heading cannot drift.
  *
- * It ends in a track nothing is drawn in. Every column has a width of its own,
- * so something has to take up the slack on a wide window, and a table takes it
- * at the end — the alternative is the title growing to half the screen and the
- * properties huddling at the far right.
+ * A column is as wide as what it holds, up to its width: a column sized by its
+ * type gave "S" the room of "Second Person", and the title, which is what
+ * people read a list for, paid for it. The title too is as wide as the
+ * longest one, up to `TITLE_MAX_WIDTH`, so the properties sit beside the
+ * names and not across a gap. When the window is short of room the title is
+ * the one track that gives, down to its floor. The key keeps a fixed width,
+ * because the title is held in place just after it.
+ *
+ * It ends in a track nothing is drawn in. Something has to take up the slack
+ * on a wide window, and a table takes it at the end — the alternative is the
+ * title growing to half the screen and the properties huddling at the far
+ * right.
  */
 export function listTemplate(columns: ListColumn[]): string {
   const tracks = columns.map((c) =>
     c.width === 0
-      ? `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), ${TITLE_MAX_WIDTH}px)`
-      : `${c.width}px`,
+      ? `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), max-content)`
+      : c.pin !== null
+        ? `${c.width}px`
+        : `fit-content(${c.width}px)`,
   );
   return [...tracks, "1fr"].join(" ");
+}
+
+/**
+ * The most room one cell of a column may take, or null for the key, whose
+ * track is fixed. The grid sizes a column to its widest cell, and a cell is
+ * never squeezed below what it holds, so the ceiling has to be on every cell:
+ * on the track alone, one long value would widen the column past it. The
+ * title's is `TITLE_MAX_WIDTH`, because its track is as wide as the longest
+ * title and a long one must not push the properties off the window.
+ */
+export function cellCap(column: ListColumn): number | null {
+  if (column.width === 0) return TITLE_MAX_WIDTH;
+  return column.pin === null ? column.width : null;
+}
+
+/**
+ * Which way a heading's arrow points: up when the small end comes first, down
+ * when the big end does. It follows what the words say, not the bare
+ * direction. A select's own order puts its top option first, Urgent before
+ * Low, which is the big end; so is a ticked box. Read off `asc` alone,
+ * "Reverse order" drew Low at the top under an arrow people read as "highest
+ * first".
+ */
+const BIG_END_FIRST: ReadonlySet<CardKind> = new Set(["select", "flag"]);
+
+export function sortArrow(item: CardItem, direction: SortDirection): "up" | "down" {
+  const ascending = direction === "asc";
+  return BIG_END_FIRST.has(item.kind) === ascending ? "down" : "up";
 }

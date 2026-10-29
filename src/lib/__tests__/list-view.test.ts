@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
 import {
+  cellCap,
   listColumns,
   listTemplate,
+  sortArrow,
   TITLE_MAX_WIDTH,
   TITLE_MIN_SHARE,
   TITLE_MIN_WIDTH,
@@ -158,13 +160,38 @@ describe("the columns of a list", () => {
 });
 
 describe("the grid template", () => {
-  it("gives every column its width and the title the room between", () => {
+  it("makes the title as wide as the longest one, and the track that gives", () => {
     const columns = columnsOf(null);
     const template = listTemplate(columns);
     expect(template.startsWith(`${columns[0].width}px minmax(`)).toBe(true);
     expect(template).toContain(
-      `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), ${TITLE_MAX_WIDTH}px)`,
+      `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), max-content)`,
     );
+  });
+
+  it("caps every cell but the key's, the title's at its own ceiling", () => {
+    /* The track follows its widest cell, so the ceiling has to be on the cells. */
+    const columns = columnsOf(null);
+    const byId = (id: string) => columns.find((c) => c.id === id)!;
+    expect(cellCap(byId("_key"))).toBeNull();
+    expect(cellCap(byId("_title"))).toBe(TITLE_MAX_WIDTH);
+    expect(cellCap(byId("p-prio"))).toBe(byId("p-prio").width);
+  });
+
+  it("sizes a property to what it holds, never past its width", () => {
+    /* A column sized by its type gave "S" the room of "Second Person", and
+       the title paid for it. */
+    const columns = columnsOf(null);
+    const template = listTemplate(columns);
+    for (const column of columns.filter((c) => c.pin === null)) {
+      expect(template).toContain(`fit-content(${column.width}px)`);
+    }
+  });
+
+  it("keeps the key fixed, because the title is held just after it", () => {
+    const columns = columnsOf(null);
+    expect(listTemplate(columns).split(" ")[0]).toBe(`${columns[0].width}px`);
+    expect(columns[1].pin).toBe(columns[0].width + 8);
   });
 
   it("ends in a track nothing is drawn in, so the slack falls off the end", () => {
@@ -173,6 +200,22 @@ describe("the grid template", () => {
     const template = listTemplate(columnsOf(null));
     expect(template.endsWith(" 1fr")).toBe(true);
     expect(template.split(" ").filter((t) => t === "1fr")).toHaveLength(1);
+  });
+});
+
+describe("the sort arrow", () => {
+  const item = (id: string) => columnsOf(null).find((c) => c.id === id)!.item;
+
+  it("points up for the small end first, as the words say", () => {
+    expect(sortArrow(item("_title"), "asc")).toBe("up");
+    expect(sortArrow(item("_title"), "desc")).toBe("down");
+    expect(sortArrow(item("p-points"), "asc")).toBe("up");
+  });
+
+  it("points down for a select's own order, top option first", () => {
+    /* "Option order" puts Urgent first; "Reverse order" puts Low first. */
+    expect(sortArrow(item("p-prio"), "asc")).toBe("down");
+    expect(sortArrow(item("p-prio"), "desc")).toBe("up");
   });
 });
 
