@@ -81,13 +81,19 @@ export function Note({ children }: { children: React.ReactNode }) {
   return <span className={styles.note}>{children}</span>;
 }
 
+/**
+ * Nothing here yet, and what would fill it. `action` is the way forward, when
+ * the person reading can take it; it sits under the words, a step apart.
+ */
 export function EmptyState({
   title,
   children,
+  action,
   mark = "◆",
 }: {
   title: string;
   children?: React.ReactNode;
+  action?: React.ReactNode;
   mark?: string;
 }) {
   return (
@@ -97,6 +103,7 @@ export function EmptyState({
         {title}
       </span>
       {children && <span className={styles.emptyBody}>{children}</span>}
+      {action && <div className={styles.emptyAction}>{action}</div>}
     </div>
   );
 }

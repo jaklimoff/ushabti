@@ -737,6 +737,12 @@
   text-wrap: pretty;
 }
 
+.emptyAction {
+  margin-top: 5px;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
 /* ---- confirm in place ---------------------------------------------- */
 
 /*

@@ -15,6 +15,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- With releases off, the changelog says what it is for and how to turn them on. An owner or an admin gets **Turn on releases in Settings**, which opens Settings → Properties; a member reads that an admin turns them on.
 - A list view's card editor opens on the **List** shape, the columns the list draws, in Settings → Views and in the board's Card panel. A board view and the default card still open on **Card**, and the other shape is one press away.
 - A role in Settings — Done when, the releases, the sprints and the types — now says who plays it and ends that line with a **Turn off** word, in place of a box that was always ticked.
 - A task an agent is working on says so at the top of its panel: the card's own line, with who, what and how long. Pressing it opens the Agent tab and scrolls to it.
