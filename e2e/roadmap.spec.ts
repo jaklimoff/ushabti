@@ -81,9 +81,9 @@ test.describe("A roadmap", () => {
       await expect(rows).toHaveCount(3);
       await expect(rows.nth(0)).toContainText("Ghost");
       await expect(rows.nth(1)).toContainText("Beta");
-      await expect(rows.nth(1)).toContainText("0 of 0 tasks done");
+      await expect(rows.nth(1)).toContainText("No tasks yet");
       await expect(rows.nth(2)).toContainText("Alpha");
-      await expect(rows.nth(2)).toContainText("Shipped");
+      await expect(rows.nth(2)).toContainText("✓");
       await expect(page.getByTestId("roadmap-today")).toBeInViewport();
       await expect(page.getByTestId("roadmap-axis")).toContainText(
         /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+/,
@@ -144,7 +144,7 @@ test.describe("A roadmap on a laptop", () => {
     for (const bar of await bars.all()) await expect(bar).toBeInViewport({ ratio: 1 });
 
     const row = (name: string) => page.getByTestId("roadmap-row").filter({ hasText: name });
-    await expect(row("Old")).toContainText("· ended");
+    await expect(row("Old").getByTestId("roadmap-end")).toContainText("ended");
     await expect(row("Soon")).toContainText("· 4 days left");
     await expect(row("Later")).not.toContainText(/ended|left/);
     await expect(row("Old").getByTestId("roadmap-bar")).toHaveAttribute("aria-label", /ended/);

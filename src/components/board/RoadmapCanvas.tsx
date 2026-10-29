@@ -12,11 +12,12 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
-import { formatDate } from "@/lib/board";
+import { formatDate, shippedOn } from "@/lib/board";
 import { allowedColumns } from "@/lib/filters";
 import {
   dayNumber,
   daysIn,
+  daysLate,
   movedTarget,
   nextStart,
   readyToShip,
@@ -27,6 +28,7 @@ import {
   type RoadmapMonth,
   type RoadmapRow,
   type RoadmapState,
+  weekLines,
 } from "@/lib/roadmap";
 import { useBoard } from "./store";
 import { useAddOption } from "./useAddOption";
@@ -44,10 +46,11 @@ const MIN_DAY = 4;
 const MAX_DAY = 14;
 /* Before the screen is measured: the server, and the first frame. */
 const FIRST_DAY = 6;
-/* A count goes inside a bar only where it has room to be read. */
-const COUNT_ROOM = 72;
 /* One character of the 10.5px mono the dates are set in. */
 const MONO_CH = 6.4;
+/* Half of today's tag in the header, and a little air: a week label that
+   close to today would sit under it. */
+const TODAY_HALF = 28;
 
 /**
  * The rows a roadmap draws, through the view's filters. The canvas and the
@@ -102,13 +105,37 @@ function heldBy(row: RoadmapRow, by: number): number {
   return dayNumber(movedTarget(row, by)) - dayNumber(row.targetAt);
 }
 
-/** The last day of a bar, in words: the day it shipped, or its target. */
+/** The last day of a bar, in words: "✓ Oct 28" once it shipped, or its target. */
 export function endOf(row: RoadmapRow): string {
-  return row.shippedAt ? `Shipped ${formatDate(row.shippedAt)}` : formatDate(row.end);
+  return row.shippedAt ? shippedOn(row.shippedAt) : formatDate(row.end);
 }
 
-/** "1 task archived · 2 of 4 tasks done": what a row holds, in words. */
-export function countOf(row: RoadmapRow, unit: (total: number) => string): string {
+/* The same day for a screen reader, which reads a ✓ as "check mark". */
+function spokenEnd(row: RoadmapRow): string {
+  return row.shippedAt ? `shipped ${formatDate(row.shippedAt)}` : formatDate(row.end);
+}
+
+/* "12 days late": a shipped bar ends on its ship day, so the slip is said. */
+function lateWords(row: RoadmapRow): string {
+  const late = daysLate(row);
+  return late ? `${late} ${late === 1 ? "day" : "days"} late` : "";
+}
+
+/* "+6 days": how far a held end has moved from where it was. */
+function movedWords(by: number): string {
+  const sign = by > 0 ? "+" : "−";
+  return `${sign}${Math.abs(by)} ${Math.abs(by) === 1 ? "day" : "days"}`;
+}
+
+/**
+ * "1 task archived · 2 of 4 tasks done": what a row holds, in words. A count
+ * by a number property names it, as the column header does.
+ */
+export function countOf(row: RoadmapRow, countBy: { name: string } | null): string {
+  const unit = (total: number) => (countBy ? countBy.name : total === 1 ? "task" : "tasks");
+  /* "0 of 0 tasks done" reads as a fault, not as a release still empty. A
+     count of points can be 0 with tasks in it, so only tasks say so. */
+  if (!countBy && !row.total && !row.archived) return "No tasks yet";
   /* The archived ones are counted apart: a board carries no values for them,
      so no filter can reach them. */
   return [
@@ -293,7 +320,6 @@ export function RoadmapCanvas({
     );
   }
 
-  const unit = (total: number) => (countBy ? countBy.name : total === 1 ? "task" : "tasks");
   const word = nounOf(groupProperty.name);
   /* The days on screen, for the chips that point at a bar off it. */
   const lastDay = room === null ? Infinity : leftDay + room / day;
@@ -308,8 +334,22 @@ export function RoadmapCanvas({
     scroller.scrollTo({ left: Math.max(0, to), behavior: "smooth" });
   }
 
-  const today = at(data.today) + day / 2;
+  /* Whole pixels, so the 1px line never smears to grey. */
+  const today = Math.round(at(data.today) + day / 2);
   const monthLabels = labelMonths(months, day);
+  const monthXs = monthLabels.filter((m) => m.line).map((m) => m.left);
+  const lines = weekLines(axis, months);
+  /* A week says its day only where nothing covers it: today's tag, or a
+     month line running through the number. */
+  function weekLabel(i: number, week: string): string {
+    if (7 * day < 18) return "";
+    const text = String(Number(week.slice(8)));
+    const x = i * 7 * day;
+    const right = x + 5 + text.length * MONO_CH;
+    if (today + TODAY_HALF > x && today - TODAY_HALF < right) return "";
+    if (monthXs.some((m) => m > x + 1 && m < right + 4)) return "";
+    return text;
+  }
 
   /* Only somebody the option PATCH would answer may drag, and a shipped
      release keeps the day it shipped. */
@@ -394,15 +434,19 @@ export function RoadmapCanvas({
                 <span
                   key={m.key}
                   className={`${styles.roadmapMonth} ${m.line ? styles.roadmapMonthLine : ""}`}
-                  style={{ left: m.left, width: m.width }}
+                  style={{ left: Math.round(m.left), width: m.width }}
                 >
                   <span className={styles.roadmapMonthName}>{m.text}</span>
                 </span>
               ))}
               <div className={styles.roadmapWeeks} aria-hidden>
                 {axis.weeks.map((week, i) => (
-                  <span key={week} className={styles.roadmapWeek} style={{ left: i * 7 * day }}>
-                    {7 * day >= 18 ? Number(week.slice(8)) : ""}
+                  <span
+                    key={week}
+                    className={`${styles.roadmapWeek} ${lines[i] ? "" : styles.roadmapWeekBare}`}
+                    style={{ left: Math.round(i * 7 * day) }}
+                  >
+                    {weekLabel(i, week)}
                   </span>
                 ))}
               </div>
@@ -412,14 +456,31 @@ export function RoadmapCanvas({
             </div>
           </div>
 
-          {/* The month lines run down through every row, under the bars. */}
-          <div className={styles.roadmapMonthLines} aria-hidden>
-            {monthLabels
-              .filter((m) => m.line)
-              .map((m) => (
-                <span key={m.key} style={{ left: m.left }} />
-              ))}
+          {/* The weeks and the months run down to the bottom of the screen,
+              under the bars, so a short plan still reads as a timeline. */}
+          <div className={styles.roadmapLines} aria-hidden>
+            {axis.weeks.map((week, i) =>
+              i > 0 && lines[i] ? (
+                <span
+                  key={week}
+                  className={styles.roadmapWeekLine}
+                  style={{ left: Math.round(i * 7 * day) }}
+                />
+              ) : null,
+            )}
+            {monthXs.map((x) => (
+              <span key={x} className={styles.roadmapMonthRule} style={{ left: Math.round(x) }} />
+            ))}
           </div>
+
+          {/* Before the rows, so the words after a bar stand over it while
+              the bars stay under it. */}
+          <div
+            className={styles.roadmapToday}
+            style={{ "--rm-x": `${today}px` } as CSSProperties}
+            title={`Today, ${formatDate(data.today)}`}
+            data-testid="roadmap-today"
+          />
 
           {drawn.map((drawnRow) => {
             /* A moved end is drawn where it will land: the bar, its date and
@@ -431,19 +492,56 @@ export function RoadmapCanvas({
                   return { ...drawnRow, end, targetAt: end };
                 })()
               : drawnRow;
-            const said = countOf(row, unit);
+            const said = countOf(row, countBy);
             const left = at(row.start);
             const width = at(row.end) - left + day;
             const state = roadmapState(row, data.today);
             const ready = readyToShip(row, data.today);
-            const counted = !row.shippedAt && row.total > 0;
-            const inBar = counted && width >= COUNT_ROOM;
-            const count = `${row.done}/${row.total}`;
-            const end = [endOf(row), stateWords(state), counted && !inBar ? count : ""]
-              .filter(Boolean)
-              .join(" · ");
-            /* The words go after the bar, or before it where the axis ends. */
-            const before = left + width + 6 + end.length * MONO_CH > track;
+            const spoken = stateWords(state);
+            const late = lateWords(row);
+            /* What is said after the bar. The count is said once, in the name
+               cell, which stays on screen when the bar does not. */
+            const words: { text: string; className?: string; chip?: boolean }[] = [
+              {
+                text: endOf(row),
+                className: held
+                  ? styles.roadmapEndDate
+                  : row.shippedAt
+                    ? styles.roadmapEndShipped
+                    : undefined,
+              },
+            ];
+            if (held) {
+              if (held.by !== 0)
+                words.push({ text: movedWords(held.by), className: styles.roadmapEndMoved });
+              if (held.keys)
+                words.push({
+                  text: "Enter to save, Esc to undo",
+                  className: styles.roadmapEndHint,
+                });
+            } else if (late) {
+              words.push({ text: late });
+            } else if (state.kind === "ended") {
+              words.push({ text: spoken, className: styles.roadmapEndChip, chip: true });
+            } else if (spoken) {
+              words.push({ text: spoken });
+            }
+            const widthOf = (ws: typeof words) =>
+              ws.reduce(
+                (sum, w, i) =>
+                  sum + w.text.length * MONO_CH + (i ? 3 * MONO_CH : 0) + (w.chip ? 12 : 0),
+                0,
+              );
+            const fitsAfter = (ws: typeof words) => left + width + 6 + widthOf(ws) <= track;
+            const fitsBefore = (ws: typeof words) => left - 6 - widthOf(ws) >= 0;
+            /* The words go after the bar, or before it where the axis ends and
+               there is room. Where neither side has room, as on a phone, the
+               last words go first and the date stays: words that flipped
+               anyway slid under the names. The bar's label still says all. */
+            let shown = words;
+            while (shown.length > 1 && !fitsAfter(shown) && !fitsBefore(shown))
+              shown = shown.slice(0, -1);
+            const before = !fitsAfter(shown) && fitsBefore(shown);
             const startDay = daysIn(axis, row.start);
             const endDay = daysIn(axis, row.end) + 1;
             const off = !scrolls
@@ -456,7 +554,6 @@ export function RoadmapCanvas({
             /* A row has a target or it is not drawn, so only a shipped one
                offers nothing. */
             const ship = row.shippedAt ? null : offerShip(row);
-            const spoken = stateWords(state);
             return (
               <Fragment key={row.id}>
                 <div
@@ -465,6 +562,7 @@ export function RoadmapCanvas({
                     row.shippedAt ? styles.roadmapShipped : "",
                     state.kind === "ended" ? styles.roadmapEnded : "",
                     state.kind === "late" ? styles.roadmapLate : "",
+                    ready ? styles.roadmapReady : "",
                   ].join(" ")}
                   data-testid="roadmap-row"
                 >
@@ -489,13 +587,21 @@ export function RoadmapCanvas({
                     )}
                   </div>
                   <div className={styles.roadmapTrack}>
+                    {/* The day it was due, on a release that shipped after it. */}
+                    {late && (
+                      <span
+                        className={styles.roadmapTarget}
+                        style={{ left: Math.round(at(row.targetAt) + day) }}
+                        aria-hidden
+                      />
+                    )}
                     <button
                       type="button"
                       className={styles.roadmapBar}
                       style={{ left, width, "--c": row.color } as CSSProperties}
-                      aria-label={`${row.name}: ${formatDate(row.start)} to ${endOf(row)}${
+                      aria-label={`${row.name}: ${formatDate(row.start)} to ${spokenEnd(row)}${
                         spoken ? `, ${spoken}` : ""
-                      }, ${said}`}
+                      }${late ? `, ${late}` : ""}, ${said}`}
                       title={`${formatDate(row.start)} – ${endOf(row)}`}
                       aria-expanded={openOptionId === row.id}
                       data-testid="roadmap-bar"
@@ -512,16 +618,25 @@ export function RoadmapCanvas({
                         className={styles.roadmapFill}
                         style={{ width: `${row.share * 100}%` }}
                       />
-                      {inBar && (
-                        <span className={styles.roadmapBarCount} aria-hidden>
-                          {count}
-                        </span>
+                      {late && (
+                        <span
+                          className={styles.roadmapSlip}
+                          style={{ left: at(row.targetAt) + day - left }}
+                        />
                       )}
                     </button>
+                    {/* Where a held end was, so the move reads against it. */}
+                    {held && held.by !== 0 && (
+                      <span
+                        className={styles.roadmapWas}
+                        style={{ left: Math.round(at(drawnRow.end) + day) }}
+                        aria-hidden
+                      />
+                    )}
                     {movable(row) && (
                       <span
                         className={styles.roadmapGrip}
-                        style={{ left: left + width - 5 }}
+                        style={{ left: left + width - 7 }}
                         title="Drag to move the target date"
                         aria-hidden
                         data-testid="roadmap-grip"
@@ -543,10 +658,15 @@ export function RoadmapCanvas({
                       <span
                         data-testid="roadmap-end"
                         data-held={held ? "" : undefined}
-                        className={`${styles.roadmapEnd} ${held ? styles.roadmapEndHeld : ""}`}
+                        className={styles.roadmapEnd}
                         style={before ? { right: track - left + 6 } : { left: left + width + 6 }}
                       >
-                        {end}
+                        {shown.map((w, i) => (
+                          <Fragment key={i}>
+                            {i > 0 && (w.chip ? " " : <span aria-hidden> · </span>)}
+                            <span className={w.className}>{w.text}</span>
+                          </Fragment>
+                        ))}
                       </span>
                     )}
                     {off && (
@@ -614,24 +734,32 @@ export function RoadmapCanvas({
           )}
 
           {/* A sprint comes from the cadence, so a sprint roadmap offers none. */}
-          {groupProperty.type === "select" && (
-            <AddRelease key={view?.id} word={word} first={rows.length === 0} onDraft={setDraft} />
+          {groupProperty.type === "select" ? (
+            <AddRelease
+              key={view?.id}
+              word={word}
+              first={rows.length === 0}
+              undated={groupProperty.options.length > 0}
+              settings={settings}
+              range={preview ? `${formatDate(preview.start)} – ${formatDate(preview.end)}` : null}
+              onDraft={setDraft}
+            />
+          ) : (
+            rows.length === 0 && (
+              <div className={styles.roadmapFirst}>
+                <p className={styles.roadmapFirstLead}>No {word} has dates yet.</p>
+                <p className={styles.roadmapFirstSaid}>
+                  Give one a start and a target in <Link href={settings}>Settings</Link>.
+                </p>
+              </div>
+            )
           )}
 
-          <div
-            className={styles.roadmapToday}
-            style={{ "--rm-x": `${today}px` } as CSSProperties}
-            title={`Today, ${formatDate(data.today)}`}
-            data-testid="roadmap-today"
-          />
-        </div>
-
-        {rows.length === 0 && groupProperty.options.length > 0 && (
-          <div className={styles.roadmapBlank}>
-            Or give an option of {groupProperty.name} a target date in{" "}
-            <Link href={settings}>Settings</Link>.
+          {/* The names column runs to the bottom with the lines beside it. */}
+          <div className={styles.roadmapRest} aria-hidden>
+            <div className={styles.roadmapName} />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -646,10 +774,18 @@ export function RoadmapCanvas({
 function AddRelease({
   word,
   first,
+  undated,
+  settings,
+  range,
   onDraft,
 }: {
   word: string;
   first: boolean;
+  /** Options exist, and none has a target: Settings can date one instead. */
+  undated: boolean;
+  settings: string;
+  /** "Nov 21 – Dec 18": the days the release will take, once a target is picked. */
+  range: string | null;
   onDraft: (draft: { name: string; target: string } | null) => void;
 }) {
   const add = useAddOption();
@@ -709,47 +845,38 @@ function AddRelease({
     }
   };
 
-  if (!open) {
-    return (
-      <div className={styles.roadmapAddRow} data-testid="roadmap-add">
-        <div className={styles.roadmapAddStrip}>
-          <button
-            type="button"
-            className={styles.roadmapAddButton}
-            onClick={() => {
-              opened.current = true;
-              setOpen(true);
-            }}
-          >
-            <span aria-hidden className={styles.roadmapAddPlus}>
-              +
-            </span>
-            New {word}
-          </button>
-          {first && <span className={styles.roadmapAddLead}>No {word} yet</span>}
-        </div>
-      </div>
-    );
-  }
+  const newButton = (
+    <button
+      type="button"
+      className={styles.roadmapAddButton}
+      onClick={() => {
+        opened.current = true;
+        setOpen(true);
+      }}
+    >
+      <span aria-hidden className={styles.roadmapAddPlus}>
+        +
+      </span>
+      New {word}
+    </button>
+  );
 
-  return (
-    <div className={styles.roadmapAddRow} data-testid="roadmap-add">
-      <div className={styles.roadmapAddStrip} role="group" aria-label={`New ${word}`}>
-        {first && (
-          <p className={styles.roadmapAddLead}>
-            No {word} yet. Name the first one and say when it is due.
-          </p>
-        )}
+  const form = (
+    <div className={styles.roadmapAddForm} role="group" aria-label={`New ${word}`}>
+      <label className={styles.roadmapAddField}>
+        <span className={styles.roadmapAddLabel}>Name</span>
         <input
           ref={nameRef}
           className={styles.roadmapAddBox}
           aria-label={`Name of the new ${word}`}
-          placeholder="Name"
           maxLength={40}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={onKeyDown}
         />
+      </label>
+      <label className={styles.roadmapAddField}>
+        <span className={styles.roadmapAddLabel}>Target date</span>
         <input
           ref={targetRef}
           type="date"
@@ -759,13 +886,50 @@ function AddRelease({
           onChange={(e) => setTarget(e.target.value)}
           onKeyDown={onKeyDown}
         />
-        <button type="button" className={styles.primary} onClick={() => void commit()}>
-          Add {word}
-        </button>
+      </label>
+      <div className={styles.roadmapAddActions}>
+        {/* The start that will be written, said the way every date here is. */}
+        {range && <span className={styles.roadmapAddRange}>{range}</span>}
         <button type="button" className={styles.ghost} onClick={close}>
           Cancel
         </button>
+        <button type="button" className={styles.primary} onClick={() => void commit()}>
+          Add {word}
+        </button>
       </div>
+    </div>
+  );
+
+  /* The empty roadmap is one block: what is missing, and the way to add it. */
+  if (first) {
+    return (
+      <div className={styles.roadmapAddRow} data-testid="roadmap-add">
+        <div className={styles.roadmapFirst}>
+          <p className={styles.roadmapFirstLead}>
+            {undated ? `No ${word} has a target date yet.` : `No ${word} yet.`}
+          </p>
+          <p className={styles.roadmapFirstSaid}>
+            {undated ? (
+              <>
+                Add one here, or give one a target date in <Link href={settings}>Settings</Link>.
+              </>
+            ) : (
+              "Name the first one and say when it is due."
+            )}
+          </p>
+          {open ? form : newButton}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.roadmapAddRow} data-testid="roadmap-add">
+      {open ? (
+        <div className={styles.roadmapAddStrip}>{form}</div>
+      ) : (
+        <div className={styles.roadmapName}>{newButton}</div>
+      )}
     </div>
   );
 }

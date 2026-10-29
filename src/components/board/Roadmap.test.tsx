@@ -120,6 +120,22 @@ function archivedUnder(data: BoardData, option: string, title: string) {
 const overflow = () => document.documentElement.scrollWidth - document.documentElement.clientWidth;
 
 describe("A roadmap", () => {
+  test("a shipped release says the day it shipped as the board does, and how late", async () => {
+    const data = versions();
+    await renderWithBoard(<BoardShell initialTask={null} />, data);
+    const alpha = rows().filter({ hasText: "Alpha" });
+    await expect.poll(() => rows().elements()).toHaveLength(2);
+
+    // Alpha was due fifteen days ago and shipped fourteen days ago.
+    const shipped = versionOf(data, "Alpha").shippedAt!;
+    await says(alpha.getByTestId("roadmap-end"), `✓ ${formatDate(shipped)} · 1 day late`);
+    await expect
+      .element(alpha.getByTestId("roadmap-bar"))
+      .toHaveAttribute("aria-label", expect.stringContaining(`shipped ${formatDate(shipped)}`));
+    // An empty open release says so, not "0 of 0".
+    await says(rows().filter({ hasText: "Beta" }), "No tasks yet");
+  });
+
   /* The screen half of "a shipped option keeps its start in its archived
      work, and a filter takes rows away". Where the start comes from is
      `roadmap.test.ts`, and what the board sends of it the route test. */
@@ -240,7 +256,7 @@ describe("A roadmap", () => {
     await gone(panel());
     await bars().nth(1).click();
     await expect.element(panel().getByRole("heading", { name: "Alpha" })).toBeVisible();
-    await says(byTestId("roadmap-panel-dates"), "Shipped");
+    await says(byTestId("roadmap-panel-dates"), "✓");
     await expect.poll(() => byTestId("roadmap-panel-task").elements()).toHaveLength(1);
     await says(byTestId("roadmap-panel-task"), "Old work");
     await says(byTestId("roadmap-panel-task"), "Archived");
@@ -345,7 +361,7 @@ describe("A roadmap", () => {
       await targetBox().fill(plus(data.today, 60));
       await userEvent.keyboard("{Enter}");
       await expect.poll(() => rows().elements()).toHaveLength(3);
-      await says(rows().filter({ hasText: "2.0" }), "0 of 0");
+      await says(rows().filter({ hasText: "2.0" }), "No tasks yet");
       expect(sent("POST", OPTIONS)).toHaveLength(1);
     });
 
@@ -425,7 +441,7 @@ describe("A roadmap", () => {
       const ship = sent("POST", /\/ship$/)[0];
       expect(ship.path).toBe(`/api/options/${beta.id}/ship`);
       expect(ship.body).toEqual({ rest: "leave" });
-      await says(row("Beta"), "Shipped");
+      await says(row("Beta"), "✓");
       await gone(row("Beta").getByTestId("roadmap-ship"));
     });
 
@@ -569,6 +585,7 @@ describe("A roadmap", () => {
       const { from, to } = grip(3);
       await commands.hold(from, to);
       await says(beta().getByTestId("roadmap-end"), formatDate(plus(target, 3)));
+      await says(beta().getByTestId("roadmap-end"), "+3 days");
       expect(patches(sent)).toEqual([]);
 
       await commands.letGo();
@@ -610,6 +627,7 @@ describe("A roadmap", () => {
       (bar.element() as HTMLElement).focus();
       await userEvent.keyboard("{ArrowRight}{ArrowRight}");
       await says(beta().getByTestId("roadmap-end"), formatDate(plus(target, 2)));
+      await says(beta().getByTestId("roadmap-end"), "+2 days · Enter to save, Esc to undo");
       await userEvent.keyboard("{Escape}");
       await says(beta().getByTestId("roadmap-end"), formatDate(target));
       expect(patches(sent)).toEqual([]);

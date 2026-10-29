@@ -205,6 +205,25 @@ export function roadmapState(row: RoadmapRow, today: string): RoadmapState {
   return { kind: "open" };
 }
 
+/**
+ * How many days after its target a release shipped, or 0. A shipped bar ends
+ * on the day it shipped, so this is the one place the slip is still said.
+ */
+export function daysLate(row: Pick<RoadmapRow, "shippedAt" | "targetAt">): number {
+  if (!row.shippedAt) return 0;
+  return Math.max(0, dayNumber(row.shippedAt) - dayNumber(row.targetAt));
+}
+
+/**
+ * The weeks whose line is drawn. A month line a few days from a week line
+ * would draw two lines side by side, so the month keeps its line and the
+ * week gives up its own.
+ */
+export function weekLines(axis: RoadmapAxis, months: RoadmapMonth[]): boolean[] {
+  const starts = months.filter((m) => m.at > 0).map((m) => m.at);
+  return axis.weeks.map((_, i) => !starts.some((at) => Math.abs(at - i * 7) <= 3));
+}
+
 /** A row that is ready to ship: its target passed, or every task in it is over. */
 export function readyToShip(row: RoadmapRow, today: string): boolean {
   if (row.shippedAt) return false;
