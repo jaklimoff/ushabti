@@ -78,7 +78,8 @@ test.describe("Archiving a task", () => {
 
       // Newest archived first, and only the archived ones.
       await expect(rows.nth(0)).toContainText("Second to go");
-      await expect(rows.nth(0)).toContainText("Archived just now");
+      await expect(page.getByTestId("archive-day").first()).toContainText("Today");
+      await expect(rows.nth(0)).toContainText("just now");
       await expect(rows.nth(1)).toContainText("First to go");
       await expect(page.getByText("Still on the board")).toHaveCount(0);
 

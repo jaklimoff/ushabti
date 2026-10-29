@@ -28,4 +28,15 @@ describe("The changelog list", () => {
     await expect.element(page.getByText("Task 9")).toBeVisible();
     await expect.element(page.getByRole("link", { name: "Older" })).not.toBeInTheDocument();
   });
+
+  test("says how many older releases are left, and each day whole", async () => {
+    await render(<ChangelogList entries={entries.slice(0, 2)} older={3} path="/changelog/ush" />);
+    await expect
+      .element(page.getByRole("link", { name: "Older releases (3)" }))
+      .toBeInTheDocument();
+    /* The rail draws the year once, but a day still reads out whole. */
+    await expect
+      .element(page.getByTestId("changelog-day").nth(1))
+      .toHaveTextContent("✓ Oct 1, 2026");
+  });
 });

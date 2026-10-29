@@ -171,7 +171,7 @@ export function ListEditor({
         <Field label="Name">
           <Input
             block
-            size="lg"
+            className={styles.nameBox}
             value={name}
             maxLength={80}
             aria-label="List name"
@@ -193,46 +193,49 @@ export function ListEditor({
           </div>
         )}
 
-        <div className={styles.sources}>
-          {sources.map((source) => (
-            <section key={source.id} className={styles.source} data-testid="list-source-edit">
-              <div className={styles.groupHead}>
-                <ProjectMark projectKey={source.key} color={colorOf(source.projectId)} />
-                <span className={styles.groupName}>{source.name}</span>
-                <span className={styles.spacer} />
-                <IconButton
-                  label={`Remove ${source.name} from the list`}
-                  title={last ? LAST_SOURCE : undefined}
-                  disabled={last}
-                  data-testid="list-source-remove"
-                  onClick={() => void removeSource(source.id)}
-                >
-                  ✕
-                </IconButton>
-              </div>
-              {source.rules.length === 0 && (
-                <span className={styles.none}>Every task of {source.key}.</span>
-              )}
-              <RuleChips
-                bare
-                properties={source.properties}
-                members={source.members}
-                former={source.former}
-                rules={source.rules}
-                onRules={(rules) => void setRules(source.id, rules)}
-                owed={(rules) => rulesSend(source.id, rules)}
-              />
-            </section>
-          ))}
-        </div>
-
-        <div className={styles.add}>
-          <Label>Add a project</Label>
+        <section className={styles.add} aria-labelledby="list-gathers">
+          <Label id="list-gathers">What it gathers</Label>
           {sources.length + hidden === 0 && (
             <span className={styles.none} data-testid="list-needs-project">
-              This list reads no project. Pick one.
+              This list reads no project. Add one below.
             </span>
           )}
+          <div className={styles.sources}>
+            {sources.map((source) => (
+              <section key={source.id} className={styles.source} data-testid="list-source-edit">
+                <div className={styles.groupHead}>
+                  <ProjectMark projectKey={source.key} color={colorOf(source.projectId)} />
+                  <span className={styles.groupName}>{source.name}</span>
+                  <span className={styles.spacer} />
+                  <IconButton
+                    label={`Remove ${source.name} from the list`}
+                    title={last ? LAST_SOURCE : undefined}
+                    disabled={last}
+                    data-testid="list-source-remove"
+                    onClick={() => void removeSource(source.id)}
+                  >
+                    ✕
+                  </IconButton>
+                </div>
+                {source.rules.length === 0 && (
+                  <span className={styles.none}>Every task of {source.key}.</span>
+                )}
+                <RuleChips
+                  bare
+                  properties={source.properties}
+                  members={source.members}
+                  former={source.former}
+                  rules={source.rules}
+                  onRules={(rules) => void setRules(source.id, rules)}
+                  owed={(rules) => rulesSend(source.id, rules)}
+                />
+              </section>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.add} aria-labelledby="list-projects">
+          <Label id="list-projects">Add a project</Label>
           {offered.length === 0 ? (
             <span className={styles.none}>
               {projects.length === 0
@@ -248,7 +251,7 @@ export function ListEditor({
               testId="list-add-project"
             />
           )}
-        </div>
+        </section>
 
         <div className={styles.danger}>
           {asking.asking ? (

@@ -1,7 +1,7 @@
 /*
  * The archive page. It is off the board, so its buttons, inputs, card and rows
  * come from `components/ui/`; what is here is only what those do not say: the
- * page frame and the four parts of a row.
+ * page frame, the days the rows sit under, and the tag that runs out.
  */
 
 .page {
@@ -14,6 +14,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
+}
+
+/* One day's rows, under the day they went. */
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.day + .day {
+  margin-top: var(--s-2);
 }
 
 /* The deleted list is a second section, so it stands a section's step below
@@ -44,6 +55,12 @@
 }
 
 /* ---- a row ---------------------------------------------------------- */
+
+/* A deleted title opens nothing, so it reads a step quieter than one that
+   does, by weight as well as by colour. */
+.goneTitle {
+  font-weight: 400;
+}
 
 /* How long is left. It is the one word on the row that runs out, so it is a
    tag and is read before the others. */

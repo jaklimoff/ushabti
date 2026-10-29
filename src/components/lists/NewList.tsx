@@ -134,12 +134,15 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
     <div className={styles.page}>
       <ListBar user={user} trail={[<AppCrumb key="here">New list</AppCrumb>]} />
       <PageShell>
-        <PageHead title="New list" />
+        <PageHead
+          title="New list"
+          lead="Tasks from several projects on one page. Only you see it, and nothing on it changes a task."
+        />
 
         <Field label="Name" note="Left empty, it is named after its projects.">
           <Input
             block
-            size="lg"
+            className={styles.nameBox}
             value={name}
             maxLength={NAME_MAX}
             placeholder="My week"
@@ -150,7 +153,7 @@ export function NewList({ user, projects }: { user: SessionUser; projects: Proje
         </Field>
 
         <section className={styles.add} aria-labelledby="list-projects">
-          <Label id="list-projects">Projects</Label>
+          <Label id="list-projects">Add a project</Label>
           {projects.length >= FIND_FROM && (
             <Input
               block

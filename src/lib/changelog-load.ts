@@ -60,6 +60,18 @@ export async function changelogProject(projectId: string) {
 }
 
 /**
+ * Whether strangers read this project's changelog. Its own read, so the
+ * changelog's answer, which the route hands an agent, keeps its shape.
+ */
+export async function changelogIsPublic(projectId: string): Promise<boolean> {
+  const [project] = await db
+    .select({ publicChangelog: projects.publicChangelog })
+    .from(projects)
+    .where(eq(projects.id, projectId));
+  return project?.publicChangelog ?? false;
+}
+
+/**
  * The public changelog at `/changelog/{slug}`. It answers only for the one
  * project with that key that turned it on; anything else is not found, so a
  * stranger cannot tell a private project from no project.

@@ -1,7 +1,8 @@
 "use client";
 
+import { Fragment } from "react";
 import { longAgo } from "@/lib/board";
-import type { ListGroup } from "@/lib/lists";
+import { EVERY_TASK, type ListGroup } from "@/lib/lists";
 import { ButtonPageLink } from "@/components/ui/Button";
 import { Card, EmptyState, PageHead, PageShell, TaskLine } from "@/components/ui/Layout";
 import { ProjectMark } from "@/components/ui/Marks";
@@ -52,14 +53,30 @@ export function ListPage({
 
         {groups.map((group) => (
           <section key={group.projectId} className={styles.group} data-testid="list-group">
-            <div className={styles.groupHead}>
+            {/* Who, then which tasks, then how many: the rules read as the
+                chips the editor draws, and the count sits where a page's
+                count does, at the end. */}
+            <div className={`${styles.groupHead} ${styles.listHead}`}>
               <ProjectMark
                 projectKey={group.key}
                 color={colors[group.projectId] ?? "var(--accent)"}
               />
               <span className={styles.groupName}>{group.name}</span>
-              <span className={styles.groupCount}>{group.count}</span>
-              <span className={styles.rules}>{group.rules.join(" or ")}</span>
+              <span className={styles.rules}>
+                {group.rules.map((said, i) => (
+                  <Fragment key={i}>
+                    {i > 0 && <span className={styles.or}>or</span>}
+                    {said === EVERY_TASK ? (
+                      <span className={styles.every}>{said}</span>
+                    ) : (
+                      <span className={styles.ruleChip}>{said}</span>
+                    )}
+                  </Fragment>
+                ))}
+              </span>
+              <span className={styles.listCount} data-testid="list-group-count">
+                {group.count}
+              </span>
             </div>
             {group.rows.length === 0 ? (
               <p className={styles.none}>No task passes these rules.</p>

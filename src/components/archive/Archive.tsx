@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { archiveOrder, narrowArchive } from "@/lib/archive";
-import { longAgo } from "@/lib/board";
+import { formatDate, fullTime, longAgo } from "@/lib/board";
+import { todayIn } from "@/lib/day";
 import { api } from "@/lib/client";
 import { DELETE_WINDOW_DAYS, daysLeft, saysLeft } from "@/lib/deleted";
 import type { ArchivedTaskDTO, BoardData, DeletedTaskDTO } from "@/lib/types";
 import { BoardProvider, useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Form";
+import { Input, Label } from "@/components/ui/Form";
 import { Card, EmptyState, PageHead, PageShell, Section, TaskLine } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import { Toasts } from "@/components/ui/Toasts";
@@ -64,6 +65,10 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
 
   const all = useMemo(() => archiveOrder(data.archived), [data.archived]);
   const rows = useMemo(() => narrowArchive(all, query), [all, query]);
+  const days = useMemo(
+    () => byDay(rows, data.project.timeZone, data.today),
+    [rows, data.project.timeZone, data.today],
+  );
 
   /* One clock, read when the page opens and not again. The words change by
      the minute at the fastest, and a list is no place for a ticker: forty rows
@@ -95,7 +100,13 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
             its own count by its heading, so no number stands over two lists. */}
         <PageHead
           title="Archived"
-          count={all.length > 0 ? <span data-testid="archive-count">{all.length}</span> : null}
+          count={
+            all.length > 0 ? (
+              <span data-testid="archive-count">
+                {query.trim() ? `${rows.length} of ${all.length}` : all.length}
+              </span>
+            ) : null
+          }
           lead="Tasks taken off the board. Each keeps its values, checklist and comments, and goes back where it was."
         />
 
@@ -106,7 +117,7 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
               block
               aria-label="Find an archived task by its key or its title"
               data-testid="archive-find"
-              placeholder="Find an archived task"
+              placeholder="Find by key or title"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -125,11 +136,16 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
               </EmptyState>
             </Card>
           ) : (
-            <Card>
-              {rows.map((task) => (
-                <ArchiveRow key={task.id} task={task} now={now} />
-              ))}
-            </Card>
+            days.map((day) => (
+              <div key={day.day} className={styles.day} data-testid="archive-day">
+                <Label suppressHydrationWarning>{day.said}</Label>
+                <Card>
+                  {day.rows.map((task) => (
+                    <ArchiveRow key={task.id} task={task} now={now} />
+                  ))}
+                </Card>
+              </div>
+            ))
           )}
         </div>
 
@@ -158,6 +174,32 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
       <Toasts toasts={toasts} />
     </div>
   );
+}
+
+/**
+ * The rows under the day each went, in the project's zone, so the server and
+ * the browser cut the days in the same place. A ship archives a whole column
+ * in one moment, and "Archived 4 minutes ago" on every row of it said one
+ * thing four times; the day says it once.
+ */
+function byDay(rows: ArchivedTaskDTO[], timeZone: string, today: string) {
+  const days: { day: string; said: string; rows: ArchivedTaskDTO[] }[] = [];
+  for (const task of rows) {
+    const day = todayIn(timeZone, new Date(task.archivedAt));
+    const last = days[days.length - 1];
+    if (last?.day === day) last.rows.push(task);
+    else days.push({ day, said: daySaid(day, today), rows: [task] });
+  }
+  return days;
+}
+
+function daySaid(day: string, today: string): string {
+  if (day === today) return "Today";
+  const before = new Date(`${today}T00:00:00Z`);
+  before.setUTCDate(before.getUTCDate() - 1);
+  if (day === before.toISOString().slice(0, 10)) return "Yesterday";
+  const year = day.slice(0, 4);
+  return year === today.slice(0, 4) ? formatDate(day) : `${formatDate(day)}, ${year}`;
 }
 
 /** From this many days left down, the count wears the warning colour. */
@@ -189,10 +231,17 @@ function ArchiveRow({ task, now }: { task: ArchivedTaskDTO; now: number }) {
       taskKey={task.key}
       title={task.title}
       href={`/p/${data.project.id}?task=${task.key}`}
-      meta={<span suppressHydrationWarning>Archived {longAgo(task.archivedAt, now)}</span>}
+      meta={
+        <span
+          title={`Archived ${fullTime(task.archivedAt, data.project.timeZone)}`}
+          suppressHydrationWarning
+        >
+          {longAgo(task.archivedAt, now)}
+        </span>
+      }
       action={
         <Button
-          variant="ghost"
+          variant="text"
           busy={putting}
           data-testid="archive-put-back"
           aria-label={`Put ${task.key} back`}
@@ -239,7 +288,11 @@ function DeletedRow({
       data-testid="deleted-row"
       dim
       taskKey={task.key}
-      title={task.title}
+      title={
+        <span className={styles.goneTitle} title="Put it back to open it">
+          {task.title}
+        </span>
+      }
       meta={
         <>
           <span suppressHydrationWarning>Deleted {longAgo(task.deletedAt, now)}</span>
@@ -253,7 +306,7 @@ function DeletedRow({
       }
       action={
         <Button
-          variant="ghost"
+          variant="text"
           busy={putting}
           data-testid="deleted-put-back"
           aria-label={`Put ${task.key} back`}
