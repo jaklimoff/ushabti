@@ -177,9 +177,10 @@ describe("The folded sidebar", () => {
     (square("Lantern").element() as HTMLElement).focus();
     await userEvent.keyboard("{ArrowDown}");
     await expect.element(page.getByRole("link", { name: "New project" })).toHaveFocus();
-    await userEvent.keyboard("{ArrowDown}");
-    await expect.element(byTestId("sidebar-fold")).toHaveFocus();
+    /* The fold leads the rail, at the spot the open sidebar has it. */
     await userEvent.keyboard("{Home}");
+    await expect.element(byTestId("sidebar-fold")).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
     await expect.element(sidebar().getByRole("link", { name: "Home", exact: true })).toHaveFocus();
     await userEvent.keyboard("{ArrowDown}");
     await expect.element(square("Harbour")).toHaveFocus();
@@ -315,7 +316,7 @@ describe("The open sidebar", () => {
       .toHaveAttribute("aria-current", "page");
   });
 
-  test("on Home, the Home row and the rail's mark say you are there", async () => {
+  test("on Home, the Home row and the rail's house say you are there", async () => {
     const made = twoProjects();
     at.pathname = "/projects";
     await draw(made, false);
@@ -324,8 +325,8 @@ describe("The open sidebar", () => {
     expect(sidebar().element().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
 
     await byTestId("sidebar-fold").click();
-    const mark = sidebar().getByRole("link", { name: "Home", exact: true });
-    await expect.element(mark).toHaveAttribute("aria-current", "page");
+    const house = sidebar().getByRole("link", { name: "Home", exact: true });
+    await expect.element(house).toHaveAttribute("aria-current", "page");
   });
 
   test("the age ticks", async () => {

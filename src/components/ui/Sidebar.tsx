@@ -72,16 +72,16 @@ function RowEnd({ project }: { project: ProjectNow }) {
 }
 
 /** A house, for the one row that is Home. */
-function HomeGlyph() {
+function HomeGlyph({ size = 14 }: { size?: number }) {
   return (
     <svg
       aria-hidden
-      width={14}
-      height={14}
+      width={size}
+      height={size}
       viewBox="0 0 14 14"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.3}
+      strokeWidth={size > 14 ? 1.2 : 1.3}
       strokeLinejoin="round"
     >
       <path d="M2 6.2 7 2l5 4.2V12H8.6V8.6H5.4V12H2z" />
@@ -167,7 +167,7 @@ function Rail() {
   const working = projects.some(isWorking);
   const now = useNow(working);
   /* One Tab stop: the arrows walk the rail, and Tab leaves it. */
-  const items = ["_home", ...projects.map((p) => p.id), "_new", "_fold"];
+  const items = ["_fold", "_home", ...projects.map((p) => p.id), "_new"];
   const [at, setAt] = useState<string | null>(null);
   const stop =
     at && items.includes(at) ? at : current && items.includes(current) ? current : "_home";
@@ -202,22 +202,35 @@ function Rail() {
         if (id) setAt(id);
       }}
     >
+      {/* The fold sits where the open sidebar has it, so folding and
+          unfolding never move the pointer. */}
       <div className={styles.head}>
+        <button
+          type="button"
+          className={`${styles.railItem} ${styles.fold}`}
+          data-item="_fold"
+          tabIndex={tab("_fold")}
+          onClick={toggle}
+          aria-label="Open the sidebar"
+          aria-expanded={false}
+          title="Open the sidebar  ["
+          data-testid="sidebar-fold"
+        >
+          <FoldIcon folded />
+        </button>
+      </div>
+      <div className={styles.railList}>
         <Link
           href="/projects"
-          className={styles.railItem}
+          className={`${styles.railItem} ${styles.railHome}`}
           data-item="_home"
           tabIndex={tab("_home")}
           aria-label="Home"
           aria-current={home ? "page" : undefined}
           title="Home"
         >
-          <span className={styles.railBrand} data-current={home || undefined}>
-            <BrandMark size={22} />
-          </span>
+          <HomeGlyph size={16} />
         </Link>
-      </div>
-      <div className={styles.railList}>
         {projects.map((project) => {
           const line = lineOf(project, now);
           const here = project.id === current;
@@ -255,19 +268,6 @@ function Rail() {
           +
         </Link>
       </div>
-      <button
-        type="button"
-        className={`${styles.railItem} ${styles.fold}`}
-        data-item="_fold"
-        tabIndex={tab("_fold")}
-        onClick={toggle}
-        aria-label="Open the sidebar"
-        aria-expanded={false}
-        title="Open the sidebar  ["
-        data-testid="sidebar-fold"
-      >
-        <FoldIcon folded />
-      </button>
     </nav>
   );
 }
@@ -352,11 +352,6 @@ function Open() {
       data-folded="false"
     >
       <div className={styles.head}>
-        {/* The brand, once: it leads Home, and the Home row below says where you are. */}
-        <Link href="/projects" className={styles.brand} title="Home">
-          <BrandMark />
-          <span>Ushabti</span>
-        </Link>
         <button
           type="button"
           className={styles.fold}
@@ -368,6 +363,11 @@ function Open() {
         >
           <FoldIcon folded={false} />
         </button>
+        {/* The brand, once: it leads Home, and the Home row below says where you are. */}
+        <Link href="/projects" className={styles.brand} title="Home">
+          <BrandMark />
+          <span>Ushabti</span>
+        </Link>
       </div>
       <div className={styles.openList}>
         <Link

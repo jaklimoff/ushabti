@@ -61,7 +61,7 @@ test.describe("A project's top bar", () => {
     await twoProjects(page);
     for (const path of ["/projects", "/account", "/lists/new"]) {
       await page.goto(path);
-      /* The sidebar's mark leads Home, so the bar does not repeat it. */
+      /* The sidebar leads Home, so the bar does not repeat it. */
       await expect(
         sidebar(page).getByRole("link", { name: "Home", exact: true }),
         path,

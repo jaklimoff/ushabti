@@ -34,19 +34,16 @@
 }
 
 /* As tall as the top bar beside it, and ruled the same, so the two read as
-   one line across the page. */
+   one line across the page. The fold leads it, folded or open, at the same
+   spot, so the pointer that folds the sidebar is already on the way back. */
 .head {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   height: 46px;
   flex: 0 0 46px;
-  border-bottom: 1px solid var(--line);
-}
-
-.open .head {
-  justify-content: space-between;
   padding: 0 8px 0 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 /* The brand leads Home and is not a place of its own, so it reads as the
@@ -65,19 +62,6 @@
 
 .brand:hover {
   color: var(--text);
-}
-
-/* The brand in the rail: the Home item. On Home it wears the ring a square
-   wears for the open project, so the rail always says where you are. */
-.railBrand {
-  display: flex;
-  border-radius: var(--r-sm);
-}
-
-.railBrand[data-current] {
-  box-shadow:
-    0 0 0 2px var(--bg-top),
-    0 0 0 3.5px var(--accent);
 }
 
 .railList {
@@ -113,6 +97,13 @@
   box-shadow: 0 0 0 2px var(--accent);
 }
 
+/* Home is a place and not a project, so on Home it is marked as the open
+   sidebar marks its row, not with a square's ring. */
+.railHome[aria-current="page"] {
+  background: var(--bg-menu-hover);
+  color: var(--text);
+}
+
 /* A dashed square: not a project, the way to one. */
 .railNew {
   width: 28px;
@@ -139,11 +130,6 @@
 .fold:hover {
   background: var(--bg-hover-wash);
   color: var(--text);
-}
-
-.rail .fold {
-  align-self: center;
-  margin: 8px 0 12px;
 }
 
 .square {

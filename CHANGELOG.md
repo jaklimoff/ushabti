@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- The sidebar's fold button sits at the top left, folded or open, in the same spot, so it folds and unfolds without moving the pointer. Folded, Home is a house at the top of the rail.
+
 ## 0.36.0 — 2026-10-30
 
 ### Added
