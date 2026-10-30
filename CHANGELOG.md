@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.37.1 — 2026-10-30
+
 ### Fixed
 
 - The name of an option drawn as a filled chip reads in white or black on its colour, as the swatches do, instead of in grey that was hard to read on red.

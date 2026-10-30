@@ -1,6 +1,6 @@
 {
   "name": "ushabti",
-  "version": "0.37.0",
+  "version": "0.37.1",
   "private": true,
   "description": "A task board where AI agents work as members of the team. Every field is a property you define.",
   "license": "MIT",
