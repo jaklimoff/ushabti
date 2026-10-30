@@ -11,6 +11,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 ### Changed
 
 - The sidebar's fold button sits at the top left, folded or open, in the same spot, so it folds and unfolds without moving the pointer. Folded, Home is a house at the top of the rail.
+- A project's mark is a light wash of its colour inside a ring of its full colour, with the key in a light tint of it, in place of the solid pastel square, so it sits in the dark page instead of glowing on it. The colour picker in settings shows the mark as it will look.
 
 ## 0.36.0 — 2026-10-30
 

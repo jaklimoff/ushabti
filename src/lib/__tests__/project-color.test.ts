@@ -110,3 +110,29 @@ describe("Each project colour", () => {
     expect((hi + 0.05) / (lo + 0.05)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+/* What `color-mix(in srgb, a p%, b)` paints, as a hex. */
+function mix(a: string, b: string, p: number): string {
+  const ch = (hex: string, at: number) => parseInt(hex.slice(at, at + 2), 16);
+  return `#${[1, 3, 5]
+    .map((at) =>
+      Math.round(ch(a, at) * p + ch(b, at) * (1 - p))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
+/* The mark is an 18% wash with the key in a 60% tint, as the CSS draws it.
+   The wash sits on whatever ground is under it, from the page to a hovered row. */
+describe("Each project mark", () => {
+  const grounds = ["#0a0b0d", "#0f1013", "#14171b", "#1b1e24"];
+  it.each([...PROJECT_COLORS])("keeps its key readable at WCAG AA on %s", (color) => {
+    const ink = mix(color, "#ffffff", 0.6);
+    for (const ground of grounds) {
+      const wash = mix(color, ground, 0.18);
+      const [hi, lo] = [luminance(ink), luminance(wash)].sort((a, b) => b - a);
+      expect((hi + 0.05) / (lo + 0.05)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

@@ -420,8 +420,19 @@ describe("A project card", () => {
     const card = page.getByTestId("project-card");
 
     const key = squareOf("HAR");
-    expect(getComputedStyle(key).backgroundColor).toBe("rgb(122, 168, 240)");
-    expect(getComputedStyle(key).color).toBe("rgb(20, 22, 26)");
+    /* A wash of the project's colour, with the key in a light tint of it. */
+    const painted = (css: string) => {
+      const probe = document.createElement("span");
+      probe.style.color = css;
+      document.body.append(probe);
+      const out = getComputedStyle(probe).color;
+      probe.remove();
+      return out;
+    };
+    expect(getComputedStyle(key).backgroundColor).toBe(
+      painted("color-mix(in srgb, #7aa8f0 18%, transparent)"),
+    );
+    expect(getComputedStyle(key).color).toBe(painted("color-mix(in srgb, #7aa8f0 60%, white)"));
     expect(Math.round(rectOf(key).height)).toBe(22);
     const name = card.getByText("Harbour", { exact: true }).element();
     expect(getComputedStyle(name).fontSize).toBe("15px");

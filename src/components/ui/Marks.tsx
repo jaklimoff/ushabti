@@ -1,4 +1,3 @@
-import { PROJECT_INK } from "@/lib/colors";
 import type { ViewKind } from "@/lib/types";
 import styles from "./ui.module.css";
 
@@ -35,8 +34,8 @@ export function BrandMark({ size = 18 }: { size?: 16 | 18 | 22 | 32 }) {
 }
 
 /**
- * A project's square: its own colour and its whole key, in the dark ink
- * Home draws it with. The same project reads the same on Home, on the board,
+ * A project's square: its whole key on a wash of its own colour, inside a
+ * ring of that colour, in a light tint of it. The same project reads the same on Home, on the board,
  * in settings and in the sidebar. The teal is Ushabti's, never a project's.
  */
 export function ProjectMark({
@@ -55,14 +54,16 @@ export function ProjectMark({
       aria-hidden
       {...rest}
       className={[styles.projectMark, className ?? ""].filter(Boolean).join(" ")}
-      style={{
-        height: size,
-        minWidth: size,
-        borderRadius: Math.ceil(size / 4),
-        background: color,
-        color: PROJECT_INK,
-        ...rest.style,
-      }}
+      style={
+        {
+          height: size,
+          minWidth: size,
+          borderRadius: Math.ceil(size / 4),
+          "--project": color,
+          "--mark-ring": size < 22 ? "1px" : "1.5px",
+          ...rest.style,
+        } as React.CSSProperties
+      }
     >
       {projectKey}
     </span>

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { isTyping } from "@/components/board/keys";
-import { PROJECT_INK } from "@/lib/colors";
 import { isPhone, notPhone, subscribePhone } from "@/lib/phone";
 import type { ProjectNow } from "@/lib/queries";
 import { isWorking, lineOf, type Line } from "@/lib/sidebar";
@@ -41,7 +40,7 @@ function Square({
       className={`${styles.square} ${big ? styles.squareBig : ""}`}
       data-current={current || undefined}
       data-testid="sidebar-square"
-      style={{ background: project.color, color: PROJECT_INK }}
+      style={{ "--project": project.color } as React.CSSProperties}
       aria-hidden
     >
       {project.key.slice(0, big ? 4 : 3)}

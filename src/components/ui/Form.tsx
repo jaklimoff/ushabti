@@ -10,14 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  AVATAR_COLORS,
-  PROJECT_COLORS,
-  PROJECT_INK,
-  colorName,
-  facePaint,
-  initials,
-} from "@/lib/colors";
+import { AVATAR_COLORS, PROJECT_COLORS, colorName, facePaint, initials } from "@/lib/colors";
 import { FACE_EMOJI, isOneEmoji } from "@/lib/emoji";
 import {
   placeMenu,
@@ -616,7 +609,7 @@ export function ProjectColorSwatches({
           title={colorName(color)}
           disabled={disabled}
           className={`${styles.swatch} ${styles.swatchKey} ${color === value ? styles.swatchOn : ""}`}
-          style={{ backgroundColor: color, color: PROJECT_INK }}
+          style={{ "--project": color } as React.CSSProperties}
           onClick={() => onPick(color)}
         >
           {projectKey}

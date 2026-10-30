@@ -48,7 +48,7 @@ import type { ChartChoice, ChartDTO } from "@/lib/charts";
 import { Charts } from "./Charts";
 import { FirstProjectPanel, HomeSection, WidePanel } from "./Empty";
 import { useNow } from "@/components/ui/useElapsed";
-import { PROJECT_INK, initials, keyTint } from "@/lib/colors";
+import { initials, keyTint } from "@/lib/colors";
 import { PROJECTS_MOVED, useSidebar, useTabRings } from "@/components/ui/SidebarProvider";
 import styles from "./ProjectList.module.css";
 
@@ -465,7 +465,6 @@ function ProjectCard({ project }: { project: ProjectRow }) {
           transform: CSS.Translate.toString(transform),
           transition: transition ?? undefined,
           "--project": project.color,
-          "--project-ink": PROJECT_INK,
         } as React.CSSProperties
       }
       data-quiet={project.pulse?.quiet || undefined}

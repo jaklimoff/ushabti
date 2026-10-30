@@ -77,7 +77,10 @@ test.describe("The design foundation", () => {
       if (path.startsWith("/p/")) {
         const mark = header.getByText(project.key, { exact: true });
         await expect(mark).toBeVisible();
-        await expect(mark).toHaveCSS("background-color", await painted(page, project.color));
+        await expect(mark).toHaveCSS(
+          "background-color",
+          await painted(page, `color-mix(in srgb, ${project.color} 18%, transparent)`),
+        );
       }
     }
     await page.goto(`/p/${projectId}/settings/properties`);
@@ -93,7 +96,8 @@ test.describe("The design foundation", () => {
     await createProject(page, unique("Other"));
     const projectId = await createProject(page, unique("Mark"));
     const project = await projectOf(projectId);
-    const colour = await painted(page, project.color);
+    /* The mark is a wash of the project's colour, not the colour itself. */
+    const colour = await painted(page, `color-mix(in srgb, ${project.color} 18%, transparent)`);
 
     const mark = page.getByTestId("board-mark");
     await expect(mark).toHaveText(project.key);

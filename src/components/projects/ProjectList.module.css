@@ -147,7 +147,7 @@
 .key,
 .cardWrap .cardGrip {
   min-width: 22px;
-  padding: 0 2px;
+  padding: 0 4px;
   font-family: var(--font-mono);
   font-size: var(--t-label);
   font-weight: 600;
@@ -155,15 +155,16 @@
   white-space: nowrap;
 }
 
-/* The project's colour, with its key in dark ink. The grip sits on it. */
+/* The project's mark, as `ProjectMark` draws it. The grip sits on it. */
 .key {
   flex: none;
   height: 22px;
   display: grid;
   place-items: center;
   border-radius: var(--r-card);
-  background: var(--project);
-  color: var(--project-ink);
+  background: color-mix(in srgb, var(--project) 18%, transparent);
+  box-shadow: inset 0 0 0 var(--mark-ring, 1.5px) var(--project);
+  color: color-mix(in srgb, var(--project) 60%, white);
 }
 
 .cardName {
@@ -752,11 +753,15 @@
   grid-template-areas: "one";
   place-items: center;
   border-radius: var(--r-card);
-  background: var(--project);
-  color: var(--project-ink);
-  box-shadow:
-    0 0 0 1px var(--bg-column),
-    0 0 0 2px var(--project);
+  /* Opaque, on the hovered card's own ground, so the key under it does not
+     show through the dots. */
+  background: color-mix(
+    in srgb,
+    var(--project) 18%,
+    color-mix(in srgb, var(--bg-hover) 30%, var(--bg-column))
+  );
+  color: color-mix(in srgb, var(--project) 60%, white);
+  box-shadow: inset 0 0 0 var(--mark-ring, 1.5px) var(--project);
   cursor: grab;
   touch-action: none;
   opacity: 0;
@@ -764,8 +769,12 @@
 }
 
 .cardWrap .cardGrip:hover:not(:disabled) {
-  background: var(--project);
-  color: var(--project-ink);
+  background: color-mix(
+    in srgb,
+    var(--project) 24%,
+    color-mix(in srgb, var(--bg-hover) 30%, var(--bg-column))
+  );
+  color: color-mix(in srgb, var(--project) 60%, white);
 }
 
 .cardGrip > span {
