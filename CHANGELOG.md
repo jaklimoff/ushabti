@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.36.0 — 2026-10-30
+
 ### Added
 
 - On the roadmap, the shipped releases sit under a **Shipped · N** label, so it is clear why they come after the open ones. A bar's panel ends its head with **Dates are set in Settings →**, which opens that property's row, and the way back returns to the roadmap.
