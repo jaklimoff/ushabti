@@ -1635,6 +1635,13 @@
   text-overflow: ellipsis;
 }
 
+/* On a fill the words take the ink the chip picked for its colour. The grey
+   above reads at 1.6:1 on red. */
+.cardChipFill .cardChipWords {
+  font-weight: 600;
+  color: inherit;
+}
+
 /* The loudest thing on the card. The chips around it are small and coloured,
    so the title wins by size and weight rather than by anything added. */
 .cardTitle {
