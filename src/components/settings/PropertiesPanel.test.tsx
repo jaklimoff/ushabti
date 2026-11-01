@@ -696,6 +696,26 @@ describe("The role strip", () => {
       expect(propertyBox(name).element().id).toBe(`prop-${propertyOf(data, name).id}`);
   });
 
+  for (const [width, height] of [
+    [1440, 900],
+    [390, 844],
+  ] as const) {
+    test(`every tile is as tall as the others at ${width} px`, async () => {
+      await page.viewport(width, height);
+      // One off with a long line beside three set with one line each.
+      const data = allFour();
+      data.project.typeBy = null;
+      await renderWithBoard(<PropertiesPanel />, data);
+      await expect.element(byTestId("role-strip")).toBeVisible();
+      const heights = (byTestId("role-tile").elements() as HTMLElement[]).map(
+        (t) => t.getBoundingClientRect().height,
+      );
+      expect(heights).toHaveLength(4);
+      expect(new Set(heights).size).toBe(1);
+      await page.viewport(1440, 900);
+    });
+  }
+
   test("pressing a set tile moves focus to its property's name", async () => {
     const data = allFour();
     await renderWithBoard(<PropertiesPanel />, data);

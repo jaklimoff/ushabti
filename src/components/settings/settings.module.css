@@ -2764,10 +2764,14 @@ div.hookRow {
    and nothing else, so the tiles and the role tags are the only cyan. */
 /* Each tile is as tall as what it says, so the strip does not jump when a
    role is turned on or off. */
+/* Every tile is as tall as the tallest, also across the two rows a phone
+   makes, so the strip reads as one set and not as four answers of different
+   lengths. */
 .roleStrip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: start;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
   gap: 8px;
   margin-bottom: 14px;
 }
