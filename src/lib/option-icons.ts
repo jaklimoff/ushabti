@@ -161,3 +161,15 @@ export function readIconInput(
   if (isOptionIcon(input)) return { icon: input };
   return { error: "That icon is not one Ushabti knows." };
 }
+
+/**
+ * The words a person reads for an icon's name: "BookOpen" reads "Book open"
+ * and "Flower2" reads "Flower 2". The stored name stays as it is.
+ */
+export function iconLabel(name: OptionIcon): string {
+  const words = name
+    .replace(/([a-z])([A-Z0-9])/g, "$1 $2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1 $2")
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

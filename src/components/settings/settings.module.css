@@ -793,15 +793,94 @@ button.whenOut:hover {
   left: 0;
   z-index: 30;
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  width: 132px;
+  flex-direction: column;
+  gap: 8px;
+  width: 240px;
   padding: 8px;
   border-radius: var(--r-md);
   background: var(--bg-menu);
   border: 1px solid var(--line-menu);
   box-shadow: var(--shadow-menu);
   animation: ushabti-fade-in 130ms var(--ease);
+}
+
+/* The button and its popover: no box of their own, so the chip lays them out
+   as it did when they were its own children. */
+.lookHold {
+  display: contents;
+}
+
+/* An icon stands for the colour, so the button drops its round fill and
+   wears the icon in that colour instead. */
+.swatchBtn.swatchBtnIcon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border-radius: var(--r-xs);
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+
+.swatchBtn:disabled {
+  cursor: default;
+}
+
+.swatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* Eight to a row, as in Mnemes. */
+.iconGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+
+.iconCell {
+  display: grid;
+  place-items: center;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  background: transparent;
+}
+
+.iconCell:hover {
+  background: var(--bg-hover);
+}
+
+.iconCell:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 0;
+}
+
+.iconCellOn {
+  border-color: var(--text);
+}
+
+.iconNone {
+  align-self: flex-start;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text-meta);
+  font: inherit;
+  font-size: var(--t-small);
+}
+
+.iconNone:hover {
+  color: var(--text);
+}
+
+.iconNoneOn {
+  border-color: var(--text);
+  color: var(--text);
 }
 
 .swatchChip {
@@ -882,6 +961,32 @@ button.whenOut:hover {
   .optionRemove {
     width: 24px;
     height: 24px;
+  }
+  /* The icon takes the whole square: there is no fill to clip. */
+  .swatchBtn.swatchBtnIcon {
+    padding: 0;
+  }
+  /* A chip can sit anywhere along its row, so the popover leaves it and
+     sits at the foot of the screen, as wide as the screen allows. */
+  .swatchPop {
+    position: fixed;
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .swatchChip {
+    width: 24px;
+    height: 24px;
+  }
+  .iconCell {
+    height: 36px;
+  }
+  .iconNone {
+    height: 36px;
   }
 }
 

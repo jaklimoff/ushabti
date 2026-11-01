@@ -33,7 +33,6 @@ import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { Chevron } from "@/components/ui/Marks";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
 import { useDismiss } from "@/components/ui/useDismiss";
-import { PALETTE, colorName } from "@/lib/colors";
 import { optionLines, OPTIONS_MAX, tooManySaid } from "@/lib/option-name";
 import { keyName } from "@/lib/filters";
 import { whenSaid } from "@/lib/when";
@@ -63,6 +62,7 @@ import { PageHead } from "./SettingsShell";
 import { useWhenWrite } from "./useWhenWrite";
 import { RolePanel, RoleRow } from "./RolePanel";
 import { TypesGrid } from "./TypesGrid";
+import { OptionLook } from "./OptionLook";
 import styles from "./settings.module.css";
 
 /* The grip is the only thing that lifts a row or a chip, so the name boxes
@@ -742,9 +742,7 @@ function OptionChip({
   /** Asks first. The row above owns the question. */
   onDelete: () => void;
 }) {
-  const { patchOption } = useBoard();
-  const [open, setOpen] = useState(false);
-  const ref = useDismiss<HTMLSpanElement>(() => setOpen(false), open);
+  const { data } = useBoard();
   const {
     attributes,
     listeners,
@@ -767,10 +765,7 @@ function OptionChip({
       ]
         .filter(Boolean)
         .join(" ")}
-      ref={(node) => {
-        ref.current = node;
-        setNodeRef(node);
-      }}
+      ref={setNodeRef}
       style={{
         transform: CSS.Translate.toString(transform),
         transition: transition ?? undefined,
@@ -793,37 +788,7 @@ function OptionChip({
         <span />
         <span />
       </button>
-      {/* The colour is the longhand, because on a phone the button holds a
-          24 px square and clips the colour to the middle of it. The
-          `background` shorthand would put that clip back to the whole button. */}
-      <button
-        type="button"
-        className={styles.swatchBtn}
-        style={{ backgroundColor: option.color }}
-        aria-label={`Colour of ${option.name}`}
-        title="Colour"
-        onClick={() => setOpen((v) => !v)}
-      />
-      {open && (
-        <span className={styles.swatchPop} role="listbox" aria-label={`Colour of ${option.name}`}>
-          {PALETTE.map((color) => (
-            <button
-              key={color}
-              type="button"
-              role="option"
-              aria-selected={color === option.color}
-              aria-label={colorName(color)}
-              title={colorName(color)}
-              className={`${styles.swatchChip} ${color === option.color ? styles.swatchChipOn : ""}`}
-              style={{ background: color }}
-              onClick={() => {
-                setOpen(false);
-                if (color !== option.color) void patchOption(option.id, { color });
-              }}
-            />
-          ))}
-        </span>
-      )}
+      <OptionLook option={option} mayEdit={data.project.mayStructure} />
       <OptionName option={option} />
       {dated && <OptionPlan option={option} canEdit={canEdit} />}
       {canEdit && (

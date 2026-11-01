@@ -89,3 +89,67 @@ test.describe("An option's icon", () => {
     await expect(plain.locator("span").first()).toHaveCSS("background-color", URGENT);
   });
 });
+
+test.describe("Settings picks an option's icon", () => {
+  test("a pick saves at once and the board shows it; No icon clears it", async ({
+    page,
+  }, testInfo) => {
+    await register(page);
+    const projectId = await createProject(page, unique("Picker"));
+    await addTask(page, "Todo", "Wears a star");
+    const panel = page.getByTestId("task-panel");
+    await panel.locator('[data-property="Priority"]').getByRole("button", { name: "High" }).click();
+    await page.getByRole("button", { name: "Close task" }).click();
+    const chip = card(page, "Wears a star").getByTestId("card-chip").first();
+    await expect(chip).toHaveAttribute("title", "Priority · High");
+
+    await page.goto(`/p/${projectId}/settings/properties`);
+    const look = page.getByRole("button", { name: "Colour of High" });
+    await look.click();
+    const pop = page.getByRole("dialog", { name: "Colour and icon of High" });
+    await expect(pop.getByRole("listbox", { name: "Icon of High" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-icon-picker.png") });
+    const saved = page.waitForResponse(
+      (r) => r.request().method() === "PATCH" && r.url().includes("/api/options/"),
+    );
+    await pop.getByRole("option", { name: "Star" }).click();
+    expect((await saved).ok()).toBe(true);
+    await expect(pop).toHaveCount(0);
+    await expect(icon(look, "Star")).toBeVisible();
+
+    await page.goto(`/p/${projectId}`);
+    await expect(icon(chip, "Star")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("seen-board-star.png") });
+
+    await page.goto(`/p/${projectId}/settings/properties`);
+    await look.click();
+    const cleared = page.waitForResponse(
+      (r) => r.request().method() === "PATCH" && r.url().includes("/api/options/"),
+    );
+    await pop.getByRole("button", { name: "No icon" }).click();
+    expect((await cleared).ok()).toBe(true);
+    await expect(look.locator("svg")).toHaveCount(0);
+
+    await page.goto(`/p/${projectId}`);
+    await expect(chip).toHaveAttribute("title", "Priority · High");
+    await expect(chip.locator("svg")).toHaveCount(0);
+  });
+
+  test("on a phone the popover fits the screen", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 375, height: 740 });
+    await register(page);
+    const projectId = await createProject(page, unique("Phone"));
+    await page.goto(`/p/${projectId}/settings/properties`);
+    await page.getByRole("button", { name: "Colour of Low" }).click();
+    const pop = page.getByRole("dialog", { name: "Colour and icon of Low" });
+    await expect(pop).toBeVisible();
+    const at = (await pop.boundingBox())!;
+    expect(at.x).toBeGreaterThanOrEqual(0);
+    expect(at.x + at.width).toBeLessThanOrEqual(375);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: testInfo.outputPath("seen-icon-picker-phone.png") });
+  });
+});

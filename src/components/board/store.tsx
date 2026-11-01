@@ -58,6 +58,7 @@ import type {
 } from "@/lib/types";
 import { readWhens, withoutHidden, withWhen } from "@/lib/when";
 import type { OptionDates } from "@/lib/option-dates";
+import type { OptionIcon } from "@/lib/option-icons";
 import type { ShipDone, ShipRest } from "@/lib/ship";
 import { personOf } from "@/lib/people";
 import { landedAfter } from "@/lib/landed";
@@ -302,7 +303,13 @@ type Store = {
   ) => Promise<string | null>;
   patchOption: (
     optionId: string,
-    patch: { name?: string; color?: string; afterId?: string | null } & Partial<OptionDates>,
+    patch: {
+      name?: string;
+      color?: string;
+      /** Null takes the icon away. */
+      icon?: OptionIcon | null;
+      afterId?: string | null;
+    } & Partial<OptionDates>,
   ) => Promise<void>;
   /**
    * Puts one option where another one of the same property sits. Settings

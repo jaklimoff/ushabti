@@ -15,6 +15,7 @@ import {
 import { serving as servingPanel } from "@/test/panel";
 import { CardEditor } from "./CardViewPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
+import { OPTION_ICONS } from "@/lib/option-icons";
 import { ViewsPanel } from "./ViewsPanel";
 
 /*
@@ -1046,5 +1047,149 @@ describe("The page note and the grips", () => {
         "title",
         "Drag to change where it sits, here and in the strip above the board",
       );
+  });
+});
+
+describe("An option's icon", () => {
+  // A phone test must not leave the next one at phone width.
+  afterEach(() => page.viewport(1280, 900));
+
+  /* The fixture's options carry no icon, so Urgent is given the one a new
+     project gives it. */
+  const signed = () => {
+    const data = newProject();
+    propertyOf(data, "Priority").options[0].icon = "OctagonAlert";
+    return data;
+  };
+  const urgentLook = () =>
+    propertyBox("Priority").getByRole("button", { name: "Colour of Urgent" });
+  const iconCells = () => page.getByRole("listbox", { name: "Icon of Urgent" }).getByRole("option");
+
+  test("picking an icon saves it at once, closes, and the button wears it", async () => {
+    const data = signed();
+    const { sent } = await draw(data);
+    const look = urgentLook();
+    // The new project's Urgent carries a sign, so the button wears it.
+    await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("OctagonAlert");
+
+    await look.click();
+    const cells = iconCells();
+    // Every icon of the catalogue, named in words, the current one marked.
+    expect(cells.elements()).toHaveLength(OPTION_ICONS.length);
+    await expect.element(cells.nth(1)).toHaveAccessibleName("Book open");
+    await expect.element(cells.nth(1)).toHaveAttribute("title", "Book open");
+    await expect
+      .element(page.getByRole("option", { name: "Octagon alert" }))
+      .toHaveAttribute("aria-selected", "true");
+
+    await page.getByRole("option", { name: "Signal high" }).click();
+    await wrote(() => sent("PATCH", OPTION), 1);
+    expect(sent("PATCH", OPTION)[0].body).toEqual({ icon: "SignalHigh" });
+    await expect
+      .element(page.getByRole("dialog", { name: "Colour and icon of Urgent" }))
+      .not.toBeInTheDocument();
+    await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("SignalHigh");
+  });
+
+  test("No icon clears it, and the button goes back to the colour", async () => {
+    const data = signed();
+    const { sent } = await draw(data);
+    const look = urgentLook();
+    await look.click();
+    await page.getByRole("button", { name: "No icon" }).click();
+    await wrote(() => sent("PATCH", OPTION), 1);
+    expect(sent("PATCH", OPTION)[0].body).toEqual({ icon: null });
+    await expect.poll(() => look.element().querySelector("svg")).toBeNull();
+    expect((look.element() as HTMLElement).style.backgroundColor).toBe("rgb(224, 87, 77)");
+  });
+
+  test("the grid is one tab stop, walked by the arrows", async () => {
+    const data = signed();
+    const { sent } = await draw(data);
+    const look = urgentLook();
+    await look.click();
+    const cells = iconCells().elements() as HTMLButtonElement[];
+    // One stop, on the current icon.
+    const stops = cells.filter((c) => c.tabIndex === 0);
+    expect(stops.map((c) => c.getAttribute("aria-label"))).toEqual(["Octagon alert"]);
+
+    stops[0].focus();
+    const at = OPTION_ICONS.indexOf("OctagonAlert");
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(document.activeElement).toBe(cells[at - 1]);
+    await userEvent.keyboard("{ArrowUp}");
+    expect(document.activeElement).toBe(cells[at - 1 - 8]);
+    await userEvent.keyboard("{ArrowDown}{ArrowRight}");
+    expect(document.activeElement).toBe(cells[at]);
+    await userEvent.keyboard("{Home}");
+    expect(document.activeElement).toBe(cells[0]);
+    expect(cells.filter((c) => c.tabIndex === 0)).toEqual([cells[0]]);
+
+    // Escape closes and hands the focus back to the button.
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(look.element());
+    expect(sent("PATCH", OPTION)).toHaveLength(0);
+
+    // Enter picks, as Space does.
+    await look.click();
+    (iconCells().elements() as HTMLButtonElement[]).find((c) => c.tabIndex === 0)!.focus();
+    await userEvent.keyboard("{End}{Enter}");
+    await wrote(() => sent("PATCH", OPTION), 1);
+    expect(sent("PATCH", OPTION)[0].body).toEqual({ icon: OPTION_ICONS.at(-1) });
+    expect(document.activeElement).toBe(look.element());
+    await look.click();
+    (iconCells().elements() as HTMLButtonElement[]).find((c) => c.tabIndex === 0)!.focus();
+    await userEvent.keyboard("{Home} ");
+    await wrote(() => sent("PATCH", OPTION), 2);
+    expect(sent("PATCH", OPTION)[1].body).toEqual({ icon: "Book" });
+  });
+
+  test("on a phone the popover fits the screen", async () => {
+    await page.viewport(375, 740);
+    await draw(signed());
+    // The last option of a row is the one furthest right.
+    await propertyBox("Priority").getByRole("button", { name: "Colour of Low" }).click();
+    const pop = page.getByRole("dialog", { name: "Colour and icon of Low" }).element();
+    const at = pop.getBoundingClientRect();
+    expect(at.left).toBeGreaterThanOrEqual(0);
+    expect(at.right).toBeLessThanOrEqual(window.innerWidth);
+    expect(pop.scrollWidth - pop.clientWidth).toBe(0);
+    const doc = document.documentElement;
+    expect(Math.max(doc.scrollWidth - doc.clientWidth, 0)).toBe(0);
+    // Every cell is big enough for a finger.
+    for (const cell of page
+      .getByRole("listbox", { name: "Icon of Low" })
+      .getByRole("option")
+      .elements()) {
+      const box = cell.getBoundingClientRect();
+      expect(box.width).toBeGreaterThanOrEqual(24);
+      expect(box.height).toBeGreaterThanOrEqual(24);
+    }
+  });
+
+  test("without the right to change structure, the icon shows and the picker does not open", async () => {
+    const data = signed();
+    data.project.mayStructure = false;
+    await draw(data);
+    const look = urgentLook();
+    await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("OctagonAlert");
+    await expect.element(look).toBeDisabled();
+    await look.click({ force: true });
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  test("a save that fails says so, and the button keeps the old icon", async () => {
+    const data = signed();
+    await draw(data, undefined, ({ method, path }) =>
+      method === "PATCH" && OPTION.test(path)
+        ? { status: 500, body: { error: "The change did not save." } }
+        : undefined,
+    );
+    const look = urgentLook();
+    await look.click();
+    await page.getByRole("option", { name: "Star" }).click();
+    await expect.element(byTestId("toast")).toHaveTextContent("The change did not save.");
+    await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("OctagonAlert");
   });
 });
