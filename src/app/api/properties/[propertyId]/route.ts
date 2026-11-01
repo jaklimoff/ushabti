@@ -6,6 +6,7 @@ import { HttpError } from "@/lib/auth";
 import { GROUPED_KINDS, type TaskValue } from "@/lib/types";
 import { readCadenceInput } from "@/lib/cadence";
 import { readIconInput } from "@/lib/option-icons";
+import { HEX_COLOR } from "@/lib/colors";
 import {
   body,
   broadcast,
@@ -45,6 +46,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     dated?: boolean;
     cadence?: { length?: unknown };
     icon?: unknown;
+    color?: unknown;
     when?: unknown;
     defaults?: unknown;
     afterId?: string | null;
@@ -111,6 +113,20 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .where(eq(properties.id, propertyId));
     if (row?.type !== "checkbox") throw new HttpError(400, "Only a checkbox carries an icon.");
     mergeConfig((c) => sql`${c} || ${JSON.stringify({ icon: read.icon })}::jsonb`);
+  }
+
+  /* Its colour is the ink of that icon, and is checked as an option's colour
+     is; null takes it back to the ink of words. */
+  if (input.color !== undefined) {
+    if (input.color !== null && (typeof input.color !== "string" || !HEX_COLOR.test(input.color))) {
+      throw new HttpError(400, "The colour must look like #3fb0c8.");
+    }
+    const [row] = await db
+      .select({ type: properties.type })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+    if (row?.type !== "checkbox") throw new HttpError(400, "Only a checkbox carries a colour.");
+    mergeConfig((c) => sql`${c} || ${JSON.stringify({ color: input.color })}::jsonb`);
   }
 
   /* When a property shows is the shape of the project, so it is an admin's.

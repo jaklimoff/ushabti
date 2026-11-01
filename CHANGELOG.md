@@ -14,6 +14,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   the card's new **Icon** mode a ticked box shows that icon instead of its
   name, and a list shows it in the cell. With no icon picked it shows a
   ticked square.
+- The checkbox's icon can wear a colour from the palette, picked in the same
+  popover. With none it keeps the grey of the words.
 
 ## 0.39.0 — 2026-11-01
 

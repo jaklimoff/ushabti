@@ -1287,15 +1287,14 @@ describe("A checkbox's icon", () => {
   };
   const blockedLook = () => propertyBox("Blocked").getByRole("button", { name: "Icon of Blocked" });
 
-  test("a pick saves at once, with no palette, and the button wears it", async () => {
+  test("an icon pick saves at once, and the button wears it", async () => {
     const { sent } = await draw(withBlocked());
     const look = blockedLook();
     // No icon picked: the button wears what Icon mode falls back to.
     await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("CheckSquare");
     await look.click();
-    const pop = page.getByRole("dialog", { name: "Icon of Blocked" });
+    const pop = page.getByRole("dialog", { name: "Colour and icon of Blocked" });
     await expect.element(pop).toBeVisible();
-    expect(document.querySelector('[role="listbox"][aria-label="Colour of Blocked"]')).toBeNull();
     await page.getByRole("option", { name: "Flag", exact: true }).click();
     await wrote(() => sent("PATCH", PROPERTY), 1);
     expect(sent("PATCH", PROPERTY)[0].body).toEqual({ icon: "Flag" });
@@ -1312,5 +1311,25 @@ describe("A checkbox's icon", () => {
     await expect.element(look).toBeDisabled();
     await look.click({ force: true });
     await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  test("a colour pick saves at once, the button wears it, and No colour takes it off", async () => {
+    const data = withBlocked("Flag");
+    const { sent } = await draw(data);
+    const look = blockedLook();
+    await expect.poll(() => look.element().dataset.color).toBe("");
+    await look.click();
+    const colours = page.getByRole("listbox", { name: "Colour of Blocked" });
+    await expect.element(colours).toBeVisible();
+    await colours.getByRole("option", { name: "Red" }).click();
+    await wrote(() => sent("PATCH", PROPERTY), 1);
+    expect(sent("PATCH", PROPERTY)[0].body).toEqual({ color: "#e0574d" });
+    await expect.poll(() => look.element().dataset.color).toBe("#e0574d");
+
+    await look.click();
+    await page.getByRole("button", { name: "No colour" }).click();
+    await wrote(() => sent("PATCH", PROPERTY), 2);
+    expect(sent("PATCH", PROPERTY)[1].body).toEqual({ color: null });
+    await expect.poll(() => look.element().dataset.color).toBe("");
   });
 });

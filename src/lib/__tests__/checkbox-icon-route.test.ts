@@ -6,7 +6,12 @@ vi.mock("next/headers", () => import("@/test/headers"));
 
 const { api, board, ok, person, project } = await import("@/test/route");
 
-type Prop = { id: string; name: string; type: string; config: { icon?: string | null } };
+type Prop = {
+  id: string;
+  name: string;
+  type: string;
+  config: { icon?: string | null; color?: string | null };
+};
 type Read = { properties: Prop[] };
 
 async function setUp() {
@@ -49,5 +54,31 @@ describe("A checkbox's icon", () => {
     const res = await me.patch(`/api/properties/${priority.id}`, { icon: "Flag" });
     expect(res.status).toBe(400);
     expect((await prop("Priority")).config.icon).toBeUndefined();
+  });
+
+  it("stores a colour, takes it off with null, and refuses one that is not #rrggbb", async () => {
+    const { me, prop } = await setUp();
+    const blocked = await prop("Blocked");
+
+    expect((await me.patch(`/api/properties/${blocked.id}`, { color: "#e0574d" })).status).toBe(
+      200,
+    );
+    expect((await prop("Blocked")).config.color).toBe("#e0574d");
+
+    for (const color of ["red", "#e057", "", 7]) {
+      expect((await me.patch(`/api/properties/${blocked.id}`, { color })).status).toBe(400);
+    }
+    expect((await prop("Blocked")).config.color).toBe("#e0574d");
+
+    expect((await me.patch(`/api/properties/${blocked.id}`, { color: null })).status).toBe(200);
+    expect((await prop("Blocked")).config.color ?? null).toBeNull();
+  });
+
+  it("refuses a colour on a property that is not a checkbox", async () => {
+    const { me, prop } = await setUp();
+    const priority = await prop("Priority");
+    const res = await me.patch(`/api/properties/${priority.id}`, { color: "#e0574d" });
+    expect(res.status).toBe(400);
+    expect((await prop("Priority")).config.color).toBeUndefined();
   });
 });

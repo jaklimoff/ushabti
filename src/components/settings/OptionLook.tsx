@@ -12,7 +12,7 @@ import { useBoard } from "@/components/board/store";
 import { OptionIcon } from "@/components/board/OptionIcon";
 import { Input } from "@/components/ui/Form";
 import { useDismiss } from "@/components/ui/useDismiss";
-import { PALETTE, colorName } from "@/lib/colors";
+import { PALETTE, colorName, readHex } from "@/lib/colors";
 import {
   findIcons,
   iconLabel,
@@ -122,10 +122,11 @@ export function OptionLook({ option, mayEdit }: { option: PropertyOptionDTO; may
 }
 
 /**
- * A checkbox's icon, behind one button: what a ticked box draws on a card in
- * Icon mode. The grid is the option's own, with no palette, because a
- * checkbox has no colour. The button wears what the card would draw, so with
- * no icon picked it wears the CheckSquare Icon mode falls back to.
+ * A checkbox's colour and icon, behind one button: what a ticked box draws on
+ * a card in Icon mode. The popover is the option's own. The button wears what
+ * the card would draw, so with no icon picked it wears the CheckSquare Icon
+ * mode falls back to, and with no colour the ink of words. Unlike an option a
+ * checkbox may have no colour, so the palette has a way back to none.
  */
 export function FlagLook({ property, mayEdit }: { property: PropertyDTO; mayEdit: boolean }) {
   const { patchProperty } = useBoard();
@@ -134,7 +135,9 @@ export function FlagLook({ property, mayEdit }: { property: PropertyDTO; mayEdit
   const close = useCallback(() => setOpen(false), []);
   const ref = useDismiss<HTMLSpanElement>(close, open);
   const icon = readOptionIcon(property.config.icon);
-  const look = { "--look": "var(--text-meta)" } as CSSProperties;
+  const color = readHex(property.config.color);
+  const ink = color ?? "var(--text-meta)";
+  const look = { "--look": ink } as CSSProperties;
 
   function closeToButton() {
     setOpen(false);
@@ -144,6 +147,11 @@ export function FlagLook({ property, mayEdit }: { property: PropertyDTO; mayEdit
   function pickIcon(next: IconName | null) {
     closeToButton();
     if (next !== icon) void patchProperty(property.id, { icon: next });
+  }
+
+  function pickColor(next: string | null) {
+    closeToButton();
+    if (next !== color) void patchProperty(property.id, { color: next });
   }
 
   return (
@@ -156,23 +164,54 @@ export function FlagLook({ property, mayEdit }: { property: PropertyDTO; mayEdit
         aria-label={`Icon of ${property.name}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={mayEdit ? "The icon a ticked box shows on a card" : undefined}
+        title={mayEdit ? "The colour and icon a ticked box shows on a card" : undefined}
         disabled={!mayEdit}
         data-icon={icon ?? ""}
+        data-color={color ?? ""}
         onClick={() => setOpen((v) => !v)}
       >
-        <OptionIcon name={icon ?? "CheckSquare"} color="var(--text-meta)" size={12} />
+        <OptionIcon name={icon ?? "CheckSquare"} color={ink} size={12} />
       </button>
       {open && (
         <span
           className={styles.swatchPop}
           style={look}
           role="dialog"
-          aria-label={`Icon of ${property.name}`}
+          aria-label={`Colour and icon of ${property.name}`}
           onKeyDown={(e) => {
             if (e.key === "Escape") closeToButton();
           }}
         >
+          <span className={styles.popHead}>
+            <span aria-hidden="true">Colour</span>
+            <button
+              type="button"
+              className={`${styles.iconNone} ${color ? "" : styles.iconNoneOn}`}
+              aria-pressed={!color}
+              onClick={() => pickColor(null)}
+            >
+              No colour
+            </button>
+          </span>
+          <span
+            className={styles.swatchRow}
+            role="listbox"
+            aria-label={`Colour of ${property.name}`}
+          >
+            {PALETTE.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="option"
+                aria-selected={c === color}
+                aria-label={colorName(c)}
+                title={colorName(c)}
+                className={`${styles.swatchChip} ${c === color ? styles.swatchChipOn : ""}`}
+                style={{ background: c }}
+                onClick={() => pickColor(c)}
+              />
+            ))}
+          </span>
           <span className={styles.popHead}>
             <span aria-hidden="true">Icon</span>
             <button

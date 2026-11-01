@@ -631,6 +631,21 @@ describe("drawing a card", () => {
       expect(chips.map((c) => c.item)).toEqual(["p-blocked", "_key"]);
     });
 
+    it("wears the checkbox's colour, and the ink of words with none or a bad one", () => {
+      const coloured = (color: unknown): PropertyDTO => ({
+        ...blocked("Flag"),
+        config: { icon: "Flag", color: color as string | null },
+      });
+      const drawn = (color: unknown) =>
+        buildCard(
+          cardItems(readCardView(view, [coloured(color)], null), [coloured(color)]),
+          task({ "p-blocked": true }),
+          [],
+        ).footerL.find((c) => c.item === "p-blocked")!;
+      expect(drawn("#e0574d").swatch).toEqual({ color: "#e0574d", round: false });
+      for (const color of [undefined, null, "red"]) expect(drawn(color).swatch).toBeNull();
+    });
+
     it("keeps the icon in a list cell", () => {
       const row = buildRow(iconList("Flag"), task({ "p-blocked": true }), []);
       expect(row.cells["p-blocked"][0].icon).toBe("Flag");

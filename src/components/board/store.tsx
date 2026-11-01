@@ -326,6 +326,8 @@ type Store = {
       cadence?: { length?: number };
       /** A checkbox's icon. Null clears it. */
       icon?: OptionIcon | null;
+      /** A checkbox's colour. Null takes it off. */
+      color?: string | null;
       /** Null clears the rule, so the property always shows. */
       when?: When | null;
     },
@@ -1696,6 +1698,9 @@ export function BoardProvider({
                   ? { config: { ...p.config, cadence: { ...p.config.cadence, ...patch.cadence } } }
                   : {}),
                 ...(patch.icon !== undefined ? { config: { ...p.config, icon: patch.icon } } : {}),
+                ...(patch.color !== undefined
+                  ? { config: { ...p.config, color: patch.color } }
+                  : {}),
                 ...(patch.when !== undefined ? { config: withWhen(p, patch.when) } : {}),
               }
             : p,

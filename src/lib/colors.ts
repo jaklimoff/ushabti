@@ -95,6 +95,14 @@ const COLOR_NAMES: Record<string, string> = {
   "#ec8fb8": "Pink",
 };
 
+/** A colour as it is stored: #rrggbb. */
+export const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+/** A colour read from a config, or null when what is stored is not one. */
+export function readHex(stored: unknown): string | null {
+  return typeof stored === "string" && HEX_COLOR.test(stored) ? stored : null;
+}
+
 /** The spoken name of a colour; one from outside the palette reads as its code. */
 export function colorName(hex: string): string {
   return COLOR_NAMES[hex.toLowerCase()] ?? hex;

@@ -22,6 +22,7 @@ import {
 import { personName, personOf, type Person } from "./people";
 import { isShown } from "./when";
 import { readOptionIcon, type OptionIcon } from "./option-icons";
+import { readHex } from "./colors";
 
 /**
  * What a card carries, and how.
@@ -713,15 +714,20 @@ function chipsFor(
       if (value !== true) return [];
       /* A box nobody gave an icon still draws one, so Icon never draws
          nothing for a ticked task. */
-      if (item.mode === "icon")
+      if (item.mode === "icon") {
+        /* The colour stands where a swatch would, so the icon wears it as an
+           option's does. With none it keeps the ink of words. */
+        const color = readHex(property.config.color);
         return [
           chip(item, `${item.id}-${task.id}`, "Yes", {
             /* The box has no value worth a word, so the tip is its name. */
             tip: item.name,
             icon: readOptionIcon(property.config.icon) ?? "CheckSquare",
+            swatch: color ? { color, round: false } : null,
             text: null,
           }),
         ];
+      }
       return [chip(item, `${item.id}-${task.id}`, item.name, { text: item.name, boxed })];
     }
 

@@ -81,6 +81,11 @@ export type PropertyConfig = {
    */
   icon?: string | null;
   /**
+   * A checkbox's colour, as #rrggbb: the ink its icon wears. Null or absent
+   * is the ink of words people read. Read it with `readHex()`.
+   */
+  color?: string | null;
+  /**
    * When this property shows on a task: "Severity, shown when Type is Bug".
    * Absent is always. Read it with `readWhen()`; the board and the export
    * carry only what that read.

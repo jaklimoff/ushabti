@@ -2,7 +2,7 @@ import { expect, test, type Locator } from "@playwright/test";
 import { addListView, addTask, card, createProject, listRow, register, unique } from "./helpers";
 
 /*
- * A checkbox can read as its icon on a card: Settings picks the icon, the
+ * A checkbox can read as its icon on a card: Settings picks the icon and its colour, the
  * card view's Icon mode draws it with no words, and a list cell draws the
  * same. Which chip carries which part is a unit test in
  * `src/lib/__tests__/card-view.test.ts`; this one holds what is drawn.
@@ -12,6 +12,9 @@ type Board = {
   properties: { id: string; name: string }[];
   tasks: { id: string; title: string }[];
 };
+
+/** The palette's red, #e0574d, as a browser reads it back. */
+const RED = "rgb(224, 87, 77)";
 
 function icon(holder: Locator, name: string) {
   return holder.locator(`svg[data-icon="${name}"]`);
@@ -60,10 +63,8 @@ test("a ticked checkbox in Icon mode shows its icon, and its name on hover", asy
   const look = page.getByRole("button", { name: "Icon of Blocked" });
   await expect(icon(look, "CheckSquare")).toBeVisible();
   await look.click();
-  const pop = page.getByRole("dialog", { name: "Icon of Blocked" });
+  const pop = page.getByRole("dialog", { name: "Colour and icon of Blocked" });
   await expect(pop.getByRole("listbox", { name: "Icon of Blocked" })).toBeVisible();
-  // A checkbox has no colour, so the grid comes without the palette.
-  await expect(pop.getByRole("listbox", { name: "Colour of Blocked" })).toHaveCount(0);
   await pop.getByRole("searchbox", { name: "Search icons for Blocked" }).fill("flag");
   await page.screenshot({ path: testInfo.outputPath("seen-checkbox-picker.png") });
   const saved = page.waitForResponse(
@@ -74,9 +75,22 @@ test("a ticked checkbox in Icon mode shows its icon, and its name on hover", asy
   await expect(pop).toHaveCount(0);
   await expect(icon(look, "Flag")).toBeVisible();
 
+  // The same popover picks a colour, and it saves at once.
+  await look.click();
+  const coloured = page.waitForResponse(
+    (r) => r.request().method() === "PATCH" && r.url().endsWith(`/api/properties/${blocked.id}`),
+  );
+  await pop
+    .getByRole("listbox", { name: "Colour of Blocked" })
+    .getByRole("option", { name: "Red" })
+    .click();
+  expect((await coloured).ok()).toBe(true);
+  await expect(icon(look, "Flag")).toHaveCSS("color", RED);
+
   // The card draws the flag and no words, and names it on hover.
   await page.goto(`/p/${projectId}`);
   await expect(icon(chip, "Flag")).toBeVisible();
+  await expect(icon(chip, "Flag")).toHaveCSS("color", RED);
   await expect(chip).toHaveText("");
   await chip.hover();
   await expect(page.getByTestId("chip-tip")).toHaveText("Blocked");
@@ -92,5 +106,6 @@ test("a ticked checkbox in Icon mode shows its icon, and its name on hover", asy
   await page.reload();
   await addListView(page, "Rows");
   await expect(icon(listRow(page, "Is blocked"), "Flag")).toBeVisible();
+  await expect(icon(listRow(page, "Is blocked"), "Flag")).toHaveCSS("color", RED);
   await page.screenshot({ path: testInfo.outputPath("seen-checkbox-list.png") });
 });
