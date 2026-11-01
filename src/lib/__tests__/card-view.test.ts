@@ -578,6 +578,65 @@ describe("drawing a card", () => {
     expect(buildCard(list, task({ "p-done": true }), []).footerL[0].text).toBe("Blocked");
     expect(buildCard(list, task({ "p-done": false }), []).footerL).toHaveLength(0);
   });
+
+  describe("a checkbox in Icon mode", () => {
+    const blocked = (icon: unknown): PropertyDTO => ({
+      id: "p-blocked",
+      name: "Blocked",
+      type: "checkbox",
+      position: "z",
+      config: { icon: icon as string | null },
+      options: [],
+    });
+    const view = {
+      rows: {
+        _key: { place: "footerL", mode: "text" },
+        "p-blocked": { place: "footerL", mode: "icon" },
+      },
+    };
+    const iconList = (icon: unknown) =>
+      cardItems(readCardView(view, [blocked(icon)], null), [blocked(icon)]);
+
+    it("draws its icon and no words, and is named on hover", () => {
+      const chips = buildCard(iconList("Flag"), task({ "p-blocked": true }), []).footerL;
+      const chip = chips.find((c) => c.item === "p-blocked")!;
+      expect(chip.icon).toBe("Flag");
+      expect(chip.text).toBeNull();
+      expect(chip.tip).toBe("Blocked");
+    });
+
+    it("draws CheckSquare when nobody picked an icon, or the name left the list", () => {
+      for (const icon of [undefined, null, "NotAnIcon"]) {
+        const chip = buildCard(iconList(icon), task({ "p-blocked": true }), []).footerL.find(
+          (c) => c.item === "p-blocked",
+        )!;
+        expect(chip.icon).toBe("CheckSquare");
+      }
+    });
+
+    it("draws nothing for an unticked box, in every mode", () => {
+      for (const mode of ["text", "boxed", "icon"]) {
+        const v = { rows: { "p-blocked": { place: "footerL", mode } } };
+        const list = cardItems(readCardView(v, [blocked("Flag")], null), [blocked("Flag")]);
+        expect(
+          buildCard(list, task({ "p-blocked": false }), []).footerL.filter(
+            (c) => c.item === "p-blocked",
+          ),
+        ).toHaveLength(0);
+      }
+    });
+
+    it("opens its place, ahead of the key, as a colour square does", () => {
+      const chips = buildCard(iconList("Flag"), task({ "p-blocked": true }), []).footerL;
+      expect(chips.map((c) => c.item)).toEqual(["p-blocked", "_key"]);
+    });
+
+    it("keeps the icon in a list cell", () => {
+      const row = buildRow(iconList("Flag"), task({ "p-blocked": true }), []);
+      expect(row.cells["p-blocked"][0].icon).toBe("Flag");
+      expect(row.cells["p-blocked"][0].text).toBeNull();
+    });
+  });
 });
 
 describe("the preview", () => {

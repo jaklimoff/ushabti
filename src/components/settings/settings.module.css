@@ -319,6 +319,21 @@
   flex: none;
 }
 
+/* A checkbox's icon sits in front of its name, so the phone's grid of the
+   head keeps the same three areas. */
+.propNameLook {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* An option's popover hangs from its chip; a checkbox's from its own icon. */
+.flagHold {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
 .propTags {
   display: flex;
   align-items: center;

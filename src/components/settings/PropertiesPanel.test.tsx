@@ -1270,3 +1270,47 @@ describe("An option's icon", () => {
     await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("OctagonAlert");
   });
 });
+
+describe("A checkbox's icon", () => {
+  /* The fixture has no checkbox, so one is added after Status. */
+  const withBlocked = (icon: string | null = null) => {
+    const data = newProject();
+    data.properties.push({
+      id: "b0000000-0000-4000-8000-000000000001",
+      name: "Blocked",
+      type: "checkbox",
+      position: "z",
+      config: { icon },
+      options: [],
+    });
+    return data;
+  };
+  const blockedLook = () => propertyBox("Blocked").getByRole("button", { name: "Icon of Blocked" });
+
+  test("a pick saves at once, with no palette, and the button wears it", async () => {
+    const { sent } = await draw(withBlocked());
+    const look = blockedLook();
+    // No icon picked: the button wears what Icon mode falls back to.
+    await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("CheckSquare");
+    await look.click();
+    const pop = page.getByRole("dialog", { name: "Icon of Blocked" });
+    await expect.element(pop).toBeVisible();
+    expect(document.querySelector('[role="listbox"][aria-label="Colour of Blocked"]')).toBeNull();
+    await page.getByRole("option", { name: "Flag", exact: true }).click();
+    await wrote(() => sent("PATCH", PROPERTY), 1);
+    expect(sent("PATCH", PROPERTY)[0].body).toEqual({ icon: "Flag" });
+    await expect.element(pop).not.toBeInTheDocument();
+    await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("Flag");
+  });
+
+  test("without the right to change structure, the icon shows and the picker does not open", async () => {
+    const data = withBlocked("Flag");
+    data.project.mayStructure = false;
+    await draw(data);
+    const look = blockedLook();
+    await expect.poll(() => look.element().querySelector("svg")?.dataset.icon).toBe("Flag");
+    await expect.element(look).toBeDisabled();
+    await look.click({ force: true });
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  });
+});

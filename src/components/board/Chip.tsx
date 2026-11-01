@@ -65,10 +65,11 @@ export function Chip({ chip }: { chip: CardChip }) {
         /* In a fill the icon takes the ink of the words; beside them it takes
            the option's colour, where the swatch would have been. A pixel over
            the default: lucide leaves a margin inside the box, and at 12 the
-           drawing sat smaller than the words beside it. */
+           drawing sat smaller than the words beside it. A checkbox has no
+           colour, so its icon wears the ink of words people read. */
         <OptionIcon
           name={chip.icon}
-          color={chip.swatch?.color}
+          color={chip.swatch?.color ?? (chip.fill ? undefined : "var(--text-meta)")}
           size={13}
           className={styles.cardChipIcon}
         />

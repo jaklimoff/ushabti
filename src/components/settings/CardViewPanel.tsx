@@ -533,6 +533,7 @@ function modeSaid(item: CardItem): string {
       : "The count alone, as 1/4.";
   if (kind === "comments") return "A speech bubble and the number of comments.";
   if (kind === "title") return "The task's title, on its own line.";
+  if (mode === "icon") return "The checkbox's icon when it is ticked, no words.";
   return mode === "boxed" ? "The words in a thin box." : "The words alone.";
 }
 

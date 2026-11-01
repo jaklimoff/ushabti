@@ -60,7 +60,7 @@ and what is easy to get wrong.
   their `position`, then `_checklist`, `_parts` and `_comments`. The chips
   that share a place on a card, the columns of a list and the fields of the
   task panel all follow it. One rule sits on top, on a card only: in each place a chip with no
-  words — mode `colour` or `avatar` — comes first, so a card nobody rearranged
+  words — mode `colour` or `avatar`, or a checkbox in mode `icon` — comes first, so a card nobody rearranged
   still opens with its square of colour. `buildCard` keys it off the mode, never
   off a property. The card view used to keep an `order` of its own, so a
   property dragged up in Settings moved in the panel and stayed where it was on

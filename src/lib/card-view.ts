@@ -90,6 +90,7 @@ export const MODES_FOR_KIND: Record<CardKind, { id: CardMode; label: string }[]>
   flag: [
     { id: "text", label: "Plain" },
     { id: "boxed", label: "Boxed" },
+    { id: "icon", label: "Icon" },
   ],
   text: [
     { id: "text", label: "Plain" },
@@ -710,6 +711,17 @@ function chipsFor(
 
     case "flag": {
       if (value !== true) return [];
+      /* A box nobody gave an icon still draws one, so Icon never draws
+         nothing for a ticked task. */
+      if (item.mode === "icon")
+        return [
+          chip(item, `${item.id}-${task.id}`, "Yes", {
+            /* The box has no value worth a word, so the tip is its name. */
+            tip: item.name,
+            icon: readOptionIcon(property.config.icon) ?? "CheckSquare",
+            text: null,
+          }),
+        ];
       return [chip(item, `${item.id}-${task.id}`, item.name, { text: item.name, boxed })];
     }
 
@@ -749,14 +761,14 @@ function propertiesOf(items: CardItem[]): PropertyDTO[] {
 }
 
 /**
- * A chip that carries a colour and no words: a square, or a face. It opens its
+ * A chip that carries no words: a square, a face, or a checkbox's icon. It opens its
  * place, ahead of the key and of any chip that reads as words, so a card that
  * nobody rearranged still leads with its square of colour. The rule keys off
  * the mode and never off a property, so it names nothing and moves with the
  * mode a person picks.
  */
 export function wordless(item: CardItem): boolean {
-  return item.mode === "colour" || item.mode === "avatar";
+  return item.mode === "colour" || item.mode === "avatar" || item.mode === "icon";
 }
 
 /** The rows in the order a card draws them: wordless first, each half in `cardOrder`. */

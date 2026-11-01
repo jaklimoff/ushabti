@@ -62,7 +62,7 @@ import { PageHead } from "./SettingsShell";
 import { useWhenWrite } from "./useWhenWrite";
 import { RolePanel, RoleRow } from "./RolePanel";
 import { TypesGrid } from "./TypesGrid";
-import { OptionLook } from "./OptionLook";
+import { FlagLook, OptionLook } from "./OptionLook";
 import styles from "./settings.module.css";
 
 /* The grip is the only thing that lifts a row or a chip, so the name boxes
@@ -328,7 +328,12 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
           <span />
           <span />
         </button>
-        <div className={styles.propName}>
+        <div
+          className={`${styles.propName} ${property.type === "checkbox" ? styles.propNameLook : ""}`}
+        >
+          {property.type === "checkbox" && (
+            <FlagLook property={property} mayEdit={data.project.mayStructure} />
+          )}
           <NameInput
             aria-label={`Name of the ${property.name} property`}
             value={name}

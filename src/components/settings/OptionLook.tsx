@@ -19,7 +19,7 @@ import {
   readOptionIcon,
   type OptionIcon as IconName,
 } from "@/lib/option-icons";
-import type { PropertyOptionDTO } from "@/lib/types";
+import type { PropertyDTO, PropertyOptionDTO } from "@/lib/types";
 import styles from "./settings.module.css";
 
 /** As many as Mnemes puts in a row, so the two pickers read the same. */
@@ -115,6 +115,76 @@ export function OptionLook({ option, mayEdit }: { option: PropertyOptionDTO; may
             </button>
           </span>
           <IconGrid name={option.name} current={icon} onPick={(next) => pickIcon(next)} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * A checkbox's icon, behind one button: what a ticked box draws on a card in
+ * Icon mode. The grid is the option's own, with no palette, because a
+ * checkbox has no colour. The button wears what the card would draw, so with
+ * no icon picked it wears the CheckSquare Icon mode falls back to.
+ */
+export function FlagLook({ property, mayEdit }: { property: PropertyDTO; mayEdit: boolean }) {
+  const { patchProperty } = useBoard();
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  const ref = useDismiss<HTMLSpanElement>(close, open);
+  const icon = readOptionIcon(property.config.icon);
+  const look = { "--look": "var(--text-meta)" } as CSSProperties;
+
+  function closeToButton() {
+    setOpen(false);
+    button.current?.focus();
+  }
+
+  function pickIcon(next: IconName | null) {
+    closeToButton();
+    if (next !== icon) void patchProperty(property.id, { icon: next });
+  }
+
+  return (
+    <span ref={ref} className={styles.flagHold}>
+      <button
+        ref={button}
+        type="button"
+        className={`${styles.swatchBtn} ${styles.swatchBtnIcon}`}
+        style={look}
+        aria-label={`Icon of ${property.name}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={mayEdit ? "The icon a ticked box shows on a card" : undefined}
+        disabled={!mayEdit}
+        data-icon={icon ?? ""}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <OptionIcon name={icon ?? "CheckSquare"} color="var(--text-meta)" size={12} />
+      </button>
+      {open && (
+        <span
+          className={styles.swatchPop}
+          style={look}
+          role="dialog"
+          aria-label={`Icon of ${property.name}`}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") closeToButton();
+          }}
+        >
+          <span className={styles.popHead}>
+            <span aria-hidden="true">Icon</span>
+            <button
+              type="button"
+              className={`${styles.iconNone} ${icon ? "" : styles.iconNoneOn}`}
+              aria-pressed={!icon}
+              onClick={() => pickIcon(null)}
+            >
+              No icon
+            </button>
+          </span>
+          <IconGrid name={property.name} current={icon} onPick={(next) => pickIcon(next)} />
         </span>
       )}
     </span>

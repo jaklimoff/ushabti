@@ -75,6 +75,12 @@ export type PropertyConfig = {
    */
   cadence?: { length?: number };
   /**
+   * A checkbox's icon, from `OPTION_ICONS`: what a ticked box draws on a card
+   * in Icon mode. Read it with `readOptionIcon()`, so a name that left the list
+   * reads as none.
+   */
+  icon?: string | null;
+  /**
    * When this property shows on a task: "Severity, shown when Type is Bug".
    * Absent is always. Read it with `readWhen()`; the board and the export
    * carry only what that read.
@@ -307,6 +313,8 @@ export const CARD_MODES = [
   /* anything with words */
   "text",
   "boxed",
+  /* a checkbox */
+  "icon",
   /* the description */
   "one",
   "two",

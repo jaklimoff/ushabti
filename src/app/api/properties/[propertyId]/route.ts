@@ -5,6 +5,7 @@ import { projects, properties, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { GROUPED_KINDS, type TaskValue } from "@/lib/types";
 import { readCadenceInput } from "@/lib/cadence";
+import { readIconInput } from "@/lib/option-icons";
 import {
   body,
   broadcast,
@@ -43,6 +44,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     showOnCard?: boolean;
     dated?: boolean;
     cadence?: { length?: unknown };
+    icon?: unknown;
     when?: unknown;
     defaults?: unknown;
     afterId?: string | null;
@@ -95,6 +97,20 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       (c) => sql`${c} || jsonb_build_object('cadence',
       (coalesce(${properties.config} -> 'cadence', '{}'::jsonb) - 'ahead') || ${JSON.stringify(read.patch)}::jsonb)`,
     );
+  }
+
+  /* A checkbox's icon is how it reads on a card, so it needs no more than the
+     structure right every change here needs. It is checked as an option's is;
+     null clears it. */
+  if (input.icon !== undefined) {
+    const read = readIconInput(input.icon);
+    if ("error" in read) throw new HttpError(400, read.error);
+    const [row] = await db
+      .select({ type: properties.type })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+    if (row?.type !== "checkbox") throw new HttpError(400, "Only a checkbox carries an icon.");
+    mergeConfig((c) => sql`${c} || ${JSON.stringify({ icon: read.icon })}::jsonb`);
   }
 
   /* When a property shows is the shape of the project, so it is an admin's.

@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- A checkbox property can carry an icon, picked in Settings → Properties. In
+  the card's new **Icon** mode a ticked box shows that icon instead of its
+  name, and a list shows it in the cell. With no icon picked it shows a
+  ticked square.
+
 ## 0.39.0 — 2026-11-01
 
 ### Added
