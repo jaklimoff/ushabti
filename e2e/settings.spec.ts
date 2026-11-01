@@ -74,8 +74,11 @@ test.describe("Settings", () => {
       "href",
       new RegExp(`/p/${projectId}\\?view=[0-9a-f-]+$`),
     );
-    await expect(open.getByTestId("view-fork")).toContainText("Board follows the default card");
-    await expect(open.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+    await expect(open).toContainText("Board follows the default card.");
+    await expect(open.getByRole("link", { name: "Change it on the Card page" })).toHaveAttribute(
+      "href",
+      new RegExp(`/p/${projectId}/settings/card\\?of=[0-9a-f-]+$`),
+    );
     await page.screenshot({ path: testInfo.outputPath("seen-view-row-open.png"), fullPage: true });
   });
 

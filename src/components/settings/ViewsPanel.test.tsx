@@ -7,7 +7,6 @@ import {
   propertyOf,
   renderWithBoard,
   withPhases,
-  withTask,
   type Sent,
 } from "@/test/board";
 import { ViewsPanel } from "./ViewsPanel";
@@ -221,92 +220,31 @@ describe("A view row says its card and its filters", () => {
     expect(sent("PATCH", VIEW)).toEqual([]);
   });
 
-  test("an open row shows that view's card editor in place, and a roadmap has none", async () => {
-    await renderWithBoard(<ViewsPanel />, project());
+  test("an open row says whose card it draws and points to the Card page", async () => {
+    const data = project();
+    await renderWithBoard(<ViewsPanel />, data);
     await page.getByRole("button", { name: "Open the view Phases" }).click();
     const open = page.getByTestId("view-open");
     await expect.element(open.getByRole("heading", { name: "Its card" })).toBeVisible();
+    await expect.element(open.getByText("Phases follows the default card.")).toBeVisible();
     await expect
-      .poll(() => page.getByTestId("view-fork").element().textContent)
-      .toContain("Phases follows the default card");
-    await expect.element(open.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+      .element(open.getByRole("link", { name: "Change it on the Card page" }))
+      .toHaveAttribute("href", `/p/${data.project.id}/settings/card?of=${data.views[1].id}`);
+    // The editor itself lives on the Card page only.
+    await gone(open.getByRole("group", { name: "Arrange the card as" }));
 
     await page.getByRole("button", { name: "Open the view Board" }).click();
-    await expect
-      .poll(() => page.getByTestId("view-fork").element().textContent)
-      .toContain("Board has a card of its own");
-    await page.getByRole("button", { name: "Use the default card for Board" }).click();
-    await expect.element(page.getByRole("button", { name: "Yes, use the default" })).toBeVisible();
-    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect.element(open.getByText("Board has a card of its own.")).toBeVisible();
 
     await page.getByRole("button", { name: "Open the view Road" }).click();
     await expect.element(open.getByRole("heading", { name: "Filters" })).toBeVisible();
     await gone(open.getByRole("heading", { name: "Its card" }));
   });
 
-  test("the default card sits on top and names the views that follow it", async () => {
-    const data = project();
-    withTask(data, "Holds the most", { Status: "Todo", Priority: "Urgent" });
-    await renderWithBoard(<ViewsPanel />, data);
-    const top = page.getByTestId("default-card");
-    await expect.element(page.getByRole("heading", { name: "Default card" })).toBeVisible();
-    await expect
-      .element(top.getByText("What a card carries, unless a view has its own."))
-      .toBeVisible();
-    // One card, the preview task that holds the most.
-    await expect.poll(() => top.getByTestId("card").elements().length).toBe(1);
-    await expect.element(top.getByTestId("card").getByText("Holds the most")).toBeVisible();
-    // A roadmap draws no card, so it is named in neither list.
-    await expect
-      .element(page.getByTestId("default-card-followers"))
-      .toHaveTextContent("Phases follows it. Board has a card of its own.");
-    // It sits above the list of views.
-    const first = page.getByRole("heading", { level: 2 }).elements()[0];
-    expect(first.textContent).toBe("Default card");
-  });
-
-  test("Edit the default card opens the project's editor in place", async () => {
-    const data = project();
-    const { sent } = await renderWithBoard(<ViewsPanel />, data);
-    const top = page.getByTestId("default-card");
-    await page.getByRole("button", { name: "Edit the default card" }).click();
-    await expect.element(top.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
-    await expect.element(top.getByRole("button", { name: "Reset to default" })).toBeVisible();
-    await expect
-      .element(top.getByRole("complementary", { name: "What a card looks like" }))
-      .toBeVisible();
-
-    // A change here is the project's card, never a view's.
-    await top.getByRole("button", { name: "List", exact: true }).click();
-    await top.getByRole("button", { name: /^Priority on the card/ }).click();
-    await top.getByRole("button", { name: "Put Priority in the footer right" }).click();
-    await wrote(() => sent("PATCH", /^\/api\/projects\/[0-9a-f-]+\/card-view$/), 1);
-    expect(sent("PATCH", /^\/api\/views\/[0-9a-f-]+\/card-view$/)).toEqual([]);
-
-    await page.getByRole("button", { name: "Close editor" }).click();
-    await gone(top.getByRole("group", { name: "Arrange the card as" }));
-    await expect.poll(() => top.getByTestId("card").elements().length).toBe(1);
-  });
-
-  test("the preview card is the way into the editor, and a project with no task keeps a button", async () => {
-    const data = project();
-    await renderWithBoard(<ViewsPanel />, data);
-    const top = page.getByTestId("default-card");
-    const open = top.getByRole("button", { name: "Edit the default card" });
-    // The one way in sits over the card, not in the heading.
-    expect(open.element().closest('[data-testid="default-card"]')).not.toBeNull();
-    await open.click();
-    await expect.element(top.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
-  });
-
-  test("with no task, the sample card opens the editor", async () => {
-    const data = project();
-    data.tasks = [];
-    await renderWithBoard(<ViewsPanel />, data);
-    const top = page.getByTestId("default-card");
-    await expect.element(top.getByTestId("card")).toBeVisible();
-    await top.getByRole("button", { name: "Edit the default card" }).click();
-    await expect.element(top.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+  test("the page holds no default card any more", async () => {
+    await renderWithBoard(<ViewsPanel />, project());
+    await expect.element(page.getByRole("heading", { name: "Views", level: 2 })).toBeVisible();
+    expect(page.getByTestId("default-card").elements()).toHaveLength(0);
   });
 
   test("an old link to a view's card lands with that row open", async () => {

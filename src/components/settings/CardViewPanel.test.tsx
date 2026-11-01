@@ -12,10 +12,9 @@ import {
   type Sent,
 } from "@/test/board";
 import { at } from "@/test/next-navigation";
-import { CardEditor } from "./CardViewPanel";
+import { CardEditor, CardPanel } from "./CardViewPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { SettingsShell } from "./SettingsShell";
-import { ViewsPanel } from "./ViewsPanel";
 
 /*
  * The card editor, and the board that draws what it says. Each test here
@@ -244,7 +243,7 @@ describe("Card view", () => {
   });
 
   /* The refused body with no rows is the card view route's to answer. */
-  test("an open view row arranges a card view for that view only", async () => {
+  test("the Card page arranges a card view for that view only", async () => {
     const data = newProject();
     withTask(data, "Seen twice", { Status: "Backlog" });
     const dense = {
@@ -257,100 +256,62 @@ describe("Card view", () => {
     };
     data.views.push(dense);
     window.localStorage.clear();
-    const { sent } = await renderWithBoard(
-      <>
-        <ViewsPanel />
-        <BoardShell initialTask={null} />
-      </>,
-      data,
-      serving(data),
-    );
-    await page.getByRole("button", { name: "Open the view Dense" }).click();
-    await asList();
-    const listHead = (name: string) =>
-      byTestId("list-head-cell").filter({
-        has: byTestId("list-head-name").filter({ hasText: new RegExp(`^${name}$`, "i") }),
-      });
-    await byTestId("view-pill").filter({ hasText: "Dense" }).click();
-    await expect.element(byTestId("list-view")).toBeVisible();
-    /* The project's card leaves the board's columns, Status, off. A list that
-       follows it puts them back on, and writes nothing to do it. */
-    await expect.element(listHead("Status")).toBeVisible();
-    await expect.element(listHead("Due")).toBeVisible();
-    await expect.element(row("Status")).toHaveAttribute("data-place", "footerL");
+    const before = window.location.href;
+    window.history.replaceState(null, "", `?of=${dense.id}`);
+    try {
+      const { sent } = await renderWithBoard(
+        <>
+          <CardPanel />
+          <BoardShell initialTask={null} />
+        </>,
+        data,
+        serving(data),
+      );
+      const listHead = (name: string) =>
+        byTestId("list-head-cell").filter({
+          has: byTestId("list-head-name").filter({ hasText: new RegExp(`^${name}$`, "i") }),
+        });
+      await byTestId("view-pill").filter({ hasText: "Dense" }).click();
+      await expect.element(byTestId("list-view")).toBeVisible();
+      /* The project's card leaves the board's columns, Status, off. A list that
+         follows it puts them back on, and writes nothing to do it. */
+      await expect.element(listHead("Status")).toBeVisible();
+      await expect.element(listHead("Due")).toBeVisible();
 
-    // Nobody has changed a view yet, so no view has a copy to throw away.
-    await gone(page.getByRole("button", { name: /^Use the default card/ }));
-    await expect
-      .poll(() => byTestId("view-fork").element().textContent)
-      .toContain("Dense follows the default card");
-    expect(sent("PATCH", VIEW_CARD)).toEqual([]);
+      // A view that follows shows what it draws, and no editor to change by accident.
+      await expect
+        .poll(() => byTestId("view-fork").element().textContent)
+        .toContain("Dense follows the default card");
+      await gone(page.getByRole("group", { name: "Arrange the card as" }));
+      await gone(page.getByRole("button", { name: /^Use the default card/ }));
+      expect(sent("PATCH", VIEW_CARD)).toEqual([]);
 
-    await opener("Due").click();
-    await page.getByRole("button", { name: "Take off the card" }).click();
-    await expect.element(row("Due")).toHaveAttribute("data-place", "off");
-    await expect
-      .element(page.getByRole("button", { name: "Use the default card for Dense" }))
-      .toBeVisible();
-    await expect
-      .poll(() => byTestId("view-fork").element().textContent)
-      .toContain("Dense has a card of its own");
-    await wrote(() => sent("PATCH", VIEW_CARD), 1);
-    expect(sent("PATCH", VIEW_CARD)[0].path).toBe(`/api/views/${dense.id}/card-view`);
-    // The copy starts from what the list drew, so Status stays a column.
-    const status = data.properties.find((p) => p.name === "Status")!;
-    expect(placeOf(sent("PATCH", VIEW_CARD)[0], status.id)).toBe("footerL");
-    // The project's card view is untouched.
-    expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+      // Its own card starts from what the list drew, so Status stays a column.
+      await page.getByRole("button", { name: "Give Dense its own card" }).click();
+      await wrote(() => sent("PATCH", VIEW_CARD), 1);
+      expect(sent("PATCH", VIEW_CARD)[0].path).toBe(`/api/views/${dense.id}/card-view`);
+      expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+      await expect
+        .poll(() => byTestId("view-fork").element().textContent)
+        .toContain("Dense has a card of its own");
+      // A list's editor opens on the rows.
+      await expect.element(row("Status")).toHaveAttribute("data-place", "footerL");
 
-    // The list draws its copy.
-    await gone(listHead("Due"));
-    await expect.element(listHead("Status")).toBeVisible();
-    await expect
-      .poll(() => byTestId("list-row").filter({ hasText: "Seen twice" }).element().textContent)
-      .toContain("Backlog");
+      await opener("Due").click();
+      await page.getByRole("button", { name: "Take off the card" }).click();
+      await expect.element(row("Due")).toHaveAttribute("data-place", "off");
+      await wrote(() => sent("PATCH", VIEW_CARD), 2);
+      expect(sent("PATCH", PROJECT_CARD)).toEqual([]);
+      await expect.element(listHead("Status")).toBeVisible();
 
-    // Only the view with a copy offers the way back, and it asks first.
-    const back = page.getByRole("button", { name: /^Use the default card/ });
-    await expect.element(back).toHaveAccessibleName("Use the default card for Dense");
-    await back.click();
-    await page.getByRole("button", { name: /^Yes, / }).click();
-    await gone(back);
-    await wrote(() => sent("PATCH", VIEW_CARD), 2);
-    expect(sent("PATCH", VIEW_CARD)[1].body).toEqual({ cardView: null });
-    await expect.element(listHead("Due")).toBeVisible();
-    await expect.element(listHead("Status")).toBeVisible();
-  });
-});
-
-describe("Where a view's card editor starts", () => {
-  test("a list view's opens on the rows, a board view's on the card", async () => {
-    const data = newProject();
-    data.views.push({
-      ...data.views[0],
-      id: "00000000-0000-4000-8000-777777777778",
-      name: "Rows",
-      kind: "list" as const,
-      position: "z0000000",
-      isDefault: false,
-    });
-    await renderWithBoard(<ViewsPanel />, data, serving(data));
-    const shape = (name: "Card" | "List") =>
-      page
-        .getByRole("group", { name: "Arrange the card as" })
-        .getByRole("button", { name, exact: true });
-
-    await page.getByRole("button", { name: "Open the view Rows" }).click();
-    await expect.element(shape("List")).toHaveAttribute("aria-pressed", "true");
-    await expect.element(byTestId("card-row").first()).toBeVisible();
-    await gone(byTestId("card-drawing"));
-    // The other shape is one press away, and it edits the same card view.
-    await shape("Card").click();
-    await expect.element(byTestId("card-drawing")).toBeVisible();
-
-    await page.getByRole("button", { name: `Open the view ${data.views[0].name}` }).click();
-    await expect.element(shape("Card")).toHaveAttribute("aria-pressed", "true");
-    await expect.element(byTestId("card-drawing")).toBeVisible();
+      // Throwing the copy away asks in place.
+      await page.getByRole("button", { name: "Use the default card for Dense" }).click();
+      await expect
+        .element(page.getByRole("button", { name: "Yes, use the default" }))
+        .toBeVisible();
+    } finally {
+      window.history.replaceState(null, "", before);
+    }
   });
 });
 
@@ -362,15 +323,19 @@ describe("Settings reads its own loader", () => {
     const data = newProject();
     for (let i = 0; i < 3; i++) withTask(data, `Light ${i}`);
     withTask(data, "Heavy", { Priority: "Urgent" });
-    at.pathname = `/p/${data.project.id}/settings/views`;
+    at.pathname = `/p/${data.project.id}/settings/card`;
     const { sent } = await renderWithBoard(
       <SettingsShell initial={data} user={ME} version="0.0.0">
-        <ViewsPanel />
+        <CardPanel />
       </SettingsShell>,
       data,
     );
-    // The default card draws the task that holds the most.
-    await expect.element(byTestId("default-card").getByText("Heavy")).toBeVisible();
+    // The preview draws the task that holds the most.
+    await expect
+      .element(
+        page.getByRole("complementary", { name: "What a card looks like" }).getByText("Heavy"),
+      )
+      .toBeVisible();
     expect(sent("GET", /\/board$/)).toEqual([]);
     at.pathname = null;
   });

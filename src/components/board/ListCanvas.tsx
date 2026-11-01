@@ -572,9 +572,9 @@ export function ListCanvas({
                 already is, and not at the foot of the window. */}
             {data.tasks.length === 0 && (
               <p className={styles.listFirst} data-testid="list-first">
-                The columns of a list are what a card carries, which you arrange in{" "}
-                <Link href={`/p/${data.project.id}/settings/views`}>Views</Link>. Every field on a
-                task is a property of yours — Status, Priority, Assignee and the rest — so you can
+                The columns of a list are what a card carries, which you arrange on the{" "}
+                <Link href={`/p/${data.project.id}/settings/card`}>Card</Link> page. Every field on
+                a task is a property of yours — Status, Priority, Assignee and the rest — so you can
                 rename or delete any of them.
               </p>
             )}

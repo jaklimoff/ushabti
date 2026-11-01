@@ -47,8 +47,7 @@ test.describe("Card view", () => {
     expect(await tips()).toEqual(["Estimate · M", "Phase · MVP"]);
 
     // The card view has no order of its own to change.
-    await gotoSettings(page, projectId, "views");
-    await page.getByRole("button", { name: "Edit the default card" }).click();
+    await gotoSettings(page, projectId, "card");
     await expect(page.getByRole("button", { name: /^Move .* (up|down)$/ })).toHaveCount(0);
 
     // One drag in Properties is the one order.
@@ -92,8 +91,7 @@ test.describe("Card view", () => {
     const projectId = await createProject(page, unique("Drawn"));
     await addTask(page, "Todo", "Arranged by clicks");
 
-    await gotoSettings(page, projectId, "views");
-    await page.getByRole("button", { name: "Edit the default card" }).click();
+    await gotoSettings(page, projectId, "card");
     const drawing = page.getByTestId("card-drawing");
     await expect(drawing.getByText("Title · always here")).toBeVisible();
     await expect(
@@ -123,7 +121,6 @@ test.describe("Card view", () => {
 
     // What was saved is what the page draws again after a reload.
     await page.reload();
-    await page.getByRole("button", { name: "Edit the default card" }).click();
     await expect(
       page.getByTestId("card-zone-body").getByRole("button", { name: "Description, body" }),
     ).toBeVisible();

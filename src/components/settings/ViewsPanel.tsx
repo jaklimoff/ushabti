@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DndContext,
@@ -21,7 +21,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { editedText } from "@/lib/leave";
 import { useBoard } from "@/components/board/store";
-import { TaskCard } from "@/components/board/TaskCard";
 import { ReadRuleChips } from "@/components/board/Filters";
 import { Button, IconButton, Pill } from "@/components/ui/Button";
 import { Label, NameInput, Select } from "@/components/ui/Form";
@@ -42,8 +41,6 @@ import {
 } from "@/lib/types";
 import { filterProperties } from "@/lib/filters";
 import { canManage } from "@/lib/roles";
-import { previewTasks } from "@/lib/card-view";
-import { CardEditor } from "./CardViewPanel";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
@@ -75,8 +72,6 @@ export function ViewsPanel() {
         title="Views"
         note="A view is one way of looking at the same tasks. A board puts them in columns; a list puts them in rows."
       />
-
-      <DefaultCard />
 
       <Section title="Views" note={String(data.views.length)}>
         <Card className={styles.viewsCard}>
@@ -118,83 +113,6 @@ export function ViewsPanel() {
   );
 }
 
-/**
- * The project's card, said before the views that draw it, so a change to it
- * names who it reaches. A roadmap draws no card and is in neither list.
- */
-function DefaultCard() {
-  const { data, cardItemsOf } = useBoard();
-  const [editing, setEditing] = useState(false);
-  const items = useMemo(() => cardItemsOf(null), [cardItemsOf]);
-  const first = useMemo(
-    () => previewTasks(data.tasks, data.properties, data.members, data.project.key, 1)[0],
-    [data.members, data.project.key, data.properties, data.tasks],
-  );
-  const drawing = data.views.filter((v) => v.kind !== "roadmap");
-  const follow = drawing.filter((v) => v.cardView == null).map((v) => v.name);
-  const own = drawing.filter((v) => v.cardView != null).map((v) => v.name);
-
-  return (
-    <Section
-      title="Default card"
-      action={
-        /* The card itself opens the editor; a project with no task draws a
-           sample one, so there is always a card to press. */
-        editing && (
-          <Button variant="ghost" aria-expanded={editing} onClick={() => setEditing((on) => !on)}>
-            {/* Not "Done": nothing here waits for a press to be saved. */}
-            {editing ? "Close editor" : "Edit the default card"}
-          </Button>
-        )
-      }
-    >
-      <div className={styles.defaultCard} data-testid="default-card">
-        <p className={styles.defaultCardSaid}>
-          <Note>What a card carries, unless a view has its own.</Note>{" "}
-          <span data-testid="default-card-followers">
-            <Note>{followersSaid(follow, own)}</Note>
-          </span>
-        </p>
-        {editing ? (
-          <CardEditor />
-        ) : (
-          first && (
-            <div className={styles.defaultCardPreview}>
-              <div className={styles.defaultCardHit}>
-                <TaskCard task={first} items={items} />
-                {/* Laid over the card rather than around it: the card is a
-                    button of its own, and one button cannot hold another. */}
-                <button
-                  type="button"
-                  className={styles.defaultCardOpen}
-                  aria-expanded={false}
-                  aria-label="Edit the default card"
-                  onClick={() => setEditing(true)}
-                />
-              </div>
-              {/* A hover alone is found by nobody, so the way in is said. */}
-              <Note>Click the card to change what it carries.</Note>
-            </div>
-          )
-        )}
-      </div>
-    </Section>
-  );
-}
-
-function namesSaid(names: string[]): string {
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
-}
-
-function followersSaid(follow: string[], own: string[]): string {
-  const follows = follow.length
-    ? `${namesSaid(follow)} ${follow.length === 1 ? "follows" : "follow"} it.`
-    : "No view follows it.";
-  if (!own.length) return follows;
-  return `${follows} ${namesSaid(own)} ${own.length === 1 ? "has a card" : "have cards"} of ${own.length === 1 ? "its" : "their"} own.`;
-}
-
 function ViewRow({
   view,
   groupable,
@@ -206,9 +124,8 @@ function ViewRow({
   open: boolean;
   onToggle: () => void;
 }) {
-  const { data, updateView, deleteView, setMainView, resetCardView } = useBoard();
+  const { data, updateView, deleteView, setMainView } = useBoard();
   const confirm = useConfirm();
-  const unCopy = useConfirm();
   const box = useRef<HTMLInputElement>(null);
   const part = useId();
   /* The box holds a name that another tab can change under it, so only what
@@ -468,46 +385,19 @@ function ViewRow({
               <h3 className={styles.viewPartHead}>
                 {view.kind === "list" ? "Its columns" : "Its card"}
               </h3>
-              {/* Throwing a copy away loses what somebody arranged, so it asks
-                in place, as deleting does. */}
-              {unCopy.asking ? (
-                <ConfirmRow
-                  question={`Use the default card for ${view.name}? Its own card goes, and it draws the default again.`}
-                  confirmLabel="Yes, use the default"
-                  onConfirm={() => unCopy.confirm(() => void resetCardView(view.id))}
-                  onCancel={unCopy.cancel}
-                />
-              ) : own ? (
-                <div className={styles.viewFork} data-testid="view-fork">
-                  <Note>
-                    {view.name} has a card of its own. A change to the default does not reach it.
-                  </Note>
-                  {canEdit && (
-                    <Button
-                      variant="ghost"
-                      aria-label={`Use the default card for ${view.name}`}
-                      onClick={unCopy.ask}
-                    >
-                      Use the default
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className={styles.viewFork} data-testid="view-fork">
-                  <Note>
-                    {view.name} follows the default card. Your first change here gives it a card of
-                    its own.
-                  </Note>
-                </div>
-              )}
-              {/* A board view shows one card at the board's size above the
-                  drawing, as the board's own Card panel does. */}
-              <CardEditor
-                viewId={view.id}
-                bare
-                sample={view.kind === "board"}
-                startOn={view.kind === "list" ? "list" : "card"}
-              />
+              <Note>
+                {own
+                  ? `${view.name} has a card of its own.`
+                  : `${view.name} follows the default card.`}
+              </Note>
+              {/* Every card is arranged on one page, so this row says whose it
+                  is and points there rather than holding a second editor. */}
+              <Link
+                className={styles.viewBoardLink}
+                href={`/p/${data.project.id}/settings/card?of=${encodeURIComponent(view.id)}`}
+              >
+                Change it on the Card page
+              </Link>
             </section>
           )}
         </div>

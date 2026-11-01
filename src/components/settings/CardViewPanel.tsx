@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useBoard } from "@/components/board/store";
 import { TaskCard } from "@/components/board/TaskCard";
 import { Button, IconButton, Pill } from "@/components/ui/Button";
 import { Card, Foot, Note, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
-import { Chevron } from "@/components/ui/Marks";
+import { Chevron, ViewKindMark } from "@/components/ui/Marks";
 import {
   canEdge,
   cardItems as itemsOf,
@@ -26,16 +28,194 @@ import {
   type CardMode,
   type CardPlace,
   type CardView,
+  type ViewDTO,
 } from "@/lib/types";
+import { canManage } from "@/lib/roles";
 import { CardDrawing } from "./CardDrawing";
+import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
+
+/**
+ * The Card page: the default card, or one view's. A row on Views used to
+ * carry each view's editor, and the default sat above them, so the page held
+ * up to seven editors and the one that mattered most was a click away. Here
+ * the picker says whose card it is and whether it follows the default.
+ */
+export function CardPanel() {
+  const { data } = useBoard();
+  const params = useSearchParams();
+  const base = `/p/${data.project.id}/settings/card`;
+  /* A roadmap draws bars, so it has no card to pick. */
+  const drawing = data.views.filter((v) => v.kind !== "roadmap");
+  const picked = drawing.find((v) => v.id === params.get("of")) ?? null;
+  const from = params.get("from");
+  const hrefOf = (view: ViewDTO | null) => {
+    const query = new URLSearchParams();
+    if (view) query.set("of", view.id);
+    if (from) query.set("from", from);
+    const said = query.toString();
+    return said ? `${base}?${said}` : base;
+  };
+
+  return (
+    <>
+      <PageHead
+        title="Card"
+        note="What a task carries on a board, and in a row of a list. Every view draws the default card until it gets one of its own."
+      />
+      <section className={styles.cardPage}>
+        <nav className={styles.whose} aria-label="Whose card">
+          <WhoseLink href={hrefOf(null)} on={!picked}>
+            <span className={styles.whoseName}>Default</span>
+          </WhoseLink>
+          <span className={styles.whoseSep} aria-hidden />
+          {drawing.map((view) => (
+            <WhoseLink key={view.id} href={hrefOf(view)} on={picked?.id === view.id}>
+              <span className={styles.viewGlyph} aria-hidden>
+                <ViewKindMark kind={view.kind} />
+              </span>
+              <span className={styles.whoseName}>{view.name}</span>
+              {view.cardView != null ? (
+                <Tag accent>own</Tag>
+              ) : (
+                <span className={styles.whoseFollows}>default</span>
+              )}
+            </WhoseLink>
+          ))}
+        </nav>
+        <div className={styles.defaultCard} data-testid="default-card">
+          {picked == null ? (
+            <DefaultCard />
+          ) : picked.cardView != null ? (
+            <OwnCard view={picked} />
+          ) : (
+            <FollowingCard view={picked} defaultHref={hrefOf(null)} />
+          )}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function WhoseLink({
+  href,
+  on,
+  children,
+}: {
+  href: string;
+  on: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-current={on ? "page" : undefined}
+      className={`${styles.whoseLink} ${on ? styles.whoseOn : ""}`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function DefaultCard() {
+  const { data } = useBoard();
+  const drawing = data.views.filter((v) => v.kind !== "roadmap");
+  const follow = drawing.filter((v) => v.cardView == null).map((v) => v.name);
+  const own = drawing.filter((v) => v.cardView != null).map((v) => v.name);
+  const roadmap = data.views.some((v) => v.kind === "roadmap");
+  return (
+    <>
+      <p className={styles.defaultCardSaid} data-testid="default-card-followers">
+        <Note>
+          {followersSaid(follow, own)}
+          {roadmap && " A roadmap draws no card."}
+        </Note>
+      </p>
+      <CardEditor />
+    </>
+  );
+}
+
+/* Throwing a copy away loses what somebody arranged, so it asks in place. */
+function OwnCard({ view }: { view: ViewDTO }) {
+  const { data, resetCardView } = useBoard();
+  const confirm = useConfirm();
+  return (
+    <>
+      {confirm.asking ? (
+        <ConfirmRow
+          question={`Use the default card for ${view.name}? Its own card goes, and it draws the default again.`}
+          confirmLabel="Yes, use the default"
+          onConfirm={() => confirm.confirm(() => void resetCardView(view.id))}
+          onCancel={confirm.cancel}
+        />
+      ) : (
+        <div className={styles.viewFork} data-testid="view-fork">
+          <Note>{view.name} has a card of its own. A change to the default does not reach it.</Note>
+          {canManage(data.project.role) && (
+            <Button
+              variant="ghost"
+              aria-label={`Use the default card for ${view.name}`}
+              onClick={confirm.ask}
+            >
+              Use the default
+            </Button>
+          )}
+        </div>
+      )}
+      <CardEditor key={view.id} viewId={view.id} startOn={view.kind === "list" ? "list" : "card"} />
+    </>
+  );
+}
+
+/**
+ * A view that follows the default shows what it draws and no editor: a change
+ * here would have been a change to a copy nobody asked for. Making the copy
+ * is its own press, and it copies what the view draws now, so nothing moves.
+ */
+function FollowingCard({ view, defaultHref }: { view: ViewDTO; defaultHref: string }) {
+  const { cardItemsOf, setCardView } = useBoard();
+  const items = useMemo(() => cardItemsOf(view.id), [cardItemsOf, view.id]);
+  return (
+    <>
+      <div className={styles.viewFork} data-testid="view-fork">
+        <Note>
+          {view.name} follows the default card. Change the default, and {view.name} changes with it.
+        </Note>
+        <Button variant="ghost" onClick={() => void setCardView(viewOf(items), view.id)}>
+          Give {view.name} its own card
+        </Button>
+      </div>
+      <div className={`${styles.cardLayout} ${styles.followsLayout}`}>
+        <Preview items={items} lit={null} />
+      </div>
+      <Link className={styles.viewBoardLink} href={defaultHref} scroll={false}>
+        Change the default card
+      </Link>
+    </>
+  );
+}
+
+function namesSaid(names: string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+export function followersSaid(follow: string[], own: string[]): string {
+  const follows = follow.length
+    ? `${namesSaid(follow)} ${follow.length === 1 ? "follows" : "follow"} it.`
+    : "No view follows it.";
+  if (!own.length) return follows;
+  return `${follows} ${namesSaid(own)} ${own.length === 1 ? "has a card" : "have cards"} of ${own.length === 1 ? "its" : "their"} own.`;
+}
 
 /**
  * The card editor, for the project's card or for one view's own copy. It is
  * the same editor either way, so a view's card cannot be arranged in a way
  * the project's cannot; the first change to a view with no copy writes one.
- * Views draws the default one beside a preview; a view's row and the board's
- * Card panel draw it bare, and say above it what a view's own card means.
+ * The Card page draws it beside a preview; the board's Card panel draws it
+ * bare, and says above it what a view's own card means.
  * The panel also draws one board card above it, because the drawing alone
  * reads as a card twice the size of the ones behind it.
  */
@@ -46,7 +226,7 @@ export function CardEditor({
   startOn = "card",
 }: {
   viewId?: string | null;
-  /** No preview and no "Use the default" in the foot: the board panel has both. */
+  /** No preview beside it: the board panel draws its own card above. */
   bare?: boolean;
   /** One board card on the stand-in task above the editor. */
   sample?: boolean;
@@ -91,7 +271,6 @@ export function CardEditor({
   const edge = cardItems.find((i) => i.place === "edge") ?? null;
 
   if (viewId && !target) return null;
-  const own = target?.cardView != null;
 
   return (
     <>
@@ -152,31 +331,15 @@ export function CardEditor({
 
           {confirm.asking ? (
             <ConfirmRow
-              question={
-                target
-                  ? `Use the default for ${target.name}? Its own card view goes, and it draws the project's again.`
-                  : `Reset the card view for everyone? ${changed} ${changed === 1 ? "row goes" : "rows go"} back to the default.`
-              }
-              confirmLabel={target ? "Yes, use the default" : "Yes, reset"}
+              question={`Reset the card view for everyone? ${changed} ${changed === 1 ? "row goes" : "rows go"} back to the default.`}
+              confirmLabel="Yes, reset"
               onConfirm={() => confirm.confirm(() => void resetCardView(viewId))}
               onCancel={confirm.cancel}
             />
           ) : (
             <Foot>
-              {target ? (
-                own &&
-                !bare && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setOpen(null);
-                      confirm.ask();
-                    }}
-                  >
-                    Use the default
-                  </Button>
-                )
-              ) : (
+              {/* A view's way back to the default is said above its editor. */}
+              {!target && (
                 <Button
                   variant="ghost"
                   disabled={changed === 0}

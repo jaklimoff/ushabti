@@ -8,6 +8,20 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- A chip on a card with no words — a colour, an icon or a face — names its
+  property and value the moment it is pointed at.
+
+### Changed
+
+- The card has its own page in Settings again, **Card**, between Properties
+  and Views. A row of pills picks whose card it is: the default, or one view's.
+  A view that follows the default shows its cards and offers **Give it its own
+  card**; a view with its own card opens its editor, with **Use the default**
+  above it. A row on Views says whose card it draws and links there, and old
+  links to a view's card land on the page with that view picked.
+
 ### Fixed
 
 - The colour and icon popover of an option shows whole in Properties, also on

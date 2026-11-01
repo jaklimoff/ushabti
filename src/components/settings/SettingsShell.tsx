@@ -87,6 +87,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
       title: "Structure",
       items: [
         { slug: "properties", label: "Properties", count: data.properties.length },
+        { slug: "card", label: "Card", count: null },
         { slug: "views", label: "Views", count: data.views.length },
       ],
     },

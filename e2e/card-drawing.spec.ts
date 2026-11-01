@@ -22,8 +22,7 @@ test.describe("Card drawing", () => {
     const projectId = await createProject(page, unique("Dragged"));
     await addTask(page, "Todo", "Arranged by drags");
 
-    await gotoSettings(page, projectId, "views");
-    await page.getByRole("button", { name: "Edit the default card" }).click();
+    await gotoSettings(page, projectId, "card");
     const drawing = page.getByTestId("card-drawing");
     await expect(drawing.getByText("Drag a chip to another place, or off the card.")).toBeVisible();
     const zone = (place: string) => page.getByTestId(`card-zone-${place}`);
@@ -67,7 +66,6 @@ test.describe("Card drawing", () => {
     ).toBeVisible();
 
     await page.reload();
-    await page.getByRole("button", { name: "Edit the default card" }).click();
     await expect(
       page.getByTestId("card-off").getByRole("button", { name: "Priority, not on the card" }),
     ).toBeVisible();
@@ -79,8 +77,7 @@ test.describe("Card drawing", () => {
     const projectId = await createProject(page, unique("Reordered"));
     await addTask(page, "Todo", "Due comes first");
 
-    await gotoSettings(page, projectId, "views");
-    await page.getByRole("button", { name: "Edit the default card" }).click();
+    await gotoSettings(page, projectId, "card");
     const drawing = page.getByTestId("card-drawing");
     await expect(
       drawing.getByText(
