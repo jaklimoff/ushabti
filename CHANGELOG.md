@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.39.0 — 2026-11-01
+
 ### Added
 
 - A chip on a card with no words — a colour, an icon or a face — names its
