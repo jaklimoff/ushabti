@@ -3713,6 +3713,31 @@ button.typeGridStartsSaid[aria-expanded="true"] {
 }
 
 .defaultCardPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   width: 272px;
   max-width: 100%;
+}
+
+.defaultCardHit {
+  position: relative;
+}
+
+/* The whole card is the way into its editor. It says so under the pointer
+   and on a keyboard's focus, and is a plain card the rest of the time. */
+.defaultCardOpen {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-card);
+  background: transparent;
+  cursor: pointer;
+}
+
+.defaultCardOpen:hover,
+.defaultCardOpen:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
 }

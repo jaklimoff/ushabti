@@ -138,10 +138,14 @@ function DefaultCard() {
     <Section
       title="Default card"
       action={
-        <Button variant="ghost" aria-expanded={editing} onClick={() => setEditing((on) => !on)}>
-          {/* Not "Done": nothing here waits for a press to be saved. */}
-          {editing ? "Close editor" : "Edit the default card"}
-        </Button>
+        /* The card itself opens the editor; a project with no task draws a
+           sample one, so there is always a card to press. */
+        editing && (
+          <Button variant="ghost" aria-expanded={editing} onClick={() => setEditing((on) => !on)}>
+            {/* Not "Done": nothing here waits for a press to be saved. */}
+            {editing ? "Close editor" : "Edit the default card"}
+          </Button>
+        )
       }
     >
       <div className={styles.defaultCard} data-testid="default-card">
@@ -156,7 +160,20 @@ function DefaultCard() {
         ) : (
           first && (
             <div className={styles.defaultCardPreview}>
-              <TaskCard task={first} items={items} />
+              <div className={styles.defaultCardHit}>
+                <TaskCard task={first} items={items} />
+                {/* Laid over the card rather than around it: the card is a
+                    button of its own, and one button cannot hold another. */}
+                <button
+                  type="button"
+                  className={styles.defaultCardOpen}
+                  aria-expanded={false}
+                  aria-label="Edit the default card"
+                  onClick={() => setEditing(true)}
+                />
+              </div>
+              {/* A hover alone is found by nobody, so the way in is said. */}
+              <Note>Click the card to change what it carries.</Note>
             </div>
           )
         )}

@@ -288,6 +288,27 @@ describe("A view row says its card and its filters", () => {
     await expect.poll(() => top.getByTestId("card").elements().length).toBe(1);
   });
 
+  test("the preview card is the way into the editor, and a project with no task keeps a button", async () => {
+    const data = project();
+    await renderWithBoard(<ViewsPanel />, data);
+    const top = page.getByTestId("default-card");
+    const open = top.getByRole("button", { name: "Edit the default card" });
+    // The one way in sits over the card, not in the heading.
+    expect(open.element().closest('[data-testid="default-card"]')).not.toBeNull();
+    await open.click();
+    await expect.element(top.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+  });
+
+  test("with no task, the sample card opens the editor", async () => {
+    const data = project();
+    data.tasks = [];
+    await renderWithBoard(<ViewsPanel />, data);
+    const top = page.getByTestId("default-card");
+    await expect.element(top.getByTestId("card")).toBeVisible();
+    await top.getByRole("button", { name: "Edit the default card" }).click();
+    await expect.element(top.getByRole("group", { name: "Arrange the card as" })).toBeVisible();
+  });
+
   test("an old link to a view's card lands with that row open", async () => {
     const data = project();
     const before = window.location.href;
