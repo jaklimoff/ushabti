@@ -114,7 +114,7 @@ test.describe("Ushabti board", () => {
       await page.getByRole("button", { name: "Close task" }).click();
 
       const square = card(page, "Priority test").getByTestId("card-chip").first();
-      await expect(square).toHaveAttribute("title", "Priority · Urgent");
+      await expect(square).toHaveAttribute("data-tip", "Priority · Urgent");
     },
   );
 

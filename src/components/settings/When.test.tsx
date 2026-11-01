@@ -122,7 +122,7 @@ describe("A property says when it shows", () => {
 
     const card = (title: string) =>
       byTestId("board-canvas").getByTestId("card").filter({ hasText: title });
-    const chip = '[data-testid="card-chip"][title="Priority · Urgent"]';
+    const chip = '[data-testid="card-chip"][data-tip="Priority · Urgent"]';
     await expect.poll(() => card("A bug").element().querySelector(chip)).not.toBeNull();
     await expect.element(card("A story")).toBeVisible();
     expect(card("A story").element().querySelector(chip)).toBeNull();

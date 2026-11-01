@@ -59,7 +59,7 @@ test.describe("An option's icon", () => {
     // The card: Priority is a colour chip, so the icon alone, first in its place.
     const chips = card(page, "Wears an icon").getByTestId("card-chip");
     const lead = chips.first();
-    await expect(lead).toHaveAttribute("title", "Priority · Urgent");
+    await expect(lead).toHaveAttribute("data-tip", "Priority · Urgent");
     await expect(icon(lead, "OctagonAlert")).toHaveCSS("color", URGENT);
     await expect(lead).toHaveText("");
 
@@ -84,7 +84,7 @@ test.describe("An option's icon", () => {
     expect(cleared.ok()).toBe(true);
     await page.getByTestId("view-pill").filter({ hasText: "Board" }).click();
     const plain = card(page, "Wears an icon").getByTestId("card-chip").first();
-    await expect(plain).toHaveAttribute("title", "Priority · Urgent");
+    await expect(plain).toHaveAttribute("data-tip", "Priority · Urgent");
     await expect(plain.locator("svg")).toHaveCount(0);
     await expect(plain.locator("span").first()).toHaveCSS("background-color", URGENT);
   });
@@ -101,7 +101,7 @@ test.describe("Settings picks an option's icon", () => {
     await panel.locator('[data-property="Priority"]').getByRole("button", { name: "High" }).click();
     await page.getByRole("button", { name: "Close task" }).click();
     const chip = card(page, "Wears a star").getByTestId("card-chip").first();
-    await expect(chip).toHaveAttribute("title", "Priority · High");
+    await expect(chip).toHaveAttribute("data-tip", "Priority · High");
 
     await page.goto(`/p/${projectId}/settings/properties`);
     const look = page.getByRole("button", { name: "Colour of High" });
@@ -131,7 +131,7 @@ test.describe("Settings picks an option's icon", () => {
     await expect(look.locator("svg")).toHaveCount(0);
 
     await page.goto(`/p/${projectId}`);
-    await expect(chip).toHaveAttribute("title", "Priority · High");
+    await expect(chip).toHaveAttribute("data-tip", "Priority · High");
     await expect(chip.locator("svg")).toHaveCount(0);
   });
 

@@ -147,9 +147,11 @@ describe("Picking several cards", () => {
     await userEvent.keyboard("{Escape}");
 
     for (const title of ["Aardvark", "Beetle"]) {
-      await expect.element(card(title).getByTitle(ME.name, { exact: true })).toBeVisible();
+      await expect
+        .element(card(title).getByRole("img", { name: `Assignee · ${ME.name}` }))
+        .toBeVisible();
     }
-    await gone(card("Cricket").getByTitle(ME.name, { exact: true }));
+    await gone(card("Cricket").getByRole("img", { name: `Assignee · ${ME.name}` }));
     const assignee = propertyOf(data, "Assignee").id;
     expect(server.tasks.filter((t) => t.values[assignee] === ME.id).map((t) => t.title)).toEqual([
       "Aardvark",

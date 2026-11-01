@@ -1,5 +1,7 @@
 "use client";
 
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CardChip } from "@/lib/card-view";
 import { ink } from "@/lib/colors";
 import { Avatar } from "@/components/ui/Avatar";
@@ -27,14 +29,38 @@ export function Chip({ chip }: { chip: CardChip }) {
      ink that reads on it. */
   const paint = chip.fill ? { background: chip.fill, color: ink(chip.fill) } : undefined;
 
+  /* A colour, an icon or a face alone names nothing to somebody who has not
+     learned the board yet, so it says what it is the moment it is pointed at.
+     The browser's own tooltip comes a second late and would sit on top of
+     this one, so a wordless chip carries none. One with words keeps it: they
+     may be cut short. */
+  const wordless = chip.text === null;
+  const [at, setAt] = useState<DOMRect | null>(null);
+  const hide = useCallback(() => setAt(null), []);
+
   return (
     <span
       className={className}
       style={paint}
-      title={chip.tip}
+      title={wordless ? undefined : chip.tip}
+      role={wordless ? "img" : undefined}
+      aria-label={wordless ? chip.tip : undefined}
+      data-tip={chip.tip}
       data-testid="card-chip"
       data-item={chip.item}
+      onPointerEnter={
+        wordless
+          ? (e) => {
+              /* A held button is a drag passing over, not somebody asking. */
+              if (e.pointerType === "mouse" && e.buttons === 0)
+                setAt(e.currentTarget.getBoundingClientRect());
+            }
+          : undefined
+      }
+      onPointerLeave={wordless ? hide : undefined}
+      onPointerDown={wordless ? hide : undefined}
     >
+      {at && <ChipTip text={chip.tip} at={at} onGone={hide} />}
       {chip.icon && (
         /* In a fill the icon takes the ink of the words; beside them it takes
            the option's colour, where the swatch would have been. A pixel over
@@ -61,6 +87,7 @@ export function Chip({ chip }: { chip: CardChip }) {
           kind={chip.person.kind}
           gone={chip.person.gone}
           size={18}
+          title={wordless ? null : undefined}
         />
       )}
       {chip.bubble && <CommentIcon />}
@@ -71,6 +98,45 @@ export function Chip({ chip }: { chip: CardChip }) {
         <span className={chip.mono ? styles.cardChipText : styles.cardChipWords}>{chip.text}</span>
       )}
     </span>
+  );
+}
+
+/** Room the tip keeps from the chip and from the window's edge. */
+const GAP = 6;
+const EDGE = 8;
+
+/**
+ * The words of a wordless chip, over it. It is drawn on the body, because a
+ * card and a column both clip what hangs past them. It is placed once, where
+ * the chip was when the pointer came, so a scroll takes it away rather than
+ * leaving it behind.
+ */
+function ChipTip({ text, at, onGone }: { text: string; at: DOMRect; onGone: () => void }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useLayoutEffect(() => {
+    const tip = ref.current;
+    if (!tip) return;
+    const { width, height } = tip.getBoundingClientRect();
+    const centre = at.left + at.width / 2;
+    const left = Math.min(Math.max(centre - width / 2, EDGE), window.innerWidth - width - EDGE);
+    /* Above the chip, unless the window ends there. */
+    const top = at.top - GAP - height >= EDGE ? at.top - GAP - height : at.bottom + GAP;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    tip.style.visibility = "visible";
+  }, [at]);
+
+  useLayoutEffect(() => {
+    window.addEventListener("scroll", onGone, true);
+    return () => window.removeEventListener("scroll", onGone, true);
+  }, [onGone]);
+
+  return createPortal(
+    <span ref={ref} className={styles.chipTip} aria-hidden="true" data-testid="chip-tip">
+      {text}
+    </span>,
+    document.body,
   );
 }
 

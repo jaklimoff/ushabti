@@ -30,7 +30,7 @@ const TASK = /^\/api\/tasks\/[0-9a-f-]+$/;
 
 const byTestId = (id: string) => page.getByTestId(id);
 const card = (title: string) => byTestId("card").filter({ hasText: title });
-const chip = '[data-testid="card-chip"][title="Priority · Urgent"]';
+const chip = '[data-testid="card-chip"][data-tip="Priority · Urgent"]';
 const field = (name: string) =>
   document.querySelector(`[data-testid="task-panel"] [data-property="${name}"]`);
 

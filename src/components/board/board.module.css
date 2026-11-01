@@ -1605,6 +1605,28 @@
   border-radius: 50%;
 }
 
+/* The words of a colour, an icon or a face, over it. Placed by the chip
+   before it shows, so it never flashes at the corner of the window. */
+.chipTip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  visibility: hidden;
+  width: max-content;
+  max-width: 260px;
+  padding: 4px 8px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-menu);
+  font-size: var(--t-small);
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-4);
+  pointer-events: none;
+}
+
 /* An icon a person picked for an option, in the swatch's place. */
 .cardChipIcon {
   display: block;

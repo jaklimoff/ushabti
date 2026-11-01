@@ -40,7 +40,7 @@ test.describe("Card view", () => {
 
     // Phase and Estimate share the footer, in the order of the properties.
     const footer = card(page, "Two in the footer").locator(
-      '[data-testid="card-chip"][title^="Phase"], [data-testid="card-chip"][title^="Estimate"]',
+      '[data-testid="card-chip"][data-tip^="Phase"], [data-testid="card-chip"][data-tip^="Estimate"]',
     );
     await expect(footer).toHaveCount(2);
     const tips = async () => footer.evaluateAll((els) => els.map((e) => e.getAttribute("title")));

@@ -104,7 +104,7 @@ describe("Card view", () => {
 
     // The board draws the same card view, so the change is already there.
     const chips = card("Card of mine").getByTestId("card-chip");
-    await expect.element(chips.last()).toHaveAttribute("title", "Priority · Urgent");
+    await expect.element(chips.last()).toHaveAttribute("data-tip", "Priority · Urgent");
   });
 
   test("the edge stripe belongs to one property at a time", async () => {

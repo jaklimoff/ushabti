@@ -228,7 +228,7 @@ describe("Custom properties", () => {
     withTask(data, "Hidden props", { Status: "Todo", Priority: "Urgent" });
     const { sent } = await draw(data, <CardEditor />);
 
-    const chip = card("Hidden props").getByTitle("Priority · Urgent");
+    const chip = card("Hidden props").getByRole("img", { name: "Priority · Urgent" });
     await expect.element(chip).toBeVisible();
 
     await page.getByRole("button", { name: "Priority, header left" }).click();

@@ -30,7 +30,7 @@ test.describe("A view with no card of its own", () => {
     await page.getByRole("button", { name: "Close task" }).click();
 
     const estimate = card(page, "Sized once").locator(
-      '[data-testid="card-chip"][title^="Estimate"]',
+      '[data-testid="card-chip"][data-tip^="Estimate"]',
     );
     await expect(estimate).toHaveCount(1);
 

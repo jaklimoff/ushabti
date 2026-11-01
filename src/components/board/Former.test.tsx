@@ -40,7 +40,7 @@ describe("Somebody who left", () => {
 
     await expect.element(card()).toBeVisible();
     const inCard = (selector: string) => card().element().querySelector<HTMLElement>(selector);
-    expect(inCard(`[title="Assignee · Grace Hopper (left)"]`)).not.toBeNull();
+    expect(inCard(`[data-tip="Assignee · Grace Hopper (left)"]`)).not.toBeNull();
     await expect.element(inCard("[data-gone]")!).toBeVisible();
 
     /* The picker shows her as the value and never offers her. */
