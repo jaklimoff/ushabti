@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- An option of a select can carry an icon from a fixed list, as it carries a colour. The API reads and writes it, an export carries it, and a new project's Status and Priority options start with one. The board does not draw it yet.
+
 ## 0.37.1 — 2026-10-30
 
 ### Fixed

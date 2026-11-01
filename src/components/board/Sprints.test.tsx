@@ -50,6 +50,7 @@ function option(
     id: crypto.randomUUID(),
     name,
     color: "#6d5bd0",
+    icon: null,
     position,
     startAt: null,
     targetAt: null,

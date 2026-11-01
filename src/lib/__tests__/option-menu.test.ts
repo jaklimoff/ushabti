@@ -7,6 +7,7 @@ function options(...names: string[]): PropertyOptionDTO[] {
     id: `o${i}`,
     name,
     color: "#fff",
+    icon: null,
     position: `${i}`,
     startAt: null,
     targetAt: null,

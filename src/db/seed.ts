@@ -243,6 +243,7 @@ async function main() {
             propertyId: prop.id,
             name: o.name,
             color: o.color,
+            icon: o.icon ?? null,
             position: ranks[j],
           })),
         )

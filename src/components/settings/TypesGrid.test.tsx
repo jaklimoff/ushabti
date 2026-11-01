@@ -38,6 +38,7 @@ function add(data: BoardData, name: string, type: PropertyType, options: string[
       id: id(),
       name: o,
       color: "#9aa0aa",
+      icon: null,
       position: `a000000${i}`,
       startAt: null,
       targetAt: null,

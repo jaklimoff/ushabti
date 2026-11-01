@@ -26,7 +26,17 @@ import type {
 const EMPTY = { rules: [] };
 
 function option(id: string, name: string, color: string, position: string): PropertyOptionDTO {
-  return { id, name, color, position, startAt: null, targetAt: null, shippedAt: null, note: null };
+  return {
+    id,
+    name,
+    color,
+    icon: null,
+    position,
+    startAt: null,
+    targetAt: null,
+    shippedAt: null,
+    note: null,
+  };
 }
 
 /* Phase, not Status: the card counts whatever the main view groups by. */

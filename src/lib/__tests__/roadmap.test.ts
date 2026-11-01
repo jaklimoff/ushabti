@@ -21,6 +21,7 @@ function option(id: string, dates: Partial<PropertyOptionDTO> = {}): PropertyOpt
     id,
     name: id,
     color: "#4b8fbe",
+    icon: null,
     position: id,
     startAt: null,
     targetAt: null,

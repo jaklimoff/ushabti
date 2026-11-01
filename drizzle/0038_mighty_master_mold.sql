@@ -1,0 +1,1 @@
+ALTER TABLE "property_options" ADD COLUMN "icon" text;

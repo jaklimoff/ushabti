@@ -25,7 +25,17 @@ import type {
  */
 
 function option(id: string, name: string, color: string, position: string): PropertyOptionDTO {
-  return { id, name, color, position, startAt: null, targetAt: null, shippedAt: null, note: null };
+  return {
+    id,
+    name,
+    color,
+    icon: null,
+    position,
+    startAt: null,
+    targetAt: null,
+    shippedAt: null,
+    note: null,
+  };
 }
 
 function statusOf(project: string): PropertyDTO {

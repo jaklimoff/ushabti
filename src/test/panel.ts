@@ -269,6 +269,7 @@ export function serving(data: BoardData, user: SessionUser = ME, archived: TaskD
         id: id(),
         name: String(sent.name),
         color: "#888888",
+        icon: null,
         position: `z${property.options.length}`,
         startAt: null,
         targetAt: null,

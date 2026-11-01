@@ -1,8 +1,10 @@
 import type { PropertyType, ViewKind } from "./types";
+import type { OptionIcon } from "./option-icons";
 
 export type DefaultOption = {
   name: string;
   color: string;
+  icon?: OptionIcon;
   /** Its column starts folded on a new project's boards: a parking column. */
   folded?: true;
 };
@@ -25,22 +27,22 @@ export const DEFAULT_PROPERTIES: DefaultProperty[] = [
     type: "select",
     endsInDone: true,
     options: [
-      { name: "Later", color: "#4b5563", folded: true },
-      { name: "Backlog", color: "#6b7280" },
-      { name: "Todo", color: "#9aa0aa" },
-      { name: "In Progress", color: "#d1913a" },
-      { name: "Ready", color: "#3fb0c8" },
-      { name: "Done", color: "#4f8a5b" },
+      { name: "Later", color: "#4b5563", icon: "CirclePause", folded: true },
+      { name: "Backlog", color: "#6b7280", icon: "CircleDashed" },
+      { name: "Todo", color: "#9aa0aa", icon: "Circle" },
+      { name: "In Progress", color: "#d1913a", icon: "CircleDot" },
+      { name: "Ready", color: "#3fb0c8", icon: "Rocket" },
+      { name: "Done", color: "#4f8a5b", icon: "CheckCircle" },
     ],
   },
   {
     name: "Priority",
     type: "select",
     options: [
-      { name: "Urgent", color: "#e0574d" },
-      { name: "High", color: "#d1913a" },
-      { name: "Medium", color: "#4b8fbe" },
-      { name: "Low", color: "#8b8f98" },
+      { name: "Urgent", color: "#e0574d", icon: "OctagonAlert" },
+      { name: "High", color: "#d1913a", icon: "SignalHigh" },
+      { name: "Medium", color: "#4b8fbe", icon: "SignalMedium" },
+      { name: "Low", color: "#8b8f98", icon: "SignalLow" },
     ],
   },
   { name: "Assignee", type: "person" },

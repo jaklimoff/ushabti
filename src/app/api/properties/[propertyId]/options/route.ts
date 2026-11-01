@@ -20,6 +20,7 @@ import { rankAfter } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
 import { datesClash, namesOptionDates, ONLY_SELECT, readOptionDates } from "@/lib/option-dates";
 import { isSelect, hasOptions } from "@/lib/types";
+import { readIconInput } from "@/lib/option-icons";
 
 type Ctx = { params: Promise<{ propertyId: string }> };
 
@@ -51,6 +52,8 @@ export const POST = route<Ctx>(async (req, ctx) => {
     targetAt: dates.patch.targetAt ?? null,
   });
   if (clash) throw new HttpError(400, clash);
+  const icon = readIconInput(input.icon);
+  if ("error" in icon) throw new HttpError(400, icon.error);
 
   const option = await withProjectLock(projectId, async (tx) => {
     const siblings = await tx
@@ -78,6 +81,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         propertyId,
         name,
         color,
+        icon: icon.icon ?? null,
         position: rankAfter(siblings.at(-1)?.position ?? null),
         ...dates.patch,
       })

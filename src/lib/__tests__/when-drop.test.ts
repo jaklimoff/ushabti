@@ -20,6 +20,7 @@ function option(id: string, name: string): PropertyOptionDTO {
     id,
     name,
     color: "#9aa0aa",
+    icon: null,
     position: "V",
     startAt: null,
     targetAt: null,

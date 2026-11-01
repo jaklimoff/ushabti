@@ -70,6 +70,7 @@ import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
 import { joinProject } from "./membership";
 import { kickSender } from "./webhooks";
+import { readOptionIcon } from "./option-icons";
 import { GROUPABLE_TYPES, isSelect, PROPERTY_TYPES, VIEW_KINDS } from "./types";
 import type {
   PropertyOptionDTO,
@@ -468,6 +469,7 @@ export async function createProject(userId: string, name: string, key: string) {
               propertyId: prop.id,
               name: o.name,
               color: o.color,
+              icon: o.icon ?? null,
               position: optRanks[j],
             })),
           )
@@ -565,6 +567,7 @@ export const optionColumns = {
   propertyId: propertyOptions.propertyId,
   name: propertyOptions.name,
   color: propertyOptions.color,
+  icon: propertyOptions.icon,
   position: propertyOptions.position,
   startAt: propertyOptions.startAt,
   targetAt: propertyOptions.targetAt,
@@ -621,13 +624,14 @@ export async function loadRawProperties(projectId: string, tx?: Tx): Promise<Pro
 }
 
 type PropRow = typeof properties.$inferSelect;
-type OptRow = PropertyOptionDTO & { propertyId: string };
+type OptRow = Omit<PropertyOptionDTO, "icon"> & { propertyId: string; icon: string | null };
 
 export function toOptionDTO(o: Omit<OptRow, "propertyId">): PropertyOptionDTO {
   return {
     id: o.id,
     name: o.name,
     color: o.color,
+    icon: readOptionIcon(o.icon),
     position: o.position,
     startAt: o.startAt,
     targetAt: o.targetAt,

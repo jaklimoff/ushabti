@@ -19,6 +19,7 @@ import { rankBetween } from "@/lib/rank";
 import { takenBy, takenSaid } from "@/lib/option-name";
 import { datesClash, namesOptionDates, ONLY_SELECT, readOptionDates } from "@/lib/option-dates";
 import { isSelect } from "@/lib/types";
+import { readIconInput } from "@/lib/option-icons";
 
 type Ctx = { params: Promise<{ optionId: string }> };
 
@@ -44,6 +45,11 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       throw new HttpError(400, "The colour must look like #3fb0c8.");
     }
     patch.color = input.color;
+  }
+  if (input.icon !== undefined) {
+    const icon = readIconInput(input.icon);
+    if ("error" in icon) throw new HttpError(400, icon.error);
+    patch.icon = icon.icon;
   }
   if (Object.keys(patch).length === 0 && input.afterId === undefined) return json({ ok: true });
 

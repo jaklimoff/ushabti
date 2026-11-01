@@ -95,6 +95,8 @@ export type PropertyOptionDTO = {
   id: string;
   name: string;
   color: string;
+  /** A name from `OPTION_ICONS`, or null. A stored name that left the list reads as null. */
+  icon: string | null;
   position: string;
   /** Days as `YYYY-MM-DD`. Only a select option carries them; elsewhere null. */
   startAt: string | null;

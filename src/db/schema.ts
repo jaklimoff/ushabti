@@ -292,6 +292,8 @@ export const propertyOptions = pgTable(
       .references(() => properties.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     color: text("color").notNull(),
+    // A name from `OPTION_ICONS`, read afresh: one that left the list reads as none.
+    icon: text("icon"),
     position: text("position").notNull(),
     // Only a select option carries these: a Version or a Sprint is an option with dates.
     startAt: date("start_at"),

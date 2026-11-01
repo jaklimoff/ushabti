@@ -54,7 +54,7 @@ no switch gives it more than a member has. Two agents on one board can differ.
 | Delete tasks     | Deleting a task, and restoring a deleted one.                                                                                                | off    |
 | Archive tasks    | Archiving a task, and putting an archived one back.                                                                                          | on     |
 | Edit checklists  | Rewording or removing a checklist item. Adding an item and ticking one stay open.                                                            | on     |
-| Change structure | Adding a property, an option or a view; renaming, recolouring, dating or reordering an option; renaming a property; regrouping or sorting a view. | on     |
+| Change structure | Adding a property, an option or a view; renaming, recolouring, dating or reordering an option, or giving an option an icon; renaming a property; regrouping or sorting a view. | on     |
 | Ship releases    | Shipping or closing a release or a sprint. A ship archives what is over, so it needs Archive tasks on too.                                   | on     |
 
 The server refuses an act that is off, whatever the agent was told:
@@ -374,6 +374,17 @@ and every field on a task is theirs to change.
 # "In Progress" is an option of a property somebody defined. Look it up.
 curl -s $USHABTI/api/projects/$PROJECT/board -H "Authorization: Bearer $TOKEN" \
   | jq -r '.properties[] | select(.name=="Status") | .options[] | select(.name=="In Progress") | .id'
+```
+
+Every option of a select, a multi-select or an iteration carries `icon`: one
+name from a fixed list, such as `"CircleDot"` or `"Bug"`, or null. A name that
+leaves the list reads as null. `POST /api/properties/{id}/options` and `PATCH
+/api/options/{id}` take `icon` beside `color`; anything that is not a name of
+the list, or null, is refused with `400` and nothing is written. The list is
+`OPTION_ICONS` in `src/lib/option-icons.ts`.
+
+```json
+{ "id": "…", "name": "In Progress", "color": "#d1913a", "icon": "CircleDot", "position": "a2", … }
 ```
 
 An option of a single select may also carry a plan: `startAt`, `targetAt`

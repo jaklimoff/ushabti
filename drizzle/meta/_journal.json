@@ -267,6 +267,13 @@
       "when": 1792510336092,
       "tag": "0037_unknown_skrulls",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793547174306,
+      "tag": "0038_mighty_master_mold",
+      "breakpoints": true
     }
   ]
 }
