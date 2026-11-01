@@ -151,7 +151,8 @@
 }
 
 /* On a phone the rail is a strip, so "here" is a bar under the item, as a
-   tab's is. A wide screen stands the rail up and moves the bar to its left. */
+   tab's is. A wide screen stands the rail up, and there the fill, the
+   brighter word and the weight say it without a bar. */
 .railOn,
 .railOn:hover {
   background: var(--bg-hover);
@@ -163,7 +164,7 @@
 @media (min-width: 900px) {
   .railOn,
   .railOn:hover {
-    box-shadow: inset 2px 0 0 var(--accent);
+    box-shadow: none;
   }
 }
 
