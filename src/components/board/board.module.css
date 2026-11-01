@@ -964,6 +964,11 @@
   border-radius: 50%;
 }
 
+.colIcon {
+  display: block;
+  flex: 0 0 auto;
+}
+
 /* Somebody named the column, so it reads as their words: sentence case, in
    the sans, at the weight of a heading. Mono capitals at 0.11em cost a third
    more width and cut "MVP" to "M…" beside a date. */
@@ -1598,6 +1603,12 @@
   height: 6px;
   flex: 0 0 6px;
   border-radius: 50%;
+}
+
+/* An icon a person picked for an option, in the swatch's place. */
+.cardChipIcon {
+  display: block;
+  flex: 0 0 auto;
 }
 
 /* The key and a plain date: small, but read and pasted, so they pass

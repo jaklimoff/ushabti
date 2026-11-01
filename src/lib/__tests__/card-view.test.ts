@@ -17,6 +17,7 @@ import {
   viewOf,
 } from "../card-view";
 import { listColumns } from "../list-view";
+import type { CardChip } from "../card-view";
 import type { MemberDTO, PropertyDTO, TaskDTO } from "../types";
 
 const STATUS: PropertyDTO = {
@@ -897,5 +898,81 @@ describe("a Link property", () => {
     const card = buildCard(linkItems(saved), task(value), [ADA]);
     expect(row.cells["p-prs"].map((c) => c.text)).toEqual(["acme/shop#12 +1"]);
     expect(row.cells["p-prs"]).toEqual(card.footerR);
+  });
+});
+
+describe("an option that carries an icon", () => {
+  const ICONED: PropertyDTO = {
+    ...PRIORITY,
+    options: [{ ...PRIORITY.options[0], icon: "ChevronsUp" }],
+  };
+  const ALL = [STATUS, ICONED, ASSIGNEE, DUE];
+  const urgent = task({ "p-prio": "o-urgent" });
+
+  function iconed(mode: string, place = "headerL") {
+    const saved = { rows: { "p-prio": { place, mode } } };
+    return cardItems(readCardView(saved, ALL, "p-status"), ALL);
+  }
+
+  const prio = (card: { headerL: CardChip[] }) => card.headerL.find((c) => c.item === "p-prio")!;
+
+  it("shows the icon in the option's colour, then the name, in Both", () => {
+    const chip = prio(buildCard(iconed("both"), urgent, [ADA]));
+    expect(chip).toMatchObject({ icon: "ChevronsUp", text: "Urgent" });
+    expect(chip.swatch?.color).toBe("#e0574d");
+  });
+
+  it("shows the icon alone in Colour, first in its place", () => {
+    const card = buildCard(iconed("colour"), urgent, [ADA]);
+    expect(card.headerL[0]).toMatchObject({ icon: "ChevronsUp", text: null });
+    expect(card.headerL[0].swatch?.color).toBe("#e0574d");
+    expect(card.headerL.map((c) => c.tip)).toEqual(["Priority · Urgent", "Task ID · USH-1"]);
+  });
+
+  it("sits in the fill, which the words' ink paints", () => {
+    const chip = prio(buildCard(iconed("fill"), urgent, [ADA]));
+    expect(chip).toMatchObject({ icon: "ChevronsUp", fill: "#e0574d", swatch: null });
+  });
+
+  it("is left off in Text", () => {
+    const chip = prio(buildCard(iconed("text"), urgent, [ADA]));
+    expect(chip).toMatchObject({ icon: null, text: "Urgent", swatch: null });
+  });
+
+  it("draws nothing new for an option without one", () => {
+    for (const mode of ["both", "colour", "fill", "text"]) {
+      const saved = { rows: { "p-prio": { place: "headerL", mode } } };
+      const plain = buildCard(
+        cardItems(readCardView(saved, PROPERTIES, "p-status"), PROPERTIES),
+        urgent,
+        [ADA],
+      );
+      expect(prio(plain).icon).toBe(null);
+    }
+  });
+
+  it("shows on a list row as on the card", () => {
+    const row = buildRow(iconed("both"), urgent, [ADA]);
+    expect(row.cells["p-prio"]).toEqual([prio(buildCard(iconed("both"), urgent, [ADA]))]);
+  });
+
+  it("leaves the stripe and the accent the option's colour", () => {
+    const edged = iconed("colour", "edge");
+    expect(buildCard(edged, urgent, [ADA]).edge).toBe("#e0574d");
+    expect(cardAccent(edged, urgent, [ADA])).toBe("#e0574d");
+  });
+
+  it("ignores a stored name that left the list", () => {
+    const stale: PropertyDTO = {
+      ...PRIORITY,
+      options: [{ ...PRIORITY.options[0], icon: "NoSuchIcon" }],
+    };
+    const saved = { rows: { "p-prio": { place: "headerL", mode: "both" } } };
+    const all = [STATUS, stale];
+    const chip = prio(
+      buildCard(cardItems(readCardView(saved, all, "p-status"), all), urgent, [ADA]),
+    );
+    expect(chip.icon).toBe(null);
+    expect(chip.swatch?.round).toBe(true);
   });
 });

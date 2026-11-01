@@ -10,7 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
-- An option of a select can carry an icon from a fixed list, as it carries a colour. The API reads and writes it, an export carries it, and a new project's Status and Priority options start with one. The board does not draw it yet.
+- An option of a select can carry an icon from a fixed list, as it carries a colour. The API reads and writes it, an export carries it, and a new project's Status and Priority options start with one.
+- An option's icon shows in its colour on a card, in a list row, in a column head and in the value picker, in place of the dot. An option without one draws as before.
 
 ## 0.37.1 — 2026-10-30
 

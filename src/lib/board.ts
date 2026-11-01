@@ -2,6 +2,7 @@ import type { FormerDTO, MemberDTO, PropertyDTO, TaskDTO, TaskValue } from "./ty
 import { personName } from "./people";
 import { isSelect } from "./types";
 import { isOpenOption } from "./option-dates";
+import { readOptionIcon, type OptionIcon } from "./option-icons";
 
 export const NO_VALUE = "__none__";
 
@@ -10,6 +11,8 @@ export type BoardColumn = {
   id: string;
   name: string;
   color: string;
+  /** The icon of the option the column is, drawn in place of its dot. */
+  icon?: OptionIcon | null;
   /** The value written to the group property when a card lands here. */
   value: TaskValue;
   isNone: boolean;
@@ -85,6 +88,7 @@ export function buildColumns(
         id: option.id,
         name: option.name,
         color: option.color,
+        icon: readOptionIcon(option.icon),
         value: option.id,
         isNone: false,
         tasks: [],

@@ -21,6 +21,7 @@ import {
 } from "./types";
 import { personName, personOf, type Person } from "./people";
 import { isShown } from "./when";
+import { readOptionIcon, type OptionIcon } from "./option-icons";
 
 /**
  * What a card carries, and how.
@@ -534,6 +535,9 @@ export type CardChip = {
   /** The tooltip: the row this came from, and what the task holds for it. */
   tip: string;
   swatch: { color: string; round: boolean } | null;
+  /** The icon the option carries. It takes the swatch's place in the
+      swatch's colour, or sits in the ink of the fill. */
+  icon: OptionIcon | null;
   /** The colour painted behind the words, instead of beside them. */
   fill: string | null;
   person: Person | null;
@@ -567,6 +571,7 @@ function chip(item: CardItem, key: string, value: string, extra: Partial<CardChi
     item: item.id,
     tip: `${item.name} · ${value}`,
     swatch: null,
+    icon: null,
     fill: null,
     person: null,
     text: null,
@@ -668,6 +673,8 @@ function chipsFor(
               item.mode === "text" || filled
                 ? null
                 : { color: option.color, round: item.mode === "both" },
+            /* Words alone stay words alone; every other mode wears the icon. */
+            icon: item.mode === "text" ? null : readOptionIcon(option.icon),
             fill: filled ? option.color : null,
             text: item.mode === "colour" ? null : option.name,
             /* The fill is the box. A second ground under it says nothing. */

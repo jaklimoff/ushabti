@@ -5,6 +5,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { formatDate } from "@/lib/board";
 import { currentOption, keyName } from "@/lib/filters";
 import { NO_VALUE_KEY } from "@/lib/types";
+import { readOptionIcon } from "@/lib/option-icons";
 import type { FormerDTO, MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } from "@/lib/types";
 import { personMenu, personName, personOf, personOpeningAt } from "@/lib/people";
 import { openingAt, optionMenu } from "@/lib/option-menu";
@@ -15,6 +16,7 @@ import { Chevron } from "@/components/ui/Marks";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useHighlightInView, walkKeys } from "../Ask";
 import { useBoard } from "../store";
+import { OptionIcon } from "../OptionIcon";
 import styles from "./controls.module.css";
 
 type Props = {
@@ -133,7 +135,7 @@ function SelectSegmented({ property, value, onChange, labelId }: Props) {
             >
               {/* Only the picked option wears its dot, so the eye finds one
                   colour in the row and not five. */}
-              {!mono && on && <span className={styles.dot} style={{ background: option.color }} />}
+              {!mono && on && <OptionMark option={option} />}
               {option.name}
             </button>
           );
@@ -141,6 +143,13 @@ function SelectSegmented({ property, value, onChange, labelId }: Props) {
       </div>
     </div>
   );
+}
+
+/** An option's dot, or the icon it carries in the dot's colour. */
+function OptionMark({ option }: { option: PropertyOptionDTO }) {
+  const icon = readOptionIcon(option.icon);
+  if (icon) return <OptionIcon name={icon} color={option.color} className={styles.icon} />;
+  return <span className={styles.dot} style={{ background: option.color }} />;
 }
 
 /** One row of a select's menu. The menu walks them in the order drawn. */
@@ -270,10 +279,14 @@ function EntryRow({
       onMouseDown={(e) => e.preventDefault()}
       onClick={onPick}
     >
-      <span
-        className={`${styles.dot} ${color ? "" : styles.dotEmpty}`}
-        style={color ? { background: color } : undefined}
-      />
+      {entry.kind === "option" ? (
+        <OptionMark option={entry.option} />
+      ) : (
+        <span
+          className={`${styles.dot} ${color ? "" : styles.dotEmpty}`}
+          style={color ? { background: color } : undefined}
+        />
+      )}
       {entry.kind === "option"
         ? entry.option.name
         : entry.kind === "add"
@@ -362,10 +375,11 @@ function SelectMenu({ property, value, onChange, onAddOption, labelId, taken, to
         {...named(labelId, triggerId)}
         onClick={toggleOpen}
       >
-        <span
-          className={`${styles.dot} ${current ? "" : styles.dotEmpty}`}
-          style={current ? { background: current.color } : undefined}
-        />
+        {current ? (
+          <OptionMark option={current} />
+        ) : (
+          <span className={`${styles.dot} ${styles.dotEmpty}`} />
+        )}
         <span className={`${styles.triggerText} ${current ? "" : styles.triggerEmpty}`}>
           {current?.name ?? noneName(property)}
         </span>
@@ -446,7 +460,7 @@ function MultiSelect({ property, value, onChange, onAddOption, labelId }: Props)
             className={`${styles.chip} ${styles.picked}`}
             style={colour(option.color)}
           >
-            <span className={styles.dot} style={{ background: option.color }} />
+            <OptionMark option={option} />
             {option.name}
             <button
               className={styles.chipRemove}

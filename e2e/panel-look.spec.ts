@@ -46,15 +46,17 @@ function field(panel: Locator, name: string) {
 function lookOf(el: Locator) {
   return el.evaluate((node) => {
     const s = getComputedStyle(node);
+    /* A mark is the dot, or the icon an option carries in its place. */
     const dots = Array.from(node.querySelectorAll("span")).filter(
       (d) => getComputedStyle(d).borderRadius === "50%" && d.getBoundingClientRect().width < 12,
     );
+    const icons = node.querySelectorAll("svg[data-icon]");
     return {
       background: s.backgroundColor,
       ring: s.boxShadow,
       colour: s.color,
       weight: s.fontWeight,
-      dots: dots.length,
+      marks: dots.length + icons.length,
     };
   });
 }
@@ -89,11 +91,11 @@ test.describe("The task panel reads as one set of controls", () => {
     expect(asButton.background).not.toBe("rgba(0, 0, 0, 0)");
     expect(asButton.ring).not.toBe("none");
     expect(asMenu).toEqual(asButton);
-    expect(asButton.dots).toBe(1);
+    expect(asButton.marks).toBe(1);
 
-    /* In the row, only the picked option wears its dot. */
+    /* In the row, only the picked option wears its mark. */
     const other = await lookOf(field(panel, "Priority").getByRole("button", { name: "Low" }));
-    expect(other.dots).toBe(0);
+    expect(other.marks).toBe(0);
     await panel.screenshot({ path: testInfo.outputPath("seen-panel-values.png") });
   });
 

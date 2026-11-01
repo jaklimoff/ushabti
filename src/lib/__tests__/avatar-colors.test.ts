@@ -195,6 +195,7 @@ describe("a filled chip", () => {
             item: "p-prio",
             tip: "Priority: High",
             swatch: null,
+            icon: null,
             fill,
             person: null,
             text: "High",

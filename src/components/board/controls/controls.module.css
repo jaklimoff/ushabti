@@ -83,6 +83,11 @@
   border-radius: 50%;
 }
 
+.icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
 /* Nothing picked: a ring where the colour would be. */
 .dotEmpty {
   background: transparent;

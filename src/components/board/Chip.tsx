@@ -4,6 +4,7 @@ import type { CardChip } from "@/lib/card-view";
 import { ink } from "@/lib/colors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Meter } from "@/components/ui/Layout";
+import { OptionIcon } from "./OptionIcon";
 import styles from "./board.module.css";
 
 /**
@@ -34,7 +35,12 @@ export function Chip({ chip }: { chip: CardChip }) {
       data-testid="card-chip"
       data-item={chip.item}
     >
-      {chip.swatch && (
+      {chip.icon && (
+        /* In a fill the icon takes the ink of the words; beside them it takes
+           the option's colour, where the swatch would have been. */
+        <OptionIcon name={chip.icon} color={chip.swatch?.color} className={styles.cardChipIcon} />
+      )}
+      {chip.swatch && !chip.icon && (
         <span
           className={chip.swatch.round ? styles.cardChipDot : styles.cardChipSquare}
           style={{ background: chip.swatch.color }}

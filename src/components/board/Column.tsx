@@ -11,6 +11,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { formatDate, type BoardColumn } from "@/lib/board";
+import { OptionIcon } from "./OptionIcon";
 import type { DoneWhen } from "@/lib/links";
 import { progressOf } from "@/lib/progress";
 import { propertySettingsHref } from "@/lib/board-roles";
@@ -273,10 +274,7 @@ export function Column({
           aria-label={`Open the column ${column.name}`}
           onClick={() => onFold(false)}
         >
-          <span
-            className={styles.colDot}
-            style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
-          />
+          <ColumnMark column={column} />
           <span className={styles.colCount} data-testid="column-count">
             {column.tasks.length}
           </span>
@@ -359,10 +357,7 @@ export function Column({
             <span style={{ width: 10 }} />
           )}
           <span className={styles.colTitle}>
-            <span
-              className={styles.colDot}
-              style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
-            />
+            <ColumnMark column={column} />
             <span className={styles.colName} data-testid="column-name" title={column.name}>
               {column.name}
             </span>
@@ -697,3 +692,16 @@ export const Composer = function Composer({
     </div>
   );
 };
+
+/** The column's dot, or the icon of its option in the dot's colour. */
+function ColumnMark({ column }: { column: BoardColumn }) {
+  if (column.icon) {
+    return <OptionIcon name={column.icon} color={column.color} className={styles.colIcon} />;
+  }
+  return (
+    <span
+      className={styles.colDot}
+      style={{ background: column.color, boxShadow: `0 0 0 3px ${column.color}18` }}
+    />
+  );
+}
