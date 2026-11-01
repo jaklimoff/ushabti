@@ -12,7 +12,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - An option of a select can carry an icon from a fixed list, as it carries a colour. The API reads and writes it, an export carries it, and a new project's Status and Priority options start with one.
 - An option's icon shows in its colour on a card, in a list row, in a column head and in the value picker, in place of the dot. An option without one draws as before.
-- In Settings → Properties, the button that picks an option's colour also picks its icon. A pick saves at once, and **No icon** takes it away.
+- In Settings → Properties, the button that picks an option's colour also picks its icon. A pick saves at once, and **No icon** takes it away. A box above the icons finds one by a word, so `bug` finds the bug. The dot rings in its colour under the pointer, so it reads as a button, and the icons stay grey until the pointer is on one.
 
 ## 0.37.1 — 2026-10-30
 

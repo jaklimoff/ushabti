@@ -785,6 +785,30 @@ button.whenOut:hover {
   border-radius: 50%;
   border: 0;
   padding: 0;
+  cursor: pointer;
+  transition:
+    box-shadow 140ms var(--ease),
+    background-color 140ms var(--ease);
+}
+
+/* A dot this small does not look like a button, so the pointer over it, and
+   the popover it opened, ring it in its own colour. The chip's own hover
+   lights the whole chip and says nothing about the dot. */
+@media (hover: hover) {
+  .swatchBtn:hover:not(:disabled),
+  .swatchBtn[aria-expanded="true"] {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--look) 35%, transparent);
+  }
+  .swatchBtn.swatchBtnIcon:hover:not(:disabled),
+  .swatchBtn.swatchBtnIcon[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--look) 22%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--look) 22%, transparent);
+  }
+}
+
+.swatchBtn:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
 }
 
 .swatchPop {
@@ -794,14 +818,31 @@ button.whenOut:hover {
   z-index: 30;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 240px;
-  padding: 8px;
+  gap: 6px;
+  width: 264px;
+  padding: 10px;
   border-radius: var(--r-md);
   background: var(--bg-menu);
   border: 1px solid var(--line-menu);
   box-shadow: var(--shadow-menu);
   animation: ushabti-fade-in 130ms var(--ease);
+}
+
+/* The two halves of the popover say what they are. */
+.popHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+  color: var(--text-meta);
+  font-size: var(--t-chip);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.popHead:not(:first-child) {
+  margin-top: 6px;
 }
 
 /* The button and its popover: no box of their own, so the chip lays them out
@@ -826,76 +867,124 @@ button.whenOut:hover {
   cursor: default;
 }
 
+/* The whole palette in one row, round like the dot it sets. */
 .swatchRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 4px;
 }
 
-/* Eight to a row, as in Mnemes. */
+.swatchChip {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 120ms var(--ease);
+}
+
+.swatchChip:hover {
+  transform: scale(1.15);
+}
+
+.swatchChip:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+/* The picked colour wears a ring with a gap, so it reads on every colour. */
+.swatchChipOn {
+  box-shadow:
+    0 0 0 2px var(--bg-menu),
+    0 0 0 3.5px var(--text);
+}
+
+/* Eight to a row, as in Mnemes. About six rows show; the rest scroll, and
+   the search box is the quick way past them. */
 .iconGrid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 2px;
+  max-height: 184px;
+  margin: 0 -4px;
+  padding: 2px 4px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
+/* Grey until it matters: the icon under the pointer and the picked one wear
+   the option's colour, so the grid shows how the option will look. */
 .iconCell {
   display: grid;
   place-items: center;
-  height: 26px;
+  height: 28px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--r-xs);
   background: transparent;
+  color: var(--muted);
+  cursor: pointer;
 }
 
 .iconCell:hover {
   background: var(--bg-hover);
+  color: var(--look);
 }
 
 .iconCell:focus-visible {
   outline: 2px solid var(--accent-ring);
-  outline-offset: 0;
+  outline-offset: -1px;
+  color: var(--look);
 }
 
-.iconCellOn {
-  border-color: var(--text);
+.iconCellOn,
+.iconCellOn:hover {
+  border-color: color-mix(in srgb, var(--look) 60%, transparent);
+  background: color-mix(in srgb, var(--look) 18%, transparent);
+  color: var(--look);
 }
 
+/* On a phone the popover scrolls, and a flex column would squash the box
+   to make room instead. */
+.iconSearch {
+  flex: none;
+}
+
+/* Words people read, so --text-meta and not a fainter grey. */
+.iconNothing {
+  padding: 12px 2px;
+  color: var(--text-meta);
+  font-size: var(--t-small);
+  text-align: center;
+}
+
+/* A word in the head of the icons, not a box: it is the way out, not a
+   choice among them. */
 .iconNone {
-  align-self: flex-start;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--line-menu);
+  height: 20px;
+  padding: 0 4px;
+  border: 0;
   border-radius: var(--r-xs);
   background: transparent;
   color: var(--text-meta);
   font: inherit;
-  font-size: var(--t-small);
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
 }
 
 .iconNone:hover {
+  background: var(--bg-hover);
   color: var(--text);
+}
+
+.iconNone:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 0;
 }
 
 .iconNoneOn {
-  border-color: var(--text);
   color: var(--text);
-}
-
-.swatchChip {
-  width: 16px;
-  height: 16px;
-  border-radius: var(--r-xs);
-  border: 2px solid transparent;
-}
-
-.swatchChip:hover {
-  border-color: var(--line-menu);
-}
-
-.swatchChipOn {
-  border-color: var(--text);
 }
 
 /* A chip is as wide as its name: XS is small and "Waiting for review" is
@@ -978,14 +1067,31 @@ button.whenOut:hover {
     max-height: 70vh;
     overflow-y: auto;
   }
+  /* Six to a row, so a colour is as big as a finger. */
+  .swatchRow {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+  }
   .swatchChip {
-    width: 24px;
-    height: 24px;
+    aspect-ratio: auto;
+    height: 28px;
+    border-radius: var(--r-sm);
+  }
+  /* The popover itself scrolls on a phone; a second scroll inside it fights
+     the thumb. */
+  .iconGrid {
+    max-height: none;
+    overflow: visible;
   }
   .iconCell {
     height: 36px;
   }
   .iconNone {
+    height: 36px;
+    padding: 0 10px;
+  }
+  /* Two classes, to beat the small box's own height whatever loads first. */
+  .swatchPop .iconSearch {
     height: 36px;
   }
 }

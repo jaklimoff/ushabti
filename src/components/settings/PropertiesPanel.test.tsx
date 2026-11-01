@@ -1145,6 +1145,61 @@ describe("An option's icon", () => {
     expect(sent("PATCH", OPTION)[1].body).toEqual({ icon: "Book" });
   });
 
+  test("a search narrows the icons, and Enter picks the first one found", async () => {
+    const data = signed();
+    const { sent } = await draw(data);
+    const look = urgentLook();
+    await look.click();
+    const box = page.getByRole("searchbox", { name: "Search icons for Urgent" });
+    // With a mouse the box has the focus, so typing finds at once.
+    await expect.element(box).toHaveFocus();
+
+    await userEvent.keyboard("bug");
+    await expect
+      .poll(() =>
+        iconCells()
+          .elements()
+          .map((c) => c.getAttribute("aria-label")),
+      )
+      .toEqual(["Bug"]);
+
+    // Nothing found says so, and Enter then writes nothing.
+    await userEvent.keyboard("zz");
+    await expect.element(page.getByText("No icon matches “bugzz”.")).toBeVisible();
+    await userEvent.keyboard("{Enter}");
+    expect(sent("PATCH", OPTION)).toHaveLength(0);
+
+    // The down arrow steps into the grid.
+    await userEvent.keyboard("{Backspace}{Backspace}{ArrowDown}");
+    expect(document.activeElement).toBe(iconCells().elements()[0]);
+
+    await box.click();
+    await userEvent.keyboard("{Enter}");
+    await wrote(() => sent("PATCH", OPTION), 1);
+    expect(sent("PATCH", OPTION)[0].body).toEqual({ icon: "Bug" });
+    expect(document.activeElement).toBe(look.element());
+
+    // The box starts empty the next time, with every icon.
+    await look.click();
+    await expect.element(box).toHaveValue("");
+    expect(iconCells().elements()).toHaveLength(OPTION_ICONS.length);
+  });
+
+  test("the grid opens on the picked icon, even near the end of the list", async () => {
+    const data = signed();
+    propertyOf(data, "Priority").options[0].icon = "Ban";
+    await draw(data);
+    await urgentLook().click();
+    const grid = page.getByRole("listbox", { name: "Icon of Urgent" }).element();
+    const cell = page.getByRole("option", { name: "Ban" }).element();
+    // The grid scrolls, and the picked icon is inside what it shows.
+    expect(grid.scrollTop).toBeGreaterThan(0);
+    const g = grid.getBoundingClientRect();
+    const c = cell.getBoundingClientRect();
+    expect(c.top).toBeGreaterThanOrEqual(g.top);
+    expect(c.bottom).toBeLessThanOrEqual(g.bottom);
+  });
+
   test("on a phone the popover fits the screen", async () => {
     await page.viewport(375, 740);
     await draw(signed());
@@ -1166,6 +1221,8 @@ describe("An option's icon", () => {
       expect(box.width).toBeGreaterThanOrEqual(24);
       expect(box.height).toBeGreaterThanOrEqual(24);
     }
+    const search = page.getByRole("searchbox", { name: "Search icons for Low" }).element();
+    expect(search.getBoundingClientRect().height).toBeGreaterThanOrEqual(36);
   });
 
   test("without the right to change structure, the icon shows and the picker does not open", async () => {
