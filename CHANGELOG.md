@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.40.0 — 2026-11-01
+
 ### Added
 
 - A checkbox property can carry an icon, picked in Settings → Properties. In
