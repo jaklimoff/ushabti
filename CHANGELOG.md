@@ -8,6 +8,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- The colour and icon popover of an option shows whole in Properties, also on
+  the last property, where the card used to cut off the icon grid.
+
 ## 0.38.0 — 2026-11-01
 
 ### Added

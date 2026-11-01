@@ -115,7 +115,7 @@ export function PropertiesPanel() {
 
       <RoleStrip />
 
-      <Card>
+      <Card className={styles.propCard}>
         {/* One column of rows, so dnd-kit's own answer is the right one.
             Nothing here is as tall as a board column. */}
         <DndContext

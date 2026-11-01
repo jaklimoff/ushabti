@@ -1185,6 +1185,17 @@ button.whenOut:hover {
   min-width: 0;
 }
 
+/* The colour and icon popover of an option hangs below its chip, and on the
+   last property that is past the card's edge. The foot is the one thing on
+   the card with a fill, so it keeps the card's corners itself. */
+.propCard {
+  overflow: visible;
+}
+
+.propCard .propFoot {
+  border-radius: 0 0 calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px);
+}
+
 /* Three lines to start, growing with the list up to eight. */
 .propFoot .propFootOptions {
   flex-basis: 100%;
