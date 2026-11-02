@@ -89,7 +89,7 @@ test.describe("The sidebar", () => {
       expect((await sidebar(page).boundingBox())?.x, path).toBe(0);
     }
 
-    /* The project name is words, and Back to board is the way back. */
+    /* The project name is a crumb, so it leads to the board, as Back to board does. */
     for (const path of [
       `/p/${open}/settings/properties`,
       `/p/${open}/archived`,
@@ -99,13 +99,17 @@ test.describe("The sidebar", () => {
       await expect(page.getByTestId("project-switcher")).toHaveCount(0);
       await expect(page.getByTestId("project-crumb")).toBeVisible();
       expect(
-        await page.getByTestId("project-crumb").evaluate((el) => el.closest("a, button")),
-      ).toBeNull();
+        await page
+          .getByTestId("project-crumb")
+          .evaluate((el) => el.closest("a")?.getAttribute("href")),
+      ).toBe(`/p/${open}`);
       await expect(page.getByRole("link", { name: "Back to board" })).toHaveAttribute(
         "href",
         `/p/${open}`,
       );
     }
+    await page.getByTestId("project-crumb").click();
+    await page.waitForURL(`**/p/${open}`);
     await page.goto(`/p/${open}`);
     expect(
       await page.getByTestId("board-crumb").evaluate((el) => el.closest("a, button")),
