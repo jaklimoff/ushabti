@@ -64,11 +64,28 @@ test.describe("The board reads cleanly", () => {
     expect(renamed.ok()).toBeTruthy();
     await page.reload();
 
+    /* A head with no icon draws the dot, and the same name fits there too. */
+    const plain = "Waiting on the design answer";
+    const dotted = await page.request.patch(`/api/options/${option("Ready")}`, {
+      data: { name: plain, icon: null },
+    });
+    expect(dotted.ok()).toBeTruthy();
+    await page.reload();
+
     const head = column(page, long);
     const name = head.getByTestId("column-name");
     await expect(name).toHaveText(long);
-    /* Nothing is cut: the words fit the box they are drawn in. */
+    /* Nothing is cut: the words fit the box they are drawn in. Measured once
+       the box is drawn in its own font, or a box of no width passes. */
+    await expect(name).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await expect(head.locator("svg[data-icon]").first()).toBeVisible();
     expect(await name.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+
+    const other = column(page, plain).getByTestId("column-name");
+    await expect(other).toBeVisible();
+    await expect(column(page, plain).locator("svg[data-icon]")).toHaveCount(0);
+    expect(await other.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
 
     await page.mouse.move(0, 0);
     const add = head.getByRole("button", { name: `Add a task to the top of ${long}` });
