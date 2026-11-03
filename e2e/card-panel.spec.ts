@@ -214,34 +214,46 @@ test.describe("Card panel", () => {
     await page.screenshot({ path: testInfo.outputPath("seen-card-panel-list.png") });
   });
 
-  test("a list view's editor opens on the List shape, a board view's on the Card", async ({
-    page,
-  }, testInfo) => {
+  test("a list opens its Columns, and a board its card", async ({ page }, testInfo) => {
     await register(page);
-    await createProject(page, unique("Shapes"));
+    await createProject(page, unique("Columns"));
+    await addTask(page, "Todo", "Has a priority");
     await addListView(page, "Rows");
 
-    const panel = page.getByTestId("card-panel");
-    const shape = (name: "Card" | "List") =>
-      panel
-        .getByRole("group", { name: "Arrange the card as" })
-        .getByRole("button", { name, exact: true });
+    const drawer = page.getByTestId("columns-panel");
+    const heading = (name: string) =>
+      page.getByTestId("list-head-name").filter({ hasText: new RegExp(`^${name}$`, "i") });
 
+    await expect(page.getByTestId("card-button")).toContainText("Columns");
     await page.getByTestId("card-button").click();
-    await expect(shape("List")).toHaveAttribute("aria-pressed", "true");
-    await expect(panel.getByTestId("card-row").first()).toBeVisible();
-    await expect(panel.getByTestId("card-drawing")).toHaveCount(0);
-    await page.screenshot({ path: testInfo.outputPath("seen-card-panel-list-start.png") });
+    await expect(drawer.getByRole("heading", { name: "Columns" })).toBeVisible();
+    await expect(page.getByTestId("card-panel")).toHaveCount(0);
 
-    // The default card is the main board's, so it opens on the card.
-    await panel.getByRole("button", { name: "Change the default instead" }).click();
-    await expect(shape("Card")).toHaveAttribute("aria-pressed", "true");
-    await expect(panel.getByTestId("card-drawing")).toBeVisible();
+    // A tick takes the column off this list, for everyone, and it stays off.
+    await expect(heading("Priority")).toBeVisible();
+    await drawer.getByRole("checkbox", { name: "Priority", exact: true }).click();
+    await expect(heading("Priority")).toHaveCount(0);
 
-    // A board view opens on the card, and the list is one press away.
+    // A look is picked from its menu, and saved.
+    await drawer.getByRole("button", { name: /^Status reads as/ }).click();
+    await drawer.getByRole("menuitemradio", { name: /Filled/ }).click();
+    await expect(drawer.getByRole("button", { name: /^Status reads as/ })).toHaveAccessibleName(
+      "Status reads as Filled",
+    );
+    await page.screenshot({ path: testInfo.outputPath("seen-columns-drawer.png") });
+
+    await page.reload();
+    await expect(page.getByTestId("list-view")).toBeVisible();
+    await expect(heading("Priority")).toHaveCount(0);
+    await page.getByTestId("card-button").click();
+    await expect(drawer.getByRole("button", { name: /^Status reads as/ })).toHaveAccessibleName(
+      "Status reads as Filled",
+    );
+
+    // The same press on a board opens its card, and the list's change did not reach it.
     await page.getByTestId("view-pill").filter({ hasText: "Board" }).click();
-    await expect(shape("Card")).toHaveAttribute("aria-pressed", "true");
-    await shape("List").click();
-    await expect(panel.getByTestId("card-row").first()).toBeVisible();
+    await expect(page.getByTestId("card-button")).toContainText("Card");
+    await expect(page.getByTestId("card-panel")).toBeVisible();
+    await expect(drawer).toHaveCount(0);
   });
 });

@@ -187,9 +187,12 @@ function focusRow(root: HTMLElement | null, taskId: string) {
 export function ListCanvas({
   selectedTaskId,
   onOpenTask,
+  litColumnId = null,
 }: {
   selectedTaskId: string | null;
   onOpenTask: (task: TaskDTO | null) => void;
+  /** The column the Columns drawer is changing, whose heading lights up. */
+  litColumnId?: string | null;
 }) {
   const {
     data,
@@ -742,6 +745,7 @@ export function ListCanvas({
 
                     const slot = {
                       column,
+                      lit: litColumnId === column.id,
                       className: held.className,
                       style: { ...held.style, ...capOf(column) },
                       resizing: resizing === column.id,
@@ -931,6 +935,8 @@ type Grab = ReturnType<typeof useSortable>["listeners"];
 
 type HeadSlotProps = {
   column: ListColumn;
+  /** The Columns drawer is changing this column. */
+  lit?: boolean;
   className: string;
   style: React.CSSProperties;
   /** Whether this column's edge is in hand. */
@@ -954,6 +960,7 @@ type HeadSlotProps = {
  */
 function HeadSlot({
   column,
+  lit,
   className,
   style,
   resizing,
@@ -976,6 +983,7 @@ function HeadSlot({
       className={`${styles.listHeadSlot} ${className}`}
       style={style}
       data-moving={sortable?.moving ? "true" : undefined}
+      data-lit={lit ? "true" : undefined}
       data-marker={marker}
       data-column-id={column.id}
       data-testid="list-head-slot"

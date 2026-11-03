@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
 import {
   cellCap,
+  isColumn,
   listColumns,
+  listLookOf,
+  listLooks,
   listTemplate,
   readLensWidths,
   shareOf,
+  showColumn,
   sortArrow,
   TITLE_MAX_WIDTH,
   TITLE_MIN_SHARE,
@@ -310,5 +314,53 @@ describe("the widths a person drags", () => {
     expect(readLensWidths(null, PROPERTIES)).toEqual({});
     expect(readLensWidths({ rules: [] }, PROPERTIES)).toEqual({});
     expect(readLensWidths({ widths: [1, 2] }, PROPERTIES)).toEqual({});
+  });
+});
+
+describe("the Columns drawer's rules", () => {
+  const view = () => readCardView(null, PROPERTIES, "p-status");
+  const item = (id: string, saved = view()) =>
+    cardItems(saved, PROPERTIES).find((i) => i.id === id)!;
+
+  it("always opens with the key, even when the card leaves it off", () => {
+    const off = { rows: { _key: { place: "off", mode: "text" } } };
+    expect(idsOf(off).slice(0, 2)).toEqual(["_key", "_title"]);
+  });
+
+  it("offers only the looks a row draws, named for a table", () => {
+    expect(listLooks("select").map((l) => l.label)).toEqual([
+      "Dot and name",
+      "Filled",
+      "Name only",
+    ]);
+    expect(listLooks("person").map((l) => l.label)).toEqual(["Face and name", "Name only"]);
+    expect(listLooks("comments").map((l) => l.id)).toEqual(["text"]);
+    expect(listLooks("checklist").map((l) => l.id)).toEqual(["bar", "text"]);
+  });
+
+  it("reads a colour alone and a face alone as the names a row gives them", () => {
+    expect(listLookOf({ ...item("p-prio"), mode: "colour" })).toBe("both");
+    expect(listLookOf({ ...item("p-who"), mode: "avatar" })).toBe("both");
+    expect(listLookOf({ ...item("p-prio"), mode: "fill" })).toBe("fill");
+  });
+
+  it("ticks a column off and back on, at the home of its kind", () => {
+    const off = showColumn(view(), item("p-prio"), false);
+    expect(off.rows["p-prio"].place).toBe("off");
+    expect(isColumn(item("p-prio", off))).toBe(false);
+
+    const on = showColumn(off, item("p-prio", off), true);
+    expect(on.rows["p-prio"].place).not.toBe("off");
+    expect(isColumn(item("p-prio", on))).toBe(true);
+
+    /* A kind whose home is off still has to land somewhere. */
+    const created = showColumn(view(), item("_created"), true);
+    expect(created.rows._created.place).toBe("footerL");
+    /* The description reads under the title, which is the body of a card. */
+    expect(showColumn(view(), item("_desc"), true).rows._desc.place).toBe("body");
+  });
+
+  it("does not count the edge as a column, because it is a stripe", () => {
+    expect(isColumn({ ...item("p-prio"), place: "edge" })).toBe(false);
   });
 });

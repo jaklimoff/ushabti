@@ -16,6 +16,7 @@ import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
 import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
 import { CardPanel } from "./CardPanel";
+import { ColumnsPanel } from "./ColumnsPanel";
 import { FilterChips } from "./Filters";
 import { ListCanvas } from "./ListCanvas";
 import { focusBar, RoadmapCanvas } from "./RoadmapCanvas";
@@ -75,6 +76,8 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
   /* One panel shows at a time: opening the card closes the task, and opening
      a task closes the card. */
   const [cardOpen, setCardOpen] = useState(false);
+  /* The column the Columns drawer is changing, so the list lights its heading. */
+  const [litColumn, setLitColumn] = useState<string | null>(null);
   /* The sidebar reads the open project's count from here, so it and the top
      bar never disagree. */
   useOwnWaiting(data.project.id, waitingCount(data.tasks, data.runs));
@@ -262,7 +265,11 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
         {/* The same tasks, drawn three ways. Everything above and below this line
             is the view's, whichever shape it takes. */}
         {view?.kind === "list" ? (
-          <ListCanvas selectedTaskId={openTask} onOpenTask={open} />
+          <ListCanvas
+            selectedTaskId={openTask}
+            onOpenTask={open}
+            litColumnId={cardShown && !openTask ? litColumn : null}
+          />
         ) : view?.kind === "roadmap" ? (
           <RoadmapCanvas openOptionId={openBar?.optionId ?? null} onOpenOption={pressBar} />
         ) : (
@@ -302,7 +309,13 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
         )}
       </div>
 
-      {cardShown && !openTask && <CardPanel onClose={closeCard} />}
+      {cardShown &&
+        !openTask &&
+        (view?.kind === "list" ? (
+          <ColumnsPanel key={view.id} onClose={closeCard} onLit={setLitColumn} />
+        ) : (
+          <CardPanel onClose={closeCard} />
+        ))}
 
       {openTask && (
         <TaskPanel

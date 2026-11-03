@@ -1,8 +1,10 @@
-import type { CardItem } from "./card-view";
+import { type CardItem, fallbackRow, MODES_FOR_KIND, setCardPlace } from "./card-view";
 import {
   CARD_BUILTINS,
   type CardBuiltin,
   type CardKind,
+  type CardMode,
+  type CardView,
   type ColumnWidths,
   type PropertyDTO,
   type PropertyType,
@@ -231,21 +233,22 @@ export function listColumns(
     });
   }
 
-  /* The title always sits on the list, exactly as it always sits on the card:
-     a row of nothing but chips names nothing. */
-  if (!columns.some((c) => c.id === "_title")) {
-    const title = items.find((i) => i.id === "_title");
-    if (title) {
-      columns.unshift({
-        id: "_title",
-        name: title.name,
-        item: title,
-        width: 0,
-        track: trackOf(title),
-        right: false,
-        pin: null,
-      });
-    }
+  /* The key and the title always sit on the list. A row of nothing but chips
+     names nothing, and the key is what somebody pastes to name a task to
+     somebody else. A card may leave its key off; a line has the room. */
+  for (const id of ["_key", "_title"]) {
+    if (columns.some((c) => c.id === id)) continue;
+    const item = items.find((i) => i.id === id);
+    if (!item) continue;
+    columns.unshift({
+      id,
+      name: item.name,
+      item,
+      width: id === "_title" ? 0 : widthOf(item),
+      track: trackOf(item),
+      right: false,
+      pin: null,
+    });
   }
 
   const lead = (id: string) => {
@@ -327,4 +330,50 @@ const BIG_END_FIRST: ReadonlySet<CardKind> = new Set(["select", "flag"]);
 export function sortArrow(item: CardItem, direction: SortDirection): "up" | "down" {
   const ascending = direction === "asc";
   return BIG_END_FIRST.has(item.kind) === ascending ? "down" : "up";
+}
+
+/**
+ * How a column can read on a list, in the order the Columns drawer offers
+ * them. A colour alone and a face alone are a card's looks: `buildRow` gives
+ * them their names back, so the drawer offers only what a row draws, and
+ * names the looks by what a person sees in a table.
+ */
+const LIST_LOOKS: Partial<Record<CardKind, { id: CardMode; label: string }[]>> = {
+  select: [
+    { id: "both", label: "Dot and name" },
+    { id: "fill", label: "Filled" },
+    { id: "text", label: "Name only" },
+  ],
+  person: [
+    { id: "both", label: "Face and name" },
+    { id: "text", label: "Name only" },
+  ],
+};
+
+export function listLooks(kind: CardKind): { id: CardMode; label: string }[] {
+  return LIST_LOOKS[kind] ?? MODES_FOR_KIND[kind];
+}
+
+/** The look a column wears on a list, which is the card's but for the two a row names. */
+export function listLookOf(item: CardItem): CardMode {
+  return item.mode === "colour" || item.mode === "avatar" ? "both" : item.mode;
+}
+
+/**
+ * A column ticked on or off in the Columns drawer. Off is the card's off, so
+ * the list and the card agree. On puts the row at the home of its kind,
+ * because the list draws every place as a column and a card has to put it
+ * somewhere; a kind whose home is off goes to the footer. The description is
+ * no column: on, it reads under the title, which is the body of a card.
+ */
+export function showColumn(view: CardView, item: CardItem, on: boolean): CardView {
+  if (!on) return setCardPlace(view, item.id, "off");
+  if (item.id === "_desc") return setCardPlace(view, item.id, "body");
+  const home = fallbackRow(item.kind).place;
+  return setCardPlace(view, item.id, home === "off" || home === "title" ? "footerL" : home);
+}
+
+/** Whether a row of the card is a column of the list. The edge is a stripe. */
+export function isColumn(item: CardItem): boolean {
+  return item.place !== "off" && item.place !== "edge";
 }

@@ -21,6 +21,17 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   the property in the one order Settings keeps, so the cards and the task
   panel follow. The key, the title and the parts every task has stay where
   they are.
+- A list has a **Columns** drawer where a board has its **Card** drawer. Tick
+  a column to show or hide it, drag a property to move it, and pick how each
+  one reads from a menu that draws every look. A row at the top shows the
+  column you are changing, and a look under the pointer before you pick it.
+  What a list shows is the same for everyone on it; the widths stay yours,
+  and the drawer can give them back.
+
+### Changed
+
+- A list always opens with the task's key, even when its card leaves the key
+  off.
 
 ### Fixed
 

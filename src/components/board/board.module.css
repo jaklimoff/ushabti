@@ -2260,6 +2260,23 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 /* The heading being carried stays in its place, faded, so the column it
    names is still named while the lifted copy moves. */
+/* The column the Columns drawer is changing, so a person sees where it sits. */
+.listHeadSlot[data-lit] > .listHeadCell {
+  color: var(--accent-soft);
+}
+
+.listHeadSlot[data-lit]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 8px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
 .listHeadSlot[data-moving] > .listHeadCell {
   opacity: 0.35;
 }

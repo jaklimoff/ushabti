@@ -136,7 +136,17 @@ and what is easy to get wrong.
   so a value cannot read one way on a card and another in a list. Its one
   deliberate difference is that a colour chip and a face get their names
   back: a column's heading names the property, never the value, and two
-  initials under Assignee name nobody to a newcomer.
+  initials under Assignee name nobody to a newcomer. The key always opens a
+  list, even when the card leaves it off, because it is what somebody pastes
+  to name a task.
+  A list arranges its columns in the **Columns** drawer, where a board has its
+  **Card** drawer, and it writes the same card view: a tick is a place off or
+  on, a look is a mode. So the drawer offers only the looks a row draws,
+  `listLooks()`, and never Colour or Avatar alone. It always writes the list's
+  own copy and never asks about the default card, because a list draws no
+  card and nobody arranging columns is thinking of one. The parts every task
+  has sit last without a grip, as `cardOrder()` puts them; a property's grip
+  calls `moveProperty`, like the heading drag.
 - **One view is the main one, and it is named rather than unnamed.** The word
   says two things at once: which view a board opens on when nobody has picked
   one, and which view cannot be deleted. So the route takes `isDefault: true`
@@ -195,7 +205,8 @@ and what is easy to get wrong.
   The widths a person drags a list's columns to sit in the lens too, as
   `widths`, read afresh by `readLensWidths()`, for the same reason as the
   order: what fits one screen does not fit the next. They are shares of the
-  list, never pixels, drawn as `max(floor, share%)`. A drag keeps the row's
+  list, never pixels, drawn as `max(floor, calc(var(--list-panel) * share))`, where
+  `--list-panel` is the width of the list's window, measured. A drag keeps the row's
   width: `dragColumns` in `src/lib/column-fit.ts` takes a growing column's
   room from the empty space at the end, then from the columns to its right,
   and stops at their floor. The page listens for the release, not the edge,

@@ -72,6 +72,16 @@ export function CardIcon({ size }: { size?: number }) {
   );
 }
 
+/** Three columns in a frame: what a list carries across a row. */
+export function ColumnsIcon({ size }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <rect x="1.5" y="2.25" width="9" height="7.5" rx="1.4" />
+      <path d="M4.5 2.5v7M7.5 2.5v7" />
+    </Icon>
+  );
+}
+
 /** Up and down: an order, which takes nothing away. */
 export function SortIcon({ size }: { size?: number }) {
   return (

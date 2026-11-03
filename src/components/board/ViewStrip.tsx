@@ -29,7 +29,7 @@ import { editedText } from "@/lib/leave";
 import { canManage } from "@/lib/roles";
 import { useEdgeFade } from "./edges";
 import { FilterButton, SortButton } from "./Filters";
-import { CardIcon, PlusIcon } from "./icons";
+import { CardIcon, ColumnsIcon, PlusIcon } from "./icons";
 import { copyText } from "@/lib/clipboard";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
@@ -190,19 +190,25 @@ export function ViewStrip({
       <div style={{ flex: 1 }} />
       {/* A list is ordered by its headings, which it has and a board has not.
           So the button is here only where there is nothing else to press. */}
-      {/* A roadmap draws no card, so there is nothing for it to arrange. */}
+      {/* A roadmap draws no card, so there is nothing for it to arrange. A
+          list draws no card either: it arranges its columns, in the drawer the
+          card has on a board. */}
       {view && view.kind !== "roadmap" && (
         <button
           className={`${styles.pill} ${styles.tool} ${cardOpen ? styles.filterOn : ""}`}
           data-testid="card-button"
           aria-expanded={cardOpen}
-          title={`Arrange what a card on ${view.name} carries`}
+          title={
+            view.kind === "list"
+              ? `Choose the columns of ${view.name}`
+              : `Arrange what a card on ${view.name} carries`
+          }
           onClick={onCard}
         >
           <span className={styles.toolMark}>
-            <CardIcon size={13} />
+            {view.kind === "list" ? <ColumnsIcon size={13} /> : <CardIcon size={13} />}
           </span>
-          <span className={styles.toolWord}>Card</span>
+          <span className={styles.toolWord}>{view.kind === "list" ? "Columns" : "Card"}</span>
         </button>
       )}
       {view?.kind === "board" && <SortButton open={sortOpen} setOpen={setSortOpen} />}
@@ -638,7 +644,7 @@ function ViewMenu({
                 className={styles.menuItem}
                 onClick={then(onCard)}
               >
-                Card
+                {view.kind === "list" ? "Columns" : "Card"}
               </button>
             )}
             <button

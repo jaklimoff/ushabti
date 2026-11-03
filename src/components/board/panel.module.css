@@ -1942,3 +1942,417 @@
   gap: 12px;
   padding: 12px 16px 16px;
 }
+
+/* ------------------------------------------------------------------ */
+/* The Columns drawer: the Card drawer's sibling on a list              */
+/* ------------------------------------------------------------------ */
+
+.columnsPanel {
+  --panel-w: 420px;
+}
+
+.columnsCount {
+  font-size: var(--t-small);
+  color: var(--text-meta);
+  white-space: nowrap;
+}
+
+/* A row of the list, held under the head while the rows scroll. */
+.columnsSample {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.columnsSampleBox {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.columnsSampleGrid {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.columnsSampleHead {
+  min-height: 26px;
+  background: var(--bg-top);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.columnsSampleLit {
+  justify-self: end;
+  color: var(--accent-soft);
+}
+
+.columnsSampleKey {
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  color: var(--text-meta);
+}
+
+.columnsSampleTitle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.columnsSampleWords {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--t-small);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.columnsSampleCell {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 3px 4px;
+  margin: -3px -4px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--accent-wash);
+}
+
+/* A look not picked yet, or a column not shown yet: drawn, but dashed. */
+.columnsSampleCell[data-draft] {
+  box-shadow: none;
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
+
+.columnsSampleNote {
+  min-height: 15px;
+  font-size: var(--t-micro);
+  color: var(--text-meta);
+}
+
+.columnsSampleNote b {
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.columnsBody {
+  padding: 6px 10px 12px;
+}
+
+.columnsGroup {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 6px 5px;
+}
+
+.columnsGroupName {
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-meta);
+}
+
+.columnsGroupNote {
+  font-size: var(--t-micro);
+  color: var(--text-meta);
+  text-align: right;
+}
+
+.columnsRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 4px 0 2px;
+  border-radius: var(--r-sm);
+  background: var(--bg-top);
+}
+
+.columnsRow:hover {
+  background: var(--bg-hover-wash);
+}
+
+.columnsRow[data-open] {
+  z-index: 2;
+  background: var(--bg-hover);
+}
+
+.columnsRow[data-dragging] {
+  z-index: 3;
+  background: var(--bg-hover);
+  box-shadow: var(--shadow-menu);
+}
+
+.columnsGrip {
+  display: grid;
+  grid-template-columns: 2px 2px;
+  gap: 3px;
+  place-content: center;
+  flex: 0 0 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  cursor: grab;
+  opacity: 0.65;
+  touch-action: none;
+}
+
+.columnsGrip:hover,
+.columnsGrip:focus-visible {
+  background: var(--bg-hover);
+  opacity: 1;
+}
+
+.columnsGrip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.columnsGrip span {
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--faint-3);
+}
+
+.columnsLock {
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  color: var(--icon);
+}
+
+.columnsPick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 100%;
+  cursor: pointer;
+}
+
+.columnsPickFixed {
+  cursor: default;
+}
+
+.columnsCheck {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--line-dash);
+  border-radius: 3px;
+  background: var(--bg-input);
+  cursor: inherit;
+  transition:
+    background 140ms var(--ease),
+    border-color 140ms var(--ease);
+}
+
+.columnsCheck::before {
+  content: "";
+  width: 7px;
+  height: 4px;
+  margin-top: -2px;
+  border-left: 2px solid var(--accent-ink);
+  border-bottom: 2px solid var(--accent-ink);
+  transform: rotate(-45deg);
+  visibility: hidden;
+}
+
+.columnsCheck:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.columnsCheck:checked::before {
+  visibility: visible;
+}
+
+.columnsCheck:disabled {
+  opacity: 0.45;
+}
+
+.columnsCheck:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.columnsName {
+  min-width: 0;
+  font-size: var(--t-body);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.columnsRow[data-off] .columnsName {
+  color: var(--text-meta);
+}
+
+.columnsFixed {
+  flex: 0 0 auto;
+  padding-right: 8px;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
+.columnsLookWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.columnsLook {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 6px 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease);
+}
+
+.columnsLook:hover,
+.columnsLook[aria-expanded="true"] {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+
+.columnsLook[aria-expanded="true"] {
+  background: var(--line-dash);
+  color: var(--text);
+}
+
+.columnsLook:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.columnsLookUp {
+  transform: rotate(180deg);
+}
+
+.columnsMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  width: 236px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--bg-menu);
+  border: 1px solid var(--line-menu);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-menu);
+  animation: ushabti-fade-in 120ms var(--ease);
+}
+
+.columnsMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  font-size: var(--t-small);
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.columnsMenuItem:hover,
+.columnsMenuItem:focus-visible {
+  outline: 0;
+  background: var(--bg-menu-hover);
+  color: var(--text);
+}
+
+.columnsMenuTick {
+  width: 10px;
+  flex: 0 0 10px;
+  color: var(--accent);
+}
+
+.columnsMenuWord {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.columnsMenuChip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 4px;
+}
+
+/* The widths are the person's, so they sit apart from what everybody shares. */
+.columnsFoot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-top);
+}
+
+.columnsFootWords {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.columnsFootTitle {
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.columnsFootNote {
+  font-size: var(--t-micro);
+  color: var(--text-meta);
+}

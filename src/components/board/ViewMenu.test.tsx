@@ -62,13 +62,15 @@ describe("The menu of the open view", () => {
     );
   });
 
-  test("a list has no columns to pick, and a roadmap no card", async () => {
+  test("a list has no columns to group by, and a roadmap no card", async () => {
     const data = withPhases(newProject());
     data.views[1] = { ...data.views[1], kind: "list", groupById: null };
     const first = await draw(data);
     await openMenu("Phases");
     await expect.element(page.getByRole("group", { name: "Columns by" })).not.toBeInTheDocument();
-    expect(words()).toContain("Card");
+    /* A list arranges its columns where a board arranges its card. */
+    expect(words()).toContain("Columns");
+    expect(words()).not.toContain("Card");
     await first.screen.unmount();
 
     const road = withPhases(newProject());
