@@ -545,6 +545,28 @@ describe("A list view", () => {
     expect(lens()).toHaveLength(1);
   });
 
+  test("a list wider than its window keeps the widths it was let go at", async () => {
+    await page.viewport(900, 900);
+    const data = newProject();
+    threeTasks(data);
+    withList(data, "Narrow");
+    const { sent } = await draw(data);
+    const widths = () =>
+      (byTestId("list-head-slot").elements() as HTMLElement[]).map((slot) =>
+        Math.round(slot.getBoundingClientRect().width),
+      );
+
+    const from = middle(edgeOf("Priority"));
+    await commands.hold(from, { x: from.x + 120, y: from.y });
+    const held = widths();
+    await commands.letGo();
+    await wrote(() => sent("PUT", LENS), 1);
+    await pause(100);
+
+    // The drop draws the shares it wrote, and they are the widths in hand.
+    widths().forEach((width, i) => expect(Math.abs(width - held[i])).toBeLessThanOrEqual(1));
+  });
+
   test("a press on an edge that goes nowhere writes nothing", async () => {
     const data = newProject();
     threeTasks(data);
@@ -591,7 +613,8 @@ describe("A list view", () => {
     const { sent } = await draw(data);
     const lens = () => sent("PUT", LENS);
     const gridWidth = () =>
-      html(byTestId("list-view").getByTestId("list-head")).parentElement!.clientWidth;
+      html(byTestId("list-view").getByTestId("list-head")).parentElement!.parentElement!
+        .clientWidth;
 
     await expect
       .poll(() => Math.abs(widthOf(headSlot("Title")) - gridWidth() * 0.3))

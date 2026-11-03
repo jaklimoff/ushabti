@@ -211,7 +211,9 @@ export function listColumns(
     const share = shares[item.id];
     if (share === undefined) return null;
     const floor = item.id === "_title" ? TITLE_TRACK_FLOOR : TRACK_FLOOR;
-    return `max(${floor}px, ${Math.round(share * 1000000) / 10000}%)`;
+    /* `--list-panel` is the list's window, measured; until it is, on the
+       server's paint, the grid's own width is close enough. */
+    return `max(${floor}px, calc(var(--list-panel, 100%) * ${share}))`;
   };
 
   for (const item of items) {

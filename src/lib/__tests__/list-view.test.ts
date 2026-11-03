@@ -249,12 +249,12 @@ describe("the widths a person drags", () => {
     const columns = listColumns(items(), { "p-prio": 0.25, _title: 0.3 });
     const prio = columns.find((c) => c.id === "p-prio")!;
     const title = columns.find((c) => c.id === "_title")!;
-    expect(prio.track).toBe("max(40px, 25%)");
-    expect(title.track).toBe("max(120px, 30%)");
+    expect(prio.track).toBe("max(40px, calc(var(--list-panel, 100%) * 0.25))");
+    expect(title.track).toBe("max(120px, calc(var(--list-panel, 100%) * 0.3))");
     expect(cellCap(prio)).toBe("100%");
 
     const tracks = listTemplate(columns).split(" ");
-    expect(listTemplate(columns)).toContain("max(40px, 25%)");
+    expect(listTemplate(columns)).toContain("max(40px, calc(var(--list-panel, 100%) * 0.25))");
     expect(tracks.at(-1)).toBe("1fr");
   });
 

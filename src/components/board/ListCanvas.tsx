@@ -77,6 +77,16 @@ function rowIdOf(target: EventTarget | null): string | null {
  * elements, because a scroll event re-rendering forty rows to move one shadow
  * would be the slowest way to draw a hairline.
  */
+/*
+ * How wide the list's window is, as a variable its kept widths are drawn
+ * against. A share of the grid itself was a share of something that changes
+ * the moment the share is drawn: a list wider than its window shrank on the
+ * drop. The window does not change with what is in it.
+ */
+function markPanel(el: HTMLElement) {
+  el.style.setProperty("--list-panel", `${el.clientWidth}px`);
+}
+
 function markScrolled(el: HTMLElement) {
   el.toggleAttribute("data-scrolled", el.scrollTop > 0);
   el.toggleAttribute("data-scrolled-x", el.scrollLeft > 0);
@@ -321,7 +331,11 @@ export function ListCanvas({
     const el = scrollRef.current;
     if (!el) return;
     markScrolled(el);
-    const observer = new ResizeObserver(() => markScrolled(el));
+    markPanel(el);
+    const observer = new ResizeObserver(() => {
+      markScrolled(el);
+      markPanel(el);
+    });
     observer.observe(el);
     if (el.firstElementChild) observer.observe(el.firstElementChild);
     return () => observer.disconnect();
@@ -422,7 +436,8 @@ export function ListCanvas({
     }
     const rest = Math.max(0, Math.round(grid.getBoundingClientRect().right - last - 8));
     row.push({ id: REST, width: rest, min: 0, resizable: true });
-    return { row, total: row.reduce((sum, c) => sum + c.width, 0), panel: grid.clientWidth };
+    const panel = scrollRef.current?.clientWidth ?? 0;
+    return { row, total: row.reduce((sum, c) => sum + c.width, 0), panel };
   }
 
   /** The widths a step leaves: the dragged column set to `width`, the rest giving way. */
@@ -452,7 +467,7 @@ export function ListCanvas({
     r.stop();
     setResizing(null);
     setLive(null);
-    if (keep && r.at) writeShares(r.at, gridRef.current?.clientWidth ?? 0);
+    if (keep && r.at) writeShares(r.at, scrollRef.current?.clientWidth ?? 0);
   }
 
   function startResize(id: string, x: number) {
