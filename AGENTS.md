@@ -55,7 +55,13 @@ and what is easy to get wrong.
   holds no order. The card editor is a second handle on the same order: a
   property chip dropped on another in its place calls `moveProperty`, naming
   what it landed on, and writes nothing to the card view. A built-in chip is
-  no target and does not move. `cardOrder()` in `card-view.ts` is the one place that says
+  no target and does not move. A list's heading is a third handle, the same
+  way: a property heading dropped on another calls `moveProperty`, so the
+  column moves on every list, card and panel at once. Nothing in the head
+  slides while one is carried, because the values under it cannot; a bar
+  says where it lands. The key, the title and the built-in columns do not
+  move, and a finger never lifts a heading, because a finger on a heading is
+  somebody scrolling a wide list. `cardOrder()` in `card-view.ts` is the one place that says
   which row comes first: `_key`, `_title` and `_desc`, then the properties in
   their `position`, then `_checklist`, `_parts` and `_comments`. The chips
   that share a place on a card, the columns of a list and the fields of the
@@ -183,8 +189,13 @@ and what is easy to get wrong.
   wins over the view's while it exists, and the store's `sort` is that one
   answer, so everything that orders or holds still asks it and a board holds
   still only for the person whose order it is. A lens is put whole, so every
-  write of it — the rules, the order, and the filter box's `useSaveOnLeave` —
-  carries both halves; a write that sent one would take the other away.
+  write of it — the rules, the order, the widths, and the filter box's
+  `useSaveOnLeave` — carries all three; a write that left one out would take
+  it away.
+  The widths a person drags a list's columns to sit in the lens too, as
+  `widths`, read afresh by `readLensWidths()`, for the same reason as the
+  order: what fits one screen does not fit the next. Promote leaves them in
+  the lens, and Clear leaves them alone, because they hide and order nothing.
   **Save for everyone** moves the order with the rules in the one transaction
   it already has. `pressSort()` is the one place a press is worked out against
   the view's order: mine never repeats the view's, and a press that would fall

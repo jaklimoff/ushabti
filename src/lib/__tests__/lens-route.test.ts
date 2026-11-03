@@ -23,6 +23,7 @@ type View = {
   lens: { rules: unknown[] };
   sort: unknown;
   lensSort: unknown;
+  lensWidths: Record<string, number>;
 };
 
 const CLASH = "The view already filters Priority. Remove it for everyone first.";
@@ -47,7 +48,11 @@ async function setUp() {
 /** The lens row as it sits in the table, not as the board reads it. */
 async function savedLens(viewId: string) {
   const [row] = await db.select().from(viewLenses).where(eq(viewLenses.viewId, viewId));
-  return (row?.filters ?? null) as { rules: unknown[]; sort?: unknown } | null;
+  return (row?.filters ?? null) as {
+    rules: unknown[];
+    sort?: unknown;
+    widths?: unknown;
+  } | null;
 }
 
 describe("Filters inside a view", () => {
@@ -167,5 +172,59 @@ describe("An order in a lens", () => {
     // And Save for everyone carries nothing of it to the view.
     await ok(me.post(`/api/views/${view.id}/lens/promote`));
     expect((await viewNow()).sort).toBeNull();
+  });
+
+  it("keeps the widths a person dragged, and nobody else reads them", async () => {
+    const { me, view, property, option, viewNow } = await setUp();
+    const priority = property("Priority");
+
+    // Widths alone are a lens: the row is kept.
+    await ok(
+      me.put(`/api/views/${view.id}/lens`, {
+        filters: { rules: [] },
+        sort: null,
+        widths: { [priority.id]: 220, _title: 360, _key: 400 },
+      }),
+    );
+    expect(await savedLens(view.id)).toEqual({
+      rules: [],
+      widths: { [priority.id]: 220, _title: 360 },
+    });
+    expect((await viewNow()).lensWidths).toEqual({ [priority.id]: 220, _title: 360 });
+
+    // Save for everyone hands the team the rules and leaves the widths mine.
+    const mine = { propertyId: priority.id, op: "is", values: [option("Priority", "High")] };
+    await ok(
+      me.put(`/api/views/${view.id}/lens`, {
+        filters: { rules: [mine] },
+        sort: null,
+        widths: { [priority.id]: 220 },
+      }),
+    );
+    await ok(me.post(`/api/views/${view.id}/lens/promote`));
+    const promoted = await viewNow();
+    expect(promoted.filters.rules).toEqual([mine]);
+    expect(promoted.lens.rules).toEqual([]);
+    expect(promoted.lensWidths).toEqual({ [priority.id]: 220 });
+
+    // A lens with nothing left in it leaves no row behind.
+    await ok(me.put(`/api/views/${view.id}/lens`, { filters: { rules: [] }, sort: null }));
+    expect(await savedLens(view.id)).toBeNull();
+  });
+
+  it("drops a width when the column it names is deleted", async () => {
+    const { owner, project: p, me, view, viewNow } = await setUp();
+    await ok(me.post(`/api/projects/${p.id}/properties`, { name: "Effort", type: "number" }));
+    const effort = ((await board(owner, p.id)).properties as Property[]).find(
+      (x) => x.name === "Effort",
+    )!;
+    await ok(
+      me.put(`/api/views/${view.id}/lens`, {
+        filters: { rules: [] },
+        widths: { [effort.id]: 150 },
+      }),
+    );
+    await ok(me.del(`/api/properties/${effort.id}`));
+    expect((await viewNow()).lensWidths).toEqual({});
   });
 });

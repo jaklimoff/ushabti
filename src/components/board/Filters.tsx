@@ -119,7 +119,8 @@ const ASK: Record<PropertyType, string> = {
  * says here what the write it owes would have been; see `useSaveOnLeave`.
  * The team's rules are patched onto the view and mine are put on my lens,
  * which is the only difference between the two. A lens is put whole, so mine
- * carry my order with them, or a tab closed on the box would take it away.
+ * carry my order and my widths with them, or a tab closed on the box would
+ * take them away.
  */
 function viewSend(viewId: string, rules: FilterRule[]): LeaveSend {
   return { method: "PATCH", url: `/api/views/${viewId}`, body: { filters: { rules } } };
@@ -129,7 +130,7 @@ function lensSend(view: ViewDTO, rules: FilterRule[]): LeaveSend {
   return {
     method: "PUT",
     url: `/api/views/${view.id}/lens`,
-    body: { filters: { rules }, sort: view.lensSort },
+    body: { filters: { rules }, sort: view.lensSort, widths: view.lensWidths },
   };
 }
 

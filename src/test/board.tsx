@@ -73,6 +73,7 @@ export function newProject(): BoardData {
     lens: { rules: [] },
     sort: null,
     lensSort: null,
+    lensWidths: {},
     startFolded: [],
     cardView: null,
   }));
@@ -147,6 +148,7 @@ export function withPhases(data: BoardData): BoardData {
       lens: { rules: [] },
       sort: null,
       lensSort: null,
+      lensWidths: {},
       startFolded: [],
       cardView: null,
     });

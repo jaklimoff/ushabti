@@ -452,6 +452,13 @@ export type ViewSort = {
 };
 
 /**
+ * The widths one person dragged the columns of a list to, by the same column
+ * ids a sort names. A width is a person's, as a sort is: what fits one screen
+ * does not fit the next, so it lives in their lens and never on the view.
+ */
+export type ColumnWidths = Record<string, number>;
+
+/**
  * The shape a view draws the same tasks in. A board puts them in columns; a
  * list puts them in one dense line-per-task, which is what a long backlog
  * wants. Nothing else about a view changes with the kind: the filters, the
@@ -519,6 +526,13 @@ export type ViewDTO = {
    * so an agent — which has no lens — always reads null here.
    */
   lensSort: ViewSort | null;
+  /**
+   * How wide the person asking dragged the columns of this list, by column
+   * id, in pixels. Only the columns somebody dragged are here; the rest keep
+   * the width their content gives them. Kept in the lens beside the order, so
+   * an agent reads an empty object here.
+   */
+  lensWidths: ColumnWidths;
   /**
    * The options of the grouping property whose columns start folded, in the
    * option order. Only where a browser that never folded on this view starts:

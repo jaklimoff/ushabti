@@ -44,6 +44,7 @@ import type {
   ArchivedTaskDTO,
   BoardData,
   CardView,
+  ColumnWidths,
   FilterRule,
   PropertyDTO,
   PropertyType,
@@ -65,6 +66,9 @@ import { landedAfter } from "@/lib/landed";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 import { useLendStream } from "@/components/ui/SidebarProvider";
+
+/** One object for every view with no widths, so a memo keyed on it holds. */
+const NO_WIDTHS: ColumnWidths = {};
 
 /** A write sent through the one rule of `trackWrites`. */
 export type Send = {
@@ -120,6 +124,10 @@ type Store = {
   lensSort: ViewSort | null;
   /** Writes my own order on this view, in my lens. Nobody else is told. */
   setSort: (sort: ViewSort | null) => Promise<void>;
+  /** How wide I dragged the columns of this list. Only I see them. */
+  lensWidths: ColumnWidths;
+  /** Writes the widths of my columns on this view, in my lens. */
+  setWidths: (widths: ColumnWidths) => Promise<void>;
   /** Writes the order of the view, for everybody. */
   setViewSort: (sort: ViewSort | null) => Promise<void>;
   /** Every row of the card this view draws, in order, with its property. */
@@ -748,6 +756,7 @@ export function BoardProvider({
   const filters = useMemo(() => mergeFilters(viewFilters, lens), [viewFilters, lens]);
   const viewSort = view?.sort ?? null;
   const lensSort = view?.lensSort ?? null;
+  const lensWidths = view?.lensWidths ?? NO_WIDTHS;
   /* Mine wins while it exists, exactly as the lens is the last word on what
      this screen shows. */
   const sort = lensSort ?? viewSort;
@@ -1441,17 +1450,28 @@ export function BoardProvider({
    * changes one screen, so no other browser is told. The board still redraws
    * here at once, because the view it belongs to is carrying it.
    *
-   * The route puts the whole lens, so my rules and my order always go
-   * together: a write of one that left the other out would take it away.
+   * The route puts the whole lens, so my rules, my order and my widths
+   * always go together: a write that left one out would take it away.
    */
   const putLens = useCallback(
-    async (id: string, rules: FilterRule[], lensSort: ViewSort | null) => {
+    async (
+      id: string,
+      rules: FilterRule[],
+      lensSort: ViewSort | null,
+      lensWidths: ColumnWidths,
+    ) => {
       setData((current) => ({
         ...current,
-        views: current.views.map((v) => (v.id === id ? { ...v, lens: { rules }, lensSort } : v)),
+        views: current.views.map((v) =>
+          v.id === id ? { ...v, lens: { rules }, lensSort, lensWidths } : v,
+        ),
       }));
       await guarded(async () => {
-        await tracked.put(`/api/views/${id}/lens`, { filters: { rules }, sort: lensSort });
+        await tracked.put(`/api/views/${id}/lens`, {
+          filters: { rules },
+          sort: lensSort,
+          widths: lensWidths,
+        });
       });
     },
     [guarded, tracked],
@@ -1460,7 +1480,7 @@ export function BoardProvider({
   const setLens = useCallback<Store["setLens"]>(
     async (rules) => {
       if (!view) return;
-      await putLens(view.id, rules, view.lensSort);
+      await putLens(view.id, rules, view.lensSort, view.lensWidths);
     },
     [putLens, view],
   );
@@ -1495,15 +1515,26 @@ export function BoardProvider({
     });
   }, [data.properties, guarded, notify, refresh, tracked, view]);
 
+  /* Clear takes away what narrows and orders the screen. The widths stay:
+     they hide nothing, and nobody pressing Clear on a filter meant to lose
+     the columns they dragged. */
   const clearLens = useCallback<Store["clearLens"]>(async () => {
     if (!view) return;
-    await putLens(view.id, [], null);
+    await putLens(view.id, [], null, view.lensWidths);
   }, [putLens, view]);
 
   const setSort = useCallback<Store["setSort"]>(
     async (next) => {
       if (!view) return;
-      await putLens(view.id, view.lens.rules, next);
+      await putLens(view.id, view.lens.rules, next, view.lensWidths);
+    },
+    [putLens, view],
+  );
+
+  const setWidths = useCallback<Store["setWidths"]>(
+    async (next) => {
+      if (!view) return;
+      await putLens(view.id, view.lens.rules, view.lensSort, next);
     },
     [putLens, view],
   );
@@ -1770,6 +1801,8 @@ export function BoardProvider({
     viewSort,
     lensSort,
     setSort,
+    lensWidths,
+    setWidths,
     setViewSort,
     cardItems: items,
     cardItemsOf,

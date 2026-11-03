@@ -3,6 +3,7 @@ import { viewLenses, views } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
 import { clashOf, clashSaid, mergeFilters, readFilters } from "@/lib/filters";
+import { readLensWidths } from "@/lib/list-view";
 import { loadProperties, viewProjectId, withProjectLock } from "@/lib/queries";
 import { readLensSort } from "@/lib/sort";
 
@@ -18,7 +19,8 @@ type Ctx = { params: Promise<{ viewId: string }> };
  * this screen, so it is the one the team now gets, and a lens with no order
  * leaves the view's where it is. The lens is emptied in the same transaction: with the rules on the
  * view, keeping them twice would ask the same question twice and leave a
- * "Clear" that appeared to do nothing.
+ * "Clear" that appeared to do nothing. The widths stay in it: they fit one
+ * person's screen, so they are never the team's.
  *
  * Any member may press it. Writing a view's filters is a person's act, not an
  * agent's, which is what `humanOnly` says here as it does on the view route.
@@ -67,9 +69,16 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .update(views)
       .set({ config: { ...config, filters, ...(sort ? { sort } : {}) } })
       .where(eq(views.id, viewId));
-    await tx
-      .delete(viewLenses)
-      .where(and(eq(viewLenses.userId, user.id), eq(viewLenses.viewId, viewId)));
+    const widths = readLensWidths(lens?.filters, properties);
+    const mineOnly = and(eq(viewLenses.userId, user.id), eq(viewLenses.viewId, viewId));
+    if (Object.keys(widths).length > 0) {
+      await tx
+        .update(viewLenses)
+        .set({ filters: { rules: [], widths }, updatedAt: new Date() })
+        .where(mineOnly);
+    } else {
+      await tx.delete(viewLenses).where(mineOnly);
+    }
   });
 
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });

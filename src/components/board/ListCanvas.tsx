@@ -4,19 +4,24 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MouseSensor,
   PointerSensor,
   closestCenter,
   defaultDropAnimationSideEffects,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
+  type CollisionDetection,
   type DragStartEvent,
   type DropAnimation,
+  type Modifier,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   arrayMove,
   sortableKeyboardCoordinates,
+  type SortingStrategy,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -24,11 +29,18 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
-import { listColumns, listTemplate, sortArrow } from "@/lib/list-view";
+import {
+  canResize,
+  clampWidth,
+  listColumns,
+  listTemplate,
+  sortArrow,
+  type ListColumn,
+} from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
 import { startsWith } from "@/lib/when";
 import { canSort, pressSort, sortTasks, sortWayInline } from "@/lib/sort";
-import type { TaskDTO } from "@/lib/types";
+import type { ColumnWidths, TaskDTO } from "@/lib/types";
 import { useCursorBack, useShortcut } from "./keys";
 import { Composer } from "./Column";
 import { useBoard } from "./store";
@@ -98,6 +110,40 @@ function SortArrow({ way }: { way: keyof typeof ARROW }) {
   );
 }
 
+/* A heading moves along the head and nowhere else. */
+const alongTheHead: Modifier = ({ transform }) => ({ ...transform, y: 0 });
+
+/*
+ * Nothing in the head slides while a heading is carried. The columns under
+ * the headings do not move until it is let go, so a heading that stepped
+ * aside would sit over another column's values. A bar says where it lands.
+ */
+const STILL: SortingStrategy = () => null;
+
+/*
+ * The heading under the mouse, or the nearest one to its side. The lifted
+ * copy is as wide as its column, so its centre can sit a whole column away
+ * from where the person is pointing.
+ */
+const underThePointer: CollisionDetection = (args) => {
+  const x = args.pointerCoordinates?.x;
+  if (x === undefined) return closestCenter(args);
+  let best: { container: (typeof args.droppableContainers)[number]; away: number } | null = null;
+  for (const container of args.droppableContainers) {
+    const rect = args.droppableRects.get(container.id);
+    if (!rect) continue;
+    const away = x < rect.left ? rect.left - x : x > rect.right ? x - rect.right : 0;
+    if (!best || away < best.away) best = { container, away };
+  }
+  return best
+    ? [{ id: best.container.id, data: { droppableContainer: best.container, value: best.away } }]
+    : [];
+};
+
+/** How far one press of an arrow moves a column's edge, and with Shift. */
+const WIDTH_STEP = 16;
+const WIDTH_LEAP = 64;
+
 /*
  * Brings a row into view up and down, and never sideways. The key and the
  * title are held in place, so a row is always named wherever the table sits;
@@ -141,6 +187,9 @@ export function ListCanvas({
     sort,
     viewSort,
     setSort,
+    lensWidths,
+    setWidths,
+    moveProperty,
     moveTask,
     createTask,
     togglePick,
@@ -171,7 +220,15 @@ export function ListCanvas({
     if (!activeTaskId) setComposing(true);
   });
 
-  const columns = useMemo(() => listColumns(cardItems), [cardItems]);
+  /* The width of the column whose edge is under the hand, drawn as it moves
+     and written once when it is let go. A write on every pixel would be a
+     request on every pixel. */
+  const [live, setLive] = useState<{ id: string; width: number } | null>(null);
+  const widths = useMemo<ColumnWidths>(
+    () => (live ? { ...lensWidths, [live.id]: live.width } : lensWidths),
+    [lensWidths, live],
+  );
+  const columns = useMemo(() => listColumns(cardItems, widths), [cardItems, widths]);
   const template = useMemo(() => listTemplate(columns), [columns]);
 
   /*
@@ -283,6 +340,60 @@ export function ListCanvas({
   );
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;
+
+  /*
+   * A heading of a property moves that property, in the one order Settings
+   * drags: a list holds no order of its own, so a column moved here moves on
+   * every card and in the panel too. It is dropped by naming what it landed
+   * on, exactly as Settings does. The key, the title and the parts a task has
+   * of its own stay where `listColumns` puts them.
+   *
+   * A mouse only. A finger on a heading is somebody scrolling a wide list
+   * sideways, and a phone moves a property in Settings.
+   */
+  const mayMove = data.project.mayStructure;
+  const movable = useMemo(
+    () => (mayMove ? columns.filter((c) => c.item.property).map((c) => c.id) : []),
+    [columns, mayMove],
+  );
+  const headSensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 5 } }));
+  const [carried, setCarried] = useState<{ id: string; over: string | null } | null>(null);
+  /* How far down the bar reaches: through every row, so it reads as the line
+     the column will stand on and not as a mark on one heading. */
+  const [lineHeight, setLineHeight] = useState(0);
+  const carriedColumn = carried ? columns.find((c) => c.id === carried.id) : undefined;
+
+  /* Which side of a heading the carried one lands on: past it, in the way it
+     is going, as `landedAfter` puts it. */
+  function markerOf(id: string): "before" | "after" | undefined {
+    if (!carried || carried.over !== id || carried.id === id) return undefined;
+    return movable.indexOf(carried.id) < movable.indexOf(id) ? "after" : "before";
+  }
+
+  function onHeadDragOver({ active, over }: DragOverEvent) {
+    setCarried({ id: String(active.id), over: over ? String(over.id) : null });
+  }
+
+  function onHeadDragEnd({ active, over }: DragEndEvent) {
+    setCarried(null);
+    if (!over || active.id === over.id) return;
+    void moveProperty(String(active.id), String(over.id));
+  }
+
+  /* A width the person asked for, written to their lens. Only a change is
+     written, so a press on an edge that went nowhere sends nothing. */
+  function writeWidth(id: string, width: number | null) {
+    setLive(null);
+    if (width === null) {
+      if (!(id in lensWidths)) return;
+      const rest = { ...lensWidths };
+      delete rest[id];
+      void setWidths(rest);
+      return;
+    }
+    if (lensWidths[id] === width) return;
+    void setWidths({ ...lensWidths, [id]: width });
+  }
 
   function onDragStart(event: DragStartEvent) {
     /* A grid's computed template is its tracks as laid out, in pixels. */
@@ -442,78 +553,114 @@ export function ListCanvas({
                 mine and writes no rank, so the rank everybody shares is still
                 the one the boards draw; see `pressSort`. A list has no Sort
                 button, so the heading also has to say it can be pressed. */}
-            <div className={styles.listHead} data-testid="list-head">
-              {columns.map((column, at) => {
-                const held = pinProps(columns, column, at);
-                const on = sort?.columnId === column.id ? sort.direction : null;
-                /* The press writes my order, and mine falls back to the view's.
-                   So the heading says what the screen will show after it, which
-                   is not always the board's own order. */
-                const next = pressSort(sort, viewSort, column.id);
-                const after = next ?? viewSort;
-                /* The words come from the one table the Sort button and the
-                   chip read, so a heading never names an order another way. */
-                const again =
-                  after?.columnId === column.id
-                    ? `Again for ${sortWayInline(column.item, after.direction)}.`
-                    : after
-                      ? "Again for this view's own order."
-                      : "Again for the board's own order.";
-                const said = on
-                  ? `${column.name}, ${sortWayInline(column.item, on)}. ${again}`
-                  : `Order by ${column.name}`;
-                const className = [
-                  styles.listHeadCell,
-                  column.right ? styles.listHeadRight : "",
-                  on ? styles.listHeadOn : "",
-                  held.className,
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+            <DndContext
+              id="ushabti-list-head"
+              sensors={headSensors}
+              collisionDetection={underThePointer}
+              modifiers={[alongTheHead]}
+              onDragStart={({ active }) => {
+                setLineHeight(gridRef.current?.offsetHeight ?? 0);
+                setCarried({ id: String(active.id), over: null });
+              }}
+              onDragOver={onHeadDragOver}
+              onDragEnd={onHeadDragEnd}
+              onDragCancel={() => setCarried(null)}
+            >
+              <SortableContext items={movable} strategy={STILL}>
+                <div
+                  className={styles.listHead}
+                  data-testid="list-head"
+                  style={{ "--list-line": `${lineHeight}px` } as React.CSSProperties}
+                >
+                  {columns.map((column, at) => {
+                    const held = pinProps(columns, column, at);
+                    const on = sort?.columnId === column.id ? sort.direction : null;
+                    /* The press writes my order, and mine falls back to the view's.
+                       So the heading says what the screen will show after it, which
+                       is not always the board's own order. */
+                    const next = pressSort(sort, viewSort, column.id);
+                    const after = next ?? viewSort;
+                    /* The words come from the one table the Sort button and the
+                       chip read, so a heading never names an order another way. */
+                    const again =
+                      after?.columnId === column.id
+                        ? `Again for ${sortWayInline(column.item, after.direction)}.`
+                        : after
+                          ? "Again for this view's own order."
+                          : "Again for the board's own order.";
+                    const said = on
+                      ? `${column.name}, ${sortWayInline(column.item, on)}. ${again}`
+                      : `Order by ${column.name}`;
+                    const className = [
+                      styles.listHeadCell,
+                      column.right ? styles.listHeadRight : "",
+                      on ? styles.listHeadOn : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ");
 
-                const style = { ...held.style, ...capOf(column) };
+                    const slot = {
+                      column,
+                      className: held.className,
+                      style: { ...held.style, ...capOf(column) },
+                      onLive: (width: number) => setLive({ id: column.id, width }),
+                      onDone: (width: number | null) => writeWidth(column.id, width),
+                    };
 
-                if (!canSort(column.item)) {
-                  return (
-                    <span key={column.id} style={style} className={className}>
-                      {column.name}
-                    </span>
-                  );
-                }
+                    if (!canSort(column.item)) {
+                      return (
+                        <HeadSlot key={column.id} {...slot}>
+                          {() => <span className={className}>{column.name}</span>}
+                        </HeadSlot>
+                      );
+                    }
 
-                return (
-                  <button
-                    key={column.id}
-                    type="button"
-                    style={style}
-                    className={className}
-                    data-testid="list-head-cell"
-                    /* `aria-sort` belongs to a columnheader, and nothing here
-                       is one: the list is a grid that reads like a table, and
-                       its rows are buttons. So the state goes in the name,
-                       where it is read either way. */
-                    aria-label={said}
-                    /* Down, then up, then the third press takes my order
-                       away, which is why it is on the heading and not hidden
-                       in a menu. The list can be dragged again only when the
-                       view has no order of its own; if it has one, the list
-                       falls back to it and stays held. */
-                    title={said}
-                    onClick={() => void setSort(next)}
-                  >
-                    <span className={styles.listHeadWords} data-testid="list-head-name">
-                      {column.name}
-                    </span>
-                    <span
-                      className={`${styles.listHeadArrow} ${on ? "" : styles.listHeadHint}`}
-                      aria-hidden
-                    >
-                      <SortArrow way={on ? sortArrow(column.item, on) : "none"} />
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                    const Slot = movable.includes(column.id) ? MovableHeadSlot : HeadSlot;
+                    return (
+                      <Slot key={column.id} {...slot} marker={markerOf(column.id)}>
+                        {(grab) => (
+                          <button
+                            type="button"
+                            {...grab}
+                            className={className}
+                            data-testid="list-head-cell"
+                            /* `aria-sort` belongs to a columnheader, and nothing here
+                               is one: the list is a grid that reads like a table, and
+                               its rows are buttons. So the state goes in the name,
+                               where it is read either way. */
+                            aria-label={said}
+                            /* Down, then up, then the third press takes my order
+                               away, which is why it is on the heading and not hidden
+                               in a menu. The list can be dragged again only when the
+                               view has no order of its own; if it has one, the list
+                               falls back to it and stays held. */
+                            title={said}
+                            onClick={() => void setSort(next)}
+                          >
+                            <span className={styles.listHeadWords} data-testid="list-head-name">
+                              {column.name}
+                            </span>
+                            <span
+                              className={`${styles.listHeadArrow} ${on ? "" : styles.listHeadHint}`}
+                              aria-hidden
+                            >
+                              <SortArrow way={on ? sortArrow(column.item, on) : "none"} />
+                            </span>
+                          </button>
+                        )}
+                      </Slot>
+                    );
+                  })}
+                </div>
+              </SortableContext>
+              <DragOverlay dropAnimation={null} zIndex={300}>
+                {carriedColumn && (
+                  <div className={`${styles.listHeadCell} ${styles.listHeadLifted}`}>
+                    <span className={styles.listHeadWords}>{carriedColumn.name}</span>
+                  </div>
+                )}
+              </DragOverlay>
+            </DndContext>
 
             <SortableContext items={rows.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               {rows.map((task) => (
@@ -633,6 +780,170 @@ function SortableRow({
         transition: transition ?? undefined,
       }}
       dragProps={{ ...attributes, ...listeners }}
+    />
+  );
+}
+
+type Grab = ReturnType<typeof useSortable>["listeners"];
+
+type HeadSlotProps = {
+  column: ListColumn;
+  className: string;
+  style: React.CSSProperties;
+  /** The width the edge is at while it is being dragged. */
+  onLive: (width: number) => void;
+  /** The width it was let go at, or null to give the column its own back. */
+  onDone: (width: number | null) => void;
+  /** The heading itself, handed what picks it up when it can be moved. */
+  children: (grab: Grab) => React.ReactNode;
+  /** Which side of this heading a carried one would land on. */
+  marker?: "before" | "after";
+};
+
+/**
+ * One heading's place in the head: the heading, and the edge that drags the
+ * column wider. The edge sits beside the button and not inside it, so a drag
+ * of the edge is never a press of the heading.
+ */
+function HeadSlot({
+  column,
+  className,
+  style,
+  onLive,
+  onDone,
+  children,
+  marker,
+  sortable,
+}: HeadSlotProps & {
+  sortable?: {
+    ref: (node: HTMLElement | null) => void;
+    grab: Grab;
+    moving: boolean;
+  };
+}) {
+  return (
+    <div
+      ref={sortable?.ref}
+      className={`${styles.listHeadSlot} ${className}`}
+      style={style}
+      data-moving={sortable?.moving ? "true" : undefined}
+      data-marker={marker}
+      data-testid="list-head-slot"
+    >
+      {children(sortable?.grab)}
+      {canResize(column.item) && <ColumnEdge column={column} onLive={onLive} onDone={onDone} />}
+    </div>
+  );
+}
+
+/* The heading stays where it is while it is carried: what moves is the
+   overlay, and the bar beside the heading it would land by. */
+function MovableHeadSlot(props: HeadSlotProps) {
+  const { setNodeRef, listeners, isDragging } = useSortable({
+    id: props.column.id,
+    data: { type: "column" },
+  });
+  return (
+    <HeadSlot {...props} sortable={{ ref: setNodeRef, grab: listeners, moving: isDragging }} />
+  );
+}
+
+/**
+ * The right edge of a heading. Dragged, it sets the column's width; pressed
+ * twice, it gives the column back the width its content gives it. The arrow
+ * keys move it too, a step at a time, and Delete gives the width back, so the
+ * keyboard can do what the mouse does.
+ */
+function ColumnEdge({
+  column,
+  onLive,
+  onDone,
+}: {
+  column: ListColumn;
+  onLive: (width: number) => void;
+  onDone: (width: number | null) => void;
+}) {
+  const drag = useRef<{ x: number; from: number; at: number } | null>(null);
+
+  const widthNow = (edge: HTMLElement) =>
+    column.chosen ?? Math.round(edge.parentElement?.getBoundingClientRect().width ?? 0);
+
+  function hold(on: boolean) {
+    document.body.style.cursor = on ? "col-resize" : "";
+    document.body.style.userSelect = on ? "none" : "";
+  }
+
+  /* A column can leave the list while its edge is held, when somebody takes
+     it off the card. The page must not keep the resize cursor for good. */
+  useEffect(
+    () => () => {
+      if (drag.current) hold(false);
+    },
+    [],
+  );
+
+  function onPointerDown(event: React.PointerEvent<HTMLSpanElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const from = widthNow(event.currentTarget);
+    drag.current = { x: event.clientX, from, at: from };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    hold(true);
+  }
+
+  function onPointerMove(event: React.PointerEvent<HTMLSpanElement>) {
+    const d = drag.current;
+    if (!d) return;
+    d.at = clampWidth(column.id, d.from + event.clientX - d.x);
+    onLive(d.at);
+  }
+
+  function onPointerUp() {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    hold(false);
+    /* A press that went nowhere leaves a column that sizes itself alone. */
+    onDone(d.at === d.from ? column.chosen : d.at);
+  }
+
+  function onPointerCancel() {
+    if (!drag.current) return;
+    drag.current = null;
+    hold(false);
+    onDone(column.chosen);
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLSpanElement>) {
+    const step = event.shiftKey ? WIDTH_LEAP : WIDTH_STEP;
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      const by = event.key === "ArrowRight" ? step : -step;
+      onDone(clampWidth(column.id, widthNow(event.currentTarget) + by));
+    } else if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      onDone(null);
+    }
+  }
+
+  return (
+    <span
+      className={styles.listHeadEdge}
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Width of ${column.name}`}
+      aria-valuenow={column.chosen ?? undefined}
+      tabIndex={0}
+      title="Drag to resize. Double-click to fit."
+      data-testid="list-head-edge"
+      data-chosen={column.chosen !== null ? "true" : undefined}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onDoubleClick={() => onDone(null)}
+      onKeyDown={onKeyDown}
     />
   );
 }

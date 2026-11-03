@@ -51,6 +51,7 @@ import { readReleaseBy } from "./releases";
 import { isRelease } from "./changelog";
 import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
+import { readLensWidths } from "./list-view";
 import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
 import { loadOpenRuns, loadStoppedRuns, loadTaskRuns, sweepLostIn } from "./runs";
 import {
@@ -515,10 +516,10 @@ type ViewRow = typeof views.$inferSelect;
  * only cleanup there is: nothing rewrites a view when a property goes.
  *
  * `lens` is the rules the person reading added to this view, and only theirs,
- * with the order they picked beside them. It is read the same way and for the
- * same reason: a lens is saved once and read for months, so it outlives the
- * property it names just as a view's rule does. Nothing is passed for an
- * agent, which has no lens.
+ * with the order they picked and the widths they dragged beside them. It is
+ * read the same way and for the same reason: a lens is saved once and read for
+ * months, so it outlives the property it names just as a view's rule does.
+ * Nothing is passed for an agent, which has no lens.
  */
 export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unknown): ViewDTO {
   return {
@@ -534,6 +535,7 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unkn
     lens: readFilters(lens, propertyList),
     sort: readSort((row.config as { sort?: unknown } | null)?.sort, propertyList),
     lensSort: readLensSort(lens, propertyList),
+    lensWidths: readLensWidths(lens, propertyList),
     startFolded: readStartFolded(
       (row.config as { startFolded?: unknown } | null)?.startFolded,
       row.groupById,

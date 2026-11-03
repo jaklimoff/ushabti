@@ -1,5 +1,13 @@
 import type { CardItem } from "./card-view";
-import type { CardBuiltin, CardKind, PropertyType, SortDirection } from "./types";
+import {
+  CARD_BUILTINS,
+  type CardBuiltin,
+  type CardKind,
+  type ColumnWidths,
+  type PropertyDTO,
+  type PropertyType,
+  type SortDirection,
+} from "./types";
 
 /**
  * What a list carries, and how wide.
@@ -21,6 +29,12 @@ export type ListColumn = {
    * alone is flexible and carries 0.
    */
   width: number;
+  /**
+   * The width the person dragged this column to, or null for one that sizes
+   * itself. A dragged column is that wide whatever it holds: somebody who
+   * narrowed Labels asked for the words to be cut.
+   */
+  chosen: number | null;
   /** A number reads from the right, so its column does too. */
   right: boolean;
   /**
@@ -95,6 +109,53 @@ const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
   _updated: 84,
 };
 
+/**
+ * How narrow and how wide a person may drag a column. Narrow enough to
+ * squeeze a count down to its digits, and no narrower than a heading can still
+ * be found to drag back out. The title keeps a wider floor, because it is the
+ * one column that names the row.
+ */
+export const COLUMN_MIN_WIDTH = 48;
+export const TITLE_DRAG_MIN_WIDTH = 120;
+export const COLUMN_MAX_WIDTH = 1200;
+
+/**
+ * Whether a person may drag this column wider or narrower. Not the key: it
+ * carries the gutter with the check, and the title is held in place just
+ * after it, so its width is part of the layout and not a preference.
+ */
+export function canResize(item: CardItem): boolean {
+  return item.id !== "_key" && item.id !== "_desc";
+}
+
+/** The width a drag may land on for this column, clamped and whole. */
+export function clampWidth(columnId: string, width: number): number {
+  const floor = columnId === "_title" ? TITLE_DRAG_MIN_WIDTH : COLUMN_MIN_WIDTH;
+  return Math.round(Math.min(COLUMN_MAX_WIDTH, Math.max(floor, width)));
+}
+
+/**
+ * The widths a lens row holds, read afresh as its order is. It lives in the
+ * row's `filters` beside the rules, so a lens is still one row and one write.
+ * A width that names a column that is gone is dropped here every time, so a
+ * deleted property needs no cleanup, and a number nobody could have dragged
+ * to is brought back inside the limits.
+ */
+export function readLensWidths(raw: unknown, properties: PropertyDTO[]): ColumnWidths {
+  if (!raw || typeof raw !== "object") return {};
+  const widths = (raw as { widths?: unknown }).widths;
+  if (!widths || typeof widths !== "object" || Array.isArray(widths)) return {};
+
+  const known = new Set<string>([...CARD_BUILTINS, ...properties.map((p) => p.id)]);
+  const out: ColumnWidths = {};
+  for (const [id, width] of Object.entries(widths as Record<string, unknown>)) {
+    if (!known.has(id) || id === "_key" || id === "_desc") continue;
+    if (typeof width !== "number" || !Number.isFinite(width)) continue;
+    out[id] = clampWidth(id, width);
+  }
+  return out;
+}
+
 function widthOf(item: ListColumn["item"]): number {
   if (!item.property) return WIDTH_OF_BUILTIN[item.id as CardBuiltin] ?? 96;
   /* Every mode draws words in a row: `buildRow` names a colour and puts a
@@ -117,8 +178,9 @@ function widthOf(item: ListColumn["item"]): number {
  * a chip sits on a card, and a row is one line. Only `off` and `edge` still say
  * anything, which is why the card view page needs no new place and no new mode.
  */
-export function listColumns(items: CardItem[]): ListColumn[] {
+export function listColumns(items: CardItem[], widths: ColumnWidths = {}): ListColumn[] {
   const columns: ListColumn[] = [];
+  const chosenOf = (item: CardItem) => (canResize(item) ? (widths[item.id] ?? null) : null);
 
   for (const item of items) {
     if (item.place === "off" || item.place === "edge") continue;
@@ -129,6 +191,7 @@ export function listColumns(items: CardItem[]): ListColumn[] {
       name: item.name,
       item,
       width: item.id === "_title" ? 0 : widthOf(item),
+      chosen: chosenOf(item),
       right: item.property?.type === "number",
       pin: null,
     });
@@ -144,6 +207,7 @@ export function listColumns(items: CardItem[]): ListColumn[] {
         name: title.name,
         item: title,
         width: 0,
+        chosen: chosenOf(title),
         right: false,
         pin: null,
       });
@@ -190,11 +254,13 @@ export function listColumns(items: CardItem[]): ListColumn[] {
  */
 export function listTemplate(columns: ListColumn[]): string {
   const tracks = columns.map((c) =>
-    c.width === 0
-      ? `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), max-content)`
-      : c.pin !== null
-        ? `${c.width}px`
-        : `fit-content(${c.width}px)`,
+    c.chosen !== null
+      ? `${c.chosen}px`
+      : c.width === 0
+        ? `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), max-content)`
+        : c.pin !== null
+          ? `${c.width}px`
+          : `fit-content(${c.width}px)`,
   );
   return [...tracks, "1fr"].join(" ");
 }
@@ -208,6 +274,7 @@ export function listTemplate(columns: ListColumn[]): string {
  * title and a long one must not push the properties off the window.
  */
 export function cellCap(column: ListColumn): number | null {
+  if (column.chosen !== null) return column.chosen;
   if (column.width === 0) return TITLE_MAX_WIDTH;
   return column.pin === null ? column.width : null;
 }

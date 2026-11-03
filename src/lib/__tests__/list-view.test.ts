@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
 import {
   cellCap,
+  COLUMN_MAX_WIDTH,
+  COLUMN_MIN_WIDTH,
   listColumns,
   listTemplate,
+  readLensWidths,
+  TITLE_DRAG_MIN_WIDTH,
   sortArrow,
   TITLE_MAX_WIDTH,
   TITLE_MIN_SHARE,
@@ -237,5 +241,74 @@ describe("a Link column", () => {
     );
     const column = listColumns(items).find((c) => c.item.id === "p-prs");
     expect(column?.width).toBe(168);
+  });
+});
+
+describe("the widths a person drags", () => {
+  const items = () => cardItems(readCardView(null, PROPERTIES, "p-status"), PROPERTIES);
+
+  it("makes a dragged column exactly that wide, cells and all", () => {
+    const columns = listColumns(items(), { "p-prio": 240, _title: 300 });
+    const prio = columns.find((c) => c.id === "p-prio")!;
+    const title = columns.find((c) => c.id === "_title")!;
+    expect(prio.chosen).toBe(240);
+    expect(cellCap(prio)).toBe(240);
+    expect(cellCap(title)).toBe(300);
+
+    const tracks = listTemplate(columns).split(" ");
+    expect(tracks[columns.indexOf(prio)]).toBe("240px");
+    expect(tracks[columns.indexOf(title)]).toBe("300px");
+  });
+
+  it("leaves a column nobody dragged to size itself", () => {
+    const columns = listColumns(items(), { "p-prio": 240 });
+    const who = columns.find((c) => c.id === "p-who")!;
+    expect(who.chosen).toBeNull();
+    expect(listTemplate(columns)).toContain(`fit-content(${who.width}px)`);
+  });
+
+  it("never sizes the key, because the title is held just after it", () => {
+    const columns = listColumns(items(), { _key: 300 });
+    expect(columns[0].id).toBe("_key");
+    expect(columns[0].chosen).toBeNull();
+    expect(columns[1].pin).toBe(columns[0].width + 8);
+  });
+
+  it("reads afresh: a gone column, the key and a word that is no width are dropped", () => {
+    const read = readLensWidths(
+      {
+        rules: [],
+        widths: {
+          "p-prio": 200,
+          "p-gone": 200,
+          _key: 300,
+          _desc: 300,
+          _comments: "wide",
+          _checklist: Number.NaN,
+          _title: 400,
+        },
+      },
+      PROPERTIES,
+    );
+    expect(read).toEqual({ "p-prio": 200, _title: 400 });
+  });
+
+  it("brings a width nobody could drag to back inside the limits", () => {
+    const read = readLensWidths(
+      { widths: { "p-prio": 3, "p-who": 99999, _title: 10, "p-points": 120.6 } },
+      PROPERTIES,
+    );
+    expect(read).toEqual({
+      "p-prio": COLUMN_MIN_WIDTH,
+      "p-who": COLUMN_MAX_WIDTH,
+      _title: TITLE_DRAG_MIN_WIDTH,
+      "p-points": 121,
+    });
+  });
+
+  it("reads nothing out of a lens that holds none", () => {
+    expect(readLensWidths(null, PROPERTIES)).toEqual({});
+    expect(readLensWidths({ rules: [] }, PROPERTIES)).toEqual({});
+    expect(readLensWidths({ widths: [1, 2] }, PROPERTIES)).toEqual({});
   });
 });

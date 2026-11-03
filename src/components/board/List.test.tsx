@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "vitest";
-import { page, userEvent, type Locator } from "vitest/browser";
+import { commands, page, userEvent, type Locator } from "vitest/browser";
 import { defaultCardView } from "@/lib/card-view";
 import { rankBetween } from "@/lib/rank";
 import type { BoardData, TaskDTO, ViewDTO } from "@/lib/types";
@@ -30,6 +30,7 @@ const VIEW = /^\/api\/views\/[0-9a-f-]+$/;
 const VIEWS = /^\/api\/projects\/[0-9a-f-]+\/views$/;
 const TASKS = /^\/api\/projects\/[0-9a-f-]+\/tasks$/;
 const MOVE = /^\/api\/tasks\/[0-9a-f-]+\/move$/;
+const PROPERTY = /^\/api\/properties\/[0-9a-f-]+$/;
 
 const LIST_ID = "00000000-0000-4000-8000-777777777777";
 
@@ -102,6 +103,7 @@ function serving(data: BoardData): Answer {
         lens: { rules: [] },
         sort: null,
         lensSort: null,
+        lensWidths: {},
         startFolded: [],
         cardView: null,
       };
@@ -157,6 +159,15 @@ const texts = (locator: Locator) => locator.elements().map((el) => el.textConten
 const listOrder = () => texts(byTestId("list-row").getByTestId("list-row-title"));
 
 const html = (locator: Locator) => locator.element() as HTMLElement;
+const headSlot = (name: string) => byTestId("list-head-slot").filter({ has: listHead(name) });
+const edgeOf = (name: string) => headSlot(name).getByTestId("list-head-edge");
+const widthOf = (locator: Locator) => Math.round(html(locator).getBoundingClientRect().width);
+const middle = (locator: Locator) => {
+  const r = html(locator).getBoundingClientRect();
+  return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+};
+/** The names of the headings, left to right. */
+const headOrder = () => texts(byTestId("list-head-name"));
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function gone(locator: Locator) {
@@ -488,6 +499,101 @@ describe("A list view", () => {
       .poll(() => texts(column("Todo").getByTestId("card-title")))
       .toEqual(["First thing", "Second thing"]);
     expect(sent("POST", MOVE)).toEqual([]);
+  });
+
+  test("a column's edge drags it wider, and the width is mine alone", async () => {
+    const data = newProject();
+    threeTasks(data);
+    withList(data, "Wide");
+    const { sent } = await draw(data);
+    const lens = () => sent("PUT", LENS);
+    const priority = propertyOf(data, "Priority").id;
+
+    const before = widthOf(headSlot("Priority"));
+    const from = middle(edgeOf("Priority"));
+    await commands.drag(from, { x: from.x + 80, y: from.y });
+
+    // One write, when it is let go, to my lens and nowhere else.
+    await wrote(lens, 1);
+    const saved = (lens()[0].body as { widths: Record<string, number> }).widths;
+    expect(saved[priority]).toBeGreaterThan(before + 60);
+    expect(lens()[0].body).toMatchObject({ filters: { rules: [] }, sort: null });
+    await expect.poll(() => widthOf(headSlot("Priority"))).toBe(saved[priority]);
+    // The press on the edge was not a press of the heading.
+    await expect.element(listHead("Priority")).toHaveAccessibleName("Order by Priority");
+
+    // Twice on the edge gives the column its own width back.
+    await edgeOf("Priority").dblClick();
+    await wrote(lens, 2);
+    expect(lens()[1].body).toMatchObject({ widths: {} });
+    await expect.poll(() => widthOf(headSlot("Priority"))).toBe(before);
+
+    // The keyboard does what the mouse does.
+    html(edgeOf("Priority")).focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await wrote(lens, 3);
+    expect(lens()[2].body).toMatchObject({ widths: { [priority]: before + 16 } });
+    await userEvent.keyboard("{Delete}");
+    await wrote(lens, 4);
+    expect(lens()[3].body).toMatchObject({ widths: {} });
+  });
+
+  test("a sort keeps the widths, and the widths keep the sort", async () => {
+    const data = newProject();
+    threeTasks(data);
+    withList(data, "Both");
+    data.views.find((v) => v.id === LIST_ID)!.lensWidths = { _title: 333 };
+    const { sent } = await draw(data);
+    const lens = () => sent("PUT", LENS);
+
+    await expect.poll(() => widthOf(headSlot("Title"))).toBe(333);
+    await press(lens, "Title");
+    expect(lens()[0].body).toMatchObject({
+      sort: { columnId: "_title" },
+      widths: { _title: 333 },
+    });
+  });
+
+  test("a heading dragged onto another moves the property everywhere", async () => {
+    const data = newProject();
+    threeTasks(data);
+    withList(data, "Moved");
+    const { sent } = await draw(data);
+
+    const names = headOrder().filter((n) =>
+      data.properties.some((p) => p.name.toUpperCase() === n.toUpperCase()),
+    );
+    const [first, second] = names;
+    const one = data.properties.find((p) => p.name.toUpperCase() === first.toUpperCase())!;
+    const two = data.properties.find((p) => p.name.toUpperCase() === second.toUpperCase())!;
+
+    await commands.drag(middle(listHead(one.name)), middle(listHead(two.name)));
+
+    // It names what it landed on, as Settings does, and writes no order of mine.
+    await wrote(() => sent("PATCH", PROPERTY), 1);
+    expect(sent("PATCH", PROPERTY)[0].path).toBe(`/api/properties/${one.id}`);
+    expect(sent("PATCH", PROPERTY)[0].body).toEqual({ afterId: two.id });
+    expect(sent("PUT", LENS)).toEqual([]);
+    await expect.poll(() => headOrder().indexOf(first) > headOrder().indexOf(second)).toBe(true);
+  });
+
+  test("keeps the key and the title where they are", async () => {
+    const data = newProject();
+    threeTasks(data);
+    withList(data, "Held");
+    const { sent } = await draw(data);
+    const props = headOrder().filter((n) =>
+      data.properties.some((p) => p.name.toUpperCase() === n.toUpperCase()),
+    );
+
+    await commands.drag(middle(listHead("Title")), middle(listHead(props[0])));
+    await pause(200);
+    expect(sent("PATCH", PROPERTY)).toEqual([]);
+    expect(
+      headOrder()
+        .slice(0, 2)
+        .map((n) => n.toUpperCase()),
+    ).toEqual(["TASK ID", "TITLE"]);
   });
 
   test("opens a task beside it, and the panel wears the row's colour", async () => {

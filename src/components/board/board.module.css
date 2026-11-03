@@ -2239,6 +2239,119 @@ button.listHeadCell:focus-visible .listHeadHint {
   text-align: right;
 }
 
+/*
+ * One heading's place: the heading, and the edge that drags its column. The
+ * place is the grid item, so the edge can sit on the column's own right edge
+ * and a moved heading takes its edge with it.
+ */
+.listHeadSlot {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.listHeadSlot > .listHeadCell {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The heading being carried stays in its place, faded, so the column it
+   names is still named while the lifted copy moves. */
+.listHeadSlot[data-moving] > .listHeadCell {
+  opacity: 0.35;
+}
+
+/* The bar that says where a carried heading lands. */
+.listHeadSlot[data-marker]::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  height: calc(var(--list-line, 30px) - 8px);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.listHeadSlot[data-marker="before"]::after {
+  left: -5px;
+}
+
+.listHeadSlot[data-marker="after"]::after {
+  right: -5px;
+}
+
+/* The lifted copy. It is drawn outside the list, so it says its own height. */
+.listHeadLifted {
+  /* As wide as its name, not its column, so the bar it is aiming at shows. */
+  width: max-content;
+  height: 30px;
+  padding: 0 8px;
+  color: var(--text-3);
+  background: var(--bg-card-hover);
+  border-radius: var(--r-xs);
+  box-shadow: var(--shadow-drag);
+  cursor: grabbing;
+}
+
+/*
+ * The edge that drags a column wider. It reaches into the gap after the
+ * column, so it is easy to find without taking room from the heading, and it
+ * shows only on the way past, as the sort arrows do: forty columns of
+ * rules above a dense table is noise.
+ */
+.listHeadEdge {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  right: -6px;
+  z-index: 2;
+  width: 9px;
+  display: flex;
+  justify-content: center;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.listHeadEdge::before {
+  content: "";
+  width: 1px;
+  background: var(--line);
+  opacity: 0;
+  transition:
+    opacity 140ms var(--ease),
+    background 140ms var(--ease);
+}
+
+.listHeadSlot:hover .listHeadEdge::before {
+  opacity: 1;
+}
+
+.listHeadEdge:hover::before,
+.listHeadEdge:active::before,
+.listHeadEdge:focus-visible::before {
+  opacity: 1;
+  width: 2px;
+  background: var(--accent);
+}
+
+.listHeadEdge:focus-visible {
+  outline: none;
+}
+
+/* A finger needs more than nine pixels to find an edge. */
+@media (pointer: coarse) {
+  .listHeadEdge {
+    right: -10px;
+    width: 20px;
+  }
+
+  .listHeadEdge::before {
+    opacity: 0.6;
+  }
+}
+
 /* ---- a row ---------------------------------------------------------- */
 
 .listRow {
