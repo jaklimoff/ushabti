@@ -1,15 +1,22 @@
+/* A drawer lies over the board, under the top bar and the view strip. Laid
+   beside the board it took its width from the columns, so every column and
+   every list cell moved the moment a drawer opened. The bars stay clear,
+   because the button that opened a drawer is the one that closes it. */
 .panel {
   /* The width somebody dragged, written on the element by the panel itself.
      The number here is the one a board has until anybody says otherwise. */
-  width: var(--panel-w, 396px);
-  flex: 0 0 var(--panel-w, 396px);
-  height: 100vh;
-  position: relative;
+  position: absolute;
+  top: var(--bars-h);
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  width: min(100%, var(--panel-w, 396px));
   display: flex;
   flex-direction: column;
   background: var(--bg-top);
   border-left: 1px solid var(--line);
   min-height: 0;
+  box-shadow: -18px 0 48px rgba(0, 0, 0, 0.5);
   animation: ushabti-panel-in 180ms var(--ease);
 }
 

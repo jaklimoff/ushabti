@@ -1,6 +1,11 @@
 /* ---------------------------------------------------------------- shell */
 
 .shell {
+  /* The top bar and the view strip, which a drawer opens under. */
+  --bars-h: 88px;
+  /* About the widest drawer, and the board's own padding beside it. */
+  --drawer-room: 452px;
+  position: relative;
   height: 100vh;
   display: flex;
   background: var(--bg);
@@ -850,6 +855,15 @@
   min-width: 0;
   background: var(--bg);
   align-items: stretch;
+}
+
+/* A drawer lies over the right of the board. The board keeps its columns
+   where they were and gains room past the last one, so any card can still be
+   scrolled out from under the drawer, and a card the keys reach is brought
+   in clear of it. */
+.shell[data-drawer] .canvas {
+  padding-right: var(--drawer-room);
+  scroll-padding-right: var(--drawer-room);
 }
 
 /* ------------------------------------------------------------- columns */

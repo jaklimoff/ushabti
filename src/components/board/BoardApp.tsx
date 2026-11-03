@@ -163,8 +163,11 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
     if (removed) writeAddress(null);
   }, [removed]);
 
+  /* A drawer lies over the board, and the board makes room past its end. */
+  const drawer = openTask !== null || openBar !== null || cardShown;
+
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-drawer={drawer ? "true" : undefined}>
       <div className={styles.main}>
         {/* The bar itself is named, so a test that measures what hangs out
             of it holds the bar and not whatever the mark sits in. */}
