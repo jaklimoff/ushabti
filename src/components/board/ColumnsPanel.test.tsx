@@ -226,7 +226,10 @@ describe("The Columns drawer", () => {
     const lens = () => sent("PUT", LENS);
     await openDrawer();
 
-    await says(byTestId("columns-widths"), "You sized 2 columns. Nobody else sees it.");
+    await says(
+      byTestId("columns-widths"),
+      "Your widths are kept for this list. Nobody else sees them.",
+    );
     await drawer().getByRole("button", { name: "Reset my widths" }).click();
     await wrote(lens, 1);
     expect(lens()[0].body).toMatchObject({ widths: {} });

@@ -349,7 +349,7 @@ export function ColumnsPanel({
           <span className={styles.columnsFootNote} data-testid="columns-widths">
             {sized === 0
               ? "Drag the edge of a heading to size a column."
-              : `You sized ${sized} ${sized === 1 ? "column" : "columns"}. Nobody else sees it.`}
+              : "Your widths are kept for this list. Nobody else sees them."}
           </span>
         </div>
         <Button variant="ghost" disabled={sized === 0} onClick={() => void setWidths({})}>
