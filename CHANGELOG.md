@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.41.0 — 2026-11-03
+
 ### Added
 
 - A list's columns can be made wider or narrower by dragging the right edge
