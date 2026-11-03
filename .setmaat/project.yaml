@@ -8,18 +8,20 @@ agents:
   reviewer:
     model: claude-opus-5-5
     tools: [Read, Grep, Glob, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"]
-  # Answers the PO service: a request from another project becomes a task or
-  # a reason (USH-397). It reads the code and never the board; the service
-  # holds the token and applies the limits (docs/PO.md in Setmaat).
-  # docs/product-owner.md is the owner's page, kept out of git.
-  product-owner:
+  # The PO of Ushabti answers the requests to ushabti/po (docs/PO.md in
+  # Setmaat, SET-436): agents of other projects ask for a change, and the
+  # builders ask it to file or comment on a task. It reads the code, and it
+  # changes the board only with `setmaat po`, through the program po-desk.
+  # It has no board token. .setmaat/po.md has the rules of the tool and sends
+  # it to docs/product-owner.md, the owner's page, kept out of git.
+  po:
     mode: headless
     autostart: true
     max: 1
     idle_stop: 30m
     model: claude-opus-5-5
     tools: [Read, Grep, Glob]
-    page: docs/product-owner.md
+    page: .setmaat/po.md
   po-chat:
     mode: interactive
     setup: person
@@ -64,15 +66,15 @@ loop:
 programs:
   # The release program of Setmaat, started by `setmaat up` (USH-311).
   release: "setmaat:examples/release.mjs"
-  # The PO service: agents of other projects ask ushabti/po for a feature,
-  # and it files an unrefined backlog task with the prefix [po] (USH-397).
-  po: "setmaat:examples/po.mjs"
-# The PO service reads this key; Setmaat does not (docs/PO.md in Setmaat).
+  # The PO desk: it writes the board for the agent of the role po, which
+  # calls it with `setmaat po` (SET-436). It files an unrefined backlog task
+  # with the prefix [po], or comments on a task.
+  po-desk: "setmaat:examples/po-desk.mjs"
+# The PO desk reads this key; Setmaat does not (docs/PO.md in Setmaat).
 # The token is the agent user "Product Owner", in .envrc. The runner drops it
 # from every agent turn (SET-413).
 po:
-  role: product-owner
-  requests_per_day: 20
+  role: po
   tasks_per_day: 5
   token_env: USHABTI_PO_TOKEN
 # A release ships what is in Ready: the check, the tag, the push, the deploy,
