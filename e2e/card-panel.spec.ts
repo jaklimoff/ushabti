@@ -50,13 +50,14 @@ test.describe("Card panel", () => {
     );
     await page.screenshot({ path: testInfo.outputPath("seen-card-panel-own.png") });
 
-    // One panel at a time.
+    // One drawer at a time, and a press outside it puts it away.
     await card(page, "Arranged on the board").click();
     await expect(page.getByTestId("task-panel")).toBeVisible();
     await expect(panel).toHaveCount(0);
+    await page.getByTestId("board-crumb").click();
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
     await page.getByTestId("card-button").click();
     await expect(panel).toBeVisible();
-    await expect(page.getByTestId("task-panel")).toHaveCount(0);
 
     // Escape puts it away.
     await panel.focus();
@@ -93,6 +94,9 @@ test.describe("Card panel", () => {
     await register(page);
     await createProject(page, unique("Sampled"));
     await addTask(page, "Todo", "A card behind the panel");
+    // The new task opens in its drawer, which lies over the Card button.
+    await page.getByTestId("board-crumb").click();
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
 
     await page.getByTestId("card-button").click();
     const panel = page.getByTestId("card-panel");
@@ -250,10 +254,11 @@ test.describe("Card panel", () => {
       "Status reads as Filled",
     );
 
-    // The same press on a board opens its card, and the list's change did not reach it.
+    // A press outside puts the drawer away, and on a board the same button opens the card.
     await page.getByTestId("view-pill").filter({ hasText: "Board" }).click();
-    await expect(page.getByTestId("card-button")).toContainText("Card");
-    await expect(page.getByTestId("card-panel")).toBeVisible();
     await expect(drawer).toHaveCount(0);
+    await expect(page.getByTestId("card-button")).toContainText("Card");
+    await page.getByTestId("card-button").click();
+    await expect(page.getByTestId("card-panel")).toBeVisible();
   });
 });

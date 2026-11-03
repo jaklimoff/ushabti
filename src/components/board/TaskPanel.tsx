@@ -582,6 +582,7 @@ export function TaskPanel({
     <aside
       className={styles.panel}
       data-testid="task-panel"
+      data-drawer-panel
       ref={panelRef}
       aria-label={`Task ${shown.key}`}
     >

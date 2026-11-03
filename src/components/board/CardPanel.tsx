@@ -57,6 +57,7 @@ export function CardPanel({ onClose }: { onClose: () => void }) {
     <aside
       className={`${styles.panel} ${styles.cardPanel}`}
       data-testid="card-panel"
+      data-drawer-panel
       ref={panelRef}
       tabIndex={-1}
       aria-label="Card"

@@ -34,8 +34,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   off.
 - The task, Card and Columns drawers, and a roadmap's release drawer, lie
   over the page instead of squeezing the board, so no column moves when one
-  opens. A board gains room past its last column, so a card can still be
-  scrolled out from under a drawer.
+  opens. A press outside a drawer puts it away; a press on another card, row
+  or bar opens that one instead. A board gains room past its last column, so
+  a card can still be scrolled out from under a drawer.
 
 ### Fixed
 

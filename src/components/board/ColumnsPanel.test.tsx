@@ -237,6 +237,28 @@ describe("The Columns drawer", () => {
     await expect.element(drawer().getByRole("button", { name: "Reset my widths" })).toBeDisabled();
   });
 
+  test("a press outside puts it away, and a press on a row opens the task instead", async () => {
+    const data = project();
+    await draw(data);
+    await openDrawer();
+
+    // Inside, a press changes nothing about the drawer.
+    await drawer().getByRole("heading", { name: "Columns" }).click();
+    await expect.element(drawer()).toBeVisible();
+
+    // Outside, it goes.
+    await byTestId("board-crumb").click();
+    await gone(drawer());
+
+    // A row is not outside: it opens its task in the drawer's place.
+    await openDrawer();
+    await byTestId("list-row").filter({ hasText: "Wears a priority" }).click();
+    await expect.element(byTestId("task-panel")).toBeVisible();
+    await gone(drawer());
+    await byTestId("board-crumb").click();
+    await gone(byTestId("task-panel"));
+  });
+
   test("a board still opens its card", async () => {
     const data = newProject();
     await draw(data);

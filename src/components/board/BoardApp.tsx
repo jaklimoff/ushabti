@@ -58,6 +58,14 @@ export function BoardApp({
   );
 }
 
+/** What a press may land on without putting an open drawer away. */
+const KEEPS_DRAWER = [
+  "[data-drawer-panel]",
+  "[data-task-id]",
+  '[data-testid="roadmap-bar"]',
+  '[data-testid="toast"]',
+].join(", ");
+
 /** The board inside its store. A component test draws it inside a store of its own. */
 export function BoardShell({ initialTask }: { initialTask: string | null }) {
   const { data, user, view, live, toasts, groupProperty, filters, lens, visibleTasks, setLens } =
@@ -165,6 +173,24 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
 
   /* A drawer lies over the board, and the board makes room past its end. */
   const drawer = openTask !== null || openBar !== null || cardShown;
+
+  /* A press outside a drawer puts it away, as a press outside a menu does.
+     A card, a row and a bar are not outside: pressing one opens it in the
+     drawer instead. A toast is not either, because its button answers the
+     drawer's own work. */
+  useEffect(() => {
+    if (!drawer) return;
+    function onPointerDown(event: PointerEvent) {
+      if (event.button !== 0) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target || target.closest(KEEPS_DRAWER)) return;
+      setCardOpen(false);
+      setBar(null);
+      open(null);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [drawer, open]);
 
   return (
     <div className={styles.shell} data-drawer={drawer ? "true" : undefined}>

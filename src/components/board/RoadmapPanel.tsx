@@ -118,6 +118,7 @@ export function RoadmapPanel({
     <aside
       className={styles.panel}
       data-testid="roadmap-panel"
+      data-drawer-panel
       ref={panelRef}
       tabIndex={-1}
       aria-label={option.name}

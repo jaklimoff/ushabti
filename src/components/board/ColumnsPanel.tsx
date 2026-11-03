@@ -219,6 +219,7 @@ export function ColumnsPanel({
     <aside
       className={`${styles.panel} ${styles.cardPanel} ${styles.columnsPanel}`}
       data-testid="columns-panel"
+      data-drawer-panel
       ref={panelRef}
       tabIndex={-1}
       aria-label="Columns"
