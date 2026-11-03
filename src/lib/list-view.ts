@@ -30,11 +30,11 @@ export type ListColumn = {
    */
   width: number;
   /**
-   * The width the person dragged this column to, or null for one that sizes
-   * itself. A dragged column is that wide whatever it holds: somebody who
+   * The track the person's width gives this column, or null for one that
+   * sizes itself. A sized column is that wide whatever it holds: somebody who
    * narrowed Labels asked for the words to be cut.
    */
-  chosen: number | null;
+  track: string | null;
   /** A number reads from the right, so its column does too. */
   right: boolean;
   /**
@@ -110,14 +110,27 @@ const WIDTH_OF_BUILTIN: Record<CardBuiltin, number> = {
 };
 
 /**
- * How narrow and how wide a person may drag a column. Narrow enough to
- * squeeze a count down to its digits, and no narrower than a heading can still
- * be found to drag back out. The title keeps a wider floor, because it is the
- * one column that names the row.
+ * How narrow a person may drag a column. Narrow enough to squeeze a count down
+ * to its digits, and wide enough that a heading can still be found to drag
+ * back out. The title keeps a wider floor, because it is the one column that
+ * names the row.
  */
-export const COLUMN_MIN_WIDTH = 48;
-export const TITLE_DRAG_MIN_WIDTH = 120;
-export const COLUMN_MAX_WIDTH = 1200;
+export const COLUMN_MIN_WIDTH = 72;
+export const TITLE_DRAG_MIN_WIDTH = 160;
+
+export function columnMin(columnId: string): number {
+  return columnId === "_title" ? TITLE_DRAG_MIN_WIDTH : COLUMN_MIN_WIDTH;
+}
+
+/**
+ * The floor a kept width is drawn with, on a window narrower than the one it
+ * was made on. Lower than a drag's floor on purpose: a column that already sat
+ * under it when somebody dragged — Due, holding one short date — is kept at
+ * what it was, and a higher floor here pushed the row past the window on the
+ * very next paint.
+ */
+const TRACK_FLOOR = 40;
+const TITLE_TRACK_FLOOR = 120;
 
 /**
  * Whether a person may drag this column wider or narrower. Not the key: it
@@ -128,18 +141,21 @@ export function canResize(item: CardItem): boolean {
   return item.id !== "_key" && item.id !== "_desc";
 }
 
-/** The width a drag may land on for this column, clamped and whole. */
-export function clampWidth(columnId: string, width: number): number {
-  const floor = columnId === "_title" ? TITLE_DRAG_MIN_WIDTH : COLUMN_MIN_WIDTH;
-  return Math.round(Math.min(COLUMN_MAX_WIDTH, Math.max(floor, width)));
+/**
+ * A width as it is kept: the column's share of the list, so a width made on a
+ * wide window still fits a narrow one, or the list beside an open task. Four
+ * places are a tenth of a pixel on a wide screen.
+ */
+export function shareOf(width: number, of: number): number {
+  return Math.round(Math.min(Math.max(width / of, 0.0001), 1) * 10000) / 10000;
 }
 
 /**
  * The widths a lens row holds, read afresh as its order is. It lives in the
  * row's `filters` beside the rules, so a lens is still one row and one write.
  * A width that names a column that is gone is dropped here every time, so a
- * deleted property needs no cleanup, and a number nobody could have dragged
- * to is brought back inside the limits.
+ * deleted property needs no cleanup. A width is a share of the list, more
+ * than nothing and at most all of it; anything else is dropped.
  */
 export function readLensWidths(raw: unknown, properties: PropertyDTO[]): ColumnWidths {
   if (!raw || typeof raw !== "object") return {};
@@ -151,7 +167,8 @@ export function readLensWidths(raw: unknown, properties: PropertyDTO[]): ColumnW
   for (const [id, width] of Object.entries(widths as Record<string, unknown>)) {
     if (!known.has(id) || id === "_key" || id === "_desc") continue;
     if (typeof width !== "number" || !Number.isFinite(width)) continue;
-    out[id] = clampWidth(id, width);
+    if (width <= 0 || width > 1) continue;
+    out[id] = width;
   }
   return out;
 }
@@ -178,9 +195,24 @@ function widthOf(item: ListColumn["item"]): number {
  * a chip sits on a card, and a row is one line. Only `off` and `edge` still say
  * anything, which is why the card view page needs no new place and no new mode.
  */
-export function listColumns(items: CardItem[], widths: ColumnWidths = {}): ListColumn[] {
+export function listColumns(
+  items: CardItem[],
+  shares: ColumnWidths = {},
+  live: Record<string, number> | null = null,
+): ListColumn[] {
   const columns: ListColumn[] = [];
-  const chosenOf = (item: CardItem) => (canResize(item) ? (widths[item.id] ?? null) : null);
+  /* Pixels while an edge is held, because the drag works in what is on the
+     screen. A share otherwise, never under the column's floor: a narrow
+     window shrinks a column only so far, and then the list scrolls. */
+  const trackOf = (item: CardItem): string | null => {
+    if (!canResize(item)) return null;
+    const px = live?.[item.id];
+    if (px !== undefined) return `${px}px`;
+    const share = shares[item.id];
+    if (share === undefined) return null;
+    const floor = item.id === "_title" ? TITLE_TRACK_FLOOR : TRACK_FLOOR;
+    return `max(${floor}px, ${Math.round(share * 1000000) / 10000}%)`;
+  };
 
   for (const item of items) {
     if (item.place === "off" || item.place === "edge") continue;
@@ -191,7 +223,7 @@ export function listColumns(items: CardItem[], widths: ColumnWidths = {}): ListC
       name: item.name,
       item,
       width: item.id === "_title" ? 0 : widthOf(item),
-      chosen: chosenOf(item),
+      track: trackOf(item),
       right: item.property?.type === "number",
       pin: null,
     });
@@ -207,7 +239,7 @@ export function listColumns(items: CardItem[], widths: ColumnWidths = {}): ListC
         name: title.name,
         item: title,
         width: 0,
-        chosen: chosenOf(title),
+        track: trackOf(title),
         right: false,
         pin: null,
       });
@@ -254,8 +286,8 @@ export function listColumns(items: CardItem[], widths: ColumnWidths = {}): ListC
  */
 export function listTemplate(columns: ListColumn[]): string {
   const tracks = columns.map((c) =>
-    c.chosen !== null
-      ? `${c.chosen}px`
+    c.track !== null
+      ? c.track
       : c.width === 0
         ? `minmax(min(${TITLE_MIN_WIDTH}px, ${TITLE_MIN_SHARE}), max-content)`
         : c.pin !== null
@@ -273,8 +305,9 @@ export function listTemplate(columns: ListColumn[]): string {
  * title's is `TITLE_MAX_WIDTH`, because its track is as wide as the longest
  * title and a long one must not push the properties off the window.
  */
-export function cellCap(column: ListColumn): number | null {
-  if (column.chosen !== null) return column.chosen;
+export function cellCap(column: ListColumn): number | string | null {
+  /* A sized track is that wide whatever it holds, so a cell fills it and no more. */
+  if (column.track !== null) return "100%";
   if (column.width === 0) return TITLE_MAX_WIDTH;
   return column.pin === null ? column.width : null;
 }

@@ -243,6 +243,15 @@ body.ushabti-dragging * {
   cursor: grabbing !important;
 }
 
+/* A column's edge in hand: the resize cursor everywhere the pointer goes. */
+body.ushabti-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+body.ushabti-resizing * {
+  cursor: col-resize !important;
+}
+
 @keyframes ushabti-pulse {
   0%,
   100% {

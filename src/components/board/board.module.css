@@ -2244,11 +2244,13 @@ button.listHeadCell:focus-visible .listHeadHint {
  * place is the grid item, so the edge can sit on the column's own right edge
  * and a moved heading takes its edge with it.
  */
+/* No `min-width: 0` here. A track sized by its content takes its floor from
+   this box, and a zero floor let every such column fold down to nothing the
+   moment one column was dragged wide. A sized track is that wide anyway. */
 .listHeadSlot {
   position: relative;
   display: flex;
   align-items: stretch;
-  min-width: 0;
 }
 
 .listHeadSlot > .listHeadCell {
@@ -2297,9 +2299,10 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 /*
  * The edge that drags a column wider. It reaches into the gap after the
- * column, so it is easy to find without taking room from the heading, and it
- * shows only on the way past, as the sort arrows do: forty columns of
- * rules above a dense table is noise.
+ * column, so it is easy to find without taking room from the heading. At rest
+ * it is a faint short line, so a person can see there is an edge to take;
+ * under the pointer and for the whole drag it is the head's full height and
+ * takes the accent, so the thing being dragged is plain.
  */
 .listHeadEdge {
   position: absolute;
@@ -2316,23 +2319,20 @@ button.listHeadCell:focus-visible .listHeadHint {
 
 .listHeadEdge::before {
   content: "";
+  align-self: center;
   width: 1px;
+  height: 50%;
   background: var(--line);
-  opacity: 0;
   transition:
-    opacity 140ms var(--ease),
+    height 140ms var(--ease),
     background 140ms var(--ease);
 }
 
-.listHeadSlot:hover .listHeadEdge::before {
-  opacity: 1;
-}
-
 .listHeadEdge:hover::before,
-.listHeadEdge:active::before,
+.listHeadEdge[data-active]::before,
 .listHeadEdge:focus-visible::before {
-  opacity: 1;
   width: 2px;
+  height: 100%;
   background: var(--accent);
 }
 
@@ -2345,10 +2345,6 @@ button.listHeadCell:focus-visible .listHeadHint {
   .listHeadEdge {
     right: -10px;
     width: 20px;
-  }
-
-  .listHeadEdge::before {
-    opacity: 0.6;
   }
 }
 

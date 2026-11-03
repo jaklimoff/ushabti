@@ -29,18 +29,20 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
+import { REST, dragColumns, type DragColumn } from "@/lib/column-fit";
 import {
   canResize,
-  clampWidth,
+  columnMin,
   listColumns,
   listTemplate,
+  shareOf,
   sortArrow,
   type ListColumn,
 } from "@/lib/list-view";
 import { seedNote, seedValues } from "@/lib/filters";
 import { startsWith } from "@/lib/when";
 import { canSort, pressSort, sortTasks, sortWayInline } from "@/lib/sort";
-import type { ColumnWidths, TaskDTO } from "@/lib/types";
+import type { TaskDTO } from "@/lib/types";
 import { useCursorBack, useShortcut } from "./keys";
 import { Composer } from "./Column";
 import { useBoard } from "./store";
@@ -220,15 +222,14 @@ export function ListCanvas({
     if (!activeTaskId) setComposing(true);
   });
 
-  /* The width of the column whose edge is under the hand, drawn as it moves
+  /* Every column's width in pixels while an edge is held, drawn as it moves
      and written once when it is let go. A write on every pixel would be a
      request on every pixel. */
-  const [live, setLive] = useState<{ id: string; width: number } | null>(null);
-  const widths = useMemo<ColumnWidths>(
-    () => (live ? { ...lensWidths, [live.id]: live.width } : lensWidths),
-    [lensWidths, live],
+  const [live, setLive] = useState<Record<string, number> | null>(null);
+  const columns = useMemo(
+    () => listColumns(cardItems, lensWidths, live),
+    [cardItems, lensWidths, live],
   );
-  const columns = useMemo(() => listColumns(cardItems, widths), [cardItems, widths]);
   const template = useMemo(() => listTemplate(columns), [columns]);
 
   /*
@@ -380,19 +381,144 @@ export function ListCanvas({
     void moveProperty(String(active.id), String(over.id));
   }
 
-  /* A width the person asked for, written to their lens. Only a change is
-     written, so a press on an edge that went nowhere sends nothing. */
-  function writeWidth(id: string, width: number | null) {
-    setLive(null);
-    if (width === null) {
-      if (!(id in lensWidths)) return;
-      const rest = { ...lensWidths };
-      delete rest[id];
-      void setWidths(rest);
-      return;
+  /*
+   * Dragging a column's edge. The row is measured once, when the edge is
+   * taken, and every step works from that: the dragged column goes where the
+   * pointer is, and `dragColumns` says what the others give. The room is the
+   * row as it stood, the empty space at the end included, so a drag never
+   * pushes the table past the window.
+   */
+  const resize = useRef<{
+    id: string;
+    x: number;
+    row: DragColumn[];
+    total: number;
+    at: Record<string, number> | null;
+    stop: () => void;
+  } | null>(null);
+  const [resizing, setResizing] = useState<string | null>(null);
+
+  /** The row as it is drawn: every column a drag can touch, and the room at the end. */
+  function measureRow(): { row: DragColumn[]; total: number; panel: number } | null {
+    const grid = gridRef.current;
+    if (!grid) return null;
+    const slots = [...grid.querySelectorAll<HTMLElement>("[data-column-id]")];
+    const row: DragColumn[] = [];
+    let last = 0;
+    for (const slot of slots) {
+      const column = columns.find((c) => c.id === slot.dataset.columnId);
+      if (!column || !canResize(column.item)) continue;
+      const rect = slot.getBoundingClientRect();
+      const width = Math.round(rect.width);
+      /* A column already narrower than the floor is not pushed out to it by a
+         drag somewhere else. */
+      row.push({
+        id: column.id,
+        width,
+        min: Math.min(columnMin(column.id), width),
+        resizable: true,
+      });
+      last = rect.right;
     }
-    if (lensWidths[id] === width) return;
-    void setWidths({ ...lensWidths, [id]: width });
+    const rest = Math.max(0, Math.round(grid.getBoundingClientRect().right - last - 8));
+    row.push({ id: REST, width: rest, min: 0, resizable: true });
+    return { row, total: row.reduce((sum, c) => sum + c.width, 0), panel: grid.clientWidth };
+  }
+
+  /** The widths a step leaves: the dragged column set to `width`, the rest giving way. */
+  function stepRow(row: DragColumn[], id: string, width: number, total: number) {
+    const dragged = row.find((c) => c.id === id);
+    if (!dragged) return null;
+    const moved = row.map((c) => (c.id === id ? { ...c, width: Math.max(width, c.min) } : c));
+    const changes = dragColumns(moved, id, total);
+    const out: Record<string, number> = {};
+    for (const c of moved) if (c.id !== REST) out[c.id] = changes.get(c.id) ?? c.width;
+    return out;
+  }
+
+  /* Every resizable column is kept as its share of the list, not only the one
+     dragged: its neighbours gave it their room, and they keep what they have. */
+  function writeShares(widths: Record<string, number>, panel: number) {
+    if (!panel) return;
+    const next = { ...lensWidths };
+    for (const [id, width] of Object.entries(widths)) next[id] = shareOf(width, panel);
+    void setWidths(next);
+  }
+
+  function endResize(keep: boolean) {
+    const r = resize.current;
+    if (!r) return;
+    resize.current = null;
+    r.stop();
+    setResizing(null);
+    setLive(null);
+    if (keep && r.at) writeShares(r.at, gridRef.current?.clientWidth ?? 0);
+  }
+
+  function startResize(id: string, x: number) {
+    endResize(false);
+    const measured = measureRow();
+    if (!measured) return;
+
+    /* The page listens, not the edge: an edge that missed the pointer going up
+       kept on resizing under a plain hover. A move with no button down ends
+       the drag too, for a release the page never heard. */
+    const onMove = (event: PointerEvent) => {
+      const r = resize.current;
+      if (!r) return;
+      if ((event.buttons & 1) === 0) return endResize(true);
+      const start = r.row.find((c) => c.id === r.id)?.width ?? 0;
+      const at = stepRow(r.row, r.id, start + event.clientX - r.x, r.total);
+      if (!at) return;
+      r.at = at;
+      setLive(at);
+    };
+    const onUp = () => endResize(true);
+    const onCancel = () => endResize(false);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("blur", onUp);
+
+    resize.current = {
+      id,
+      x,
+      row: measured.row,
+      total: measured.total,
+      at: null,
+      stop: () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onCancel);
+        window.removeEventListener("blur", onUp);
+      },
+    };
+    setResizing(id);
+  }
+
+  /* A list that goes away with an edge in hand leaves nothing listening. */
+  useEffect(() => () => resize.current?.stop(), []);
+
+  useEffect(() => {
+    document.body.classList.toggle("ushabti-resizing", resizing !== null);
+    return () => document.body.classList.remove("ushabti-resizing");
+  }, [resizing]);
+
+  /** One press of an arrow on a focused edge: the same step a drag takes. */
+  function stepWidth(id: string, by: number) {
+    const measured = measureRow();
+    if (!measured) return;
+    const start = measured.row.find((c) => c.id === id)?.width ?? 0;
+    const at = stepRow(measured.row, id, start + by, measured.total);
+    if (at) writeShares(at, measured.panel);
+  }
+
+  /* Back to the width its content gives it. The others keep theirs. */
+  function resetWidth(id: string) {
+    if (!(id in lensWidths)) return;
+    const rest = { ...lensWidths };
+    delete rest[id];
+    void setWidths(rest);
   }
 
   function onDragStart(event: DragStartEvent) {
@@ -603,8 +729,10 @@ export function ListCanvas({
                       column,
                       className: held.className,
                       style: { ...held.style, ...capOf(column) },
-                      onLive: (width: number) => setLive({ id: column.id, width }),
-                      onDone: (width: number | null) => writeWidth(column.id, width),
+                      resizing: resizing === column.id,
+                      onGrab: (x: number) => startResize(column.id, x),
+                      onStep: (by: number) => stepWidth(column.id, by),
+                      onReset: () => resetWidth(column.id),
                     };
 
                     if (!canSort(column.item)) {
@@ -790,10 +918,14 @@ type HeadSlotProps = {
   column: ListColumn;
   className: string;
   style: React.CSSProperties;
-  /** The width the edge is at while it is being dragged. */
-  onLive: (width: number) => void;
-  /** The width it was let go at, or null to give the column its own back. */
-  onDone: (width: number | null) => void;
+  /** Whether this column's edge is in hand. */
+  resizing: boolean;
+  /** The edge was taken at `x`. */
+  onGrab: (x: number) => void;
+  /** An arrow key moved the edge by `by` pixels. */
+  onStep: (by: number) => void;
+  /** Gives the column back the width its content gives it. */
+  onReset: () => void;
   /** The heading itself, handed what picks it up when it can be moved. */
   children: (grab: Grab) => React.ReactNode;
   /** Which side of this heading a carried one would land on. */
@@ -809,8 +941,10 @@ function HeadSlot({
   column,
   className,
   style,
-  onLive,
-  onDone,
+  resizing,
+  onGrab,
+  onStep,
+  onReset,
   children,
   marker,
   sortable,
@@ -828,10 +962,19 @@ function HeadSlot({
       style={style}
       data-moving={sortable?.moving ? "true" : undefined}
       data-marker={marker}
+      data-column-id={column.id}
       data-testid="list-head-slot"
     >
       {children(sortable?.grab)}
-      {canResize(column.item) && <ColumnEdge column={column} onLive={onLive} onDone={onDone} />}
+      {canResize(column.item) && (
+        <ColumnEdge
+          column={column}
+          resizing={resizing}
+          onGrab={onGrab}
+          onStep={onStep}
+          onReset={onReset}
+        />
+      )}
     </div>
   );
 }
@@ -849,81 +992,40 @@ function MovableHeadSlot(props: HeadSlotProps) {
 }
 
 /**
- * The right edge of a heading. Dragged, it sets the column's width; pressed
- * twice, it gives the column back the width its content gives it. The arrow
- * keys move it too, a step at a time, and Delete gives the width back, so the
- * keyboard can do what the mouse does.
+ * The right edge of a heading. Dragged, it sets the column's width and the
+ * columns to its right give way; pressed twice, it gives the column back the
+ * width its content gives it. The arrow keys move it too, a step at a time,
+ * and Delete gives the width back, so the keyboard can do what the mouse does.
+ * The list does the arithmetic; the edge only says what the hand did.
  */
 function ColumnEdge({
   column,
-  onLive,
-  onDone,
+  resizing,
+  onGrab,
+  onStep,
+  onReset,
 }: {
   column: ListColumn;
-  onLive: (width: number) => void;
-  onDone: (width: number | null) => void;
+  resizing: boolean;
+  onGrab: (x: number) => void;
+  onStep: (by: number) => void;
+  onReset: () => void;
 }) {
-  const drag = useRef<{ x: number; from: number; at: number } | null>(null);
-
-  const widthNow = (edge: HTMLElement) =>
-    column.chosen ?? Math.round(edge.parentElement?.getBoundingClientRect().width ?? 0);
-
-  function hold(on: boolean) {
-    document.body.style.cursor = on ? "col-resize" : "";
-    document.body.style.userSelect = on ? "none" : "";
-  }
-
-  /* A column can leave the list while its edge is held, when somebody takes
-     it off the card. The page must not keep the resize cursor for good. */
-  useEffect(
-    () => () => {
-      if (drag.current) hold(false);
-    },
-    [],
-  );
-
   function onPointerDown(event: React.PointerEvent<HTMLSpanElement>) {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    const from = widthNow(event.currentTarget);
-    drag.current = { x: event.clientX, from, at: from };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    hold(true);
-  }
-
-  function onPointerMove(event: React.PointerEvent<HTMLSpanElement>) {
-    const d = drag.current;
-    if (!d) return;
-    d.at = clampWidth(column.id, d.from + event.clientX - d.x);
-    onLive(d.at);
-  }
-
-  function onPointerUp() {
-    const d = drag.current;
-    if (!d) return;
-    drag.current = null;
-    hold(false);
-    /* A press that went nowhere leaves a column that sizes itself alone. */
-    onDone(d.at === d.from ? column.chosen : d.at);
-  }
-
-  function onPointerCancel() {
-    if (!drag.current) return;
-    drag.current = null;
-    hold(false);
-    onDone(column.chosen);
+    onGrab(event.clientX);
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLSpanElement>) {
     const step = event.shiftKey ? WIDTH_LEAP : WIDTH_STEP;
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
       event.preventDefault();
-      const by = event.key === "ArrowRight" ? step : -step;
-      onDone(clampWidth(column.id, widthNow(event.currentTarget) + by));
+      onStep(event.key === "ArrowRight" ? step : -step);
     } else if (event.key === "Delete" || event.key === "Backspace") {
       event.preventDefault();
-      onDone(null);
+      onReset();
     }
   }
 
@@ -933,16 +1035,13 @@ function ColumnEdge({
       role="separator"
       aria-orientation="vertical"
       aria-label={`Width of ${column.name}`}
-      aria-valuenow={column.chosen ?? undefined}
       tabIndex={0}
       title="Drag to resize. Double-click to fit."
       data-testid="list-head-edge"
-      data-chosen={column.chosen !== null ? "true" : undefined}
+      data-active={resizing ? "true" : undefined}
+      data-sized={column.track !== null ? "true" : undefined}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onDoubleClick={() => onDone(null)}
+      onDoubleClick={onReset}
       onKeyDown={onKeyDown}
     />
   );

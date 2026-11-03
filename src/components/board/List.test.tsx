@@ -501,56 +501,105 @@ describe("A list view", () => {
     expect(sent("POST", MOVE)).toEqual([]);
   });
 
-  test("a column's edge drags it wider, and the width is mine alone", async () => {
+  test("a column's edge drags it wider, and the columns to its right give way", async () => {
     const data = newProject();
     threeTasks(data);
     withList(data, "Wide");
     const { sent } = await draw(data);
     const lens = () => sent("PUT", LENS);
     const priority = propertyOf(data, "Priority").id;
+    const grid = () => html(byTestId("list-view").getByTestId("list-head")).parentElement!;
+    const slots = () => byTestId("list-head-slot").elements() as HTMLElement[];
 
     const before = widthOf(headSlot("Priority"));
+    const was = slots().map((slot) => slot.getBoundingClientRect().width);
     const from = middle(edgeOf("Priority"));
-    await commands.drag(from, { x: from.x + 80, y: from.y });
+    await commands.drag(from, { x: from.x + 600, y: from.y });
 
-    // One write, when it is let go, to my lens and nowhere else.
+    // One write, when it is let go, to my lens and nowhere else: every column
+    // as its share of the list, because the others gave Priority their room.
     await wrote(lens, 1);
     const saved = (lens()[0].body as { widths: Record<string, number> }).widths;
-    expect(saved[priority]).toBeGreaterThan(before + 60);
+    expect(saved[priority]).toBeGreaterThan(0);
+    expect(saved[priority]).toBeLessThanOrEqual(1);
+    expect(Object.keys(saved)).toContain("_title");
     expect(lens()[0].body).toMatchObject({ filters: { rules: [] }, sort: null });
-    await expect.poll(() => widthOf(headSlot("Priority"))).toBe(saved[priority]);
+    await expect.poll(() => widthOf(headSlot("Priority"))).toBeGreaterThan(before + 100);
+
+    // The table still fits the window, and the columns that gave way stopped
+    // at their floor: none went under 72 px, or under what it was if it was
+    // already narrower.
+    expect(grid().scrollWidth).toBeLessThanOrEqual(grid().clientWidth + 1);
+    slots().forEach((slot, i) => {
+      expect(slot.getBoundingClientRect().width).toBeGreaterThanOrEqual(Math.min(72, was[i]) - 1);
+    });
     // The press on the edge was not a press of the heading.
     await expect.element(listHead("Priority")).toHaveAccessibleName("Order by Priority");
 
-    // Twice on the edge gives the column its own width back.
+    // Let go, a hover over the edge moves nothing and writes nothing.
+    const now = widthOf(headSlot("Priority"));
+    const edge = middle(edgeOf("Priority"));
+    await commands.glide({ x: edge.x - 40, y: edge.y }, { x: edge.x + 60, y: edge.y });
+    await pause(100);
+    expect(widthOf(headSlot("Priority"))).toBe(now);
+    expect(lens()).toHaveLength(1);
+  });
+
+  test("a press on an edge that goes nowhere writes nothing", async () => {
+    const data = newProject();
+    threeTasks(data);
+    withList(data, "Still");
+    const { sent } = await draw(data);
+    await edgeOf("Priority").click();
+    await pause(150);
+    expect(sent("PUT", LENS)).toEqual([]);
+  });
+
+  test("twice on an edge, or Delete, gives the column its own width back", async () => {
+    const data = newProject();
+    threeTasks(data);
+    withList(data, "Back");
+    const priority = propertyOf(data, "Priority").id;
+    data.views.find((v) => v.id === LIST_ID)!.lensWidths = { [priority]: 0.3, _title: 0.2 };
+    const { sent } = await draw(data);
+    const lens = () => sent("PUT", LENS);
+
+    await expect.poll(() => widthOf(headSlot("Priority"))).toBeGreaterThan(300);
     await edgeOf("Priority").dblClick();
-    await wrote(lens, 2);
-    expect(lens()[1].body).toMatchObject({ widths: {} });
-    await expect.poll(() => widthOf(headSlot("Priority"))).toBe(before);
+    await wrote(lens, 1);
+    expect(lens()[0].body).toMatchObject({ widths: { _title: 0.2 } });
+    expect((lens()[0].body as { widths: object }).widths).not.toHaveProperty(priority);
+    await expect.poll(() => widthOf(headSlot("Priority"))).toBeLessThan(200);
 
     // The keyboard does what the mouse does.
     html(edgeOf("Priority")).focus();
     await userEvent.keyboard("{ArrowRight}");
-    await wrote(lens, 3);
-    expect(lens()[2].body).toMatchObject({ widths: { [priority]: before + 16 } });
+    await wrote(lens, 2);
+    expect((lens()[1].body as { widths: Record<string, number> }).widths[priority]).toBeGreaterThan(
+      0,
+    );
     await userEvent.keyboard("{Delete}");
-    await wrote(lens, 4);
-    expect(lens()[3].body).toMatchObject({ widths: {} });
+    await wrote(lens, 3);
+    expect((lens()[2].body as { widths: object }).widths).not.toHaveProperty(priority);
   });
 
   test("a sort keeps the widths, and the widths keep the sort", async () => {
     const data = newProject();
     threeTasks(data);
     withList(data, "Both");
-    data.views.find((v) => v.id === LIST_ID)!.lensWidths = { _title: 333 };
+    data.views.find((v) => v.id === LIST_ID)!.lensWidths = { _title: 0.3 };
     const { sent } = await draw(data);
     const lens = () => sent("PUT", LENS);
+    const gridWidth = () =>
+      html(byTestId("list-view").getByTestId("list-head")).parentElement!.clientWidth;
 
-    await expect.poll(() => widthOf(headSlot("Title"))).toBe(333);
+    await expect
+      .poll(() => Math.abs(widthOf(headSlot("Title")) - gridWidth() * 0.3))
+      .toBeLessThan(2);
     await press(lens, "Title");
     expect(lens()[0].body).toMatchObject({
       sort: { columnId: "_title" },
-      widths: { _title: 333 },
+      widths: { _title: 0.3 },
     });
   });
 

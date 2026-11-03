@@ -54,6 +54,21 @@ const letGo: BrowserCommand<[]> = async (context) => {
   await page.mouse.up();
 };
 
+/** Moves the mouse to `to` with no button down, in small steps: a hover. */
+const glide: BrowserCommand<[from: Point, to: Point]> = async (context, from, to) => {
+  if (context.provider.name !== "playwright") throw new Error("glide needs Playwright.");
+  const { page, frame } = context as unknown as {
+    page: import("playwright").Page;
+    frame: () => Promise<import("playwright").Frame>;
+  };
+  const at = await (await (await frame()).frameElement()).boundingBox();
+  const x = (p: Point) => p.x + (at?.x ?? 0);
+  const y = (p: Point) => p.y + (at?.y ?? 0);
+  await page.mouse.move(x(from), y(from));
+  await page.mouse.move(x(to), y(to), { steps: 10 });
+  await page.waitForTimeout(60);
+};
+
 /** Turns the page's reduced motion on or off, as the person's system would. */
 const reduceMotion: BrowserCommand<[on: boolean]> = async (context, on) => {
   if (context.provider.name !== "playwright") throw new Error("reduceMotion needs Playwright.");
@@ -61,13 +76,14 @@ const reduceMotion: BrowserCommand<[on: boolean]> = async (context, on) => {
   await page.emulateMedia({ reducedMotion: on ? "reduce" : "no-preference" });
 };
 
-export const commands = { drag, hold, letGo, reduceMotion };
+export const commands = { drag, hold, letGo, glide, reduceMotion };
 
 declare module "vitest/browser" {
   interface BrowserCommands {
     drag: (from: Point, to: Point) => Promise<void>;
     hold: (from: Point, to: Point) => Promise<void>;
     letGo: () => Promise<void>;
+    glide: (from: Point, to: Point) => Promise<void>;
     reduceMotion: (on: boolean) => Promise<void>;
   }
 }

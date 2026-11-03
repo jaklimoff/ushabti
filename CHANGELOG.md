@@ -11,10 +11,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 ### Added
 
 - A list's columns can be made wider or narrower by dragging the right edge
-  of a heading. A double-click gives the column its own width back, and the
-  arrow keys and Delete do the same from a focused edge. The widths are
-  yours: they are kept with your order on that view, and nobody else's list
-  changes.
+  of a heading. A column that grows takes the empty space at the end first,
+  then room from the columns to its right, down to their narrowest, so the
+  table never runs off the window. A double-click gives the column its own
+  width back, and the arrow keys and Delete do the same from a focused edge.
+  The widths are yours, kept as shares of the list with your order on that
+  view, so they fit a narrower window too, and nobody else's list changes.
 - A property's heading in a list can be dragged to another place. It moves
   the property in the one order Settings keeps, so the cards and the task
   panel follow. The key, the title and the parts every task has stay where

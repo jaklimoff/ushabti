@@ -194,8 +194,14 @@ and what is easy to get wrong.
   it away.
   The widths a person drags a list's columns to sit in the lens too, as
   `widths`, read afresh by `readLensWidths()`, for the same reason as the
-  order: what fits one screen does not fit the next. Promote leaves them in
-  the lens, and Clear leaves them alone, because they hide and order nothing.
+  order: what fits one screen does not fit the next. They are shares of the
+  list, never pixels, drawn as `max(floor, share%)`. A drag keeps the row's
+  width: `dragColumns` in `src/lib/column-fit.ts` takes a growing column's
+  room from the empty space at the end, then from the columns to its right,
+  and stops at their floor. The page listens for the release, not the edge,
+  because an edge that missed it kept resizing under a plain hover. Promote
+  leaves the widths in the lens, and Clear leaves them alone, because they
+  hide and order nothing.
   **Save for everyone** moves the order with the rules in the one transaction
   it already has. `pressSort()` is the one place a press is worked out against
   the view's order: mine never repeats the view's, and a press that would fall

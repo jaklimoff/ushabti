@@ -183,14 +183,14 @@ describe("An order in a lens", () => {
       me.put(`/api/views/${view.id}/lens`, {
         filters: { rules: [] },
         sort: null,
-        widths: { [priority.id]: 220, _title: 360, _key: 400 },
+        widths: { [priority.id]: 0.22, _title: 0.36, _key: 0.4 },
       }),
     );
     expect(await savedLens(view.id)).toEqual({
       rules: [],
-      widths: { [priority.id]: 220, _title: 360 },
+      widths: { [priority.id]: 0.22, _title: 0.36 },
     });
-    expect((await viewNow()).lensWidths).toEqual({ [priority.id]: 220, _title: 360 });
+    expect((await viewNow()).lensWidths).toEqual({ [priority.id]: 0.22, _title: 0.36 });
 
     // Save for everyone hands the team the rules and leaves the widths mine.
     const mine = { propertyId: priority.id, op: "is", values: [option("Priority", "High")] };
@@ -198,14 +198,14 @@ describe("An order in a lens", () => {
       me.put(`/api/views/${view.id}/lens`, {
         filters: { rules: [mine] },
         sort: null,
-        widths: { [priority.id]: 220 },
+        widths: { [priority.id]: 0.22 },
       }),
     );
     await ok(me.post(`/api/views/${view.id}/lens/promote`));
     const promoted = await viewNow();
     expect(promoted.filters.rules).toEqual([mine]);
     expect(promoted.lens.rules).toEqual([]);
-    expect(promoted.lensWidths).toEqual({ [priority.id]: 220 });
+    expect(promoted.lensWidths).toEqual({ [priority.id]: 0.22 });
 
     // A lens with nothing left in it leaves no row behind.
     await ok(me.put(`/api/views/${view.id}/lens`, { filters: { rules: [] }, sort: null }));
@@ -221,7 +221,7 @@ describe("An order in a lens", () => {
     await ok(
       me.put(`/api/views/${view.id}/lens`, {
         filters: { rules: [] },
-        widths: { [effort.id]: 150 },
+        widths: { [effort.id]: 0.15 },
       }),
     );
     await ok(me.del(`/api/properties/${effort.id}`));

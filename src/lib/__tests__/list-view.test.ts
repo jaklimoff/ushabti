@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import { cardItems, readCardView } from "../card-view";
 import {
   cellCap,
-  COLUMN_MAX_WIDTH,
-  COLUMN_MIN_WIDTH,
   listColumns,
   listTemplate,
   readLensWidths,
-  TITLE_DRAG_MIN_WIDTH,
+  shareOf,
   sortArrow,
   TITLE_MAX_WIDTH,
   TITLE_MIN_SHARE,
@@ -247,63 +245,65 @@ describe("a Link column", () => {
 describe("the widths a person drags", () => {
   const items = () => cardItems(readCardView(null, PROPERTIES, "p-status"), PROPERTIES);
 
-  it("makes a dragged column exactly that wide, cells and all", () => {
-    const columns = listColumns(items(), { "p-prio": 240, _title: 300 });
+  it("draws a kept width as its share of the list, never under the floor", () => {
+    const columns = listColumns(items(), { "p-prio": 0.25, _title: 0.3 });
     const prio = columns.find((c) => c.id === "p-prio")!;
     const title = columns.find((c) => c.id === "_title")!;
-    expect(prio.chosen).toBe(240);
-    expect(cellCap(prio)).toBe(240);
-    expect(cellCap(title)).toBe(300);
+    expect(prio.track).toBe("max(40px, 25%)");
+    expect(title.track).toBe("max(120px, 30%)");
+    expect(cellCap(prio)).toBe("100%");
 
     const tracks = listTemplate(columns).split(" ");
-    expect(tracks[columns.indexOf(prio)]).toBe("240px");
-    expect(tracks[columns.indexOf(title)]).toBe("300px");
+    expect(listTemplate(columns)).toContain("max(40px, 25%)");
+    expect(tracks.at(-1)).toBe("1fr");
+  });
+
+  it("draws pixels while an edge is held, over what is kept", () => {
+    const columns = listColumns(items(), { "p-prio": 0.25 }, { "p-prio": 240, "p-who": 130 });
+    expect(columns.find((c) => c.id === "p-prio")!.track).toBe("240px");
+    expect(columns.find((c) => c.id === "p-who")!.track).toBe("130px");
   });
 
   it("leaves a column nobody dragged to size itself", () => {
-    const columns = listColumns(items(), { "p-prio": 240 });
+    const columns = listColumns(items(), { "p-prio": 0.25 });
     const who = columns.find((c) => c.id === "p-who")!;
-    expect(who.chosen).toBeNull();
+    expect(who.track).toBeNull();
     expect(listTemplate(columns)).toContain(`fit-content(${who.width}px)`);
   });
 
   it("never sizes the key, because the title is held just after it", () => {
-    const columns = listColumns(items(), { _key: 300 });
+    const columns = listColumns(items(), { _key: 0.3 }, { _key: 300 });
     expect(columns[0].id).toBe("_key");
-    expect(columns[0].chosen).toBeNull();
+    expect(columns[0].track).toBeNull();
     expect(columns[1].pin).toBe(columns[0].width + 8);
   });
 
-  it("reads afresh: a gone column, the key and a word that is no width are dropped", () => {
+  it("keeps a width as a share, to four places", () => {
+    expect(shareOf(250, 1000)).toBe(0.25);
+    expect(shareOf(333, 1000)).toBe(0.333);
+    expect(shareOf(1, 3)).toBe(0.3333);
+    expect(shareOf(2000, 1000)).toBe(1);
+  });
+
+  it("reads afresh: a gone column, the key and anything that is no share are dropped", () => {
     const read = readLensWidths(
       {
         rules: [],
         widths: {
-          "p-prio": 200,
-          "p-gone": 200,
-          _key: 300,
-          _desc: 300,
+          "p-prio": 0.2,
+          "p-gone": 0.2,
+          _key: 0.3,
+          _desc: 0.3,
           _comments: "wide",
           _checklist: Number.NaN,
-          _title: 400,
+          "p-who": 240,
+          "p-points": 0,
+          _title: 0.4,
         },
       },
       PROPERTIES,
     );
-    expect(read).toEqual({ "p-prio": 200, _title: 400 });
-  });
-
-  it("brings a width nobody could drag to back inside the limits", () => {
-    const read = readLensWidths(
-      { widths: { "p-prio": 3, "p-who": 99999, _title: 10, "p-points": 120.6 } },
-      PROPERTIES,
-    );
-    expect(read).toEqual({
-      "p-prio": COLUMN_MIN_WIDTH,
-      "p-who": COLUMN_MAX_WIDTH,
-      _title: TITLE_DRAG_MIN_WIDTH,
-      "p-points": 121,
-    });
+    expect(read).toEqual({ "p-prio": 0.2, _title: 0.4 });
   });
 
   it("reads nothing out of a lens that holds none", () => {
