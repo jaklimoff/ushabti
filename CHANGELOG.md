@@ -32,6 +32,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - A list always opens with the task's key, even when its card leaves the key
   off.
+- The task, Card and Columns drawers, and a roadmap's release drawer, lie
+  over the page instead of squeezing the board, so no column moves when one
+  opens. A board gains room past its last column, so a card can still be
+  scrolled out from under a drawer.
 
 ### Fixed
 

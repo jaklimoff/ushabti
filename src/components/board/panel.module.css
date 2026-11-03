@@ -1,12 +1,11 @@
-/* A drawer lies over the board, under the top bar and the view strip. Laid
-   beside the board it took its width from the columns, so every column and
-   every list cell moved the moment a drawer opened. The bars stay clear,
-   because the button that opened a drawer is the one that closes it. */
+/* A drawer lies over the page, the full height of it. Laid beside the board
+   it took its width from the columns, so every column and every list cell
+   moved the moment a drawer opened. Its ✕ and Escape close it. */
 .panel {
   /* The width somebody dragged, written on the element by the panel itself.
      The number here is the one a board has until anybody says otherwise. */
   position: absolute;
-  top: var(--bars-h);
+  top: 0;
   right: 0;
   bottom: 0;
   z-index: 25;

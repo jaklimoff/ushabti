@@ -1,8 +1,6 @@
 /* ---------------------------------------------------------------- shell */
 
 .shell {
-  /* The top bar and the view strip, which a drawer opens under. */
-  --bars-h: 88px;
   /* About the widest drawer, and the board's own padding beside it. */
   --drawer-room: 452px;
   position: relative;
