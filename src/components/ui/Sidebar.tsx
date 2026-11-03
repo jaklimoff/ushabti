@@ -395,19 +395,30 @@ function Open() {
 /**
  * The project mark at the top of a project page. On a phone the sidebar is
  * not in the page, so the mark opens it as a sheet: a menu, as the switcher
- * was, because the board has no dialogs. Wider, it is a plain mark.
+ * was, because the board has no dialogs. Wider, it is a plain mark, or a
+ * link when `href` names where it leads.
  */
 export function SidebarMark({
   children,
   className,
+  href,
 }: {
   children: React.ReactNode;
   className?: string;
+  href?: string;
 }) {
   const phone = useSyncExternalStore(subscribePhone, isPhone, notPhone);
   const sidebar = useSidebar();
-  if (!phone || !sidebar)
-    return <span className={`${styles.markWrap} ${className ?? ""}`}>{children}</span>;
+  if (!phone || !sidebar) {
+    const wrap = `${styles.markWrap} ${className ?? ""}`;
+    return href ? (
+      <Link href={href} className={`${wrap} ${styles.markLink}`}>
+        {children}
+      </Link>
+    ) : (
+      <span className={wrap}>{children}</span>
+    );
+  }
   return <Sheet className={className}>{children}</Sheet>;
 }
 

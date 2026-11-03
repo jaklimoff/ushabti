@@ -12,11 +12,12 @@ import styles from "./ui.module.css";
  * Settings wore it first and the archive wears the same one, because the two
  * pages sit beside each other and a second bar would end up at a second
  * height. It is the shared `AppBar`, and it opens on the project: the sidebar
- * leads Home, so the Ushabti mark comes back only where no sidebar is drawn. It says where you are, and it
- * always offers the way back. The name switches
- * projects, as it does on the board; **Back to board** is the one way back,
- * so the name is not a second one. Settings names the view it was opened
- * from instead, so the way back lands where the person left.
+ * leads Home, so the Ushabti mark comes back only where no sidebar is drawn.
+ * It says where you are, and it always offers the way back. The project's
+ * name is a crumb, and a crumb people click has to lead somewhere, so it leads
+ * to the board as **Back to board** does, to the same place. Settings names
+ * the view it was opened from, so both land where the person left. On a phone
+ * the mark opens the sidebar's sheet instead, and the name is not drawn.
  *
  * Before it sit the board's own sibling links — Archived, Changelog while
  * releases are on, Settings — with this page's marked, so the three pages
@@ -35,6 +36,7 @@ export function ProjectBar({
   back?: { id: string; name: string } | null;
 }) {
   const releases = Boolean(project.releaseBy) || here === "Changelog";
+  const board = back ? `/p/${project.id}?view=${encodeURIComponent(back.id)}` : `/p/${project.id}`;
   const siblings = [
     { word: "Archived", href: `/p/${project.id}/archived` },
     ...(releases ? [{ word: "Changelog", href: `/p/${project.id}/changelog` }] : []),
@@ -46,7 +48,7 @@ export function ProjectBar({
       home={useHomeInBar()}
       word={false}
       trail={[
-        <SidebarMark key="project">
+        <SidebarMark key="project" href={board}>
           <ProjectMark projectKey={project.key} color={project.color ?? "var(--accent)"} />
           <span className={styles.projCrumb} data-testid="project-crumb">
             {project.name}
@@ -67,15 +69,9 @@ export function ProjectBar({
             </AppAction>
           ))}
           <span className={styles.appActionsSep} aria-hidden="true" />
-          {back ? (
-            <AppAction back href={`/p/${project.id}?view=${encodeURIComponent(back.id)}`}>
-              Back to {back.name}
-            </AppAction>
-          ) : (
-            <AppAction back href={`/p/${project.id}`}>
-              Back to board
-            </AppAction>
-          )}
+          <AppAction back href={board}>
+            Back to {back ? back.name : "board"}
+          </AppAction>
         </>
       }
     />

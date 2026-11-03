@@ -896,8 +896,7 @@
 }
 
 /* An ended sprint's day and sum take a second line, so the name keeps the
-   first one with the buttons. The title takes what the buttons leave, and
-   the spacer has nothing to do. */
+   first one with the buttons. The title takes what the buttons leave. */
 .colHeadEnded {
   flex-wrap: wrap;
   row-gap: 5px;
@@ -905,14 +904,6 @@
 
 .colHeadEnded .colTitle {
   flex: 1 1 0;
-}
-
-.colHeadEnded .colSpacer {
-  display: none;
-}
-
-.colSpacer {
-  min-width: 0;
 }
 
 .colMeta {
@@ -967,6 +958,12 @@
 .colIcon {
   display: block;
   flex: 0 0 auto;
+}
+
+/* The dot's ring sits 4px from the name, so the icon does too. The 7px gap
+   cost a long name its last letters. */
+.colTitle:has(> .colIcon) {
+  gap: 4px;
 }
 
 /* Somebody named the column, so it reads as their words: sentence case, in
@@ -1065,6 +1062,7 @@
 @media (hover: none) {
   .colActions {
     position: static;
+    margin-left: auto;
     height: auto;
     padding: 0;
     background: none;

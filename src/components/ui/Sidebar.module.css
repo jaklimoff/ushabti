@@ -364,6 +364,11 @@
   min-width: 0;
 }
 
+.markLink {
+  color: inherit;
+  border-radius: var(--r-sm);
+}
+
 .markButton {
   display: flex;
   align-items: center;

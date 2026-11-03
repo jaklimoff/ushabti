@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- A long column name fits its head again beside the option's icon. The head
+  gave the name back the room an invisible spacer took, and the icon sits as
+  close to the name as the dot's ring does.
+
 ## 0.40.0 — 2026-11-01
 
 ### Added

@@ -366,7 +366,6 @@ export function Column({
             {column.tasks.length}
           </span>
           {ended ? <span className={styles.colMeta}>{when}</span> : when}
-          <span className={styles.colSpacer} style={{ flex: 1 }} />
           {/* The buttons rest out of sight where there is a pointer, so the
               name has the header. They come back on hover and on focus, and
               stay where a finger cannot hover. */}
