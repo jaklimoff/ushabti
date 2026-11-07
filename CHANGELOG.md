@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.43.0 — 2026-11-07
+
 ### Security
 
 - **Next.js 16.4.5**, with its seven security fixes. Next now drops the Content-Encoding of
