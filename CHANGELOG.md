@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Security
+
+- **Next.js 16.4.5**, with its seven security fixes. Next now drops the Content-Encoding of
+  an API answer, so Ushabti no longer packs its JSON answers itself: they go out plain until
+  the server in front packs them. Behind a reverse proxy that compresses, nothing changes.
+  Next's own server packs them from its next release with
+  [vercel/next.js#101220](https://github.com/vercel/next.js/pull/101220).
+
 ## 0.42.0 — 2026-11-07
 
 ### Changed
