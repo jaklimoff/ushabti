@@ -184,6 +184,11 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
       if (event.button !== 0) return;
       const target = event.target instanceof Element ? event.target : null;
       if (!target || target.closest(KEEPS_DRAWER)) return;
+      /* The close unmounts the drawer before the press moves the focus, and
+         a removed box raises no blur, so what it was typing was lost. Blur it
+         first: each box's own onBlur sends what it owes. */
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused.closest("[data-drawer-panel]")) focused.blur();
       setCardOpen(false);
       setBar(null);
       open(null);

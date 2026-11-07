@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A press on the board keeps what the task panel was typing.** A title, a description, a
+  checklist item or a value typed in the open panel used to be lost when a press outside put the
+  panel away; it is saved first, as leaving the box saves it. Escape in a number or text value now
+  puts the old value back instead of saving.
+
 ## 0.43.0 — 2026-11-07
 
 ### Security

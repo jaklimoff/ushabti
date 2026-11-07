@@ -735,6 +735,9 @@ function ScalarField({
     value === null || value === undefined ? "" : String(value),
   );
   const [dirty, setDirty] = useState(false);
+  /* Escape blurs in the same breath as it clears dirty, before the render
+     that would show it, so the blur reads this instead. */
+  const thrown = useRef(false);
 
   const shown = dirty ? draft : value === null || value === undefined ? "" : String(value);
 
@@ -759,11 +762,15 @@ function ScalarField({
         setDirty(true);
         setDraft(e.target.value);
       }}
-      onBlur={() => dirty && commit()}
+      onFocus={() => {
+        thrown.current = false;
+      }}
+      onBlur={() => dirty && !thrown.current && commit()}
       onKeyDown={(e) => {
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
         if (e.key === "Escape") {
           setDirty(false);
+          thrown.current = true;
           (e.target as HTMLInputElement).blur();
         }
       }}
