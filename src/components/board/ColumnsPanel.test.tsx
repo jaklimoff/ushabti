@@ -1,7 +1,14 @@
 import { describe, expect, test } from "vitest";
 import { page, userEvent, type Locator } from "vitest/browser";
 import type { BoardData, CardView } from "@/lib/types";
-import { newProject, propertyOf, renderWithBoard, withTask, type Sent } from "@/test/board";
+import {
+  detailOf,
+  newProject,
+  propertyOf,
+  renderWithBoard,
+  withTask,
+  type Sent,
+} from "@/test/board";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -35,8 +42,15 @@ function project() {
   return data;
 }
 
+/* An opened task reads its detail, and an answer with no task in it means
+   the task has gone, which closes the panel. So the task is answered as the
+   server would answer it. */
 function draw(data: BoardData) {
-  return renderWithBoard(<BoardShell initialTask={null} />, data);
+  return renderWithBoard(<BoardShell initialTask={null} />, data, ({ method, path }) => {
+    const asked = /^\/api\/tasks\/([0-9a-f-]+)$/.exec(path);
+    const task = method === "GET" && asked && data.tasks.find((t) => t.id === asked[1]);
+    if (task) return { body: { task: detailOf(task) } };
+  });
 }
 
 const byTestId = (id: string) => page.getByTestId(id);
