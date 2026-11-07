@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.42.0 — 2026-11-07
+
 ### Changed
 
 - **Newer dependencies.** marked 18.1.3, Nodemailer 10.3.1, PGlite 0.5.15 and the AWS S3
