@@ -1,5 +1,6 @@
 ---
-ask_me_about: [feature requests for Ushabti, changes to Ushabti, a new task or a note on a task of Ushabti]
+ask_me_about:
+  [feature requests for Ushabti, changes to Ushabti, a new task or a note on a task of Ushabti]
 do_not_ask: [task status]
 ---
 
