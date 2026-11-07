@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.44.0 — 2026-11-07
+
 ### Fixed
 
 - **A press on the board keeps what the task panel was typing.** A title, a description, a
