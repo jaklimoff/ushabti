@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **Newer dependencies.** Next.js 16.4.5, marked 18.1.3, Nodemailer 10.3.1, PGlite 0.5.15 and
+  the AWS S3 client, with eight patch and minor updates in all. Nothing about how the board
+  works changes.
+
 ## 0.41.0 — 2026-11-03
 
 ### Added
