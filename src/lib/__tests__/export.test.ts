@@ -154,6 +154,7 @@ function fill(count: number) {
       propertyId: STATUS,
       name: "Doing",
       color: "#f00",
+      icon: "Book",
       position: "a0",
       startAt: null,
       targetAt: null,
@@ -165,6 +166,7 @@ function fill(count: number) {
       propertyId: STATUS,
       name: "Done",
       color: "#0f0",
+      icon: null,
       position: "a1",
       startAt: null,
       targetAt: null,
@@ -243,6 +245,14 @@ describe("the export", () => {
     expect(file.properties).toHaveLength(1);
     expect(file.properties[0].id).toBe(STATUS);
     expect(file.properties[0].options.map((o) => o.id)).toEqual([DOING, DONE]);
+  });
+
+  it("carries the icon an option has, and none for one without", async () => {
+    const file = await loadExport(PROJECT, AT);
+    const [doing, done] = file.properties[0].options;
+    expect(doing.icon).toBe("Book");
+    expect(done.icon).toBeNull();
+    expect(file.version).toBe(1);
   });
 
   it("holds the team's filters and sort of a view", async () => {
