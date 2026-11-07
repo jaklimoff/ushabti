@@ -14,6 +14,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   checklist item or a value typed in the open panel used to be lost when a press outside put the
   panel away; it is saved first, as leaving the box saves it. Escape in a number or text value now
   puts the old value back instead of saving.
+- **Reading a description no longer opens its editor.** Selecting words to copy, following a link,
+  pressing Enter on a link, playing a video or opening a details block used to open the editor too.
+  A plain click on the words still opens it.
 
 ## 0.43.0 — 2026-11-07
 

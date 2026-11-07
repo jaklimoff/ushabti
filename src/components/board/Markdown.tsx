@@ -1,7 +1,7 @@
 "use client";
 
 import DOMPurify from "dompurify";
-import { useMemo, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from "react";
+import { useMemo, useRef, useSyncExternalStore, type KeyboardEvent, type MouseEvent } from "react";
 import { taskByAddress } from "@/lib/board";
 import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { renderMarkdown } from "@/lib/task-keys";
@@ -100,23 +100,31 @@ export function Markdown({
     return sanitise(renderMarkdown(text, known, list));
   }, [mounted, text, projectId, projectKey, keys, shown]);
 
-  /* A plain click opens the task in the panel, as search does, with no page
-     load. A click with a key held, or a middle click, is the browser's: the
-     href is the task's own address. The click never reaches the description
-     behind it, which would start an edit. */
+  /* A plain click on a task key opens the task in the panel, as search does,
+     with no page load. A click with a key held, or a middle click, is the
+     browser's: the href is the task's own address.
+     Any click the page answers itself never reaches the box behind, which
+     would start an edit: a link, a video's controls, a details summary, or
+     the end of a drag that selected words to copy. One rule, not one per
+     element. */
+  const before = useRef("");
+  const onMouseDown = () => {
+    before.current = selectedIn(null);
+  };
   const onClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (!answeredHere(e.target as Element, e.currentTarget, before.current)) return;
+    e.stopPropagation();
     const a = (e.target as Element).closest?.("a[data-task-key]");
     if (!a || !links) return;
-    e.stopPropagation();
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const task = taskByAddress(links.tasks, a.getAttribute("data-task-key"));
     if (!task) return;
     e.preventDefault();
     links.open(task);
   };
-  // Enter on a link clicks it; it must not also open the editor behind it.
+  // Enter on a link or a summary clicks it; it must not also open the editor.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" && (e.target as Element).closest?.("a[data-task-key]")) {
+    if (e.key === "Enter" && (e.target as Element).closest?.(ANSWERS_ITSELF)) {
       e.stopPropagation();
     }
   };
@@ -133,9 +141,31 @@ export function Markdown({
     <div
       className={styles.markdown}
       data-testid={testId}
+      onMouseDown={onMouseDown}
       onClick={onClick}
       onKeyDown={onKeyDown}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
+}
+
+/** What the page answers on a click, with no help from us. */
+const ANSWERS_ITSELF = "a, video, audio, summary";
+
+/** The words selected, inside `words` when it is given. */
+function selectedIn(words: Element | null): string {
+  const sel = typeof window === "undefined" ? null : window.getSelection();
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return "";
+  if (words && !words.contains(sel.getRangeAt(0).commonAncestorContainer)) return "";
+  return sel.toString();
+}
+
+/** Whether a click landed on something the page answers itself, or ended a
+    drag that selected words inside these words. A click on words that were
+    already selected before the press is a plain click: Chrome keeps the
+    selection through it. */
+function answeredHere(target: Element, words: Element, before: string): boolean {
+  if (target.closest?.(ANSWERS_ITSELF)) return true;
+  const now = selectedIn(words);
+  return now.trim() !== "" && now !== before;
 }
