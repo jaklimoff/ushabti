@@ -1,6 +1,6 @@
 // Records docs/demo.gif, the clip at the top of the README, and takes
-// docs/board.png and the site's copy again. USHABTI_STILL_ONLY=1 takes only
-// the still. Run it against a board that was just seeded:
+// docs/board.png and docs/task.png, with the site's copies, again.
+// USHABTI_STILL_ONLY=1 takes only the stills. Run it against a board that was just seeded:
 //
 //   docker compose exec app npm run db:seed
 //   node scripts/record-demo.mjs
@@ -26,6 +26,10 @@ const CARD = "Filter and sort inside a view";
 const GIF = "docs/demo.gif";
 const BOARD = "docs/board.png";
 const SITE_BOARD = "website/src/assets/board.png";
+const PANEL = "docs/task.png";
+const SITE_PANEL = "website/src/assets/task.png";
+/* The card the panel still opens: it has a description, a checklist and a comment. */
+const PANEL_CARD = "Drag and drop that feels right";
 /* A second project of the person's own, so the still shows the sidebar. */
 const SECOND = { name: "Ushabti site", key: "WEB" };
 // A README that opens on a heavy gif opens slowly.
@@ -99,7 +103,7 @@ if (!mine.some((p) => p.key === SECOND.key)) {
 const session = await login.storageState();
 await login.close();
 
-/* ---- the still: the board as the seed makes it ------------------------ */
+/* ---- the stills: the board as the seed makes it, and one task open ----- */
 
 const still = await browser.newContext({
   viewport: { width: 1440, height: 720 },
@@ -113,9 +117,18 @@ await stillPage.goto(boardUrl);
 await stillPage.getByTestId("card-run").first().waitFor();
 await stillPage.waitForTimeout(1000);
 await stillPage.screenshot({ path: BOARD });
-await still.close();
 copyFileSync(BOARD, SITE_BOARD);
 console.log(`Wrote ${BOARD} and ${SITE_BOARD}`);
+await stillPage.getByTestId("card").filter({ hasText: PANEL_CARD, visible: true }).click();
+await stillPage.getByTestId("task-panel").waitFor();
+// The panel loads its comments after it opens.
+await stillPage.getByText("Loading").first().waitFor({ state: "hidden" });
+await stillPage.mouse.move(0, 0);
+await stillPage.waitForTimeout(1000);
+await stillPage.screenshot({ path: PANEL });
+await still.close();
+copyFileSync(PANEL, SITE_PANEL);
+console.log(`Wrote ${PANEL} and ${SITE_PANEL}`);
 if (process.env.USHABTI_STILL_ONLY) {
   await browser.close();
   rmSync(work, { recursive: true, force: true });
@@ -135,7 +148,8 @@ await context.addInitScript(drawPointer);
 const opened = Date.now();
 const page = await context.newPage();
 await page.goto(boardUrl);
-const held = page.getByTestId("card").filter({ hasText: CARD });
+// While the board loads it can draw a hidden copy of a card for a moment.
+const held = page.getByTestId("card").filter({ hasText: CARD, visible: true });
 await held.waitFor();
 await page.mouse.move(640, 600);
 await page.waitForTimeout(800);

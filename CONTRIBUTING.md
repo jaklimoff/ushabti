@@ -254,18 +254,19 @@ drizzle/            generated migrations
 
 ## The clip and the board in the README
 
-`docs/demo.gif` shows an agent working a card, and `docs/board.png` is the
-board as the seed makes it. One script takes both again, from a board that was
-just seeded:
+`docs/demo.gif` shows an agent working a card, `docs/board.png` is the
+board as the seed makes it, and `docs/task.png` is the same board with one task
+open. One script takes all three again, from a board that was just seeded:
 
 ```bash
 docker compose exec app npm run db:seed
 node scripts/record-demo.mjs
 ```
 
-The still is copied to `website/src/assets/board.png` too, and the script
-makes the seeded person a second project, so the still shows the sidebar.
-`USHABTI_STILL_ONLY=1` takes only the still.
+The stills are copied to `website/src/assets/` too, and the script makes the
+seeded person a second project, so they show the sidebar.
+`USHABTI_STILL_ONLY=1` takes only the stills. The script reads `USHABTI_URL`
+and `USHABTI_TOKEN`, so unset them if your shell points them at a real board.
 
 Run the script on your machine, not in the container: it drives Playwright's
 Chromium and needs `ffmpeg` on the path (`brew install ffmpeg`). It plays the
@@ -273,6 +274,31 @@ person in the browser and the seeded agent over the API, and refuses a clip of
 30 seconds or more, or of 8 MB or more. A take leaves the card with its agent,
 so seed again before the next one. `USHABTI_URL` points it at another board.
 Nothing in the tests or in CI runs it.
+
+## The film on the site
+
+`website/public/promo.mp4` is the real app, filmed and then framed. Two
+scripts make it again, from a board that was just seeded:
+
+```bash
+docker compose exec app npm run db:seed
+node scripts/promo/film.mjs
+node scripts/promo/render.mjs
+```
+
+`film.mjs` dresses the seeded board with the card view the film shows
+(Phase, Area, Refined), plays the scenes on a slowed clock and keeps every
+frame in `scripts/promo/out`, which is not committed. `render.mjs` draws
+`promo.jsx` over those frames — the camera, the captions, the title and the
+end — and encodes the film and `promo-poster.webp`. It refuses a film of 9 MB
+or more. `node scripts/promo/render.mjs --at 9,18.5` draws only those moments,
+to `out/check`, which is how the camera is tuned without a full render.
+
+The film reads `PROMO_URL`, never `USHABTI_URL`, so a shell that points at a
+real board cannot dress it. A take changes the board, so seed again before
+the next one. Both need `ffmpeg` on the path. The camera in `promo.jsx` is
+keyed to where things sit on the screen, so after a redesign check it with
+`--at` before the full render.
 
 ## Branches
 
