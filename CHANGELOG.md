@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.45.0 — 2026-11-08
+
 ### Fixed
 
 - **Selecting words in a description never opens its editor.** A drag that ended in the box's
