@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **Selecting words in a description never opens its editor.** A drag that ended in the box's
+  margin or past it, or a double click on a word, still opened the editor once the words were
+  selected. A plain click on the words opens it a moment later, so a double click can select.
+
 ## 0.44.0 — 2026-11-07
 
 ### Fixed

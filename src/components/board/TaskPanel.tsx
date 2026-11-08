@@ -62,6 +62,7 @@ import { isTyping } from "./keys";
 import { Markdown, type TaskKeyLinks } from "./Markdown";
 import { FilesStrip } from "./FilesStrip";
 import { loadLiveEditor, MarkdownBox } from "./MarkdownBox";
+import { useClickToEdit } from "./useClickToEdit";
 import { withoutUploadLines } from "@/lib/uploads";
 import { previewContextFor } from "@/lib/live-context";
 import { MentionList, useMentions, type TextBox } from "./Mentions";
@@ -2428,6 +2429,7 @@ function Description({
     setTyped(false);
     setEditing(true);
   }
+  const clicks = useClickToEdit(edit, taskId);
 
   return (
     <div
@@ -2513,10 +2515,9 @@ function Description({
         <div
           ref={words}
           className={`${styles.desc} ${shown.trim() ? "" : styles.descEmpty}`}
-          onClick={edit}
+          {...clicks}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && edit()}
         >
           {shown.trim() ? (
             <Markdown text={shown} links={links} files={files} />
