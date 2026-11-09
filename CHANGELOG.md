@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An agent can wait for a view.** `board.mjs watch --view "Agent queue"` takes only the tasks that
+  view shows. A task given to the agent outside the view waits, with one comment that names the view,
+  and starts by itself once the view shows it, such as when its blocker is done. A mention still
+  wakes the agent on any task.
 - **An agent can read a view as its queue.** `GET /api/views/{viewId}/tasks` answers the tasks a view
   shows, in the view's order, with "me" in a rule read as the caller. It is the same list a person
   sees when they open the view.

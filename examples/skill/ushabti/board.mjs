@@ -655,6 +655,7 @@ const commands = {
 
   watch --run "<command>" [--on assigned,mention,created] [--goal "<job>"]
         [--jobs 1] [--timeout 30] [--state <file>] [--once]
+        [--view "<name>"]           take only what that view shows; the rest waits
                                       wait for work and start a harness for it
 
   update                              fetch board.mjs and SKILL.md from this board
@@ -1578,6 +1579,23 @@ commands.watch = async function watch() {
   let me = await call("GET", "/api/agent/me");
   const projectId = me.project.id;
   const agentId = me.agent.id;
+
+  /* --view names the work this agent may take: a task it is given that the
+     view does not show waits until it does. The watcher never reads a rule
+     itself; the view's queue is the one answer, so it cannot disagree with
+     the screen. */
+  let view = null;
+  if (flags.view !== undefined) {
+    const wanted = String(flags.view).trim();
+    if (!wanted || wanted === "true") fail(`Give the view: watch --view "Agent queue"`);
+    const { views } = await call("GET", `/api/projects/${projectId}/board`);
+    const found = views.find((v) => v.name.toLowerCase() === wanted.toLowerCase());
+    if (!found) {
+      const names = views.map((v) => `"${v.name}"`).join(", ");
+      fail(`No view "${wanted}" on ${me.project.name}. The views are: ${names}.`);
+    }
+    view = { id: found.id, name: found.name };
+  }
   let mention = new RegExp(mentionPattern(me.agent.name), "i");
 
   /* An admin can rename the agent while this runs. The rename's event names
@@ -1616,7 +1634,12 @@ commands.watch = async function watch() {
       // restart, and a task that was already handled must not wake twice.
       writeFileSync(
         flags.state,
-        JSON.stringify({ projectId, cursor, seen: seenOrder.slice(-500) }),
+        JSON.stringify({
+          projectId,
+          cursor,
+          seen: seenOrder.slice(-500),
+          ...(view ? { viewId: view.id, held: [...held.values()] } : {}),
+        }),
       );
     } catch (err) {
       say(`could not write ${flags.state}: ${err.message}`);
@@ -1639,6 +1662,15 @@ commands.watch = async function watch() {
     seenOrder.push(id);
     if (seenOrder.length > 5_000) seen.delete(seenOrder.shift());
   };
+
+  /* What waits for the view, by task id: { taskId, key, event }. A hold kept
+     for another view is not this one's to start. */
+  const held = new Map();
+  if (view && saved?.projectId === projectId && saved.viewId === view.id) {
+    for (const h of Array.isArray(saved.held) ? saved.held : []) {
+      if (h?.taskId && (h.event === "created" || h.event === "assigned")) held.set(h.taskId, h);
+    }
+  }
 
   /* --- the work ------------------------------------------------------ */
 
@@ -1815,6 +1847,81 @@ commands.watch = async function watch() {
     return b.properties.some((p) => p.type === "person" && task.values[p.id] === agentId);
   };
 
+  /* The view's queue, read once per pass like the board: { ids, order }, or
+     null when it could not be read this time. A view that is gone stops the
+     watcher, because taking everything is the one answer it must not give. */
+  let viewQueue = null;
+  const freshQueue = async () => {
+    if (viewQueue) return viewQueue;
+    try {
+      const { tasks } = await request("GET", `/api/views/${view.id}/tasks`);
+      viewQueue = { order: new Map(tasks.map((t, i) => [t.id, i])) };
+      return viewQueue;
+    } catch (err) {
+      if (err.status === 404) {
+        console.error(
+          `[watch] the view "${view.name}" was deleted, so I stop rather than take work it does not show.`,
+        );
+        await leave(1);
+      }
+      say(`could not read the view "${view.name}": ${err.message}`);
+      return null;
+    }
+  };
+
+  /** One comment per hold, so the person who gave the task knows why it sits. */
+  async function tell(hold) {
+    try {
+      await request("POST", `/api/tasks/${hold.taskId}/comments`, {
+        body: `I wait until this task is in the view "${view.name}", then I start on it.`,
+      });
+      hold.told = true;
+    } catch (err) {
+      say(`${hold.key}: could not say it waits: ${err.message}`);
+    }
+  }
+
+  /** A created or an assigned task: started when the view shows it, held when not. */
+  async function take(taskId, key, event) {
+    if (!view) return wake(taskId, key, event);
+    const queue = await freshQueue();
+    if (queue?.order.has(taskId)) {
+      held.delete(taskId);
+      return wake(taskId, key, event);
+    }
+    if (held.has(taskId)) return;
+    const hold = { taskId, key, event, told: false };
+    held.set(taskId, hold);
+    say(`${key}: ${event}, held until it is in the view "${view.name}"`);
+    // A queue that could not be read says nothing yet; the next pass decides.
+    if (queue) await tell(hold);
+  }
+
+  /* On every ring and every `ready`: start what the view now shows, let go
+     of what can never start, and tell what waits and was not told yet. */
+  async function review() {
+    if (!view) return;
+    const queue = await freshQueue();
+    if (!queue || !held.size) return;
+    const b = await freshBoard();
+    const place = (h) => queue.order.get(h.taskId) ?? Infinity;
+    for (const hold of [...held.values()].sort((a, z) => place(a) - place(z))) {
+      const task = b.tasks.find((t) => t.id === hold.taskId);
+      if (!task) {
+        held.delete(hold.taskId);
+        say(`${hold.key}: archived or deleted, so it no longer waits`);
+      } else if (hold.event === "assigned" && !assignedToMe(b, hold.taskId)) {
+        held.delete(hold.taskId);
+        say(`${hold.key}: no longer mine, so it no longer waits`);
+      } else if (queue.order.has(hold.taskId)) {
+        held.delete(hold.taskId);
+        wake(hold.taskId, task.key, hold.event);
+      } else if (!hold.told) {
+        await tell(hold);
+      }
+    }
+  }
+
   async function consider(entry) {
     const actor = entry.actor;
     if (!entry.taskId || !actor || actor.id === agentId) return;
@@ -1829,14 +1936,14 @@ commands.watch = async function watch() {
          name is and that the agent may take it out when it is done. */
       if (byPerson && triggers.has("mention") && mention.test(String(entry.data.title ?? "")))
         return wake(entry.taskId, key, "mention", "title");
-      if (byPerson && triggers.has("created")) return wake(entry.taskId, key, "created");
+      if (byPerson && triggers.has("created")) return take(entry.taskId, key, "created");
       if (!triggers.has("assigned")) return;
       /* A newer board names the assignees on the line; an older one does
          not, and then the board is read to find out. */
       const named = Array.isArray(entry.data?.assigneeIds)
         ? entry.data.assigneeIds.includes(agentId)
         : assignedToMe(await freshBoard(), entry.taskId);
-      if (named) return wake(entry.taskId, key, "assigned");
+      if (named) return take(entry.taskId, key, "assigned");
       return;
     }
 
@@ -1863,7 +1970,7 @@ commands.watch = async function watch() {
       if (typeof entry.data?.type === "string") {
         if (entry.data.type !== "person") return;
         if ("personId" in entry.data) {
-          if (entry.data.personId === agentId) return wake(entry.taskId, key, "assigned");
+          if (entry.data.personId === agentId) return take(entry.taskId, key, "assigned");
           return;
         }
       }
@@ -1871,7 +1978,7 @@ commands.watch = async function watch() {
       const property = b.properties.find((p) => p.id === entry.data.propertyId);
       if (property?.type !== "person") return;
       const task = b.tasks.find((t) => t.id === entry.taskId);
-      if (task?.values[property.id] === agentId) return wake(entry.taskId, key, "assigned");
+      if (task?.values[property.id] === agentId) return take(entry.taskId, key, "assigned");
       return;
     }
 
@@ -1920,6 +2027,7 @@ commands.watch = async function watch() {
       do {
         again = false;
         board = null;
+        viewQueue = null;
         try {
           /* A page goes on from the last line read, by its moment and its id.
              One write stamps all its lines alike, so a moment alone would read
@@ -1949,6 +2057,7 @@ commands.watch = async function watch() {
             after = last.createdAt;
             afterId = last.id;
           }
+          await review().catch((err) => say(`could not look at what waits: ${err.message}`));
           saveState();
         } catch (err) {
           say(`could not read the feed: ${err.message}`);
@@ -2043,6 +2152,7 @@ commands.watch = async function watch() {
   process.on("SIGTERM", () => void leave(0));
 
   say(`on ${[...triggers].join(", ")}, up to ${jobs} at a time: ${template}`);
+  if (view) say(`takes only what the view "${view.name}" shows; ${held.size} held`);
   await listen();
 };
 

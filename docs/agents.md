@@ -343,6 +343,9 @@ A row that is over is still in the list; it just holds nothing up.
 There is no `--on unblocked`. A task becomes free because somebody changed
 *another* task, so watch for `value` and `archive` lines in the feed and read
 `blockedBy` again.
+`board.mjs watch --view` does this for you: give it a view with the rule
+**Not blocked**, and a blocked task it is given waits and starts once it is
+free (see [`board.mjs watch`](#boardmjs-watch)).
 
 ## What a task is part of
 
@@ -1283,10 +1286,42 @@ What it does for each one:
 | `--timeout` | `30`                 | Minutes before a session is stopped as failed  |
 | `--state`   | none                 | A file that keeps the cursor across restarts   |
 | `--once`    | off                  | Exit after the first piece of work             |
+| `--view`    | none                 | Take only the tasks this view shows            |
 
 Without `--state`, a watcher that restarts begins at the server's clock and
 misses what happened while it was down. Give it a file when it runs under
 launchd, systemd or a container that restarts it.
+
+#### Take only what a view shows
+
+`--view "<name>"` names one view of the project, without regard to case, and
+the agent then takes only the work that view shows. Make the view for it, for
+example a list called **Agent queue** with the rules **Status is Todo · Not
+blocked**, and start the watcher on it:
+
+```bash
+node board.mjs watch --on assigned,mention --view "Agent queue" \
+  --run 'claude -p {prompt} --allowedTools "Bash(node:*)"'
+```
+
+- A `created` or `assigned` task that the view shows at that moment starts as
+  usual. One it does not show is **held**: the agent leaves one comment on it,
+  saying it waits until the task is in the view and naming the view, and starts
+  nothing.
+- On every ring of the stream and every `ready`, the watcher reads the view's
+  queue again (`GET /api/views/{viewId}/tasks`) and starts each held task the
+  view now shows, as the event that held it would have. So a task blocked by
+  another starts by itself once its blocker is over.
+- A held task is let go without starting when it is archived or deleted, or,
+  when it was held for `assigned`, once it is no longer assigned to the agent.
+- `mention` and an answer to a question ignore the view: answering a person is
+  not taking the work.
+- What is held lives in the watcher, and in the `--state` file when one is
+  given, so it survives a restart. The board keeps nothing of it.
+- The watcher never reads the rules itself; the queue is the only answer. A
+  name that matches no view fails at start with the views there are, and a
+  view deleted while the watcher runs stops it with a non-zero exit. It never
+  falls back to taking everything.
 
 It needs a POSIX shell for `--run`. It reconnects by itself, backing off up to
 30 seconds, and catches up from the feed when it does. `Ctrl-C` stops the

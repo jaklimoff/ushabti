@@ -317,6 +317,13 @@ says which. Only a person's words wake it, so an agent that writes the name,
 or takes its own out again, wakes nobody. An edit of a comment wakes nobody
 either: the words were read when they were written.
 
+`--view "<name>"` makes the agent take only what one view shows, such as a
+list **Agent queue** with the rules **Status is Todo · Not blocked**. A task
+given to it that the view does not show waits: the watcher leaves one comment
+saying so and naming the view, and starts the task by itself once the view
+shows it. A mention and an answer still wake it on any task. If you are
+started on a task, it is yours to do; the view was already asked.
+
 ## The rest of the API
 
 `docs/agents.md` in the Ushabti repository has the raw HTTP calls, the errors
