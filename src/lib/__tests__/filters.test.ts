@@ -1113,9 +1113,9 @@ describe("the blocked rule", () => {
     expect(BLOCKED_PROPERTY.type).toBe("checkbox");
   });
 
-  it("leaves out a Tasks property, which asks nothing yet", () => {
+  it("offers a Tasks property", () => {
     const dup: PropertyDTO = { ...status, id: "p-dup", type: "relation", options: [] };
-    expect(filterProperties([status, dup]).map((p) => p.id)).not.toContain("p-dup");
+    expect(filterProperties([status, dup]).map((p) => p.id)).toContain("p-dup");
   });
 
   it("keeps a task that waits on another", () => {
@@ -1352,6 +1352,88 @@ describe("a Link rule", () => {
     expect(keep(empty, {}, prs)).toBe(true);
     expect(keep(empty, value, prs)).toBe(false);
     expect(keep({ propertyId: prs.id, op: "not_empty" }, value, prs)).toBe(true);
+  });
+});
+
+describe("a Tasks rule", () => {
+  const dup: PropertyDTO = {
+    id: "p-dup",
+    name: "Duplicate of",
+    type: "relation",
+    position: "c",
+    config: {},
+    options: [],
+  };
+  const named = [task("a"), task("b")];
+  const is = (...values: string[]): FilterRule => ({ propertyId: dup.id, op: "is", values });
+  const isNot = (...values: string[]): FilterRule => ({ propertyId: dup.id, op: "is_not", values });
+
+  it("offers is, is not, is empty and is not empty", () => {
+    expect(OPS_FOR_TYPE.relation).toEqual(["is", "is_not", "empty", "not_empty"]);
+  });
+
+  it("is keeps a task whose value names any of the picked tasks", () => {
+    expect(keep(is("a"), { "p-dup": ["a"] }, dup)).toBe(true);
+    expect(keep(is("a", "b"), { "p-dup": ["c", "b"] }, dup)).toBe(true);
+    expect(keep(is("a"), { "p-dup": ["b"] }, dup)).toBe(false);
+    expect(keep(is("a"), { "p-dup": [] }, dup)).toBe(false);
+    expect(keep(is("a"), {}, dup)).toBe(false);
+  });
+
+  it("is not keeps a task that names none of them, an empty one included", () => {
+    expect(keep(isNot("a"), { "p-dup": ["a", "b"] }, dup)).toBe(false);
+    expect(keep(isNot("a"), { "p-dup": ["b"] }, dup)).toBe(true);
+    expect(keep(isNot("a"), { "p-dup": [] }, dup)).toBe(true);
+    expect(keep(isNot("a"), {}, dup)).toBe(true);
+  });
+
+  it("is empty keeps a task that points at nothing, and is not empty the rest", () => {
+    const empty: FilterRule = { propertyId: dup.id, op: "empty" };
+    const full: FilterRule = { propertyId: dup.id, op: "not_empty" };
+    expect(keep(empty, {}, dup)).toBe(true);
+    expect(keep(empty, { "p-dup": [] }, dup)).toBe(true);
+    expect(keep(empty, { "p-dup": ["a"] }, dup)).toBe(false);
+    expect(keep(full, { "p-dup": ["a"] }, dup)).toBe(true);
+    expect(keep(full, {}, dup)).toBe(false);
+  });
+
+  it("narrows a board as stated", () => {
+    const tasks = [task("x", { "p-dup": ["a"] }), task("y", {}), task("z", { "p-dup": ["b"] })];
+    const ids = (rule: FilterRule) =>
+      applyFilters(tasks, { rules: [rule] }, [dup], TODAY, null, NONE, "UTC").map((t) => t.id);
+    expect(ids(is("a"))).toEqual(["x"]);
+    expect(ids(isNot("a"))).toEqual(["y", "z"]);
+    expect(ids({ propertyId: dup.id, op: "empty" })).toEqual(["y"]);
+    expect(ids({ propertyId: dup.id, op: "not_empty" })).toEqual(["x", "z"]);
+  });
+
+  it("keeps a task id it cannot check, as it keeps a member who left", () => {
+    const raw = { rules: [{ propertyId: dup.id, op: "is", values: ["gone", "a"] }] };
+    expect(readFilters(raw, [dup]).rules).toEqual([is("gone", "a")]);
+  });
+
+  it("names the tasks by key, and a deleted one as a deleted task", () => {
+    expect(describeRule(is("a", "b"), dup, members, [], named)).toBe(
+      "Duplicate of is USH-a, USH-b",
+    );
+    expect(describeRule(isNot("gone", "a"), dup, members, [], named)).toBe(
+      "Duplicate of is not a deleted task, USH-a",
+    );
+    expect(describeRule({ propertyId: dup.id, op: "empty" }, dup, members)).toBe(
+      "Duplicate of is empty",
+    );
+  });
+
+  it("seeds a task added under is with one task, and says so", () => {
+    const seed = seedValues({ rules: [is("a")] }, [dup], null, null, TODAY, [], named);
+    expect(seed).toEqual({ "p-dup": ["a"] });
+    expect(seedNote(seed, [dup], members, {}, named)).toBe("sets Duplicate of USH-a");
+  });
+
+  it("seeds nothing for two tasks, for is not, or for a deleted task", () => {
+    expect(seedValues({ rules: [is("a", "b")] }, [dup], null, null, TODAY, [], named)).toEqual({});
+    expect(seedValues({ rules: [isNot("a")] }, [dup], null, null, TODAY, [], named)).toEqual({});
+    expect(seedValues({ rules: [is("gone")] }, [dup], null, null, TODAY, [], named)).toEqual({});
   });
 });
 

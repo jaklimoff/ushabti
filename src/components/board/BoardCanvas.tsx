@@ -471,6 +471,8 @@ export function BoardCanvas({
   const takes = (column: BoardColumn) =>
     !column.gone && takesCards(column, filters, groupProperty, data.today, user.id);
 
+  /* A Tasks rule seeds a task that is still here, and says it by its key. */
+  const named = [...data.tasks, ...data.archived];
   const seed = seedValues(
     filters,
     data.properties,
@@ -478,6 +480,7 @@ export function BoardCanvas({
     user.id,
     data.today,
     data.former,
+    named,
   );
   /* What a task added to this column carries: the filter's seeds and the
      column's value, which is also how a board grouped by Type names the type. */
@@ -490,6 +493,7 @@ export function BoardCanvas({
       data.properties,
       data.members,
       startsWith(data.project.typeBy, sentTo(column), data.properties),
+      named,
     );
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;

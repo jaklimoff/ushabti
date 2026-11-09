@@ -9,6 +9,7 @@ import {
   keysOf,
   readFilters,
   waitingTasks,
+  type TaskName,
 } from "./filters";
 import { heardFrom } from "./pulse";
 import { isWaiting } from "./run-state";
@@ -29,7 +30,13 @@ import type { BoardData, FilterRule, PropertyDTO, TaskDTO, ViewFilters } from ".
 export type SourceBoard = Pick<
   BoardData,
   "project" | "today" | "members" | "former" | "properties" | "tasks" | "runs"
->;
+> &
+  Partial<Pick<BoardData, "archived">>;
+
+/** Every task a Tasks rule may name, live and archived. */
+function named(board: SourceBoard): TaskName[] {
+  return [...board.tasks, ...(board.archived ?? [])];
+}
 
 /** A source as it is stored: the rules are raw until a board reads them. */
 export type StoredSource = { id: string; projectId: string; filters: unknown };
@@ -94,7 +101,9 @@ export function rulesSaid(filters: ViewFilters, board: SourceBoard): string {
   const askable = filterProperties(board.properties);
   const words = filters.rules.flatMap((rule) => {
     const property = askable.find((p) => p.id === rule.propertyId);
-    return property ? [describeRule(rule, property, board.members, board.former)] : [];
+    return property
+      ? [describeRule(rule, property, board.members, board.former, named(board))]
+      : [];
   });
   return words.length ? words.join(" · ") : EVERY_TASK;
 }
@@ -112,25 +121,38 @@ export function matchedChip(task: TaskDTO, rule: FilterRule, board: SourceBoard)
   const property = filterProperties(board.properties).find((p) => p.id === rule.propertyId);
   if (!property) return null;
   if (isBuiltIn(property.id)) {
-    return { text: describeRule(rule, property, board.members, board.former), color: QUIET };
+    return {
+      text: describeRule(rule, property, board.members, board.former, named(board)),
+      color: QUIET,
+    };
   }
   const value = task.values[property.id] ?? null;
   if (isSetOp(rule.op) || keyed(property)) {
     const keys = keysOf(value, property.type);
-    const text = keys.map((k) => keyName(k, property, board.members, board.former)).join(", ");
+    const text = keys
+      .map((k) => keyName(k, property, board.members, board.former, named(board)))
+      .join(", ");
     return { text, color: keyColor(keys[0], property, board.members, board.former) };
   }
   if (value === null || value === "" || (Array.isArray(value) && value.length === 0)) {
     return { text: `No ${property.name.toLowerCase()}`, color: QUIET };
   }
   if (property.type === "link") {
-    return { text: describeRule(rule, property, board.members, board.former), color: QUIET };
+    return {
+      text: describeRule(rule, property, board.members, board.former, named(board)),
+      color: QUIET,
+    };
   }
   return { text: String(value), color: QUIET };
 }
 
 function keyed(property: PropertyDTO): boolean {
-  return property.options.length > 0 || property.type === "person" || property.type === "checkbox";
+  return (
+    property.options.length > 0 ||
+    property.type === "person" ||
+    property.type === "checkbox" ||
+    property.type === "relation"
+  );
 }
 
 /**

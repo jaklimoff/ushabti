@@ -21,6 +21,8 @@ import {
   windowsFor,
 } from "@/lib/filters";
 import { DATE_WINDOW_NAME } from "@/lib/day";
+import { taskOf } from "@/lib/related";
+import { SEARCH_LIMIT, searchTasks, type Searchable } from "@/lib/search";
 import { pickableOptions, splitShipped } from "@/lib/option-dates";
 import { canSort, pressSort, sortLabel, sortWay } from "@/lib/sort";
 import { listColumns } from "@/lib/list-view";
@@ -149,6 +151,7 @@ function Ask({
   rule,
   members,
   former,
+  tasks = [],
   onChange,
   owed,
   onBack,
@@ -158,6 +161,8 @@ function Ask({
   rule: FilterRule;
   members: MemberDTO[];
   former: FormerDTO[];
+  /** Every task a Tasks rule may name, live and archived. */
+  tasks?: readonly Searchable[];
   onChange: (rule: FilterRule) => void;
   /** The request this box would send for that rule, for a tab that is going. */
   owed: (rule: FilterRule) => LeaveSend | null;
@@ -194,6 +199,30 @@ function Ask({
         .filter((row) => !wanted || row.name.toLowerCase().includes(wanted));
     }
     if (!set) return [];
+    /* A Tasks rule picks from the search the field uses: what is picked
+       first, ticked, then what the words find. A board has too many tasks
+       to list them all. */
+    if (property.type === "relation") {
+      const picked = chosen.map((id): Row => {
+        const task = taskOf(id, tasks);
+        return {
+          id,
+          name: task ? `${task.key} ${task.title}` : keyName(id, property, members, former, tasks),
+          color: keyColor(id, property, members, former),
+          on: true,
+        };
+      });
+      const found = searchTasks([...tasks], query, null, SEARCH_LIMIT, new Set(chosen)).map(
+        (hit): Row => ({
+          id: hit.task.id,
+          name: `${hit.task.key} ${hit.task.title}`,
+          color: keyColor(hit.task.id, property, members, former),
+          on: false,
+          ...(hit.task.archivedAt ? { note: "archived" } : {}),
+        }),
+      );
+      return [...picked, ...found];
+    }
     const toRow = (key: string): Row => ({
       id: key,
       /* The chip reads "Sprint is current"; a row of the menu opens a line. */
@@ -219,7 +248,7 @@ function Ask({
       note: `${shipped.length} ${unfolded ? "▾" : "▸"}`,
     };
     return [...open, fold, ...(unfolded ? shipped : [])];
-  }, [chosen, former, members, property, query, rule.text, set, unfolded, win]);
+  }, [chosen, former, members, property, query, rule.text, set, tasks, unfolded, win]);
 
   /* Changing the operator keeps the answer it can carry and drops what it
      cannot. It never invents one. */
@@ -409,7 +438,13 @@ function Ask({
           rows={rows}
           at={at}
           listId={listId}
-          empty="Nothing by that name."
+          empty={
+            property.type !== "relation"
+              ? "Nothing by that name."
+              : query.trim()
+                ? "No task matches."
+                : "Type a key or words of a title."
+          }
           onPick={(row) => toggle(row.id)}
         />
       )}
@@ -461,6 +496,7 @@ export function FilterButton({ open, setOpen }: { open: boolean; setOpen: (v: bo
           properties={data.properties}
           members={data.members}
           former={data.former}
+          tasks={[...data.tasks, ...data.archived]}
           rules={lens.rules}
           shown={filters.rules}
           /*
@@ -490,6 +526,7 @@ function PickRule({
   properties,
   members,
   former,
+  tasks,
   rules,
   shown = rules,
   refuse,
@@ -500,6 +537,11 @@ function PickRule({
   properties: PropertyDTO[];
   members: MemberDTO[];
   former: FormerDTO[];
+  /**
+   * Every task a Tasks rule may name. Without them a Tasks property is not
+   * offered, because its question could find nothing to answer with.
+   */
+  tasks?: readonly Searchable[];
   /** The set a rule made here lands in. */
   rules: FilterRule[];
   /** Every rule on the screen, for the note beside a property. */
@@ -534,7 +576,10 @@ function PickRule({
      and a run are not fields, so "Blocked" and "Agent waiting" have no
      property to be — each is a fixed word, the way a card's key is a fixed
      row. */
-  const askable = useMemo(() => filterProperties(properties), [properties]);
+  const askable = useMemo(
+    () => filterProperties(properties).filter((p) => tasks || p.type !== "relation"),
+    [properties, tasks],
+  );
   const picked = pickedId ? (askable.find((p) => p.id === pickedId) ?? null) : null;
   const rule = picked ? ((slot !== null ? rules[slot] : null) ?? draft) : null;
 
@@ -542,10 +587,10 @@ function PickRule({
     const map = new Map<string, string>();
     for (const r of shown) {
       const property = askable.find((p) => p.id === r.propertyId);
-      if (property) map.set(r.propertyId, describeRule(r, property, members, former));
+      if (property) map.set(r.propertyId, describeRule(r, property, members, former, tasks));
     }
     return map;
-  }, [askable, members, former, shown]);
+  }, [askable, members, former, shown, tasks]);
 
   const rows: Row[] = useMemo(() => {
     const wanted = query.trim().toLowerCase();
@@ -615,6 +660,7 @@ function PickRule({
           rule={rule}
           members={members}
           former={former}
+          tasks={tasks}
           onChange={change}
           owed={(next) => owed(rulesAfter(next))}
           onBack={reset}
@@ -749,11 +795,13 @@ export function ReadRuleChips({
   properties,
   members,
   former,
+  tasks,
   rules,
 }: {
   properties: PropertyDTO[];
   members: MemberDTO[];
   former: FormerDTO[];
+  tasks?: readonly Searchable[];
   rules: FilterRule[];
 }) {
   const askable = filterProperties(properties);
@@ -769,7 +817,7 @@ export function ReadRuleChips({
             data-testid="filter-chip-read"
           >
             <span className={styles.filterChipBody}>
-              {describeRule(rule, property, members, former)}
+              {describeRule(rule, property, members, former, tasks)}
             </span>
           </span>
         );
@@ -916,6 +964,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
     promoteLens,
   } = useBoard();
   const askable = filterProperties(data.properties);
+  const tasks = [...data.tasks, ...data.archived];
   /* One order, drawn two ways, so one chip says it either way: a board is in
      the order as much as a list is, and the ✕ is the way out of both. */
   if (filters.rules.length === 0 && !sort && !panelOpen) return null;
@@ -948,6 +997,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             property={property}
             members={data.members}
             former={data.former}
+            tasks={tasks}
             shared
             onChange={(next) => void setFilters(edited(viewFilters.rules, i, next))}
             owed={(next) => (view ? viewSend(view.id, edited(viewFilters.rules, i, next)) : null)}
@@ -975,6 +1025,7 @@ export function FilterChips({ panelOpen }: { panelOpen: boolean }) {
             property={property}
             members={data.members}
             former={data.former}
+            tasks={tasks}
             onChange={(next) => void setLens(edited(lens.rules, i, next))}
             owed={(next) => (view ? lensSend(view, edited(lens.rules, i, next)) : null)}
             onRemove={() => void setLens(edited(lens.rules, i, null))}
@@ -1120,6 +1171,7 @@ function Chip({
   property,
   members,
   former,
+  tasks,
   shared = false,
   onChange,
   owed,
@@ -1129,6 +1181,7 @@ function Chip({
   property: PropertyDTO;
   members: MemberDTO[];
   former: FormerDTO[];
+  tasks?: readonly Searchable[];
   shared?: boolean;
   onChange: (rule: FilterRule) => void;
   owed: (rule: FilterRule) => LeaveSend | null;
@@ -1136,7 +1189,7 @@ function Chip({
 }) {
   const [open, setOpen] = useState(false);
   const asking = useConfirm();
-  const said = describeRule(rule, property, members, former);
+  const said = describeRule(rule, property, members, former, tasks);
   const ref = useDismiss<HTMLDivElement>(() => {
     setOpen(false);
     asking.cancel();
@@ -1219,6 +1272,7 @@ function Chip({
             rule={rule}
             members={members}
             former={former}
+            tasks={tasks}
             onChange={onChange}
             owed={owed}
             onClose={() => setOpen(false)}

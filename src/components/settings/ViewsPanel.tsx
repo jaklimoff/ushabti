@@ -368,6 +368,7 @@ function ViewRow({
                 properties={data.properties}
                 members={data.members}
                 former={data.former}
+                tasks={[...data.tasks, ...data.archived]}
                 rules={rules}
               />
             ) : (

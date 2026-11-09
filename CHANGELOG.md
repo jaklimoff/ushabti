@@ -14,12 +14,16 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   between tasks, such as Duplicate of or Relates to. In the task panel you pick a task by typing its
   key or words of its title; archived tasks are offered too. A picked task shows as its key and opens
   on a click. A task deleted later drops out of the field and comes back if it is restored. Cards,
-  lists, filters and sorting do not read it yet.
+  lists and sorting do not read it yet.
 - **A task shows what points at it.** The task a Tasks value names lists the tasks that point at it,
   among its links, archived ones too. They sit under the property's reverse name, such as Duplicated
   by, set in Settings → Properties beside the name; with none they sit under the property's own name.
   The ✕ there takes the link off the other task, and an open panel follows a link added in another
   tab.
+- **A board filters by the tasks a property points at.** A Tasks property asks is, is not, is empty
+  and is not empty, so `Duplicate of is empty` hides the duplicates. The tasks of a rule are picked
+  from the same search as the field and the chip names them by key; a task deleted since reads "a
+  deleted task". A task added under `is` with one task points at it.
 
 ## 0.45.0 — 2026-11-08
 

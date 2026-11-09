@@ -349,12 +349,15 @@ export function ListCanvas({
    * the filter has to answer for it too. Without the null the row is written
    * and hidden in the same breath, with nothing on screen to say why.
    */
-  const seed = seedValues(filters, data.properties, null, user.id, data.today, data.former);
+  /* A Tasks rule seeds a task that is still here, and says it by its key. */
+  const named = [...data.tasks, ...data.archived];
+  const seed = seedValues(filters, data.properties, null, user.id, data.today, data.former, named);
   const addNote = seedNote(
     seed,
     data.properties,
     data.members,
     startsWith(data.project.typeBy, seed, data.properties),
+    named,
   );
 
   const activeTask = activeTaskId ? (data.tasks.find((t) => t.id === activeTaskId) ?? null) : null;

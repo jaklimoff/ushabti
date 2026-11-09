@@ -25,6 +25,7 @@ import {
   type ViewFilters,
 } from "./types";
 import { personName, personOf } from "./people";
+import { taskOf } from "./related";
 import { linksOf } from "./web-links";
 import { carriesDates, splitShipped } from "./option-dates";
 
@@ -284,8 +285,8 @@ export const OPS_FOR_TYPE: Record<PropertyType, FilterOp[]> = {
   number: ["eq", "gt", "lt", "empty", "not_empty"],
   date: ["on", "before", "after", "within", "empty", "not_empty"],
   link: ["contains", "not_contains", "empty", "not_empty"],
-  /* Nothing yet: a filter by the tasks a task points at is USH-429. */
-  relation: [],
+  /* "Nothing yet" is "is empty" here: a picker of tasks has no row for it. */
+  relation: ["is", "is_not", "empty", "not_empty"],
   iteration: ["is", "is_not"],
 };
 
@@ -594,6 +595,9 @@ function liveKeys(property: PropertyDTO): Set<string> | null {
     return new Set([...property.options.map((o) => o.id), ...words]);
   }
   if (property.type === "checkbox") return new Set(["true", "false"]);
+  /* A Tasks rule names task ids, and the server reads a rule with the
+     properties only. A task deleted since keeps its place, as a member who
+     left does: the chip says so, and the rest of the rule goes on working. */
   return null;
 }
 
@@ -825,6 +829,7 @@ export function seedValues(
   viewer: string | null,
   today: string,
   former: FormerDTO[] = [],
+  tasks: readonly TaskName[] = [],
 ): Record<string, TaskValue> {
   const byId = new Map(properties.map((p) => [p.id, p]));
   const seed: Record<string, TaskValue> = {};
@@ -858,6 +863,11 @@ export function seedValues(
       case "multi_select":
         seed[property.id] = [keys[0]];
         break;
+      case "relation":
+        /* A deleted task is never written: the server would refuse it, and
+           the composer would fail on a word it wrote, as for a former member. */
+        if (taskOf(keys[0], tasks)) seed[property.id] = [keys[0]];
+        break;
       case "checkbox":
         seed[property.id] = keys[0] === "true";
         break;
@@ -888,6 +898,7 @@ export function seedNote(
   properties: PropertyDTO[],
   members: MemberDTO[],
   starts: Record<string, TaskValue> = {},
+  tasks: readonly TaskName[] = [],
 ): string {
   const byId = new Map(properties.map((p) => [p.id, p]));
   const said: string[] = [];
@@ -896,7 +907,7 @@ export function seedNote(
     const property = byId.get(propertyId);
     if (!property) continue;
     const key = Array.isArray(value) ? value[0] : value === true ? "true" : String(value);
-    said.push(`${property.name} ${keyName(key, property, members)}`);
+    said.push(`${property.name} ${keyName(key, property, members, [], tasks)}`);
   }
 
   const sets = said.length ? `sets ${said.join(", ")}` : "";
@@ -925,6 +936,9 @@ function startsSaid(
   return said.join(", ");
 }
 
+/** What a Tasks rule needs to name a task: every task, live and archived. */
+export type TaskName = Pick<TaskDTO, "id" | "key" | "title">;
+
 /* ------------------------------------------------------------------ */
 /* Saying what a rule asks                                             */
 /* ------------------------------------------------------------------ */
@@ -944,6 +958,7 @@ export function keyName(
   property: PropertyDTO,
   members: MemberDTO[],
   former: FormerDTO[] = [],
+  tasks: readonly TaskName[] = [],
 ): string {
   if (key === NO_VALUE_KEY) {
     return property.type === "person" ? "Unassigned" : `No ${property.name.toLowerCase()}`;
@@ -960,6 +975,9 @@ export function keyName(
     const person = personOf(key, members, former);
     return person ? personName(person) : "?";
   }
+  /* A task is named by its key, live or archived. One deleted since the rule
+     was written still counts in the rule, so the chip says what it is. */
+  if (property.type === "relation") return taskOf(key, tasks)?.key ?? "a deleted task";
   return property.options.find((o) => o.id === key)?.name ?? "?";
 }
 
@@ -983,6 +1001,8 @@ export function keyColor(
   members: MemberDTO[],
   former: FormerDTO[] = [],
 ): string {
+  /* A task has no colour of its own. */
+  if (property.type === "relation" && key !== NO_VALUE_KEY) return "#6b7280";
   if (key === NO_VALUE_KEY) return "#3f4650";
   /* Me is a different person on every screen, so it wears no one's colour. */
   if (key === ME_KEY) return "#6b7280";
@@ -1008,15 +1028,16 @@ export function describeRule(
   property: PropertyDTO,
   members: MemberDTO[],
   former: FormerDTO[] = [],
+  tasks: readonly TaskName[] = [],
 ): string {
   if (isBareOp(rule.op)) return `${property.name} ${OP_LABEL[rule.op]}`;
   if (isWindowOp(rule.op)) return windowSaid(property, rule.text ?? "");
   if (isSetOp(rule.op)) {
     const keys = rule.values ?? [];
     if (rule.op === "is" && keys.length === 1 && keySpeaksForItself(keys[0], property)) {
-      return keyName(keys[0], property, members, former);
+      return keyName(keys[0], property, members, former, tasks);
     }
-    const names = keys.map((key) => keyName(key, property, members, former));
+    const names = keys.map((key) => keyName(key, property, members, former, tasks));
     const said =
       names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", ");
     return `${property.name} ${OP_LABEL[rule.op]} ${said}`;
