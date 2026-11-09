@@ -144,6 +144,7 @@ so an agent sees exactly what a person sees and nothing more.
 | What                | Call                                               |
 | ------------------- | -------------------------------------------------- |
 | The whole board     | `GET /api/projects/{projectId}/board`               |
+| What a view shows   | `GET /api/views/{viewId}/tasks`                     |
 | One task in full    | `GET /api/tasks/{taskId}`                           |
 | One run in full     | `GET /api/runs/{runId}`                             |
 | Older log lines     | `GET /api/runs/{runId}?before={lineId}`             |
@@ -174,6 +175,19 @@ Rewording and removing a checklist item are the **Edit checklists** act, which
 an owner or an admin can switch off for an agent; adding and ticking stay open.
 `board.mjs check-edit USH-14 2 "<new words>"` or `check --rename` and
 `board.mjs check-rm USH-14 2` or `check --remove` are the short way.
+
+**A view is a queue.** `GET /api/views/{viewId}/tasks` answers the tasks the
+view shows right now, in its order, as the list a person opens draws them:
+
+```json
+{ "view": { "id": "…", "name": "Agent queue" }, "tasks": [{ "id": "…", "key": "USH-14" }] }
+```
+
+It reads the view's own filters and never anybody's lens, and "me" in a rule
+is the caller, so a view with **Assignee is me** is each agent's own queue.
+The order is the view's sort, or else the task rank; a board's columns do not
+change it. Archived and deleted tasks are never in it. A view that does not
+exist, or one of a project the token does not open, answers 404.
 
 **A create gets the type's defaults.** When the project names a select as its
 Type, a property can say what a new task of each type starts with: "a Bug

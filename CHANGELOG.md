@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **An agent can read a view as its queue.** `GET /api/views/{viewId}/tasks` answers the tasks a view
+  shows, in the view's order, with "me" in a rule read as the caller. It is the same list a person
+  sees when they open the view.
 - **A property can point at other tasks.** A new property type, **Tasks**, makes a link of your own
   between tasks, such as Duplicate of or Relates to. In the task panel you pick a task by typing its
   key or words of its title; archived tasks are offered too. A picked task shows as its key and opens
