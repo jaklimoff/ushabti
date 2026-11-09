@@ -82,6 +82,10 @@ The task in full — everything the panel shows.
     },
     "parent": { "id": "…", "key": "USH-9", "title": "…", "over": false },  // or null
     "children": [],                     // its parts, in board order, the same rows
+    "pointedBy": [                      // per Tasks property, the tasks whose value names
+      { "propertyId": "…",              // this one; worked out on the read, never stored
+        "tasks": [{ "id": "…", "key": "USH-31", "title": "…", "archived": false }] }
+    ],                                  // archived ones included, deleted ones left out
 
     "checklist": [
       { "id": "…", "text": "Cover the retry path", "done": true, "position": "V" }
@@ -436,6 +440,26 @@ see [value shapes](/api/properties/#value-shapes-by-type).
 | `400` | `That is not a task id.` · `That is not a property id.` — see [ids](/api/#ids) |
 | `400` | `That property is not in this project.` |
 | `400` | `Priority needs one option.` · `One of the options does not exist any more.` · `Due needs a date like 2026-08-21.` |
+
+---
+
+## `DELETE /api/tasks/{taskId}/values/{propertyId}/{pointedId}`
+
+Takes one task off a Tasks value: `pointedId` leaves the list that `taskId` holds for that
+property, and the rest of the list stays as it is, a deleted task included. It is how the other
+side takes a link off without knowing the whole list, and it is read and written under the task's
+lock, so a pick made at the same moment is kept.
+
+```json title="200"
+{ "value": ["<taskId>"], "changed": true }
+```
+
+A task that is not in the list answers `200` with `"changed": false` and writes nothing. The task
+gets one `value` line, as a `PUT` writes.
+
+| Status | Message |
+| --- | --- |
+| `400` | `That property is not in this project.` · `Notes does not hold tasks.` |
 
 ---
 

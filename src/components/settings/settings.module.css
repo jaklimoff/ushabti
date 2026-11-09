@@ -452,6 +452,11 @@ button.whenOut:hover {
   width: 4.5em;
 }
 
+.reverseInput {
+  width: 16em;
+  max-width: 100%;
+}
+
 /* The second lines start under the name, which is 47 px in: the head's 13,
    the grip's 24 and the gap's 10. A phone puts the name beside the grip on
    its own line, so the lines there keep only the card's 13. */

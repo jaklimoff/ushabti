@@ -60,6 +60,10 @@ All optional and applied independently.
   not read back, a key that is not a type, or a property that cannot carry one gets `400`. It is
   read afresh into `config.defaults`: a deleted type or value, or a project with no Type, reads as
   no default. Every [create](/api/tasks/#post-apiprojectsprojectidtasks) writes it.
+- `reverseName` is what the other task calls a `relation` property, such as `"Duplicated by"`
+  for `"Duplicate of"`, at most 40 characters. It is kept in `config.reverseName`; `null` or `""`
+  takes it off, and the other side then reads under the property's own name. It asks what a
+  rename asks. Any type but a relation gets `400`.
 - `afterId` moves it. **`null` means the front**, and so does an id that names nothing. It is the
   presence of the key that triggers the move, not its value.
 

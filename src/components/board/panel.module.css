@@ -1611,6 +1611,13 @@
   white-space: nowrap;
 }
 
+/* An archived task that points at this one: still a link, said in a word. */
+.linkNote {
+  flex: none;
+  font-size: var(--t-micro);
+  color: var(--text-meta);
+}
+
 /* A blocker that is over is still in the list and no longer holds anything
    up. One line through it says both. */
 .linkOver {

@@ -46,6 +46,7 @@ import type {
   CardView,
   ColumnWidths,
   FilterRule,
+  PropertyConfig,
   PropertyDTO,
   PropertyType,
   RunControl,
@@ -338,6 +339,8 @@ type Store = {
       color?: string | null;
       /** Null clears the rule, so the property always shows. */
       when?: When | null;
+      /** A Tasks property's name on the other side. Null takes it off. */
+      reverseName?: string | null;
     },
   ) => Promise<void>;
   /**
@@ -1733,6 +1736,9 @@ export function BoardProvider({
                   ? { config: { ...p.config, color: patch.color } }
                   : {}),
                 ...(patch.when !== undefined ? { config: withWhen(p, patch.when) } : {}),
+                ...(patch.reverseName !== undefined
+                  ? { config: withReverseName(p.config, patch.reverseName) }
+                  : {}),
               }
             : p,
         );
@@ -1855,4 +1861,10 @@ export function BoardProvider({
   };
 
   return <BoardContext.Provider value={store}>{children}</BoardContext.Provider>;
+}
+
+/** The config with a reverse name put on, or taken off, as the route does. */
+function withReverseName(config: PropertyConfig, said: string | null): PropertyConfig {
+  const { reverseName: _, ...rest } = config;
+  return said?.trim() ? { ...rest, reverseName: said.trim() } : rest;
 }

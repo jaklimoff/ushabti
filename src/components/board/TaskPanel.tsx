@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/client";
+import { reverseNameOf } from "@/lib/related";
 import { copyText } from "@/lib/clipboard";
 import {
   clampPanelWidth,
@@ -561,7 +562,9 @@ export function TaskPanel({
   /* Links sit between the fields and the description, where "why is this not
      moving" belongs. A task with none offers them last instead, so the
      description still comes first. */
-  const hasLinks = LINK_LISTS.some((way) => (panelLinks?.[way] ?? []).length > 0);
+  const hasLinks =
+    LINK_LISTS.some((way) => (panelLinks?.[way] ?? []).length > 0) ||
+    (detail?.pointedBy.length ?? 0) > 0;
   /* Its own state — what is typed, and the line a refusal left — belongs to
      one task, so the key throws it away when another one opens. */
   const linksBlock = (
@@ -569,6 +572,11 @@ export function TaskPanel({
       key={taskId}
       taskId={taskId}
       links={panelLinks}
+      pointedBy={detail?.pointedBy ?? []}
+      unpoint={(otherId, propertyId) =>
+        direct(() => api.del(`/api/tasks/${otherId}/values/${propertyId}/${taskId}`))
+      }
+      refresh={refresh}
       adding={addingLink}
       setAdding={(way) => setLinking(way ? { taskId, way } : null)}
       reload={reload}
@@ -1180,6 +1188,9 @@ type PanelLinks = {
 function Links({
   taskId,
   links,
+  pointedBy,
+  unpoint,
+  refresh,
   adding,
   setAdding,
   reload,
@@ -1190,6 +1201,11 @@ function Links({
 }: {
   taskId: string;
   links: PanelLinks | null;
+  /** The tasks whose Tasks value names this one, by property. */
+  pointedBy: TaskDetailDTO["pointedBy"];
+  /** Takes this task off another task's value, from this side. */
+  unpoint: (otherId: string, propertyId: string) => Promise<unknown>;
+  refresh: () => Promise<void>;
   adding: LinkWay | null;
   setAdding: (way: LinkWay | null) => void;
   reload: () => Promise<void>;
@@ -1277,8 +1293,71 @@ function Links({
     }
   }
 
+  /* The other task holds the value, so its list is written there, and the
+     board is read again for its card. The ✕ asks nothing, as above. */
+  async function unlinkPointer(propertyId: string, other: string) {
+    try {
+      await unpoint(other, propertyId);
+      await Promise.all([reload(), refresh()]);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "That link did not go.");
+    }
+  }
+
+  /* The other side of each Tasks property, under its reverse name. It is
+     read and never added to here: a pick belongs to the task that holds
+     the value, whose field has the search. */
+  const pointers = pointedBy.flatMap(({ propertyId, tasks }) => {
+    const property = data.properties.find((p) => p.id === propertyId);
+    if (!property || tasks.length === 0) return [];
+    const head = reverseNameOf(property);
+    return [
+      <div
+        key={propertyId}
+        className={styles.block}
+        data-testid="links-pointed"
+        aria-label={head}
+        role="group"
+      >
+        <div className={styles.blockHead}>
+          <Label>{head}</Label>
+        </div>
+        {tasks.map((row) => (
+          <div key={row.id} className={styles.linkRow} data-testid="link-row">
+            <button
+              className={styles.linkOpen}
+              aria-label={`Open ${row.key} ${row.title}`}
+              onClick={() => onOpenTask({ id: row.id, key: row.key })}
+            >
+              <span className={`${styles.linkKey} mono`}>{row.key}</span>
+              <span className={styles.linkTitle}>{row.title}</span>
+              {row.archived && <span className={styles.linkNote}>archived</span>}
+            </button>
+            <IconButton
+              danger
+              className={styles.linkRemove}
+              label={`Unlink ${row.key}`}
+              title={`Take this task off ${property.name} of ${row.key}`}
+              onClick={() => void unlinkPointer(propertyId, row.id)}
+            >
+              ✕
+            </IconButton>
+          </div>
+        ))}
+      </div>,
+    ];
+  });
+
   const anything = LINK_LISTS.some((way) => (links?.[way] ?? []).length > 0);
-  if (!anything && !adding) return <LinkOffer onPick={setAdding} />;
+  if (!anything && !adding) {
+    if (pointers.length === 0) return <LinkOffer onPick={setAdding} />;
+    return (
+      <div className={styles.block} data-testid="task-links">
+        {pointers}
+        <LinkOffer onPick={setAdding} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.block} data-testid="task-links">
@@ -1373,6 +1452,7 @@ function Links({
           </div>
         );
       })}
+      {pointers}
     </div>
   );
 }

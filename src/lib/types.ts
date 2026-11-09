@@ -100,6 +100,13 @@ export type PropertyConfig = {
    * `readDefaults()`; the board and the export carry only what that read.
    */
   defaults?: Record<string, TaskValue>;
+  /**
+   * A Tasks property's name as the other task reads it: "Duplicated by" for
+   * "Duplicate of". Absent reads under the property's own name, which is what
+   * a link that reads the same both ways, such as "Relates to", needs. Read
+   * it with `reverseNameOf()`.
+   */
+  reverseName?: string;
 };
 
 /** One select of the same project, and the options of it a task must carry. */
@@ -603,6 +610,9 @@ export type TaskLinkDTO = {
   over: boolean;
 };
 
+/** A task whose Tasks value names this one, as the panel draws it. */
+export type PointerDTO = { id: string; key: string; title: string; archived: boolean };
+
 export type TaskDetailDTO = TaskDTO & {
   /** Who made it, or null when their account is gone or nobody did. */
   creator: FormerDTO | null;
@@ -616,6 +626,12 @@ export type TaskDetailDTO = TaskDTO & {
   parent: TaskLinkDTO | null;
   /** The parts of this task, in board order. A part that is over is struck through. */
   children: TaskLinkDTO[];
+  /**
+   * The other side of each Tasks property: the tasks whose value names this
+   * one, live and archived, by key. Worked out on every read and never
+   * stored. A property nothing points through is not here.
+   */
+  pointedBy: { propertyId: string; tasks: PointerDTO[] }[];
   checklist: ChecklistItemDTO[];
   comments: CommentDTO[];
   activity: ActivityDTO[];

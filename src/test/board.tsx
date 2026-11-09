@@ -305,6 +305,7 @@ export function detailOf(task: TaskDTO, more: Partial<TaskDetailDTO> = {}): Task
     links: { blockedBy: [], blocks: [] },
     parent: null,
     children: [],
+    pointedBy: [],
     checklist: [],
     comments: [],
     activity: [],

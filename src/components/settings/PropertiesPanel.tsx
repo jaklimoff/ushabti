@@ -401,6 +401,9 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
       {property.type === "iteration" && data.project.sprintBy !== property.id && (
         <CadenceRow property={property} canEdit={canEdit} />
       )}
+      {property.type === "relation" && (
+        <ReverseNameRow property={property} mayEdit={data.project.mayStructure} />
+      )}
       {(property.config.when || whenOpen) && (
         <WhenRow property={property} canEdit={canEdit} open={whenOpen} onOpen={setWhenOpen} />
       )}
@@ -1474,6 +1477,55 @@ function WhenRow({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * What the other task calls a Tasks property: "Duplicated by" for "Duplicate
+ * of". Empty reads under the property's own name, which the box shows greyed,
+ * so "Relates to" needs nothing typed. It saves on blur, as the name does,
+ * and on leave; emptying it takes it off.
+ */
+function ReverseNameRow({ property, mayEdit }: { property: PropertyDTO; mayEdit: boolean }) {
+  const { patchProperty } = useBoard();
+  const saved = property.config.reverseName ?? "";
+  const [draft, setDraft] = useState(saved);
+  /* Only what this tab typed may be written back, as for the name. */
+  const [typed, setTyped] = useState(false);
+  const trimmed = draft.trim();
+  const edit = typed && trimmed !== saved ? trimmed : null;
+  useSaveOnLeave(() =>
+    edit === null
+      ? null
+      : {
+          method: "PATCH",
+          url: `/api/properties/${property.id}`,
+          body: { reverseName: edit || null },
+        },
+  );
+  return (
+    <div className={styles.cadence}>
+      <label className={styles.cadenceBox}>
+        On the task it points at, it reads as
+        <Input
+          aria-label={`Reverse name of ${property.name}`}
+          className={styles.reverseInput}
+          maxLength={40}
+          placeholder={property.name}
+          value={typed ? draft : saved}
+          disabled={!mayEdit}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setTyped(true);
+          }}
+          onBlur={() => {
+            setTyped(false);
+            if (edit !== null) void patchProperty(property.id, { reverseName: edit || null });
+            setDraft(edit ?? saved);
+          }}
+        />
+      </label>
     </div>
   );
 }

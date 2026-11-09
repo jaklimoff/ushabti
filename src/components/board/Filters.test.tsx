@@ -61,6 +61,7 @@ function writes(): Answer {
         links: { blockedBy: [], blocks: [] },
         parent: null,
         children: [],
+        pointedBy: [],
         checklist: [],
         comments: [],
         activity: [],

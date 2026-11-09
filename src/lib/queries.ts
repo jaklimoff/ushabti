@@ -958,6 +958,53 @@ async function linkedTasks(taskId: string, way: "blockedBy" | "blocks" | "parent
     );
 }
 
+/**
+ * The other side of every Tasks property: the tasks whose value names this
+ * one. Nothing is stored for it, so it is asked of the values themselves, by
+ * containment, on the Tasks properties of this project alone.
+ *
+ * An archived task is here for the reason it is in `linkedTasks`: a link
+ * nobody can see is a link nobody can take off. A deleted one is not, and
+ * nor is this task, which a write refuses to name anyway.
+ */
+async function pointersOf(taskId: string, projectId: string): Promise<TaskDetailDTO["pointedBy"]> {
+  const rows = await db
+    .select({
+      propertyId: taskValues.propertyId,
+      id: tasks.id,
+      number: tasks.number,
+      title: tasks.title,
+      archivedAt: tasks.archivedAt,
+      projectKey: projects.key,
+    })
+    .from(taskValues)
+    .innerJoin(properties, eq(properties.id, taskValues.propertyId))
+    .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
+    .innerJoin(projects, eq(projects.id, tasks.projectId))
+    .where(
+      and(
+        eq(properties.projectId, projectId),
+        eq(properties.type, "relation"),
+        sql`${taskValues.value} @> ${JSON.stringify([taskId])}::jsonb`,
+        isNull(tasks.deletedAt),
+        sql`${tasks.id} <> ${taskId}`,
+      ),
+    )
+    .orderBy(byPos(properties.position), asc(tasks.number));
+  const byProperty = new Map<string, TaskDetailDTO["pointedBy"][number]>();
+  for (const r of rows) {
+    const list = byProperty.get(r.propertyId) ?? { propertyId: r.propertyId, tasks: [] };
+    list.tasks.push({
+      id: r.id,
+      key: `${r.projectKey}-${r.number}`,
+      title: r.title,
+      archived: r.archivedAt !== null,
+    });
+    byProperty.set(r.propertyId, list);
+  }
+  return [...byProperty.values()];
+}
+
 /** What these tasks hold for the one property the project calls done. */
 async function doneValues(
   ids: string[],
@@ -1396,59 +1443,71 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
 
   if (!row) return null;
 
-  const [valueRows, checkRows, commentRows, activityRows, runs, waits, holds, above, parts, files] =
-    await Promise.all([
-      db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
-      db
-        .select()
-        .from(checklistItems)
-        .where(eq(checklistItems.taskId, taskId))
-        .orderBy(byPos(checklistItems.position)),
-      db
-        .select({
-          id: comments.id,
-          body: comments.body,
-          createdAt: comments.createdAt,
-          editedAt: comments.editedAt,
-          byProject: comments.byProject,
-          via: personalTokens.name,
-          authorId: users.id,
-          authorName: users.name,
-          authorColor: users.color,
-          authorEmoji: users.avatarEmoji,
-          authorKind: users.kind,
-        })
-        .from(comments)
-        .leftJoin(users, eq(users.id, comments.authorId))
-        .leftJoin(personalTokens, eq(personalTokens.id, comments.viaTokenId))
-        .where(eq(comments.taskId, taskId))
-        .orderBy(asc(comments.createdAt)),
-      db
-        .select({
-          id: activity.id,
-          kind: activity.kind,
-          data: activity.data,
-          createdAt: activity.createdAt,
-          via: personalTokens.name,
-          actorId: users.id,
-          actorName: users.name,
-          actorColor: users.color,
-          actorEmoji: users.avatarEmoji,
-          actorKind: users.kind,
-        })
-        .from(activity)
-        .leftJoin(users, eq(users.id, activity.actorId))
-        .leftJoin(personalTokens, eq(personalTokens.id, activity.viaTokenId))
-        .where(eq(activity.taskId, taskId))
-        .orderBy(desc(activity.createdAt))
-        .limit(60),
-      loadTaskRuns(taskId),
-      linkedTasks(taskId, "blockedBy"),
-      linkedTasks(taskId, "blocks"),
-      linkedTasks(taskId, "parent"),
-      linkedTasks(taskId, "children"),
-      attachmentsOn() ? listReady(taskId) : Promise.resolve([]),
-    ]);
+  const [
+    valueRows,
+    checkRows,
+    commentRows,
+    activityRows,
+    runs,
+    waits,
+    holds,
+    above,
+    parts,
+    files,
+    pointedBy,
+  ] = await Promise.all([
+    db.select().from(taskValues).where(eq(taskValues.taskId, taskId)),
+    db
+      .select()
+      .from(checklistItems)
+      .where(eq(checklistItems.taskId, taskId))
+      .orderBy(byPos(checklistItems.position)),
+    db
+      .select({
+        id: comments.id,
+        body: comments.body,
+        createdAt: comments.createdAt,
+        editedAt: comments.editedAt,
+        byProject: comments.byProject,
+        via: personalTokens.name,
+        authorId: users.id,
+        authorName: users.name,
+        authorColor: users.color,
+        authorEmoji: users.avatarEmoji,
+        authorKind: users.kind,
+      })
+      .from(comments)
+      .leftJoin(users, eq(users.id, comments.authorId))
+      .leftJoin(personalTokens, eq(personalTokens.id, comments.viaTokenId))
+      .where(eq(comments.taskId, taskId))
+      .orderBy(asc(comments.createdAt)),
+    db
+      .select({
+        id: activity.id,
+        kind: activity.kind,
+        data: activity.data,
+        createdAt: activity.createdAt,
+        via: personalTokens.name,
+        actorId: users.id,
+        actorName: users.name,
+        actorColor: users.color,
+        actorEmoji: users.avatarEmoji,
+        actorKind: users.kind,
+      })
+      .from(activity)
+      .leftJoin(users, eq(users.id, activity.actorId))
+      .leftJoin(personalTokens, eq(personalTokens.id, activity.viaTokenId))
+      .where(eq(activity.taskId, taskId))
+      .orderBy(desc(activity.createdAt))
+      .limit(60),
+    loadTaskRuns(taskId),
+    linkedTasks(taskId, "blockedBy"),
+    linkedTasks(taskId, "blocks"),
+    linkedTasks(taskId, "parent"),
+    linkedTasks(taskId, "children"),
+    attachmentsOn() ? listReady(taskId) : Promise.resolve([]),
+    pointersOf(taskId, row.projectId),
+  ]);
 
   /* Over is the project's word, read afresh: a property or an option that is
      gone falls back to archived. One read answers for both lists. */
@@ -1550,6 +1609,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     links,
     parent,
     children,
+    pointedBy,
     checklist,
     comments: commentList,
     activity: activityList,

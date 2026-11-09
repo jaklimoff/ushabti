@@ -49,6 +49,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     color?: unknown;
     when?: unknown;
     defaults?: unknown;
+    reverseName?: unknown;
     afterId?: string | null;
   }>(req);
   const patch: Record<string, unknown> = {};
@@ -127,6 +128,29 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       .where(eq(properties.id, propertyId));
     if (row?.type !== "checkbox") throw new HttpError(400, "Only a checkbox carries a colour.");
     mergeConfig((c) => sql`${c} || ${JSON.stringify({ color: input.color })}::jsonb`);
+  }
+
+  /* The name the other side reads is a name, so it asks what renaming asks
+     and no more. Empty or null takes it off, and the other side reads under
+     the property's own name again. */
+  if (input.reverseName !== undefined) {
+    if (input.reverseName !== null && typeof input.reverseName !== "string") {
+      throw new HttpError(400, "The reverse name must be words, or null.");
+    }
+    const said = (input.reverseName ?? "").trim();
+    if (said.length > 40) throw new HttpError(400, "The reverse name is at most 40 characters.");
+    const [row] = await db
+      .select({ type: properties.type })
+      .from(properties)
+      .where(eq(properties.id, propertyId));
+    if (row?.type !== "relation") {
+      throw new HttpError(400, "Only a Tasks property has a reverse name.");
+    }
+    mergeConfig((c) =>
+      said
+        ? sql`${c} || ${JSON.stringify({ reverseName: said })}::jsonb`
+        : sql`(${c}) - 'reverseName'`,
+    );
   }
 
   /* When a property shows is the shape of the project, so it is an admin's.

@@ -1,4 +1,4 @@
-import type { ArchivedTaskDTO, TaskDTO, TaskValue } from "./types";
+import type { ArchivedTaskDTO, PropertyDTO, TaskDTO, TaskValue } from "./types";
 
 /** A task a Tasks value names, as a field draws it. */
 export type Related = { id: string; key: string; title: string; archived: boolean };
@@ -32,4 +32,14 @@ export function tasksOf(
 ): Related[] {
   if (!Array.isArray(value)) return [];
   return value.map((id) => taskOf(id, live, archived)).filter((t): t is Related => t !== null);
+}
+
+/**
+ * The name the other task reads a Tasks property under. With none set it is
+ * the property's own: a link that reads the same both ways, such as "Relates
+ * to", needs no second word and no flag to say so.
+ */
+export function reverseNameOf(property: Pick<PropertyDTO, "name" | "config">): string {
+  const said = property.config.reverseName;
+  return typeof said === "string" && said.trim() ? said.trim() : property.name;
 }
