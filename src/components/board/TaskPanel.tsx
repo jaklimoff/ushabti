@@ -848,6 +848,8 @@ export function TaskPanel({
                         former={data.former}
                         today={data.today}
                         labelId={`${ids}-field-${property.id}`}
+                        taskId={taskId}
+                        onOpenTask={onOpenTask}
                         onChange={(value: TaskValue) => {
                           const lost = droppedBy(shown.values, data.properties, property.id, value);
                           if (!lost.length) return void writeValue(property.id, value);

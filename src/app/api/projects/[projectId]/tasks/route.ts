@@ -88,7 +88,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     for (const [propertyId, raw] of Object.entries(values)) {
       const prop = await loadProperty(propertyId);
       if (prop.projectId !== projectId) continue;
-      sent[propertyId] = await coerceValue(prop, raw);
+      sent[propertyId] = await coerceValue(prop, raw, [row.id]);
     }
     /* The type's defaults are written here and nowhere else, so a task an
        agent makes starts as one made from the composer does. A value the

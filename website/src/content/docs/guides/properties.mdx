@@ -1,6 +1,6 @@
 ---
 title: Properties
-description: The nine property types in Ushabti, how to create, rename, recolour, reorder and delete them, and what "show on card" decides.
+description: The ten property types in Ushabti, how to create, rename, recolour, reorder and delete them, and what "show on card" decides.
 sidebar:
   order: 1
 ---
@@ -15,7 +15,7 @@ Under the surface a property is a row in `properties`, and a value is a row in `
 by task **and** property. That is why adding a property costs nothing and deleting one takes its
 values with it.
 
-## The nine types
+## The ten types
 
 | Type             | Holds                              | Can group a view                     | In the panel it is                       |
 | ---------------- | ---------------------------------- | ------------------------------------ | ---------------------------------------- |
@@ -28,6 +28,7 @@ values with it.
 | **Date**         | a calendar date, `YYYY-MM-DD`      | no                                   | a native date picker, shown as `Aug 28`   |
 | **Checkbox**     | on or off                          | <Badge text="yes" variant="tip" />   | a switch                                 |
 | **Link**         | up to 20 web addresses             | no                                   | links that open in a new tab, and a box to paste one more |
+| **Tasks**        | other tasks of this project        | no                                   | their keys, and a search to pick one more |
 
 Only **select, iteration, person and checkbox** can be a view's grouping property, because a task must sit in
 exactly one column. A multi-select would put one card in three places at once.
@@ -62,6 +63,24 @@ on the card, and a value an agent can read back.
 - **The activity** says how many links the value holds — "2 links" — and not the addresses.
 
 The board never opens a link itself: no preview, no page title, no state of a pull request.
+
+## Tasks
+
+A Tasks property points at other tasks of the same project: a link of your own, such as
+**Duplicate of** or **Relates to**. It describes and decides nothing. The two links that act —
+**Blocked by** and **Parent** — stay built in, because a board reads them for Done when, the
+Blocked filter and the count of parts.
+
+- **In the panel** each picked task shows as its key; a click opens it, and its ✕ takes it off.
+  Press **+** and type a key or words of a title. Archived tasks are offered too, marked
+  *archived*. The task itself and the tasks already picked are not offered.
+- **What a write refuses.** A task of another project, a deleted task and the task itself, each
+  with one sentence. A task named twice is kept once.
+- **A deleted task** drops out of the field, and nothing rewrites the value: put the task back
+  and it is there again.
+- **The activity** names the keys, such as "USH-3, USH-7".
+- **Not yet:** a card chip, a list column, **Set…** on many tasks, a filter and a sort. A card
+  shows nothing for the property in the meantime.
 
 ## Everything you do to a property
 

@@ -20,7 +20,7 @@ export const PUT = route<Ctx>(async (req, ctx) => {
     throw new HttpError(400, "That property is not in this project.");
 
   const input = await body<{ value?: unknown }>(req);
-  const value = await coerceValue(prop, input.value);
+  const value = await coerceValue(prop, input.value, [taskId]);
   const described = await describeValue(prop, value);
 
   /* The value and what it hides go together: a type changed in one

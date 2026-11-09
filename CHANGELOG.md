@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A property can point at other tasks.** A new property type, **Tasks**, makes a link of your own
+  between tasks, such as Duplicate of or Relates to. In the task panel you pick a task by typing its
+  key or words of its title; archived tasks are offered too. A picked task shows as its key and opens
+  on a click. A task deleted later drops out of the field and comes back if it is restored. Cards,
+  lists, filters and sorting do not read it yet.
+
 ## 0.45.0 — 2026-11-08
 
 ### Fixed

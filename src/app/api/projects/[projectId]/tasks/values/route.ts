@@ -68,7 +68,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   if (change && typeof input.value !== "string") {
     throw new HttpError(400, `Name the one ${property.name} option to add or take off.`);
   }
-  const value = await coerceValue(property, change ? [input.value] : (input.value ?? null));
+  const value = await coerceValue(property, change ? [input.value] : (input.value ?? null), ids);
   const optionId = change ? (value as string[])[0] : null;
 
   /* Every id has to be a live task of this project. A task of another project

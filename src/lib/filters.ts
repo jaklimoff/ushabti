@@ -256,7 +256,8 @@ export function isBuiltIn(propertyId: string): boolean {
  * because nothing else may put "Blocked" where a property belongs.
  */
 export function filterProperties(properties: PropertyDTO[]): PropertyDTO[] {
-  return [...properties, ...BUILT_IN];
+  /* A type that asks nothing is not offered, so a pick never opens an empty question. */
+  return [...properties.filter((p) => OPS_FOR_TYPE[p.type].length > 0), ...BUILT_IN];
 }
 
 /** The properties by id, with the built-in words among them. */
@@ -283,6 +284,8 @@ export const OPS_FOR_TYPE: Record<PropertyType, FilterOp[]> = {
   number: ["eq", "gt", "lt", "empty", "not_empty"],
   date: ["on", "before", "after", "within", "empty", "not_empty"],
   link: ["contains", "not_contains", "empty", "not_empty"],
+  /* Nothing yet: a filter by the tasks a task points at is USH-429. */
+  relation: [],
   iteration: ["is", "is_not"],
 };
 

@@ -50,6 +50,7 @@ export const KIND_OF_TYPE: Record<PropertyType, CardKind> = {
   text: "text",
   number: "text",
   link: "link",
+  relation: "tasks",
   iteration: "select",
 };
 
@@ -101,6 +102,7 @@ export const MODES_FOR_KIND: Record<CardKind, { id: CardMode; label: string }[]>
     { id: "text", label: "Plain" },
     { id: "boxed", label: "Boxed" },
   ],
+  tasks: [{ id: "text", label: "Keys" }],
   desc: [
     { id: "two", label: "2 lines" },
     { id: "one", label: "1 line" },
@@ -165,6 +167,7 @@ export function fallbackRow(kind: CardKind): CardRow {
     /* A link is something a person opens the task for. The card stays quiet
        until somebody asks it to say one. */
     case "link":
+    case "tasks":
       return { place: "off", mode: "text" };
     /* Every task has both days, so a card that drew them unasked would grow
        two chips on every card at once. They wait to be turned on, also on a
@@ -478,6 +481,10 @@ export function cardItems(view: CardView, properties: PropertyDTO[]): CardItem[]
     const property = byId.get(id) ?? null;
 
     if (property) {
+      /* A Tasks value is a list of ids, and no card or list draws it yet
+         (USH-431). Left out here, it reaches no card, no column, no sort and
+         no card editor, so nothing can draw an id as words. */
+      if (KIND_OF_TYPE[property.type] === "tasks") continue;
       items.push({
         id,
         name: property.name,

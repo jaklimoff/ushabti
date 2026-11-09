@@ -1113,6 +1113,11 @@ describe("the blocked rule", () => {
     expect(BLOCKED_PROPERTY.type).toBe("checkbox");
   });
 
+  it("leaves out a Tasks property, which asks nothing yet", () => {
+    const dup: PropertyDTO = { ...status, id: "p-dup", type: "relation", options: [] };
+    expect(filterProperties([status, dup]).map((p) => p.id)).not.toContain("p-dup");
+  });
+
   it("keeps a task that waits on another", () => {
     expect(
       matches(task("t", {}, ["USH-2"]), blocked, BLOCKED_PROPERTY, TODAY, null, NONE, "UTC"),

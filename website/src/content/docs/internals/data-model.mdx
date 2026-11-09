@@ -25,6 +25,7 @@ One row per task **and** property, with the value shape decided by the property'
 | `date` | `"YYYY-MM-DD"` |
 | `checkbox` | `true` or `false` |
 | `link` | a list of `http` / `https` URLs, `[]` when empty |
+| `relation` | a list of task ids of the same project, `[]` when empty. No foreign key: a deleted task is dropped when the value is read, and comes back when it is restored |
 
 Because there is no `status` column anywhere, there is nothing to work around when a team's status is
 not a status. Adding a whole new property type is one branch in the value rules and one control in

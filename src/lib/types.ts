@@ -9,6 +9,7 @@ export const PROPERTY_TYPES = [
   "date",
   "checkbox",
   "link",
+  "relation",
 ] as const;
 
 export type PropertyType = (typeof PROPERTY_TYPES)[number];
@@ -22,6 +23,7 @@ export const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
   date: "Date",
   checkbox: "Checkbox",
   link: "Link",
+  relation: "Tasks",
   iteration: "Sprint",
 };
 
@@ -34,6 +36,7 @@ export const PROPERTY_TYPE_HINT: Record<PropertyType, string> = {
   date: "A calendar date.",
   checkbox: "On or off.",
   link: "Web addresses, such as a pull request.",
+  relation: "Other tasks of this project, such as a duplicate.",
   iteration: "Sprints: one option each, always with dates. Can group the board.",
 };
 
@@ -350,6 +353,7 @@ export const CARD_KINDS = [
   "flag",
   "text",
   "link",
+  "tasks",
 ] as const;
 
 export type CardKind = (typeof CARD_KINDS)[number];

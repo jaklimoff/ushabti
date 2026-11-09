@@ -22,11 +22,11 @@ import { Aside, Badge } from '@astrojs/starlight/components'
 | Field | Rules |
 | --- | --- |
 | `name` | required, ≤ 40 characters |
-| `type` | required — `select`, `multi_select`, `iteration`, `person`, `text`, `number`, `date`, `checkbox`, `link` |
+| `type` | required — `select`, `multi_select`, `iteration`, `person`, `text`, `number`, `date`, `checkbox`, `link`, `relation` |
 | `options` | only read for `select`, `iteration` and `multi_select`; blanks dropped, then capped at 40. Two names that differ only in letter case or spaces answer `400 Environment already has an option named local.` and make nothing |
 
 Option colours cycle through the palette. The property is appended last, and joins every card in the
-footer, where its type belongs — except a `link`, which starts off the card.
+footer, where its type belongs — except a `link` and a `relation`, which start off the card.
 
 ```json title="201"
 { "property": { "id": "…", "projectId": "…", "name": "Environment", "type": "select",
@@ -297,7 +297,7 @@ without anybody writing it, which is why this door says it again and writes noth
 The one validator, shared by the values `PUT`, the task-create `values` bag and the move `values` bag.
 
 **Clearing comes first and applies to every type.** `null`, an omitted key, or `""` stores `null` —
-or `[]` for a multi-select and a link.
+or `[]` for a multi-select, a link and a relation.
 
 | Type | Send | Stored as | Refused with |
 | --- | --- | --- | --- |
@@ -309,6 +309,7 @@ or `[]` for a multi-select and a link.
 | `date` | `YYYY-MM-DD`, no time and no timezone | the string | `Due needs a date like 2026-08-21.` |
 | `checkbox` | `true`, or the string `"true"` | `true` / `false` — **never refused** | — |
 | `link` | an array of `http` / `https` URLs, ≤ 20, each ≤ 2000 characters; one string is a list of one | the array as given, blanks dropped; a URL that differs from an earlier one only by its `#fragment` or a trailing `/` is dropped | `PRs takes only http and https links.` · `PRs holds at most 20 links.` · `PRs takes links of at most 2000 characters.` · `PRs needs a list of links.` |
+| `relation` | an array of task ids of this project | the array as given, each id once | `A task cannot point at itself.` · `That task was deleted.` · `That task is not in this project.` · `Duplicate of needs a list of tasks.` |
 
 <Aside type="note" title="The date is not calendar-checked">
 It is matched against the pattern and stored. `2026-13-45` passes. Comparisons everywhere are plain

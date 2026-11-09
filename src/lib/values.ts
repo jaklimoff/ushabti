@@ -1,8 +1,9 @@
 import "server-only";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { projectMembers, properties, propertyOptions } from "@/db/schema";
+import { projectMembers, projects, properties, propertyOptions, tasks } from "@/db/schema";
 import { readId } from "./api";
+import { isId } from "./ids";
 import { HttpError } from "./auth";
 import type { PropertyType, TaskValue } from "./types";
 import { LinkError, readLinks } from "./web-links";
@@ -31,10 +32,20 @@ export async function loadProperty(propertyId: string): Promise<PropertyRow> {
   return { ...row, type: row.type as PropertyType };
 }
 
-/** Checks a raw value against the property type and returns what to store. */
-export async function coerceValue(prop: PropertyRow, raw: unknown): Promise<TaskValue> {
+/**
+ * Checks a raw value against the property type and returns what to store.
+ * `self` is the tasks the value is written on, which a Tasks value may not
+ * name: a task that is its own duplicate says nothing.
+ */
+export async function coerceValue(
+  prop: PropertyRow,
+  raw: unknown,
+  self: readonly string[] = [],
+): Promise<TaskValue> {
   if (raw === null || raw === undefined || raw === "") {
-    return prop.type === "multi_select" || prop.type === "link" ? [] : null;
+    return prop.type === "multi_select" || prop.type === "link" || prop.type === "relation"
+      ? []
+      : null;
   }
 
   switch (prop.type) {
@@ -85,9 +96,44 @@ export async function coerceValue(prop: PropertyRow, raw: unknown): Promise<Task
         throw error;
       }
     }
+    case "relation":
+      return assertTasks(prop, raw, self);
     default:
       throw new HttpError(400, "Unknown property type.");
   }
+}
+
+/**
+ * A Tasks value is a list of task ids of this project, each named once. An
+ * archived task may be named, because it is still here; a deleted one may
+ * not, because nothing may point at a mistake. A value already written is
+ * never rewritten when its task goes: the reader drops what it cannot find.
+ */
+async function assertTasks(
+  prop: PropertyRow,
+  raw: unknown,
+  self: readonly string[],
+): Promise<string[]> {
+  if (!Array.isArray(raw)) throw new HttpError(400, `${prop.name} needs a list of tasks.`);
+  const ids = Array.from(new Set(raw));
+  if (ids.some((id) => self.includes(id as string))) {
+    throw new HttpError(400, "A task cannot point at itself.");
+  }
+  if (!ids.every(isId)) throw new HttpError(400, "That task is not in this project.");
+  if (!ids.length) return [];
+  const rows = await db
+    .select({ id: tasks.id, projectId: tasks.projectId, deletedAt: tasks.deletedAt })
+    .from(tasks)
+    .where(inArray(tasks.id, ids));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  for (const id of ids) {
+    const row = byId.get(id);
+    if (!row || row.projectId !== prop.projectId) {
+      throw new HttpError(400, "That task is not in this project.");
+    }
+    if (row.deletedAt) throw new HttpError(400, "That task was deleted.");
+  }
+  return ids;
 }
 
 async function assertOptions(propertyId: string, ids: string[]) {
@@ -120,6 +166,10 @@ export function valueLine(
   if (isSelect(prop.type)) line.optionId = typeof value === "string" && value ? value : null;
   if (prop.type === "multi_select") {
     line.optionIds = Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
+  }
+  /* The keys are for people and can be read again; the ids are what stays. */
+  if (prop.type === "relation") {
+    line.taskIds = Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
   }
   return line;
 }
@@ -162,6 +212,18 @@ export async function describeValue(
     return ids.map((id) => byId.get(id) ?? "?").join(", ");
   }
   if (prop.type === "checkbox") return value ? "on" : "off";
+  /* The keys, which a person reads and an agent can open. */
+  if (prop.type === "relation") {
+    const ids = (Array.isArray(value) ? value : [value]).filter(isId);
+    if (!ids.length) return "empty";
+    const rows = await q
+      .select({ id: tasks.id, number: tasks.number, key: projects.key })
+      .from(tasks)
+      .innerJoin(projects, eq(projects.id, tasks.projectId))
+      .where(inArray(tasks.id, ids));
+    const byId = new Map(rows.map((r) => [r.id, `${r.key}-${r.number}`]));
+    return ids.map((id) => byId.get(id) ?? "?").join(", ");
+  }
   /* How many, never the addresses: the feed is read by everybody, and a list
      of URLs in one line reads as noise. */
   if (prop.type === "link") {

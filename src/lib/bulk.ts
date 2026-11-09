@@ -135,7 +135,8 @@ export function readArchiveAsk(input: {
  * is set one option at a time, through `Change`, so the others stay.
  */
 export function canSetOnMany(type: PropertyType): boolean {
-  return type !== "link";
+  /* Tasks waits for USH-431, which says how a pick lands on many lists. */
+  return type !== "link" && type !== "relation";
 }
 
 /**

@@ -72,6 +72,9 @@ export function readSort(raw: unknown, properties: PropertyDTO[]): ViewSort | nu
   /* The description is not a column of a list, so it is not an order either.
      The count of children is a column, but ordering by it was left for later. */
   if (sort.columnId === "_desc" || sort.columnId === "_parts") return null;
+  /* Nor is a Tasks property yet: no list draws it. */
+  const property = properties.find((p) => p.id === sort.columnId);
+  if (property && KIND_OF_TYPE[property.type] === "tasks") return null;
 
   return { columnId: sort.columnId, direction: sort.direction };
 }
@@ -288,6 +291,7 @@ const WAYS_OF_KIND: Record<CardKind, Record<SortDirection, string>> = {
   flag: { asc: "Ticked first", desc: "Not ticked first" },
   text: { asc: "A→Z", desc: "Z→A" },
   link: { asc: "A→Z", desc: "Z→A" },
+  tasks: { asc: "A→Z", desc: "Z→A" },
 };
 
 /** A number shares the text kind on a card, and here it must not. */
@@ -331,5 +335,6 @@ export function sortLabel(
  */
 export function canSort(item: CardItem): boolean {
   const kind = kindOf(item);
-  return kind !== "desc" && kind !== "parts";
+  /* Tasks is not ordered yet: which of several keys leads is a question of its own. */
+  return kind !== "desc" && kind !== "parts" && kind !== "tasks";
 }

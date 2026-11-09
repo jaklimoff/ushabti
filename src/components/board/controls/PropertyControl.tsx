@@ -11,6 +11,8 @@ import { personMenu, personName, personOf, personOpeningAt } from "@/lib/people"
 import { openingAt, optionMenu } from "@/lib/option-menu";
 import { pickableOptions } from "@/lib/option-dates";
 import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
+import { tasksOf } from "@/lib/related";
+import { SEARCH_LIMIT, searchTasks } from "@/lib/search";
 import { Avatar } from "@/components/ui/Avatar";
 import { Chevron } from "@/components/ui/Marks";
 import { useDismiss } from "@/components/ui/useDismiss";
@@ -34,6 +36,10 @@ type Props = {
   labelId?: string;
   /** Every option the property has, where `property` lists fewer. */
   taken?: PropertyOptionDTO[];
+  /** The task the value is on, which a Tasks field never offers. */
+  taskId?: string;
+  /** Opens another task's panel, which a picked task does on a press. */
+  onOpenTask?: (task: { id: string; key: string }) => void;
 };
 
 /**
@@ -110,6 +116,8 @@ export function PropertyControl(props: Props) {
       return <ScalarField {...props} numeric />;
     case "link":
       return <LinkList {...props} />;
+    case "relation":
+      return <TaskList {...props} />;
     default:
       return <ScalarField {...props} />;
   }
@@ -859,6 +867,139 @@ function LinkList({ property, value, onChange, labelId }: Props) {
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A Tasks field: the picked tasks by their keys, and a search to pick one
+ * more. The search reads every task of the project, archived ones too, the
+ * way the Blocked by… search does, and never offers this task or one already
+ * picked. What it writes is what it draws: a task that was deleted is not
+ * drawn, so the next pick leaves it out, and nothing else ever rewrites it.
+ */
+function TaskList({ property, value, onChange, labelId, taskId, onOpenTask }: Props) {
+  const { data } = useBoard();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [rawAt, setAt] = useState(0);
+  const listId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const ref = useDismiss<HTMLDivElement>(() => {
+    focusBack(trigger.current);
+    setOpen(false);
+    setDraft("");
+  }, open);
+
+  const picked = tasksOf(value, data.tasks, data.archived);
+  const taken = new Set([...(taskId ? [taskId] : []), ...picked.map((t) => t.id)]);
+  const hits = draft.trim()
+    ? searchTasks(
+        [...data.tasks, ...data.archived],
+        draft,
+        data.project.doneWhen,
+        SEARCH_LIMIT,
+        taken,
+      )
+    : [];
+  const at = Math.min(rawAt, Math.max(hits.length - 1, 0));
+  const menu = useHighlightInView(at, open);
+
+  function pick(id: string) {
+    onChange([...picked.map((t) => t.id), id]);
+    focusBack(trigger.current);
+    setOpen(false);
+    setDraft("");
+  }
+
+  return (
+    <div className={styles.wrap} ref={ref} style={{ display: "block" }}>
+      <div className={styles.chips} role="group" {...named(labelId)}>
+        {picked.map((task) => (
+          <span key={task.id} className={styles.taskChip} data-testid="relation-chip">
+            <button
+              className={`${styles.taskKey} mono`}
+              title={task.archived ? `${task.title} (archived)` : task.title}
+              aria-label={`Open ${task.key} ${task.title}`}
+              onClick={() => onOpenTask?.({ id: task.id, key: task.key })}
+            >
+              {task.key}
+            </button>
+            <button
+              className={styles.chipRemove}
+              title="Remove"
+              aria-label={`Remove ${task.key}`}
+              onClick={() => onChange(picked.filter((t) => t.id !== task.id).map((t) => t.id))}
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        <button
+          ref={trigger}
+          className={styles.chipAdd}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          onClick={() => {
+            setAt(0);
+            setDraft("");
+            setOpen((v) => !v);
+          }}
+        >
+          + {property.name.toLowerCase()}
+        </button>
+      </div>
+      {open && (
+        <div className={`${styles.menu} ${styles.menuWide}`} ref={menu}>
+          <input
+            className={styles.menuInput}
+            autoFocus
+            role="combobox"
+            aria-expanded
+            aria-controls={listId}
+            aria-activedescendant={hits.length ? `${listId}-${at}` : undefined}
+            aria-label={`Find a task for ${property.name}`}
+            data-testid="relation-search"
+            value={draft}
+            placeholder="Key or words of a title…"
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setAt(0);
+            }}
+            onKeyDown={walkKeys(hits.length, at, setAt, (i) => pick(hits[i].task.id))}
+          />
+          <div
+            className={styles.menuList}
+            role="listbox"
+            id={listId}
+            {...(labelId ? { "aria-labelledby": labelId } : { "aria-label": "Tasks" })}
+          >
+            {hits.map((hit, i) => (
+              <div
+                key={hit.task.id}
+                id={`${listId}-${i}`}
+                className={`${styles.menuItem} ${i === at ? styles.menuItemAt : ""}`}
+                role="option"
+                aria-selected={false}
+                data-at={i === at}
+                // The box must keep the focus, so the press must not move it.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(hit.task.id)}
+              >
+                <span className={`${styles.taskHitKey} mono`}>{hit.task.key}</span>
+                <span className={styles.taskHitTitle}>{hit.task.title}</span>
+                {hit.task.archivedAt && <span className={styles.taskHitNote}>archived</span>}
+              </div>
+            ))}
+          </div>
+          {/* An empty box has asked nothing, so it is told what to ask. */}
+          {hits.length === 0 && (
+            <span className={styles.taskHitEmpty}>
+              {draft.trim() ? "No task matches." : "Type a key or words of a title."}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

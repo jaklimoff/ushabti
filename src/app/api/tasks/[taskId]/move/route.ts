@@ -73,7 +73,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
     for (const [propertyId, raw] of Object.entries(values)) {
       const prop = await loadProperty(propertyId);
       if (prop.projectId !== projectId) continue;
-      const value = await coerceValue(prop, raw);
+      const value = await coerceValue(prop, raw, [taskId]);
       await tx
         .insert(taskValues)
         .values({ taskId, propertyId, value })

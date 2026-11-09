@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardItems, readCardView } from "../card-view";
+import { cardItems, readCardView, type CardItem } from "../card-view";
 import { buildColumns } from "../board";
 import {
   canSort,
@@ -561,6 +561,33 @@ describe("a sort by a Link property", () => {
     const item = LINK_ITEMS.find((i) => i.id === "p-prs")!;
     expect(sortWay(item, "asc")).toBe("A→Z");
     expect(canSort(item)).toBe(true);
+  });
+});
+
+describe("a Tasks property", () => {
+  const DUP: PropertyDTO = {
+    id: "p-dup",
+    name: "Duplicate of",
+    type: "relation",
+    position: "z",
+    config: {},
+    options: [],
+  };
+
+  it("is no order yet, and a saved one naming it is thrown away", () => {
+    const item: CardItem = {
+      id: "p-dup",
+      name: "Duplicate of",
+      kind: "tasks",
+      place: "footerL",
+      mode: "text",
+      property: DUP,
+      color: "#6b7280",
+      builtin: false,
+      fixed: false,
+    };
+    expect(canSort(item)).toBe(false);
+    expect(readSort({ columnId: "p-dup", direction: "asc" }, [...PROPERTIES, DUP])).toBeNull();
   });
 });
 

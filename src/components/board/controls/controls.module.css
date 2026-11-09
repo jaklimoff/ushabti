@@ -423,6 +423,58 @@
   color: var(--danger-text);
 }
 
+/* A picked task reads as its key, which is what people paste to name one. */
+.taskChip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  gap: 2px;
+  padding: 0 4px 0 7px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  font-size: var(--t-small);
+}
+
+.taskKey {
+  color: var(--accent-soft);
+}
+
+.taskKey:hover {
+  text-decoration: underline;
+}
+
+/* A task title is long, so its menu is wider than a person's, and still
+   inside the panel the field sits in. */
+.menuWide {
+  width: 260px;
+}
+
+.taskHitKey {
+  flex: none;
+  color: var(--text-meta);
+  font-size: var(--t-small);
+}
+
+.taskHitTitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskHitNote {
+  flex: none;
+  font-size: var(--t-chip);
+  color: var(--text-meta);
+}
+
+.taskHitEmpty {
+  padding: 5px 8px;
+  font-size: var(--t-small);
+  color: var(--text-meta);
+}
+
 /* A finger needs more than a pointer does. Only where there is no hover, so
    the desktop panel keeps its density. */
 @media (hover: none) {
@@ -432,7 +484,8 @@
   }
 
   .chip,
-  .chipAdd {
+  .chipAdd,
+  .taskChip {
     height: 32px;
   }
 

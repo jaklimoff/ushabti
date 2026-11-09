@@ -975,6 +975,34 @@ describe("a Link property", () => {
   });
 });
 
+describe("a Tasks property", () => {
+  const DUP: PropertyDTO = {
+    id: "p-dup",
+    name: "Duplicate of",
+    type: "relation",
+    position: "z",
+    config: {},
+    options: [],
+  };
+  const WITH = [...PROPERTIES, DUP];
+  const ID = "0b9f3c2e-4a1d-4c55-9e1f-2d3c4b5a6978";
+
+  /* No card or list draws it until USH-431, and a raw id must never read as words. */
+  it("starts off, and no card, list or sort reaches it even when a row puts it on", () => {
+    expect(defaultCardView(WITH, "p-status").rows["p-dup"]).toEqual({ place: "off", mode: "text" });
+    const saved = { rows: { "p-dup": { place: "footerR", mode: "text" } } };
+    const items = cardItems(readCardView(saved, WITH, "p-status"), WITH);
+    expect(items.map((i) => i.id)).not.toContain("p-dup");
+
+    const card = buildCard(items, task({ "p-dup": [ID] }), [ADA]);
+    const chips = [...card.headerL, ...card.headerR, ...card.footerL, ...card.footerR];
+    expect(JSON.stringify(chips)).not.toContain(ID);
+    const row = buildRow(items, task({ "p-dup": [ID] }), [ADA]);
+    expect(JSON.stringify(row)).not.toContain(ID);
+    expect(listColumns(items).map((c) => c.id)).not.toContain("p-dup");
+  });
+});
+
 describe("an option that carries an icon", () => {
   const ICONED: PropertyDTO = {
     ...PRIORITY,
