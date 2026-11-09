@@ -38,6 +38,8 @@ type Props = {
   taken?: PropertyOptionDTO[];
   /** The task the value is on, which a Tasks field never offers. */
   taskId?: string;
+  /** The tasks a selection sets the value on, which it never offers either. */
+  taskIds?: readonly string[];
   /** Opens another task's panel, which a picked task does on a press. */
   onOpenTask?: (task: { id: string; key: string }) => void;
 };
@@ -878,7 +880,7 @@ function LinkList({ property, value, onChange, labelId }: Props) {
  * picked. What it writes is what it draws: a task that was deleted is not
  * drawn, so the next pick leaves it out, and nothing else ever rewrites it.
  */
-function TaskList({ property, value, onChange, labelId, taskId, onOpenTask }: Props) {
+function TaskList({ property, value, onChange, labelId, taskId, taskIds, onOpenTask }: Props) {
   const { data } = useBoard();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -892,7 +894,11 @@ function TaskList({ property, value, onChange, labelId, taskId, onOpenTask }: Pr
   }, open);
 
   const picked = tasksOf(value, data.tasks, data.archived);
-  const taken = new Set([...(taskId ? [taskId] : []), ...picked.map((t) => t.id)]);
+  const taken = new Set([
+    ...(taskId ? [taskId] : []),
+    ...(taskIds ?? []),
+    ...picked.map((t) => t.id),
+  ]);
   const hits = draft.trim()
     ? searchTasks(
         [...data.tasks, ...data.archived],

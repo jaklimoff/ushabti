@@ -102,7 +102,10 @@ export const MODES_FOR_KIND: Record<CardKind, { id: CardMode; label: string }[]>
     { id: "text", label: "Plain" },
     { id: "boxed", label: "Boxed" },
   ],
-  tasks: [{ id: "text", label: "Keys" }],
+  tasks: [
+    { id: "text", label: "Plain" },
+    { id: "boxed", label: "Boxed" },
+  ],
   desc: [
     { id: "two", label: "2 lines" },
     { id: "one", label: "1 line" },
@@ -481,10 +484,6 @@ export function cardItems(view: CardView, properties: PropertyDTO[]): CardItem[]
     const property = byId.get(id) ?? null;
 
     if (property) {
-      /* A Tasks value is a list of ids, and no card or list draws it yet
-         (USH-431). Left out here, it reaches no card, no column, no sort and
-         no card editor, so nothing can draw an id as words. */
-      if (KIND_OF_TYPE[property.type] === "tasks") continue;
       items.push({
         id,
         name: property.name,
@@ -597,7 +596,30 @@ function chipColour(chip: CardChip | undefined): string | null {
   return chip?.swatch?.color ?? chip?.fill ?? chip?.person?.color ?? null;
 }
 
-/** What a task holds for one row, as the parts the card draws. Empty is empty. */
+/**
+ * The key of every task a Tasks value can name, live and archived, by id. A
+ * deleted task is not on the board, so it is not here and its id draws
+ * nothing. It is handed in as the members are: a card has no list of tasks.
+ */
+export type TaskKeys = ReadonlyMap<string, string>;
+
+const NO_KEYS: TaskKeys = new Map();
+
+/** The lookup a card is handed, from the tasks the board carries. */
+export function taskKeys(
+  live: readonly Pick<TaskDTO, "id" | "key">[],
+  archived: readonly { id: string; key: string }[] = [],
+): TaskKeys {
+  const keys = new Map<string, string>();
+  for (const task of archived) keys.set(task.id, task.key);
+  for (const task of live) keys.set(task.id, task.key);
+  return keys;
+}
+
+/**
+ * What a task holds for one row, as the parts the card draws. Empty is empty.
+ * `whole` is a list cell, which has the room to say every key.
+ */
 function chipsFor(
   item: CardItem,
   task: TaskDTO,
@@ -605,6 +627,8 @@ function chipsFor(
   former: FormerDTO[],
   properties: PropertyDTO[],
   timeZone: string,
+  keys: TaskKeys = NO_KEYS,
+  whole = false,
 ): CardChip[] {
   const boxed = item.mode === "boxed";
 
@@ -753,6 +777,24 @@ function chipsFor(
       ];
     }
 
+    case "tasks": {
+      /* As a link: one chip, the first key and a count, and words rather
+         than a link, so a click on it opens the card's own task. A list cell
+         has the room, so it says every key. */
+      const named = (Array.isArray(value) ? value : [])
+        .map((id) => (typeof id === "string" ? keys.get(id) : undefined))
+        .filter((key): key is string => Boolean(key));
+      if (!named.length) return [];
+      const all = named.join(", ");
+      const more = named.length > 1 ? ` +${named.length - 1}` : "";
+      return [
+        chip(item, `${item.id}-${task.id}`, all, {
+          text: whole ? all : `${named[0]}${more}`,
+          boxed,
+        }),
+      ];
+    }
+
     default: {
       const text = String(value).slice(0, 40);
       return [chip(item, `${item.id}-${task.id}`, text, { text, boxed })];
@@ -807,9 +849,10 @@ export function buildOne(
   members: MemberDTO[],
   former: FormerDTO[] = [],
   timeZone: string = "UTC",
+  keys: TaskKeys = NO_KEYS,
 ): CardSlots {
   const alone = items.map((i) => (i.id === item.id ? item : { ...i, place: "off" as const }));
-  return buildCard(alone, task, members, former, timeZone);
+  return buildCard(alone, task, members, former, timeZone, keys);
 }
 
 /**
@@ -823,6 +866,7 @@ export function buildCard(
   members: MemberDTO[],
   former: FormerDTO[] = [],
   timeZone: string = "UTC",
+  keys: TaskKeys = NO_KEYS,
 ): CardSlots {
   const properties = propertiesOf(items);
   const slots: CardSlots = {
@@ -849,7 +893,7 @@ export function buildCard(
       continue;
     }
 
-    const chips = chipsFor(item, task, members, former, properties, timeZone);
+    const chips = chipsFor(item, task, members, former, properties, timeZone, keys);
     if (!chips.length) continue;
     if (item.place === "headerL") slots.headerL.push(...chips);
     else if (item.place === "headerR") slots.headerR.push(...chips);
@@ -882,6 +926,7 @@ export function buildRow(
   members: MemberDTO[],
   former: FormerDTO[] = [],
   timeZone: string = "UTC",
+  keys: TaskKeys = NO_KEYS,
 ): RowSlots {
   const properties = propertiesOf(items);
   const slots: RowSlots = { edge: null, desc: null, cells: {} };
@@ -915,7 +960,7 @@ export function buildRow(
      */
     const named: CardItem =
       item.mode === "colour" || item.mode === "avatar" ? { ...item, mode: "both" } : item;
-    slots.cells[item.id] = chipsFor(named, task, members, former, properties, timeZone);
+    slots.cells[item.id] = chipsFor(named, task, members, former, properties, timeZone, keys, true);
   }
 
   return slots;

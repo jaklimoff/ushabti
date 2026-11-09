@@ -43,7 +43,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   { task, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps, items },
   ref,
 ) {
-  const { cardItems: viewItems, data, isPicked, picked, runOf, stoppedOf } = useBoard();
+  const { cardItems: viewItems, data, keys, isPicked, picked, runOf, stoppedOf } = useBoard();
   const cardItems = items ?? viewItems;
   const run = runOf(task.id);
   /* A new run answers the line, so the two never share a card. */
@@ -57,8 +57,8 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   const picking = picked.length > 0;
 
   const slots = useMemo(
-    () => buildCard(cardItems, task, data.members, data.former, data.project.timeZone),
-    [cardItems, data.members, data.former, data.project.timeZone, task],
+    () => buildCard(cardItems, task, data.members, data.former, data.project.timeZone, keys),
+    [cardItems, data.members, data.former, data.project.timeZone, task, keys],
   );
 
   /* One glyph, and never a list. A card with ten runs on it has to stay

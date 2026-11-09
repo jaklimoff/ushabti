@@ -58,7 +58,8 @@ export function ColumnsPanel({
   /** Names the column being changed, so the list can light its heading. */
   onLit: (id: string | null) => void;
 }) {
-  const { data, view, cardItemsOf, setCardView, lensWidths, setWidths, moveProperty } = useBoard();
+  const { data, view, keys, cardItemsOf, setCardView, lensWidths, setWidths, moveProperty } =
+    useBoard();
   const panelRef = useRef<HTMLElement>(null);
   /* The row under the pointer or the keys, the row whose looks are open, and
      the look the pointer rests on. The sample answers all three. */
@@ -133,6 +134,7 @@ export function ColumnsPanel({
       data.members,
       data.former,
       data.project.timeZone,
+      keys,
     ).cells;
     return (cells[item.id] ?? []).map((chip) => <Chip key={chip.key} chip={chip} />);
   };

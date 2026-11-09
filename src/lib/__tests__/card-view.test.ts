@@ -14,6 +14,7 @@ import {
   readCardView,
   setCardMode,
   setCardPlace,
+  taskKeys,
   viewOf,
 } from "../card-view";
 import { listColumns } from "../list-view";
@@ -987,19 +988,72 @@ describe("a Tasks property", () => {
   const WITH = [...PROPERTIES, DUP];
   const ID = "0b9f3c2e-4a1d-4c55-9e1f-2d3c4b5a6978";
 
-  /* No card or list draws it until USH-431, and a raw id must never read as words. */
-  it("starts off, and no card, list or sort reaches it even when a row puts it on", () => {
-    expect(defaultCardView(WITH, "p-status").rows["p-dup"]).toEqual({ place: "off", mode: "text" });
-    const saved = { rows: { "p-dup": { place: "footerR", mode: "text" } } };
-    const items = cardItems(readCardView(saved, WITH, "p-status"), WITH);
-    expect(items.map((i) => i.id)).not.toContain("p-dup");
+  const LIVE = "0b9f3c2e-4a1d-4c55-9e1f-2d3c4b5a0001";
+  const OLD = "0b9f3c2e-4a1d-4c55-9e1f-2d3c4b5a0002";
+  const MORE = "0b9f3c2e-4a1d-4c55-9e1f-2d3c4b5a0003";
+  /* The board carries no deleted task, so ID is in no lookup: it was deleted. */
+  const KEYS = taskKeys(
+    [
+      { id: LIVE, key: "SHOP-7" },
+      { id: MORE, key: "SHOP-9" },
+    ],
+    [{ id: OLD, key: "SHOP-2" }],
+  );
+  const itemsOf = (mode: string) =>
+    cardItems(
+      readCardView({ rows: { "p-dup": { place: "footerR", mode } } }, WITH, "p-status"),
+      WITH,
+    );
 
-    const card = buildCard(items, task({ "p-dup": [ID] }), [ADA]);
-    const chips = [...card.headerL, ...card.headerR, ...card.footerL, ...card.footerR];
-    expect(JSON.stringify(chips)).not.toContain(ID);
-    const row = buildRow(items, task({ "p-dup": [ID] }), [ADA]);
-    expect(JSON.stringify(row)).not.toContain(ID);
-    expect(listColumns(items).map((c) => c.id)).not.toContain("p-dup");
+  it("starts off, and reads Plain or Boxed when somebody puts it on", () => {
+    expect(defaultCardView(WITH, "p-status").rows["p-dup"]).toEqual({ place: "off", mode: "text" });
+    expect(itemsOf("boxed").find((i) => i.id === "p-dup")?.mode).toBe("boxed");
+    expect(itemsOf("both").find((i) => i.id === "p-dup")?.mode).toBe("text");
+  });
+
+  it("shows the first key and +N on a card, as words and not a link", () => {
+    const card = buildCard(
+      itemsOf("text"),
+      task({ "p-dup": [LIVE, OLD, MORE] }),
+      [ADA],
+      [],
+      "UTC",
+      KEYS,
+    );
+    expect(card.footerR.map((c) => c.text)).toEqual(["SHOP-7 +2"]);
+    expect(card.footerR[0].tip).toBe("Duplicate of · SHOP-7, SHOP-2, SHOP-9");
+    expect(card.footerR[0].boxed).toBe(false);
+    const boxed = buildCard(itemsOf("boxed"), task({ "p-dup": [LIVE] }), [ADA], [], "UTC", KEYS);
+    expect(boxed.footerR.map((c) => [c.text, c.boxed])).toEqual([["SHOP-7", true]]);
+  });
+
+  it("shows every key in a list, separated by commas", () => {
+    const row = buildRow(
+      itemsOf("text"),
+      task({ "p-dup": [LIVE, OLD, MORE] }),
+      [ADA],
+      [],
+      "UTC",
+      KEYS,
+    );
+    expect(row.cells["p-dup"].map((c) => c.text)).toEqual(["SHOP-7, SHOP-2, SHOP-9"]);
+    expect(listColumns(itemsOf("text")).map((c) => c.id)).toContain("p-dup");
+  });
+
+  it("leaves a deleted task out and shows an archived one by its key", () => {
+    const value = { "p-dup": [ID, OLD] };
+    const card = buildCard(itemsOf("text"), task(value), [ADA], [], "UTC", KEYS);
+    expect(card.footerR.map((c) => c.text)).toEqual(["SHOP-2"]);
+    const row = buildRow(itemsOf("text"), task(value), [ADA], [], "UTC", KEYS);
+    expect(row.cells["p-dup"].map((c) => c.text)).toEqual(["SHOP-2"]);
+    expect(JSON.stringify([card, row])).not.toContain(ID);
+  });
+
+  it("draws nothing when every task it names is gone, and never a raw id", () => {
+    const card = buildCard(itemsOf("text"), task({ "p-dup": [ID] }), [ADA]);
+    expect(card.footerR).toEqual([]);
+    const row = buildRow(itemsOf("text"), task({ "p-dup": [ID] }), [ADA]);
+    expect(row.cells["p-dup"]).toEqual([]);
   });
 });
 

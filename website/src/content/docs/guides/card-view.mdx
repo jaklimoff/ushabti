@@ -77,7 +77,7 @@ The edge is also what the **task panel** takes its band colour from.
 | Select, multi-select       | **Both** (dot and name) · **Colour** (a square) · **Text** |
 | Person                     | **Avatar** · **Name** · **Both**        |
 | Task ID, date, text, number, checkbox | **Plain** · **Boxed**        |
-| Link                       | **Plain** · **Boxed**                   |
+| Link, Tasks                | **Plain** · **Boxed**                   |
 | Description                | **2 lines** · **1 line**                |
 | Checklist                  | **Bar** · **Count**                     |
 | Children                   | **Bar** · **Count**                     |
@@ -85,6 +85,11 @@ The edge is also what the **task panel** takes its band colour from.
 A multi-select draws one part per value, so three labels are three squares. A Link draws one part
 for all its links: the first one, and `+N` for the rest — `acme/shop#12 +2`. It is words, not a
 link, so a click on it opens the task. A new Link property starts in *Not shown*.
+
+A Tasks property reads the same way, by key: the first task it points at and `+N` for the rest —
+`USH-3 +1`. Hover it for every key. A click opens the card's own task, not the one it names; that
+one is a click away in the panel. A task that was deleted is left out, and an archived one is still
+named by its key. A new Tasks property starts in *Not shown* too.
 
 Asking an edge row for words moves it into the header, because a stripe has nowhere to put them.
 

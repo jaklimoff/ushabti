@@ -204,9 +204,8 @@ describe("readArchiveAsk", () => {
 describe("canSetOnMany", () => {
   it("leaves a Link out of Set…, so one link never replaces every list picked", () => {
     expect(canSetOnMany("link")).toBe(false);
-    /* Tasks joins Set… with USH-431. */
-    expect(canSetOnMany("relation")).toBe(false);
     for (const type of [
+      "relation",
       "select",
       "multi_select",
       "person",

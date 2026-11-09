@@ -34,7 +34,7 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
   { task, columns, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps },
   ref,
 ) {
-  const { cardItems, data, isPicked, picked, runOf } = useBoard();
+  const { cardItems, data, keys, isPicked, picked, runOf } = useBoard();
   const run = runOf(task.id);
 
   /* The row wears the same border a card wears, and the check stays on the
@@ -44,8 +44,8 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
   const picking = picked.length > 0;
 
   const slots = useMemo(
-    () => buildRow(cardItems, task, data.members, data.former, data.project.timeZone),
-    [cardItems, data.members, data.former, data.project.timeZone, task],
+    () => buildRow(cardItems, task, data.members, data.former, data.project.timeZone, keys),
+    [cardItems, data.members, data.former, data.project.timeZone, task, keys],
   );
 
   const className = [

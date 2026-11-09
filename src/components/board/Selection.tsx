@@ -111,6 +111,25 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
 
   const tasks = `${picked.length} ${picked.length === 1 ? "task" : "tasks"}`;
 
+  /** Sets one value on every pick, or asks first when it hides values. */
+  function put(property: PropertyDTO, value: TaskValue) {
+    const wanted = new Set(picked);
+    const cards = data.tasks.filter((t) => wanted.has(t.id));
+    const drops = pickedDrops(cards, data.properties, property.id, value);
+    if (drops.values > 0) {
+      close();
+      setAsking({
+        propertyId: property.id,
+        value,
+        question: pickedAsked(property, value, picked.length, drops),
+        picks,
+      });
+      return;
+    }
+    setDraft(value);
+    void setPickedValue(property.id, value);
+  }
+
   async function archive() {
     const gone = await archivePicked();
     if (gone > 0) notify(`Archived ${gone} ${gone === 1 ? "task" : "tasks"}.`, "info");
@@ -226,23 +245,8 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
                         value={draft}
                         members={data.members}
                         today={data.today}
-                        onChange={(value: TaskValue) => {
-                          const wanted = new Set(picked);
-                          const cards = data.tasks.filter((t) => wanted.has(t.id));
-                          const drops = pickedDrops(cards, data.properties, property.id, value);
-                          if (drops.values > 0) {
-                            close();
-                            setAsking({
-                              propertyId: property.id,
-                              value,
-                              question: pickedAsked(property, value, picked.length, drops),
-                              picks,
-                            });
-                            return;
-                          }
-                          setDraft(value);
-                          void setPickedValue(property.id, value);
-                        }}
+                        taskIds={picked}
+                        onChange={(value: TaskValue) => put(property, value)}
                         onAddOption={
                           hasOptions(property.type)
                             ? (name) => addOption(property.id, name)
@@ -257,6 +261,20 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
                         ? "It goes on the one task."
                         : `It goes on all ${picked.length} tasks.`}
                     </span>
+                    {/* The picker starts empty and only adds, so emptying a
+                    list it never drew needs a word of its own. */}
+                    {property.type === "relation" && (
+                      <div className={styles.chipRow}>
+                        <button
+                          className={styles.chip}
+                          data-testid="pick-clear-value"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => put(property, [])}
+                        >
+                          Clear {property.name}
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </>

@@ -598,10 +598,10 @@ function ChipPopover({
  * name, so there is still something to click.
  */
 function Sample({ items, item, task }: { items: CardItem[]; item: CardItem; task: TaskDTO }) {
-  const { data } = useBoard();
+  const { data, keys } = useBoard();
   const slots = useMemo(
-    () => buildOne(items, item, task, data.members, data.former, data.project.timeZone),
-    [data.former, data.members, data.project.timeZone, item, items, task],
+    () => buildOne(items, item, task, data.members, data.former, data.project.timeZone, keys),
+    [data.former, data.members, data.project.timeZone, item, items, task, keys],
   );
 
   if (item.place === "edge") {

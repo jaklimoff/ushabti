@@ -132,11 +132,12 @@ export function readArchiveAsk(input: {
  * Whether **Set…** offers a property for the picked tasks. A Link holds a list
  * that each task has of its own, and one pasted link would replace every list
  * picked. A multi-select is offered, because its options are the board's; it
- * is set one option at a time, through `Change`, so the others stay.
+ * is set one option at a time, through `Change`, so the others stay. Tasks is
+ * offered and replaces: the list is built in the bar with the field's own
+ * picker, so what lands on every card is the list on the screen.
  */
 export function canSetOnMany(type: PropertyType): boolean {
-  /* Tasks waits for USH-431, which says how a pick lands on many lists. */
-  return type !== "link" && type !== "relation";
+  return type !== "link";
 }
 
 /**

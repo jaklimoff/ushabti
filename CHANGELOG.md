@@ -13,8 +13,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A property can point at other tasks.** A new property type, **Tasks**, makes a link of your own
   between tasks, such as Duplicate of or Relates to. In the task panel you pick a task by typing its
   key or words of its title; archived tasks are offered too. A picked task shows as its key and opens
-  on a click. A task deleted later drops out of the field and comes back if it is restored. Cards,
-  lists and sorting do not read it yet.
+  on a click. A task deleted later drops out of the field and comes back if it is restored. Sorting
+  does not read it yet.
+- **Cards and lists show the tasks a property points at.** Put a Tasks property on the card and the
+  chip shows the first key and `+N`, Plain or Boxed; a list column shows every key. A deleted task is
+  left out and an archived one keeps its key. **Set…** on a selection picks tasks with the same
+  search as the field, and **Clear** empties the property on every selected card.
 - **A task shows what points at it.** The task a Tasks value names lists the tasks that point at it,
   among its links, archived ones too. They sit under the property's reverse name, such as Duplicated
   by, set in Settings → Properties beside the name; with none they sit under the property's own name.

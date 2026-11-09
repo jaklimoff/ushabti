@@ -12,7 +12,14 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, CLIENT_ID } from "@/lib/client";
-import { cardItems, defaultCardView, mainBoardGroupById, readCardView } from "@/lib/card-view";
+import {
+  cardItems,
+  defaultCardView,
+  mainBoardGroupById,
+  readCardView,
+  taskKeys,
+  type TaskKeys,
+} from "@/lib/card-view";
 import type { CardItem } from "@/lib/card-view";
 import { deletedSaid } from "@/lib/deleted";
 import { sweepDrafts } from "@/lib/draft";
@@ -138,6 +145,8 @@ type Store = {
    * because the view it edits need not be the one the board has open.
    */
   cardItemsOf: (viewId: string | null) => CardItem[];
+  /** The key of every live and archived task, by id, for a Tasks value to draw. */
+  keys: TaskKeys;
   /**
    * Arranges the card. It saves as you click; there is no Save button. With a
    * view it writes that view's own copy; without, the project's.
@@ -793,6 +802,7 @@ export function BoardProvider({
   );
 
   const items = useMemo(() => cardItems(cardView, data.properties), [cardView, data.properties]);
+  const keys = useMemo(() => taskKeys(data.tasks, data.archived), [data.tasks, data.archived]);
 
   const cardItemsOf = useCallback<Store["cardItemsOf"]>(
     (viewId) => {
@@ -1812,6 +1822,7 @@ export function BoardProvider({
     setViewSort,
     cardItems: items,
     cardItemsOf,
+    keys,
     setCardView,
     resetCardView,
     runOf,
