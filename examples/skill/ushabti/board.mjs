@@ -366,7 +366,7 @@ function optionLine(o) {
 function coerce(data, property, raw) {
   const text = String(raw ?? "").trim();
   if (text === "" || text.toLowerCase() === "none") {
-    return property.type === "multi_select" || property.type === "link" ? [] : null;
+    return ["multi_select", "link", "relation"].includes(property.type) ? [] : null;
   }
 
   switch (property.type) {
@@ -382,6 +382,18 @@ function coerce(data, property, raw) {
         .split(",")
         .map((part) => part.trim())
         .filter(Boolean);
+    /* Keys, as a person picks tasks in the panel. An archived task may be
+       named, as the panel's search offers it; an unknown key writes nothing. */
+    case "relation":
+      return [
+        ...new Set(
+          text
+            .split(",")
+            .map((part) => part.trim())
+            .filter(Boolean)
+            .map((part) => taskByKey(data, part, property).id),
+        ),
+      ];
     case "person": {
       const member = data.members.find(
         (m) => m.name.toLowerCase() === text.toLowerCase() || m.id === text,
@@ -397,6 +409,15 @@ function coerce(data, property, raw) {
     default:
       return text;
   }
+}
+
+/** One task a Tasks value names, live or archived, by key in any case or by id. */
+function taskByKey(data, wanted, property) {
+  const key = /^\d+$/.test(wanted) ? `${data.project.key}-${wanted}` : wanted.toUpperCase();
+  const matches = (t) => t.key.toUpperCase() === key || t.id === wanted;
+  const task = data.tasks.find(matches) ?? (data.archived ?? []).find(matches);
+  if (!task) fail(`No task ${key} on this board, so ${property.name} was not changed.`);
+  return task;
 }
 
 function optionId(property, wanted) {
@@ -450,7 +471,19 @@ function valueText(data, property, value) {
   if (property.type === "person") return data.members.find((m) => m.id === value)?.name ?? "?";
   if (property.type === "checkbox") return value ? property.name : "";
   if (property.type === "link") return value.join(" ");
+  if (property.type === "relation") return value.map((id) => taskWord(data, id)).join(", ");
   return String(value);
+}
+
+/**
+ * A task a Tasks value names, as its key. An archived one says so, because it
+ * is off the board; one the board does not carry is gone and reads "?".
+ */
+function taskWord(data, id) {
+  const live = data.tasks.find((t) => t.id === id);
+  if (live) return live.key;
+  const gone = (data.archived ?? []).find((t) => t.id === id);
+  return gone ? `${gone.key} (archived)` : "?";
 }
 
 /**
@@ -575,6 +608,8 @@ const commands = {
   set <key> "<Property>" "<Value>"    set one property (names, not ids)
   set <key> "<Link>" "<url>[,<url>]"  replace the links of a Link property
   set <key> "<Link>" --add "<url>"    add one link and keep the others
+  set <key> "<Tasks>" "<key>[,<key>]" replace the tasks of a Tasks property; "" clears
+  set <key> "<Tasks>" --add "<key>"   add one task and keep the others
   comment <key> "<text>"              leave a note
   attach <key> <file> [--mime <type>] upload a file and print its Markdown line
   archive <key>                       take it off the board, keep its history
@@ -741,6 +776,16 @@ finish and watch need an agent token.`);
        be over, so an agent can see the chain is clear. */
     linkLines("Blocked by", detail.links?.blockedBy);
     linkLines("Blocks", detail.links?.blocks);
+    /* The other side of each Tasks property, under the name it reads by
+       from here: "Duplicated by" for "Duplicate of". */
+    for (const side of detail.pointedBy ?? []) {
+      const property = data.properties.find((p) => p.id === side.propertyId);
+      if (!property || !side.tasks.length) continue;
+      const said = side.tasks
+        .map((t) => `${t.key}${t.archived ? " (archived)" : ""} ${t.title}`)
+        .join(", ");
+      console.log(`  ${property.config?.reverseName?.trim() || property.name}: ${said}`);
+    }
     linkLines("Parent", detail.parent ? [detail.parent] : []);
     linkLines("Children", detail.children);
     if (detail.description.trim()) console.log(`\n${detail.description.trim()}\n`);
@@ -822,10 +867,15 @@ finish and watch need an agent token.`);
      * can lose one link.
      */
     if (flags.add !== undefined) {
-      if (property.type !== "link")
-        fail(`--add is for a Link property. ${property.name} is not one.`);
+      if (property.type !== "link" && property.type !== "relation")
+        /* The first sentence stays word for word: the GitHub step matches it. */
+        fail(
+          `--add is for a Link property. A Tasks property takes it too; ${property.name} is neither.`,
+        );
       const detail = (await call("GET", `/api/tasks/${task.id}`)).task;
-      value = [...(detail.values[property.id] ?? []), ...coerce(data, property, flags.add)];
+      value = [
+        ...new Set([...(detail.values[property.id] ?? []), ...coerce(data, property, flags.add)]),
+      ];
     }
     const saved = await call("PUT", `/api/tasks/${task.id}/values/${property.id}`, { value });
     const stored = saved?.value ?? value;

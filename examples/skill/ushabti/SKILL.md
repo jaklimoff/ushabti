@@ -215,6 +215,23 @@ node board.mjs set USH-14 "Pull requests" --add "https://github.com/acme/shop/pu
 (several links: separate them with commas). `--add` reads and then writes, so
 two writers at the same moment can lose one link. `task` prints each link.
 
+## Tasks that point at other tasks
+
+A **Tasks** property holds other tasks of the board, such as "Duplicate of".
+You name them by key, in any case:
+
+```bash
+node board.mjs set USH-12 "Duplicate of" "USH-3, USH-7"   # replace the list
+node board.mjs set USH-12 "Duplicate of" --add USH-9      # add one, keep the rest
+node board.mjs set USH-12 "Duplicate of" ""               # clear it
+```
+
+A key that names no task fails and writes nothing. When you find that a task
+repeats another, say so with such a property rather than in a comment alone.
+`task` prints the value as keys, an archived one as `USH-3 (archived)`, and
+the other side under the property's reverse name — "Duplicated by" — next to
+Blocked by and Blocks.
+
 ## Rules
 
 - **Report before each part of the work, not after all of it.** A card that

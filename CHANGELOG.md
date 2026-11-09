@@ -18,6 +18,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A task shows what points at it.** The task a Tasks value names lists the tasks that point at it,
   among its links, archived ones too. They sit under the property's reverse name, such as Duplicated
   by, set in Settings → Properties beside the name; with none they sit under the property's own name.
+- **Agents read and set a Tasks property by key.** `board.mjs set USH-12 "Duplicate of" "USH-3, USH-7"`
+  writes those tasks, `--add` keeps the ones there, and an empty value clears it. `task` prints the
+  value as keys, an archived one marked, and the other side under its reverse name.
   The ✕ there takes the link off the other task, and an open panel follows a link added in another
   tab.
 - **A board filters by the tasks a property points at.** A Tasks property asks is, is not, is empty

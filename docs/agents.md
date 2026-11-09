@@ -551,6 +551,28 @@ Read the task again after an add if that matters.
 3. With **none**, or with several and none of them named so, write nothing: say so in the run log
    (`step --log "no Link property for the pull request"`) and put the link in a comment.
 
+### Tasks, such as a duplicate
+
+A **Tasks** property (type `relation`) holds other tasks of the same project. Its value is a JSON
+list of task ids, `[]` when empty, and a write replaces the whole list. The server refuses a task
+of another project, a deleted task and the task itself. `GET /api/tasks/{taskId}` carries the other
+side in `pointedBy`: per Tasks property, the tasks whose value names this one, live and archived.
+The property's `config.reverseName`, such as "Duplicated by", is what that side reads as.
+
+`board.mjs` takes keys instead of ids, matched in any case, and fails with a sentence that names a
+key it cannot find, writing nothing:
+
+```bash
+node board.mjs set USH-12 "Duplicate of" "USH-3, USH-7"   # replace the list
+node board.mjs set USH-12 "Duplicate of" --add USH-9      # add one; reads, then writes
+node board.mjs set USH-12 "Duplicate of" ""               # clear it ("none" does too)
+node board.mjs task USH-12   # Duplicate of: USH-3, USH-7 (archived)
+node board.mjs task USH-3    # Duplicated by: USH-12 Fix the queue
+```
+
+`task` prints a value as keys and marks an archived one, and prints the reverse side under its
+name next to Blocked by and Blocks. Setting a value is a member's act, so no agent switch holds it.
+
 ### A pull request from GitHub, with no step by hand
 
 [`examples/github/ushabti-links.yml`](../examples/github/ushabti-links.yml) is a GitHub Actions
