@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.46.0 — 2026-11-09
+
 ### Added
 
 - **An agent can wait for a view.** `board.mjs watch --view "Agent queue"` takes only the tasks that
