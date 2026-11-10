@@ -68,17 +68,17 @@ describe("A person's order of their projects", () => {
     await project(me, "Mine second");
     const theirs = await project(owner, "Theirs");
 
-    // Added by email, as an admin adds somebody with an account.
+    // Invited by email, and joined from the link.
     const [mine] = await db.select().from(projects).where(eq(projects.name, "Mine first"));
     await ok(move(me, mine.id, null));
-    await ok(api(owner).post(`/api/projects/${theirs.id}/members`, { email: await emailOf(me) }));
+    await invited(owner, theirs.id, me);
     expect((await names(me))[0]).toBe("Theirs");
 
     // Leaving takes the membership; coming back puts it on top again.
     await ok(move(me, theirs.id, mine.id));
     expect((await names(me))[0]).toBe("Mine first");
     await ok(api(me).del(`/api/projects/${theirs.id}/members/${me.id}`));
-    await ok(api(owner).post(`/api/projects/${theirs.id}/members`, { email: await emailOf(me) }));
+    await invited(owner, theirs.id, me);
     expect((await names(me))[0]).toBe("Theirs");
   });
 
@@ -130,6 +130,14 @@ describe("The migration", () => {
 });
 
 /* `person` makes up an address; the members route adds somebody by it. */
+/** Invites `who` by email, and has them open the link signed in. */
+async function invited(owner: Who, projectId: string, who: Who) {
+  const { link } = await ok<{ link: string }>(
+    api(owner).post(`/api/projects/${projectId}/members`, { email: await emailOf(who) }),
+  );
+  await ok(api(who).post("/api/invites/accept", { token: link.split("/invite/")[1] }));
+}
+
 async function emailOf(who: Who) {
   const [row] = await db.select({ email: users.email }).from(users).where(eq(users.id, who.id));
   return row.email;

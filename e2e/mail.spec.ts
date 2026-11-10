@@ -1,5 +1,13 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createProject, gotoSettings, inDatabase, letterTo, register, unique } from "./helpers";
+import {
+  addMember,
+  createProject,
+  gotoSettings,
+  inDatabase,
+  letterTo,
+  register,
+  unique,
+} from "./helpers";
 import { smtpReceiver } from "../src/lib/__tests__/smtp";
 
 /**
@@ -42,12 +50,11 @@ async function makeLink(page: Page): Promise<{ link?: string; emailed?: boolean 
   return (await (await answer).json()) as { link?: string; emailed?: boolean };
 }
 
-/** A member who can sign in, and whose own browser is left out of it. */
+/** Somebody with an account, signed in in a browser of their own. */
 async function member(browser: Browser, name: string) {
-  const context = await browser.newContext();
-  const account = await register(await context.newPage(), name);
-  await context.close();
-  return account;
+  const page = await (await browser.newContext()).newPage();
+  const account = await register(page, name);
+  return { ...account, page };
 }
 
 /* One half or the other, never both: the server is the one Playwright
@@ -94,11 +101,12 @@ function mailOn() {
         const theirs = await browser.newContext();
         const them = await theirs.newPage();
         await them.goto(link!);
+        await them.getByRole("button", { name: "Create an account" }).click();
         await them.getByPlaceholder("Ada Lovelace").fill("Newcomer");
         await expect(them.getByPlaceholder("you@example.com")).toHaveValue(email);
         await them.getByLabel("Your password").fill("ushabti-secret");
         await them.getByRole("button", { name: "Create account" }).click();
-        await them.waitForURL("**/projects");
+        await them.waitForURL(/\/p\/[\w-]+$/);
         await expect(them.getByText(projectName)).toBeVisible();
         await theirs.close();
       } finally {
@@ -114,7 +122,16 @@ function mailOn() {
       try {
         const account = await member(browser, "Ada Lovelace");
         const { projectName } = await ownerOnPeople(page, "Reset mail");
-        await add(page, account.email);
+        // An account is invited as anybody is, and joins from the emailed link.
+        expect(await add(page, account.email)).toMatchObject({ emailed: true });
+        const invited = await letterTo(mail, account.email);
+        const join = /(https?:\/\/\S+\/invite\/ushi_\S+)/.exec(invited.text)?.[1];
+        expect(join).toBeTruthy();
+        await account.page.goto(join!);
+        await account.page.getByRole("button", { name: `Join ${projectName}` }).click();
+        await account.page.waitForURL(/\/p\/[\w-]+$/);
+        await account.page.context().close();
+        await page.reload();
         await expect(page.getByText("Ada Lovelace")).toBeVisible();
 
         const answer = await makeLink(page);
@@ -167,7 +184,9 @@ function mailOn() {
       });
       expect(invites).toBe(1);
 
-      await add(page, account.email);
+      await addMember(page, projectId, account.page, account.email);
+      await account.page.context().close();
+      await page.reload();
       await expect(page.getByText("Grace Hopper")).toBeVisible();
       const reset = await makeLink(page);
       // A lost email is not a reason to hand the link to somebody else.
@@ -188,16 +207,18 @@ function mailOff() {
       browser,
     }) => {
       const account = await member(browser, "Ada Lovelace");
-      await ownerOnPeople(page, "Quiet");
+      const { projectId } = await ownerOnPeople(page, "Quiet");
 
       const email = `${unique("new")}@example.com`;
       const invite = await add(page, email);
       expect(invite.emailed).toBe(false);
       await expect(
-        page.getByText(`${email} has no account yet, so it is invited. Send them this link;`),
+        page.getByText(`${email} is invited. Send them this link; they join when they open it`),
       ).toBeVisible();
 
-      await add(page, account.email);
+      await addMember(page, projectId, account.page, account.email);
+      await account.page.context().close();
+      await page.reload();
       await expect(page.getByText("Ada Lovelace")).toBeVisible();
       const reset = await makeLink(page);
       expect(reset.emailed).toBe(false);

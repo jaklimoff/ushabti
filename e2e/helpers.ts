@@ -627,3 +627,26 @@ export async function headerRoom(
     };
   });
 }
+
+/**
+ * Puts somebody with an account in a project as a person does: the owner
+ * invites the email, and the guest opens the link signed in and says yes.
+ * `invite.spec.ts` walks the same through the screens.
+ */
+export async function addMember(
+  owner: Page,
+  projectId: string,
+  guest: Page,
+  email: string,
+  role: "member" | "admin" = "member",
+) {
+  const res = await owner.request.post(`/api/projects/${projectId}/members`, {
+    data: { email, role },
+  });
+  expect(res.status()).toBe(201);
+  const { link } = (await res.json()) as { link: string };
+  const accepted = await guest.request.post("/api/invites/accept", {
+    data: { token: link.split("/invite/")[1] },
+  });
+  expect(accepted.status()).toBe(200);
+}

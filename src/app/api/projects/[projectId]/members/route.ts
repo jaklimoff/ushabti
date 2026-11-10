@@ -17,7 +17,6 @@ import { inviteMail, mailIsOn, sendMail } from "@/lib/mail";
 import { originOf } from "@/lib/origin";
 import { limiter, spendMail } from "@/lib/rate-limit";
 import { projectName } from "@/lib/queries";
-import { joinProject } from "@/lib/membership";
 import { mintToken } from "@/lib/agents";
 import { INVITE_DAYS, INVITE_MS, INVITE_PREFIX } from "@/lib/invite-link";
 import { roleChangeRefusal } from "@/lib/roles";
@@ -48,102 +47,86 @@ export const POST = route<Ctx>(async (req, ctx) => {
     throw new HttpError(400, "An invite is for a member or an admin.");
   }
 
-  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new HttpError(400, "That email address does not look correct.");
+  }
 
-  /* No account yet: the invite is a link, sent to the email. Whoever opens
-     it signs up with that email and is in, even through a closed sign-up.
-     The email alone opens nothing: nobody has proved they own it. */
-  if (!user) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new HttpError(400, "That email address does not look correct.");
-    }
-    const minted = mintToken(INVITE_PREFIX);
-    const now = new Date();
-    /* A dead invite — old, or made before invites had links — takes the new
-       link in its place; a live one is refused. One statement, so two admins
-       inviting the same email at once cannot both get a link. */
-    const [invite] = await db
-      .insert(projectInvites)
-      .values({
-        projectId,
-        email,
+  /* Somebody already here is the one answer that names an account, and the
+     asker can already read it on People. */
+  const [already] = await db
+    .select({ id: users.id })
+    .from(projectMembers)
+    .innerJoin(users, eq(users.id, projectMembers.userId))
+    .where(and(eq(projectMembers.projectId, projectId), eq(users.email, email)))
+    .limit(1);
+  if (already) throw new HttpError(409, "That person is already a member.");
+
+  /* Every email gets an invite, whether it has an account or not, and the
+     answer is the same. Nobody is put in a project without saying yes, and
+     the answer never tells whether an email is registered. Whoever opens the
+     link joins by signing in as that email, or by signing up with it, even
+     through a closed sign-up. The email alone opens nothing. */
+  const minted = mintToken(INVITE_PREFIX);
+  const now = new Date();
+  /* A dead invite — old, or made before invites had links — takes the new
+     link in its place; a live one is refused. One statement, so two admins
+     inviting the same email at once cannot both get a link. */
+  const [invite] = await db
+    .insert(projectInvites)
+    .values({
+      projectId,
+      email,
+      invitedBy: actor.id,
+      hash: minted.hash,
+      expiresAt: new Date(now.getTime() + INVITE_MS),
+      role,
+    })
+    .onConflictDoUpdate({
+      target: [projectInvites.projectId, projectInvites.email],
+      set: {
         invitedBy: actor.id,
+        createdAt: now,
         hash: minted.hash,
         expiresAt: new Date(now.getTime() + INVITE_MS),
         role,
-      })
-      .onConflictDoUpdate({
-        target: [projectInvites.projectId, projectInvites.email],
-        set: {
-          invitedBy: actor.id,
-          createdAt: now,
-          hash: minted.hash,
-          expiresAt: new Date(now.getTime() + INVITE_MS),
-          role,
-        },
-        setWhere: or(isNull(projectInvites.hash), lte(projectInvites.expiresAt, now)),
-      })
-      .returning({
-        email: projectInvites.email,
-        createdAt: projectInvites.createdAt,
-        role: projectInvites.role,
-      });
-    if (!invite) throw new HttpError(409, "That email is already invited.");
-    await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
-
-    const link = `${originOf(req)}/invite/${minted.token}`;
-
-    /* The invite is written before anything is sent, so a send that fails or
-       hangs takes nothing back: the owner still has the link on screen. */
-    const emailed =
-      mailIsOn() &&
-      spendMail(limiter, req.headers, actor.id) &&
-      (await sendMail(
-        inviteMail({
-          to: invite.email,
-          inviter: actor.name,
-          project: await projectName(projectId),
-          link,
-          days: INVITE_DAYS,
-        }),
-      ));
-
-    return json(
-      {
-        invite: {
-          email: invite.email,
-          createdAt: invite.createdAt.toISOString(),
-          live: true,
-          role: invite.role,
-        },
-        link,
-        emailed,
       },
-      201,
-    );
-  }
-
-  const existing = await db
-    .select()
-    .from(projectMembers)
-    .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, user.id)))
-    .limit(1);
-  if (existing.length) throw new HttpError(409, "That person is already a member.");
-
-  await db.transaction((tx) => joinProject(tx, { projectId, userId: user.id, role }));
+      setWhere: or(isNull(projectInvites.hash), lte(projectInvites.expiresAt, now)),
+    })
+    .returning({
+      email: projectInvites.email,
+      createdAt: projectInvites.createdAt,
+      role: projectInvites.role,
+    });
+  if (!invite) throw new HttpError(409, "That email is already invited.");
   await broadcast({ projectId, scope: "project", clientId: clientIdOf(req) });
+
+  const link = `${originOf(req)}/invite/${minted.token}`;
+
+  /* The invite is written before anything is sent, so a send that fails or
+     hangs takes nothing back: the owner still has the link on screen. */
+  const emailed =
+    mailIsOn() &&
+    spendMail(limiter, req.headers, actor.id) &&
+    (await sendMail(
+      inviteMail({
+        to: invite.email,
+        inviter: actor.name,
+        project: await projectName(projectId),
+        link,
+        days: INVITE_DAYS,
+      }),
+    ));
+
   return json(
     {
-      member: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        color: user.color,
-        emoji: user.avatarEmoji,
-        role,
+      invite: {
+        email: invite.email,
+        createdAt: invite.createdAt.toISOString(),
+        live: true,
+        role: invite.role,
       },
-      // Somebody with an account is in at once; nothing is emailed to them.
-      emailed: false,
+      link,
+      emailed,
     },
     201,
   );

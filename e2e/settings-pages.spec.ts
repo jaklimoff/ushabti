@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createProject, gotoSettings, propertyBox, register, unique } from "./helpers";
+import { addMember, createProject, gotoSettings, propertyBox, register, unique } from "./helpers";
 
 /*
  * The settings pages as a person sees them after the design pass: a grouped
@@ -55,8 +55,8 @@ test.describe("Settings pages", () => {
     browser,
   }, testInfo) => {
     const other = await browser.newContext();
-    const heir = await register(await other.newPage(), "Nia Next");
-    await other.close();
+    const heirPage = await other.newPage();
+    const heir = await register(heirPage, "Nia Next");
     await register(page, "Olga Owner");
     const projectId = await createProject(page, unique("Hand"));
     await gotoSettings(page, projectId, "project");
@@ -64,10 +64,8 @@ test.describe("Settings pages", () => {
     await expect(pick).toBeDisabled();
     await expect(page.getByText("Make somebody an admin on People first.")).toBeVisible();
 
-    const added = await page.request.post(`/api/projects/${projectId}/members`, {
-      data: { email: heir.email, role: "admin" },
-    });
-    expect(added.ok()).toBe(true);
+    await addMember(page, projectId, heirPage, heir.email, "admin");
+    await other.close();
     await page.reload();
     await expect(
       page.getByText("The new owner can delete the project. You stay an admin."),

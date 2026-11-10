@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createProject, gotoSettings, inDatabase, register, unique } from "./helpers";
+import { createProject, gotoSettings, inDatabase, register, unique, type Account } from "./helpers";
 
 /**
  * An invite is a link. The email alone opens nothing, because nothing in
@@ -53,11 +53,15 @@ async function stranger(browser: Browser) {
 
 async function signUpOn(page: Page, url: string, email: string | null, name: string) {
   await page.goto(url);
+  // An invite opens on sign in, for every email; making an account is a switch.
+  if (url.includes("/invite/"))
+    await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByLabel("Your name").fill(name);
   if (email !== null) await page.getByLabel("Your email").fill(email);
   await page.getByLabel("Your password").fill("password-123");
   await page.getByRole("button", { name: "Create account" }).click();
-  await page.waitForURL(/\/projects$/);
+  // With a link it opens the project; without one, the list.
+  await page.waitForURL(/\/(projects|p\/[\w-]+)$/);
 }
 
 test.describe("Invites", () => {
@@ -97,6 +101,10 @@ test.describe("Invites", () => {
     const guest = await stranger(browser);
     await guest.page.goto(link);
     await expect(guest.page.getByRole("heading", { name: `Join ${projectName}` })).toBeVisible();
+    await expect(guest.page.getByTestId("invite-tagline")).toHaveText(
+      `Invited as ${email}. Sign in to join ${projectName}.`,
+    );
+    await guest.page.getByRole("button", { name: "Create an account" }).click();
     await expect(guest.page.getByTestId("invite-tagline")).toHaveText(
       `Invited as ${email}. Your account opens ${projectName} at once.`,
     );
@@ -269,5 +277,143 @@ test.describe("Invites", () => {
     await signUpOn(them.page, again.link!, null, "Legacy Person");
     await expect(them.page.getByText(projectName)).toBeVisible();
     await them.context.close();
+  });
+
+  test("an account is invited as a new email is, and joins only from the link as itself", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { projectId, projectName } = await ownerOnPeople(page, "Known");
+    const guest = await stranger(browser);
+    const account: Account = await register(guest.page, "Known Guest");
+
+    // The answer has the same shape for an account and for a new email.
+    const known = await add(page, account.email);
+    const fresh = await add(page, freshEmail("fresh"));
+    expect(known.status).toBe(201);
+    expect(Object.keys(known).sort()).toEqual(Object.keys(fresh).sort());
+    expect(JSON.stringify(known)).not.toContain("Known Guest");
+    const row = page.getByTestId("invite-row").filter({ hasText: account.email });
+    await expect(row.getByText("invited")).toBeVisible();
+
+    // Not in yet: the project is not theirs to open.
+    await guest.page.goto(`/p/${projectId}`);
+    await expect(guest.page.getByText("This page is not here")).toBeVisible();
+
+    // Signed in as the invited email, the link asks, and a press joins.
+    await guest.page.goto(known.link!);
+    await expect(guest.page.getByRole("heading", { name: `Join ${projectName}` })).toBeVisible();
+    await expect(guest.page.getByTestId("invite-tagline")).toHaveText(
+      `Invited as ${account.email}. You are signed in as that email.`,
+    );
+    await guest.page.screenshot({ path: testInfo.outputPath("seen-invite-join.png") });
+    await guest.page.getByRole("button", { name: `Join ${projectName}` }).click();
+    await guest.page.waitForURL(new RegExp(`/p/${projectId}$`));
+    await expect(guest.page.getByTestId("live-dot")).toBeVisible();
+    await guest.context.close();
+
+    // The owner's page follows: the invite is a member now.
+    await expect(row).toBeHidden();
+    await expect(page.getByText("Known Guest")).toBeVisible();
+  });
+
+  test("an invite opened by another account joins nothing and says whom it is for", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { projectId } = await ownerOnPeople(page, "Other account");
+    const invited = await stranger(browser);
+    const account = await register(invited.page, "Invited Person");
+    await invited.context.close();
+    const { link } = await add(page, account.email);
+
+    const other = await stranger(browser);
+    const otherAccount = await register(other.page, "Other Person");
+    await other.page.goto(link!);
+    await expect(other.page.getByTestId("invite-other")).toHaveText(
+      `This invite is for ${account.email}. Sign in with that email to join. You are signed in as ${otherAccount.email}, so this account does not join.`,
+    );
+    await expect(other.page.getByRole("button", { name: /^Join / })).toHaveCount(0);
+    await other.page.screenshot({ path: testInfo.outputPath("seen-invite-other.png") });
+    // The button's route says the same to a hand-made press.
+    const pressed = await other.page.request.post("/api/invites/accept", {
+      data: { token: link!.split("/invite/")[1] },
+    });
+    expect(pressed.status()).toBe(403);
+    await other.context.close();
+
+    const joined = await inDatabase(async (client) => {
+      const { rows } = await client.query(
+        "select 1 from project_members m join users u on u.id = m.user_id where m.project_id = $1 and u.email = any($2)",
+        [projectId, [account.email, otherAccount.email]],
+      );
+      return rows.length;
+    });
+    expect(joined).toBe(0);
+    await page.reload();
+    await expect(page.getByTestId("invite-row").filter({ hasText: account.email })).toBeVisible();
+  });
+
+  test("signed out, an account signs in from the link and is in the project", async ({
+    page,
+    browser,
+  }, testInfo) => {
+    const { projectId, projectName } = await ownerOnPeople(page, "Sign in");
+    const before = await stranger(browser);
+    const account = await register(before.page, "Returning Person");
+    await before.context.close();
+    const { link } = await add(page, account.email);
+
+    /* The inviter holds the link too, so the signed-out page must draw the
+       same form for an email with an account and one without. */
+    const nobody = freshEmail("nobody");
+    const freshLink = (await add(page, nobody)).link!;
+    const seen = async (url: string, email: string) => {
+      const them = await stranger(browser);
+      await them.page.goto(url);
+      await expect(them.page.getByLabel("Your password")).toBeVisible();
+      const form = {
+        heading: await them.page.getByRole("heading").allInnerTexts(),
+        tagline: (await them.page.getByTestId("invite-tagline").innerText()).replace(email, "@"),
+        buttons: await them.page.getByRole("button").allInnerTexts(),
+        boxes: await them.page.getByRole("textbox").count(),
+      };
+      await them.context.close();
+      return form;
+    };
+    const registered = await seen(link!, account.email);
+    expect(registered).toEqual(await seen(freshLink, nobody));
+    expect(registered.buttons).toContain("Sign in and join");
+
+    const guest = await stranger(browser);
+    await guest.page.goto(link!);
+    await expect(guest.page.getByRole("heading", { name: `Join ${projectName}` })).toBeVisible();
+    await expect(guest.page.getByTestId("invite-tagline")).toHaveText(
+      `Invited as ${account.email}. Sign in to join ${projectName}.`,
+    );
+    await expect(guest.page.getByLabel("Your email")).toHaveValue(account.email);
+    await expect(guest.page.getByLabel("Your email")).not.toBeEditable();
+    await expect(guest.page.getByLabel("Your name")).toHaveCount(0);
+    await guest.page.screenshot({ path: testInfo.outputPath("seen-invite-sign-in.png") });
+    await guest.page.getByLabel("Your password").fill(account.password);
+    await guest.page.getByRole("button", { name: "Sign in and join" }).click();
+    await guest.page.waitForURL(new RegExp(`/p/${projectId}$`));
+    await expect(guest.page.getByTestId("live-dot")).toBeVisible();
+    await guest.context.close();
+  });
+
+  test("an email already a member is refused, and no invite is written", async ({ page }) => {
+    const { owner, projectId } = await ownerOnPeople(page, "Already");
+    const answer = await add(page, owner.email.toUpperCase());
+    expect(answer.status).toBe(409);
+    expect(answer.error).toBe("That person is already a member.");
+    await expect(page.getByText("That person is already a member.")).toBeVisible();
+    const invites = await inDatabase(async (client) => {
+      const { rows } = await client.query("select 1 from project_invites where project_id = $1", [
+        projectId,
+      ]);
+      return rows.length;
+    });
+    expect(invites).toBe(0);
   });
 });

@@ -28,7 +28,7 @@ export function emailWrong(email: string): string | undefined {
 }
 
 export function AuthForm({
-  mode,
+  mode: startMode,
   signupOpen = true,
   forgotOn = false,
   invite,
@@ -57,7 +57,18 @@ export function AuthForm({
   const [refused, setRefused] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  /* An invite page draws the same form for every email and lets the person
+     switch, because which one it opened on would tell the inviter, who holds
+     the link too, whether the email has an account. */
+  const [mode, setMode] = useState<Mode>(startMode);
   const register = mode === "register";
+
+  function switchTo(next: Mode) {
+    setMode(next);
+    setWrong({});
+    setRefused(false);
+    setError(null);
+  }
 
   /** Checked here so the page never shows the browser's own pale bubble. */
   function check(password: string): Wrong {
@@ -88,13 +99,17 @@ export function AuthForm({
     }
     setBusy(true);
     try {
-      await api.post(register ? "/api/auth/register" : "/api/auth/login", {
-        name,
-        email,
-        password,
-        ...(invite ? { invite: invite.token } : {}),
-      });
-      router.replace("/projects");
+      const answer = await api.post<{ joined?: string | null }>(
+        register ? "/api/auth/register" : "/api/auth/login",
+        {
+          name,
+          email,
+          password,
+          ...(invite ? { invite: invite.token } : {}),
+        },
+      );
+      // An invite opens the project it was for, not the list.
+      router.replace(answer?.joined ? `/p/${answer.joined}` : "/projects");
       router.refresh();
     } catch (err) {
       const said = err instanceof Error ? err.message : "Something went wrong.";
@@ -115,7 +130,23 @@ export function AuthForm({
     <AuthCard
       title={invite ? `Join ${invite.project}` : register ? "Create an account" : "Sign in"}
       below={
-        register ? (
+        invite ? (
+          register ? (
+            <>
+              Have an account?{" "}
+              <button type="button" className={styles.switch} onClick={() => switchTo("login")}>
+                Sign in instead
+              </button>
+            </>
+          ) : (
+            <>
+              No account yet?{" "}
+              <button type="button" className={styles.switch} onClick={() => switchTo("register")}>
+                Create an account
+              </button>
+            </>
+          )
+        ) : register ? (
           <>
             Already have an account? <Link href="/login">Sign in</Link>
           </>
@@ -134,7 +165,9 @@ export function AuthForm({
           so it is not mistaken for the pitch above. */}
       {invite && (
         <p className={styles.notice} data-testid="invite-tagline">
-          Invited as {invite.email}. Your account opens {invite.project} at once.
+          {register
+            ? `Invited as ${invite.email}. Your account opens ${invite.project} at once.`
+            : `Invited as ${invite.email}. Sign in to join ${invite.project}.`}
         </p>
       )}
       {register && !invite && !signupOpen && (
@@ -176,7 +209,7 @@ export function AuthForm({
           <Input
             size="xl"
             block
-            autoFocus={!register}
+            autoFocus={!register && !invite}
             ref={emailBox}
             type="email"
             value={email}
@@ -203,6 +236,7 @@ export function AuthForm({
                 size="xl"
                 block
                 ref={passwordBox}
+                autoFocus={!register && invite !== undefined}
                 type={show ? "text" : "password"}
                 invalid={refused}
                 aria-label="Your password"
@@ -232,7 +266,9 @@ export function AuthForm({
           {busy
             ? "One moment…"
             : invite
-              ? "Create account and join"
+              ? register
+                ? "Create account and join"
+                : "Sign in and join"
               : register
                 ? "Create account"
                 : "Sign in"}

@@ -1,12 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { createProject, gotoSettings, register, unique } from "./helpers";
-
-/** Adds a person with an account from the People page, as the owner does. */
-async function addMember(page: Page, email: string, name: string) {
-  await page.getByLabel("Email of the new member").fill(email);
-  await page.getByRole("button", { name: "Add member" }).click();
-  await expect(page.getByText(name)).toBeVisible();
-}
+import { expect, test } from "@playwright/test";
+import { addMember, createProject, gotoSettings, register, unique } from "./helpers";
 
 /* What an admin and an agent may do is `people-route.test.ts`; the question
    before a hand-over is `ProjectPanel.test.tsx`. */
@@ -33,8 +26,9 @@ test.describe("Roles", () => {
           await page.request.patch(`/api/projects/${projectId}`, { data: { typeBy: type.id } })
         ).ok(),
       ).toBeTruthy();
+      await addMember(page, projectId, memberPage, member.email);
       await gotoSettings(page, projectId, "people");
-      await addMember(page, member.email, "Bob Member");
+      await expect(page.getByText("Bob Member")).toBeVisible();
       await page.getByLabel("Name of the new agent").fill("Helper");
       await page.getByRole("button", { name: "Add agent" }).click();
       await page

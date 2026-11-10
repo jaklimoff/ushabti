@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { addTask, card, createProject, gotoSettings, register, unique } from "./helpers";
+import { addTask, card, createProject, addMember, register, unique } from "./helpers";
 
 /*
  * Who else has a task open. Nothing stores it: a tab says where it is, the
@@ -12,13 +12,6 @@ import { addTask, card, createProject, gotoSettings, register, unique } from "./
 async function freshPage(browser: Browser) {
   const context = await browser.newContext();
   return { context, page: await context.newPage() };
-}
-
-async function addMember(owner: Page, projectId: string, email: string) {
-  await gotoSettings(owner, projectId, "people");
-  await owner.getByLabel("Email of the new member").fill(email);
-  await owner.getByRole("button", { name: "Add member" }).click();
-  await expect(owner.getByText(email)).toBeVisible();
 }
 
 async function taskIdOf(page: Page, projectId: string, title: string): Promise<string> {
@@ -49,7 +42,7 @@ test.describe("Who else has the task open", () => {
     await register(owner.page, "Owner Person");
     const projectId = await createProject(owner.page, unique("Presence"));
     const friendAccount = await register(friend.page, "Friend Person");
-    await addMember(owner.page, projectId, friendAccount.email);
+    await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
     await owner.page.goto(`/p/${projectId}`);
     await addTask(owner.page, "Todo", "Looked at by two");
@@ -107,7 +100,7 @@ test.describe("Who else has the task open", () => {
     await register(owner.page, "Owner Person");
     const projectId = await createProject(owner.page, unique("Lease"));
     const friendAccount = await register(friend.page, "Friend Person");
-    await addMember(owner.page, projectId, friendAccount.email);
+    await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
     await owner.page.clock.install();
     await owner.page.goto(`/p/${projectId}`);

@@ -1,5 +1,13 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createProject, gotoSettings, letterTo, register, signIn, unique } from "./helpers";
+import {
+  addMember,
+  createProject,
+  gotoSettings,
+  letterTo,
+  register,
+  signIn,
+  unique,
+} from "./helpers";
 import { smtpReceiver, type SmtpReceiver } from "../src/lib/__tests__/smtp";
 
 const smtpPort = Number(process.env.USHABTI_TEST_SMTP_PORT) || 0;
@@ -99,9 +107,8 @@ test.describe("A forgotten password", () => {
     await register(page, "Owner Person");
     const projectName = unique("Reset");
     const projectId = await createProject(page, projectName);
+    await addMember(page, projectId, them, member.email);
     await gotoSettings(page, projectId, "people");
-    await page.getByLabel("Email of the new member").fill(member.email);
-    await page.getByRole("button", { name: "Add member" }).click();
     await expect(page.getByText("Ada Lovelace")).toBeVisible();
 
     // One row offers it: never the owner's own, where /account is the answer.

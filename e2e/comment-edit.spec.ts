@@ -5,7 +5,7 @@ import {
   createProject,
   expectBoxValue,
   fillBox,
-  gotoSettings,
+  addMember,
   inDatabase,
   register,
   unique,
@@ -32,10 +32,7 @@ async function oneComment(browser: Browser) {
   const projectId = await createProject(anna.page, unique("Edit"));
   const benAccount = await register(ben.page, "Ben Friend");
 
-  await gotoSettings(anna.page, projectId, "people");
-  await anna.page.getByLabel("Email of the new member").fill(benAccount.email);
-  await anna.page.getByRole("button", { name: "Add member" }).click();
-  await expect(anna.page.getByText(benAccount.email)).toBeVisible();
+  await addMember(anna.page, projectId, ben.page, benAccount.email);
 
   await anna.page.goto(`/p/${projectId}`);
   await addTask(anna.page, "Todo", "Talked about");

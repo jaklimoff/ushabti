@@ -9,7 +9,7 @@ import {
   dragCard,
   expectBoxValue,
   fillBox,
-  gotoSettings,
+  addMember,
   putFilterOnView,
   register,
   settles,
@@ -49,10 +49,7 @@ test.describe("Two people on one board", () => {
       await friend.page.goto(`/p/${projectId}`);
       await expect(friend.page.getByText("This page is not here")).toBeVisible();
 
-      await gotoSettings(owner.page, projectId, "people");
-      await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-      await owner.page.getByRole("button", { name: "Add member" }).click();
-      await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+      await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
       await friend.page.goto(`/p/${projectId}`);
       await expect(card(friend.page, "Shared work")).toBeVisible();
@@ -73,10 +70,7 @@ test.describe("Two people on one board", () => {
       const projectId = await createProject(owner.page, unique("Live"));
       const friendAccount = await register(friend.page, "Friend Person");
 
-      await gotoSettings(owner.page, projectId, "people");
-      await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-      await owner.page.getByRole("button", { name: "Add member" }).click();
-      await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+      await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
       await friend.page.goto(`/p/${projectId}`);
       await expect(friend.page.getByTestId("live-dot")).toBeVisible();
@@ -110,10 +104,7 @@ test.describe("Two people on one board", () => {
     const projectId = await createProject(owner.page, unique("Draft"));
     const friendAccount = await register(friend.page, "Friend Person");
 
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+    await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
     await owner.page.goto(`/p/${projectId}`);
     await addTask(owner.page, "Todo", "Something to discuss");
@@ -150,10 +141,7 @@ test.describe("Two people on one board", () => {
     const projectId = await createProject(owner.page, unique("Follows"));
     const friendAccount = await register(friend.page, "Friend Person");
 
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+    await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
     await owner.page.goto(`/p/${projectId}`);
     await addTask(owner.page, "Todo", "Watched from both sides");
@@ -203,10 +191,7 @@ test.describe("Two people on one board", () => {
     const projectId = await createProject(owner.page, unique("Lens"));
     const friendAccount = await register(friend.page, "Friend Person");
 
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+    await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
     await owner.page.goto(`/p/${projectId}`);
     await addTask(owner.page, "Todo", "Urgent work");
@@ -266,10 +251,7 @@ test.describe("An order one person picks", () => {
     const projectId = await createProject(owner.page, unique("SortLens"));
     const friendAccount = await register(friend.page, "Friend Person");
 
-    await gotoSettings(owner.page, projectId, "people");
-    await owner.page.getByLabel("Email of the new member").fill(friendAccount.email);
-    await owner.page.getByRole("button", { name: "Add member" }).click();
-    await expect(owner.page.getByText(friendAccount.email)).toBeVisible();
+    await addMember(owner.page, projectId, friend.page, friendAccount.email);
 
     await owner.page.goto(`/p/${projectId}`);
     await addTask(owner.page, "Todo", "Ordinary work");

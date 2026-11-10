@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The role an invite carries: written on the invite of somebody with no
- * account, given at once to somebody with one, and refused with the role
- * rule's own sentence when the inviter may not give it.
+ * The role an invite carries: written on the invite whether the email has an
+ * account or not, and refused with the role rule's own sentence when the
+ * inviter may not give it. Joining from the link is `invite-account-route.test.ts`.
  */
 const fake = vi.hoisted(() => {
   let selects: unknown[][] = [];
@@ -46,9 +46,6 @@ const fake = vi.hoisted(() => {
 vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: fake.db }));
 vi.mock("@/lib/queries", () => ({ projectName: vi.fn(async () => "Launch") }));
-vi.mock("@/lib/membership", () => ({
-  joinProject: vi.fn(async (_tx: unknown, row: Record<string, unknown>) => fake.written.push(row)),
-}));
 vi.mock("@/lib/api", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/api")>();
   return {
@@ -65,9 +62,9 @@ const invites = await import("@/app/api/projects/[projectId]/members/route");
 
 const PROJECT = "7f1d2a3b-4c5d-4e6f-8a9b-0c1d2e3f4a5b";
 
-async function invite(body: Record<string, unknown>, account?: Record<string, unknown>) {
-  // The account the email names, if any, then no membership for it yet.
-  fake.answer(account ? [account] : [], []);
+async function invite(body: Record<string, unknown>, member?: Record<string, unknown>) {
+  // The member the email names already, if any.
+  fake.answer(member ? [member] : []);
   const res = await invites.POST(
     new Request(`http://localhost/api/projects/${PROJECT}/members`, {
       method: "POST",
@@ -100,14 +97,11 @@ describe("an invite with a role", () => {
     expect(answer.body.invite.role).toBe("admin");
   });
 
-  it("somebody with an account joins as an admin at once", async () => {
-    const answer = await invite(
-      { email: "bo@example.com", role: "admin" },
-      { id: "bo", name: "Bo", email: "bo@example.com", color: "#000", avatarEmoji: null },
-    );
-    expect(answer.status).toBe(201);
-    expect(fake.written).toEqual([{ projectId: PROJECT, userId: "bo", role: "admin" }]);
-    expect(answer.body.member.role).toBe("admin");
+  it("somebody already a member is refused, and nothing is written", async () => {
+    const answer = await invite({ email: "bo@example.com", role: "admin" }, { id: "bo" });
+    expect(answer.status).toBe(409);
+    expect(answer.body.error).toBe("That person is already a member.");
+    expect(fake.written).toEqual([]);
   });
 
   it("an admin may not invite an owner, with the role rule's sentence", async () => {

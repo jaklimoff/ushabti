@@ -109,7 +109,7 @@ export async function sendMail(
   }
 }
 
-/** The invite, to an email with no account yet. */
+/** The invite, to any email, with an account or not. */
 export function inviteMail(input: {
   to: string;
   inviter: string;
@@ -123,7 +123,7 @@ export function inviteMail(input: {
     text: [
       `${input.inviter} invited you to the project ${input.project} on Ushabti.`,
       "",
-      "Open this link and sign up with this same email address, and you are in the project at once:",
+      "Open this link and sign in, or sign up, with this same email address to join the project:",
       "",
       input.link,
       "",

@@ -87,5 +87,5 @@ async function signUp(req: Request): Promise<Response> {
   if (joined) await broadcast({ projectId: joined, scope: "project" });
 
   await createSession(user.id);
-  return json({ user });
+  return json({ user, joined });
 }

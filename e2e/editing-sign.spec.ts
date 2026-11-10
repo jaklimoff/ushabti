@@ -3,7 +3,7 @@ import {
   addTask,
   card,
   createProject,
-  gotoSettings,
+  addMember,
   register,
   unique,
   descriptionBox,
@@ -19,13 +19,6 @@ import {
 async function freshPage(browser: Browser) {
   const context = await browser.newContext();
   return { context, page: await context.newPage() };
-}
-
-async function addMember(owner: Page, projectId: string, email: string) {
-  await gotoSettings(owner, projectId, "people");
-  await owner.getByLabel("Email of the new member").fill(email);
-  await owner.getByRole("button", { name: "Add member" }).click();
-  await expect(owner.getByText(email)).toBeVisible();
 }
 
 async function openTask(page: Page, projectId: string, title: string) {
@@ -47,7 +40,7 @@ test.describe("A field shows who is editing it", () => {
     await register(anna.page, "Anna Person");
     const projectId = await createProject(anna.page, unique("Editing"));
     const benAccount = await register(ben.page, "Ben Person");
-    await addMember(anna.page, projectId, benAccount.email);
+    await addMember(anna.page, projectId, ben.page, benAccount.email);
 
     await anna.page.goto(`/p/${projectId}`);
     await addTask(anna.page, "Todo", "Written by two");

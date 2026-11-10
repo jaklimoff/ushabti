@@ -2,11 +2,18 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { createSession, HttpError, refuseIfLimited, verifyPassword } from "@/lib/auth";
-import { body, json, route } from "@/lib/api";
-import { addressOf, limiter, loginByAddress, loginByEmail } from "@/lib/rate-limit";
+import { body, broadcast, json, route } from "@/lib/api";
+import { acceptInvite } from "@/lib/invites";
+import {
+  addressOf,
+  limiter,
+  loginByAddress,
+  loginByEmail,
+  signupByAddress,
+} from "@/lib/rate-limit";
 
 export const POST = route(async (req: Request) => {
-  const input = await body<{ email?: string; password?: string }>(req);
+  const input = await body<{ email?: string; password?: string; invite?: string }>(req);
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
   const password = typeof input.password === "string" ? input.password : "";
 
@@ -31,8 +38,26 @@ export const POST = route(async (req: Request) => {
      these accounts must not be forgiven by the owner of another. */
   limiter.clear(byEmail);
 
+  /* Signing in from an invite link joins its project, once the password has
+     proved who this is. An invite that does not work signs nobody in, so the
+     page can say why and the person is not left signed in somewhere else. */
+  const token = typeof input.invite === "string" && input.invite ? input.invite : null;
+  /* A refused token is charged to the sign-up key, as the invite page and the
+     accept route charge it, so a known password is no way to walk tokens. */
+  const key = signupByAddress(addressOf(req.headers));
+  if (token) refuseIfLimited(key);
+  let joined: string | null = null;
+  try {
+    joined = token ? await acceptInvite(token, { id: user.id, email }) : null;
+  } catch (err) {
+    if (err instanceof HttpError) limiter.hit(key);
+    throw err;
+  }
+  if (joined) await broadcast({ projectId: joined, scope: "project" });
+
   await createSession(user.id);
   return json({
     user: { id: user.id, email, name: user.name, color: user.color, emoji: user.avatarEmoji },
+    joined,
   });
 });

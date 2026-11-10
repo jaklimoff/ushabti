@@ -121,7 +121,7 @@ function Members({ mail }: { mail: boolean }) {
         `/api/projects/${data.project.id}/members`,
         { email: value, role },
       );
-      // No account yet, so the email waits as an invite: say what happens next.
+      // Every email waits as an invite until its person says yes.
       if (answer.invite && answer.link) {
         setInvited({
           email: answer.invite.email,
@@ -267,14 +267,13 @@ function Members({ mail }: { mail: boolean }) {
                 <Note>
                   {inviteLine === null ? (
                     <>
-                      {invited.email} has no account yet, so it is invited. Send them this link;
-                      they are in the moment they sign up with it. It works once, for {INVITE_DAYS}{" "}
-                      days.
+                      {invited.email} is invited. Send them this link; they join when they open it
+                      and sign in or sign up with that email. It works once, for {INVITE_DAYS} days.
                     </>
                   ) : (
                     <>
-                      {inviteLine} They have no account yet; they are in the moment they sign up
-                      with this link. It works once, for {INVITE_DAYS} days.
+                      {inviteLine} They join when they open this link and sign in or sign up with
+                      that email. It works once, for {INVITE_DAYS} days.
                     </>
                   )}
                 </Note>
@@ -283,8 +282,8 @@ function Members({ mail }: { mail: boolean }) {
             ) : (
               <FootNote>
                 <Note>
-                  A person with an account joins at once. One without gets an invite link, and joins
-                  when they sign up with it — even on a closed board.
+                  Everybody added gets an invite link, and joins when they open it and sign in or
+                  sign up with that email — even on a closed board.
                 </Note>
               </FootNote>
             )}

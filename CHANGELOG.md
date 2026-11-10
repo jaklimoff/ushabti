@@ -16,6 +16,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   Before, an account could add anybody by email to a project of its own and take their account.
 - **A spent reset link, a password change and Sign out everywhere revoke every personal token** of
   the account, so a token somebody else made does not outlive them. Make new tokens after.
+- **Adding somebody who already has an account sends them an invite.** They join when they open the
+  link signed in as that email, or sign in from it. Nobody is put in a project without saying yes,
+  and adding an email no longer tells whether it has an account. A link opened by another account
+  says whom it is for and joins nothing.
 
 ## 0.46.0 — 2026-11-09
 
