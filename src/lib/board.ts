@@ -3,6 +3,7 @@ import { personName } from "./people";
 import { isSelect } from "./types";
 import { isOpenOption } from "./option-dates";
 import { readOptionIcon, type OptionIcon } from "./option-icons";
+import { formatterFor } from "./day";
 
 export const NO_VALUE = "__none__";
 
@@ -348,8 +349,7 @@ export function longAgo(iso: string, now: number = Date.now()): string {
  * whoever reads them and wherever they sit.
  */
 const DAY = (timeZone: string, year: boolean) =>
-  new Intl.DateTimeFormat("en-GB", {
-    timeZone,
+  formatterFor("en-GB", timeZone, {
     day: "numeric",
     month: "short",
     ...(year ? { year: "numeric" } : {}),
@@ -357,15 +357,14 @@ const DAY = (timeZone: string, year: boolean) =>
 
 /** "3 Oct", and "3 Oct 2025" when it was not this year in that zone. */
 export function shortDay(iso: string, timeZone: string, now: number = Date.now()): string {
-  const yearOf = (t: number | string) =>
-    new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric" }).format(new Date(t));
+  const years = formatterFor("en-GB", timeZone, { year: "numeric" });
+  const yearOf = (t: number | string) => years.format(new Date(t));
   return DAY(timeZone, yearOf(iso) !== yearOf(now)).format(new Date(iso));
 }
 
 /** "3 Oct 2026, 14:05 Europe/Berlin", for a hover that owes the whole moment. */
 export function fullTime(iso: string, timeZone: string): string {
-  const said = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
+  const said = formatterFor("en-GB", timeZone, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(iso));

@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **A board with the Created or Updated day on its cards redraws quickly again.** Every date on a
+  card and in a filter used to build a new date formatter; one is now kept per time zone, so a
+  thousand cards lay out in a few milliseconds instead of seventy.
+
 ## 0.47.0 — 2026-11-10
 
 ### Security

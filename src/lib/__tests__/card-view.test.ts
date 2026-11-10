@@ -18,7 +18,7 @@ import {
   viewOf,
 } from "../card-view";
 import { listColumns } from "../list-view";
-import type { CardChip } from "../card-view";
+import type { CardChip, CardItem } from "../card-view";
 import type { MemberDTO, PropertyDTO, TaskDTO } from "../types";
 
 const STATUS: PropertyDTO = {
@@ -1130,5 +1130,61 @@ describe("an option that carries an icon", () => {
     );
     expect(chip.icon).toBe(null);
     expect(chip.swatch?.round).toBe(true);
+  });
+});
+
+describe("a thousand cards with the two days on", () => {
+  /*
+   * A stamp chip used to build a date formatter per card, which made a board
+   * of a thousand cards fifty times slower to lay out with the days on. The
+   * formatter is kept now, so the two days cost about what the other chips do.
+   */
+  it("build in a few times the cost of the same cards with them off", () => {
+    const tasks = Array.from({ length: 1000 }, (_, i) =>
+      task(
+        {
+          "p-status": i % 2 ? "o-todo" : "o-done",
+          "p-prio": "o-urgent",
+          "p-who": ADA.id,
+          "p-due": "2026-12-01",
+        },
+        {
+          id: `t${i}`,
+          number: i,
+          key: `USH-${i}`,
+          checklistTotal: 4,
+          checklistDone: i % 4,
+          commentCount: i % 3,
+          createdAt: new Date(Date.UTC(2026, 0, 1) + i * 3_600_000).toISOString(),
+          updatedAt: new Date(Date.UTC(2026, 6, 1) + i * 7_200_000).toISOString(),
+        },
+      ),
+    );
+    const plain = defaultCardView(PROPERTIES, "p-status");
+    const off = cardItems(plain, PROPERTIES);
+    let view = setCardPlace(plain, "_created", "footerR");
+    view = setCardPlace(view, "_updated", "footerR");
+    const on = cardItems(view, PROPERTIES);
+    expect(buildCard(on, tasks[0], [ADA], [], "Europe/Berlin").footerR).toHaveLength(
+      buildCard(off, tasks[0], [ADA], [], "Europe/Berlin").footerR.length + 2,
+    );
+
+    /* The best of several rounds, after a warm-up, so a busy machine and the
+       first JIT pass do not decide the answer. */
+    const time = (items: CardItem[]) => {
+      let best = Infinity;
+      for (let round = 0; round < 7; round++) {
+        const start = performance.now();
+        for (const one of tasks) buildCard(items, one, [ADA], [], "Europe/Berlin");
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
+    };
+    time(on);
+    time(off);
+    const withDays = time(on);
+    const without = time(off);
+    /* About three times here; a fresh formatter per chip made it seventy. */
+    expect(withDays).toBeLessThan(without * 5);
   });
 });

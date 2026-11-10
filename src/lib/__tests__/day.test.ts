@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DATE_WINDOWS,
   DEFAULT_TIME_ZONE,
+  formatterFor,
   isDateWindow,
   isTimeZone,
   readTimeZone,
@@ -239,5 +240,75 @@ describe("a window is read the same wherever the process runs", () => {
       expect(matches(task("2026-09-28"), rule, due, MONDAY, null, NONE, "UTC")).toBe(false);
       expect(matches(task("2026-09-20"), rule, due, MONDAY, null, NONE, "UTC")).toBe(false);
     }
+  });
+});
+
+describe("the formatters behind the day", () => {
+  it("are built once per zone and shape, and kept", () => {
+    const shape = { year: "numeric", month: "2-digit" } as const;
+    const berlin = formatterFor("en-GB", "Europe/Berlin", shape);
+    expect(formatterFor("en-GB", "Europe/Berlin", { ...shape })).toBe(berlin);
+    expect(formatterFor("en-GB", "Asia/Tokyo", shape)).not.toBe(berlin);
+    expect(formatterFor("en-GB", "Europe/Berlin", { year: "numeric" })).not.toBe(berlin);
+    expect(berlin.resolvedOptions().timeZone).toBe("Europe/Berlin");
+  });
+
+  it("keeps no zone nobody knows", () => {
+    expect(() => formatterFor("en", "Mars/Olympus", {})).toThrow();
+    expect(() => todayIn("Mars/Olympus")).toThrow();
+  });
+
+  /*
+   * The kept formatter must answer what a fresh one did. Walk every half hour
+   * across a spring and an autumn change and a new year, in zones that change
+   * at different hours, by half hours, or not at all.
+   */
+  it("answers as a fresh formatter does across changes of clock and year", () => {
+    const fresh = (zone: string, at: Date) => {
+      const parts = new Intl.DateTimeFormat("en-US-u-ca-gregory", {
+        timeZone: zone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(at);
+      const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+      return `${part("year").padStart(4, "0")}-${part("month")}-${part("day")}`;
+    };
+    const zones = [
+      "UTC",
+      "Europe/Berlin",
+      "America/New_York",
+      "Australia/Lord_Howe",
+      "Pacific/Auckland",
+      "Pacific/Kiritimati",
+      "America/St_Johns",
+    ];
+    const spans = [
+      ["2026-03-07T00:00:00Z", "2026-04-07T00:00:00Z"],
+      ["2026-09-25T00:00:00Z", "2026-11-03T00:00:00Z"],
+      ["2026-12-30T00:00:00Z", "2027-01-02T12:00:00Z"],
+    ];
+    let checked = 0;
+    for (const zone of zones) {
+      for (const [from, to] of spans) {
+        for (let t = Date.parse(from); t <= Date.parse(to); t += 30 * 60_000) {
+          const at = new Date(t);
+          expect(todayIn(zone, at)).toBe(fresh(zone, at));
+          checked += 1;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(10_000);
+    /* Years of fewer and of more than four digits, which read another way. */
+    for (const zone of zones) {
+      for (const at of ["0099-06-01T12:00:00Z", "+010000-06-01T12:00:00Z"]) {
+        expect(todayIn(zone, new Date(at))).toBe(fresh(zone, new Date(at)));
+      }
+    }
+    expect(todayIn("UTC", new Date("0099-06-01T12:00:00Z"))).toBe("0099-06-01");
+    /* The new year arrives first in Kiritimati and last in New York. */
+    const midnight = new Date("2026-12-31T23:30:00Z");
+    expect(todayIn("Pacific/Kiritimati", midnight)).toBe("2027-01-01");
+    expect(todayIn("America/New_York", midnight)).toBe("2026-12-31");
   });
 });

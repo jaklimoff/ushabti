@@ -220,10 +220,11 @@ export function zoneRefused(name: string): string {
 /**
  * The day it is in one zone, as YYYY-MM-DD.
  *
- * The parts are put together here rather than formatted, because a locale
- * decides the order and the separators — "21/09/2026" in one place and
- * "9/21/2026" in another — and the calendar is named as well, so a runtime
- * whose default is not Gregorian still answers the same day.
+ * The locale and the calendar are named rather than left to the runtime,
+ * because a locale decides the order and the separators — "21/09/2026" in one
+ * place and "9/21/2026" in another — and a runtime whose default is not
+ * Gregorian would answer another day. With both fixed, the string the
+ * formatter writes is always MM/DD/YYYY, and it is put together here.
  *
  * This is the only place in the product that reads a clock for a filter, and
  * only the server calls it without a moment. The answer travels on the board
@@ -232,12 +233,49 @@ export function zoneRefused(name: string): string {
  * turn the day a task was made or changed into the same string.
  */
 export function todayIn(timeZone: string, now: Date = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-US-u-ca-gregory", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
+  let days = DAYS.get(timeZone);
+  if (!days) {
+    days = formatterFor("en-US-u-ca-gregory", timeZone, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    DAYS.set(timeZone, days);
+  }
+  /* The fixed locale writes MM/DD/YYYY, and reading that string is twice as
+     quick as asking for the parts. A shape it does not expect asks anyway. */
+  const said = SAID.exec(days.format(now));
+  if (said) return `${said[3].padStart(4, "0")}-${said[1]}-${said[2]}`;
+  const parts = days.formatToParts(now);
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${part("year").padStart(4, "0")}-${part("month")}-${part("day")}`;
+}
+
+const FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+
+/* `todayIn` runs per card and per task, so it skips building the key. */
+const DAYS = new Map<string, Intl.DateTimeFormat>();
+const SAID = /^(\d{2})\/(\d{2})\/(\d{1,4})$/;
+
+/**
+ * One formatter per locale, zone and set of options, built once and kept.
+ *
+ * Building one costs about seventy microseconds, and a board asks for one per
+ * card for each stamp chip and per task for each date rule, so building it on
+ * every call was most of the cost of a redraw. The map holds only the zones a
+ * process meets, and each caller asks with a handful of fixed shapes. A zone
+ * nobody knows throws as before and is never kept.
+ */
+export function formatterFor(
+  locale: string,
+  timeZone: string,
+  options: Omit<Intl.DateTimeFormatOptions, "timeZone">,
+): Intl.DateTimeFormat {
+  const key = `${locale}|${timeZone}|${JSON.stringify(options)}`;
+  let made = FORMATTERS.get(key);
+  if (!made) {
+    made = new Intl.DateTimeFormat(locale, { ...options, timeZone });
+    FORMATTERS.set(key, made);
+  }
+  return made;
 }

@@ -1,5 +1,5 @@
 import { longAgo } from "./board";
-import { todayIn } from "./day";
+import { formatterFor, todayIn } from "./day";
 import {
   CLOSED_STATUSES,
   type AgentRunDTO,
@@ -203,16 +203,14 @@ export function stoppedAnswering(
  */
 export function stoppedAt(endedAt: string, timeZone: string, today: string): string {
   const at = new Date(endedAt);
-  const time = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
+  const time = formatterFor("en-GB", timeZone, {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
   }).format(at);
   const day = todayIn(timeZone, at);
   if (day === today) return time;
-  const said = new Intl.DateTimeFormat("en-GB", {
-    timeZone,
+  const said = formatterFor("en-GB", timeZone, {
     day: "numeric",
     month: "short",
     ...(day.slice(0, 4) === today.slice(0, 4) ? {} : { year: "numeric" }),
