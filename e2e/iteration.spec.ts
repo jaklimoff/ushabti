@@ -112,3 +112,58 @@ test("a board grouped by an iteration dates its header, filters 'is current', sh
   await page.getByTestId("view-pill").filter({ hasText: "Plan" }).click();
   await expect(page.getByTestId("roadmap-row")).toHaveCount(2);
 });
+
+test("a sprint shipped before its end hands 'is current' to the next one at once", async ({
+  page,
+}, testInfo) => {
+  await register(page);
+  const projectId = await createProject(page, unique("Early"));
+  const made = await page.request.post(`/api/projects/${projectId}/properties`, {
+    data: { name: "Sprint", type: "iteration", options: ["Now", "Next"] },
+  });
+  expect(made.status()).toBe(201);
+  const read = await board(page, projectId);
+  const sprint = read.properties.find((p) => p.name === "Sprint")!;
+  const [now, next] = sprint.options;
+  for (const [option, start, target] of [
+    [now, day(-3), day(3)],
+    [next, day(4), day(10)],
+  ] as const) {
+    const res = await page.request.patch(`/api/options/${option.id}`, {
+      data: { startAt: start, targetAt: target },
+    });
+    expect(res.ok()).toBeTruthy();
+  }
+  for (const [title, option] of [
+    ["Alpha", now],
+    ["Bravo", next],
+  ] as const) {
+    const res = await page.request.post(`/api/projects/${projectId}/tasks`, {
+      data: { title, values: { [sprint.id]: option.id } },
+    });
+    expect(res.ok()).toBeTruthy();
+  }
+  const main = read.views.find((v) => v.isDefault)!;
+  const current = await page.request.patch(`/api/views/${main.id}`, {
+    data: {
+      groupById: sprint.id,
+      filters: { rules: [{ propertyId: sprint.id, op: "is", values: ["__current__"] }] },
+    },
+  });
+  expect(current.ok()).toBeTruthy();
+
+  await page.goto(`/p/${projectId}`);
+  await expect(card(page, "Alpha")).toBeVisible();
+  await expect(card(page, "Bravo")).toHaveCount(0);
+
+  // Now ends in three days, and ships today.
+  const shipped = await page.request.post(`/api/options/${now.id}/ship`, {
+    data: { rest: "leave" },
+  });
+  expect(shipped.ok()).toBeTruthy();
+  await page.reload();
+  await expect(card(page, "Bravo")).toBeVisible();
+  await expect(card(page, "Alpha")).toHaveCount(0);
+  await expect(page.getByTestId("column-name")).toHaveText([/next/i]);
+  await page.screenshot({ path: testInfo.outputPath("seen-shipped-early.png") });
+});

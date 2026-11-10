@@ -446,6 +446,51 @@ describe("headingOf", () => {
     expect(heading?.kind).toBe("change");
   });
 
+  it("names the one planned release whose bar holds today when releases have only targets", () => {
+    const planned = {
+      ...release,
+      options: [
+        dated("o-12", "1.2", null, "2026-12-01"),
+        dated("o-13", "1.3", null, "2027-01-01"),
+        dated("o-14", "1.4", null, "2027-02-01"),
+      ],
+    };
+    const on = (today: string) =>
+      headingOf(
+        {
+          project: project({ releaseBy: planned.id }),
+          today,
+          properties: [phase, planned],
+          views: [view({})],
+          tasks: work,
+        },
+        change({}),
+      );
+    expect(on("2026-11-10")).toMatchObject({ kind: "release", name: "1.2", left: 21 });
+    expect(on("2026-12-02")).toMatchObject({ kind: "release", name: "1.3", left: 30 });
+  });
+
+  it("moves on from a sprint shipped before its end to the next one", () => {
+    const sprints = {
+      ...sprint,
+      options: [
+        { ...dated("o-s14", "14", "2026-11-01", "2026-11-14"), shippedAt: "2026-11-10" },
+        dated("o-s15", "15", "2026-11-15", "2026-11-28"),
+      ],
+    };
+    const heading = headingOf(
+      {
+        project: project({ sprintBy: sprints.id }),
+        today: "2026-11-10",
+        properties: [phase, sprints],
+        views: [view({})],
+        tasks: work,
+      },
+      change({}),
+    );
+    expect(heading).toMatchObject({ kind: "sprint", name: "15", day: "2026-11-28" });
+  });
+
   it("says a value change of the main view's grouping property moved the task there", () => {
     expect(headed({}, change({}))).toEqual({
       kind: "change",

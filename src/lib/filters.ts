@@ -27,7 +27,7 @@ import {
 import { personName, personOf } from "./people";
 import { taskOf } from "./related";
 import { linksOf } from "./web-links";
-import { carriesDates, splitShipped } from "./option-dates";
+import { carriesDates, optionStarts, splitShipped } from "./option-dates";
 
 /**
  * A filter is a rule about one property. Nothing here names Status, Priority or
@@ -150,34 +150,59 @@ export function offersCurrent(property: PropertyDTO, chosen: readonly string[]):
 
 /**
  * The ids of the options that hold `today`, with both edges included, as
- * `is within` has them. A missing start is open, so an option with only a
- * target is current until that day. A missing target is not: an option with
- * only a start never ends, and every sprint that forgot its target would stay
- * current for ever. Days are `YYYY-MM-DD`, so text order is date order.
+ * `is within` has them. An option begins where `optionStarts` says, which is
+ * where its roadmap bar begins: a release with only a target starts the day
+ * after the one before it ends, so planned releases take turns. The first with
+ * nothing before it is open, which is what its bar says too, since its bar
+ * starts on or before today. A missing target is not open: an option with only
+ * a start never ends, and every sprint that forgot its target would stay
+ * current for ever. A shipped option is never current, on any day. Days are
+ * `YYYY-MM-DD`, so text order is date order.
  *
- * An iteration has one rule on top: a sprint past its end that nobody shipped
- * is still the current one, because only Ship ends a sprint. Without it, its
- * column and its open tasks would leave a board filtered on "is current" the
- * day after its end. The oldest such sprint wins, so the next one becomes
- * current when it ships.
+ * An iteration has two rules on top, because only Ship ends a sprint. A
+ * sprint past its end that nobody shipped is still the current one: without
+ * it, its column and its open tasks would leave a board filtered on "is
+ * current" the day after its end. The oldest such sprint wins, so the next one
+ * becomes current when it ships. And a sprint shipped before its end hands the
+ * day on at once: when no open sprint holds today, the first open one after
+ * the newest shipped one is current, by start and then the Settings order.
  */
 function currentOptions(property: PropertyDTO, today: string): string[] {
+  const open = property.options.filter((o) => o.targetAt !== null && !o.shippedAt);
   if (property.type === "iteration") {
-    const ended = property.options.filter(
-      (o) => o.targetAt !== null && o.targetAt < today && !o.shippedAt,
-    );
+    const ended = open.filter((o) => o.targetAt! < today);
     if (ended.length) {
       // The options are in the Settings order, which breaks a tie of one end day.
       const oldest = ended.reduce((a, b) => (b.targetAt! < a.targetAt! ? b : a));
       return [oldest.id];
     }
   }
-  return property.options
-    .filter(
-      (o) =>
-        o.targetAt !== null && (o.startAt === null || o.startAt <= today) && today <= o.targetAt,
-    )
-    .map((o) => o.id);
+  const starts = optionStarts(property.options);
+  const holding = open.filter((o) => (starts.get(o.id) ?? today) <= today && today <= o.targetAt!);
+  if (holding.length || property.type !== "iteration") return holding.map((o) => o.id);
+  return nextAfterShipped(property, starts, today);
+}
+
+/* The first open sprint after the newest shipped one, in the order of their
+   starts with the Settings order breaking a tie. A sprint with no start sorts
+   where nothing before it does, first. Before the shipped one began, it has
+   handed nothing on, so nothing is current. */
+function nextAfterShipped(
+  property: PropertyDTO,
+  starts: Map<string, string | null>,
+  today: string,
+): string[] {
+  const dated = property.options
+    .map((o, index) => ({ o, index, start: starts.get(o.id) ?? "" }))
+    .filter(({ o }) => o.targetAt !== null)
+    .sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : a.index - b.index));
+  let newest = -1;
+  dated.forEach(({ o }, i) => {
+    if (o.shippedAt) newest = i;
+  });
+  if (newest < 0 || dated[newest].start > today) return [];
+  const next = dated.slice(newest + 1).find(({ o }) => !o.shippedAt);
+  return next ? [next.o.id] : [];
 }
 
 /**

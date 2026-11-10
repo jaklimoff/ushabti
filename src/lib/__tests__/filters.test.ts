@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DATE_WINDOWS } from "../day";
+import { roadmapRows } from "../roadmap";
 import {
   AGENT_WAITING_KEY,
   AGENT_WAITING_PROPERTY,
@@ -1589,6 +1590,64 @@ describe("a rule that says a dated option is current", () => {
     ).toBe("sets Sprint Sprint 2");
   });
 
+  describe("with releases that have only targets", () => {
+    const planned: PropertyDTO = {
+      ...sprints,
+      id: "p-release",
+      name: "Release",
+      options: [
+        sprint("o-12", "v1.2", null, "2026-12-01"),
+        sprint("o-13", "v1.3", null, "2027-01-01"),
+        sprint("o-14", "v1.4", null, "2027-02-01"),
+      ],
+    };
+    const rule: FilterRule = { propertyId: planned.id, op: "is", values: [CURRENT_KEY] };
+    const at = (day: string, value: string) =>
+      matches(task("t", { "p-release": value }), rule, planned, day, null, NONE, "UTC");
+
+    it("calls exactly one current, the one whose roadmap bar holds the day", () => {
+      for (const day of ["2026-11-10", "2026-12-01", "2026-12-02", "2027-01-15", "2027-02-01"]) {
+        const rows = roadmapRows(
+          planned,
+          [],
+          [],
+          { doneWhen: null, countBy: null },
+          "UTC",
+          {},
+          day,
+        );
+        const bar = rows.filter((r) => r.start <= day && day <= r.end).map((r) => r.id);
+        expect(bar).toHaveLength(1);
+        expect(currentOption(planned, day)).toBe(bar[0]);
+        expect(planned.options.filter((o) => at(day, o.id)).map((o) => o.id)).toEqual(bar);
+      }
+      expect(currentOption(planned, "2026-11-10")).toBe("o-12");
+      expect(currentOption(planned, "2026-12-02")).toBe("o-13");
+    });
+
+    it("keeps one column and seeds that release", () => {
+      const columns = planned.options.map((o) => ({ id: o.id, value: o.id }));
+      expect(
+        allowedColumns(columns, { rules: [rule] }, planned, "2026-11-10", null).map((c) => c.id),
+      ).toEqual(["o-12"]);
+      expect(seedValues({ rules: [rule] }, [planned], null, null, "2026-11-10")).toEqual({
+        "p-release": "o-12",
+      });
+    });
+
+    it("hands on to the next once the first ships", () => {
+      const shipped = {
+        ...planned,
+        options: planned.options.map((o) =>
+          o.id === "o-12" ? { ...o, shippedAt: "2026-11-10" } : o,
+        ),
+      };
+      // v1.3 starts the day after v1.2's target, so nothing holds the days between.
+      expect(currentOption(shipped, "2026-11-10")).toBeNull();
+      expect(currentOption(shipped, "2026-12-02")).toBe("o-13");
+    });
+  });
+
   describe("on an iteration", () => {
     // Sprint 1 shipped, as a sprint before the current one has.
     const iteration: PropertyDTO = {
@@ -1605,7 +1664,7 @@ describe("a rule that says a dated option is current", () => {
       expect(currentOption(iteration, "2026-01-01")).toBeNull();
       const overlap = {
         ...iteration,
-        options: [...iteration.options, sprint("o-x", "X", null, "2026-09-30")],
+        options: [...iteration.options, sprint("o-x", "X", "2026-09-15", "2026-09-30")],
       };
       expect(currentOption(overlap, TODAY)).toBeNull();
       expect(currentOption(labels, TODAY)).toBeNull();
@@ -1635,14 +1694,62 @@ describe("a rule that says a dated option is current", () => {
     it("writes nothing when no option that still has a column holds today", () => {
       // No option holds the day: the rule would take every column away.
       expect(startsOnCurrent({ rules: [] }, iteration, "2026-01-01")).toEqual({ rules: [] });
-      // The one that holds it has shipped, so it has no column either.
+      // Every dated sprint has shipped, so none has a column either.
       const shipped = {
         ...iteration,
         options: iteration.options.map((o) =>
-          o.id === "o-s2" ? { ...o, shippedAt: "2026-09-20T10:00:00.000Z" } : o,
+          o.id === "o-s2" || o.id === "o-s3" ? { ...o, shippedAt: "2026-09-20T10:00:00.000Z" } : o,
         ),
       };
       expect(startsOnCurrent({ rules: [] }, shipped, TODAY)).toEqual({ rules: [] });
+    });
+
+    describe("shipped before its end", () => {
+      // Sprint 2 runs to 2026-10-04 and ships on 2026-09-28; Sprint 3 starts 2026-10-05.
+      const day = "2026-09-28";
+      const early: PropertyDTO = {
+        ...iteration,
+        options: iteration.options.map((o) => (o.id === "o-s2" ? { ...o, shippedAt: day } : o)),
+      };
+      const rule: FilterRule = { ...current, propertyId: early.id };
+
+      it("is not current, and the next open sprint is", () => {
+        expect(currentOption(early, day)).toBe("o-s3");
+        expect(currentOption(early, "2026-10-04")).toBe("o-s3");
+        expect(currentOption(early, "2026-10-05")).toBe("o-s3");
+      });
+
+      it("hands its matches, its column and its seed to the next sprint", () => {
+        expect(on(day, "o-s2", early)).toBe(false);
+        expect(on(day, "o-s3", early)).toBe(true);
+        const columns = early.options.map((o) => ({ id: o.id, value: o.id }));
+        expect(
+          allowedColumns(columns, { rules: [rule] }, early, day, null).map((c) => c.id),
+        ).toEqual(["o-s3"]);
+        expect(seedValues({ rules: [rule] }, [early], null, null, day)).toEqual({
+          "p-sprint": "o-s3",
+        });
+        expect(startsOnCurrent({ rules: [] }, early, day)).toEqual({ rules: [rule] });
+      });
+
+      it("takes the next by start, not by the Settings order", () => {
+        const shuffled = { ...early, options: [...early.options].reverse() };
+        expect(currentOption(shuffled, day)).toBe("o-s3");
+      });
+
+      it("hands on nothing before the shipped sprint began", () => {
+        expect(currentOption(early, "2026-09-01")).toBeNull();
+      });
+
+      it("never calls a shipped sprint current, even inside its dates", () => {
+        expect(on("2026-09-25", "o-s2", early)).toBe(false);
+        // A dated select ends with Ship too, and has no next sprint to hand on to.
+        const release = {
+          ...sprints,
+          options: sprints.options.map((o) => (o.id === "o-s2" ? { ...o, shippedAt: day } : o)),
+        };
+        expect(currentOption(release, day)).toBeNull();
+      });
     });
 
     it("keeps a sprint past its end current until somebody ships it", () => {

@@ -40,6 +40,37 @@ export function isOpenOption(
   return !(property.type === "iteration" && option.shippedAt);
 }
 
+/**
+ * The day each option with a target begins, keyed by its id, worked out on the
+ * read and never written. A start of its own wins. With none, an option begins
+ * the day after the previous option's target, in the Settings order, because a
+ * release starts when the one before it ends. The first option with neither
+ * maps to null: nothing before it says when it began, so the caller decides,
+ * and every caller's answer lies on or before today.
+ *
+ * This is the one rule. The roadmap draws its bars by it and "is current"
+ * reads today against it, so a release is current while its bar holds today.
+ * An option with no target has no entry: it is on no roadmap and never current.
+ */
+export function optionStarts(
+  options: readonly { id: string; startAt: string | null; targetAt: string | null }[],
+): Map<string, string | null> {
+  const starts = new Map<string, string | null>();
+  let previousTarget: string | null = null;
+  for (const option of options) {
+    if (!option.targetAt) continue;
+    starts.set(option.id, option.startAt ?? (previousTarget ? nextDay(previousTarget) : null));
+    previousTarget = option.targetAt;
+  }
+  return starts;
+}
+
+/* Pure arithmetic on the calendar day, so no zone moves it. */
+function nextDay(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
 /** The options a picker offers: the open ones, and the one the value holds. */
 export function pickableOptions<O extends { id: string; shippedAt: string | null }>(
   property: { type: string; options: O[] },

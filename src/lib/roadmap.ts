@@ -1,5 +1,6 @@
 import { todayIn } from "./day";
 import type { DoneWhen, OverTask } from "./links";
+import { optionStarts } from "./option-dates";
 import { progressOf } from "./progress";
 import type { ArchivedUnder, PropertyDTO } from "./types";
 import { isSelect } from "./types";
@@ -38,7 +39,9 @@ export type RoadmapRule = { doneWhen: DoneWhen | null; countBy: string | null };
  * The rows, in option order with the shipped ones below the open ones.
  *
  * A bar with no start date begins the day after the previous dated option's
- * target, because a release starts when the one before it ends. Only the first
+ * target, because a release starts when the one before it ends. `optionStarts`
+ * says so, and "is current" reads the same answer, so the release a filter
+ * calls current is the one whose bar holds today. Only the first
  * dated option has nothing before it, so it starts at its oldest task, archived
  * ones too, or today when it has none, because the day a release began moves with neither a filter nor a
  * ship. Reading the oldest task for every option let one old task moved into a
@@ -60,7 +63,7 @@ export function roadmapRows(
     tasks.filter((t) => t.values[property.id] === id);
 
   const rows: RoadmapRow[] = [];
-  let previousTarget: string | null = null;
+  const starts = optionStarts(property.options);
   for (const option of property.options) {
     if (!option.targetAt) continue;
     const gone = archived[option.id];
@@ -68,12 +71,9 @@ export function roadmapRows(
        has not begun, so it begins today, and a release made on the roadmap
        draws a row the moment it is made. */
     const start =
-      option.startAt ??
-      (previousTarget
-        ? dayOf(dayNumber(previousTarget) + 1)
-        : oldestDay([...under(all, option.id).map((t) => t.createdAt), gone?.firstAt], timeZone)) ??
+      starts.get(option.id) ??
+      oldestDay([...under(all, option.id).map((t) => t.createdAt), gone?.firstAt], timeZone) ??
       today;
-    previousTarget = option.targetAt;
     const end = option.shippedAt ?? option.targetAt;
     const { done, total } = progressOf(under(visible, option.id), rule.doneWhen, rule.countBy);
     rows.push({

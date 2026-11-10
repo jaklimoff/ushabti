@@ -31,6 +31,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A sprint shipped before its end stops being current at once.** "Is current" boards, the
+  composer and Home move to the next sprint as soon as you press Ship, not on the shipped sprint's
+  last day.
+- **Releases with only a target take turns being current.** A release with no start begins the day
+  after the one before it ends, as its roadmap bar does, so "Release is current", the composer and
+  Home name one release instead of none.
 - **An agent's run holds against races.** A report that crosses Take over or the lease now gets a 409
   and leaves the run closed, instead of reopening it. Two agents claiming one task at once get a 409,
   not a 500. Pause, Resume and Stop no longer renew a quiet agent's lease, and a report no longer

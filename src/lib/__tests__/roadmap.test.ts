@@ -14,6 +14,7 @@ import {
   type RoadmapTask,
   weekLines,
 } from "../roadmap";
+import { optionStarts } from "../option-dates";
 import type { PropertyDTO, PropertyOptionDTO } from "../types";
 
 function option(id: string, dates: Partial<PropertyOptionDTO> = {}): PropertyOptionDTO {
@@ -122,6 +123,22 @@ describe("roadmapRows", () => {
       ["v1", "2026-09-01", "2026-09-30"],
       ["v3", "2026-10-01", "2026-10-31"],
     ]);
+  });
+
+  it("draws its starts from optionStarts, the rule 'is current' reads too", () => {
+    const property = release([
+      option("v1", { targetAt: "2026-09-30" }),
+      option("v2", { startAt: "2026-10-03", targetAt: "2026-10-20" }),
+      option("v3", { targetAt: "2026-10-31" }),
+    ]);
+    const starts = optionStarts(property.options);
+    expect([...starts]).toEqual([
+      ["v1", null],
+      ["v2", "2026-10-03"],
+      ["v3", "2026-10-21"],
+    ]);
+    const rows = roadmapRows(property, [], [], rule, "UTC", {}, "2026-09-10");
+    expect(rows.map((r) => r.start)).toEqual(["2026-09-10", "2026-10-03", "2026-10-21"]);
   });
 
   it("does not move a bar's start when an old task is moved into the release", () => {
