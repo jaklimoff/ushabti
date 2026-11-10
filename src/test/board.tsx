@@ -450,9 +450,12 @@ export async function renderWithBoard(
     );
 
   /* Somebody else wrote: the board and an open panel read again, and find
-     whatever the test has put in `data` and `answer` since. */
-  const ring = () => {
-    const event = new MessageEvent("change", { data: JSON.stringify({ clientId: "elsewhere" }) });
+     whatever the test has put in `data` and `answer` since. A ring may name
+     the task it was for, as the server's does. */
+  const ring = (taskId?: string) => {
+    const event = new MessageEvent("change", {
+      data: JSON.stringify({ clientId: "elsewhere", ...(taskId ? { taskId } : {}) }),
+    });
     for (const bell of bells) bell(event);
   };
 

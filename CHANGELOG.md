@@ -13,6 +13,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A board with the Created or Updated day on its cards redraws quickly again.** Every date on a
   card and in a filter used to build a new date formatter; one is now kept per time zone, so a
   thousand cards lay out in a few milliseconds instead of seventy.
+- **A busy agent no longer makes every open tab read the board on every step.** A board in a
+  hidden tab reads nothing until it is shown, a steady run of changes still reads within two
+  seconds, the sidebar reads the projects only when another project changes, and an open task
+  reloads only for a change to itself or a task it links to.
 
 ## 0.47.0 — 2026-11-10
 

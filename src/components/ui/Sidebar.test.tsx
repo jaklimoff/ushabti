@@ -5,7 +5,7 @@ import { BoardShell } from "@/components/board/BoardApp";
 import type { ProjectNow } from "@/lib/queries";
 import { FOLD_COOKIE, type SidebarList } from "@/lib/sidebar";
 import type { BoardData } from "@/lib/types";
-import { newProject, renderWithBoard, withTask, type Answer } from "@/test/board";
+import { newProject, renderWithBoard, withRun, withTask, type Answer } from "@/test/board";
 import { at } from "@/test/next-navigation";
 import { Sidebar } from "./Sidebar";
 import { SidebarProvider } from "./SidebarProvider";
@@ -358,6 +358,43 @@ describe("Following the projects", () => {
     made.server.projects[0] = { ...made.server.projects[0], agents: [] };
     board.elsewhere(made.harbour.id);
     await gone(square("Harbour").getByTestId("sidebar-dot"));
+  });
+
+  /* The open project's count comes from the board's own read, so a ring of
+     the board, which an agent at work makes every step, reads no projects. */
+  test("a ring of the open board reads no projects, and one from elsewhere does", async () => {
+    const made = twoProjects();
+    const board = await draw(made);
+    const projectReads = () => board.sent("GET", /^\/api\/home\/projects$/).length;
+    const boardReads = () => board.sent("GET", /\/board$/).length;
+    await new Promise((done) => setTimeout(done, 600));
+    const before = { projects: projectReads(), board: boardReads() };
+
+    for (let i = 0; i < 3; i++) board.ring();
+    await expect.poll(boardReads).toBe(before.board + 1);
+    await new Promise((done) => setTimeout(done, 800));
+    expect(projectReads()).toBe(before.projects);
+
+    board.elsewhere(made.harbour.id);
+    await expect.poll(projectReads).toBe(before.projects + 1);
+  });
+
+  /* The board reads no projects on its own ring, so the open project's dot
+     comes from the board's own runs. */
+  test("a ring after an agent starts on the open project lights its dot", async () => {
+    const made = twoProjects();
+    const task = withTask(made.data, "Being built", { Status: "Todo" });
+    const board = await draw(made);
+    await gone(square("Lantern").getByTestId("sidebar-dot"));
+    const projectReads = () => board.sent("GET", /^\/api\/home\/projects$/).length;
+    await new Promise((done) => setTimeout(done, 600));
+    const before = projectReads();
+
+    withRun(made.data, task, { id: other(8), name: "Scout", color: "#5a8ac9", emoji: null });
+    board.ring(task.id);
+    await expect.element(square("Lantern").getByTestId("sidebar-dot")).toBeInTheDocument();
+    await expect.element(square("Lantern")).toHaveAccessibleName(/Scout on /);
+    expect(projectReads()).toBe(before);
   });
 
   test("holds the board's own stream and opens none of its own", async () => {

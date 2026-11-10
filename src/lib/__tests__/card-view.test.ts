@@ -1184,7 +1184,8 @@ describe("a thousand cards with the two days on", () => {
     time(off);
     const withDays = time(on);
     const without = time(off);
-    /* About three times here; a fresh formatter per chip made it seventy. */
-    expect(withDays).toBeLessThan(without * 5);
+    /* About three times here; a fresh formatter per chip made it seventy.
+       A loaded machine has measured six, so the line sits well clear of both. */
+    expect(withDays).toBeLessThan(without * 15);
   });
 });

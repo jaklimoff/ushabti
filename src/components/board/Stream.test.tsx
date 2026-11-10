@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { page } from "vitest/browser";
-import { newProject, renderWithBoard, withTask } from "@/test/board";
+import { ME, newProject, renderWithBoard, withTask } from "@/test/board";
+import { serving } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -91,4 +92,82 @@ test("a board read that fails is asked again", async () => {
   /* It is owed once: the read that worked asks for nothing more. */
   await new Promise((done) => setTimeout(done, 2_500));
   expect(reads()).toBe(2);
+});
+
+/*
+ * Every agent step rings the board. A tab nobody is looking at read the whole
+ * board for each one; it now reads once, when it is looked at again.
+ */
+test("a hidden board tab reads nothing on a ring, and reads once when shown", async () => {
+  const data = newProject();
+  withTask(data, "Watched", { Status: "Todo" });
+  const { sent, ring } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+  await settle();
+  const reads = () => sent("GET", /\/board$/).length;
+  const before = reads();
+
+  let state: DocumentVisibilityState = "hidden";
+  const looked = Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState");
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+  try {
+    for (let i = 0; i < 5; i++) ring();
+    await new Promise((done) => setTimeout(done, 2_500));
+    expect(reads()).toBe(before);
+
+    state = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+    await expect.poll(reads).toBe(before + 1);
+    await new Promise((done) => setTimeout(done, 500));
+    expect(reads()).toBe(before + 1);
+  } finally {
+    delete (document as { visibilityState?: unknown }).visibilityState;
+    expect(Object.getOwnPropertyDescriptor(Document.prototype, "visibilityState")).toEqual(looked);
+  }
+});
+
+/* An agent at work rings closer together than the burst, for minutes. */
+test("steady rings still read within about two seconds", async () => {
+  const data = newProject();
+  const { sent, ring } = await renderWithBoard(<BoardShell initialTask={null} />, data);
+  await settle();
+  const reads = () => sent("GET", /\/board$/).length;
+  const before = reads();
+  const started = Date.now();
+  while (reads() === before && Date.now() - started < 4_000) {
+    ring();
+    await new Promise((done) => setTimeout(done, 50));
+  }
+  expect(reads()).toBe(before + 1);
+  expect(Date.now() - started).toBeLessThan(2_500);
+});
+
+/* An open panel loads the whole of its task. A ring for another task leaves it be. */
+test("an open panel ignores a ring that names another task", async () => {
+  const data = newProject();
+  const open = withTask(data, "Open", { Status: "Todo" });
+  const other = withTask(data, "Elsewhere", { Status: "Todo" });
+  const server = serving(data, ME);
+  const { sent, ring } = await renderWithBoard(
+    <BoardShell initialTask={open.key} />,
+    data,
+    server.answer,
+  );
+  await expect.element(page.getByTestId("task-panel")).toBeVisible();
+  await settle();
+  const loads = () => sent("GET", new RegExp(`/api/tasks/${open.id}$`)).length;
+  const reads = () => sent("GET", /\/board$/).length;
+  const before = { loads: loads(), reads: reads() };
+  expect(before.loads).toBeGreaterThan(0);
+
+  ring(other.id);
+  await expect.poll(reads).toBe(before.reads + 1);
+  await new Promise((done) => setTimeout(done, 300));
+  expect(loads()).toBe(before.loads);
+
+  ring(open.id);
+  await expect.poll(loads).toBe(before.loads + 1);
+
+  /* A ring that names nothing may be about anything. */
+  ring();
+  await expect.poll(loads).toBe(before.loads + 2);
 });

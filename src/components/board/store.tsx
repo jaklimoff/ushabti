@@ -47,6 +47,7 @@ import { batchesSaid, changed, inBatches, type Change } from "@/lib/bulk";
 import { rankBetween } from "@/lib/rank";
 import { backoff, keepOpen } from "@/lib/reopen";
 import { trackWrites } from "@/lib/writes";
+import { boardReader, REMOTE_CHANGE, type RemoteChange } from "@/lib/board-live";
 import type {
   AgentRunDTO,
   StoppedRunDTO,
@@ -825,7 +826,14 @@ export function BoardProvider({
   /* --- live updates from the other people on the board ---------------- */
   const lend = useLendStream();
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    const reader = boardReader({
+      read: () => void refreshRef.current(),
+      rung: (taskIds) =>
+        window.dispatchEvent(new CustomEvent<RemoteChange>(REMOTE_CHANGE, { detail: { taskIds } })),
+      hidden: () => document.visibilityState === "hidden",
+    });
+    const shown = () => reader.shown();
+    document.addEventListener("visibilitychange", shown);
 
     /*
      * Server-sent events have no replay, so everything that happened between
@@ -841,17 +849,16 @@ export function BoardProvider({
     const attach = (source: EventSource) => {
       source.addEventListener("ready", () => {
         setLive(true);
-        void refreshRef.current();
+        reader.ready();
         presence.announce();
       });
       source.addEventListener("change", (event) => {
-        const payload = JSON.parse((event as MessageEvent).data) as { clientId?: string };
+        const payload = JSON.parse((event as MessageEvent).data) as {
+          clientId?: string;
+          taskId?: string;
+        };
         if (payload.clientId === CLIENT_ID) return;
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          void refreshRef.current();
-          window.dispatchEvent(new CustomEvent("ushabti:remote-change"));
-        }, 140);
+        reader.ring(payload.taskId);
       });
       /* Presence carries its data and changes nothing on the board, so it
          never reads the board again. */
@@ -878,7 +885,8 @@ export function BoardProvider({
     );
 
     return () => {
-      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", shown);
+      reader.stop();
       stop();
     };
   }, [presence, projectId, lend]);

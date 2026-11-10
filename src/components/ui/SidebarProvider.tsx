@@ -13,6 +13,7 @@ import {
 import { api } from "@/lib/client";
 import { keepOpen } from "@/lib/reopen";
 import { homeReader, SILENCE_CHECK_MS, type HomeReader } from "@/lib/home-live";
+import { agentsNamed } from "@/lib/pulse";
 import type { ProjectNow } from "@/lib/queries";
 import {
   foldCookie,
@@ -41,8 +42,11 @@ type Sidebar = {
   shown: boolean;
   folded: boolean;
   toggle: () => void;
-  /** The board's own count of the open project, which the sidebar reads for it. */
-  own: (projectId: string, waiting: number) => () => void;
+  /**
+   * What the board knows of the open project, which the sidebar reads for it:
+   * the count, and the open runs its dot and agents are worked out from.
+   */
+  own: (projectId: string, waiting: number, runs: OwnRun[]) => () => void;
   /** A page that already holds a stream lends it, so a tab holds one. */
   lend: (source: EventSource) => () => void;
   hear: (listener: Hear) => () => void;
@@ -85,7 +89,15 @@ export function SidebarProvider({
   const [projects, setProjects] = useState(given);
   const [lists, setLists] = useState(givenLists);
   const [folded, setFolded] = useState(givenFolded);
-  const [owned, setOwned] = useState<{ projectId: string; waiting: number } | null>(null);
+  const [owned, setOwned] = useState<{
+    projectId: string;
+    waiting: number;
+    runs: OwnRun[];
+    /* When the runs were last weighed: an agent falls silent as time passes. */
+    now: number;
+  } | null>(null);
+  /* Which project a board counts right now, for the stream's rings. */
+  const counted = useRef<string | null>(null);
   const [lent, setLent] = useState<EventSource | null>(null);
   /* A board lends its stream in its own effect, which runs before this
      one: the ref says so at once, so the first paint opens no second
@@ -165,12 +177,15 @@ export function SidebarProvider({
      Home's is opened again here. */
   useEffect(() => {
     const borrowed = lentNow.current ?? lent;
-    const hold = (held: EventSource) => {
+    /* A board's own rings are its own: its count comes from the board, so
+       the sidebar reads the projects only when another one rings. A page
+       that lends a stream and counts nothing, settings, still rings it. */
+    const hold = (held: EventSource, board: boolean) => {
       ready.current = false;
       const heard = RINGS.map((ring) => {
         const on = () => {
           if (ring === "ready") ready.current = true;
-          reader.current?.ring();
+          if (!board || ring !== "change" || !counted.current) reader.current?.ring();
           for (const listener of listeners.current) listener(ring);
         };
         held.addEventListener(ring, on);
@@ -184,7 +199,7 @@ export function SidebarProvider({
       keepOpen(
         () => new EventSource("/api/home/stream"),
         (held) => {
-          const unhear = hold(held);
+          const unhear = hold(held, false);
           return () => {
             unhear();
             held.close();
@@ -193,7 +208,7 @@ export function SidebarProvider({
       );
     if (borrowed) {
       gaveBack.current = false;
-      const unhear = hold(borrowed);
+      const unhear = hold(borrowed, true);
       return () => {
         unhear();
         gaveBack.current = true;
@@ -209,13 +224,6 @@ export function SidebarProvider({
     };
   }, [lent]);
 
-  const working = projects.some(isWorking);
-  useEffect(() => {
-    if (!working) return;
-    const look = setInterval(() => reader.current?.ring(), SILENCE_CHECK_MS);
-    return () => clearInterval(look);
-  }, [working]);
-
   const toggle = useCallback(() => {
     setFolded((was) => {
       document.cookie = foldCookie(!was);
@@ -223,9 +231,13 @@ export function SidebarProvider({
     });
   }, []);
 
-  const own = useCallback((projectId: string, waiting: number) => {
-    setOwned({ projectId, waiting });
-    return () => setOwned((was) => (was?.projectId === projectId ? null : was));
+  const own = useCallback((projectId: string, waiting: number, runs: OwnRun[]) => {
+    counted.current = projectId;
+    setOwned({ projectId, waiting, runs, now: Date.now() });
+    return () => {
+      if (counted.current === projectId) counted.current = null;
+      setOwned((was) => (was?.projectId === projectId ? null : was));
+    };
   }, []);
 
   const lend = useCallback((source: EventSource) => {
@@ -245,15 +257,31 @@ export function SidebarProvider({
     };
   }, []);
 
-  /* The open project's count is the board's own, so the sidebar and the
-     board's top bar never disagree. */
+  /* The open project's count and agents are the board's own, so the sidebar
+     and the board never disagree, and a ring of the board needs no read of
+     every project to light the dot. */
   const drawn = useMemo(
     () =>
       owned
-        ? projects.map((p) => (p.id === owned.projectId ? { ...p, waiting: owned.waiting } : p))
+        ? projects.map((p) =>
+            p.id === owned.projectId
+              ? { ...p, waiting: owned.waiting, agents: agentsNamed(owned.runs, owned.now) }
+              : p,
+          )
         : projects,
     [projects, owned],
   );
+
+  const working = drawn.some(isWorking);
+
+  useEffect(() => {
+    if (!working) return;
+    const look = setInterval(() => {
+      reader.current?.ring();
+      setOwned((was) => (was ? { ...was, now: Date.now() } : was));
+    }, SILENCE_CHECK_MS);
+    return () => clearInterval(look);
+  }, [working]);
 
   const value = useMemo<Sidebar>(
     () => ({
@@ -304,8 +332,11 @@ export function useTabRings(listener: Hear) {
   }, [hear]);
 }
 
-/** The board's own count of the open project, handed to the sidebar. */
-export function useOwnWaiting(projectId: string, waiting: number) {
+/** An open run as the sidebar names its agent: with the key of its task. */
+export type OwnRun = Parameters<typeof agentsNamed>[0][number];
+
+/** The board's own count and runs of the open project, handed to the sidebar. */
+export function useOwnProject(projectId: string, waiting: number, runs: OwnRun[]) {
   const own = useSidebar()?.own;
-  useEffect(() => own?.(projectId, waiting), [own, projectId, waiting]);
+  useEffect(() => own?.(projectId, waiting, runs), [own, projectId, waiting, runs]);
 }

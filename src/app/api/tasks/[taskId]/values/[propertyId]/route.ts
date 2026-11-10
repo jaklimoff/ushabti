@@ -51,6 +51,13 @@ export const PUT = route<Ctx>(async (req, ctx) => {
     });
   });
   await ring();
-  await broadcast({ projectId, scope: "board", taskId, clientId: clientIdOf(req) });
+  /* A Tasks value can name a task it did not name before, whose open panel
+     lists who points at it: a ring that names only this task would pass it by. */
+  await broadcast({
+    projectId,
+    scope: "board",
+    ...(prop.type === "relation" ? {} : { taskId }),
+    clientId: clientIdOf(req),
+  });
   return json({ value, dropped });
 });

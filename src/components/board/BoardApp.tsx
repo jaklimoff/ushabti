@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { taskByAddress } from "@/lib/board";
 import { waitingCount } from "@/lib/waiting";
 import type { BoardData } from "@/lib/types";
@@ -9,7 +9,7 @@ import type { BoardData } from "@/lib/types";
 /** What opening a task needs: which one, and the key its link carries. */
 type Openable = { id: string; key: string };
 import { SidebarMark } from "@/components/ui/Sidebar";
-import { useOwnWaiting } from "@/components/ui/SidebarProvider";
+import { useOwnProject, type OwnRun } from "@/components/ui/SidebarProvider";
 import { AppAction, AppHome, AppSep, useHomeInBar } from "@/components/ui/AppBar";
 import { ProjectMark } from "@/components/ui/Marks";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
@@ -87,7 +87,13 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
   const [litColumn, setLitColumn] = useState<string | null>(null);
   /* The sidebar reads the open project's count from here, so it and the top
      bar never disagree. */
-  useOwnWaiting(data.project.id, waitingCount(data.tasks, data.runs));
+  const ownRuns = useMemo<OwnRun[]>(() => {
+    const keys = new Map(data.tasks.map((t) => [t.id, t.key]));
+    return data.runs
+      .filter((run) => !run.endedAt && keys.has(run.taskId))
+      .map((run) => ({ ...run, taskKey: keys.get(run.taskId) ?? null }));
+  }, [data.tasks, data.runs]);
+  useOwnProject(data.project.id, waitingCount(data.tasks, data.runs), ownRuns);
   const homeInBar = useHomeInBar();
 
   /* A task opened from the waiting list opens to be answered, so the focus

@@ -76,6 +76,7 @@ import { ConfirmRow } from "@/components/ui/ConfirmRow";
 import { canManage } from "@/lib/roles";
 import { Label } from "@/components/ui/Form";
 import { Meter } from "@/components/ui/Layout";
+import { concerns, REMOTE_CHANGE, type RemoteChange } from "@/lib/board-live";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -151,6 +152,22 @@ export function TaskPanel({
    */
   const [loaded, setLoaded] = useState<{ taskId: string; task: TaskDetailDTO | null } | null>(null);
   const detail = loaded?.taskId === taskId ? loaded.task : null;
+  /* Every task this panel draws a line of: itself and each it links to. */
+  const drawn = useMemo(
+    () => [
+      taskId,
+      ...(detail
+        ? [
+            ...detail.links.blockedBy,
+            ...detail.links.blocks,
+            ...(detail.parent ? [detail.parent] : []),
+            ...detail.children,
+            ...detail.pointedBy.flatMap((p) => p.tasks),
+          ].map((t) => t.id)
+        : []),
+    ],
+    [taskId, detail],
+  );
   /*
    * The tab is picked once, when a task opens, and belongs to that task. A
    * board read that moves the run on must not move the person off the tab they
@@ -410,10 +427,14 @@ export function TaskPanel({
   }, [load]);
 
   useEffect(() => {
-    const handler = () => void load();
-    window.addEventListener("ushabti:remote-change", handler);
-    return () => window.removeEventListener("ushabti:remote-change", handler);
-  }, [load]);
+    /* A ring that names a task this panel does not draw changes nothing on it. */
+    const handler = (event: Event) => {
+      const said = (event as CustomEvent<RemoteChange | undefined>).detail;
+      if (concerns(said?.taskIds, drawn)) void load();
+    };
+    window.addEventListener(REMOTE_CHANGE, handler);
+    return () => window.removeEventListener(REMOTE_CHANGE, handler);
+  }, [load, drawn]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
