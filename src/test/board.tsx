@@ -376,30 +376,47 @@ export async function renderWithBoard(
   const voices: ((event: MessageEvent) => void)[] = [];
   const readies: ((event: MessageEvent) => void)[] = [];
   const elsewheres: ((event: MessageEvent) => void)[] = [];
-  const sources: { onopen: ((event: Event) => void) | null; url: string; closed: boolean }[] = [];
+  const sources: {
+    onopen: ((event: Event) => void) | null;
+    url: string;
+    closed: boolean;
+    readyState: number;
+    errors: ((event: Event) => void)[];
+  }[] = [];
+  /* What a closed source heard is never heard again, as in a browser. */
+  const wrapped = new Map<(event: MessageEvent) => void, (event: MessageEvent) => void>();
   vi.stubGlobal(
     "EventSource",
     class {
       onerror = null;
       onopen = null;
       closed = false;
+      readyState = 1;
+      errors: ((event: Event) => void)[] = [];
       constructor(public url: string) {
         sources.push(this);
       }
       addEventListener(kind: string, listener: (event: MessageEvent) => void) {
-        if (kind === "change") bells.push(listener);
-        if (kind === "presence") voices.push(listener);
-        if (kind === "ready") readies.push(listener);
-        if (kind === "elsewhere") elsewheres.push(listener);
+        if (kind === "error") return void this.errors.push(listener as (event: Event) => void);
+        const heard = (event: MessageEvent) => {
+          if (!this.closed) listener(event);
+        };
+        wrapped.set(listener, heard);
+        if (kind === "change") bells.push(heard);
+        if (kind === "presence") voices.push(heard);
+        if (kind === "ready") readies.push(heard);
+        if (kind === "elsewhere") elsewheres.push(heard);
       }
       removeEventListener(kind: string, listener: (event: MessageEvent) => void) {
+        const heard = wrapped.get(listener);
         for (const list of [bells, voices, readies, elsewheres]) {
-          const at = list.indexOf(listener);
+          const at = heard ? list.indexOf(heard) : -1;
           if (at >= 0) list.splice(at, 1);
         }
       }
       close() {
         this.closed = true;
+        this.readyState = 2;
       }
     },
   );
@@ -455,6 +472,16 @@ export async function renderWithBoard(
     for (const listener of readies) listener(event);
   };
 
+  /* Every open stream is closed for good, as a browser closes one that met a
+     502 while the server restarted. */
+  const drop = () => {
+    for (const source of sources.filter((s) => !s.closed)) {
+      source.closed = true;
+      source.readyState = 2;
+      for (const error of source.errors) error(new Event("error"));
+    }
+  };
+
   /* Another project of the person changed, as the board's stream says it. */
   const elsewhere = (projectId: string) => {
     const event = new MessageEvent("elsewhere", { data: JSON.stringify({ projectId }) });
@@ -468,5 +495,5 @@ export async function renderWithBoard(
   const announced = () =>
     requests.filter((r) => r.method === "POST" && r.path.endsWith("/presence"));
 
-  return { screen, sent, ring, hear, open, ready, announced, elsewhere, streams };
+  return { screen, sent, ring, hear, open, ready, announced, elsewhere, streams, drop };
 }

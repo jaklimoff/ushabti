@@ -5,6 +5,7 @@ import { HttpError } from "@/lib/auth";
 import { isPresence, publish, subscribe } from "@/lib/events";
 import { followMemberships, type Following } from "@/lib/following";
 import { LISTEN_TOUCH_MS, readClientId } from "@/lib/presence";
+import { holdStream, isStopping } from "@/lib/shutdown";
 import { holderOf, stillAllowed, type Holder } from "@/lib/stream-access";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,8 @@ type Ctx = { params: Promise<{ projectId: string }> };
  * agent whose token was revoked, must stop hearing rings and presence.
  */
 export async function GET(req: Request, ctx: Ctx) {
+  /* A server that is stopping sends the browser to the next one. */
+  if (isStopping()) return fail(503, "The server is restarting.");
   const { projectId } = await ctx.params;
   let tokenId: string | undefined;
   let userId = "";
@@ -70,6 +73,7 @@ export async function GET(req: Request, ctx: Ctx) {
   let elsewhere: Following | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
   let closed = false;
+  let release: (() => void) | null = null;
 
   /* The board draws who is listening, so it has to hear when that changes.
      The lease covers a crash; this covers everything else at once. */
@@ -89,6 +93,7 @@ export async function GET(req: Request, ctx: Ctx) {
   const close = () => {
     if (closed) return;
     closed = true;
+    release?.();
     if (heartbeat) clearInterval(heartbeat);
     unsubscribe?.();
     elsewhere?.close();
@@ -118,6 +123,8 @@ export async function GET(req: Request, ctx: Ctx) {
          that await goes on to make. */
       if (req.signal.aborted) return end();
       req.signal.addEventListener("abort", end);
+      /* A stop ends it, so the server is not held open by a stream. */
+      release = holdStream(end);
 
       send(`retry: 3000\n\n`);
 
@@ -178,7 +185,9 @@ export async function GET(req: Request, ctx: Ctx) {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
+      /* The socket goes with the stream. Kept alive, an ended stream left it
+         idle, and a stopping server waited for it until its deadline. */
+      Connection: "close",
       "X-Accel-Buffering": "no",
     },
   });

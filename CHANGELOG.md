@@ -31,6 +31,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Open tabs come back live by themselves after a deploy.** A board, the sidebar and Home open a new
+  stream a few seconds after theirs is closed, and read again. A board read that fails is asked
+  again, and a write that gets no answer fails after 30 seconds instead of holding the board still.
+  The server ends its streams on a stop and leaves within a few seconds.
 - **Live updates come back by themselves after the database drops.** The server connects again and
   every open board and agent reads once, so nobody misses work until a page is reloaded. A stream
   also closes within half a minute once its person leaves the project, signs out, or its token is

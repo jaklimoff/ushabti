@@ -10,10 +10,18 @@ import type { Instrumentation } from "next";
  * and both say so the same way.
  *
  * With attachments on, it also makes the bucket, so a fresh store needs no
- * helper to do it.
+ * helper to do it. And it ends every open stream when the server is told to
+ * stop, or a deploy waits out its whole grace period.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  /* Next closes the server on a stop and waits for every request; the
+     streams are ended here so that wait is short. */
+  const { onStop } = await import("./lib/shutdown");
+  onStop(
+    (signal, listener) => process.once(signal, listener),
+    (code) => process.exit(code),
+  );
   const { mailConfig } = await import("./lib/mail");
   const config = mailConfig();
   if (!config.on && config.why) console.warn(config.why);

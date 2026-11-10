@@ -368,6 +368,28 @@ describe("Following the projects", () => {
     ]);
   });
 
+  test("hears the board's new stream once the old one is closed for good", async () => {
+    const made = twoProjects({ agents: [] });
+    const board = await draw(made);
+    board.drop();
+    await expect
+      .poll(board.streams, { timeout: 4_000 })
+      .toEqual([expect.stringContaining(`/api/projects/${made.data.project.id}/stream`)]);
+    /* The board lent the new one, so a ring on it still reaches the sidebar. */
+    made.server.projects[0] = {
+      ...made.server.projects[0],
+      agents: [
+        { id: other(7), name: "Builder", taskKey: "HAR-4", reportedAt: ago(0), working: true },
+      ],
+    };
+    /* The sidebar takes the new one up on its next render. */
+    await new Promise((done) => setTimeout(done, 100));
+    board.elsewhere(made.harbour.id);
+    await expect.element(square("Harbour").getByTestId("sidebar-dot")).toBeInTheDocument();
+    await new Promise((done) => setTimeout(done, 2_000));
+    expect(board.streams()).toHaveLength(1);
+  });
+
   test("is not drawn with one project and no list, and comes with a second", async () => {
     const made = twoProjects();
     made.server.projects = [made.lantern];

@@ -4,6 +4,7 @@ import { render } from "vitest-browser-react";
 import { useRouter } from "next/navigation";
 import { ME } from "@/test/board";
 import { BURST_MS } from "@/lib/home-live";
+import { SidebarProvider } from "@/components/ui/SidebarProvider";
 import { ProjectList, type ProjectRow } from "./ProjectList";
 
 /*
@@ -31,12 +32,26 @@ const names = () =>
     .elements()
     .map((card) => rows.find((r) => card.textContent?.includes(r.name))?.name);
 
-let sources: { url: string; listeners: Map<string, ((e: MessageEvent) => void)[]> }[] = [];
+type Source = {
+  url: string;
+  readyState: number;
+  listeners: Map<string, ((e: MessageEvent) => void)[]>;
+};
+let sources: Source[] = [];
 let held: (() => void)[] = [];
 let refresh: ReturnType<typeof vi.spyOn>;
 
+/* Every open stream is closed for good, as a 502 during a deploy closes it. */
+function drop() {
+  for (const source of sources.filter((s) => s.readyState !== 2)) {
+    source.readyState = 2;
+    for (const fn of source.listeners.get("error") ?? []) fn(new MessageEvent("error"));
+  }
+}
+const open = () => sources.filter((s) => s.readyState !== 2).map((s) => s.url);
+
 function ring(kind = "change") {
-  for (const source of sources) {
+  for (const source of sources.filter((s) => s.readyState !== 2)) {
     for (const fn of source.listeners.get(kind) ?? []) {
       fn(new MessageEvent(kind, { data: JSON.stringify({ projectId: ids[1] }) }));
     }
@@ -50,13 +65,22 @@ beforeEach(() => {
     "EventSource",
     class {
       listeners = new Map<string, ((e: MessageEvent) => void)[]>();
+      readyState = 1;
       constructor(readonly url: string) {
         sources.push(this);
       }
       addEventListener(kind: string, fn: (e: MessageEvent) => void) {
         this.listeners.set(kind, [...(this.listeners.get(kind) ?? []), fn]);
       }
-      close() {}
+      removeEventListener(kind: string, fn: (e: MessageEvent) => void) {
+        this.listeners.set(
+          kind,
+          (this.listeners.get(kind) ?? []).filter((f) => f !== fn),
+        );
+      }
+      close() {
+        this.readyState = 2;
+      }
     },
   );
   /* A write is answered only when the test lets it go. */
@@ -155,5 +179,29 @@ describe("Home, live", () => {
     } finally {
       seen.mockRestore();
     }
+  });
+
+  /* A deploy answers the stream's reconnect with a 502, which closes it for
+     good; Home went quiet until somebody reloaded it. */
+  test("opens a new stream when its own is closed for good, and reads on its ready", async () => {
+    await render(<ProjectList user={ME} projects={rows} />);
+    drop();
+    expect(open()).toEqual([]);
+    await expect.poll(open, { timeout: 4_000 }).toEqual(["/api/home/stream"]);
+    ring("ready");
+    await expect.poll(() => refresh.mock.calls.length).toBe(1);
+  });
+
+  test("the sidebar opens Home's stream again too, and Home hears the new one", async () => {
+    await render(
+      <SidebarProvider projects={[]} lists={[]} folded>
+        <ProjectList user={ME} projects={rows} />
+      </SidebarProvider>,
+    );
+    expect(open()).toEqual(["/api/home/stream"]);
+    drop();
+    await expect.poll(open, { timeout: 4_000 }).toEqual(["/api/home/stream"]);
+    ring("ready");
+    await expect.poll(() => refresh.mock.calls.length).toBe(1);
   });
 });

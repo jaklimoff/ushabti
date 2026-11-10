@@ -96,4 +96,13 @@ describe("whether a read may land", () => {
     writes.begin()();
     expect(again).not.toHaveBeenCalled();
   });
+
+  it("owes a failed read only when no newer read went out", () => {
+    const writes = trackWrites(vi.fn());
+    const older = writes.reading();
+    expect(writes.newest(older)).toBe(true);
+    const newer = writes.reading();
+    expect(writes.newest(older)).toBe(false);
+    expect(writes.newest(newer)).toBe(true);
+  });
 });

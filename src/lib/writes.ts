@@ -31,6 +31,11 @@ export type Writes = {
    * a write, the read is asked again as soon as no write is out.
    */
   keep: (reading: Reading) => boolean;
+  /**
+   * Whether no read went out after this one. A read that failed is owed only
+   * then: a newer one is still coming.
+   */
+  newest: (reading: Reading) => boolean;
 };
 
 export function trackWrites(readAgain: () => void): Writes {
@@ -68,6 +73,9 @@ export function trackWrites(readAgain: () => void): Writes {
       owed = true;
       settle();
       return false;
+    },
+    newest(reading) {
+      return reading.read === reads;
     },
   };
 }

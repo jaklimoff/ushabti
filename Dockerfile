@@ -37,5 +37,7 @@ COPY --from=build --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 # Apply any new migration, then serve. `server.js` is the traced server; it
-# reads PORT and HOSTNAME itself, so there is no `next start` here.
-CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]
+# reads PORT and HOSTNAME itself, so there is no `next start` here. `exec`
+# makes node PID 1 once the migration is done: `sh` as PID 1 ignores SIGTERM,
+# so a deploy waited out its grace period and killed the server.
+CMD ["sh", "-c", "node scripts/migrate.mjs && exec node server.js"]

@@ -44,6 +44,7 @@ import {
 } from "@/lib/presence";
 import { batchesSaid, changed, inBatches, type Change } from "@/lib/bulk";
 import { rankBetween } from "@/lib/rank";
+import { backoff, keepOpen } from "@/lib/reopen";
 import { trackWrites } from "@/lib/writes";
 import type {
   AgentRunDTO,
@@ -655,11 +656,32 @@ export function BoardProvider({
     };
   }, [writes]);
 
+  /*
+   * A read that failed is owed, as one dropped for a write is: a refused
+   * change rolled back by a read that failed stayed on screen until the next
+   * ring. It is asked again after a wait that grows, and only the newest read
+   * is owed, so an older one that fails asks for nothing. The new read goes
+   * through `refresh`, so it is held to the same rule as any other.
+   */
+  const retry = useRef<{ timer: ReturnType<typeof setTimeout> | null; attempt: number }>({
+    timer: null,
+    attempt: 0,
+  });
+  useEffect(() => {
+    const owed = retry.current;
+    return () => {
+      if (owed.timer) clearTimeout(owed.timer);
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     const reading = writes.reading();
+    if (retry.current.timer) clearTimeout(retry.current.timer);
+    retry.current.timer = null;
     try {
       const fresh = await api.get<BoardData>(`/api/projects/${projectId}/${reads}`);
       if (!writes.keep(reading)) return;
+      retry.current.attempt = 0;
       setData(fresh);
       /* The board's answer names every task this project still has, so it is
          the one place that can say which unsent notes have nothing left to
@@ -672,7 +694,13 @@ export function BoardProvider({
       }
     } catch (err) {
       // The project is gone, or this person was removed from it.
-      if (err instanceof ApiError && err.status === 404) router.push("/projects");
+      if (err instanceof ApiError && err.status === 404) return router.push("/projects");
+      if (!writes.newest(reading) || retry.current.timer) return;
+      retry.current.timer = setTimeout(
+        () => void refreshRef.current(),
+        backoff(retry.current.attempt),
+      );
+      retry.current.attempt += 1;
     }
   }, [projectId, reads, router, writes]);
 
@@ -702,9 +730,6 @@ export function BoardProvider({
   /* --- live updates from the other people on the board ---------------- */
   const lend = useLendStream();
   useEffect(() => {
-    /* An EventSource cannot set a header, so the tab names itself in the
-       address. The stream says goodbye for it when it closes. */
-    const source = new EventSource(`/api/projects/${projectId}/stream?client=${CLIENT_ID}`);
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     /*
@@ -713,40 +738,53 @@ export function BoardProvider({
      * That gap is small but real, and it grows whenever hydration is slower —
      * a loading boundary, a cold cache, a slow phone. Ask once on connect, and
      * the same line re-syncs after every reconnect: a network blip, a laptop
-     * waking up. Only `ready` asks: it comes after the server subscribed, and
-     * `open` comes on every connect too, so asking on both read the whole
-     * board twice and threw one copy away.
+     * waking up, a stream `keepOpen` opened again after a deploy. Only `ready`
+     * asks: it comes after the server subscribed, and `open` comes on every
+     * connect too, so asking on both read the whole board twice and threw one
+     * copy away.
      */
-    source.addEventListener("ready", () => {
-      setLive(true);
-      void refreshRef.current();
-      presence.announce();
-    });
-    source.addEventListener("change", (event) => {
-      const payload = JSON.parse((event as MessageEvent).data) as { clientId?: string };
-      if (payload.clientId === CLIENT_ID) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
+    const attach = (source: EventSource) => {
+      source.addEventListener("ready", () => {
+        setLive(true);
         void refreshRef.current();
-        window.dispatchEvent(new CustomEvent("ushabti:remote-change"));
-      }, 140);
-    });
-    /* Presence carries its data and changes nothing on the board, so it
-       never reads the board again. */
-    source.addEventListener("presence", (event) => {
-      presence.heard(JSON.parse((event as MessageEvent).data) as PresenceSaid);
-    });
-    /* `elsewhere` rings for another project and is for the pages that
-       follow all of them; the board has no listener for it on purpose. */
-    source.onerror = () => setLive(false);
-    source.onopen = () => setLive(true);
-    /* The sidebar hears this stream rather than opening a second one. */
-    const release = lend?.(source);
+        presence.announce();
+      });
+      source.addEventListener("change", (event) => {
+        const payload = JSON.parse((event as MessageEvent).data) as { clientId?: string };
+        if (payload.clientId === CLIENT_ID) return;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          void refreshRef.current();
+          window.dispatchEvent(new CustomEvent("ushabti:remote-change"));
+        }, 140);
+      });
+      /* Presence carries its data and changes nothing on the board, so it
+         never reads the board again. */
+      source.addEventListener("presence", (event) => {
+        presence.heard(JSON.parse((event as MessageEvent).data) as PresenceSaid);
+      });
+      /* `elsewhere` rings for another project and is for the pages that
+         follow all of them; the board has no listener for it on purpose. */
+      source.onerror = () => setLive(false);
+      source.onopen = () => setLive(true);
+      /* The sidebar hears this stream rather than opening a second one. */
+      const release = lend?.(source);
+      return () => {
+        release?.();
+        source.close();
+      };
+    };
+
+    /* An EventSource cannot set a header, so the tab names itself in the
+       address. The stream says goodbye for it when it closes. */
+    const stop = keepOpen(
+      () => new EventSource(`/api/projects/${projectId}/stream?client=${CLIENT_ID}`),
+      attach,
+    );
 
     return () => {
       if (timer) clearTimeout(timer);
-      release?.();
-      source.close();
+      stop();
     };
   }, [presence, projectId, lend]);
 

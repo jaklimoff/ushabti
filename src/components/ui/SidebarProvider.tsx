@@ -11,6 +11,7 @@ import {
   useState,
 } from "react";
 import { api } from "@/lib/client";
+import { keepOpen } from "@/lib/reopen";
 import { homeReader, SILENCE_CHECK_MS, type HomeReader } from "@/lib/home-live";
 import type { ProjectNow } from "@/lib/queries";
 import {
@@ -159,15 +160,14 @@ export function SidebarProvider({
     read(true);
   }, [path, read]);
 
-  /* The one stream: the page's, or Home's when the page lent none. */
+  /* The one stream: the page's, or Home's when the page lent none. A page
+     opens its own again when it closes for good, and lends the new one;
+     Home's is opened again here. */
   useEffect(() => {
     const borrowed = lentNow.current ?? lent;
-    let source: EventSource | null = null;
-    let heard: (readonly [Ring, () => void])[] = [];
     const hold = (held: EventSource) => {
-      source = held;
       ready.current = false;
-      heard = RINGS.map((ring) => {
+      const heard = RINGS.map((ring) => {
         const on = () => {
           if (ring === "ready") ready.current = true;
           reader.current?.ring();
@@ -176,21 +176,36 @@ export function SidebarProvider({
         held.addEventListener(ring, on);
         return [ring, on] as const;
       });
+      return () => {
+        for (const [ring, on] of heard) held.removeEventListener(ring, on);
+      };
     };
-    let wait: ReturnType<typeof setTimeout> | null = null;
+    const home = () =>
+      keepOpen(
+        () => new EventSource("/api/home/stream"),
+        (held) => {
+          const unhear = hold(held);
+          return () => {
+            unhear();
+            held.close();
+          };
+        },
+      );
     if (borrowed) {
       gaveBack.current = false;
-      hold(borrowed);
-    } else if (gaveBack.current) {
-      wait = setTimeout(() => hold(new EventSource("/api/home/stream")), GIVE_BACK_MS);
-    } else hold(new EventSource("/api/home/stream"));
+      const unhear = hold(borrowed);
+      return () => {
+        unhear();
+        gaveBack.current = true;
+      };
+    }
+    let stop: (() => void) | null = null;
+    let wait: ReturnType<typeof setTimeout> | null = null;
+    if (gaveBack.current) wait = setTimeout(() => (stop = home()), GIVE_BACK_MS);
+    else stop = home();
     return () => {
       if (wait) clearTimeout(wait);
-      const held = source as EventSource | null;
-      if (!held) return;
-      for (const [ring, on] of heard) held.removeEventListener(ring, on);
-      if (borrowed) gaveBack.current = true;
-      else held.close();
+      (stop as (() => void) | null)?.();
     };
   }, [lent]);
 
@@ -279,9 +294,13 @@ export function useTabRings(listener: Hear) {
   const hear = sidebar?.hear;
   useEffect(() => {
     if (hear) return hear((ring) => latest.current(ring));
-    const source = new EventSource("/api/home/stream");
-    for (const ring of RINGS) source.addEventListener(ring, () => latest.current(ring));
-    return () => source.close();
+    return keepOpen(
+      () => new EventSource("/api/home/stream"),
+      (source) => {
+        for (const ring of RINGS) source.addEventListener(ring, () => latest.current(ring));
+        return () => source.close();
+      },
+    );
   }, [hear]);
 }
 

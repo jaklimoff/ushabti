@@ -22,22 +22,37 @@ export class ApiError extends Error {
  */
 type Options = { keepalive?: boolean };
 
+/**
+ * How long a request may go unanswered. A fetch has no limit of its own, and
+ * while a write of the board is out every read is dropped, so one that hung
+ * held the board still for good. It fails instead, like any other write.
+ */
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 async function request<T>(
   method: string,
   url: string,
   payload?: unknown,
   options?: Options,
 ): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "x-ushabti-client": CLIENT_ID,
-    },
-    body: payload === undefined ? undefined : JSON.stringify(payload),
-    cache: "no-store",
-    keepalive: options?.keepalive,
-  });
+  const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "x-ushabti-client": CLIENT_ID,
+      },
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+      cache: "no-store",
+      keepalive: options?.keepalive,
+      signal,
+    });
+  } catch (err) {
+    if (signal.aborted) throw new ApiError(0, "The server did not answer in time.");
+    throw err;
+  }
 
   if (!res.ok) {
     let message = `Request failed (${res.status}).`;
@@ -51,7 +66,12 @@ async function request<T>(
   }
 
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  try {
+    return (await res.json()) as T;
+  } catch (err) {
+    if (signal.aborted) throw new ApiError(0, "The server did not answer in time.");
+    throw err;
+  }
 }
 
 export const api = {
