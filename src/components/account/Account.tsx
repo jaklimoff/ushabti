@@ -31,6 +31,8 @@ export function Account({
 }) {
   const router = useRouter();
   const [toasts, setToasts] = useState<Toast[]>([]);
+  /** How many times this page revoked every personal token. */
+  const [revoked, setRevoked] = useState(0);
   const seq = useRef(0);
 
   // A toast is for what failed. A save that worked shows itself: the
@@ -196,11 +198,23 @@ export function Account({
         </Section>
 
         <Section title="Sign in">
-          <PasswordSection email={user.email} onChanged={loadSessions} />
-          <SessionsSection others={others} notify={notify} reload={loadSessions} />
+          <PasswordSection
+            email={user.email}
+            onChanged={() => {
+              void loadSessions();
+              setRevoked((n) => n + 1);
+            }}
+          />
+          <SessionsSection
+            others={others}
+            notify={notify}
+            reload={loadSessions}
+            onSignedOut={() => setRevoked((n) => n + 1)}
+          />
         </Section>
 
-        <PersonalTokens notify={notify} />
+        {/* Both above revoke every personal token, so the list is read again. */}
+        <PersonalTokens notify={notify} revoked={revoked} />
 
         {askMailOn && <EmailSection on={user.askMail} notify={notify} />}
 
@@ -427,17 +441,20 @@ function SessionsSection({
   others,
   notify,
   reload,
+  onSignedOut,
 }: {
   /** Undefined until the first count comes back; null when it failed. */
   others: number | null | undefined;
   notify: Notify;
   reload: () => Promise<void>;
+  onSignedOut: () => void;
 }) {
   const confirm = useConfirm();
 
   async function signOutOthers() {
     try {
       await api.del("/api/auth/sessions");
+      onSignedOut();
       await reload();
     } catch (err) {
       notify(err instanceof Error ? err.message : "Could not sign the other sessions out.");
@@ -448,7 +465,7 @@ function SessionsSection({
     <Card>
       {confirm.asking && others ? (
         <ConfirmRow
-          question={`Sign out ${sessions(others)}? This one stays.`}
+          question={`Sign out ${sessions(others)} and revoke your personal tokens? This one stays.`}
           confirmLabel="Yes, sign them out"
           onConfirm={() => confirm.confirm(() => void signOutOthers())}
           onCancel={confirm.cancel}

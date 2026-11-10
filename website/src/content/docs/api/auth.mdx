@@ -132,7 +132,8 @@ anything that is not a string; plus the usual length messages for `Name` and `Co
 
 ## `POST /api/auth/password`
 
-Changes your password and **signs every other session out**.
+Changes your password, **signs every other session out** and **revokes every personal token** of
+the account.
 
 ```json title="request"
 { "current": "…", "next": "at-least-eight" }
@@ -169,8 +170,8 @@ back into an account whose password nobody knows — see
 | `password` | required, **at least 8 characters** |
 
 It works once and for 24 hours, and a newer link for the same person puts the older ones out of use.
-Setting the password **ends every session of that account**, then opens one for the browser that
-called.
+Setting the password **ends every session of that account** and **revokes every personal token**
+it had, then opens one for the browser that called.
 
 ```json title="200 — and a Set-Cookie"
 { "ok": true }
@@ -239,7 +240,8 @@ Unexpired sessions for your account, not counting the one asking.
 
 ## `DELETE /api/auth/sessions`
 
-Ends every session except this one. `200 {"ok": true}`.
+Ends every session except this one, and **revokes every personal token** of the account: one made
+by somebody else would outlive the sessions. `200 {"ok": true}`.
 
 <Aside type="tip" title="The two levers you have">
 If you no longer trust a password, change it — which signs the others out — or sign out everywhere

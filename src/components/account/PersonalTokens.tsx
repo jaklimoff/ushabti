@@ -25,8 +25,11 @@ const EXPIRIES = [
  */
 export function PersonalTokens({
   notify,
+  revoked = 0,
 }: {
   notify: (text: string, kind?: Toast["kind"]) => void;
+  /** Goes up each time the page revoked every token, so the list is read again. */
+  revoked?: number;
 }) {
   const [tokens, setTokens] = useState<PersonalTokenDTO[] | null>(null);
   /* When the list was read, so every row of one answer counts from the same
@@ -53,12 +56,14 @@ export function PersonalTokens({
         if (!alive) return;
         setTokens(res.tokens);
         setNow(Date.now());
+        // A secret just made is dead too once every token is revoked.
+        if (revoked > 0) setMade(null);
       })
       .catch(() => alive && setTokens([]));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [revoked]);
 
   async function create() {
     if (busy) return;

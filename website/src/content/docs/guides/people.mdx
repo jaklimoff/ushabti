@@ -110,19 +110,27 @@ link, where you are a member there.
 
 In **Settings → People**, the owner or an admin presses **Reset password** on that member's row. An
 admin makes one for a member; a link for an admin is the owner's to make, and nobody makes one for
-the owner of that project. The row asks
-first — *"Make a reset link for Ada? It signs them out everywhere once used."* — and then shows one
-link with a copy button:
+the owner of that project. A link opens the whole account, so where it goes depends on whether the
+server has [mail set up](/start/configuration/#smtp_url-and-mail_from).
+
+**With mail**, the row asks first — *"Email Ada a reset link? It signs them out everywhere once
+used."* — and the link goes **only** to the member's own email, with a word that it works once, for
+24 hours. Nobody else sees it. The row says where it went: *"Emailed to …"*, or *"Could not email …
+Make a new link to try again."*
+
+**Without mail**, the row asks *"Make a reset link for Ada? It signs them out everywhere once
+used."* and then shows one link with a copy button, to send by whatever channel your team already
+has:
 
 ```
 https://your-board.example.com/reset/ushr_…
 ```
 
 **It is shown once.** Reloading the page hides it for good, exactly as an agent token is: the table
-keeps a SHA-256 digest and never the link itself. When the server has [mail set
-up](/start/configuration/#smtp_url-and-mail_from), the same link also goes to the member's
-email, with a word that it works once, for 24 hours, and the row says *"Emailed to …"* or *"Could not
-email …"*. Without mail, send it by whatever channel your team already has.
+keeps a SHA-256 digest and never the link itself. It is shown only to somebody who outranks the
+member in **every** project the member is in. Anybody else sees the reason under the row instead,
+and no link is made: otherwise a role in a project made for the purpose would open an account that
+belongs to other teams too.
 
 The person opens it, types one new password of at least eight characters, and presses **Set the
 password**. That signs them in here and **ends every other session of the account** — so a link

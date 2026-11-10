@@ -51,13 +51,21 @@ report:
   sentence for every email and goes out before the email is looked up. Without
   them there is no such page. The owner or an admin of a project makes a member a one-time
   link, good for 24 hours; the token is stored as a SHA-256 digest and using it
-  ends every session that account had. With `SMTP_URL` and `MAIL_FROM` set, the
-  server emails that link to the member's address, so that mailbox is as good
-  as the password until the link is spent. An `smtp://` server must offer
-  STARTTLS, or the send fails, so the link and the SMTP password never cross
-  the network in clear text; only a relay on localhost is let off. Without them, the owner sends it by
-  hand. Whoever can read that link can take the account, so send it the way you
-  would send a password.
+  ends every session and revokes every personal token that account had. A link
+  opens the whole account, not one project, so the rule is about every project
+  the member is in. With `SMTP_URL` and `MAIL_FROM` set, the server emails the
+  link to the member's own address and never shows it to the admin, so that
+  mailbox is as good as the password until the link is spent. An `smtp://`
+  server must offer STARTTLS, or the send fails, so the link and the SMTP
+  password never cross the network in clear text; only a relay on localhost is
+  let off. Without them, the admin is shown the link to send by hand, and only
+  when they outrank the member in every project the member is in; anybody
+  else is refused. Otherwise a role in a project made for the purpose would
+  reach every other project the member is in. Whoever can read that link can
+  take the account, so send it the way you would send a password.
+- **A password change and "sign out everywhere" revoke every personal token.**
+  Each says somebody else may hold the account, and a token they made would
+  outlive the sessions. Make new tokens after.
 - **With mail on, an open board lets a stranger make it send email.** Anybody
   who can sign up can make a project and invite any address, and the invite
   carries the project's name and their own, which they chose. Every email the

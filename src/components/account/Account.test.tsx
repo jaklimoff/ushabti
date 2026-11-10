@@ -279,7 +279,7 @@ describe("Your own account", () => {
     await page.getByRole("button", { name: "Sign out the others" }).click();
     await expect
       .poll(() => page.getByRole("alertdialog").element().textContent)
-      .toContain("Sign out 3 other sessions? This one stays.");
+      .toContain("Sign out 3 other sessions and revoke your personal tokens? This one stays.");
     await page.getByRole("button", { name: "Cancel" }).click();
     expect(ends()).toEqual([]);
 

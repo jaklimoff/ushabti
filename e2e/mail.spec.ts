@@ -33,13 +33,13 @@ async function add(page: Page, email: string): Promise<{ emailed?: boolean }> {
 }
 
 /** Makes a reset link on the only row that offers one, and answers the route. */
-async function makeLink(page: Page): Promise<{ link: string; emailed?: boolean }> {
+async function makeLink(page: Page): Promise<{ link?: string; emailed?: boolean }> {
   const answer = page.waitForResponse(
     (res) => res.request().method() === "POST" && /\/reset$/.test(new URL(res.url()).pathname),
   );
   await page.getByRole("button", { name: "Reset password" }).click();
   await page.getByRole("button", { name: "Yes, make a link" }).click();
-  return (await (await answer).json()) as { link: string; emailed?: boolean };
+  return (await (await answer).json()) as { link?: string; emailed?: boolean };
 }
 
 /** A member who can sign in, and whose own browser is left out of it. */
@@ -106,10 +106,10 @@ function mailOn() {
       }
     });
 
-    test("a reset link reaches the member's email, and the emailed link works", async ({
+    test("a reset link reaches the member's email only, and the emailed link works", async ({
       page,
       browser,
-    }) => {
+    }, testInfo) => {
       const mail = await smtpReceiver(smtpPort);
       try {
         const account = await member(browser, "Ada Lovelace");
@@ -118,17 +118,19 @@ function mailOn() {
         await expect(page.getByText("Ada Lovelace")).toBeVisible();
 
         const answer = await makeLink(page);
-        expect(answer.emailed).toBe(true);
+        // The mailbox is the member's: the link never comes back to the admin.
+        expect(answer).toEqual({ emailed: true });
         const box = page.getByTestId("reset-link");
         await expect(box).toContainText(`Emailed to ${account.email}.`);
         await expect(box).toContainText("It works once, for 24 hours.");
-        await expect(box.locator("code")).toHaveText(answer.link);
+        await expect(box.locator("code")).toHaveCount(0);
+        await page.screenshot({ path: testInfo.outputPath("seen-reset-emailed.png") });
 
         const letter = await letterTo(mail, account.email);
         expect(letter.to).toEqual([account.email]);
         expect(letter.text).toContain("It works once, for 24 hours.");
         const link = /(https?:\/\/\S+\/reset\/ushr_\S+)/.exec(letter.text)?.[1];
-        expect(link).toBe(answer.link);
+        expect(link).toBeTruthy();
 
         const theirs = await browser.newContext();
         const them = await theirs.newPage();
@@ -143,7 +145,7 @@ function mailOn() {
       }
     });
 
-    test("a send that fails says so, and keeps the invite and the link", async ({
+    test("a send that fails says so, keeps the invite, and shows no reset link", async ({
       page,
       browser,
     }) => {
@@ -168,19 +170,13 @@ function mailOn() {
       await add(page, account.email);
       await expect(page.getByText("Grace Hopper")).toBeVisible();
       const reset = await makeLink(page);
-      expect(reset.emailed).toBe(false);
+      // A lost email is not a reason to hand the link to somebody else.
+      expect(reset).toEqual({ emailed: false });
       const box = page.getByTestId("reset-link");
-      await expect(box).toContainText(`Could not email ${account.email}. Send them this link.`);
-      await expect(box.locator("code")).toHaveText(reset.link);
-
-      // The link was written before the send, so it still opens the account.
-      const theirs = await browser.newContext();
-      const them = await theirs.newPage();
-      await them.goto(reset.link);
-      await them.getByLabel("Your new password").fill("a-kept-secret");
-      await them.getByRole("button", { name: "Set the password" }).click();
-      await them.waitForURL("**/projects");
-      await theirs.close();
+      await expect(box).toContainText(
+        `Could not email ${account.email}. Make a new link to try again.`,
+      );
+      await expect(box.locator("code")).toHaveCount(0);
     });
   });
 }

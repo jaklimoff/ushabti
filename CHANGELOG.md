@@ -8,6 +8,15 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Security
+
+- **A reset link reaches only the person it is for.** With mail on, **Reset password** on the
+  People page emails the link to the member and no longer shows it. With mail off, the link is shown
+  only to somebody who outranks the member in every project they are in; anybody else is told why.
+  Before, an account could add anybody by email to a project of its own and take their account.
+- **A spent reset link, a password change and Sign out everywhere revoke every personal token** of
+  the account, so a token somebody else made does not outlive them. Make new tokens after.
+
 ## 0.46.0 — 2026-11-09
 
 ### Added

@@ -18,6 +18,7 @@ const fake = vi.hoisted(() => {
     for (const name of [
       "from",
       "innerJoin",
+      "leftJoin",
       "where",
       "limit",
       "values",
@@ -111,9 +112,11 @@ async function invite(address?: string) {
 }
 
 async function reset() {
-  fake.answer([
-    { id: MEMBER, name: "Bo Member", email: "bo@example.com", kind: "human", role: "member" },
-  ]);
+  fake.answer(
+    [{ id: MEMBER, name: "Bo Member", email: "bo@example.com", kind: "human", role: "member" }],
+    // With mail off, the member's projects: only this one, under the owner.
+    [{ target: "member", actor: "owner" }],
+  );
   const res = await resets.POST(request(`/api/projects/${PROJECT}/members/${MEMBER}/reset`), {
     params: Promise.resolve({ projectId: PROJECT, userId: MEMBER }),
   });
@@ -174,20 +177,19 @@ describe("with mail on", () => {
     expect(letter.text).toContain("Ada Owner invited you to the project Launch");
   });
 
-  it("a reset link is written, then emailed to the member, and is the answered link", async () => {
+  it("a reset link is written, then emailed to the member, and never answered", async () => {
     mail(true);
     const answer = await reset();
-    expect(answer.body).toEqual({
-      link: "https://board.example.com/reset/ushr_abc",
-      emailed: true,
-    });
+    expect(answer.status).toBe(201);
+    expect(answer.body).toEqual({ emailed: true });
+    expect(JSON.stringify(answer.body)).not.toContain("ushr_");
     expect(fake.steps).toEqual(["token", "activity", "send"]);
     const [letter] = send.mock.calls[0];
     expect(letter.to).toBe("bo@example.com");
     expect(letter.text).toContain("\nhttps://board.example.com/reset/ushr_abc\n");
   });
 
-  it("a send that fails answers emailed: false, and keeps the invite and the link", async () => {
+  it("a send that fails answers emailed: false, keeps the invite, and still hides the link", async () => {
     mail(true);
     send.mockImplementation(async () => {
       fake.steps.push("send");
@@ -201,7 +203,7 @@ describe("with mail on", () => {
 
     const made = await reset();
     expect(made.status).toBe(201);
-    expect(made.body).toEqual({ link: "https://board.example.com/reset/ushr_abc", emailed: false });
+    expect(made.body).toEqual({ emailed: false });
     expect(fake.steps).toEqual(["insert", "send", "token", "activity", "send"]);
   });
 

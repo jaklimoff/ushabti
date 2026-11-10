@@ -3,10 +3,12 @@ import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
 import { currentSessionId, hashPassword, HttpError, requireUser, verifyPassword } from "@/lib/auth";
 import { body, json, route } from "@/lib/api";
+import { revokeAllPersonalTokens } from "@/lib/personal-tokens";
 
 /**
  * The way back from a password you think has leaked, and still know. Every
- * other session ends with the change: whoever knew the old one is signed out.
+ * other session and every personal token ends with the change: whoever knew
+ * the old one is signed out.
  * A password nobody knows is the reset link's job, not this route's.
  */
 export const POST = route(async (req: Request) => {
@@ -30,19 +32,20 @@ export const POST = route(async (req: Request) => {
     throw new HttpError(403, "That is not the password you use now.");
   }
 
-  await db
-    .update(users)
-    .set({ passwordHash: await hashPassword(input.next) })
-    .where(eq(users.id, user.id));
-
+  const passwordHash = await hashPassword(input.next);
   const keep = await currentSessionId();
-  await db
-    .delete(sessions)
-    .where(
-      keep
-        ? and(eq(sessions.userId, user.id), ne(sessions.id, keep))
-        : eq(sessions.userId, user.id),
-    );
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ passwordHash }).where(eq(users.id, user.id));
+    await tx
+      .delete(sessions)
+      .where(
+        keep
+          ? and(eq(sessions.userId, user.id), ne(sessions.id, keep))
+          : eq(sessions.userId, user.id),
+      );
+    // A token made by whoever knew the old password would outlive it.
+    await revokeAllPersonalTokens(user.id, tx);
+  });
 
   return json({ ok: true });
 });

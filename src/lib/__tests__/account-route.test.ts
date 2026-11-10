@@ -189,3 +189,89 @@ describe("A forgotten password", () => {
     }
   });
 });
+
+/* USH-434. A link opens the whole account, so a role in one project must not
+   reach the others. The test server has no mail, so these are the mail-off
+   half; the mail-on half is `members-mail.test.ts`. */
+describe("A reset link with mail off", () => {
+  const reset = (who: Caller, projectId: string, member: Caller) =>
+    api(who).post(`/api/projects/${projectId}/members/${member.id}/reset`, {});
+
+  it("is refused to an owner of a throwaway project, and makes no link", async () => {
+    const victim = await person("Victim Person");
+    const theirs = await project(await person("Their Owner"));
+    await join(theirs.id, victim, "member");
+
+    const taker = await person("Taker Person");
+    const throwaway = await project(taker);
+    await join(throwaway.id, victim, "member");
+
+    const refused = await reset(taker, throwaway.id, victim);
+    expect(refused.status).toBe(403);
+    expect((await refused.json()).error).toBe(
+      "Victim Person is also in a project you do not run. Their reset link can go only to their own email, and this server sends no mail.",
+    );
+    expect(await linkRows(victim)).toBe(0);
+  });
+
+  it("is refused where the actor is in the other project but does not outrank them", async () => {
+    const owner = await person("Owner Person");
+    const admin = await person("Admin Person");
+    const member = await person("Member Person");
+    const first = await project(owner);
+    const second = await project(owner);
+    await join(first.id, admin, "admin");
+    await join(first.id, member, "member");
+    await join(second.id, admin, "member");
+    await join(second.id, member, "member");
+
+    expect((await reset(admin, first.id, member)).status).toBe(403);
+    // The owner outranks them in both, so the owner still gets the link.
+    const { link } = await ok<{ link: string }>(reset(owner, first.id, member));
+    expect(link).toContain("/reset/ushr_");
+  });
+});
+
+describe("Every personal token ends", () => {
+  /** A personal token of `who`, and whether it still opens anything. */
+  async function token(who: Caller) {
+    const { secret } = await ok<{ secret: string }>(
+      api(who).post("/api/auth/tokens", { name: "Laptop script", days: 90 }),
+    );
+    const caller = { id: who.id, name: who.name, headers: { authorization: `Bearer ${secret}` } };
+    return async () => (await api(caller).get("/api/auth/me")).status;
+  }
+
+  it("when a reset link is spent", async () => {
+    const { member, makeLink } = await forgot("Lin Member");
+    const status = await token(member);
+    expect(await status()).toBe(200);
+    const link = await makeLink();
+    await ok(
+      api(null).post("/api/auth/reset", { token: link.split("/reset/")[1], password: "a-new-one" }),
+    );
+    expect(await status()).toBe(401);
+  });
+
+  it("when the password changes", async () => {
+    const me = await person("Mo Person");
+    await db
+      .update(users)
+      .set({ passwordHash: await hashPassword("ushabti-secret") })
+      .where(eq(users.id, me.id));
+    const status = await token(me);
+    expect(await status()).toBe(200);
+    await ok(
+      api(me).post("/api/auth/password", { current: "ushabti-secret", next: "another-one" }),
+    );
+    expect(await status()).toBe(401);
+  });
+
+  it("when somebody signs out everywhere", async () => {
+    const me = await person("Su Person");
+    const status = await token(me);
+    expect(await status()).toBe(200);
+    await ok(api(me).del("/api/auth/sessions"));
+    expect(await status()).toBe(401);
+  });
+});

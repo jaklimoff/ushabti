@@ -449,6 +449,53 @@ describe("The members table", () => {
   });
 });
 
+/* USH-434. Where a reset link went, or why there is none, is said under the
+   member's row. The route's half is `account-route.test.ts` and
+   `members-mail.test.ts`; the e2e server mails, so it never meets the 403. */
+describe("A reset link on a member row", () => {
+  const RESET = /\/members\/[0-9a-f-]+\/reset$/;
+
+  async function press(mail: boolean, answer: { status: number; body: unknown }) {
+    const data = newProject();
+    const bo = withPerson(data, "Bo Member");
+    const drawn = await renderWithBoard(<PeoplePanel mail={mail} />, data, ({ method, path }) => {
+      if (path.endsWith("/agents")) return { body: { agents: [] } };
+      if (method === "POST" && RESET.test(path)) return answer;
+    });
+    await page.getByRole("button", { name: "Reset password" }).click();
+    await page.getByRole("button", { name: "Yes, make a link" }).click();
+    await expect.poll(() => drawn.sent("POST", RESET).length).toBe(1);
+    return bo;
+  }
+
+  test("with mail off, a refusal is drawn under the row and not as a toast", async () => {
+    const said =
+      "Bo Member is also in a project you do not run. Their reset link can go only to their own email, and this server sends no mail.";
+    await press(false, { status: 403, body: { error: said } });
+    const box = page.getByTestId("reset-link");
+    await expect.element(box).toHaveTextContent(said);
+    expect(box.element().getAttribute("role")).toBe("alert");
+    // Under the row it is about: the box follows Bo's row.
+    const row = page
+      .getByText("Bo Member", { exact: true })
+      .element()
+      .closest("[class*=memberRow]");
+    expect(row?.nextElementSibling).toBe(box.element());
+    expect(box.element().querySelector("code, input")).toBeNull();
+    await expect.element(page.getByTestId("toast")).not.toBeInTheDocument();
+  });
+
+  test("with mail on, the row says where the link went and shows no link", async () => {
+    const bo = await press(true, { status: 201, body: { emailed: true } });
+    const box = page.getByTestId("reset-link");
+    await expect
+      .element(box)
+      .toHaveTextContent(`Emailed to ${bo.email}. It works once, for 24 hours.`);
+    expect(box.element().querySelector("code, input")).toBeNull();
+    await expect.element(page.getByRole("button", { name: /Copy/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("A member row on a phone", () => {
   test("at 390px every member row keeps its role and its remove button on screen", async () => {
     const data = newProject();

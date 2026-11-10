@@ -1,5 +1,8 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { createProject, gotoSettings, register, signIn, unique } from "./helpers";
+import { createProject, gotoSettings, letterTo, register, signIn, unique } from "./helpers";
+import { smtpReceiver, type SmtpReceiver } from "../src/lib/__tests__/smtp";
+
+const smtpPort = Number(process.env.USHABTI_TEST_SMTP_PORT) || 0;
 
 /* The server Playwright starts has mail and USHABTI_URL, so there a dead link
    points at "Forgot password?" instead of an admin. */
@@ -8,17 +11,30 @@ const DEAD = process.env.USHABTI_TEST_SMTP_PORT
   : "This link does not work any more. Ask an admin of your project for a new one.";
 
 /**
- * Presses Reset password on the member's row and answers the question.
+ * Presses Reset password on the member's row, answers the question, and
+ * answers the link. With mail on the screen never shows it, so it is read
+ * from the member's mailbox; with mail off it is read from the screen.
  *
  * `previous` is the link the row is already showing, if any: the box is on
  * screen before the answer comes back, so without waiting for the text to
  * change this reads the old link and calls it the new one.
  */
-async function makeLink(page: Page, previous?: string): Promise<string> {
+async function makeLink(
+  page: Page,
+  mail: SmtpReceiver | null,
+  email: string,
+  previous?: string,
+): Promise<string> {
   await page.getByRole("button", { name: "Reset password" }).click();
   await page.getByRole("button", { name: "Yes, make a link" }).click();
   const box = page.getByTestId("reset-link");
   await expect(box).toContainText("It works once, for 24 hours.");
+  if (mail) {
+    await expect(box).toContainText(`Emailed to ${email}.`);
+    await expect(box.locator("code")).toHaveCount(0);
+    const letter = await letterTo(mail, email);
+    return /(https?:\/\/\S+\/reset\/ushr_\S+)/.exec(letter.text)![1];
+  }
   const code = box.locator("code");
   if (previous) await expect(code).not.toHaveText(previous);
   return (await code.innerText()).trim();
@@ -55,10 +71,25 @@ function controls(page: Page): Promise<number> {
 
 /* The rows a link leaves and the feed's record of it are `account-route.test.ts`. */
 test.describe("A forgotten password", () => {
+  /** The mailbox the links arrive in, when the server mails. */
+  let mail: SmtpReceiver | null = null;
+
+  test.beforeEach(async () => {
+    mail = smtpPort ? await smtpReceiver(smtpPort) : null;
+  });
+
+  test.afterEach(async () => {
+    await mail?.stop();
+  });
+
   test("the owner makes a link, it works once, and the new password signs in", async ({
     page,
     browser,
   }, testInfo) => {
+    /* A send spends a try of the calling address, as in `mail.spec.ts`: an
+       address of its own keeps the rest of the suite's sends out of the count. */
+    await page.setExtraHTTPHeaders({ "x-forwarded-for": unique("198.51.100") });
+
     /* The person who forgot. They keep a browser that is still signed in, so
        the test can watch that session end. */
     const theirs = await browser.newContext();
@@ -78,13 +109,17 @@ test.describe("A forgotten password", () => {
 
     // The row asks before it hands out access to somebody's account.
     await page.getByRole("button", { name: "Reset password" }).click();
-    await expect(page.getByText(/Make a reset link for Ada Lovelace\?/)).toBeVisible();
-    await page.getByRole("button", { name: "Yes, make a link" }).click();
-    const first = (await page.getByTestId("reset-link").locator("code").innerText()).trim();
+    await expect(
+      page.getByText(
+        mail ? /Email Ada Lovelace a reset link\?/ : /Make a reset link for Ada Lovelace\?/,
+      ),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    const first = await makeLink(page, mail, member.email);
     expect(first).toContain("/reset/ushr_");
 
     // A second link for the same person puts the first one out of use.
-    const second = await makeLink(page, first);
+    const second = await makeLink(page, mail, member.email, first);
 
     const stranger = await guesser(browser);
     await stranger.goto(first);

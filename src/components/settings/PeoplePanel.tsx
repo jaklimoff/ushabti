@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/client";
+import { api, ApiError } from "@/lib/client";
 import { emailedLine } from "@/lib/emailed";
 import { INVITE_DAYS } from "@/lib/invite-link";
 import { editedText } from "@/lib/leave";
@@ -320,17 +320,25 @@ function MemberRow({
   const { notify, send } = useBoard();
   const confirm = useConfirm();
   const reset = useConfirm();
-  /** The link, held until the person leaves the page, as a token is. */
-  const [link, setLink] = useState<{ link: string; emailed: boolean } | null>(null);
+  /**
+   * What became of the last press: the link, held until the person leaves the
+   * page as a token is, only when mail is off; otherwise only whether it was
+   * emailed. A refusal is drawn here too, under the row it is about.
+   */
+  const [made, setMade] = useState<
+    { link?: string; emailed: boolean } | { refused: string } | null
+  >(null);
 
   async function makeLink() {
     try {
-      const res = await send.post<{ link: string; emailed?: boolean }>(
+      const res = await send.post<{ link?: string; emailed?: boolean }>(
         `/api/projects/${projectId}/members/${member.id}/reset`,
       );
-      setLink({ link: res.link, emailed: res.emailed === true });
+      setMade({ link: res.link, emailed: res.emailed === true });
     } catch (err) {
-      notify(err instanceof Error ? err.message : "Could not make a reset link.");
+      const said = err instanceof Error ? err.message : "Could not make a reset link.";
+      if (err instanceof ApiError && err.status === 403) setMade({ refused: said });
+      else notify(said);
     }
   }
 
@@ -352,7 +360,11 @@ function MemberRow({
   if (reset.asking) {
     return (
       <ConfirmRow
-        question={`Make a reset link for ${member.name}? It signs them out everywhere once used.`}
+        question={
+          mail
+            ? `Email ${member.name} a reset link? It signs them out everywhere once used.`
+            : `Make a reset link for ${member.name}? It signs them out everywhere once used.`
+        }
         confirmLabel="Yes, make a link"
         onConfirm={() => reset.confirm(() => void makeLink())}
         onCancel={reset.cancel}
@@ -411,14 +423,30 @@ function MemberRow({
           </IconButton>
         )}
       </Row>
-      {link && (
+      {made && "refused" in made && (
+        <div className={styles.resetLink} data-testid="reset-link" role="alert">
+          <Note>{made.refused}</Note>
+        </div>
+      )}
+      {made && !("refused" in made) && (
         <div className={styles.resetLink} data-testid="reset-link">
-          <Note>
-            {emailedLine(mail, link.emailed, member.email ?? member.name) ??
-              `Send this to ${member.name}.`}{" "}
-            It works once, for 24 hours. Reloading this page hides it for good.
-          </Note>
-          <CopyField value={link.link} label="the reset link" loud />
+          {made.link ? (
+            <>
+              <Note>
+                Send this to {member.name}. It works once, for 24 hours. Reloading this page hides
+                it for good.
+              </Note>
+              <CopyField value={made.link} label="the reset link" loud />
+            </>
+          ) : (
+            /* With mail on the link goes only to their own address, so a
+               failed send is tried again with a new link, never shown. */
+            <Note>
+              {made.emailed
+                ? `Emailed to ${member.email ?? member.name}. It works once, for 24 hours.`
+                : `Could not email ${member.email ?? member.name}. Make a new link to try again.`}
+            </Note>
+          )}
         </div>
       )}
     </>

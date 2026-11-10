@@ -47,6 +47,18 @@ export function outranks(actor: string, target: string): boolean {
   return canManage(actor) && rankOf(actor) > rankOf(target);
 }
 
+/**
+ * Whether a reset link may be handed to the actor rather than emailed to the
+ * member. A spent link sets the password of the whole account, so a role in
+ * one project is not enough: the actor must outrank the member in every
+ * project the member is in. Otherwise anybody could make a project, add an
+ * account by its email, and take it. `places` is one row per project of the
+ * member, with the actor's role there, or null where the actor is not in it.
+ */
+export function outranksEverywhere(places: { actor: string | null; target: string }[]): boolean {
+  return places.every((place) => place.actor !== null && outranks(place.actor, place.target));
+}
+
 export type Refusal = { status: 400 | 403; message: string };
 
 /**

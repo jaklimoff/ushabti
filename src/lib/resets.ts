@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { passwordResets, sessions, users } from "@/db/schema";
 import { hashToken, mintToken } from "./agents";
 import { hashPassword } from "./auth";
+import { revokeAllPersonalTokens } from "./personal-tokens";
 import { lifeOfLink, RESET_MS, RESET_PREFIX } from "./reset-link";
 
 /** The same table again, so one row can ask whether a later one exists. */
@@ -129,6 +130,9 @@ export async function useResetToken(token: string, password: string): Promise<st
     // Every session, including any this browser held: the caller opens a new
     // one, and whoever knew the old password is signed out.
     await tx.delete(sessions).where(eq(sessions.userId, userId));
+    // And every personal token: one made by whoever took the account would
+    // otherwise keep it after the person who owns it is back in.
+    await revokeAllPersonalTokens(userId, tx);
 
     return userId;
   });

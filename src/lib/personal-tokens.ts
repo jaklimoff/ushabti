@@ -141,3 +141,20 @@ export async function revokePersonalToken(userId: string, tokenId: string): Prom
     .returning({ id: personalTokens.id });
   if (!row) throw new HttpError(404, "That token is gone already.");
 }
+
+/**
+ * Revokes every personal token of an account. A spent reset link, a password
+ * change and "sign out everywhere" all call it: each says that somebody else
+ * may hold the account, and a token they made would outlive the sessions.
+ * It takes the transaction it runs in, so a password and its tokens change
+ * together.
+ */
+export async function revokeAllPersonalTokens(
+  userId: string,
+  tx: Pick<typeof db, "update"> = db,
+): Promise<void> {
+  await tx
+    .update(personalTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(personalTokens.userId, userId), isNull(personalTokens.revokedAt)));
+}
