@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRuns, projects } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
@@ -36,34 +36,25 @@ export const POST = route<Ctx>(async (req, ctx) => {
    * and starts their own. Every other open run is the lock, and stays one.
    *
    * Closing that run and opening this one is one act, so it is one
-   * transaction. Apart, a third claim landing in the gap would find the task
-   * free, insert, and meet `agent_runs_open_task_key` — a 500, with the
-   * hand-over already closed. Inside, the update holds the row until the
-   * insert is committed beside it, and everybody else gets the ordinary 409.
+   * transaction. The insert asks `agent_runs_open_task_key` itself rather
+   * than a select before it: two claims on a free task both find nothing to
+   * read, and the index is the one place that sees them both. The one that
+   * loses inserts nothing and gets the ordinary 409, and a hand-over it
+   * closed rolls back with it.
    */
   const { runId, handedFrom } = await db.transaction(async (tx) => {
-    const [held] = await tx
-      .select({ id: agentRuns.id, status: agentRuns.status })
-      .from(agentRuns)
-      .where(and(eq(agentRuns.taskId, taskId), isNull(agentRuns.endedAt)))
-      .limit(1);
-
-    let handedFrom: string | null = null;
-    if (held) {
-      const handed =
-        held.status === "handed_over" ? await closeHandOver(tx, taskId, user.name) : null;
-      if (!handed) throw new HttpError(409, "Another run is already open on this task.");
-      handedFrom = handed.agentId;
-    }
+    const handed = await closeHandOver(tx, taskId, user.name);
 
     const [row] = await tx
       .insert(agentRuns)
       .values({ projectId, taskId, agentId: user.id, goal, step: step || steps[0] || "" })
+      .onConflictDoNothing({ target: agentRuns.taskId, where: sql`ended_at is null` })
       .returning({ id: agentRuns.id });
+    if (!row) throw new HttpError(409, "Another run is already open on this task.");
 
     if (steps.length) await replaceSteps(row.id, steps, tx);
     await addLog(row.id, goal ? `started: ${goal}` : "started", tx);
-    return { runId: row.id, handedFrom };
+    return { runId: row.id, handedFrom: handed?.agentId ?? null };
   });
 
   /* Activity goes through the funnel, outside the transaction, like every

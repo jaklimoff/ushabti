@@ -15,12 +15,17 @@ const fake = vi.hoisted(() => {
       sets.push(values);
       return chain;
     },
-    where: () => Promise.resolve([]),
+    where: () => chain,
+    returning: () => Promise.resolve([{ id: "run-1" }]),
+  };
+  const db = {
+    update: () => chain,
+    transaction: (run: (tx: unknown) => Promise<unknown>) => run(db),
   };
   let status = "running";
   return {
     sets,
-    db: { update: () => chain },
+    db,
     runs: (next: string) => {
       status = next;
     },

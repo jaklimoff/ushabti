@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRuns } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
@@ -24,6 +24,8 @@ import {
 } from "@/lib/run-state";
 
 type Ctx = { params: Promise<{ runId: string }> };
+
+const OVER = "That run is over.";
 
 /**
  * The run with the tail of its log, or with `?before=<line id>` the hundred
@@ -53,7 +55,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   const { user } = await guard(context.projectId);
   agentOnly(user);
   if (context.agentId !== user.id) throw new HttpError(403, "That run belongs to another agent.");
-  if (!isOpen(context.status as RunStatus)) throw new HttpError(409, "That run is closed.");
+  if (!isOpen(context.status as RunStatus)) throw new HttpError(409, OVER);
 
   const input = await body<{
     goal?: string;
@@ -141,32 +143,45 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     }
   }
 
-  // The agent obeyed, so the request from the board is spent.
+  /* The agent obeyed, so the request from the board is spent. Only the word
+     it obeyed: a Stop a person wrote after this report read the run is still
+     owed, so the row clears it only while it holds what was read. */
   const control = context.control ?? null;
-  if (status && obeys(control, status)) patch.control = null;
+  if (status && control && obeys(control, status)) {
+    patch.control = sql`case when ${agentRuns.control} = ${control} then null else ${agentRuns.control} end`;
+  }
 
   if (status && CLOSED_STATUSES.includes(status)) patch.endedAt = new Date();
 
-  await db.update(agentRuns).set(patch).where(eq(agentRuns.id, runId));
-
+  // Read the whole report before anything is written, so a 400 writes nothing.
+  let texts: string[] | undefined;
   if (Array.isArray(input.steps)) {
-    const texts = input.steps.filter(
-      (s): s is string => typeof s === "string" && s.trim().length > 0,
-    );
+    texts = input.steps.filter((s): s is string => typeof s === "string" && s.trim().length > 0);
     if (texts.length > 50) throw new HttpError(400, "A plan has at most 50 steps.");
-    await replaceSteps(runId, texts);
   }
-
-  if (typeof input.stepIndex === "number") {
-    if (!Number.isInteger(input.stepIndex) || input.stepIndex < 0) {
-      throw new HttpError(400, "stepIndex must be a whole number, zero or more.");
-    }
-    await setCurrentStep(runId, input.stepIndex);
+  const stepIndex = input.stepIndex;
+  if (typeof stepIndex === "number" && (!Number.isInteger(stepIndex) || stepIndex < 0)) {
+    throw new HttpError(400, "stepIndex must be a whole number, zero or more.");
   }
+  const line = optionalStr(input.log, "Log", 400)?.trim() || step?.trim();
 
-  const line = optionalStr(input.log, "Log", 400)?.trim();
-  if (line) await addLog(runId, line);
-  else if (step?.trim()) await addLog(runId, step.trim());
+  /*
+   * One report is one transaction, and it writes only a run that is still
+   * open. The check above read the run a moment ago; a Take over or the
+   * lease can close it in between, and a report that wrote anyway would
+   * leave a row both ended and running, which `isOpen` would then accept.
+   */
+  await db.transaction(async (tx) => {
+    const written = await tx
+      .update(agentRuns)
+      .set(patch)
+      .where(and(eq(agentRuns.id, runId), isNull(agentRuns.endedAt)))
+      .returning({ id: agentRuns.id });
+    if (written.length === 0) throw new HttpError(409, OVER);
+    if (texts) await replaceSteps(runId, texts, tx);
+    if (typeof stepIndex === "number") await setCurrentStep(runId, stepIndex, tx);
+    if (line) await addLog(runId, line, tx);
+  });
 
   // The run as it now stands. The feed line reads it, and it is the answer.
   const run = await loadRun(runId);

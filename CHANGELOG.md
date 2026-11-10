@@ -31,6 +31,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **An agent's run holds against races.** A report that crosses Take over or the lease now gets a 409
+  and leaves the run closed, instead of reopening it. Two agents claiming one task at once get a 409,
+  not a 500. Pause, Resume and Stop no longer renew a quiet agent's lease, and a report no longer
+  erases a Stop written after it read the run.
 - **Open tabs come back live by themselves after a deploy.** A board, the sidebar and Home open a new
   stream a few seconds after theirs is closed, and read again. A board read that fails is asked
   again, and a write that gets no answer fails after 30 seconds instead of holding the board still.

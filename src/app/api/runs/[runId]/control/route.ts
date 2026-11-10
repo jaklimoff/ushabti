@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { agentRuns } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
@@ -35,7 +35,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const wanted = input.control;
 
   if (wanted === "take_over") {
-    await closeRun(runId, "taken_over");
+    if (!(await closeRun(runId, "taken_over"))) throw new HttpError(409, "That run is over.");
     await addLog(runId, `${user.name} took the task over`);
     await logActivity({
       projectId: context.projectId,
@@ -48,10 +48,15 @@ export const POST = route<Ctx>(async (req, ctx) => {
     if (!RUN_CONTROLS.includes(wanted as RunControl)) {
       throw new HttpError(400, `Control must be one of: ${RUN_CONTROLS.join(", ")}, take_over.`);
     }
-    await db
+    /* Not `updatedAt`: that is the last thing the agent said, and the lease
+       counts it. A Stop on a dead agent's card must not renew its lease. Only
+       an open run takes the word, so a press that crosses the close is told. */
+    const asked = await db
       .update(agentRuns)
-      .set({ control: wanted as RunControl, updatedAt: new Date() })
-      .where(eq(agentRuns.id, runId));
+      .set({ control: wanted as RunControl })
+      .where(and(eq(agentRuns.id, runId), isNull(agentRuns.endedAt)))
+      .returning({ id: agentRuns.id });
+    if (asked.length === 0) throw new HttpError(409, "That run is over.");
     await addLog(runId, `${user.name} asked the agent to ${wanted}`);
   }
 

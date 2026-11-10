@@ -519,18 +519,20 @@ export async function replaceSteps(runId: string, texts: string[], tx?: Tx): Pro
   );
 }
 
-/** Marks everything before `index` done, `index` active, the rest still to do. */
-export async function setCurrentStep(runId: string, index: number): Promise<void> {
-  const rows = await db
-    .select({ id: agentRunSteps.id, index: agentRunSteps.index })
-    .from(agentRunSteps)
+/**
+ * Marks everything before `index` done, `index` active, the rest still to do.
+ * One statement, so a plan of fifty steps is one write and two reports cannot
+ * interleave their steps.
+ */
+export async function setCurrentStep(runId: string, index: number, tx?: Tx): Promise<void> {
+  await (tx ?? db)
+    .update(agentRunSteps)
+    .set({
+      state: sql`case when ${agentRunSteps.index} < ${index} then 'done'
+                      when ${agentRunSteps.index} = ${index} then 'active'
+                      else 'todo' end`,
+    })
     .where(eq(agentRunSteps.runId, runId));
-
-  for (const row of rows) {
-    const state: RunStepState =
-      row.index < index ? "done" : row.index === index ? "active" : "todo";
-    await db.update(agentRunSteps).set({ state }).where(eq(agentRunSteps.id, row.id));
-  }
 }
 
 export async function addLog(runId: string, text: string, tx?: Tx): Promise<void> {
@@ -575,12 +577,18 @@ export async function closeHandOver(
   return row;
 }
 
-/** Closes a run and leaves the task free for the next one. */
-export async function closeRun(runId: string, status: RunStatus): Promise<void> {
-  await db
+/**
+ * Closes a run and leaves the task free for the next one. It closes only a run
+ * that is still open, so a close that crosses the sweep or the agent's own
+ * `done` cannot write over the word that ended it. False when it was over.
+ */
+export async function closeRun(runId: string, status: RunStatus): Promise<boolean> {
+  const closed = await db
     .update(agentRuns)
     .set({ status, control: null, endedAt: new Date(), updatedAt: new Date() })
-    .where(eq(agentRuns.id, runId));
+    .where(and(eq(agentRuns.id, runId), isNull(agentRuns.endedAt)))
+    .returning({ id: agentRuns.id });
+  return closed.length > 0;
 }
 
 /**
@@ -588,8 +596,12 @@ export async function closeRun(runId: string, status: RunStatus): Promise<void> 
  *
  * It must not touch `updatedAt`, which is the last report and the only thing
  * the lease counts, and it must not write the log. A card that says "writing
- * the tests" has to mean the agent said so.
+ * the tests" has to mean the agent said so. A beat on a run that is over
+ * writes nothing.
  */
 export async function beat(runId: string): Promise<void> {
-  await db.update(agentRuns).set({ beatAt: new Date() }).where(eq(agentRuns.id, runId));
+  await db
+    .update(agentRuns)
+    .set({ beatAt: new Date() })
+    .where(and(eq(agentRuns.id, runId), isNull(agentRuns.endedAt)));
 }
