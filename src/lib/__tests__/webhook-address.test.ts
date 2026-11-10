@@ -104,6 +104,57 @@ describe("which literal addresses are inside", () => {
     expect(isPrivateIp("::ffff:8.8.8.8")).toBe(false);
   });
 
+  it("knows carrier-grade NAT, benchmarking, protocol assignments and multicast", () => {
+    for (const ip of [
+      "100.64.0.1",
+      "100.100.100.100", // Tailscale's own resolver
+      "100.127.255.254",
+      "198.18.0.1",
+      "198.19.255.254",
+      "192.0.0.8",
+      "224.0.0.1",
+      "255.255.255.255",
+    ]) {
+      expect(isPrivateIp(ip), ip).toBe(true);
+    }
+    for (const ip of ["100.63.255.255", "100.128.0.1", "198.17.0.1", "198.20.0.1", "192.0.1.1"]) {
+      expect(isPrivateIp(ip), ip).toBe(false);
+    }
+  });
+
+  it("sees the IPv4 address a NAT64, 6to4 or Teredo prefix carries", () => {
+    for (const ip of [
+      "64:ff9b::7f00:1", // NAT64 of 127.0.0.1
+      "64:ff9b::10.0.0.5",
+      "64:ff9b::a9fe:a9fe", // NAT64 of 169.254.169.254
+      "64:ff9b::100.64.0.1",
+      "64:ff9b:1::808:808", // local-use NAT64 is inside whatever it carries
+      "2002:7f00:1::1", // 6to4 of 127.0.0.1
+      "2002:c0a8:132::", // 6to4 of 192.168.1.50
+      "2002:a9fe:a9fe::1",
+      "2001:0:4136:e378:8000:63bf:f5ff:fffe", // Teredo of 10.0.0.1
+      "::ffff:100.64.0.1",
+      "::ffff:c612:1", // v4-mapped 198.18.0.1, written in hex
+      "ff02::1",
+    ]) {
+      expect(isPrivateIp(ip), ip).toBe(true);
+    }
+    for (const ip of ["64:ff9b::808:808", "64:ff9b::8.8.8.8", "2002:808:808::1"]) {
+      expect(isPrivateIp(ip), ip).toBe(false);
+    }
+  });
+
+  it("refuses a URL on each new range", () => {
+    for (const url of [
+      "http://100.64.0.1/",
+      "http://198.18.0.1/",
+      "http://[64:ff9b::7f00:1]/",
+      "http://[2002:a9fe:a9fe::]/",
+    ]) {
+      expect(refuseAddress(url, false), url).not.toBeNull();
+    }
+  });
+
   it("leaves a public address alone, and the neighbours of each range", () => {
     for (const ip of [
       "8.8.8.8",

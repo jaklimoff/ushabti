@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Security
 
+- **A webhook reaches only a public address.** The check now runs as the socket connects, so a name
+  that answers public to the check and private to the call is refused. Carrier-grade NAT (also
+  Tailscale), 198.18.0.0/15, 192.0.0.0/24, multicast, and private addresses carried inside NAT64,
+  6to4 and Teredo count as private. A redirect is never followed.
 - **Text in a task cannot restyle the app.** A description, a comment or a release note drops
   `<style>`, a `style` attribute and any form control, so a pasted line cannot cover the page or draw
   a fake sign-in on it. A task box still draws. The app also refuses to be framed, and a write sent

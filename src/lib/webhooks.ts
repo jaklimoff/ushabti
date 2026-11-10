@@ -1,17 +1,11 @@
 import "server-only";
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { lookup } from "node:dns/promises";
 import { db } from "@/db";
 import { projects, tasks, webhookDeliveries, webhooks } from "@/db/schema";
 import { mintToken } from "./agents";
-import {
-  isPrivateHost,
-  isPrivateIp,
-  privateAddressesAllowed,
-  privateSentence,
-  refuseAddress,
-} from "./webhook-address";
+import { privateAddressesAllowed, refuseAddress } from "./webhook-address";
+import { PrivateAddressError, postWebhook } from "./webhook-post";
 import { HttpError } from "./auth";
 import { readId, str } from "./api";
 import {
@@ -365,41 +359,16 @@ type DueRow = {
   secret: string;
 };
 
-/**
- * Whether this address may be called, asked again at the moment of the call.
- *
- * The route already refused a private literal when the URL was saved. This is
- * the harder half: a name is resolved here, so a host that answered publicly
- * on Monday and points at 10.0.0.5 today is refused on the try rather than on
- * the save. It answers a sentence, or null.
- */
-async function refuseAtSendTime(url: string, allowPrivate: boolean): Promise<string | null> {
-  const said = refuseAddress(url, allowPrivate);
-  if (said) return said;
-  if (allowPrivate) return null;
-
-  const host = new URL(url).hostname.replace(/^\[|\]$/g, "");
-  // A literal was already answered above; only a name is left to resolve.
-  if (isPrivateHost(host) || isPrivateIp(host)) return null;
-
-  try {
-    const answers = await lookup(host, { all: true });
-    const inside = answers.find((a) => isPrivateIp(a.address));
-    if (inside) return privateSentence(`${host} (${inside.address})`);
-  } catch {
-    /* A name that does not resolve is not a refusal. The try itself will fail
-       in a moment and say so in the words the resolver used. */
-  }
-  return null;
-}
-
 /** One try. It always writes an answer, so a row is never due twice over. */
 async function sendOne(row: DueRow, now: Date): Promise<void> {
   const payload = row.body as WebhookPayload;
   const body = JSON.stringify(payload);
   const tries = row.tries + 1;
 
-  const refused = await refuseAtSendTime(row.url, privateAddressesAllowed());
+  const allowPrivate = privateAddressesAllowed();
+  /* The text is asked again here, for a literal saved before the rule grew.
+     A name is asked in the socket's lookup, at the moment of the connect. */
+  const refused = refuseAddress(row.url, allowPrivate);
   if (refused) {
     /* No retry: the answer would be the same in half an hour, and each try
        would be another request nobody may make. */
@@ -411,22 +380,29 @@ async function sendOne(row: DueRow, now: Date): Promise<void> {
   }
 
   try {
-    const res = await fetch(row.url, {
-      method: "POST",
+    const status = await postWebhook(row.url, {
       headers: deliveryHeaders(payload, row.secret, body, now),
       body,
-      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
-      redirect: "error",
+      timeoutMs: SEND_TIMEOUT_MS,
+      allowPrivate,
     });
-    if (res.ok) {
+    if (status >= 200 && status < 300) {
       await db
         .update(webhookDeliveries)
-        .set({ tries, code: res.status, error: null, deliveredAt: new Date(), nextTryAt: null })
+        .set({ tries, code: status, error: null, deliveredAt: new Date(), nextTryAt: null })
         .where(eq(webhookDeliveries.id, row.id));
       return;
     }
-    await failed(row.id, tries, res.status, null, now);
+    await failed(row.id, tries, status, null, now);
   } catch (err) {
+    if (err instanceof PrivateAddressError) {
+      // No retry, as for a refused literal above.
+      await db
+        .update(webhookDeliveries)
+        .set({ tries, code: null, error: err.message, nextTryAt: null })
+        .where(eq(webhookDeliveries.id, row.id));
+      return;
+    }
     await failed(row.id, tries, null, reasonOf(err), now);
   }
 }
@@ -447,15 +423,15 @@ async function failed(
 /**
  * Why a try failed, in the words a person can act on.
  *
- * `fetch` says "fetch failed" for everything from a refused port to a bad
- * certificate, and puts the answer in the cause. A line that says
- * ECONNREFUSED tells the owner the port is shut; "fetch failed" tells nobody
- * anything.
+ * A socket error carries a code such as ECONNREFUSED, which tells the owner
+ * the port is shut; its message often says less. An older `fetch` kept the
+ * code in the cause, so both are read.
  */
 function reasonOf(err: unknown): string {
   if (err instanceof Error) {
     if (err.name === "TimeoutError") return `no answer in ${SEND_TIMEOUT_MS / 1000} s`;
-    const code = (err as { cause?: { code?: string } }).cause?.code;
+    const code =
+      (err as { code?: string }).code ?? (err as { cause?: { code?: string } }).cause?.code;
     if (code) return code;
     return err.message.slice(0, 200);
   }

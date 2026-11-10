@@ -95,19 +95,37 @@ export function isPrivateIp(address: string): boolean {
   if (v6.slice(0, 5).every((g) => g === 0) && (v6[5] === 0 || v6[5] === 0xffff)) {
     return privateV4([v6[6] >> 8, v6[6] & 0xff, v6[7] >> 8, v6[7] & 0xff]);
   }
-  // fe80::/10 link-local, and fc00::/7 unique local.
+  /* A translator hands the IPv4 address it carries to whatever it reaches,
+     so each prefix that embeds one is as private as the address inside. */
+  const v4At = (hi: number, lo: number) => [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff];
+  // 64:ff9b::/96, the well-known NAT64 prefix.
+  if (v6[0] === 0x64 && v6[1] === 0xff9b && v6.slice(2, 6).every((g) => g === 0)) {
+    return privateV4(v4At(v6[6], v6[7]));
+  }
+  // 64:ff9b:1::/48 is NAT64 for a local network: inside by definition.
+  if (v6[0] === 0x64 && v6[1] === 0xff9b && v6[2] === 1) return true;
+  // 2002::/16, 6to4, carries the address in the second and third groups.
+  if (v6[0] === 0x2002) return privateV4(v4At(v6[1], v6[2]));
+  // 2001::/32, Teredo, carries the client's address inverted in the last two.
+  if (v6[0] === 0x2001 && v6[1] === 0) return privateV4(v4At(~v6[6] & 0xffff, ~v6[7] & 0xffff));
+  // fe80::/10 link-local, fc00::/7 unique local, ff00::/8 multicast.
   if ((v6[0] & 0xffc0) === 0xfe80) return true;
   if ((v6[0] & 0xfe00) === 0xfc00) return true;
+  if ((v6[0] & 0xff00) === 0xff00) return true;
   return false;
 }
 
-function privateV4([a, b]: number[]): boolean {
+function privateV4([a, b, c]: number[]): boolean {
   if (a === 127) return true; // loopback
   if (a === 0) return true; // 0.0.0.0/8 — "this host", which is loopback by another road
   if (a === 10) return true; // private
   if (a === 172 && b >= 16 && b <= 31) return true; // private
   if (a === 192 && b === 168) return true; // private
   if (a === 169 && b === 254) return true; // link-local, and the cloud metadata address
+  if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT, and Tailscale
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking, routed inside
+  if (a === 192 && b === 0 && c === 0) return true; // IETF protocol assignments
+  if (a >= 224) return true; // multicast, reserved and broadcast
   return false;
 }
 
@@ -131,7 +149,7 @@ export function privateSentence(host: string): string {
  * Why this URL is refused, or null when it is fine.
  *
  * It answers on the text alone. A name that resolves to a private address is
- * the harder case and is asked again in the sender, where there is a resolver.
+ * the harder case: `webhook-post.ts` refuses it at the moment of the connect.
  */
 export function refuseAddress(raw: string, allowPrivate: boolean): string | null {
   let url: URL;

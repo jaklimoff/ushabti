@@ -134,14 +134,25 @@ refuses, at the moment it is saved and again before every try:
 - a **private** address — `10/8`, `172.16/12`, `192.168/16`, `fc00::/7`;
 - a **link-local** address — `169.254.0.0/16`, which is where a cloud keeps
   its metadata service, and `fe80::/10`;
+- a **carrier-grade NAT** address — `100.64.0.0/10`, which is also where
+  Tailscale puts its machines;
+- an address kept for use **inside a network** — `198.18.0.0/15`
+  (benchmarking) and `192.0.0.0/24` (protocol assignments);
+- a **multicast or reserved** address — `224.0.0.0` and up, and `ff00::/8`;
+- an IPv6 address that **carries a private IPv4 one** — through NAT64
+  (`64:ff9b::/96`), 6to4 (`2002::/16`), Teredo, or the `::ffff:` mapped form.
+  The local NAT64 prefix `64:ff9b:1::/48` is refused whatever it carries;
 - a URL with a **name and password** in it, which goes to whoever answers and
   hides the real host — `http://example.com@169.254.169.254/` is not a call to
   example.com.
 
-A redirect is a failure too (`redirect: "error"`), so point the webhook at the
-address it ends up at. A name is resolved before each try, so a host that
-answers publicly today and points inside tomorrow is refused then rather than
-called.
+A name is checked as the connection is made. The server asks for the name
+once, refuses the try if any answer is private, and connects to the address it
+checked. So a name that answers publicly to one question and privately to the
+next cannot slip a request inside.
+
+A redirect is not followed. The 3xx code is written on the row as a failed try,
+so point the webhook at the address it ends up at.
 
 **If your receiver really is on that network**, set `USHABTI_WEBHOOK_PRIVATE=1`
 in the server's environment and those addresses are allowed. It is off by

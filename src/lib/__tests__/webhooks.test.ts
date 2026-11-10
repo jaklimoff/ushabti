@@ -96,6 +96,13 @@ const fake = vi.hoisted(() => {
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db", () => ({ db: fake.db }));
+/* The socket is `webhook-post.test.ts`. Here a send is a call that answers a
+   status, so the drain is driven without a network. */
+const post = vi.hoisted(() => ({ send: (() => Promise.resolve(200)) as (url: string) => unknown }));
+vi.mock("../webhook-post", async (original) => ({
+  ...(await original<typeof import("../webhook-post")>()),
+  postWebhook: (url: string) => post.send(url),
+}));
 
 const { logActivity, logActivityAll } = await import("../activity");
 const { drainWebhooks } = await import("../webhooks");
@@ -273,11 +280,11 @@ describe("the drain", () => {
 
   it("sends four at once and no more", async () => {
     let release = () => {};
-    const held = new Promise<Response>((done) => {
-      release = () => done(new Response("ok"));
+    const held = new Promise<number>((done) => {
+      release = () => done(200);
     });
     const sent = vi.fn(() => held);
-    vi.stubGlobal("fetch", sent);
+    post.send = sent;
 
     const due = Array.from({ length: 20 }, (_, i) =>
       delivery(`delivery-${i}`, `https://box-${i}.example.com/hook`),
@@ -297,14 +304,12 @@ describe("the drain", () => {
   });
 
   it("lets one project's test send past an endpoint that never answers", async () => {
-    /* The five second timeout is the sender's; a fake fetch does not keep it,
+    /* The five second timeout is the sender's; a fake send does not keep it,
        so this one hangs until the test is over. That is the endpoint the
        other delivery must not wait for. */
-    const hung = new Promise<Response>(() => {});
-    const sent = vi.fn((url: string) =>
-      url.includes("hung") ? hung : Promise.resolve(new Response("ok")),
-    );
-    vi.stubGlobal("fetch", sent);
+    const hung = new Promise<number>(() => {});
+    const sent = vi.fn((url: string) => (url.includes("hung") ? hung : Promise.resolve(200)));
+    post.send = sent;
 
     fake.answers(
       webhookDeliveries,
