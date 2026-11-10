@@ -38,6 +38,18 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const title = str(input.title, "Title", { max: 400 });
   const description = optionalStr(input.description, "Description") ?? "";
 
+  /* The values are checked before the lock, through the shared pool. Checked
+     inside it, every write held a connection while it waited for another, and
+     a burst of them waited on each other for ever. The new task has no id
+     yet, so no value can name it. */
+  const values = input.values && typeof input.values === "object" ? input.values : {};
+  const sent: Record<string, TaskValue> = {};
+  for (const [propertyId, raw] of Object.entries(values)) {
+    const prop = await loadProperty(propertyId);
+    if (prop.projectId !== projectId) continue;
+    sent[propertyId] = await coerceValue(prop, raw);
+  }
+
   // The counter bump and the rank both have to see the same snapshot, so the
   // whole thing runs under the project lock.
   const { task, rewrote, ring } = await withProjectLock(projectId, async (tx) => {
@@ -83,13 +95,6 @@ export const POST = route<Ctx>(async (req, ctx) => {
     /* The seeds are written under the lock that wrote the task, as a rule in
        Settings is: a rule written beside this create either sees the task or
        is seen by the drop. A seed can hide another one, so the drop follows. */
-    const values = input.values && typeof input.values === "object" ? input.values : {};
-    const sent: Record<string, TaskValue> = {};
-    for (const [propertyId, raw] of Object.entries(values)) {
-      const prop = await loadProperty(propertyId);
-      if (prop.projectId !== projectId) continue;
-      sent[propertyId] = await coerceValue(prop, raw, [row.id]);
-    }
     /* The type's defaults are written here and nowhere else, so a task an
        agent makes starts as one made from the composer does. A value the
        caller sent, empty or not, always wins over a default. */

@@ -15,6 +15,7 @@ import {
   type AgentActs,
 } from "./roles";
 import { inRequest } from "./via";
+import { isDatabaseTimeout } from "@/db/timeouts";
 
 export { HttpError };
 
@@ -34,7 +35,11 @@ export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response
       res = await inRequest(() => handler(req, ctx));
     } catch (err) {
       if (err instanceof HttpError) res = fail(err.status, err.message, err.headers);
-      else {
+      else if (isDatabaseTimeout(err)) {
+        /* A wait ran out: the database is busy, not broken, and a retry may pass. */
+        console.error("[ushabti] database timeout", req.method, new URL(req.url).pathname, err);
+        res = fail(503, "The server is busy. Try again in a moment.", { "Retry-After": "5" });
+      } else {
         console.error("[ushabti] route error", err);
         res = fail(500, "Something went wrong on the server.");
       }

@@ -241,8 +241,13 @@ to know about managed clusters:
   provider's CA and ask for
   `?sslmode=verify-full&sslrootcert=/path/to/ca.crt`.
 - Set `DATABASE_POOL_MAX` below the share of connections you can spare. One
-  process otherwise holds up to twelve, and takes one more for live updates:
-  one `LISTEN` connection per process, not per tab or board.
+  process holds one pool of at most that many, twelve when it is unset, and
+  takes one more for live updates: one `LISTEN` connection per process, not
+  per tab or board. So a process holds at most `DATABASE_POOL_MAX + 1`.
+- Every wait on the database has a limit: ten seconds for a connection,
+  fifteen for a lock, thirty for a statement and sixty for a transaction that
+  says nothing. They are set per transaction too, so they hold behind a
+  pooler. A request that runs out answers 503.
 - When `DATABASE_URL` points at a pooler in transaction mode, such as
   PgBouncer, set `DATABASE_DIRECT_URL` to a direct connection to the same
   database. Live updates and the migrations use it, because `LISTEN` needs a

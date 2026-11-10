@@ -21,6 +21,23 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   and adding an email no longer tells whether it has an account. A link opened by another account
   says whom it is for and joins nothing.
 
+### Fixed
+
+- **A burst of writes no longer freezes the server.** Creating or moving a task checks its values
+  before it takes the project lock, so concurrent writes can no longer wait on each other for ever.
+  Every wait on the database has a limit now: ten seconds for a connection, fifteen for a lock,
+  thirty for a statement and sixty for a silent transaction. A wait that runs out answers 503,
+  "The server is busy. Try again in a moment."
+- **A process holds one database pool and one sign-in limiter.** The production build held two of
+  each, so a pool of 5 opened up to 11 connections and ten sign-in tries were twenty. If you raised
+  the database's connection limit, or lowered `DATABASE_POOL_MAX`, to make room for this, you can
+  set it back.
+- **A move whose value is refused changes nothing.** The rank and the value are written together, so
+  the card no longer jumps inside its old column.
+- **A value that names an option or a person by something that is not an id, and a date the calendar
+  does not have, such as 2026-02-31, answer 400.** They were a 500, and the date was stored and
+  drawn as the third of March.
+
 ## 0.46.0 — 2026-11-09
 
 ### Added

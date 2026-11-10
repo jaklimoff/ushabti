@@ -79,8 +79,12 @@ export function createLimiter(): Limiter {
   };
 }
 
-/** The one limiter this process counts in. */
-export const limiter = createLimiter();
+/* The one limiter this process counts in. It lives on globalThis because the
+   production build compiles this file twice, into the route chunks and the
+   page chunks, and two limiters let ten tries through as twenty. */
+const globalForLimiter = globalThis as unknown as { __ushabtiLimiter?: Limiter };
+export const limiter =
+  globalForLimiter.__ushabtiLimiter ?? (globalForLimiter.__ushabtiLimiter = createLimiter());
 
 /* The keys. They live together so that nothing else invents another. */
 export const loginByAddress = (address: string) => `login:ip:${address}`;

@@ -63,6 +63,8 @@ export async function coerceValue(
     }
     case "person": {
       if (typeof raw !== "string") throw new HttpError(400, `${prop.name} needs one member.`);
+      /* Asked of the database, a word that is no id is an error and not an answer. */
+      if (!isId(raw)) throw new HttpError(400, "That person is not a member of this project.");
       const rows = await db
         .select({ userId: projectMembers.userId })
         .from(projectMembers)
@@ -79,7 +81,7 @@ export async function coerceValue(
     case "checkbox":
       return raw === true || raw === "true";
     case "date": {
-      if (typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      if (typeof raw !== "string" || !isRealDay(raw)) {
         throw new HttpError(400, `${prop.name} needs a date like 2026-08-21.`);
       }
       return raw;
@@ -136,7 +138,18 @@ async function assertTasks(
   return ids;
 }
 
+/** A day written 2026-08-21 that the calendar has. 2026-02-31 has the shape
+    and would be drawn as the third of March. */
+export function isRealDay(raw: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const day = new Date(Date.UTC(y, mo - 1, d));
+  return day.getUTCFullYear() === y && day.getUTCMonth() === mo - 1 && day.getUTCDate() === d;
+}
+
 async function assertOptions(propertyId: string, ids: string[]) {
+  if (!ids.every(isId)) throw new HttpError(400, "One of the options does not exist any more.");
   const rows = await db
     .select({ id: propertyOptions.id })
     .from(propertyOptions)

@@ -1,5 +1,4 @@
 import { and, asc, eq, ne } from "drizzle-orm";
-import { db } from "@/db";
 import { tasks, taskValues } from "@/db/schema";
 import type { ActivityEntry } from "@/lib/activity";
 import { HttpError } from "@/lib/auth";
@@ -8,7 +7,14 @@ import { byPos } from "@/lib/order";
 import { rankOnTheEnd, taskProjectId, touchTasks, withProjectLock } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { dropHidden, lockTasks } from "@/lib/hidden";
-import { coerceValue, describeValue, loadProperty, valueLine } from "@/lib/values";
+import type { TaskValue } from "@/lib/types";
+import {
+  coerceValue,
+  describeValue,
+  loadProperty,
+  valueLine,
+  type PropertyRow,
+} from "@/lib/values";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -29,7 +35,19 @@ export const POST = route<Ctx>(async (req, ctx) => {
     values?: Record<string, unknown>;
   }>(req);
 
-  const { position, rewrote } = await withProjectLock(projectId, async (tx) => {
+  /* A column is a value, and a value can hide others: they go together, in
+     the one transaction that writes the rank, so a refused value leaves the
+     card where it was. Every value is checked first, through the shared pool:
+     nothing inside the transaction asks for a second connection. */
+  const values = input.values && typeof input.values === "object" ? input.values : {};
+  const changes: { prop: PropertyRow; value: TaskValue }[] = [];
+  for (const [propertyId, raw] of Object.entries(values)) {
+    const prop = await loadProperty(propertyId);
+    if (prop.projectId !== projectId) continue;
+    changes.push({ prop, value: await coerceValue(prop, raw, [taskId]) });
+  }
+
+  const { position, rewrote, dropped, ring } = await withProjectLock(projectId, async (tx) => {
     const siblings = await tx
       .select({ id: tasks.id, position: tasks.position })
       .from(tasks)
@@ -62,21 +80,13 @@ export const POST = route<Ctx>(async (req, ctx) => {
       : { position: rankBetween(lower, upper), rewrote: false };
     /* A rank is not something a person said, so `updatedAt` waits for a value. */
     await tx.update(tasks).set({ position: end.position }).where(eq(tasks.id, taskId));
-    return end;
-  });
 
-  /* A column is a value, and a value can hide others: they go together. */
-  const values = input.values && typeof input.values === "object" ? input.values : {};
-  const { dropped, ring } = await db.transaction(async (tx) => {
     const entries: ActivityEntry[] = [];
-    if (Object.keys(values).length) await lockTasks(tx, [taskId]);
-    for (const [propertyId, raw] of Object.entries(values)) {
-      const prop = await loadProperty(propertyId);
-      if (prop.projectId !== projectId) continue;
-      const value = await coerceValue(prop, raw, [taskId]);
+    if (changes.length) await lockTasks(tx, [taskId]);
+    for (const { prop, value } of changes) {
       await tx
         .insert(taskValues)
-        .values({ taskId, propertyId, value })
+        .values({ taskId, propertyId: prop.id, value })
         .onConflictDoUpdate({
           target: [taskValues.taskId, taskValues.propertyId],
           set: { value },
@@ -86,12 +96,15 @@ export const POST = route<Ctx>(async (req, ctx) => {
         taskId,
         actorId: user.id,
         kind: "value",
-        data: valueLine(prop, value, await describeValue(prop, value)),
+        data: valueLine(prop, value, await describeValue(prop, value, tx)),
       });
     }
     const taskIds = entries.length ? [taskId] : [];
     await touchTasks(taskIds, tx);
-    return dropHidden(tx, { projectId, taskIds, actorId: user.id, before: entries });
+    return {
+      ...end,
+      ...(await dropHidden(tx, { projectId, taskIds, actorId: user.id, before: entries })),
+    };
   });
   await ring();
 
