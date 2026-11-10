@@ -9,8 +9,7 @@ import {
   type Answer,
   type Sent,
 } from "@/test/board";
-import { useBoard } from "@/components/board/store";
-import { Toasts } from "@/components/ui/Toasts";
+import { BoardToasts } from "@/components/board/store";
 import { PropertiesPanel } from "./PropertiesPanel";
 
 /*
@@ -34,8 +33,7 @@ function option(data: BoardData, name: string) {
 
 /* The toasts are the shell's, and the panel alone has none to draw them. */
 function Shown() {
-  const { toasts } = useBoard();
-  return <Toasts toasts={toasts} />;
+  return <BoardToasts />;
 }
 
 /** The server as far as these tests need it: it keeps a patch, and refuses a target before the start. */

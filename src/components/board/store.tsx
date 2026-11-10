@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useState,
@@ -73,7 +74,7 @@ import type { ShipDone, ShipRest } from "@/lib/ship";
 import { personOf } from "@/lib/people";
 import { landedAfter } from "@/lib/landed";
 import type { SessionUser } from "@/components/ui/UserMenu";
-import { useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
+import { Toasts, useToasts, type Notify, type Toast } from "@/components/ui/Toasts";
 import { useLendStream } from "@/components/ui/SidebarProvider";
 
 /** One object for every view with no widths, so a memo keyed on it holds. */
@@ -165,7 +166,6 @@ type Store = {
   /** Pause, resume or stop is a request. Take over ends the run at once. */
   controlRun: (runId: string, control: RunControl | "take_over") => Promise<void>;
   live: boolean;
-  toasts: Toast[];
   setViewId: (id: string) => void;
   notify: Notify;
   refresh: () => Promise<void>;
@@ -370,7 +370,82 @@ function archivedPart(patch: Partial<TaskDTO>): Partial<ArchivedTaskDTO> {
   return next;
 }
 
-const BoardContext = createContext<Store | null>(null);
+/*
+ * What the store hands out comes in three parts, so that a change to one is
+ * no reason for a reader of another to draw again. Every card reads the
+ * actions, so they are one object for the life of the board: each forwards
+ * to the newest closure the provider made. What a function answers from the
+ * board, such as `isPicked` or `runOf`, is data and not an action, because a
+ * card must draw again when its answer changes. Toasts are the third part,
+ * and only the strip that draws them reads it.
+ */
+const ACTION_KEYS = [
+  "setFilters",
+  "setLens",
+  "clearLens",
+  "promoteLens",
+  "setSort",
+  "setWidths",
+  "setViewSort",
+  "setCardView",
+  "resetCardView",
+  "controlRun",
+  "setViewId",
+  "notify",
+  "refresh",
+  "wrote",
+  "createTask",
+  "patchTask",
+  "deleteTask",
+  "archiveTask",
+  "restoreTask",
+  "undeleteTask",
+  "archiveColumn",
+  "shipOption",
+  "moveTask",
+  "setValue",
+  "linkBlocker",
+  "linkParent",
+  "togglePick",
+  "pickTo",
+  "clearPicks",
+  "setPickedValue",
+  "archivePicked",
+  "syncTaskCounts",
+  "createView",
+  "updateView",
+  "deleteView",
+  "setMainView",
+  "moveView",
+  "addOption",
+  "patchOption",
+  "moveOption",
+  "deleteOption",
+  "addProperty",
+  "patchProperty",
+  "moveProperty",
+  "deleteProperty",
+] as const satisfies readonly (keyof Store)[];
+
+type ActionKey = (typeof ACTION_KEYS)[number];
+/** What the board can be asked to do. The same object for the life of the board. */
+export type BoardActions = Pick<Store, ActionKey | "send">;
+/** What the board holds now. A new object whenever any of it changes. */
+export type BoardState = Omit<Store, ActionKey | "send">;
+
+const ActionsContext = createContext<BoardActions | null>(null);
+const StateContext = createContext<BoardState | null>(null);
+const ToastsContext = createContext<Toast[]>([]);
+
+/** One object whose functions call the newest of `latest`, so it never changes. */
+function forwarding(latest: { current: BoardActions }, send: Store["send"]): BoardActions {
+  const out: Record<string, unknown> = { send };
+  for (const key of ACTION_KEYS) {
+    out[key] = (...args: unknown[]) =>
+      (latest.current[key] as (...a: unknown[]) => unknown)(...args);
+  }
+  return out as BoardActions;
+}
 
 /*
  * Which task every other tab on this project has open.
@@ -512,10 +587,30 @@ export function usePresence(taskId: string) {
 const noRoom: Room = {};
 const emptyRoom = () => noRoom;
 
+/** The actions only. A component that reads this draws again for nothing the board does. */
+export function useBoardActions(): BoardActions {
+  const actions = useContext(ActionsContext);
+  if (!actions) throw new Error("useBoardActions must run inside BoardProvider.");
+  return actions;
+}
+
+/** What the board holds now, without the actions. */
+export function useBoardState(): BoardState {
+  const state = useContext(StateContext);
+  if (!state) throw new Error("useBoardState must run inside BoardProvider.");
+  return state;
+}
+
+/** The board and its actions. It does not hear a toast. */
 export function useBoard(): Store {
-  const store = useContext(BoardContext);
-  if (!store) throw new Error("useBoard must run inside BoardProvider.");
-  return store;
+  const actions = useBoardActions();
+  const state = useBoardState();
+  return useMemo(() => ({ ...state, ...actions }), [state, actions]);
+}
+
+/** The toasts of the board, drawn. The one reader of them. */
+export function BoardToasts() {
+  return <Toasts toasts={useContext(ToastsContext)} />;
 }
 
 const VIEW_KEY = "ushabti:view:";
@@ -1838,42 +1933,22 @@ export function BoardProvider({
     [guarded, refresh, tracked],
   );
 
-  const store: Store = {
-    data,
-    user,
-    view,
-    groupProperty,
-    filters,
-    viewFilters,
-    lens,
-    visibleTasks,
+  const now: BoardActions = {
     setFilters,
     setLens,
     clearLens,
     promoteLens,
-    sort,
-    viewSort,
-    lensSort,
     setSort,
-    lensWidths,
     setWidths,
     setViewSort,
-    cardItems: items,
-    cardItemsOf,
-    keys,
     setCardView,
     resetCardView,
-    runOf,
-    stoppedOf,
     controlRun,
-    live,
-    toasts,
     setViewId,
     notify,
     refresh,
     wrote,
     send: tracked,
-    presence,
     createTask,
     patchTask,
     deleteTask,
@@ -1886,8 +1961,6 @@ export function BoardProvider({
     setValue,
     linkBlocker,
     linkParent,
-    picked: pickedHere,
-    isPicked,
     togglePick,
     pickTo,
     clearPicks,
@@ -1901,15 +1974,78 @@ export function BoardProvider({
     moveView,
     addOption,
     patchOption,
+    moveOption,
     deleteOption,
     addProperty,
     patchProperty,
     moveProperty,
-    moveOption,
     deleteProperty,
   };
+  /* The newest closures are put in place before any effect runs, a child's
+     layout effect included, so an action called from one never acts on the
+     board as it was a render ago. */
+  const latest = useRef(now);
+  useInsertionEffect(() => {
+    latest.current = now;
+  });
+  const [actions] = useState(() => forwarding(latest, tracked));
 
-  return <BoardContext.Provider value={store}>{children}</BoardContext.Provider>;
+  const state = useMemo<BoardState>(
+    () => ({
+      data,
+      user,
+      view,
+      groupProperty,
+      filters,
+      viewFilters,
+      lens,
+      visibleTasks,
+      sort,
+      viewSort,
+      lensSort,
+      lensWidths,
+      cardItems: items,
+      cardItemsOf,
+      keys,
+      runOf,
+      stoppedOf,
+      live,
+      presence,
+      picked: pickedHere,
+      isPicked,
+    }),
+    [
+      data,
+      user,
+      view,
+      groupProperty,
+      filters,
+      viewFilters,
+      lens,
+      visibleTasks,
+      sort,
+      viewSort,
+      lensSort,
+      lensWidths,
+      items,
+      cardItemsOf,
+      keys,
+      runOf,
+      stoppedOf,
+      live,
+      presence,
+      pickedHere,
+      isPicked,
+    ],
+  );
+
+  return (
+    <ActionsContext.Provider value={actions}>
+      <StateContext.Provider value={state}>
+        <ToastsContext.Provider value={toasts}>{children}</ToastsContext.Provider>
+      </StateContext.Provider>
+    </ActionsContext.Provider>
+  );
 }
 
 /** The config with a reverse name put on, or taken off, as the route does. */

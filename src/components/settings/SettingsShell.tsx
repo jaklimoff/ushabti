@@ -5,9 +5,8 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ProjectBar } from "@/components/ui/ProjectBar";
 import type { SessionUser } from "@/components/ui/UserMenu";
-import { Toasts } from "@/components/ui/Toasts";
 import { PageHead as SharedPageHead } from "@/components/ui/Layout";
-import { BoardProvider, useBoard } from "@/components/board/store";
+import { BoardProvider, BoardToasts, useBoard } from "@/components/board/store";
 import { canManage } from "@/lib/roles";
 import type { BoardData } from "@/lib/types";
 import styles from "./settings.module.css";
@@ -31,7 +30,7 @@ export function SettingsShell({
 }
 
 function Chrome({ version, children }: { version: string; children: React.ReactNode }) {
-  const { data, user, toasts } = useBoard();
+  const { data, user } = useBoard();
   const pathname = usePathname();
   const base = `/p/${data.project.id}/settings`;
   /* The view the board was on when Settings opened. It rides in the address
@@ -164,7 +163,7 @@ function Chrome({ version, children }: { version: string; children: React.ReactN
         <div className={styles.body}>{children}</div>
       </div>
 
-      <Toasts toasts={toasts} />
+      <BoardToasts />
     </div>
   );
 }

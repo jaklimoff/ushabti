@@ -13,7 +13,6 @@ import { useOwnWaiting } from "@/components/ui/SidebarProvider";
 import { AppAction, AppHome, AppSep, useHomeInBar } from "@/components/ui/AppBar";
 import { ProjectMark } from "@/components/ui/Marks";
 import { UserMenu, type SessionUser } from "@/components/ui/UserMenu";
-import { Toasts } from "@/components/ui/Toasts";
 import { BoardCanvas } from "./BoardCanvas";
 import { CardPanel } from "./CardPanel";
 import { ColumnsPanel } from "./ColumnsPanel";
@@ -25,7 +24,7 @@ import { Listening } from "./Listening";
 import { Search } from "./Search";
 import { Selection } from "./Selection";
 import { Waiting } from "./Waiting";
-import { BoardProvider, useBoard } from "./store";
+import { BoardProvider, BoardToasts, useBoard } from "./store";
 import { TaskPanel } from "./TaskPanel";
 import { ViewStrip } from "./ViewStrip";
 import styles from "./board.module.css";
@@ -68,7 +67,7 @@ const KEEPS_DRAWER = [
 
 /** The board inside its store. A component test draws it inside a store of its own. */
 export function BoardShell({ initialTask }: { initialTask: string | null }) {
-  const { data, user, view, live, toasts, groupProperty, filters, lens, visibleTasks, setLens } =
+  const { data, user, view, live, groupProperty, filters, lens, visibleTasks, setLens } =
     useBoard();
   /* A link to an archived task opens its panel, and the board behind it still
      does not draw the card. So the address is answered from both lists. */
@@ -372,7 +371,7 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
         />
       )}
 
-      <Toasts toasts={toasts} />
+      <BoardToasts />
     </div>
   );
 }

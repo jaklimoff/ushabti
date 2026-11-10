@@ -7,12 +7,11 @@ import { todayIn } from "@/lib/day";
 import { api } from "@/lib/client";
 import { DELETE_WINDOW_DAYS, daysLeft, saysLeft } from "@/lib/deleted";
 import type { ArchivedTaskDTO, BoardData, DeletedTaskDTO } from "@/lib/types";
-import { BoardProvider, useBoard } from "@/components/board/store";
+import { BoardProvider, BoardToasts, useBoard } from "@/components/board/store";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Form";
 import { Card, EmptyState, PageHead, PageShell, Section, TaskLine } from "@/components/ui/Layout";
 import { ProjectBar } from "@/components/ui/ProjectBar";
-import { Toasts } from "@/components/ui/Toasts";
 import { useNow } from "@/components/ui/useElapsed";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import styles from "./archive.module.css";
@@ -53,7 +52,7 @@ export function Archive({
 }
 
 function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
-  const { data, user, toasts, undeleteTask, notify } = useBoard();
+  const { data, user, undeleteTask, notify } = useBoard();
   const [query, setQuery] = useState("");
   /*
    * The server's list, and then this page's own. Nothing else on the screen
@@ -171,7 +170,7 @@ function Screen({ deleted: first }: { deleted: DeletedTaskDTO[] }) {
         )}
       </PageShell>
 
-      <Toasts toasts={toasts} />
+      <BoardToasts />
     </div>
   );
 }
