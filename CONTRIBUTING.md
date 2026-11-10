@@ -233,6 +233,18 @@ remove the new file with its journal entry, and start again at step 1. Never
 run `db:baseline` on a database that push did not build: it would skip
 migrations that never ran.
 
+A self-hosted install runs one copy of the app, and that rule shapes every
+migration. The migration runs as the new version starts, while the old one may
+still be serving. So a release may drop a column only once no running version
+reads it: stop reading it in one release, drop it in a later one. Migrations
+are not safe under two replicas, which would both migrate at once.
+
+Drizzle applies a file only when its `when` in `drizzle/meta/_journal.json`
+is newer than the newest one a database has applied. A branch rebased on a
+newer migration keeps its older `when`, and production would skip it in
+silence. `src/lib/__tests__/migration-journal.test.ts` fails on that; run
+`npm run db:generate` again after the rebase, or raise the `when` by hand.
+
 ## Style
 
 - TypeScript, strict mode. ESLint refuses `any`.

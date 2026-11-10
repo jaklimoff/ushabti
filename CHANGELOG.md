@@ -31,6 +31,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **The upgrade steps say to back up first.** The README now takes a `pg_dump` before an upgrade,
+  says that a release with a migration has no rollback but a restore, and pins `USHABTI_VERSION`.
 - **A sprint shipped before its end stops being current at once.** "Is current" boards, the
   composer and Home move to the next sprint as soon as you press Ship, not on the shipped sprint's
   last day.

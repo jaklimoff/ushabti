@@ -53,12 +53,17 @@ file=apps/ushabti/versions.env
 # rejected as non-fast-forward. Drop this commit, pull the newer main and
 # write the version again, rather than fail a release whose image is out.
 sha=""
+since=""
 attempt=1
 while :; do
   git pull --ff-only --quiet
   perl -pi -e "s/^USHABTI_VERSION=.*/USHABTI_VERSION=$V/" "$file"
   if git diff --quiet -- "$file"; then
     echo "deploy.sh: $file already names $V; running its workflow again"
+    # The moment of the dispatch, five seconds early for a clock that is a
+    # little ahead of GitHub's. The run this makes is created after it.
+    since=$(date -u -d "@$(($(date -u +%s) - 5))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null ||
+      date -u -r "$(($(date -u +%s) - 5))" +%Y-%m-%dT%H:%M:%SZ)
     gh workflow run deploy-ushabti.yml --repo jaklimoff/infra
     break
   fi
@@ -79,8 +84,10 @@ while :; do
   echo "deploy.sh: the push was rejected; trying again ($attempt of 3)"
 done
 
-# The run for that push, or the newest one when it was dispatched. GitHub
-# takes a few seconds to list it.
+# The run for that push, or, when it was dispatched, the first dispatch run
+# created after the dispatch. GitHub takes a few seconds to list it, and until
+# then the newest dispatch run is the previous deploy, which must not be
+# watched and reported as this one.
 run=""
 tries=0
 while [ -z "$run" ] && [ "$tries" -lt 24 ]; do
@@ -91,7 +98,8 @@ while [ -z "$run" ] && [ "$tries" -lt 24 ]; do
       --json databaseId --jq '.[0].databaseId // empty')
   else
     run=$(gh run list --repo jaklimoff/infra --workflow deploy-ushabti.yml --event workflow_dispatch \
-      --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+      --limit 10 --json databaseId,createdAt \
+      --jq "[.[] | select(.createdAt >= \"$since\")] | sort_by(.createdAt) | .[0].databaseId // empty")
   fi
 done
 if [ -z "$run" ]; then

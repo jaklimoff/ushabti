@@ -213,14 +213,27 @@ Put a reverse proxy with TLS in front of it: in production the session cookie is
 marked `secure`, so a browser will not send it back over plain `http`. Read
 [SECURITY.md](SECURITY.md) before you open it to the internet.
 
-To upgrade:
+To upgrade, take a backup of the database first:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T db \
+  pg_dump -U ushabti -Fc ushabti > ushabti-$(date +%F).dump
+```
+
+Then pin the release you want in `.env`, as `USHABTI_VERSION=0.22.0`, rather
+than follow `latest`, so a restart never brings a release you did not choose.
+Then pull and start it:
 
 ```bash
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-New migrations are applied when the container starts.
+New migrations are applied when the container starts. A release with a
+migration has no rollback: some migrations drop a column, so the older image
+cannot read the database any more. The way back is to restore the dump with
+`pg_restore --clean --if-exists` and start the version you had pinned before. Run one copy
+of the app at a time; two would migrate the same database at once.
 
 To check it is up, point a monitor at `GET /api/health`. It answers 200 while
 the app can reach the database and 503 when it cannot, and needs no sign-in.

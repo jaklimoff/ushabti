@@ -60,6 +60,8 @@ export DATABASE_URL="postgres://ushabti:ushabti@localhost:$db/ushabti"
 export S3_ENDPOINT="http://localhost:$s3" S3_REGION=us-east-1 S3_BUCKET=ushabti \
   S3_ACCESS_KEY=ushabti S3_SECRET_KEY=ushabti-secret S3_FORCE_PATH_STYLE=true
 [ -n "${SKIP_BUILD:-}" ] || npm run build
-npm run db:migrate
+# The migration and the server from a copy outside the repo, as the image
+# runs them, and migrated so: a module the trace missed fails here.
+sh scripts/standalone-check.sh
 # Four workers: 17 minutes became 5 on 2026-10-07. Arguments override it.
 nice -n 10 env CI=1 PORT=$port npm run test:e2e -- --workers=4 "$@"

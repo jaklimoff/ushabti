@@ -2,6 +2,7 @@ name: Dependabot auto-merge
 
 # A patch or minor bump merges itself once every required check is green.
 # A major bump never does: it waits for a person to read the release notes.
+# Nor does any bump of drizzle-orm or drizzle-kit, which run the migrations.
 #
 # The merge is not immediate. `--auto` asks GitHub to hold the pull request
 # until the branch ruleset is satisfied, so a red test still stops it.
@@ -40,7 +41,16 @@ jobs:
                 | . != "version-update:semver-patch"
                 and . != "version-update:semver-minor") ]
             | length')
-          if [ "$big" -eq 0 ]; then
+          # drizzle-orm and drizzle-kit are 0.x, where a minor may break, and
+          # the migrator runs on every production start. A person merges them.
+          held=$(printf '%s' "$DEPS" | jq -r '
+            [ .[] | select(.dependencyName == "drizzle-orm"
+                or .dependencyName == "drizzle-kit") ]
+            | length')
+          if [ "$held" -gt 0 ]; then
+            echo "This bumps drizzle-orm or drizzle-kit; a person must merge it."
+            echo "small=false" >> "$GITHUB_OUTPUT"
+          elif [ "$big" -eq 0 ]; then
             echo "small=true" >> "$GITHUB_OUTPUT"
           else
             echo "$big of these are major bumps; a person must read them."

@@ -162,8 +162,12 @@ jobs:
       - name: Unpack the build
         run: tar -xf build.tar
 
-      - name: Database schema
-        run: npm run db:migrate
+      # The image's own start, outside the repo: the migration and the server
+      # run from a copy of the standalone folder, where a module the build's
+      # trace missed cannot be found in the repo's node_modules. It migrates
+      # the database the tests then use, so there is no second migrate.
+      - name: The shipped server starts on its own
+        run: sh scripts/standalone-check.sh
 
       - name: End to end tests
         run: npm run test:e2e -- --shard=${{ matrix.shard }}/3 --workers=2
