@@ -27,7 +27,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cursorTarget, sortByPosition, type BoardColumn, type CursorStep } from "@/lib/board";
 import { REST, dragColumns, type DragColumn } from "@/lib/column-fit";
 import {
@@ -42,7 +42,8 @@ import {
 import { seedNote, seedValues } from "@/lib/filters";
 import { startsWith } from "@/lib/when";
 import { canSort, pressSort, sortTasks, sortWayInline } from "@/lib/sort";
-import type { TaskDTO } from "@/lib/types";
+import type { AgentRunDTO, TaskDTO } from "@/lib/types";
+import { useSameIds, useStable } from "@/components/ui/useStable";
 import { useCursorBack, useShortcut } from "./keys";
 import { Composer } from "./Column";
 import { useBoard } from "./store";
@@ -174,6 +175,14 @@ function focusRow(root: HTMLElement | null, taskId: string) {
   showRow(root, row);
 }
 
+/* Made once: a new options object is a new sensor, and a new sensor hands
+   every row new listeners, which draws every row again for nothing. */
+const ROW_POINTER = { activationConstraint: { distance: 5 } };
+const ROW_KEYS = {
+  coordinateGetter: sortableKeyboardCoordinates,
+  keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
+};
+
 /**
  * The list.
  *
@@ -210,6 +219,7 @@ export function ListCanvas({
     togglePick,
     pickTo,
     runOf,
+    isPicked,
     controlRun,
     notify,
     user,
@@ -292,7 +302,7 @@ export function ListCanvas({
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, ROW_POINTER),
     // Space picks a row up and puts it down. Enter is left alone so it can
     // still open the task.
     //
@@ -300,10 +310,7 @@ export function ListCanvas({
     // `liftedCardCoordinates` exists to beat a column that is as tall as the
     // board and loses every sum of corner distances. A single vertical list has
     // no such container. Do not unify the two.
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
-    }),
+    useSensor(KeyboardSensor, ROW_KEYS),
   );
 
   useEffect(() => {
@@ -610,7 +617,10 @@ export function ListCanvas({
    * across two columns is two runs. Shift is the only thing that means "and
    * the ones in between", so a plain press is always one row.
    */
-  function pickRow(taskId: string, event: React.MouseEvent) {
+  /* One function for the life of the list, so a row that did not change
+     does not draw again for a new handler. */
+  const rowIds = useSameIds(rows);
+  const pickRow = useStable((taskId: string, event: React.MouseEvent) => {
     if (event.shiftKey)
       pickTo(
         taskId,
@@ -618,7 +628,11 @@ export function ListCanvas({
         selectedTaskId,
       );
     else togglePick(taskId);
-  }
+  });
+  const openRow = useStable((taskId: string) => {
+    const task = rows.find((t) => t.id === taskId);
+    if (task) onOpenTask(task);
+  });
 
   useCursorBack(selectedTaskId, (taskId) => {
     const back = rows.some((t) => t.id === taskId) ? taskId : cursorTaskId;
@@ -812,7 +826,7 @@ export function ListCanvas({
               </DragOverlay>
             </DndContext>
 
-            <SortableContext items={rows.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
               {rows.map((task) => (
                 <SortableRow
                   key={task.id}
@@ -821,8 +835,10 @@ export function ListCanvas({
                   selected={selectedTaskId === task.id}
                   cursor={cursorTaskId === task.id}
                   frozen={sorted}
-                  onOpen={() => onOpenTask(task)}
-                  onPick={(event) => pickRow(task.id, event)}
+                  picked={isPicked(task.id)}
+                  run={runOf(task.id)}
+                  onOpen={openRow}
+                  onPick={pickRow}
                 />
               ))}
             </SortableContext>
@@ -882,7 +898,13 @@ export function ListCanvas({
       <DragOverlay dropAnimation={dropAnimation} zIndex={300}>
         {activeTask && (
           <div style={{ ["--list-cols" as string]: liftedCols ?? template }}>
-            <TaskRow task={activeTask} columns={columns} overlay />
+            <TaskRow
+              task={activeTask}
+              columns={columns}
+              run={runOf(activeTask.id)}
+              picked={isPicked(activeTask.id)}
+              overlay
+            />
           </div>
         )}
       </DragOverlay>
@@ -890,12 +912,19 @@ export function ListCanvas({
   );
 }
 
-function SortableRow({
+const ROW_DATA = { type: "row" };
+const ROW_MOVE = { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" };
+
+/* Every prop holds still while its task does, for the reason `SortableTask`
+   in Column.tsx gives. */
+const SortableRow = memo(function SortableRow({
   task,
   columns,
   selected,
   cursor,
   frozen,
+  picked,
+  run,
   onOpen,
   onPick,
 }: {
@@ -905,15 +934,26 @@ function SortableRow({
   cursor: boolean;
   /** A sorted list is not showing ranks, so there is no rank to drag one to. */
   frozen: boolean;
-  onOpen: () => void;
-  onPick: (event: React.MouseEvent) => void;
+  picked: boolean;
+  run: AgentRunDTO | null;
+  onOpen: (taskId: string) => void;
+  onPick: (taskId: string, event: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
-    data: { type: "row" },
+    data: ROW_DATA,
     disabled: frozen,
-    transition: { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+    transition: ROW_MOVE,
   });
+  const moved = CSS.Translate.toString(transform);
+  const style = useMemo(
+    () => ({ transform: moved, transition: transition ?? undefined }),
+    [moved, transition],
+  );
+  const dragProps = useMemo(() => ({ ...attributes, ...listeners }), [attributes, listeners]);
+  const id = task.id;
+  const open = useCallback(() => onOpen(id), [onOpen, id]);
+  const pick = useCallback((event: React.MouseEvent) => onPick(id, event), [onPick, id]);
 
   return (
     <TaskRow
@@ -923,16 +963,15 @@ function SortableRow({
       selected={selected}
       cursor={cursor}
       ghost={isDragging}
-      onOpen={onOpen}
-      onPick={onPick}
-      style={{
-        transform: CSS.Translate.toString(transform),
-        transition: transition ?? undefined,
-      }}
-      dragProps={{ ...attributes, ...listeners }}
+      picked={picked}
+      run={run}
+      onOpen={open}
+      onPick={pick}
+      style={style}
+      dragProps={dragProps}
     />
   );
-}
+});
 
 type Grab = ReturnType<typeof useSortable>["listeners"];
 

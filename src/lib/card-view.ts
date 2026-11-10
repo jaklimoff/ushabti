@@ -616,6 +616,13 @@ export function taskKeys(
   return keys;
 }
 
+/** Whether two answers of `taskKeys` name the same key for every task. */
+export function sameKeys(a: TaskKeys, b: TaskKeys): boolean {
+  if (a.size !== b.size) return false;
+  for (const [id, key] of a) if (b.get(id) !== key) return false;
+  return true;
+}
+
 /**
  * What a task holds for one row, as the parts the card draws. Empty is empty.
  * `whole` is a list cell, which has the room to say every key.

@@ -435,7 +435,7 @@ export async function renderWithBoard(
 
   const screen = await render(
     around(
-      <BoardProvider initial={data} user={user} initialView={initialView}>
+      <BoardProvider initial={structuredClone(data)} user={user} initialView={initialView}>
         {ui}
       </BoardProvider>,
     ),

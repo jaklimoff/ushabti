@@ -51,6 +51,17 @@ and what is easy to get wrong.
   answer in two. The detail panel takes the same colour by the same route:
   `cardAccent()` asks the card view for the stripe the card wears, so moving the
   edge moves the panel with it and no screen names a property of its own.
+- **A card draws again for its own task and for nothing else.** `TaskCard`
+  and `TaskRow` are `memo` and read only `useCardLook()` of the store: what
+  every card shares and that changes only with the card view, the people, the
+  zone, the keys or whether anything is picked. What belongs to one task —
+  its run, its pick — comes down as a prop. So every prop a parent hands one
+  must hold still while its task does: a handler takes the id and comes from
+  `useStable`, a sensor's options are made once, and a `SortableContext` gets
+  `useSameIds`, because dnd-kit reads a new array of ids as a new order and
+  hands every card a new style. A read of the board goes through
+  `shareEqual()`, so a task nobody touched stays the same object and a read
+  that changed nothing changes nothing. `CardRenders.test.tsx` counts it.
 - **Properties have one order, and it is the Settings drag.** The card view
   holds no order. The card editor is a second handle on the same order: a
   property chip dropped on another in its place calls `moveProperty`, naming

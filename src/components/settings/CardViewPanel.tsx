@@ -604,7 +604,7 @@ function PlaceGrid({
  * release; this one cannot.
  */
 function Preview({ items, lit }: { items: CardItem[]; lit: string | null }) {
-  const { data } = useBoard();
+  const { data, runOf, stoppedOf } = useBoard();
   const cards = useRef<HTMLDivElement>(null);
   const tasks = useMemo(
     () => previewTasks(data.tasks, data.properties, data.members, data.project.key),
@@ -621,7 +621,13 @@ function Preview({ items, lit }: { items: CardItem[]; lit: string | null }) {
       </div>
       <div className={styles.previewCards} ref={cards}>
         {tasks.map((task) => (
-          <TaskCard key={task.id} task={task} items={items} />
+          <TaskCard
+            key={task.id}
+            task={task}
+            items={items}
+            run={runOf(task.id)}
+            stopped={stoppedOf(task.id)}
+          />
         ))}
       </div>
       <Note>
@@ -637,7 +643,7 @@ function Preview({ items, lit }: { items: CardItem[]; lit: string | null }) {
  * stand-in task, so every row that is on the card has a value to show.
  */
 function SampleCard({ items, lit }: { items: CardItem[]; lit: string | null }) {
-  const { data } = useBoard();
+  const { data, runOf, stoppedOf } = useBoard();
   const cards = useRef<HTMLDivElement>(null);
   const task = useMemo(
     () => sampleTask(data.properties, data.members, data.project.key),
@@ -655,7 +661,7 @@ function SampleCard({ items, lit }: { items: CardItem[]; lit: string | null }) {
       role="img"
     >
       <div inert>
-        <TaskCard task={task} items={items} />
+        <TaskCard task={task} items={items} run={runOf(task.id)} stopped={stoppedOf(task.id)} />
       </div>
     </div>
   );

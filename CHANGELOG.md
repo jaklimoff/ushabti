@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A value written on one card no longer redraws the rest of the board.** A card and a list row
+  draw again only when their own task, or how cards are drawn, changes; a read that changed
+  nothing draws no card at all.
 - **A board with the Created or Updated day on its cards redraws quickly again.** Every date on a
   card and in a filter used to build a new date formatter; one is now kept per time zone, so a
   thousand cards lay out in a few milliseconds instead of seventy.

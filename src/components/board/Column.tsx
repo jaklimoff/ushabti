@@ -9,7 +9,7 @@ import {
   type SortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { formatDate, type BoardColumn } from "@/lib/board";
 import { OptionIcon } from "./OptionIcon";
 import type { DoneWhen } from "@/lib/links";
@@ -24,22 +24,34 @@ import {
   straysQuestion,
   type ShipRest,
 } from "@/lib/ship";
-import type { PropertyOptionDTO, TaskDTO } from "@/lib/types";
+import type { AgentRunDTO, PropertyOptionDTO, StoppedRunDTO, TaskDTO } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmRow";
 import { ArchiveIcon, CheckIcon, FoldIcon, PlusIcon } from "./icons";
 import { MentionList, useMentions } from "./Mentions";
 import { TaskCard } from "./TaskCard";
-import { useBoard } from "./store";
+import { useBoard, useBoardState } from "./store";
+import { useSameIds, useStable } from "@/components/ui/useStable";
 import styles from "./board.module.css";
 
 export const COLUMN_PREFIX = "column:";
 export const CONTAINER_PREFIX = "container:";
 
-function SortableTask({
+const MOVE = { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" };
+
+/*
+ * Every prop holds still while its task does: the handlers take the id and
+ * are made once by the column, and the style and the drag props are made
+ * again only when dnd-kit's answer changes. A new object here would draw the
+ * card again for nothing, which on a board of a few hundred is the cost.
+ */
+const SortableTask = memo(function SortableTask({
   task,
   columnId,
   selected,
   cursor,
+  picked,
+  run,
+  stopped,
   onOpen,
   onPick,
 }: {
@@ -47,14 +59,26 @@ function SortableTask({
   columnId: string;
   selected: boolean;
   cursor: boolean;
-  onOpen: () => void;
-  onPick: (event: React.MouseEvent) => void;
+  picked: boolean;
+  run: AgentRunDTO | null;
+  stopped: StoppedRunDTO | null;
+  onOpen: (taskId: string) => void;
+  onPick: (taskId: string, event: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
-    data: { type: "card", columnId },
-    transition: { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+    data: useMemo(() => ({ type: "card", columnId }), [columnId]),
+    transition: MOVE,
   });
+  const moved = CSS.Translate.toString(transform);
+  const style = useMemo(
+    () => ({ transform: moved, transition: transition ?? undefined }),
+    [moved, transition],
+  );
+  const dragProps = useMemo(() => ({ ...attributes, ...listeners }), [attributes, listeners]);
+  const id = task.id;
+  const open = useCallback(() => onOpen(id), [onOpen, id]);
+  const pick = useCallback((event: React.MouseEvent) => onPick(id, event), [onPick, id]);
 
   return (
     <TaskCard
@@ -63,16 +87,16 @@ function SortableTask({
       selected={selected}
       cursor={cursor}
       ghost={isDragging}
-      onOpen={onOpen}
-      onPick={onPick}
-      style={{
-        transform: CSS.Translate.toString(transform),
-        transition: transition ?? undefined,
-      }}
-      dragProps={{ ...attributes, ...listeners }}
+      picked={picked}
+      run={run}
+      stopped={stopped}
+      onOpen={open}
+      onPick={pick}
+      style={style}
+      dragProps={dragProps}
     />
   );
-}
+});
 
 export type ComposerPlace = "top" | "bottom";
 
@@ -229,6 +253,16 @@ export function Column({
   useEffect(() => {
     if (composing) inputRef.current?.focus();
   }, [composing]);
+
+  const { isPicked, runOf, stoppedOf } = useBoardState();
+  const taskIds = useSameIds(column.tasks);
+  const openTask = useStable((taskId: string) => {
+    const task = column.tasks.find((t) => t.id === taskId);
+    if (task) onOpenTask(task);
+  });
+  const pickTask = useStable((taskId: string, event: React.MouseEvent) =>
+    onPickTask(taskId, event),
+  );
 
   function commit() {
     const title = draft.trim();
@@ -448,10 +482,7 @@ export function Column({
           />
         )}
 
-        <SortableContext
-          items={column.tasks.map((t) => t.id)}
-          strategy={frozen ? HELD : verticalListSortingStrategy}
-        >
+        <SortableContext items={taskIds} strategy={frozen ? HELD : verticalListSortingStrategy}>
           {column.tasks.map((task) => (
             <SortableTask
               key={task.id}
@@ -459,8 +490,11 @@ export function Column({
               columnId={column.id}
               selected={selectedTaskId === task.id}
               cursor={cursorTaskId === task.id}
-              onOpen={() => onOpenTask(task)}
-              onPick={(event) => onPickTask(task.id, event)}
+              picked={isPicked(task.id)}
+              run={runOf(task.id)}
+              stopped={stoppedOf(task.id)}
+              onOpen={openTask}
+              onPick={pickTask}
             />
           ))}
         </SortableContext>

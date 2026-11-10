@@ -19,6 +19,7 @@ import {
   mainBoardGroupById,
   readCardView,
   taskKeys,
+  sameKeys,
   type TaskKeys,
 } from "@/lib/card-view";
 import type { CardItem } from "@/lib/card-view";
@@ -47,6 +48,7 @@ import { batchesSaid, changed, inBatches, type Change } from "@/lib/bulk";
 import { rankBetween } from "@/lib/rank";
 import { backoff, keepOpen } from "@/lib/reopen";
 import { trackWrites } from "@/lib/writes";
+import { shareEqual } from "@/lib/share";
 import { boardReader, REMOTE_CHANGE, type RemoteChange } from "@/lib/board-live";
 import type {
   AgentRunDTO,
@@ -438,6 +440,25 @@ const ActionsContext = createContext<BoardActions | null>(null);
 const StateContext = createContext<BoardState | null>(null);
 const ToastsContext = createContext<Toast[]>([]);
 
+/**
+ * What every card and every row of the board shares: the rows of the card
+ * view and what a chip needs to read a value. It changes only when one of
+ * those does, so a card that reads it and nothing else of the store draws
+ * again only for its own task. What belongs to one task — its run, whether it
+ * is picked — comes down as props, so a pick draws the one card it picks.
+ */
+export type CardLook = {
+  items: CardItem[];
+  members: BoardData["members"];
+  former: BoardData["former"];
+  timeZone: string;
+  today: string;
+  keys: TaskKeys;
+  /** Anything at all is picked, so every check stands. */
+  picking: boolean;
+};
+const CardLookContext = createContext<CardLook | null>(null);
+
 /** One object whose functions call the newest of `latest`, so it never changes. */
 function forwarding(latest: { current: BoardActions }, send: Store["send"]): BoardActions {
   const out: Record<string, unknown> = { send };
@@ -600,6 +621,13 @@ export function useBoardState(): BoardState {
   const state = useContext(StateContext);
   if (!state) throw new Error("useBoardState must run inside BoardProvider.");
   return state;
+}
+
+/** What a card needs of the board, and nothing that changes with another task. */
+export function useCardLook(): CardLook {
+  const look = useContext(CardLookContext);
+  if (!look) throw new Error("useCardLook must run inside BoardProvider.");
+  return look;
 }
 
 /** The board and its actions. It does not hear a toast. */
@@ -778,7 +806,7 @@ export function BoardProvider({
       const fresh = await api.get<BoardData>(`/api/projects/${projectId}/${reads}`);
       if (!writes.keep(reading)) return;
       retry.current.attempt = 0;
-      setData(fresh);
+      setData((current) => shareEqual(current, fresh));
       /* The board's answer names every task this project still has, so it is
          the one place that can say which unsent notes have nothing left to
          sit on. Settings' answer names a few. */
@@ -943,7 +971,17 @@ export function BoardProvider({
   );
 
   const items = useMemo(() => cardItems(cardView, data.properties), [cardView, data.properties]);
-  const keys = useMemo(() => taskKeys(data.tasks, data.archived), [data.tasks, data.archived]);
+  /* Every chip of every card reads this, so it stays the same Map until a
+     key itself changes: a value written on one task is no reason to draw
+     the other cards again. */
+  const keysRef = useRef<TaskKeys | null>(null);
+  const keys = useMemo(() => {
+    const next = taskKeys(data.tasks, data.archived);
+    const last = keysRef.current;
+    if (last && sameKeys(last, next)) return last;
+    keysRef.current = next;
+    return next;
+  }, [data.tasks, data.archived]);
 
   const cardItemsOf = useCallback<Store["cardItemsOf"]>(
     (viewId) => {
@@ -2047,10 +2085,26 @@ export function BoardProvider({
     ],
   );
 
+  const picking = pickedHere.length > 0;
+  const look = useMemo<CardLook>(
+    () => ({
+      items,
+      members: data.members,
+      former: data.former,
+      timeZone: data.project.timeZone,
+      today: data.today,
+      keys,
+      picking,
+    }),
+    [items, data.members, data.former, data.project.timeZone, data.today, keys, picking],
+  );
+
   return (
     <ActionsContext.Provider value={actions}>
       <StateContext.Provider value={state}>
-        <ToastsContext.Provider value={toasts}>{children}</ToastsContext.Provider>
+        <CardLookContext.Provider value={look}>
+          <ToastsContext.Provider value={toasts}>{children}</ToastsContext.Provider>
+        </CardLookContext.Provider>
       </StateContext.Provider>
     </ActionsContext.Provider>
   );

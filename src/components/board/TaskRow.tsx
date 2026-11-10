@@ -1,13 +1,13 @@
 "use client";
 
-import { forwardRef, useMemo } from "react";
+import { forwardRef, memo, useMemo } from "react";
 import { buildRow } from "@/lib/card-view";
 import { cellCap, type ListColumn } from "@/lib/list-view";
 import { isOpen, lifeOf, runClock, runIsStill, runLine } from "@/lib/run-state";
 import type { AgentRunDTO, TaskDTO } from "@/lib/types";
 import { useNow } from "@/components/ui/useElapsed";
 import { Chip } from "./Chip";
-import { useBoard } from "./store";
+import { useCardLook } from "./store";
 import styles from "./board.module.css";
 
 type Props = {
@@ -18,6 +18,10 @@ type Props = {
   cursor?: boolean;
   ghost?: boolean;
   overlay?: boolean;
+  /** This row is one of the picked ones. */
+  picked?: boolean;
+  /** The task's open run. */
+  run?: AgentRunDTO | null;
   onOpen?: () => void;
   /** Picks this row, or puts it back. Absent on the drag overlay. */
   onPick?: (event: React.MouseEvent) => void;
@@ -30,22 +34,35 @@ type Props = {
  * Which columns there are, in what order and how they read all come from the
  * project's card view; this file only knows how to fill a cell.
  */
-export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
-  { task, columns, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps },
-  ref,
+export const TaskRow = memo(forwardRef<HTMLDivElement, Props>(TaskRowDrawn));
+
+/* `memo`, reading only `useCardLook()`, for the reason `TaskCard` gives. */
+function TaskRowDrawn(
+  {
+    task,
+    columns,
+    selected,
+    cursor,
+    ghost,
+    overlay,
+    picked: mine = false,
+    run = null,
+    onOpen,
+    onPick,
+    style,
+    dragProps,
+  }: Props,
+  ref: React.ForwardedRef<HTMLDivElement>,
 ) {
-  const { cardItems, data, keys, isPicked, picked, runOf } = useBoard();
-  const run = runOf(task.id);
+  const { items: cardItems, members, former, timeZone, keys, picking } = useCardLook();
 
   /* The row wears the same border a card wears, and the check stays on the
      whole list while anything is picked, so the way out of a pick is where
      the way in was. */
-  const mine = isPicked(task.id);
-  const picking = picked.length > 0;
 
   const slots = useMemo(
-    () => buildRow(cardItems, task, data.members, data.former, data.project.timeZone, keys),
-    [cardItems, data.members, data.former, data.project.timeZone, task, keys],
+    () => buildRow(cardItems, task, members, former, timeZone, keys),
+    [cardItems, members, former, timeZone, task, keys],
   );
 
   const className = [
@@ -197,7 +214,7 @@ export const TaskRow = forwardRef<HTMLDivElement, Props>(function TaskRow(
       {run && <RunLine run={run} />}
     </div>
   );
-});
+}
 
 /**
  * What a held cell needs to stay put: where it stops, and whether it is the

@@ -1,13 +1,13 @@
 "use client";
 
-import { forwardRef, useMemo } from "react";
+import { forwardRef, memo, useMemo } from "react";
 import type { AgentRunDTO, StoppedRunDTO, TaskDTO } from "@/lib/types";
 import { buildCard, type CardChip, type CardItem } from "@/lib/card-view";
 import { stoppedAt } from "@/lib/run-state";
 import { Avatar } from "@/components/ui/Avatar";
 import { Chip } from "./Chip";
 import { RunRow, useRunNow } from "./RunRow";
-import { useBoard } from "./store";
+import { useCardLook } from "./store";
 import styles from "./board.module.css";
 
 type Props = {
@@ -17,6 +17,12 @@ type Props = {
   cursor?: boolean;
   ghost?: boolean;
   overlay?: boolean;
+  /** This card is one of the picked ones. */
+  picked?: boolean;
+  /** The task's open run, which the strip draws. */
+  run?: AgentRunDTO | null;
+  /** The run the board closed for silence, when there is no open one. */
+  stopped?: StoppedRunDTO | null;
   onOpen?: () => void;
   /**
    * Picks this card, or puts it back: the check in the corner, and a
@@ -39,26 +45,45 @@ type Props = {
  * are, where they sit and how they read all live in the project's card view,
  * which the settings page arranges; this file only knows how to draw a chip.
  */
-export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
-  { task, selected, cursor, ghost, overlay, onOpen, onPick, style, dragProps, items },
-  ref,
+export const TaskCard = memo(forwardRef<HTMLDivElement, Props>(TaskCardDrawn));
+
+/*
+ * It is `memo`, and it reads only `useCardLook()` of the store, so it draws
+ * again when its own task, its own props or the card view change, and for
+ * nothing another task does. Everything a parent hands it has to hold still
+ * for that to mean anything: a handler that takes the id, a style made once.
+ */
+function TaskCardDrawn(
+  {
+    task,
+    selected,
+    cursor,
+    ghost,
+    overlay,
+    picked: mine = false,
+    run = null,
+    stopped: closed = null,
+    onOpen,
+    onPick,
+    style,
+    dragProps,
+    items,
+  }: Props,
+  ref: React.ForwardedRef<HTMLDivElement>,
 ) {
-  const { cardItems: viewItems, data, keys, isPicked, picked, runOf, stoppedOf } = useBoard();
-  const cardItems = items ?? viewItems;
-  const run = runOf(task.id);
+  const look = useCardLook();
+  const cardItems = items ?? look.items;
+  const { members, former, timeZone, today, keys, picking } = look;
   /* A new run answers the line, so the two never share a card. */
-  const stopped = run ? null : stoppedOf(task.id);
+  const stopped = run ? null : closed;
 
   /* The card wears a border and nothing more. The check stays on the whole
      board while anything is picked, so the way out of a pick is where the way
-     in was, on every card at once. The store answers from a set, because every
-     card asks this every time the board draws. */
-  const mine = isPicked(task.id);
-  const picking = picked.length > 0;
+     in was, on every card at once. */
 
   const slots = useMemo(
-    () => buildCard(cardItems, task, data.members, data.former, data.project.timeZone, keys),
-    [cardItems, data.members, data.former, data.project.timeZone, task, keys],
+    () => buildCard(cardItems, task, members, former, timeZone, keys),
+    [cardItems, members, former, timeZone, task, keys],
   );
 
   /* One glyph, and never a list. A card with ten runs on it has to stay
@@ -210,10 +235,10 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
       )}
 
       {run && <CardRun run={run} overlay={overlay === true} />}
-      {stopped && <CardStopped run={stopped} timeZone={data.project.timeZone} today={data.today} />}
+      {stopped && <CardStopped run={stopped} timeZone={timeZone} today={today} />}
     </div>
   );
-});
+}
 
 /**
  * Two links of a chain, drawn rather than typed.

@@ -15,7 +15,8 @@ import { TaskCard } from "./TaskCard";
  */
 
 type Render = (props: unknown, ref: unknown) => React.ReactNode;
-const card = TaskCard as unknown as { render: Render };
+/* `memo` around `forwardRef`: the function is the inner one's. */
+const card = (TaskCard as unknown as { type: { render: Render } }).type;
 const original = card.render;
 let cardRenders = 0;
 

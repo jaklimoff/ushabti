@@ -226,6 +226,8 @@ function cardIdOf(target: EventTarget | null): string | null {
   return target.closest<HTMLElement>("[data-task-id]")?.dataset.taskId ?? null;
 }
 
+const POINTER = { activationConstraint: { distance: 5 } };
+const KEY_CODES = { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] };
 /**
  * The cursor is the focused card, so moving the cursor moves focus. The card is
  * already drawn, so it is found in the page rather than held in a ref map. The
@@ -262,6 +264,8 @@ export function BoardCanvas({
     archiveColumn,
     patchOption,
     runOf,
+    stoppedOf,
+    isPicked,
     controlRun,
     notify,
     user,
@@ -442,14 +446,18 @@ export function BoardCanvas({
      carried to another column. Only the way inside a column is shut. */
   const coordinateGetter = useMemo(() => liftedCardCoordinates(sorted), [sorted]);
 
+  /* The options are made once, or once per sort: a new options object is a
+     new sensor, and a new sensor hands every card new listeners, which draws
+     every card again for nothing. */
+  const keyOptions = useMemo(
+    () => ({ coordinateGetter, keyboardCodes: KEY_CODES }),
+    [coordinateGetter],
+  );
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, POINTER),
     // Space picks a card up and puts it down. Enter is left alone so it can
     // still open the task.
-    useSensor(KeyboardSensor, {
-      coordinateGetter,
-      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space", "Enter"] },
-    }),
+    useSensor(KeyboardSensor, keyOptions),
   );
 
   /*
@@ -851,7 +859,15 @@ export function BoardCanvas({
       </div>
 
       <DragOverlay dropAnimation={dropAnimation} zIndex={300}>
-        {activeTask && <TaskCard task={activeTask} overlay />}
+        {activeTask && (
+          <TaskCard
+            task={activeTask}
+            run={runOf(activeTask.id)}
+            stopped={stoppedOf(activeTask.id)}
+            picked={isPicked(activeTask.id)}
+            overlay
+          />
+        )}
         {activeColumn && (
           <div className={styles.column} style={{ boxShadow: "var(--shadow-drag)" }}>
             <div className={styles.colHead}>
