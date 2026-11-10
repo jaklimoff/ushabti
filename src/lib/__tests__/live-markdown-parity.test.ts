@@ -1,11 +1,11 @@
 import { Marked, type Token, type Tokens } from "marked";
 import { describe, expect, it } from "vitest";
 import { markdownParser } from "../live-markdown";
-import { renderMarkdown } from "../task-keys";
+import { renderMarkdown, taskBox } from "../task-keys";
 
 /* marked as the page sets it up. The first test holds this to
    `renderMarkdown()`, so the two cannot drift apart. */
-const marked = new Marked({ gfm: true, breaks: true });
+const marked = new Marked({ gfm: true, breaks: true }, { renderer: { checkbox: taskBox } });
 
 /*
  * The box and the page read one text. If the editor's parser and marked

@@ -43,6 +43,19 @@ const nextConfig = {
       "./examples/skill/ushabti/**",
     ],
   },
+  // Nobody may draw the app inside a frame: a framed board under a page of
+  // somebody else's is how a click is stolen. Every page and route says so.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          { key: "X-Frame-Options", value: "DENY" },
+        ],
+      },
+    ];
+  },
   experimental: {
     optimizePackageImports: ["@dnd-kit/core", "@dnd-kit/sortable"],
   },

@@ -51,6 +51,15 @@ type TaskKeyToken = { type: "taskKey"; raw: string; text: string; key: string; h
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/**
+ * A GFM task box, drawn as a span because the sanitiser lets no `<input>`
+ * through: a form control in a description is the first half of a fake form
+ * drawn over the app.
+ */
+export function taskBox({ checked }: { checked: boolean }): string {
+  return `<span data-task-box role="checkbox" aria-checked="${checked ? "true" : "false"}" aria-disabled="true"></span> `;
+}
+
 const markdown = new Marked(
   { gfm: true, breaks: true },
   {
@@ -63,6 +72,7 @@ const markdown = new Marked(
         },
       },
     ],
+    renderer: { checkbox: taskBox },
   },
 );
 

@@ -25,7 +25,10 @@ export type TaskKeyLinks = {
  * else a description could make every reader's browser fetch a stranger's
  * address. `<source>` and `<track>` would name an address the check never
  * reads, and `poster` is one more, so none of them pass. Nor does `<audio>`,
- * which nothing on the board writes. The hook goes on once, the first time a browser
+ * which nothing on the board writes. Text an agent copied in from anywhere
+ * must stay text, so nothing that restyles the page (`<style>`, a `style`
+ * attribute) or draws a form over it passes either; a GFM task box is drawn
+ * as a span in `renderMarkdown` for that reason. The hook goes on once, the first time a browser
  * sanitises.
  */
 let hooked = false;
@@ -43,8 +46,19 @@ function sanitise(html: string): string {
     USE_PROFILES: { html: true },
     ADD_TAGS: ["video"],
     ADD_ATTR: ["controls", "preload"],
-    FORBID_TAGS: ["source", "track", "audio"],
-    FORBID_ATTR: ["poster"],
+    FORBID_TAGS: [
+      "source",
+      "track",
+      "audio",
+      "style",
+      "form",
+      "input",
+      "button",
+      "textarea",
+      "select",
+      "option",
+    ],
+    FORBID_ATTR: ["poster", "style"],
   });
 }
 

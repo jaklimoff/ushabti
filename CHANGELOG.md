@@ -10,6 +10,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Security
 
+- **Text in a task cannot restyle the app.** A description, a comment or a release note drops
+  `<style>`, a `style` attribute and any form control, so a pasted line cannot cover the page or draw
+  a fake sign-in on it. A task box still draws. The app also refuses to be framed, and a write sent
+  from another site with your cookie answers 403; a script with a token is unaffected.
 - **A reset link reaches only the person it is for.** With mail on, **Reset password** on the
   People page emails the link to the member and no longer shows it. With mail off, the link is shown
   only to somebody who outranks the member in every project they are in; anybody else is told why.

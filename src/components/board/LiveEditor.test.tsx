@@ -119,7 +119,7 @@ describe("The live description", () => {
     await saveBox();
     expect(markdown().textContent).toContain("bold and gone and code");
     expect(markdown().querySelector("del")?.textContent).toBe("gone");
-    expect(markdown().querySelector<HTMLInputElement>("input[type=checkbox]")?.checked).toBe(true);
+    expect(markdown().querySelector("[data-task-box]")?.getAttribute("aria-checked")).toBe("true");
   });
 
   test("inline code wears the page's box, and its backticks stand beside it", async () => {

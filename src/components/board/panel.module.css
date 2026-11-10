@@ -683,6 +683,34 @@
   color: var(--accent-soft);
 }
 
+/* A task box on the page is a span, since no input passes the sanitiser. */
+.markdown [data-task-box] {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 13px;
+  height: 13px;
+  margin: 0 6px 0 0;
+  vertical-align: -2px;
+  border: 1px solid var(--text-meta);
+  border-radius: var(--r-xs);
+  position: relative;
+}
+.markdown [data-task-box][aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.markdown [data-task-box][aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 0.5px;
+  width: 3px;
+  height: 7px;
+  border: solid var(--bg);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
 .markdown {
   /* A description is read more than it is edited, so it wraps as the editor does. */
   overflow-wrap: anywhere;

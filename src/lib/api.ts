@@ -14,6 +14,7 @@ import {
   type AgentAct,
   type AgentActs,
 } from "./roles";
+import { originOf } from "./origin";
 import { inRequest } from "./via";
 import { isDatabaseTimeout } from "@/db/timeouts";
 
@@ -30,6 +31,7 @@ export function fail(status: number, message: string, headers?: Record<string, s
 /** Wraps a route handler so thrown HttpErrors become clean JSON responses. */
 export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response>) {
   return async (req: Request, ctx: Ctx): Promise<Response> => {
+    if (crossSite(req)) return fail(403, "This request came from another site.");
     let res: Response;
     try {
       res = await inRequest(() => handler(req, ctx));
@@ -49,6 +51,28 @@ export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response
        read (vercel/next.js#101192). Packing belongs to the server in front. */
     return res;
   };
+}
+
+const READS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * A write a browser sent from a page of another site. `SameSite=Lax` lets a
+ * sibling subdomain through, so the cookie alone proves nothing. A request
+ * with no `Origin` is not a browser's write — an agent or a script with a
+ * token — and passes. Only the host is compared: a proxy that ends TLS may
+ * not say the request was https, and the host is what a stranger cannot fake.
+ */
+export function crossSite(req: Request): boolean {
+  if (READS.has(req.method.toUpperCase())) return false;
+  const origin = req.headers.get("origin");
+  if (origin === null) return false;
+  let from: string;
+  try {
+    from = new URL(origin).host;
+  } catch {
+    return true;
+  }
+  return from.toLowerCase() !== new URL(originOf(req)).host.toLowerCase();
 }
 
 export async function body<T = Record<string, unknown>>(req: Request): Promise<T> {
