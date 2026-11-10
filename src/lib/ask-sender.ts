@@ -48,8 +48,9 @@ export function kickAskMail(): void {
   if (globalForAsks.__ushabtiAsking) return;
   if (now - (globalForAsks.__ushabtiAskedAt ?? 0) < LOOK_EVERY_MS) return;
   globalForAsks.__ushabtiAskedAt = now;
-  void sendDueAsks().catch(() => {
-    // An email must never reach the read that started it.
+  void sendDueAsks().catch((err: unknown) => {
+    // An email must never reach the read that started it, but the log hears it.
+    console.error(JSON.stringify({ at: "ask-mail", error: messageOf(err) }));
   });
 }
 
@@ -209,4 +210,8 @@ async function sendOne(ask: Claimed, origin: string, env: Env): Promise<number> 
     if (ok) sent += 1;
   }
   return sent;
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

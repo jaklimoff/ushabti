@@ -224,6 +224,9 @@ New migrations are applied when the container starts.
 
 To check it is up, point a monitor at `GET /api/health`. It answers 200 while
 the app can reach the database and 503 when it cannot, and needs no sign-in.
+It also says the version, and `listening`: whether the server hears changes
+right now. That connection comes back by itself after a drop, so a `false`
+that lasts more than a minute is the one worth a look.
 The app service in the compose file has a healthcheck that uses it.
 
 To back it up, dump the database and copy the S3 bucket named by `S3_BUCKET`,

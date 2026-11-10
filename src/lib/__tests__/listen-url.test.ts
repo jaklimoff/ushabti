@@ -29,7 +29,7 @@ const DIRECT = "postgres://u:p@primary:25060/ushabti";
 function forget() {
   const g = globalThis as Record<string, unknown>;
   delete g.__ushabtiPool;
-  delete g.__ushabtiHub;
+  delete g.__ushabtiListenHub;
 }
 
 describe("the LISTEN client of live updates", () => {

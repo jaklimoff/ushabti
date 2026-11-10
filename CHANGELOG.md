@@ -27,6 +27,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Live updates come back by themselves after the database drops.** The server connects again and
+  every open board and agent reads once, so nobody misses work until a page is reloaded. A stream
+  also closes within half a minute once its person leaves the project, signs out, or its token is
+  revoked. `/api/health` now says whether the server hears changes, and which version it runs.
 - **A burst of writes no longer freezes the server.** Creating or moving a task checks its values
   before it takes the project lock, so concurrent writes can no longer wait on each other for ever.
   Every wait on the database has a limit now: ten seconds for a connection, fifteen for a lock,

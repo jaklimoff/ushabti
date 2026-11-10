@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CreateBucketCommand, S3Client } from "@aws-sdk/client-s3";
-import { register } from "@/instrumentation";
+import { onRequestError, register } from "@/instrumentation";
 
 vi.mock("server-only", () => ({}));
 
@@ -76,5 +76,37 @@ describe("register", () => {
     expect(warn).toHaveBeenCalledWith(
       "Forgot password is off: mail is on, but USHABTI_URL is not set, so the server does not know the address to put in the link.",
     );
+  });
+});
+
+describe("onRequestError", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("logs one line of JSON per error, with the path, the route and the digest", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const err = Object.assign(new Error("boom"), { digest: "123" });
+    await onRequestError(
+      err,
+      { path: "/p/1", method: "GET", headers: {} },
+      {
+        routerKind: "App Router",
+        routePath: "/p/[id]",
+        routeType: "render",
+        renderSource: "react-server-components",
+        revalidateReason: undefined,
+      },
+    );
+    expect(error).toHaveBeenCalledTimes(1);
+    const line = error.mock.calls[0][0] as string;
+    expect(line).not.toContain("\n  ");
+    expect(JSON.parse(line)).toMatchObject({
+      at: "request",
+      method: "GET",
+      path: "/p/1",
+      route: "/p/[id]",
+      routeType: "render",
+      digest: "123",
+      error: "boom",
+    });
   });
 });

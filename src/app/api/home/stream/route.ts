@@ -3,6 +3,7 @@ import { HttpError, requireActor } from "@/lib/auth";
 import { isPresence } from "@/lib/events";
 import { followMemberships, type Following } from "@/lib/following";
 import { LISTEN_TOUCH_MS } from "@/lib/presence";
+import { holderOf, stillAllowed, type Holder } from "@/lib/stream-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,14 +20,17 @@ export const runtime = "nodejs";
  * Who the person is a member of is read again on every ping, so a project
  * they join or leave while Home is open starts or stops ringing within one,
  * and the change itself rings once, because Home draws the list of projects.
- * Presence is not sent: Home draws nobody's open task.
+ * Presence is not sent: Home draws nobody's open task. The session or token
+ * is checked again on every ping too, and the stream closes once it is gone.
  */
 export async function GET(req: Request) {
   let userId: string;
+  let holder: Holder;
   try {
     const user = await requireActor();
     humanOnly(user);
     userId = user.id;
+    holder = await holderOf(user);
   } catch (err) {
     if (err instanceof HttpError) return fail(err.status, err.message);
     throw err;
@@ -53,8 +57,20 @@ export async function GET(req: Request) {
           /* the client went away */
         }
       };
+      const end = () => {
+        close();
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      };
       const ring = (projectId: string) =>
         send(`event: change\ndata: ${JSON.stringify({ projectId })}\n\n`);
+
+      /* First, so an abort during the await below still closes what it made. */
+      if (req.signal.aborted) return end();
+      req.signal.addEventListener("abort", end);
 
       const follows = followMemberships(userId, (event) => {
         if (!isPresence(event)) ring(event.projectId);
@@ -71,6 +87,13 @@ export async function GET(req: Request) {
 
       heartbeat = setInterval(() => {
         send(`: ping\n\n`);
+        void stillAllowed(holder)
+          .then((ok) => {
+            if (!ok) end();
+          })
+          .catch(() => {
+            /* a database that does not answer is not a no; the next ping asks */
+          });
         void follows
           .follow()
           .then((moved) => {
@@ -80,15 +103,6 @@ export async function GET(req: Request) {
             /* the next ping tries again */
           });
       }, LISTEN_TOUCH_MS);
-
-      req.signal.addEventListener("abort", () => {
-        close();
-        try {
-          controller.close();
-        } catch {
-          /* already closed */
-        }
-      });
     },
     cancel() {
       close();

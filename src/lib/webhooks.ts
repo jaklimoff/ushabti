@@ -286,8 +286,10 @@ const globalForSender = globalThis as unknown as { __ushabtiDraining?: boolean }
  */
 export function kickSender(): void {
   if (globalForSender.__ushabtiDraining) return;
-  void drainWebhooks().catch(() => {
-    // A sender that throws must never reach the write that started it.
+  void drainWebhooks().catch((err: unknown) => {
+    // A sender that throws must never reach the write that started it, but
+    // the log hears it.
+    console.error(JSON.stringify({ at: "webhooks", error: messageOf(err) }));
   });
 }
 
@@ -552,4 +554,8 @@ export function webhookUrl(raw: unknown): string {
   const refused = refuseAddress(text, privateAddressesAllowed());
   if (refused) throw new HttpError(400, refused);
   return new URL(text).toString();
+}
+
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

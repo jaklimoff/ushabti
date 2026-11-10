@@ -1,3 +1,5 @@
+import type { Instrumentation } from "next";
+
 /**
  * Runs once as the server starts.
  *
@@ -27,3 +29,25 @@ export async function register() {
     void ensureBucket();
   }
 }
+
+/**
+ * Every error a request ends in, as one line of JSON. Without it a page
+ * that fails leaves only a digest in the browser and nothing here to match
+ * it to.
+ */
+export const onRequestError: Instrumentation.onRequestError = (err, request, context) => {
+  const error = err instanceof Error ? err : new Error(String(err));
+  const digest = (err as { digest?: unknown } | null)?.digest;
+  console.error(
+    JSON.stringify({
+      at: "request",
+      method: request.method,
+      path: request.path,
+      route: context.routePath,
+      routeType: context.routeType,
+      digest: typeof digest === "string" ? digest : undefined,
+      error: error.message,
+      stack: error.stack,
+    }),
+  );
+};

@@ -5,6 +5,7 @@ import { HttpError } from "@/lib/auth";
 import { isPresence, publish, subscribe } from "@/lib/events";
 import { followMemberships, type Following } from "@/lib/following";
 import { LISTEN_TOUCH_MS, readClientId } from "@/lib/presence";
+import { holderOf, stillAllowed, type Holder } from "@/lib/stream-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,6 +38,10 @@ type Ctx = { params: Promise<{ projectId: string }> };
  * are followed as Home's stream follows them, re-read on every ping, and a
  * project joined or left rings once. An agent never gets `elsewhere`: its
  * token opens one project.
+ *
+ * The session or token and the membership are checked again on every ping,
+ * and the stream closes when either is gone: a member who was removed, or an
+ * agent whose token was revoked, must stop hearing rings and presence.
  */
 export async function GET(req: Request, ctx: Ctx) {
   const { projectId } = await ctx.params;
@@ -45,9 +50,11 @@ export async function GET(req: Request, ctx: Ctx) {
   /* An EventSource cannot set a header, so the tab names itself here. */
   const clientId = readClientId(new URL(req.url).searchParams.get("client"));
   let human = false;
+  let holder: Holder;
   try {
     const { user } = await guard(projectId);
     userId = user.id;
+    holder = await holderOf(user);
     // A script on a personal token is not in the room, so it says no goodbye.
     human = user.kind === "human" && !user.personalTokenId;
     // An agent holding this open hears a new task. That is what "listening"
@@ -98,13 +105,28 @@ export async function GET(req: Request, ctx: Ctx) {
           /* the client went away */
         }
       };
+      const end = () => {
+        close();
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      };
+
+      /* First, so an abort during any await below still closes everything
+         that await goes on to make. */
+      if (req.signal.aborted) return end();
+      req.signal.addEventListener("abort", end);
 
       send(`retry: 3000\n\n`);
 
-      unsubscribe = await subscribe(projectId, (event) => {
+      const off = await subscribe(projectId, (event) => {
         const name = isPresence(event) ? "presence" : "change";
         send(`event: ${name}\ndata: ${JSON.stringify(event)}\n\n`);
       });
+      if (closed) return off();
+      unsubscribe = off;
       const ringElsewhere = (id: string) =>
         send(`event: elsewhere\ndata: ${JSON.stringify({ projectId: id })}\n\n`);
       if (human) {
@@ -126,6 +148,13 @@ export async function GET(req: Request, ctx: Ctx) {
 
       heartbeat = setInterval(() => {
         send(`: ping\n\n`);
+        void stillAllowed(holder, projectId)
+          .then((ok) => {
+            if (!ok) end();
+          })
+          .catch(() => {
+            /* a database that does not answer is not a no; the next ping asks */
+          });
         if (tokenId) void markListening(tokenId, true);
         void elsewhere
           ?.follow()
@@ -139,15 +168,6 @@ export async function GET(req: Request, ctx: Ctx) {
            ping is what looks for an ask that is owed its email. */
         kickAskMail();
       }, LISTEN_TOUCH_MS);
-
-      req.signal.addEventListener("abort", () => {
-        close();
-        try {
-          controller.close();
-        } catch {
-          /* already closed */
-        }
-      });
     },
     cancel() {
       close();
