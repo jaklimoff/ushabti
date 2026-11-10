@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.47.0 — 2026-11-10
+
 ### Security
 
 - **A webhook reaches only a public address.** The check now runs as the socket connects, so a name
