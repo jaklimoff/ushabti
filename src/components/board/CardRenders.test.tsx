@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { BoardData, TaskDTO } from "@/lib/types";
 import { newProject, optionOf, propertyOf, renderWithBoard, withTask } from "@/test/board";
@@ -18,6 +18,20 @@ import { TaskRow } from "./TaskRow";
 type Render = (props: { task: TaskDTO; overlay?: boolean }, ref: unknown) => React.ReactNode;
 type Memo = { type: { render: Render } };
 const drawn: string[] = [];
+
+/* A column and the list each ask `useSameIds` once a draw, and nothing else
+   asks it, so its calls count the draws of what holds the cards. */
+const canvas = vi.hoisted(() => ({ draws: 0 }));
+vi.mock("@/components/ui/useStable", async (original) => {
+  const real = await original<typeof import("@/components/ui/useStable")>();
+  return {
+    ...real,
+    useSameIds: (items: readonly { id: string }[]) => {
+      canvas.draws++;
+      return real.useSameIds(items);
+    },
+  };
+});
 const patched = [TaskCard, TaskRow].map((component) => {
   const inner = (component as unknown as Memo).type;
   return { inner, original: inner.render };
@@ -172,5 +186,62 @@ describe("on a list of two hundred rows", () => {
     ring();
     await settle();
     expect(drawn).toEqual([]);
+  });
+});
+
+/** Every task Urgent, and every view filtered to Urgent, so the composer has
+    something to seed and to say. */
+function underFilter(data: BoardData, tasks: TaskDTO[]) {
+  const priority = propertyOf(data, "Priority");
+  const urgent = optionOf(data, "Priority", "Urgent");
+  for (const task of tasks) task.values[priority.id] = urgent;
+  for (const view of data.views) {
+    view.filters = { rules: [{ propertyId: priority.id, op: "is", values: [urgent] }] };
+  }
+}
+
+/* The composer holds its own words, so a key typed in it draws the box and
+   nothing beside it: no card, no row, and not the column or list around them. */
+describe("typing a new task", () => {
+  test("on a board draws no card, and the box still says what it will seed", async () => {
+    const { data, tasks } = board();
+    underFilter(data, tasks);
+    await draw(data, "card");
+
+    await page.getByRole("button", { name: "Add a task to the top of Todo" }).first().click();
+    const box = page.getByPlaceholder("What needs doing?");
+    await expect.element(box).toHaveFocus();
+    await expect.element(page.getByText("sets Priority Urgent")).toBeVisible();
+    await settle();
+    drawn.length = 0;
+    canvas.draws = 0;
+
+    await userEvent.keyboard("A new task title");
+    await expect.element(box).toHaveValue("A new task title");
+    await settle();
+    expect(drawn).toEqual([]);
+    expect(canvas.draws).toBe(0);
+    await expect.element(page.getByText("sets Priority Urgent")).toBeVisible();
+  });
+
+  test("in a list draws no row, and the box still says what it will seed", async () => {
+    const { data, tasks } = board(true);
+    underFilter(data, tasks);
+    await draw(data, "list-row");
+
+    await page.getByTestId("list-add").click();
+    const box = page.getByPlaceholder("What needs doing?");
+    await expect.element(box).toHaveFocus();
+    await expect.element(page.getByText("sets Priority Urgent")).toBeVisible();
+    await settle();
+    drawn.length = 0;
+    canvas.draws = 0;
+
+    await userEvent.keyboard("A new task title");
+    await expect.element(box).toHaveValue("A new task title");
+    await settle();
+    expect(drawn).toEqual([]);
+    expect(canvas.draws).toBe(0);
+    await expect.element(page.getByText("sets Priority Urgent")).toBeVisible();
   });
 });

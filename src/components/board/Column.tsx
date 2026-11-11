@@ -210,7 +210,6 @@ export function Column({
   rule: ProgressRule;
   ship: ShipOffer | null;
 }) {
-  const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const sweep = useConfirm();
   const shipAsk = useConfirm();
@@ -264,10 +263,8 @@ export function Column({
     onPickTask(taskId, event),
   );
 
-  function commit() {
-    const title = draft.trim();
+  function commit(title: string) {
     if (title) onAddTask?.(column, title, composing === "top");
-    setDraft("");
     onCompose(null);
   }
 
@@ -409,10 +406,7 @@ export function Column({
                 className={styles.colAdd}
                 aria-label={`Add a task to the top of ${column.name}`}
                 title="Add a task to the top of this column"
-                onClick={() => {
-                  onCompose("top");
-                  setDraft("");
-                }}
+                onClick={() => onCompose("top")}
               >
                 <PlusIcon />
               </button>
@@ -472,14 +466,7 @@ export function Column({
 
       <div className={styles.colBody} ref={setDropRef} data-testid="column-body">
         {onAddTask && composing === "top" && (
-          <Composer
-            ref={inputRef}
-            draft={draft}
-            setDraft={setDraft}
-            note={addNote}
-            commit={commit}
-            cancel={() => onCompose(null)}
-          />
+          <Composer ref={inputRef} note={addNote} commit={commit} cancel={() => onCompose(null)} />
         )}
 
         <SortableContext items={taskIds} strategy={frozen ? HELD : verticalListSortingStrategy}>
@@ -500,23 +487,13 @@ export function Column({
         </SortableContext>
 
         {onAddTask && composing === "bottom" && (
-          <Composer
-            ref={inputRef}
-            draft={draft}
-            setDraft={setDraft}
-            note={addNote}
-            commit={commit}
-            cancel={() => onCompose(null)}
-          />
+          <Composer ref={inputRef} note={addNote} commit={commit} cancel={() => onCompose(null)} />
         )}
 
         {onAddTask && composing === null && (
           <button
             className={`${styles.emptyDrop} ${column.tasks.length === 0 ? styles.emptyDropBare : ""}`}
-            onClick={() => {
-              onCompose("bottom");
-              setDraft("");
-            }}
+            onClick={() => onCompose("bottom")}
             title="Add a task"
             aria-label={`Add a task to ${column.name}`}
           >
@@ -658,22 +635,27 @@ export function ShipQuestion({
 }
 
 /** The box a new task is typed into. A column draws it at its top and bottom,
-    and a list at its end, so the two read and grow the same way. */
+    and a list at its end, so the two read and grow the same way. It holds its
+    own words: held by the column or the list, every key redrew every card
+    beside it. It opens empty each time it is drawn, as it always has. */
 export const Composer = function Composer({
   ref,
-  draft,
-  setDraft,
   note,
   commit,
   cancel,
 }: {
   ref: React.RefObject<HTMLTextAreaElement | null>;
-  draft: string;
-  setDraft: (v: string) => void;
   note: string;
-  commit: () => void;
+  /** Called with the trimmed title, which may be empty. */
+  commit: (title: string) => void;
   cancel: () => void;
 }) {
+  const [draft, setDraft] = useState("");
+  function send() {
+    const title = draft.trim();
+    setDraft("");
+    commit(title);
+  }
   const picker = useMentions(ref, setDraft);
 
   /* The box grows with the title, so a long one is read before Enter makes
@@ -705,7 +687,7 @@ export const Composer = function Composer({
           if (picker.onKeyDown(e)) return;
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            commit();
+            send();
           }
           if (e.key === "Escape") {
             e.preventDefault();
@@ -714,7 +696,7 @@ export const Composer = function Composer({
         }}
         onBlur={() => {
           picker.close();
-          if (draft.trim()) commit();
+          if (draft.trim()) send();
           else cancel();
         }}
       />

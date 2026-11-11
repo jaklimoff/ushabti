@@ -228,7 +228,6 @@ export function ListCanvas({
   const [preview, setPreview] = useState<TaskDTO[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
-  const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   /* Where the table sat sideways before the last scroll, so a focus that
@@ -592,9 +591,7 @@ export function ListCanvas({
     void moveTask({ taskId: activeId, beforeId, afterId });
   }
 
-  async function commit() {
-    const title = draft.trim();
-    setDraft("");
+  async function commit(title: string) {
     setComposing(false);
     if (!title) return;
     /* After the last row a person can see. The global bottom is somewhere else
@@ -850,14 +847,9 @@ export function ListCanvas({
                 <div className={styles.listComposeSlot}>
                   <Composer
                     ref={inputRef}
-                    draft={draft}
-                    setDraft={setDraft}
                     note={addNote}
-                    commit={() => void commit()}
-                    cancel={() => {
-                      setDraft("");
-                      setComposing(false);
-                    }}
+                    commit={(title) => void commit(title)}
+                    cancel={() => setComposing(false)}
                   />
                 </div>
               </div>
@@ -866,10 +858,7 @@ export function ListCanvas({
                 className={styles.listAdd}
                 data-testid="list-add"
                 aria-label="Add a task"
-                onClick={() => {
-                  setDraft("");
-                  setComposing(true);
-                }}
+                onClick={() => setComposing(true)}
               >
                 <span className={styles.listAddWords}>
                   <span className={styles.listAddPlus} aria-hidden>
