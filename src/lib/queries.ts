@@ -673,10 +673,38 @@ function rawWithOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
  * The live tasks of one project, in the rank order every view shares.
  *
  * It asks for the live ones alone, so it walks the partial index and never
- * touches an archived or a deleted row — and the three count subqueries
- * below, which run once per row, are never run for a task nobody draws.
+ * touches an archived or a deleted row. The checklist and comment counts come
+ * from one grouped join over the same live tasks, not three subqueries a row.
  */
 function liveTaskRows(projectId: string, only?: string[]) {
+  /* The inner rows name their tables by alias, because a bare `tasks` here
+     would be the outer one. A checklist item and a comment are put end to
+     end and counted in one pass. */
+  const liveHere = (t: string) =>
+    sql`${sql.raw(t)}.project_id = ${projectId} and ${sql.raw(t)}.archived_at is null and ${sql.raw(t)}.deleted_at is null${
+      only
+        ? sql` and ${sql.raw(t)}.id in (${sql.join(
+            only.map((id) => sql`${id}`),
+            sql`, `,
+          )})`
+        : sql``
+    }`;
+  const counts = sql`(
+    select x.task_id,
+      count(*) filter (where x.item)::int as total,
+      count(*) filter (where x.item and x.done)::int as done,
+      count(*) filter (where not x.item)::int as comments
+    from (
+      select ci.task_id, true as item, ci.done
+      from ${checklistItems} ci join ${tasks} t on t.id = ci.task_id
+      where ${liveHere("t")}
+      union all
+      select c.task_id, false, false
+      from ${comments} c join ${tasks} t on t.id = c.task_id
+      where ${liveHere("t")}
+    ) x
+    group by x.task_id
+  ) counts`;
   return (
     db
       .select({
@@ -687,15 +715,12 @@ function liveTaskRows(projectId: string, only?: string[]) {
         position: tasks.position,
         createdAt: tasks.createdAt,
         updatedAt: tasks.updatedAt,
-        /* `${tasks.id}` writes a bare `"id"` in a selected column, and inside
-         a subquery that name belongs to the inner table. The counts then
-         compare a task to a comment and every card reads zero. Name the
-         table. */
-        checklistTotal: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks}.id)`,
-        checklistDone: sql<number>`(select count(*)::int from ${checklistItems} ci where ci.task_id = ${tasks}.id and ci.done)`,
-        commentCount: sql<number>`(select count(*)::int from ${comments} c where c.task_id = ${tasks}.id)`,
+        checklistTotal: sql<number>`coalesce(counts.total, 0)`,
+        checklistDone: sql<number>`coalesce(counts.done, 0)`,
+        commentCount: sql<number>`coalesce(counts.comments, 0)`,
       })
       .from(tasks)
+      .leftJoin(counts, sql`counts.task_id = ${tasks.id}`)
       .where(
         and(
           eq(tasks.projectId, projectId),
@@ -821,7 +846,7 @@ function archivedUnderRows(projectId: string) {
  * deleted task never reaches the browser; the drawer lists it, and putting it
  * back makes it archived again.
  */
-function archivedTaskRows(projectId: string) {
+function archivedTaskRows(projectId: string, shipped: boolean) {
   return db
     .select({
       id: tasks.id,
@@ -833,8 +858,11 @@ function archivedTaskRows(projectId: string) {
          reads it: a shipped option of a release type, never a closed
          sprint. The newest one wins when two releases name it. The tables
          are named by hand, because a one-table select writes its columns
-         bare and the inner ones would read as the outer task's. */
-      shippedIn: sql<string | null>`(
+         bare and the inner ones would read as the outer task's. Only the
+         Archived page draws it, so a board read is spared a subquery for
+         every archived task. */
+      shippedIn: shipped
+        ? sql<string | null>`(
         select po.name
         from ${taskValues} tv
         join ${properties} pr on pr.id = tv.property_id
@@ -848,7 +876,8 @@ function archivedTaskRows(projectId: string) {
           )})
         order by po.shipped_at desc
         limit 1
-      )`,
+      )`
+        : sql<string | null>`null`,
     })
     .from(tasks)
     .where(
@@ -1084,25 +1113,34 @@ async function loadLenses(
  * out of this list with nothing written.
  */
 function formerRows(projectId: string) {
-  return db
-    .selectDistinct({
-      id: users.id,
-      name: users.name,
-      color: users.color,
-      emoji: users.avatarEmoji,
-      kind: users.kind,
-    })
-    .from(taskValues)
-    .innerJoin(properties, eq(properties.id, taskValues.propertyId))
-    .innerJoin(users, sql`${taskValues.value} = to_jsonb(${users.id}::text)`)
-    .where(
-      and(
-        eq(properties.projectId, projectId),
-        eq(properties.type, "person"),
-        sql`not exists (select 1 from ${projectMembers} where ${projectMembers.projectId} = ${projectId} and ${projectMembers.userId} = ${users.id})`,
-      ),
-    )
-    .orderBy(asc(users.name));
+  return (
+    db
+      .selectDistinct({
+        id: users.id,
+        name: users.name,
+        color: users.color,
+        emoji: users.avatarEmoji,
+        kind: users.kind,
+      })
+      .from(taskValues)
+      .innerJoin(properties, eq(properties.id, taskValues.propertyId))
+      /* The value is read as a uuid so the join can use the users key. A
+       string that is not one reads as null and joins nothing, as before. */
+      .innerJoin(
+        users,
+        sql`${users.id} = case when jsonb_typeof(${taskValues.value}) = 'string'
+        and (${taskValues.value} #>> '{}') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        then (${taskValues.value} #>> '{}')::uuid end`,
+      )
+      .where(
+        and(
+          eq(properties.projectId, projectId),
+          eq(properties.type, "person"),
+          sql`not exists (select 1 from ${projectMembers} where ${projectMembers.projectId} = ${projectId} and ${projectMembers.userId} = ${users.id})`,
+        ),
+      )
+      .orderBy(asc(users.name))
+  );
 }
 
 /**
@@ -1115,8 +1153,11 @@ export function loadBoard(
   role: string,
   viewerId: string | null = null,
   agentActs: AgentActs | null = null,
+  /* Whether each archived task says the release it shipped in. Only the
+     Archived page draws that, so only it asks. */
+  shipped = false,
 ): Promise<BoardData> {
-  return loadProject(projectId, role, viewerId, false, agentActs);
+  return loadProject(projectId, role, viewerId, false, agentActs, shipped);
 }
 
 /**
@@ -1140,6 +1181,7 @@ async function loadProject(
   preview: boolean,
   /* An agent's switches, or null for a person, who always passes. */
   agentActs: AgentActs | null = null,
+  shipped = false,
 ): Promise<BoardData> {
   /* The sender runs on the read path as the lease does, and for the same
      reason: a board is read far more often than any schedule would fire, and
@@ -1206,7 +1248,7 @@ async function loadProject(
       .orderBy(byPos(propertyOptions.position)),
     db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
     preview ? previewTaskRows(projectId) : liveTaskRows(projectId),
-    preview ? [] : archivedTaskRows(projectId),
+    preview ? [] : archivedTaskRows(projectId, shipped),
     loadLenses(projectId, viewerId),
     preview ? [] : archivedUnderRows(projectId),
     /* The preview cards name a person who left as the board does. */

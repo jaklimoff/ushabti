@@ -155,14 +155,18 @@ describe("Ship on a column", () => {
  */
 describe("An archived task says what shipped it", () => {
   it("names the release a ship archived it in, and nothing for a hand archive", async () => {
-    const { me, read, v1 } = await releaseBoard();
+    const { me, read, v1, project: p } = await releaseBoard();
     const echo = (await read()).tasks.find((t) => t.title === "Echo")!;
     await ok(me.post(`/api/tasks/${echo.id}/archive`));
     await ok(me.post(`/api/options/${v1.id}/ship`, { rest: "leave" }));
 
     const shippedIn = (b: ShipBoard) =>
       Object.fromEntries(b.archived.map((t) => [t.title, t.shippedIn]));
-    expect(shippedIn(await read())).toEqual({
+    // Only the Archived page draws the word, so only its read works it out.
+    const archived = async () =>
+      (await ok(me.get(`/api/projects/${p.id}/board?shipped=1`))) as ShipBoard;
+    expect(Object.values(shippedIn(await read()))).toEqual([null, null, null, null]);
+    expect(shippedIn(await archived())).toEqual({
       Alpha: "v1",
       Bravo: "v1",
       Delta: "v1",
@@ -172,7 +176,7 @@ describe("An archived task says what shipped it", () => {
 
     // Unship throws the day away, and the changelog with it, so the word goes too.
     await ok(me.patch(`/api/options/${v1.id}`, { shippedAt: null }));
-    expect(Object.values(shippedIn(await read()))).toEqual([null, null, null, null]);
+    expect(Object.values(shippedIn(await archived()))).toEqual([null, null, null, null]);
   });
 });
 

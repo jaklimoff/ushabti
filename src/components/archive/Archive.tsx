@@ -45,7 +45,7 @@ export function Archive({
   user: SessionUser;
 }) {
   return (
-    <BoardProvider initial={initial} user={user}>
+    <BoardProvider initial={initial} user={user} shipped>
       <Screen deleted={deleted} />
     </BoardProvider>
   );

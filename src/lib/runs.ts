@@ -279,19 +279,32 @@ export async function loadOpenRuns(projectId: string): Promise<AgentRunDTO[]> {
  *
  * It reads after `loadOpenRuns`, whose sweep is what closes a silent run, so
  * a run closed on this very read is already here. The newest run of each task
- * is the only one asked about, and only a lost one goes on to the second
- * statement: the newest value a person wrote on that task. An agent is a row
- * in `users` too, so the person is told apart by `kind`.
+ * is the only one asked about, and only a lost one can matter, so the read
+ * starts from the lost runs and keeps one only when no newer run of its task
+ * follows it. It never sorts the whole history. A lost run that survives goes
+ * on to the second statement: the newest value a person wrote on that task.
+ * An agent is a row in `users` too, so the person is told apart by `kind`.
  */
 export async function loadStoppedRuns(projectId: string): Promise<StoppedRunDTO[]> {
-  const newest = await db
-    .selectDistinctOn([agentRuns.taskId], runColumns)
+  const lost = await db
+    .select(runColumns)
     .from(agentRuns)
     .innerJoin(users, eq(users.id, agentRuns.agentId))
-    .where(and(eq(agentRuns.projectId, projectId), ON_A_TASK_YOU_CAN_SEE))
-    .orderBy(agentRuns.taskId, desc(agentRuns.startedAt), desc(agentRuns.id));
-
-  const lost = newest.filter((row) => row.status === "lost" && row.endedAt !== null);
+    .where(
+      and(
+        eq(agentRuns.projectId, projectId),
+        eq(agentRuns.status, "lost"),
+        isNotNull(agentRuns.endedAt),
+        ON_A_TASK_YOU_CAN_SEE,
+        /* The tables are named by hand: a one-table subquery writes its
+           columns bare, and the outer run's would read as the inner one's. */
+        sql`not exists (select 1 from ${agentRuns} newer
+          where newer.task_id = ${agentRuns}.task_id
+            and (newer.started_at > ${agentRuns}.started_at
+              or (newer.started_at = ${agentRuns}.started_at and newer.id > ${agentRuns}.id)))`,
+      ),
+    )
+    .orderBy(agentRuns.taskId);
   if (lost.length === 0) return [];
 
   const wrote = await db

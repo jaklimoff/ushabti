@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **A project with a long history opens its board as fast as a new one.** A board read no
+  longer sorts every run the project ever had, counts a task's checklist and comments one task at
+  a time, or works out the release of every archived task; only the Archived page asks for that.
 - **Widening a list's column redraws no row while the edge moves.** The widths follow the
   pointer and the rows stay as they are. A board also measures its columns only while a card is
   carried, and no longer on every move of the cursor.

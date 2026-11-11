@@ -700,6 +700,7 @@ export function BoardProvider({
   initial,
   user,
   reads = "board",
+  shipped = false,
   initialView = null,
   children,
 }: {
@@ -707,6 +708,9 @@ export function BoardProvider({
   user: SessionUser;
   /** What a read asks for. Settings reads its own loader, never the board. */
   reads?: "board" | "settings";
+  /** Whether a read asks each archived task for the release it shipped in.
+      Only the Archived page draws it, so a board read is spared the work. */
+  shipped?: boolean;
   /** The view the link named, if any. Only a board page has one. */
   initialView?: string | null;
   children: React.ReactNode;
@@ -803,7 +807,9 @@ export function BoardProvider({
     if (retry.current.timer) clearTimeout(retry.current.timer);
     retry.current.timer = null;
     try {
-      const fresh = await api.get<BoardData>(`/api/projects/${projectId}/${reads}`);
+      const fresh = await api.get<BoardData>(
+        `/api/projects/${projectId}/${reads}${shipped ? "?shipped=1" : ""}`,
+      );
       if (!writes.keep(reading)) return;
       retry.current.attempt = 0;
       setData((current) => shareEqual(current, fresh));
@@ -826,7 +832,7 @@ export function BoardProvider({
       );
       retry.current.attempt += 1;
     }
-  }, [projectId, reads, router, writes]);
+  }, [projectId, reads, shipped, router, writes]);
 
   /*
    * The stream must outlive every re-render, so the effect below holds the

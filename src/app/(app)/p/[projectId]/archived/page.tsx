@@ -32,7 +32,7 @@ export default async function ArchivedPage({ params }: { params: Promise<{ proje
   }
 
   const [board, deleted] = await Promise.all([
-    loadBoard(projectId, role, user.id),
+    loadBoard(projectId, role, user.id, null, true),
     loadDeletedTasks(projectId),
   ]);
   return <Archive initial={board} deleted={deleted} user={user} />;
