@@ -40,8 +40,13 @@ async function makeLink(
   if (mail) {
     await expect(box).toContainText(`Emailed to ${email}.`);
     await expect(box.locator("code")).toHaveCount(0);
-    const letter = await letterTo(mail, email);
-    return /(https?:\/\/\S+\/reset\/ushr_\S+)/.exec(letter.text)![1];
+    /* Adding the member mailed them an invite first, so a letter without a
+       reset link is passed over. */
+    for (;;) {
+      const letter = await letterTo(mail, email);
+      const link = /(https?:\/\/\S+\/reset\/ushr_\S+)/.exec(letter.text);
+      if (link) return link[1];
+    }
   }
   const code = box.locator("code");
   if (previous) await expect(code).not.toHaveText(previous);

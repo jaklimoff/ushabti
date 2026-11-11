@@ -29,7 +29,7 @@ const freePort = () =>
 /** Opens a stream with the session cookie and waits for its `ready`. */
 function openStream(port: number, at: string, cookie: string) {
   return new Promise<{ ended: Promise<void> }>((done, fail) => {
-    const req = http({ host: "localhost", port, path: at, headers: { cookie } }, (res) => {
+    const req = http({ host: "127.0.0.1", port, path: at, headers: { cookie } }, (res) => {
       if (res.statusCode !== 200) return fail(new Error(`${at} answered ${res.statusCode}`));
       const ended = new Promise<void>((end) => {
         res.on("end", end);
@@ -61,10 +61,12 @@ test("the server ends its open streams and leaves within a few seconds of SIGTER
   const projectId = await createProject(page, "Stopped");
   const cookie = (await page.context().cookies()).map((c) => `${c.name}=${c.value}`).join("; ");
 
+  /* An address and not "localhost": in a Linux container the server takes
+     ::1 for that name while fetch dials 127.0.0.1, and nothing answers. */
   const port = await freePort();
   const child = spawn(process.execPath, [server], {
     cwd: path.dirname(server),
-    env: { ...process.env, PORT: String(port), HOSTNAME: "localhost" },
+    env: { ...process.env, PORT: String(port), HOSTNAME: "127.0.0.1" },
     stdio: "ignore",
   });
   const exited = new Promise<number | null>((done) => child.on("exit", (code) => done(code)));
@@ -72,7 +74,7 @@ test("the server ends its open streams and leaves within a few seconds of SIGTER
     await expect
       .poll(
         () =>
-          fetch(`http://localhost:${port}/api/health`)
+          fetch(`http://127.0.0.1:${port}/api/health`)
             .then((r) => r.status)
             .catch(() => 0),
         { timeout: 30_000 },

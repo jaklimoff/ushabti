@@ -171,7 +171,9 @@ async function boardSays(owner: Awaited<ReturnType<typeof person>>, projectId: s
   };
 }
 
-describe("Home's pulse", () => {
+/* Six seeded projects take under a second alone, and past five seconds when
+   the whole suite shares the machine. */
+describe("Home's pulse", { timeout: 30_000 }, () => {
   it("counts what the board shows, under the view's filter and the person's lens", async () => {
     const owner = await person("Pulse Owner");
     const { project: p, blocked } = await seeded(owner);

@@ -2,7 +2,15 @@ import { useEffect } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { commands, page, userEvent } from "vitest/browser";
 import type { BoardData, TaskDTO } from "@/lib/types";
-import { newProject, optionOf, propertyOf, renderWithBoard, withTask } from "@/test/board";
+import {
+  detailOf,
+  newProject,
+  optionOf,
+  propertyOf,
+  renderWithBoard,
+  withTask,
+  type Answer,
+} from "@/test/board";
 import { BoardShell } from "./BoardApp";
 import { useBoardActions, type BoardActions } from "./store";
 import { TaskCard } from "./TaskCard";
@@ -90,6 +98,18 @@ function board(list = false): { data: BoardData; tasks: TaskDTO[] } {
   return { data, tasks };
 }
 
+/* An opened task is read on its own. Left unanswered, the read reads as a
+   task that is gone, and the panel closes the moment it lands. */
+function serving(data: BoardData): Answer {
+  return ({ method, path }) => {
+    const asked = /^\/api\/tasks\/([0-9a-f-]+)$/.exec(path);
+    if (method === "GET" && asked) {
+      const task = data.tasks.find((t) => t.id === asked[1]);
+      if (task) return { body: { task: detailOf(task) } };
+    }
+  };
+}
+
 /** Lets the stream's first read and every write's answer land. */
 const settle = () => new Promise((done) => setTimeout(done, 300));
 
@@ -100,6 +120,7 @@ async function draw(data: BoardData, testId: "card" | "list-row") {
       <Probe />
     </>,
     data,
+    serving(data),
   );
   await expect
     .element(page.getByTestId(testId).filter({ hasText: "Card number 1" }).first())

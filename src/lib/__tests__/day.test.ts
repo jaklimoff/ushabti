@@ -264,13 +264,21 @@ describe("the formatters behind the day", () => {
    * at different hours, by half hours, or not at all.
    */
   it("answers as a fresh formatter does across changes of clock and year", () => {
+    /* One formatter of the test's own per zone, made apart from the kept one.
+       Making one per half hour took over five seconds on CI. */
+    const own = new Map<string, Intl.DateTimeFormat>();
     const fresh = (zone: string, at: Date) => {
-      const parts = new Intl.DateTimeFormat("en-US-u-ca-gregory", {
-        timeZone: zone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).formatToParts(at);
+      let format = own.get(zone);
+      if (!format) {
+        format = new Intl.DateTimeFormat("en-US-u-ca-gregory", {
+          timeZone: zone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        own.set(zone, format);
+      }
+      const parts = format.formatToParts(at);
       const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
       return `${part("year").padStart(4, "0")}-${part("month")}-${part("day")}`;
     };
