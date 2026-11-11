@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.48.0 — 2026-11-11
+
 ### Changed
 
 - **Home stays quick however many projects you are in.** Each project card and the charts read
