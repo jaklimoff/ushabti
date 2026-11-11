@@ -223,13 +223,21 @@ export type Rebalance = {
   next: string;
 };
 
+/** What `rebalanceTail` answers when the tail it was given is too short. */
+export const MORE = "more" as const;
+
 /**
  * How to put the end of a list back where there is room, or null while there
  * is room already.
  *
- * `positions` is every rank in the project, in order. The answer replaces the
- * last few of them with one spread. It moves nothing visible, because the
- * order is kept, and it costs one write, because it is one statement.
+ * `positions` is the end of the list, in order: the whole project, or its last
+ * rows with `more` set when there are rows before them. The answer replaces
+ * the last few of them with one spread. It moves nothing visible, because the
+ * order is kept, and it costs one write, because it is one statement. With
+ * `more` set it may answer `MORE` instead: the reach it needs runs past the
+ * rows it was given, and the caller reads twice as many and asks again. The
+ * answer for a tail is the answer for the whole list, because a reach that
+ * fits reads only its own rows and the one row under them.
  *
  * Only the end of a list can be mended this way. `rankSpread` fills the open
  * room above one neighbour, and the end of the list is the only place where
@@ -243,11 +251,15 @@ export type Rebalance = {
  * until they are. The last stop is the whole project, which is always short,
  * because a spread of a million ranks is four digits.
  */
-export function rebalanceTail(positions: string[]): Rebalance | null {
+export function rebalanceTail(positions: string[]): Rebalance | null;
+export function rebalanceTail(positions: string[], more: boolean): Rebalance | null | typeof MORE;
+export function rebalanceTail(positions: string[], more = false): Rebalance | null | typeof MORE {
   const next = rankAfter(positions.at(-1) ?? null);
   if (next.length < RANK_CAP) return null;
 
   for (let take = Math.max(1, Math.min(TAIL, positions.length)); ; take *= 2) {
+    /* The row under the reach is its anchor, and a tail may not hold it. */
+    if (more && take >= positions.length) return MORE;
     const from = Math.max(0, positions.length - take);
     const anchor = from > 0 ? positions[from - 1] : null;
     /* One more than the rows, because the task being added takes the top mark. */
@@ -261,3 +273,6 @@ export function rebalanceTail(positions: string[]): Rebalance | null {
     }
   }
 }
+
+/** How many rows of the end of a list `rebalanceTail` reads first. */
+export const TAIL_READ = TAIL + 1;

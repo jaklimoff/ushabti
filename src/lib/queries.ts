@@ -1,7 +1,21 @@
 import "server-only";
-import { byPos } from "@/lib/order";
+import { byPos, byPosDown } from "@/lib/order";
 import { pickProjectColor } from "@/lib/colors";
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "@/db";
 import {
   activity,
@@ -52,7 +66,16 @@ import { isRelease } from "./changelog";
 import { readSprintBy } from "./sprints";
 import { readLensSort, readSort } from "./sort";
 import { readLensWidths } from "./list-view";
-import { rankAfter, rankSequence, rebalanceTail, type Rebalance } from "./rank";
+import { isId } from "./ids";
+import {
+  MORE,
+  RANK_CAP,
+  rankAfter,
+  rankSequence,
+  rebalanceTail,
+  TAIL_READ,
+  type Rebalance,
+} from "./rank";
 import { loadOpenRuns, loadStoppedRuns, loadTaskRuns, sweepLostIn } from "./runs";
 import {
   agentsAtWork,
@@ -140,15 +163,88 @@ export async function withProjectLock<T>(
   });
 }
 
+/** A task as the rank order sees it: the rank, and the number that breaks a tie. */
+export type Ranked = { id: string; position: string; number: number };
+
+const ranked = { id: tasks.id, position: tasks.position, number: tasks.number };
+
+/**
+ * One task of a project where the rank order puts it, or undefined when the
+ * project has no such task. `without` is the task being moved, which has no
+ * place of its own while it is carried. An id that is not one names no task,
+ * as an id of another project does, so it is never sent to the database.
+ */
+export async function rankedTask(
+  tx: Tx,
+  projectId: string,
+  taskId: unknown,
+  without?: string,
+): Promise<Ranked | undefined> {
+  if (!isId(taskId) || taskId === without) return undefined;
+  const [row] = await tx
+    .select(ranked)
+    .from(tasks)
+    .where(and(eq(tasks.projectId, projectId), eq(tasks.id, taskId)))
+    .limit(1);
+  return row;
+}
+
+/**
+ * The task next to `from` in the rank order of the whole project, archived
+ * and deleted rows too, because a rank is worked out among all of them. With
+ * no `from` it is the first task, or the last one going up.
+ *
+ * It reads one row from `tasks_project_position_idx`, which holds the ranks
+ * in the order this asks for. A create and a move used to read every task of
+ * the project under the lock to find the one or two around the place.
+ */
+export async function rankNeighbour(
+  tx: Tx,
+  projectId: string,
+  from: Ranked | null,
+  way: "up" | "down",
+  without?: string,
+): Promise<Ranked | undefined> {
+  const [row] = await neighbourRead(tx, projectId, from, way, without);
+  return row;
+}
+
+/** The read `rankNeighbour` makes, apart so a test can ask for its plan. */
+export function neighbourRead(
+  q: Tx | typeof db,
+  projectId: string,
+  from: Ranked | null,
+  way: "up" | "down",
+  without?: string,
+) {
+  const past = !from
+    ? undefined
+    : way === "down"
+      ? sql`(${tasks.position} collate "C", ${tasks.number}) > (${from.position}::text, ${from.number}::int)`
+      : sql`(${tasks.position} collate "C", ${tasks.number}) < (${from.position}::text, ${from.number}::int)`;
+  return q
+    .select(ranked)
+    .from(tasks)
+    .where(and(eq(tasks.projectId, projectId), without ? ne(tasks.id, without) : undefined, past))
+    .orderBy(
+      ...(way === "down"
+        ? [byPos(tasks.position), asc(tasks.number)]
+        : [byPosDown(tasks.position), desc(tasks.number)]),
+    )
+    .limit(1);
+}
+
 /**
  * Put the end of a task list back where there is room, and answer with the
  * rank for the task going on it.
  *
- * `ordered` is every task in the project, in order, which both callers already
- * hold under the lock. When the end has run out of room the rewritten rows go
- * in one statement, because the point of the rewrite is that it costs one
- * write however many rows it touches. It leaves `updated_at` alone: nothing
- * moved, and a rank is not something a person said.
+ * It reads the last task first, and that is the whole read until the end has
+ * run out of room, about once in 150 appends. Then it reads the end of the
+ * list, twice as far each time `rebalanceTail` asks for more, and the
+ * rewritten rows go in one statement, because the point of the rewrite is
+ * that it costs one write however many rows it touches. It leaves
+ * `updated_at` alone: nothing moved, and a rank is not something a person
+ * said. `without` is the task being moved, which is not part of the list.
  *
  * `rewrote` says a rewrite happened. The tab that asked holds the old ranks of
  * the rows it did not ask about, so it has to be told to read the board again
@@ -157,16 +253,39 @@ export async function withProjectLock<T>(
 export async function rankOnTheEnd(
   tx: Tx,
   projectId: string,
-  ordered: { id: string; position: string }[],
+  without?: string,
 ): Promise<{ position: string; rewrote: boolean }> {
-  const plan: Rebalance | null = rebalanceTail(ordered.map((t) => t.position));
-  if (!plan) return { position: rankAfter(ordered.at(-1)?.position ?? null), rewrote: false };
+  const tail = async (limit: number) =>
+    (
+      await tx
+        .select({ id: tasks.id, position: tasks.position })
+        .from(tasks)
+        .where(and(eq(tasks.projectId, projectId), without ? ne(tasks.id, without) : undefined))
+        .orderBy(byPosDown(tasks.position), desc(tasks.number))
+        .limit(limit)
+    ).reverse();
+
+  const [last] = await tail(1);
+  const next = rankAfter(last?.position ?? null);
+  if (next.length < RANK_CAP) return { position: next, rewrote: false };
+
+  let ordered: { id: string; position: string }[] = [];
+  let plan: Rebalance | null | typeof MORE = MORE;
+  for (let limit = TAIL_READ; plan === MORE; limit *= 2) {
+    ordered = await tail(limit);
+    plan = rebalanceTail(
+      ordered.map((t) => t.position),
+      ordered.length === limit,
+    );
+  }
+  if (!plan) return { position: next, rewrote: false };
 
   /* The rows travel as one parameter and not two per row: a list long enough
      to mend a whole board would pass what one statement may carry. The project
      is named as well as the id, because the ids come from a JSON parameter and
      a rank belongs to the one list it was worked out in. */
-  const rows = ordered.slice(plan.from).map((row, i) => ({ id: row.id, position: plan.ranks[i] }));
+  const ranks = plan.ranks;
+  const rows = ordered.slice(plan.from).map((row, i) => ({ id: row.id, position: ranks[i] }));
   await tx.execute(sql`
     update ${tasks} set position = fresh.position
     from json_to_recordset(${JSON.stringify(rows)}::json) as fresh(id uuid, position text)
@@ -676,7 +795,7 @@ function rawWithOptions(propRows: PropRow[], optRows: OptRow[]): PropertyDTO[] {
  * touches an archived or a deleted row. The checklist and comment counts come
  * from one grouped join over the same live tasks, not three subqueries a row.
  */
-function liveTaskRows(projectId: string, only?: string[]) {
+export function liveTaskRows(projectId: string, only?: string[]) {
   /* The inner rows name their tables by alias, because a bare `tasks` here
      would be the outer one. A checklist item and a comment are put end to
      end and counted in one pass. */
@@ -846,7 +965,7 @@ function archivedUnderRows(projectId: string) {
  * deleted task never reaches the browser; the drawer lists it, and putting it
  * back makes it archived again.
  */
-function archivedTaskRows(projectId: string, shipped: boolean) {
+export function archivedTaskRows(projectId: string, shipped: boolean) {
   return db
     .select({
       id: tasks.id,

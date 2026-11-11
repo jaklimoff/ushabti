@@ -8,3 +8,8 @@ import { sql, type Column } from "drizzle-orm";
 export function byPos(column: Column) {
   return sql`${column} COLLATE "C" ASC`;
 }
+
+/** The same order, from the end. A backward walk of the same index. */
+export function byPosDown(column: Column) {
+  return sql`${column} COLLATE "C" DESC`;
+}

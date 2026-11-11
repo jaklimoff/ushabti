@@ -10,6 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Adding or moving a task stays quick however much a project has archived.** The rank order
+  comes straight from an index, and a new or moved task reads only the one or two tasks beside it.
 - **A project with a long history opens its board as fast as a new one.** A board read no
   longer sorts every run the project ever had, counts a task's checklist and comments one task at
   a time, or works out the release of every archived task; only the Archived page asks for that.

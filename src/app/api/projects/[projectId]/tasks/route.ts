@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { projects, tasks, taskValues } from "@/db/schema";
 import { dropHidden } from "@/lib/hidden";
 import {
@@ -12,8 +12,13 @@ import {
   route,
   str,
 } from "@/lib/api";
-import { loadProperties, rankOnTheEnd, withProjectLock } from "@/lib/queries";
-import { byPos } from "@/lib/order";
+import {
+  loadProperties,
+  rankedTask,
+  rankNeighbour,
+  rankOnTheEnd,
+  withProjectLock,
+} from "@/lib/queries";
 import { rankBefore, rankBetween } from "@/lib/rank";
 import type { TaskValue } from "@/lib/types";
 import { coerceValue, loadProperty, optionsOf } from "@/lib/values";
@@ -59,24 +64,21 @@ export const POST = route<Ctx>(async (req, ctx) => {
       .where(eq(projects.id, projectId))
       .returning({ counter: projects.taskCounter, key: projects.key, typeBy: projects.typeBy });
 
-    const neighbours = await tx
-      .select({ id: tasks.id, position: tasks.position })
-      .from(tasks)
-      .where(eq(tasks.projectId, projectId))
-      .orderBy(byPos(tasks.position), asc(tasks.number));
-
     /* A task landing on the end asks `rankOnTheEnd`, which rewrites the tail
        first if the ranks there have grown too long. A task landing between two
-       others cannot: the room above its neighbour is the next task's. */
+       others cannot: the room above its neighbour is the next task's. Each
+       reads the one or two rows around the place and no more. */
     let position: string;
     let rewrote = false;
-    const i = input.afterId ? neighbours.findIndex((t) => t.id === input.afterId) : -1;
-    if (i >= 0 && i < neighbours.length - 1) {
-      position = rankBetween(neighbours[i].position, neighbours[i + 1].position);
+    const after = input.afterId ? await rankedTask(tx, projectId, input.afterId) : undefined;
+    const below = after ? await rankNeighbour(tx, projectId, after, "down") : undefined;
+    if (after && below) {
+      position = rankBetween(after.position, below.position);
     } else if (input.atTop && !input.afterId) {
-      position = rankBefore(neighbours[0]?.position ?? null);
+      const first = await rankNeighbour(tx, projectId, null, "down");
+      position = rankBefore(first?.position ?? null);
     } else {
-      ({ position, rewrote } = await rankOnTheEnd(tx, projectId, neighbours));
+      ({ position, rewrote } = await rankOnTheEnd(tx, projectId));
     }
 
     const [row] = await tx

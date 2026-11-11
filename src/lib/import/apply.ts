@@ -17,7 +17,13 @@ import {
 import { byPos } from "@/lib/order";
 import { nextPaletteColor } from "@/lib/colors";
 import { rankAfter, rankSpread } from "@/lib/rank";
-import { defaultGroupById, loadProperties, withProjectLock, type Tx } from "@/lib/queries";
+import {
+  defaultGroupById,
+  loadProperties,
+  rankNeighbour,
+  withProjectLock,
+  type Tx,
+} from "@/lib/queries";
 import type { ActivityEntry } from "@/lib/activity";
 import { dropHidden } from "@/lib/hidden";
 import type { ImportMadeDTO } from "@/lib/types";
@@ -251,17 +257,14 @@ export async function applyImport(input: {
       .returning({ counter: projects.taskCounter });
     const first = project.counter - plan.tasks.length + 1;
 
-    const last = await tx
-      .select({ position: tasks.position })
-      .from(tasks)
-      .where(eq(tasks.projectId, projectId))
-      .orderBy(byPos(tasks.position));
+    /* The last rank of the project is the one row the spread needs. */
+    const last = await rankNeighbour(tx, projectId, null, "up");
 
     /* One spread and not two thousand `rankAfter` calls. Chained, each rank
        halves what is left above it: the strings grow a digit every few
        hundred cards and stop increasing altogether at about the 1,537th, so
        the back of a big board arrived in no order at all. */
-    const ranks = rankSpread(last.at(-1)?.position ?? null, plan.tasks.length);
+    const ranks = rankSpread(last?.position ?? null, plan.tasks.length);
 
     const now = new Date();
     const rows = plan.tasks.map((task, at) => ({

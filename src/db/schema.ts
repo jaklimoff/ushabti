@@ -344,13 +344,19 @@ export const tasks = pgTable(
   },
   (t) => [
     uniqueIndex("tasks_project_number_key").on(t.projectId, t.number),
-    index("tasks_project_position_idx").on(t.projectId, t.position),
+    // A rank is sorted in the byte order of the "C" collation (`byPos`), so the
+    // two rank indexes are built in it, and the number that breaks a tie sits
+    // after it. In the database's own collation neither one could hand back
+    // the order, and every read and every create sorted in memory. This one
+    // holds every row, archived and deleted too, because a rank is worked out
+    // among all of them: a create or a move reads its neighbours here.
+    index("tasks_project_position_idx").on(t.projectId, sql`${t.position} collate "C"`, t.number),
     // The board reads the live tasks of one project in rank order, and that is
     // the read on every page load. A partial index keeps the archived rows out
     // of it for good, however many of them pile up. A deleted row is out of it
     // too: nothing on a board draws one.
     index("tasks_project_live_idx")
-      .on(t.projectId, t.position)
+      .on(t.projectId, sql`${t.position} collate "C"`, t.number)
       .where(sql`${t.archivedAt} is null and ${t.deletedAt} is null`),
     // The drawer reads one project's deleted rows newest first, and the sweep
     // reads the old ones of one project. Both walk this index, and it holds
@@ -502,7 +508,6 @@ export const activity = pgTable(
   },
   (t) => [
     index("activity_task_idx").on(t.taskId),
-    index("activity_project_idx").on(t.projectId),
     // The feed an agent reads to catch up walks a project in time order.
     index("activity_project_time_idx").on(t.projectId, t.createdAt),
   ],
@@ -724,7 +729,6 @@ export const agentRunLog = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("agent_run_log_run_idx").on(t.runId),
     // The tail of one run's log, and the newest line of twenty runs at once,
     // both read this table by run and newest first. Without the second column
     // the newest line of a busy run is a sort of everything that run ever said.

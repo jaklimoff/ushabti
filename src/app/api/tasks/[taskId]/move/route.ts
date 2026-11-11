@@ -1,10 +1,16 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { tasks, taskValues } from "@/db/schema";
 import type { ActivityEntry } from "@/lib/activity";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, json, route } from "@/lib/api";
-import { byPos } from "@/lib/order";
-import { rankOnTheEnd, taskProjectId, touchTasks, withProjectLock } from "@/lib/queries";
+import {
+  rankedTask,
+  rankNeighbour,
+  rankOnTheEnd,
+  taskProjectId,
+  touchTasks,
+  withProjectLock,
+} from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { dropHidden, lockTasks } from "@/lib/hidden";
 import type { TaskValue } from "@/lib/types";
@@ -48,35 +54,32 @@ export const POST = route<Ctx>(async (req, ctx) => {
   }
 
   const { position, rewrote, dropped, ring } = await withProjectLock(projectId, async (tx) => {
-    const siblings = await tx
-      .select({ id: tasks.id, position: tasks.position })
-      .from(tasks)
-      .where(and(eq(tasks.projectId, projectId), ne(tasks.id, taskId)))
-      .orderBy(byPos(tasks.position), asc(tasks.number));
-
+    /* Only the one or two tasks around the place are read. The task being
+       moved has no place while it is carried, so it is left out of each. */
     let lower: string | null = null;
     let upper: string | null = null;
     /* True when the card lands last. Only then can the tail be rewritten: the
        room above any other neighbour belongs to the task above it. */
-    let onTheEnd = siblings.length > 0 && !input.beforeId;
+    let onTheEnd = false;
 
     if (input.beforeId) {
-      const i = siblings.findIndex((t) => t.id === input.beforeId);
-      if (i >= 0) {
-        lower = siblings[i - 1]?.position ?? null;
-        upper = siblings[i].position;
+      const before = await rankedTask(tx, projectId, input.beforeId, taskId);
+      if (before) {
+        lower = (await rankNeighbour(tx, projectId, before, "up", taskId))?.position ?? null;
+        upper = before.position;
       }
     } else if (input.afterId) {
-      const i = siblings.findIndex((t) => t.id === input.afterId);
-      if (i >= 0) {
-        lower = siblings[i].position;
-        upper = siblings[i + 1]?.position ?? null;
-      }
-      onTheEnd = i === siblings.length - 1;
+      const after = await rankedTask(tx, projectId, input.afterId, taskId);
+      const below = after ? await rankNeighbour(tx, projectId, after, "down", taskId) : undefined;
+      if (after) lower = after.position;
+      upper = below?.position ?? null;
+      onTheEnd = after !== undefined && !below;
+    } else {
+      onTheEnd = true;
     }
 
     const end = onTheEnd
-      ? await rankOnTheEnd(tx, projectId, siblings)
+      ? await rankOnTheEnd(tx, projectId, taskId)
       : { position: rankBetween(lower, upper), rewrote: false };
     /* A rank is not something a person said, so `updatedAt` waits for a value. */
     await tx.update(tasks).set({ position: end.position }).where(eq(tasks.id, taskId));
