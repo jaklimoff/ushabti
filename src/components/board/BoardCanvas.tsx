@@ -210,6 +210,12 @@ function columnOf(columns: BoardColumn[], overId: string) {
   return findColumn(columns, overId);
 }
 
+/* The columns and cards are measured while something is carried, and again
+   when a card moves into another column, which is what a drop reads. Measured
+   always, they were measured on every move of the cursor too. One object, or
+   a new one each render reads as a new configuration. */
+const MEASURING = { droppable: { strategy: MeasuringStrategy.WhileDragging } };
+
 /** The keys that move the cursor. Every other key is left alone. */
 const STEPS: Record<string, CursorStep | undefined> = {
   ArrowUp: "up",
@@ -789,7 +795,7 @@ export function BoardCanvas({
       id="ushabti-board"
       sensors={active}
       collisionDetection={collision}
-      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      measuring={MEASURING}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}

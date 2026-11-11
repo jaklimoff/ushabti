@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Widening a list's column redraws no row while the edge moves.** The widths follow the
+  pointer and the rows stay as they are. A board also measures its columns only while a card is
+  carried, and no longer on every move of the cursor.
 - **Typing a new task's title redraws only the box.** The column, or the list, around the composer
   no longer draws again on every key.
 - **A value written on one card no longer redraws the rest of the board.** A card and a list row

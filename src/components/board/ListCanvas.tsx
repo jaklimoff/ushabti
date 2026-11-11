@@ -35,6 +35,7 @@ import {
   columnMin,
   listColumns,
   listTemplate,
+  sameForRows,
   shareOf,
   sortArrow,
   type ListColumn,
@@ -253,6 +254,14 @@ export function ListCanvas({
     [cardItems, lensWidths, live],
   );
   const template = useMemo(() => listTemplate(columns), [columns]);
+  /* The columns the rows are handed, kept while a held edge moves only a
+     width: the width is in the template, and a row that drew again on every
+     pixel of a drag drew every row of the list again. */
+  const shownColumns = useRef(columns);
+  const rowColumns = useMemo(() => {
+    if (!sameForRows(shownColumns.current, columns)) shownColumns.current = columns;
+    return shownColumns.current;
+  }, [columns]);
 
   /*
    * The rank every view shares, unless somebody asked a heading for another
@@ -828,7 +837,7 @@ export function ListCanvas({
                 <SortableRow
                   key={task.id}
                   task={task}
-                  columns={columns}
+                  columns={rowColumns}
                   selected={selectedTaskId === task.id}
                   cursor={cursorTaskId === task.id}
                   frozen={sorted}

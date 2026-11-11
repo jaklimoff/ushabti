@@ -304,6 +304,30 @@ export function listTemplate(columns: ListColumn[]): string {
 }
 
 /**
+ * Whether a row would draw `next` as it drew `was`. A row reads a column's
+ * track only to know whether it is sized, as `cellCap` does; the width itself
+ * is the grid's template. So a held edge, which changes a track on every move,
+ * changes nothing a row draws once every column is sized.
+ */
+export function sameForRows(was: ListColumn[], next: ListColumn[]): boolean {
+  return (
+    was.length === next.length &&
+    was.every((a, i) => {
+      const b = next[i];
+      return (
+        a.id === b.id &&
+        a.item === b.item &&
+        a.name === b.name &&
+        a.width === b.width &&
+        a.right === b.right &&
+        a.pin === b.pin &&
+        (a.track === null) === (b.track === null)
+      );
+    })
+  );
+}
+
+/**
  * The most room one cell of a column may take, or null for the key, whose
  * track is fixed. The grid sizes a column to its widest cell, and a cell is
  * never squeezed below what it holds, so the ceiling has to be on every cell:

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { commands, page, userEvent } from "vitest/browser";
 import type { BoardData, TaskDTO } from "@/lib/types";
 import { newProject, optionOf, propertyOf, renderWithBoard, withTask } from "@/test/board";
 import { BoardShell } from "./BoardApp";
@@ -60,6 +60,13 @@ function Probe() {
   });
   return null;
 }
+
+/** How many times each task was drawn. */
+const countBy = (ids: string[]) => {
+  const counts: Record<string, number> = {};
+  for (const id of ids) counts[id] = (counts[id] ?? 0) + 1;
+  return counts;
+};
 
 const LIST_ID = "00000000-0000-4000-8000-0000000000aa";
 
@@ -168,6 +175,47 @@ describe("on a board of two hundred cards", () => {
     await userEvent.keyboard("{Enter}");
     await expect.element(page.getByTestId("task-panel")).toBeVisible();
   });
+
+  test("moving the cursor draws the card it leaves and the card it reaches", async () => {
+    const { data, tasks } = board();
+    await draw(data, "card");
+    const card = (title: string) =>
+      page
+        .getByTestId("card")
+        .filter({ hasText: new RegExp(`^.*${title}$`) })
+        .first();
+    (card("Card number 1").element() as HTMLElement).focus();
+    await settle();
+    drawn.length = 0;
+
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.element(card("Card number 3")).toHaveFocus();
+    await settle();
+    expect(new Set(drawn)).toEqual(new Set([tasks[0].id, tasks[2].id]));
+
+    drawn.length = 0;
+    await userEvent.keyboard("{ArrowRight}");
+    await expect.element(card("Card number 4")).toHaveFocus();
+    await settle();
+    expect(new Set(drawn)).toEqual(new Set([tasks[2].id, tasks[3].id]));
+  });
+
+  test("opening a task draws no card but the one marked open", async () => {
+    const { data, tasks } = board();
+    await draw(data, "card");
+    const card = page
+      .getByTestId("card")
+      .filter({ hasText: /^.*Card number 5$/ })
+      .first();
+    (card.element() as HTMLElement).focus();
+    await settle();
+    drawn.length = 0;
+
+    await userEvent.keyboard("{Enter}");
+    await expect.element(page.getByTestId("task-panel")).toBeVisible();
+    await settle();
+    expect(new Set(drawn)).toEqual(new Set([tasks[4].id]));
+  });
 });
 
 describe("on a list of two hundred rows", () => {
@@ -186,6 +234,51 @@ describe("on a list of two hundred rows", () => {
     ring();
     await settle();
     expect(drawn).toEqual([]);
+  });
+
+  test("moving the cursor draws the row it leaves and the row it reaches, and opening draws one", async () => {
+    const { data, tasks } = board(true);
+    await draw(data, "list-row");
+    const row = (title: string) =>
+      page
+        .getByTestId("list-row")
+        .filter({ has: page.getByTestId("list-row-title").getByText(title, { exact: true }) })
+        .first();
+    (row("Card number 1").element() as HTMLElement).focus();
+    await settle();
+    drawn.length = 0;
+
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.element(row("Card number 2")).toHaveFocus();
+    await settle();
+    expect(new Set(drawn)).toEqual(new Set([tasks[0].id, tasks[1].id]));
+
+    drawn.length = 0;
+    await userEvent.keyboard("{Enter}");
+    await expect.element(page.getByTestId("task-panel")).toBeVisible();
+    await settle();
+    expect(new Set(drawn)).toEqual(new Set([tasks[1].id]));
+  });
+
+  test("a column's edge held and moved draws no row for each move", async () => {
+    const { data } = board(true);
+    await draw(data, "list-row");
+    const edge = page
+      .getByTestId("list-head-slot")
+      .filter({ has: page.getByRole("button", { name: "Order by Priority" }) })
+      .getByTestId("list-head-edge");
+    const r = (edge.element() as HTMLElement).getBoundingClientRect();
+    const from = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    drawn.length = 0;
+
+    /* Some twenty-five moves. The first one sizes every column in pixels,
+       which a row reads once; the rest move only the grid's template. */
+    const most = () => Math.max(0, ...Object.values(countBy(drawn)));
+    await commands.hold(from, { x: from.x + 200, y: from.y });
+    expect(most()).toBeLessThanOrEqual(1);
+    await commands.letGo();
+    await settle();
+    expect(most()).toBeLessThanOrEqual(2);
   });
 });
 
