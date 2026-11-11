@@ -76,7 +76,13 @@ import {
   TAIL_READ,
   type Rebalance,
 } from "./rank";
-import { loadOpenRuns, loadStoppedRuns, loadTaskRuns, sweepLostIn } from "./runs";
+import {
+  loadOpenRuns,
+  loadStoppedRuns,
+  loadTaskRuns,
+  ON_A_TASK_YOU_CAN_SEE,
+  sweepLostIn,
+} from "./runs";
 import {
   agentsAtWork,
   agentsNamed,
@@ -88,6 +94,7 @@ import {
   type AgentAtWork,
   type LastChange,
   type ProjectPulse,
+  type PulseBoard,
 } from "./pulse";
 import type { ChartDay } from "./charts";
 import { WAITING_STATUSES } from "./run-state";
@@ -349,44 +356,317 @@ export async function listProjects(userId: string) {
 /**
  * The projects with how each is going, for the project list.
  *
- * Each pulse is read off the board this person would open, through
- * `loadBoard` and the board's own readers, so the card and the board cannot
- * disagree about a count. It costs a board per project, which is why the
- * sidebar reads `listProjectsNow` and `GET /api/projects` asks `listProjects`.
+ * Each pulse is read through the board's own readers — `mainColumns`,
+ * `headingOf`, `agentsAtWork` — so the card and the board cannot disagree
+ * about a count. What they read comes from `pulseBoards`, which reads the
+ * part of every board they need in a fixed number of statements, however
+ * many projects there are. No board is loaded.
  */
 export async function listProjectsWithPulse(
   userId: string,
   given?: Awaited<ReturnType<typeof listProjects>>,
-  /* Home reads a list's tasks off the same boards, so it hands in one loader
-     that reads each board once. */
-  boardOf: (row: { id: string; role: string }) => Promise<BoardData> = (row) =>
-    loadBoard(row.id, row.role, userId),
+  /* Home charts read the same parts, so it can hand in the ones it read. */
+  parts?: Map<string, PulseBoard>,
 ) {
   const rows = given ?? (await listProjects(userId));
+  const ids = rows.map((r) => r.id);
   const now = Date.now();
-  const recent = activityDays(rows.map((r) => r.id));
-  return Promise.all(
-    rows.map(async (row) => {
-      const [board, last, days] = await Promise.all([boardOf(row), lastChange(row.id), recent]);
-      const pulse: ProjectPulse = {
-        viewId: (board.views.find((v) => v.isDefault) ?? board.views[0])?.id ?? null,
-        startFolded: (board.views.find((v) => v.isDefault) ?? board.views[0])?.startFolded ?? [],
-        columns: mainColumns(board, userId),
-        agents: agentsAtWork(board.runs, now),
-        last,
-        heading: headingOf(board, last),
-        people: board.members.map((m) => ({
-          id: m.id,
-          name: m.name,
-          kind: m.kind,
-          color: m.color,
-        })),
-        quiet: isQuiet(last, now),
-        days: pulseDays(days.get(row.id) ?? [], board.today),
-      };
-      return { ...row, pulse };
-    }),
+  const [boards, last, recent] = await Promise.all([
+    parts ?? pulseBoards(ids, userId),
+    lastChanges(ids),
+    activityDays(ids),
+  ]);
+  return rows.flatMap((row) => {
+    const board = boards.get(row.id);
+    // A project deleted between the two reads is gone from Home too.
+    if (!board) return [];
+    const main = board.views.find((v) => v.isDefault) ?? board.views[0];
+    const said = last.get(row.id) ?? null;
+    const pulse: ProjectPulse = {
+      viewId: main?.id ?? null,
+      startFolded: main?.startFolded ?? [],
+      columns: mainColumns(board, userId),
+      agents: agentsAtWork(board.runs, now),
+      last: said,
+      heading: headingOf(board, said),
+      people: board.members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        kind: m.kind,
+        color: m.color,
+      })),
+      quiet: isQuiet(said, now),
+      days: pulseDays(recent.get(row.id) ?? [], board.today),
+    };
+    return [{ ...row, pulse }];
+  });
+}
+
+/**
+ * What the pulse reads of each of these boards, by project, as `loadProject`
+ * reads it: the same rows, put through the same readers, so a view, a
+ * property, a filter and a run mean here what they mean on the board. It
+ * leaves out what no pulse reads: a task's title, description and counts,
+ * the archived tasks, the invites, the card view, the stopped runs.
+ *
+ * It costs one statement per table for every project together, and one more
+ * for the people who left, once the grouping properties are known.
+ * `viewerId` is the person on Home, so each view carries their lens.
+ */
+export async function pulseBoards(
+  projectIds: string[],
+  viewerId: string,
+): Promise<Map<string, PulseBoard>> {
+  const out = new Map<string, PulseBoard>();
+  if (projectIds.length === 0) return out;
+  const live = and(
+    inArray(tasks.projectId, projectIds),
+    isNull(tasks.archivedAt),
+    isNull(tasks.deletedAt),
   );
+
+  /* The board sweeps before it reads its runs, so this does too. */
+  const runs = sweepLostIn(projectIds).then(() =>
+    db
+      .select({
+        projectId: agentRuns.projectId,
+        taskId: agentRuns.taskId,
+        status: agentRuns.status,
+        updatedAt: agentRuns.updatedAt,
+        beatAt: agentRuns.beatAt,
+        agentId: users.id,
+        agentName: users.name,
+        agentColor: users.color,
+        agentEmoji: users.avatarEmoji,
+      })
+      .from(agentRuns)
+      .innerJoin(users, eq(users.id, agentRuns.agentId))
+      .where(
+        and(
+          inArray(agentRuns.projectId, projectIds),
+          isNull(agentRuns.endedAt),
+          ON_A_TASK_YOU_CAN_SEE,
+        ),
+      )
+      .orderBy(asc(agentRuns.startedAt)),
+  );
+
+  const [
+    projectRows,
+    propRows,
+    optRows,
+    viewRows,
+    lensRows,
+    memberRows,
+    taskRows,
+    valueRows,
+    blockRows,
+    runRows,
+  ] = await Promise.all([
+    db.select().from(projects).where(inArray(projects.id, projectIds)),
+    db
+      .select()
+      .from(properties)
+      .where(inArray(properties.projectId, projectIds))
+      .orderBy(byPos(properties.position)),
+    db
+      .select(optionColumns)
+      .from(propertyOptions)
+      .innerJoin(properties, eq(properties.id, propertyOptions.propertyId))
+      .where(inArray(properties.projectId, projectIds))
+      .orderBy(byPos(propertyOptions.position)),
+    db
+      .select()
+      .from(views)
+      .where(inArray(views.projectId, projectIds))
+      .orderBy(byPos(views.position)),
+    db
+      .select({ viewId: viewLenses.viewId, filters: viewLenses.filters })
+      .from(viewLenses)
+      .innerJoin(views, eq(views.id, viewLenses.viewId))
+      .where(and(eq(viewLenses.userId, viewerId), inArray(views.projectId, projectIds))),
+    db
+      .select({
+        projectId: projectMembers.projectId,
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        color: users.color,
+        emoji: users.avatarEmoji,
+        kind: users.kind,
+        role: projectMembers.role,
+      })
+      .from(projectMembers)
+      .innerJoin(users, eq(users.id, projectMembers.userId))
+      .where(inArray(projectMembers.projectId, projectIds))
+      .orderBy(asc(users.name)),
+    db
+      .select({
+        id: tasks.id,
+        projectId: tasks.projectId,
+        number: tasks.number,
+        position: tasks.position,
+        createdAt: tasks.createdAt,
+        updatedAt: tasks.updatedAt,
+      })
+      .from(tasks)
+      .where(live)
+      .orderBy(byPos(tasks.position), asc(tasks.number)),
+    db
+      .select({
+        taskId: taskValues.taskId,
+        propertyId: taskValues.propertyId,
+        value: taskValues.value,
+      })
+      .from(taskValues)
+      .innerJoin(tasks, eq(tasks.id, taskValues.taskId))
+      .where(live),
+    /* What a live task waits on, as the board's `waitingLinks` reads it. A
+       blocker that is archived is over and one that is deleted counts not
+       at all, so only a live blocker can matter, and `isOver` below decides. */
+    db
+      .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
+      .from(taskLinks)
+      .innerJoin(tasks, eq(tasks.id, taskLinks.toId))
+      .where(and(live, eq(taskLinks.kind, BLOCKS))),
+    runs,
+  ]);
+
+  const valuesByTask = new Map<string, Record<string, TaskValue>>();
+  for (const v of valueRows) {
+    const bag = valuesByTask.get(v.taskId) ?? {};
+    bag[v.propertyId] = v.value as TaskValue;
+    valuesByTask.set(v.taskId, bag);
+  }
+  const lenses = new Map(lensRows.map((r) => [r.viewId, r.filters]));
+  const inProject = <T extends { projectId: string }>(list: T[], id: string) =>
+    list.filter((r) => r.projectId === id);
+
+  /* The people who left are only ever drawn as a column of the main board,
+     so only its person property is asked about. */
+  const shaped = projectRows.map((row) => {
+    const propertyList = readDefaults(
+      withOptions(
+        inProject(propRows, row.id),
+        optRows.filter((o) =>
+          propRows.some((p) => p.id === o.propertyId && p.projectId === row.id),
+        ),
+      ),
+      row.typeBy,
+    );
+    const viewList = inProject(viewRows, row.id).map((v) =>
+      toViewDTO(v, propertyList, lenses.get(v.id)),
+    );
+    return { row, propertyList, viewList };
+  });
+  const personGroups = shaped.flatMap(({ propertyList, viewList }) => {
+    const main = viewList.find((v) => v.isDefault) ?? viewList[0];
+    const by = main?.kind === "board" ? propertyList.find((p) => p.id === main.groupById) : null;
+    return by?.type === "person" ? [by.id] : [];
+  });
+  const formerList = personGroups.length ? await formerOf(personGroups) : [];
+
+  for (const { row, propertyList, viewList } of shaped) {
+    const doneWhen = readDoneWhen(row.doneWhen, propertyList);
+    const timeZone = readTimeZone(row.timeZone);
+    const here = inProject(taskRows, row.id);
+    /* Over is read as the board reads it; a blocker on another board is not
+       on this one's list, so it counts not at all, as there. */
+    const blockers = new Map(
+      here.map((t) => [
+        t.id,
+        {
+          number: t.number,
+          over: isOver({ archivedAt: null, values: valuesByTask.get(t.id) ?? {} }, doneWhen),
+        },
+      ]),
+    );
+    const waitsOn = new Map<string, number[]>();
+    for (const link of blockRows) {
+      const blocker = blockers.get(link.fromId);
+      if (!blocker || blocker.over || !blockers.has(link.toId)) continue;
+      waitsOn.set(link.toId, [...(waitsOn.get(link.toId) ?? []), blocker.number]);
+    }
+    const key = (n: number) => `${row.key}-${n}`;
+    out.set(row.id, {
+      project: {
+        id: row.id,
+        key: row.key,
+        name: row.name,
+        timeZone,
+        doneWhen,
+        progressBy: readProgressBy(row.progressBy, propertyList),
+        releaseBy: readReleaseBy(row.releaseBy, propertyList),
+        sprintBy: readSprintBy(row.sprintBy, propertyList),
+      },
+      today: todayIn(timeZone),
+      members: inProject(memberRows, row.id).map(({ projectId: _, ...m }) => ({
+        ...m,
+        kind: m.kind === "agent" ? ("agent" as const) : ("human" as const),
+        /* Nothing on Home asks whether an agent listens. */
+        listeningAt: null,
+      })),
+      former: formerList
+        .filter((f) => f.projectId === row.id)
+        .map(({ projectId: _, ...f }) => ({ ...f, kind: f.kind === "agent" ? "agent" : "human" })),
+      properties: propertyList,
+      views: viewList,
+      /* The words of a task are left out: no filter and no count reads them. */
+      tasks: here.map((t) => ({
+        id: t.id,
+        number: t.number,
+        key: key(t.number),
+        title: "",
+        description: "",
+        position: t.position,
+        createdAt: t.createdAt.toISOString(),
+        updatedAt: t.updatedAt.toISOString(),
+        archivedAt: null,
+        values: valuesByTask.get(t.id) ?? {},
+        checklistTotal: 0,
+        checklistDone: 0,
+        commentCount: 0,
+        blockedBy: (waitsOn.get(t.id) ?? []).sort((a, b) => a - b).map(key),
+        parts: null,
+      })),
+      runs: inProject(runRows, row.id).map((r) => ({
+        taskId: r.taskId,
+        status: r.status as RunStatus,
+        updatedAt: r.updatedAt.toISOString(),
+        beatAt: r.beatAt.toISOString(),
+        agent: { id: r.agentId, name: r.agentName, color: r.agentColor, emoji: r.agentEmoji },
+      })),
+    });
+  }
+  return out;
+}
+
+/** `formerRows` for these person properties, of every project at once. */
+function formerOf(propertyIds: string[]) {
+  return db
+    .selectDistinct({
+      projectId: properties.projectId,
+      id: users.id,
+      name: users.name,
+      color: users.color,
+      emoji: users.avatarEmoji,
+      kind: users.kind,
+    })
+    .from(taskValues)
+    .innerJoin(properties, eq(properties.id, taskValues.propertyId))
+    .innerJoin(
+      users,
+      sql`${users.id} = case when jsonb_typeof(${taskValues.value}) = 'string'
+        and (${taskValues.value} #>> '{}') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        then (${taskValues.value} #>> '{}')::uuid end`,
+    )
+    .where(
+      and(
+        inArray(properties.id, propertyIds),
+        sql`not exists (select 1 from ${projectMembers} where ${projectMembers.projectId} = ${properties.projectId} and ${projectMembers.userId} = ${users.id})`,
+      ),
+    )
+    .orderBy(asc(users.name));
 }
 
 /** One project as a page that follows all of them draws it. */
@@ -511,39 +791,62 @@ async function activityDays(projectIds: string[]): Promise<Map<string, ChartDay[
 }
 
 /**
- * The newest row of the activity feed: when, who, what and on which task. A
- * deleted task's line names it in its data, because its row is gone.
+ * The newest row of the activity feed of each project: when, who, what and on
+ * which task. A deleted task's line names it in its data, because its row is
+ * gone. One statement for every project, each walking the feed's index by
+ * project and time to its first row.
  */
-async function lastChange(projectId: string): Promise<LastChange | null> {
-  const [row] = await db
+async function lastChanges(projectIds: string[]): Promise<Map<string, LastChange>> {
+  const out = new Map<string, LastChange>();
+  if (projectIds.length === 0) return out;
+  const newest = db
     .select({
       createdAt: activity.createdAt,
       who: users.name,
       taskNumber: tasks.number,
-      projectKey: projects.key,
-      title: sql<string | null>`coalesce(${tasks.title}, ${activity.data}->>'title')`,
-      key: sql<string | null>`${activity.data}->>'key'`,
+      title: sql<string | null>`coalesce(${tasks.title}, ${activity.data}->>'title')`.as(
+        "last_title",
+      ),
+      key: sql<string | null>`${activity.data}->>'key'`.as("last_key"),
       kind: activity.kind,
-      propertyId: sql<string | null>`${activity.data}->>'propertyId'`,
-      value: sql<string | null>`${activity.data}->>'value'`,
+      propertyId: sql<string | null>`${activity.data}->>'propertyId'`.as("last_property"),
+      value: sql<string | null>`${activity.data}->>'value'`.as("last_value"),
     })
     .from(activity)
-    .innerJoin(projects, eq(projects.id, activity.projectId))
     .leftJoin(tasks, eq(tasks.id, activity.taskId))
     .leftJoin(users, eq(users.id, activity.actorId))
-    .where(eq(activity.projectId, projectId))
+    .where(eq(activity.projectId, projects.id))
     .orderBy(desc(activity.createdAt), desc(activity.id))
-    .limit(1);
-  if (!row) return null;
-  return {
-    at: row.createdAt.toISOString(),
-    who: row.who,
-    taskKey: row.taskNumber === null ? row.key : `${row.projectKey}-${row.taskNumber}`,
-    taskTitle: row.title,
-    kind: row.kind,
-    propertyId: row.propertyId,
-    value: row.value,
-  };
+    .limit(1)
+    .as("newest");
+  const rows = await db
+    .select({
+      projectId: projects.id,
+      projectKey: projects.key,
+      createdAt: newest.createdAt,
+      who: newest.who,
+      taskNumber: newest.taskNumber,
+      title: newest.title,
+      key: newest.key,
+      kind: newest.kind,
+      propertyId: newest.propertyId,
+      value: newest.value,
+    })
+    .from(projects)
+    .innerJoinLateral(newest, sql`true`)
+    .where(inArray(projects.id, projectIds));
+  for (const { projectId, projectKey, ...row } of rows) {
+    out.set(projectId, {
+      at: new Date(row.createdAt).toISOString(),
+      who: row.who,
+      taskKey: row.taskNumber === null ? row.key : `${projectKey}-${row.taskNumber}`,
+      taskTitle: row.title,
+      kind: row.kind,
+      propertyId: row.propertyId,
+      value: row.value,
+    });
+  }
+  return out;
 }
 
 /** Creates the project, its default property set and its default views. */

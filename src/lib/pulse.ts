@@ -4,7 +4,7 @@ import { allowedColumns, applyFilters, currentOption, mergeFilters, waitingTasks
 import { progressOf } from "./progress";
 import { dayNumber } from "./roadmap";
 import { isWaiting, lifeOf } from "./run-state";
-import type { AgentRunRowDTO, BoardData } from "./types";
+import type { AgentRunRowDTO, BoardData, ProjectDTO } from "./types";
 
 /**
  * How one project is going, as its card on the project list reads it.
@@ -124,10 +124,21 @@ export function pulseLabel(days: number[]): string {
   return `${said}. The busiest day was ${when}, with ${days[busiest]}.`;
 }
 
-type BoardPart = Pick<
+/**
+ * What the pulse reads of a board. Home reads it for every project at once,
+ * without the rest of a board, so it names only what the readers below ask.
+ * A whole board is one too, which is how a test holds the two together.
+ */
+export type PulseBoard = Pick<
   BoardData,
-  "project" | "today" | "members" | "former" | "properties" | "views" | "tasks" | "runs"
->;
+  "today" | "members" | "former" | "properties" | "views" | "tasks"
+> & {
+  project: Pick<
+    ProjectDTO,
+    "id" | "key" | "name" | "timeZone" | "doneWhen" | "progressBy" | "releaseBy" | "sprintBy"
+  >;
+  runs: (HomeRun & Pick<AgentRunRowDTO, "taskId">)[];
+};
 
 /** The view a board opens on when nobody picked one. */
 function mainView(board: Pick<BoardData, "views">) {
@@ -141,7 +152,7 @@ function mainView(board: Pick<BoardData, "views">) {
  * board answers: a list or a roadmap has no columns to share out, and falling
  * back to another view would count a board the person does not open.
  */
-export function mainColumns(board: BoardPart, viewer: string | null): PulseColumn[] | null {
+export function mainColumns(board: PulseBoard, viewer: string | null): PulseColumn[] | null {
   const view = mainView(board);
   if (!view || view.kind !== "board" || !view.groupById) return null;
   const property = board.properties.find((p) => p.id === view.groupById);
@@ -275,7 +286,7 @@ export function splitFolded(
  * something on a project that has had work.
  */
 export function headingOf(
-  board: Pick<BoardData, "project" | "today" | "properties" | "views" | "tasks">,
+  board: Pick<PulseBoard, "project" | "today" | "properties" | "views" | "tasks">,
   last: LastChange | null,
 ): Heading | null {
   for (const [kind, id] of [

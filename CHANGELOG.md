@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Changed
 
+- **Home stays quick however many projects you are in.** Each project card and the charts read
+  what they count for every project at once, in the same few queries, instead of a whole board per
+  project. Only a project a list on Home draws tasks from is still read as a board.
 - **Adding or moving a task stays quick however much a project has archived.** The rank order
   comes straight from an index, and a new or moved task reads only the one or two tasks beside it.
 - **A project with a long history opens its board as fast as a new one.** A board read no

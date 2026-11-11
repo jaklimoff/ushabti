@@ -108,8 +108,8 @@ describe("Every project of a person, with who is at work", () => {
     const [now] = await listProjectsNow(owner.id);
     boards.count = 0;
     const [home] = await listProjectsWithPulse(owner.id);
-    // The count above sees a board when one is read.
-    expect(boards.count).toBe(1);
+    // Home reads no board either.
+    expect(boards.count).toBe(0);
     const working = now.agents.filter((a) => a.working).map((a) => a.name);
     const silent = now.agents.filter((a) => !a.working).map((a) => a.name);
     expect(working).toEqual(home.pulse.agents.names);

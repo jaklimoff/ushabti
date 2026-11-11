@@ -9,6 +9,7 @@ import {
   chartFrom,
   sourceShape,
   sumChart,
+  type ChartBoard,
   type ChartChoice,
   type ChartDay,
   type ChartDTO,
@@ -179,7 +180,7 @@ export async function countEntered(a: {
  */
 export async function drawChart(
   chart: StoredChart,
-  boardOf: (projectId: string) => Pick<BoardData, "project" | "properties" | "today"> | undefined,
+  boardOf: (projectId: string) => (ChartBoard & Pick<BoardData, "today">) | undefined,
 ): Promise<ChartDTO | null> {
   const drawn = chart.sources.flatMap((source) => {
     const board = boardOf(source.projectId);
@@ -209,9 +210,12 @@ export async function drawChart(
 export async function loadCharts(
   userId: string,
   projects: ProjectRow[],
-  boardOf: BoardOf,
+  /* Home hands in the parts its pulse read, so a chart reads no board. */
+  boardOf: (
+    row: Parameters<BoardOf>[0],
+  ) => Promise<(ChartBoard & Pick<BoardData, "today">) | undefined>,
 ): Promise<{ charts: ChartDTO[]; choices: ChartChoice[] }> {
-  const boards = await Promise.all(projects.map(boardOf));
+  const boards = (await Promise.all(projects.map(boardOf))).filter((b) => b !== undefined);
   const byId = new Map(boards.map((b) => [b.project.id, b]));
   const stored = await chartsOf(userId);
   const drawn = await Promise.all(stored.map((chart) => drawChart(chart, (id) => byId.get(id))));

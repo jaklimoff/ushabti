@@ -1,4 +1,4 @@
-import type { BoardData } from "./types";
+import type { BoardData, ProjectDTO } from "./types";
 import { isSelect } from "./types";
 
 /**
@@ -88,6 +88,11 @@ export function chartSummary(days: ChartDay[]): { today: number; average: string
   return { today: days.at(-1)?.count ?? 0, average: String(average) };
 }
 
+/** What a chart reads of a board: its names, its zone and its properties. */
+export type ChartBoard = Pick<BoardData, "properties"> & {
+  project: Pick<ProjectDTO, "id" | "key" | "name" | "timeZone">;
+};
+
 /**
  * The names and the colour one source draws with, read afresh off its board.
  * Null when there is nothing to draw: the property is gone or is no longer a
@@ -95,7 +100,7 @@ export function chartSummary(days: ChartDay[]): { today: number; average: string
  */
 export function sourceShape(
   source: StoredSource,
-  board: Pick<BoardData, "project" | "properties">,
+  board: ChartBoard,
 ): Omit<ChartSource, "days"> | null {
   const property = board.properties.find((p) => p.id === source.propertyId);
   if (!property || !isSelect(property.type)) return null;
@@ -173,7 +178,7 @@ export function sameSources(a: StoredSource[], b: StoredSource[]): boolean {
 }
 
 /** The selects of one board, for the picker. A project with none offers nothing. */
-export function chartChoice(board: Pick<BoardData, "project" | "properties">): ChartChoice {
+export function chartChoice(board: ChartBoard): ChartChoice {
   return {
     id: board.project.id,
     key: board.project.key,
