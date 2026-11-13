@@ -37,6 +37,8 @@ programs:
       # on a throwaway server of the task's own build (.setmaat/e2e.sh), at low
       # priority (.setmaat/check.sh, the owner, 2026-10-08). The whole suite runs once a batch, before the push (.setmaat/e2e.sh).
       check: sh .setmaat/check.sh
+      # One check at a time on this host, for all its loops (Setmaat decision SET-557).
+      check_lock: host
       # Lands on the local main and pushes nothing: the owner pushes once the batch
       # is done, after .setmaat/e2e.sh, so CI runs once and not once a task
       # (the owner, 2026-10-08). The admin role passes the main ruleset.
