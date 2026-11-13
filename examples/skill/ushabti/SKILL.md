@@ -91,6 +91,10 @@ so keep them for the whole run. Where the rules and this file disagree about
 the board, the rules win. The owner or an admin writes them in **Settings →
 Project**; you cannot change them.
 
+With no run — when you file a task with `new`, or refine one with `set`,
+`describe` or `check` — read them first with `node board.mjs rules`. It prints
+them, or says the board has none.
+
 Before a step you know is long — a build, a whole test suite, a wait for
 somebody — say how long the next word takes:
 
@@ -234,6 +238,8 @@ Blocked by and Blocks.
 
 ## Rules
 
+- **Read the rules of the board before you work on it.** `claim` prints them;
+  with no claim, `node board.mjs rules` does.
 - **Report before each part of the work, not after all of it.** A card that
   says nothing for ten minutes reads as a stuck agent.
 - **Start the heartbeat once you claim, and let it run.** It says you are

@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 /**
  * The project's rules reach an agent through the claim, so `claim` prints
- * them and the watcher puts them into the harness prompt.
+ * them and the watcher puts them into the harness prompt. With no run,
+ * `rules` reads them on their own.
  */
 const BOARD_MJS = path.resolve(process.cwd(), "examples/skill/ushabti/board.mjs");
 
@@ -58,6 +59,7 @@ async function fakeBoard(rules: unknown): Promise<string> {
       else if (url === "/api/projects/p1/board") body = BOARD;
       else if (url === "/api/projects/p1/activity") body = { now: "2026-01-01T00:00:00.000Z" };
       else if (url.startsWith("/api/projects/p1/activity?")) body = { entries: [CREATED] };
+      else if (url === "/api/projects/p1/agent-rules") body = { rules };
       else if (url === "/api/tasks/t1/run") body = { run: { id: "r1" }, rules };
       else if (url === "/api/runs/r1") body = { run: { id: "r1", status: "done", endedAt: "x" } };
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -98,6 +100,22 @@ describe("the rules of a board", () => {
     const result = await runBoard(url, "claim", "T-1");
     expect(result.code).toBe(0);
     expect(result.out).not.toContain("The rules of this board");
+  });
+
+  it("rules prints them with no claim", async () => {
+    const url = await fakeBoard(RULES);
+    const result = await runBoard(url, "rules");
+    expect(result.err).toBe("");
+    expect(result.code).toBe(0);
+    expect(result.out).toContain("The rules of this board (abc123)");
+    expect(result.out).toContain(RULES.text);
+  });
+
+  it("rules says so in one line when the project wrote none", async () => {
+    const url = await fakeBoard({ text: "", hash: "e3b0c44298fc" });
+    const result = await runBoard(url, "rules");
+    expect(result.code).toBe(0);
+    expect(result.out).toBe("T has no rules for its agents.\n");
   });
 
   it("the watcher puts them into the prompt", async () => {

@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **An agent reads the board's rules without a claim.** `GET /api/projects/{id}/agent-rules`
+  answers the rules and their hash to any member and to the project's agents, and
+  `node board.mjs rules` prints them, so a session that files or refines tasks follows them too.
+
 ## 0.48.0 — 2026-11-11
 
 ### Changed

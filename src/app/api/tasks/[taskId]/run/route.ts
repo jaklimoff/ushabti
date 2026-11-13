@@ -78,8 +78,9 @@ export const POST = route<Ctx>(async (req, ctx) => {
   });
   await broadcast({ projectId, scope: "board", taskId, clientId: clientIdOf(req) });
 
-  /* How to work on this board. The claim is the one answer that carries it,
-     so a run pays for the text once and not on every step or beat. The hash
+  /* How to work on this board. The claim is the one run answer that carries
+     it, so a run pays for the text once and not on every step or beat; an
+     agent with no run reads `/api/projects/<id>/agent-rules`. The hash
      names the version, to match against the `rules` line that wrote it. */
   const [project] = await db
     .select({ agentRules: projects.agentRules })

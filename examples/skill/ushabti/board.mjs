@@ -207,7 +207,16 @@ function mayNot(me) {
 const PERSONAL = TOKEN?.startsWith("ushp_") ?? false;
 
 /* The commands about a project rather than a task. */
-const PROJECT_COMMANDS = new Set(["me", "props", "prop", "list", "new", "release", "ship"]);
+const PROJECT_COMMANDS = new Set([
+  "me",
+  "rules",
+  "props",
+  "prop",
+  "list",
+  "new",
+  "release",
+  "ship",
+]);
 
 /* The run routes are an agent's. A personal token would get a 403 from the
    first of them, after the board was already read. */
@@ -598,6 +607,7 @@ const commands = {
     console.log(`Ushabti board — ${BASE}
 
   me                                  who am I, which board
+  rules                               the rules of this board, with or without a run
   props                               every property and its options, with their dates
   prop add "<name>" <type> [--option "<name>"]...
                                       add a property, only when the flow needs one.
@@ -680,6 +690,14 @@ finish and watch need an agent token.`);
       `${who} on ${data.project.name} (${data.project.key}) at ${BASE}${mayNot(data.me)}`,
     );
     console.log(`${data.tasks.length} tasks, ${data.runs.length} open runs`);
+  },
+
+  /* The rules with no claim, for a session that files or refines tasks.
+     Only who the token is: the rules need no board. */
+  async rules() {
+    const me = PERSONAL ? await personalMe() : await call("GET", "/api/agent/me");
+    const { rules } = await call("GET", `/api/projects/${me.project.id}/agent-rules`);
+    console.log(rulesText(rules) || `${me.project.key} has no rules for its agents.`);
   },
 
   async props() {
@@ -1521,8 +1539,8 @@ const PROMPTS = {
 };
 
 /**
- * The project's rules for its agents, as the claim answered them, or "" when
- * the project wrote none. Only a claim carries them, so a run reads them once.
+ * The project's rules for its agents, as the claim or `rules` answered them,
+ * or "" when the project wrote none. A run reads them once, with its claim.
  */
 function rulesText(rules) {
   if (!rules || !rules.text) return "";

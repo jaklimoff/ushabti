@@ -139,4 +139,39 @@ describe("Agent rules", () => {
       expect(JSON.stringify(answer)).not.toContain("Ask a person");
     }
   });
+
+  it("an agent and a member read them with no claim; a stranger cannot", async () => {
+    const { owner, member, project: p, bot } = await team("Reader");
+    const path = `/api/projects/${p.id}/agent-rules`;
+
+    // A board that wrote no rules answers an empty text, with its hash.
+    const none = await ok(bot.api.get(path));
+    expect(none.rules.text).toBe("");
+    expect(none.rules.hash).toMatch(/^[0-9a-f]{12}$/);
+
+    const rules = "File a task with a Goal and a checklist.";
+    await ok(api(owner).patch(`/api/projects/${p.id}`, { agentRules: rules }));
+    const read = await ok(bot.api.get(path));
+    expect(read.rules.text).toBe(rules);
+    expect(await ok(api(member).get(path))).toEqual(read);
+
+    // The same object the claim answers.
+    const t = await task(owner, p.id, "Read the rules");
+    const claim = await ok(bot.api.post(`/api/tasks/${t.id}/run`, { goal: "Build it" }));
+    expect(claim.rules).toEqual(read.rules);
+
+    // Somebody who is not a member, and an agent of another board, get what
+    // `guard` gives them: the board is not theirs to know of, or not the token's.
+    const stranger = await person("Sam Stranger");
+    expect((await api(stranger).get(path)).status).toBe(404);
+    const elsewhere = await project(stranger);
+    const other = await agent(stranger, elsewhere.id, "Outsider");
+    expect((await other.api.get(path)).status).toBe(403);
+    expect((await api(null).get(path)).status).toBe(401);
+
+    // It only reads.
+    for (const method of ["put", "post", "patch"] as const) {
+      expect((await api(owner)[method](path, { text: "x" })).status).toBe(405);
+    }
+  });
 });
