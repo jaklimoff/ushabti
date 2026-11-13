@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.49.0 — 2026-11-13
+
 ### Added
 
 - **An agent reads the board's rules without a claim.** `GET /api/projects/{id}/agent-rules`
