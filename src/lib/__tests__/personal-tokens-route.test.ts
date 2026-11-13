@@ -178,7 +178,6 @@ describe("Personal tokens", () => {
     await refused(t.get(`${base}/webhooks/${hook.webhook.id}/count`));
     await refused(t.del(base));
     await refused(t.patch(base, { publicChangelog: true }));
-    await refused(t.patch(base, { agentRules: "Do whatever you like." }));
     await refused(t.patch("/api/auth/me", { emoji: "🦊" }));
     await refused(t.patch("/api/auth/me", { name: "Somebody else" }));
     await refused(t.post("/api/auth/tokens", { name: "Another" }));
@@ -191,6 +190,44 @@ describe("Personal tokens", () => {
     // Nothing changed: the project, its people and its agent are all there.
     const board = await ok<{ members: { id: string }[] }>(api(owner).get(`${base}/board`));
     expect(board.members.map((m) => m.id)).toEqual(expect.arrayContaining([member.id, bot.id]));
+  });
+
+  it("of an owner or an admin writes the agent rules; a member's and an agent's are refused", async () => {
+    const owner = await person("Rhea");
+    const admin = await person("Ada");
+    const member = await person("Moss");
+    const p = await project(owner);
+    await join(p.id, admin, "admin");
+    await join(p.id, member, "member");
+    const bot = await agent(owner, p.id);
+    const base = `/api/projects/${p.id}`;
+    const since = (await ok<{ now: string }>(api(owner).get(`${base}/activity`))).now;
+    const mine = await personal(owner, "Rules script");
+
+    const rules = "Ask a person before you estimate.";
+    await ok(mine.api.patch(base, { agentRules: rules }));
+    // The same words again change nothing, and write no second line.
+    await ok(mine.api.patch(base, { agentRules: rules }));
+    const feed = await ok<{
+      entries: { kind: string; via: string | null; data: { text: string } }[];
+    }>(api(owner).get(`${base}/activity?after=${encodeURIComponent(since)}&limit=200`));
+    const lines = feed.entries.filter((e) => e.kind === "rules");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ via: "Rules script", data: { text: rules } });
+
+    const theirs = await personal(admin);
+    await ok(theirs.api.patch(base, { agentRules: "Written by an admin's script." }));
+
+    const members = await personal(member);
+    const asMember = await members.api.patch(base, { agentRules: "Do as you like." });
+    expect(asMember.status).toBe(403);
+    expect((await bot.api.patch(base, { agentRules: "Do as you like." })).status).toBe(403);
+
+    // The changelog still asks for a session.
+    await refused(mine.api.patch(base, { publicChangelog: true }));
+
+    const now = await ok<{ rules: { text: string } }>(api(owner).get(`${base}/agent-rules`));
+    expect(now.rules.text).toBe("Written by an admin's script.");
   });
 
   it("may leave a project, as its person may", async () => {

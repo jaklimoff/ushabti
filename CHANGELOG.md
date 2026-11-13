@@ -14,6 +14,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   answers the rules and their hash to any member and to the project's agents, and
   `node board.mjs rules` prints them, so a session that files or refines tasks follows them too.
 
+### Changed
+
+- **A personal token of the owner or an admin writes the agent rules.** A script can send one
+  text to many boards with no browser. Whoever holds the token can change what every agent of
+  the board is told. A member's token and an agent token are still refused.
+
 ## 0.48.0 — 2026-11-11
 
 ### Changed

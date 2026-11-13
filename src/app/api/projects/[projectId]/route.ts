@@ -129,11 +129,13 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     patch.publicChangelog = input.publicChangelog;
   }
   /* The rules an agent obeys on this board. `adminOnly` above keeps them a
-     person's: an agent must not write its own rules. A personal token is
-     the thing an agent might hold, so it may not write them either. */
+     person's: an agent token must not write its own rules. A personal token
+     of the owner or an admin may, so one text can go to many boards from a
+     script. That is the price: whoever holds the token, an agent too, can
+     change what every agent of the board is told. A person who hands an
+     agent their token hands it their role on the board. */
   let rules: string | null = null;
   if (input.agentRules !== undefined) {
-    signedInOnly(user);
     if (typeof input.agentRules !== "string") {
       throw new HttpError(400, "The agent rules are text.");
     }

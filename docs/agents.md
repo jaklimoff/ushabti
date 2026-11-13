@@ -109,11 +109,17 @@ with their role in each, and no other. It reads and writes values, comments
 and tasks, exports and imports, and sends a run's Pause, Stop, Resume and Take
 over, as they could by hand. It can leave a project for them.
 
+A personal token of the owner or an admin writes the agent rules, so a script
+can send one text to many boards. The feed line names the token. That has a
+cost: whoever holds the token, an agent too, can change what every agent of
+the board is told. Give an agent your personal token and you give it your role
+on the board. A member's personal token is refused, as the member is.
+
 It refuses, with `403 A personal token cannot do this. Sign in to do it.`,
 everything that lets somebody or something else in: agents and their tokens,
 members and their roles, invites, reset links, webhooks, the owner's acts,
-the public changelog and the agent rules, changing the face or the name on the
-account, and making, listing or revoking personal tokens. It cannot make a
+the public changelog, changing the face or the name on the account, and making,
+listing or revoking personal tokens. It cannot make a
 project or change the password. The run routes an agent uses refuse it, as
 they refuse a person, and so does presence: a script is never in the room, and
 never listening.
