@@ -14,6 +14,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   card. Pick one of your other projects, and this project takes its card layout, and the icon and
   colour of each option and checkbox, matched by name. Each half has its own tick, the line of each
   project says how much matches, and nothing is made, removed or linked.
+- **Apply a look to other projects.** Settings → Card has **Apply to…** under **Copy from…**. Tick
+  any of your other projects, and each takes this project's card layout, icons and colours in one
+  step, all or none. Each line says what matches there and what is missing.
 
 ## 0.49.0 — 2026-11-13
 

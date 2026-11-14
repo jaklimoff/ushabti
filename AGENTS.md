@@ -277,17 +277,24 @@ and what is easy to get wrong.
   what it drew, so the copy keeps both. A copy is a whole card view, never a set of changes on top of
   the project's: a diff would need its own rules for a row the project later
   moved. It holds no order and no edge rule of its own, for the reasons above.
-- **A look is copied, never linked.** Settings → Card copies another
-  project's default card and the icon and colour of its options and
-  checkboxes into this one, once, on a press. Nothing remembers where it came
-  from: a link would change a board for people who pressed nothing, and a
-  card view shared by two projects has no owner. Ids belong to one project,
-  so `src/lib/look.ts` is the one module that decides the match — a property
-  by its name as `sameOptionName` reads it and by its card kind, an option by
-  its name inside a matched pair — and the counts and the words of the
-  question. The route and the page ask it, and **Apply to…** must too. A copy
-  makes, renames, moves and deletes nothing, and never touches a view's own
-  card: a property with no match keeps the row it has.
+- **A look is copied, never linked, and it goes both ways.** Settings → Card
+  copies another project's default card and the icon and colour of its
+  options and checkboxes into this one with **Copy from…**, and puts this
+  project's on the projects somebody ticks with **Apply to…**, once, on a
+  press. Nothing remembers where it came from: a link would change a board for
+  people who pressed nothing, and a card view shared by two projects has no
+  owner. Ids belong to one project, so `src/lib/look.ts` is the one module
+  that decides the match — a property by its name as `sameOptionName` reads
+  it and by its card kind, an option by its name inside a matched pair — and
+  the counts and the words of both questions. **Apply to…** counts from this
+  project's side with `appliedMatch`, which turns the write's own match round
+  rather than matching again. `writeLook()` in `src/lib/look-write.ts` is the
+  one write of a project, and both routes call it. Apply writes every ticked
+  project in one transaction under `withProjectLocks`, which takes the locks
+  in id order, so a failure writes nothing anywhere and the numbers in the
+  question stay true; a project the caller is not in refuses the whole
+  request. A copy makes, renames, moves and deletes nothing, and never touches
+  a view's own card: a property with no match keeps the row it has.
 - **Eight rows of the card view are not properties.** `_key`, `_title`,
   `_desc`, `_checklist`, `_parts`, `_comments`, `_created` and `_updated` are
   the task row the board already has, given rows so that somebody can take

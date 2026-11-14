@@ -170,6 +170,24 @@ export async function withProjectLock<T>(
   });
 }
 
+/**
+ * The lock of several projects in one transaction. They are taken in the
+ * order of their ids, so two writes over the same projects wait for each
+ * other instead of each holding the lock the other needs.
+ */
+export async function withProjectLocks<T>(
+  projectIds: string[],
+  work: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  const ids = [...new Set(projectIds)].sort();
+  return db.transaction(async (tx) => {
+    for (const id of ids) {
+      await tx.execute(sql`select 1 from ${projects} where ${projects.id} = ${id} for update`);
+    }
+    return work(tx);
+  });
+}
+
 /** A task as the rank order sees it: the rank, and the number that breaks a tie. */
 export type Ranked = { id: string; position: string; number: number };
 

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readCardView } from "../card-view";
 import {
+  appliedMatch,
+  appliedSaid,
+  applyLabel,
+  applyQuestion,
+  blockedApplySaid,
   blockedSaid,
   copiedCardView,
   copiedLooks,
@@ -8,6 +13,7 @@ import {
   countLook,
   countSaid,
   matchLook,
+  missingSaid,
   staysSaid,
 } from "../look";
 import type { CardView, PropertyDTO, PropertyOptionDTO, PropertyType } from "../types";
@@ -181,5 +187,71 @@ describe("the words", () => {
     expect(blockedSaid(false, both)).toBe("Pick a project to copy from.");
     expect(blockedSaid(true, { layout: false, looks: false })).toBe("Pick what to copy.");
     expect(blockedSaid(true, both)).toBeNull();
+  });
+});
+
+describe("Apply to…", () => {
+  const both = { layout: true, looks: true };
+
+  it("counts from this project's side, with the pairs the write uses", () => {
+    const mine = [
+      prop("s1", "Status", "select", [option("a", "Todo"), option("b", "Done")]),
+      prop("s2", "Sprint", "iteration"),
+      prop("s3", "Estimate", "number"),
+      prop("s4", "Hot", "checkbox"),
+    ];
+    const theirs = [
+      prop("t1", "status", "select", [option("x", "DONE")]),
+      prop("t3", "Estimate", "date"),
+      prop("t4", "Hot", "checkbox"),
+      prop("t5", "Only there", "text"),
+    ];
+    const match = appliedMatch(mine, theirs);
+    const count = countLook(match, theirs);
+    expect(count.matched).toBe(2);
+    expect(count.total).toBe(4);
+    expect(count.looks).toBe(2);
+    expect(count.unmatched).toEqual(["Sprint", "Estimate"]);
+    expect(missingSaid(count)).toBe("No Sprint there. Estimate is a date there.");
+    /* The same pairs as the write's own match, turned round. */
+    const write = matchLook(theirs, mine);
+    expect(match.pairs.map((p) => [p.here.id, p.there.id])).toEqual(
+      write.pairs.map((p) => [p.there.id, p.here.id]),
+    );
+  });
+
+  it("names a type there in words", () => {
+    const count = countLook(
+      appliedMatch([prop("a", "Estimate", "number")], [prop("b", "estimate", "date")]),
+      [prop("b", "estimate", "date")],
+    );
+    expect(missingSaid(count)).toBe("Estimate is a date there.");
+    expect(missingSaid({ matched: 1, total: 1, looks: 0, unmatched: [] })).toBeNull();
+  });
+
+  it("asks with real numbers, and names one project", () => {
+    expect(applyQuestion(["A", "B", "C", "D"], 84, both)).toBe(
+      "Apply to 4 projects? Each one's default card is replaced, and 84 options and checkboxes take this project's icon and colour. Tasks do not change.",
+    );
+    expect(applyQuestion(["Setmaat"], 21, both)).toBe(
+      "Apply to Setmaat? Its default card is replaced, and 21 options and checkboxes take this project's icon and colour. Tasks do not change.",
+    );
+    expect(applyQuestion(["Setmaat"], 1, { layout: false, looks: true })).toBe(
+      "Apply to Setmaat? 1 option or checkbox takes this project's icon and colour. Tasks do not change.",
+    );
+    expect(applyQuestion(["A", "B"], 9, { layout: true, looks: false })).toBe(
+      "Apply to 2 projects? Each one's default card is replaced. Tasks do not change.",
+    );
+    expect(applyLabel(4)).toBe("Yes, apply to 4");
+    expect(applyLabel(1)).toBe("Yes, apply");
+  });
+
+  it("says why the press is off, and where the look went", () => {
+    expect(blockedApplySaid(0, both)).toBe("Pick a project to apply to.");
+    expect(blockedApplySaid(2, { layout: false, looks: false })).toBe("Pick what to apply.");
+    expect(blockedApplySaid(2, both)).toBeNull();
+    expect(appliedSaid(["Setmaat", "Mnemes cards", "Website", "Docs"], "just now")).toBe(
+      "Applied just now to Setmaat, Mnemes cards, Website and Docs.",
+    );
   });
 });

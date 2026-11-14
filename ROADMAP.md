@@ -49,7 +49,7 @@ Everything below works, is tested, and runs in the dev container.
 - Create, rename, recolour, reorder, delete. Nothing is hardcoded, not even Status.
 - A new project starts with Status, Priority, Assignee, Phase, Estimate, Labels and Due. All of them are ordinary rows you can change or remove.
 - Show or hide each property on the card.
-- Copy another project's card layout, icons and colours into this one, from Settings → Card. Properties and options match by name; it is a copy, never a link, and it makes nothing the project does not have.
+- Copy another project's card layout, icons and colours into this one, or apply this one's to any of your other projects in one step, from Settings → Card. Properties and options match by name; it is a copy, never a link, and it makes nothing a project does not have.
 
 **Views**
 

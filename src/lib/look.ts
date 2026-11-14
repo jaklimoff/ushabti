@@ -1,6 +1,12 @@
 import { KIND_OF_TYPE, OFF_EDGE } from "./card-view";
 import { sameOptionName } from "./option-name";
-import { CARD_BUILTINS, type CardView, type PropertyDTO, type PropertyOptionDTO } from "./types";
+import {
+  CARD_BUILTINS,
+  type CardView,
+  type PropertyDTO,
+  type PropertyOptionDTO,
+  type PropertyType,
+} from "./types";
 
 /**
  * The look of a project: its default card, and the icon and colour of each
@@ -60,6 +66,23 @@ export function matchLook(here: PropertyDTO[], there: PropertyDTO[]): LookMatch 
   return { pairs, unmatched };
 }
 
+/**
+ * The same match as `matchLook(target, source)`, the one the write uses, read
+ * from the source's side: when this project's look goes out, the line counts
+ * this project's properties. The pairs are turned round rather than matched
+ * again, so the counts can never disagree with what the write touches.
+ */
+export function appliedMatch(source: PropertyDTO[], target: PropertyDTO[]): LookMatch {
+  const match = matchLook(target, source);
+  const pairs = match.pairs.map((p) => ({
+    here: p.there,
+    there: p.here,
+    options: p.options.map((o) => ({ here: o.there, there: o.here })),
+  }));
+  const paired = new Set(pairs.map((p) => p.here.id));
+  return { pairs, unmatched: source.filter((p) => !paired.has(p.id)) };
+}
+
 function matchOptions(here: PropertyOptionDTO[], there: PropertyOptionDTO[]) {
   const taken = new Set<string>();
   const out: LookPair["options"] = [];
@@ -82,19 +105,35 @@ export type LookCount = {
   looks: number;
   /** The names of this project's properties with no match, in their order. */
   unmatched: string[];
+  /**
+   * Of those, the ones whose name is there with another card kind, and the
+   * type it has there. Counted only when the other side's properties are given.
+   */
+  unlike?: Record<string, PropertyType>;
 };
 
-export function countLook(match: LookMatch): LookCount {
+export function countLook(match: LookMatch, there?: PropertyDTO[]): LookCount {
   let looks = 0;
   for (const pair of match.pairs) {
     looks += pair.here.type === "checkbox" ? 1 : pair.options.length;
   }
-  return {
+  const count: LookCount = {
     matched: match.pairs.length,
     total: match.pairs.length + match.unmatched.length,
     looks,
     unmatched: match.unmatched.map((p) => p.name),
   };
+  if (there) {
+    const unlike: Record<string, PropertyType> = {};
+    for (const mine of match.unmatched) {
+      const namesake = there.find((p) => sameOptionName(p.name, mine.name));
+      if (namesake && KIND_OF_TYPE[namesake.type] !== KIND_OF_TYPE[mine.type]) {
+        unlike[mine.name] = namesake.type;
+      }
+    }
+    count.unlike = unlike;
+  }
+  return count;
 }
 
 /**
@@ -203,4 +242,71 @@ export function copyQuestion(from: string, count: LookCount, parts: LookParts): 
         ? "This project's default card is replaced."
         : `${takes[0].toUpperCase()}${takes.slice(1)}.`;
   return `Copy the look of ${from}? ${what} Tasks do not change.`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Words of Apply to…                                                  */
+/* ------------------------------------------------------------------ */
+
+/** A type as a sentence names it: "Estimate is a number there." */
+const TYPE_SAID: Record<PropertyType, string> = {
+  select: "a select",
+  multi_select: "a multi-select",
+  person: "a person",
+  text: "text",
+  number: "a number",
+  date: "a date",
+  checkbox: "a checkbox",
+  link: "a link",
+  relation: "a list of tasks",
+  iteration: "a sprint",
+};
+
+/** What a project line of Apply to… says is missing there, or null. */
+export function missingSaid(count: LookCount): string | null {
+  if (count.unmatched.length === 0) return null;
+  return count.unmatched
+    .map((name) => {
+      const type = count.unlike?.[name];
+      return type ? `${name} is ${TYPE_SAID[type]} there.` : `No ${name} there.`;
+    })
+    .join(" ");
+}
+
+/** Why the press of Apply to… is off, or null when it may be pressed. */
+export function blockedApplySaid(picked: number, parts: LookParts): string | null {
+  if (picked === 0) return "Pick a project to apply to.";
+  if (!parts.layout && !parts.looks) return "Pick what to apply.";
+  return null;
+}
+
+/**
+ * The question of Apply to…, in the numbers the write will use. `looks` is
+ * the sum over the ticked projects. One project is named; more are counted.
+ */
+export function applyQuestion(names: string[], looks: number, parts: LookParts): string {
+  const one = names.length === 1;
+  const card = one ? "Its default card is replaced" : "Each one's default card is replaced";
+  const takes =
+    looks === 1
+      ? "1 option or checkbox takes this project's icon and colour"
+      : `${looks} options and checkboxes take this project's icon and colour`;
+  const what =
+    parts.layout && parts.looks
+      ? `${card}, and ${takes}.`
+      : parts.layout
+        ? `${card}.`
+        : `${takes[0].toUpperCase()}${takes.slice(1)}.`;
+  const to = one ? names[0] : `${names.length} projects`;
+  return `Apply to ${to}? ${what} Tasks do not change.`;
+}
+
+/** The yes of Apply to…: one project is named in the question already. */
+export function applyLabel(picked: number): string {
+  return picked === 1 ? "Yes, apply" : `Yes, apply to ${picked}`;
+}
+
+/** Where the look went, under the row once it is written. */
+export function appliedSaid(names: string[], ago: string): string {
+  return `Applied ${ago} to ${namesSaid(names)}.`;
 }

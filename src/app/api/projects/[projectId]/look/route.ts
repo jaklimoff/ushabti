@@ -1,18 +1,19 @@
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
-import { projectMembers, projects, propertyOptions, properties } from "@/db/schema";
+import { projectMembers, projects } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import { body, broadcast, clientIdOf, guard, humanOnly, json, route } from "@/lib/api";
-import { readCardView } from "@/lib/card-view";
-import { copiedCardView, copiedLooks, countLook, matchLook } from "@/lib/look";
+import { appliedMatch, countLook, matchLook } from "@/lib/look";
+import { writeLook } from "@/lib/look-write";
 import { byPos } from "@/lib/order";
-import { defaultGroupById, loadProperties, withProjectLock } from "@/lib/queries";
+import { loadProperties, withProjectLock } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
 /**
  * Every other project of the caller, in their Home order, with what copying
- * its look into this one would touch. One request answers the whole list, so
+ * its look into this one would touch (`count`), and what applying this
+ * project's look to it would touch (`applies`). One request answers the whole list, so
  * the lines of the question arrive together.
  *
  * A person does this, as on the card view route. A project the caller is not
@@ -36,7 +37,11 @@ export const GET = route<Ctx>(async (_req, ctx) => {
   ]);
 
   return json({
-    projects: others.map((p, i) => ({ ...p, count: countLook(matchLook(here, there[i])) })),
+    projects: others.map((p, i) => ({
+      ...p,
+      count: countLook(matchLook(here, there[i])),
+      applies: countLook(appliedMatch(here, there[i]), there[i]),
+    })),
   });
 });
 
@@ -63,46 +68,9 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const from = input.from;
   await guard(from);
 
-  const cardView = await withProjectLock(projectId, async (tx) => {
-    const [here, there, groupHere, groupThere, rows] = await Promise.all([
-      loadProperties(projectId, tx),
-      loadProperties(from, tx),
-      defaultGroupById(projectId, tx),
-      defaultGroupById(from, tx),
-      tx
-        .select({ id: projects.id, cardView: projects.cardView })
-        .from(projects)
-        .where(inArray(projects.id, [projectId, from])),
-    ]);
-    const savedOf = (id: string) => rows.find((r) => r.id === id)?.cardView ?? null;
-    const match = matchLook(here, there);
-
-    let written = null;
-    if (layout) {
-      const mine = readCardView(savedOf(projectId), here, groupHere);
-      const theirs = readCardView(savedOf(from), there, groupThere);
-      written = readCardView(copiedCardView(mine, theirs, match), here, groupHere);
-      await tx.update(projects).set({ cardView: written }).where(eq(projects.id, projectId));
-    }
-
-    if (looks) {
-      const writes = copiedLooks(match);
-      for (const o of writes.options) {
-        await tx
-          .update(propertyOptions)
-          .set({ color: o.color, icon: o.icon })
-          .where(eq(propertyOptions.id, o.id));
-      }
-      for (const c of writes.checkboxes) {
-        const patch = JSON.stringify({ icon: c.icon, color: c.color });
-        await tx
-          .update(properties)
-          .set({ config: sql`${properties.config} || ${patch}::jsonb` })
-          .where(and(eq(properties.id, c.id), eq(properties.projectId, projectId)));
-      }
-    }
-    return written;
-  });
+  const cardView = await withProjectLock(projectId, (tx) =>
+    writeLook(tx, projectId, from, { layout, looks }),
+  );
 
   await broadcast({ projectId, scope: "board", clientId: clientIdOf(req) });
   return json({ cardView });

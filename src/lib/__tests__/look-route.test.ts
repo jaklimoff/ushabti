@@ -210,3 +210,117 @@ describe("Copy the look of another project", () => {
     expect(back.status).toBe(404);
   });
 });
+
+describe("Apply this project's look to other projects", () => {
+  async function setUpMany() {
+    const owner = await person("Apply Owner");
+    const me = api(owner);
+    const source = await project(owner, "Apply From");
+    const one = await project(owner, "Apply One");
+    const two = await project(owner, "Apply Two");
+    const read = async (id: string) => (await board(owner, id)) as Board;
+    const prop = async (id: string, name: string) =>
+      (await read(id)).properties.find((p) => p.name === name)!;
+
+    for (const p of [source, one, two]) {
+      await ok(
+        me.post(`/api/projects/${p.id}/properties`, {
+          name: "Tier",
+          type: "select",
+          options: ["Gold"],
+        }),
+      );
+    }
+    await ok(me.post(`/api/projects/${source.id}/properties`, { name: "Size", type: "number" }));
+    await ok(me.post(`/api/projects/${one.id}/properties`, { name: "Size", type: "date" }));
+    const tier = await prop(source.id, "Tier");
+    await ok(me.patch(`/api/options/${tier.options[0].id}`, { color: "#abcdef", icon: "Rocket" }));
+    const view = (await read(source.id)).cardView;
+    await ok(
+      me.patch(`/api/projects/${source.id}/card-view`, {
+        cardView: {
+          rows: {
+            ...view.rows,
+            _key: { place: "off", mode: "text" },
+            [tier.id]: { place: "body", mode: "text" },
+          },
+        },
+      }),
+    );
+    return { owner, me, source, one, two, read, prop };
+  }
+
+  it("counts what applying would touch on each line", async () => {
+    const { me, source, one } = await setUpMany();
+    const { projects } = await ok<{
+      projects: { id: string; applies: Record<string, unknown> }[];
+    }>(me.get(`/api/projects/${source.id}/look`));
+    const line = projects.find((p) => p.id === one.id)!;
+    expect(line.applies.unmatched).toEqual(["Size"]);
+    expect(line.applies.unlike).toEqual({ Size: "date" });
+    expect(line.applies.matched).toBe((line.applies.total as number) - 1);
+  });
+
+  it("writes two projects in one request, and leaves this one as it was", async () => {
+    const { me, source, one, two, read, prop } = await setUpMany();
+    const before = await read(source.id);
+    const answer = await ok<{ applied: string[] }>(
+      me.post(`/api/projects/${source.id}/look/apply`, {
+        to: [one.id, two.id],
+        layout: true,
+        looks: true,
+      }),
+    );
+    expect(answer.applied.sort()).toEqual([one.id, two.id].sort());
+    for (const p of [one, two]) {
+      const tier = await prop(p.id, "Tier");
+      const after = await read(p.id);
+      expect(after.cardView.rows._key.place).toBe("off");
+      expect(after.cardView.rows[tier.id]).toEqual({ place: "body", mode: "text" });
+      expect([tier.options[0].color, tier.options[0].icon]).toEqual(["#abcdef", "Rocket"]);
+    }
+    const after = await read(source.id);
+    expect(after.cardView).toEqual(before.cardView);
+    expect(after.properties).toEqual(before.properties);
+  });
+
+  it("writes nothing when one project is not the caller's", async () => {
+    const { me, source, one, read } = await setUpMany();
+    const stranger = await person("Apply Stranger");
+    const theirs = await project(stranger, "Apply Secret");
+    const before = await read(one.id);
+    const answer = await me.post(`/api/projects/${source.id}/look/apply`, {
+      to: [one.id, theirs.id],
+      layout: true,
+      looks: true,
+    });
+    expect(answer.status).toBe(404);
+    expect(await answer.text()).not.toContain("Secret");
+    const after = await read(one.id);
+    expect(after.cardView).toEqual(before.cardView);
+    expect(after.properties).toEqual(before.properties);
+  });
+
+  it("refuses an agent's token, and a request with nothing to do", async () => {
+    const { owner, me, source, one } = await setUpMany();
+    const bot = await agent(owner, source.id);
+    const answer = await bot.api.post(`/api/projects/${source.id}/look/apply`, {
+      to: [one.id],
+      layout: true,
+      looks: true,
+    });
+    expect(answer.status).toBe(403);
+    const none = await me.post(`/api/projects/${source.id}/look/apply`, {
+      to: [],
+      layout: true,
+      looks: true,
+    });
+    expect(none.status).toBe(400);
+    const self = await me.post(`/api/projects/${source.id}/look/apply`, {
+      to: [source.id],
+      layout: true,
+      looks: true,
+    });
+    expect(self.status).toBe(400);
+  });
+});

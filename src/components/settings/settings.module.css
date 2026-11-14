@@ -3914,3 +3914,12 @@ button.typeGridStartsSaid[aria-expanded="true"] {
   color: var(--text-meta);
   text-wrap: pretty;
 }
+
+/* Where the look went, until the page is left. */
+.lookApplied {
+  margin-top: 3px;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--text-meta);
+  overflow-wrap: anywhere;
+}
