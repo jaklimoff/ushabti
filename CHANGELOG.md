@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.50.0 — 2026-11-14
+
 ### Added
 
 - **Copy the look of another project.** Settings → Card has **Copy from…** under the default
