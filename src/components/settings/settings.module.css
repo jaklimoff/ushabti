@@ -3793,3 +3793,124 @@ button.typeGridStartsSaid[aria-expanded="true"] {
   grid-template-columns: minmax(0, 1fr);
   max-width: 420px;
 }
+
+/* ---- other projects: copy the look ---------------------------------- */
+
+/* The row as the question: what it is, the two halves, the projects, and
+   the strip that asks. Nothing in it scrolls sideways on a phone. */
+.lookAsk {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 14px;
+  min-width: 0;
+}
+
+.lookHead {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 13px;
+}
+
+/* A label beside its control, and above it on a phone. */
+.lookGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 0 13px;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .lookGrid {
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 16px 8px;
+    align-items: start;
+  }
+}
+
+.lookLabel {
+  padding-top: 4px;
+}
+
+.lookTicks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.lookList {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+/* A line that is not picked is not dimmed: its counts are read to choose. */
+.lookLine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+
+.lookLine:last-child {
+  border-bottom: 0;
+}
+
+.lookLine:hover {
+  background: var(--bg-hover);
+}
+
+.lookOn,
+.lookOn:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.lookRadio {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.lookSay {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lookName {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-ui);
+  font-weight: 500;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.lookCount {
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--text-meta);
+  overflow-wrap: anywhere;
+}
+
+.lookStays {
+  color: var(--warn);
+}
+
+.lookSmall {
+  margin: 10px 0 0;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--text-meta);
+  text-wrap: pretty;
+}

@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **Copy the look of another project.** Settings → Card has **Copy from…** under the default
+  card. Pick one of your other projects, and this project takes its card layout, and the icon and
+  colour of each option and checkbox, matched by name. Each half has its own tick, the line of each
+  project says how much matches, and nothing is made, removed or linked.
+
 ## 0.49.0 — 2026-11-13
 
 ### Added

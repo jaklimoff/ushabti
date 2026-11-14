@@ -32,6 +32,7 @@ import {
 } from "@/lib/types";
 import { canManage } from "@/lib/roles";
 import { CardDrawing } from "./CardDrawing";
+import { OtherProjects } from "./OtherProjects";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
@@ -93,6 +94,8 @@ export function CardPanel() {
           )}
         </div>
       </section>
+      {/* It writes the project's default card, so a view's card has no such row. */}
+      {picked == null && <OtherProjects />}
     </>
   );
 }
