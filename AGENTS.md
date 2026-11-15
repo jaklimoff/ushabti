@@ -114,6 +114,20 @@ and what is easy to get wrong.
   carries `project.mayStructure`, false for an agent with **Change
   structure** off. A bar's start, a whole bar and a row's place do not drag;
   those stay in Settings, and the panel a bar opens says so with a link.
+- **A timeline is a row per task, between two pointers.** `views.config.dates`
+  holds `startBy` and `endBy`, two date properties somebody made, and
+  `readTimelineDates()` reads them afresh on the server and on the write, as
+  `readStartFolded` is read: a pointer to a property that is gone or is no
+  longer a date reads as none, and the property delete route neither cleans it
+  up nor refuses. `timelineRows()` in `src/lib/timeline.ts` is the one place
+  that says which rows there are, which section each is in and where a bar
+  starts and ends; the days come from `roadmap.ts` through `Days.tsx`, the one
+  axis a roadmap and a timeline share. A timeline keeps `groupById` unread, as
+  a list does, and takes its rows, its order and its seed as a list does. A
+  start after the end is drawn, never corrected. There is no date range type
+  on purpose: two date properties are already values every other view, filter
+  and agent reads, while a range would be a second way to say a date that
+  nothing else understands.
 - **An iteration is a select whose options always carry dates.** It shares
   everything with a dated select: the option ids, the columns, the header date,
   Ship, "is current", the roadmap, the changelog and the option drag. So a

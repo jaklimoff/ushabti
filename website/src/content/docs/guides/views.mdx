@@ -18,6 +18,7 @@ it holds. It owns no tasks, so making one, changing one or deleting one never to
 | --------- | ------------------------------------------------------------------------------ |
 | **Board** | Cards in columns, one column for each value of the grouping property — in the order every view shares, or in the order the **Sort** button asks for. |
 | **List**  | One row for each task, in the one order every view shares — or in the order you press a heading for. No columns, no grouping. |
+| **Timeline** | One bar for each task, between two of your date properties, on a line of weeks. See [The timeline](#the-timeline). |
 
 </div>
 
@@ -25,6 +26,31 @@ The same tasks either way. A filter, the card view, the card order and the sort 
 so switching a view between them changes the drawing and nothing else — a board sorted by Due is
 still sorted by Due when it becomes a list. See
 [The list](/guides/list/).
+
+## The timeline
+
+A **Timeline** puts each task the view shows on a line of weeks, as a bar from the day it starts to
+the day it ends, both days included. It reads two of your own date properties, which you pick when
+you make the view: **Starts on** and **Ends on**. Only date properties are offered, and Starts on
+may be **Nothing**. Change either one from the view's `⋯` menu or in **Settings → Views**.
+
+- A task with both dates is a bar. When it has a checklist, the bar fills with the share that is done
+  and says `3/5` at its end.
+- A task with an end and no start, or a timeline that starts on Nothing, is a diamond on its end day.
+- A task whose start is after its end has no bar. A warning chip says *"Starts Dec 21, after its end
+  Dec 14"*, and nothing changes the dates for you.
+- A task that is done is a full, dimmed bar, and its day reads `Nov 6 · done`. An open task whose
+  end has passed reads `Nov 12 · 3 days over`, in the warning colour.
+- A task with no end date waits under **Not scheduled**, below the dated rows. Its heading folds the
+  section.
+
+Each row has the task's title, its key and the value its card's stripe shows, in that colour. After
+the bar comes the face of the first person on the card. The filters and the order are the ones a list
+would use. A bar, a diamond, a chip or a name opens the task.
+
+The dates are pointers to your properties, never fields of their own. Delete the property a timeline
+ends on and the timeline asks for another one; nothing else changes. There is no date range type,
+because two date properties already say it, and every other view can read them.
 
 ## The columns of a board
 
@@ -66,8 +92,10 @@ carrying what, and it needs no new feature, because the columns are just that pr
 
 ## Adding a view
 
-The `+` at the end of the view strip opens a small panel: a name, **Shows as** — `Board` or `List` —
-and, for a board, a chip row of every property that can group one. Leave the name blank and a board
+The `+` at the end of the view strip opens a small panel: a name, **Shows as** — `Board`, `List`,
+`Roadmap` or `Timeline` — and, for a board, a chip row of every property that can group one. A
+timeline asks for **Starts on** and **Ends on** instead, and cannot be made until the project has a
+date property. Leave the name blank and a board
 becomes `By status` — the property name, lowercased — and a list becomes `List`.
 
 If no groupable property exists yet, it says so: *"Create a select, person or checkbox property

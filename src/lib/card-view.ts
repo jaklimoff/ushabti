@@ -390,7 +390,9 @@ function followed(
     if (!id || !row || row.place === "off") return view;
     return { rows: { ...view.rows, [id]: { place: "off", mode: row.mode } } };
   }
-  if (follower.kind === "list") {
+  /* A timeline has no columns either, and its rows name the value the
+     stripe shows, so it reads the card as a list does. */
+  if (follower.kind === "list" || follower.kind === "timeline") {
     const property = properties.find((p) => p.id === mainGroupById);
     const row = property ? view.rows[property.id] : undefined;
     if (!property || !row || row.place !== "off") return view;
@@ -990,20 +992,45 @@ export function cardAccent(
   members: MemberDTO[],
   former: FormerDTO[] = [],
 ): string | null {
+  return cardStripe(items, task, members, former)?.color ?? null;
+}
+
+/**
+ * The stripe of `cardAccent` with the name of the value that wears it: "Done"
+ * for a status, "Ada" for a person. A timeline row says it under the title,
+ * so the colour of its bar is never a colour nobody can name.
+ */
+export function cardStripe(
+  items: CardItem[],
+  task: TaskDTO,
+  members: MemberDTO[],
+  former: FormerDTO[] = [],
+): { color: string; word: string } | null {
   const properties = propertiesOf(items);
   /* A day carries no colour, so the zone it is read in cannot change the answer. */
-  const colourOf = (item: CardItem): string | null =>
-    chipColour(chipsFor(item, task, members, former, properties, "UTC")[0]);
+  const stripeOf = (item: CardItem): { color: string; word: string } | null => {
+    const chip = chipsFor(item, task, members, former, properties, "UTC")[0];
+    const color = chipColour(chip);
+    if (!chip || !color) return null;
+    /* The tip is "Status · Done": the row's name, then what the task holds. */
+    const lead = `${item.name} · `;
+    return { color, word: chip.tip.startsWith(lead) ? chip.tip.slice(lead.length) : chip.tip };
+  };
 
   const edge = items.find((i) => i.place === "edge");
-  if (edge) return colourOf(edge);
+  if (edge) return stripeOf(edge);
 
   for (const item of items) {
     if (item.place === "off" || item.place === "title") continue;
-    const colour = colourOf(item);
-    if (colour) return colour;
+    const stripe = stripeOf(item);
+    if (stripe) return stripe;
   }
   return null;
+}
+
+/** The first person property the card shows, whose face a timeline puts after a bar. */
+export function cardFace(items: CardItem[]): CardItem | null {
+  return items.find((i) => i.kind === "person" && i.place !== "off" && i.property) ?? null;
 }
 
 /* ------------------------------------------------------------------ */

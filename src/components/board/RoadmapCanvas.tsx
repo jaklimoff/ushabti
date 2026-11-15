@@ -21,36 +21,18 @@ import {
   movedTarget,
   nextStart,
   readyToShip,
-  roadmapAxis,
-  roadmapMonths,
   roadmapRows,
   roadmapState,
-  type RoadmapMonth,
   type RoadmapRow,
   type RoadmapState,
-  weekLines,
 } from "@/lib/roadmap";
+import { Days, daysStyle, MONO_CH, useDays } from "./Days";
 import { useBoard } from "./store";
 import { useAddOption } from "./useAddOption";
 import { ShipButton, ShipQuestion } from "./Column";
 import { useShipOffer } from "./useShipOffer";
 import styles from "./board.module.css";
 import { isSelect } from "@/lib/types";
-
-/*
- * The width of one day. The plan is fitted to the screen between these two;
- * a plan too long to fit at the narrowest scrolls instead, because a week
- * under 28px can no longer carry its date.
- */
-const MIN_DAY = 4;
-const MAX_DAY = 14;
-/* Before the screen is measured: the server, and the first frame. */
-const FIRST_DAY = 6;
-/* One character of the 10.5px mono the dates are set in. */
-const MONO_CH = 6.4;
-/* Half of today's tag in the header, and a little air: a week label that
-   close to today would sit under it. */
-const TODAY_HALF = 28;
 
 /**
  * The rows a roadmap draws, through the view's filters. The canvas and the
@@ -163,30 +145,6 @@ function nounOf(name: string): string {
   return /^[A-Z]/.test(name) && rest === rest.toLowerCase() ? name[0].toLowerCase() + rest : name;
 }
 
-/**
- * The month band, in pixels. A month says its name where it has room to; a
- * year it could not say moves on to the next month that can.
- */
-function labelMonths(months: RoadmapMonth[], day: number) {
-  const labels: { key: string; left: number; width: number; text: string; line: boolean }[] = [];
-  let owed = false;
-  for (const month of months) {
-    const width = month.days * day;
-    const year: boolean = month.sayYear || owed;
-    const text: string = year ? `${month.name} ${month.year}` : month.name;
-    const fits: boolean = width >= text.length * MONO_CH + 12;
-    owed = year && !fits;
-    labels.push({
-      key: `${month.year}-${month.name}`,
-      left: Math.max(0, month.at) * day,
-      width,
-      text: fits ? text : "",
-      line: month.at > 0,
-    });
-  }
-  return labels;
-}
-
 /** Where the cursor goes back to when the panel a bar opened closes. */
 export function focusBar(optionId: string) {
   document
@@ -229,8 +187,6 @@ export function RoadmapCanvas({
   const [shipping, setShipping] = useState<string | null>(null);
   /* The release being added, drawn where it will land before it is made. */
   const [draft, setDraft] = useState<{ name: string; target: string } | null>(null);
-  /* The width the days have, once measured, and the day at the left edge. */
-  const [room, setRoom] = useState<number | null>(null);
   const [leftDay, setLeftDay] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -243,50 +199,17 @@ export function RoadmapCanvas({
         })()
       : null;
 
-  /*
-   * The whole plan on one screen. The axis runs from the week before the
-   * first bar to the week after the last, and the days share the room there
-   * is. A plan shorter than the screen is given weeks to the edge, so the
-   * grid never stops short; one too long to fit scrolls.
-   */
-  const { axis, day } = useMemo(() => {
-    const spans = preview ? [...drawn, preview] : drawn;
-    const natural = roadmapAxis(spans, data.today);
-    if (room === null) return { axis: natural, day: FIRST_DAY };
-    const days = natural.weeks.length * 7;
-    if (room / days < MIN_DAY) return { axis: natural, day: MIN_DAY };
-    if (room / days <= MAX_DAY) return { axis: natural, day: room / days };
-    const wider = roadmapAxis(spans, data.today, Math.ceil(room / (7 * MAX_DAY)));
-    return { axis: wider, day: room / (wider.weeks.length * 7) };
-    // The preview is rebuilt every render; its two days are what it is.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawn, data.today, room, preview?.start, preview?.end]);
-
-  const track = axis.weeks.length * 7 * day;
-  const scrolls = room !== null && track > room + 1;
-  const at = (d: string) => daysIn(axis, d) * day;
-  const months = useMemo(() => roadmapMonths(axis), [axis]);
-
-  /* The names are held at the left, so the days have what is left of the
-     screen. Measured before paint, so the plan never draws at a guess. */
-  useLayoutEffect(() => {
-    const scroller = scrollRef.current;
-    if (!scroller) return;
-    const measure = () => {
-      const names =
-        scroller.querySelector<HTMLElement>(`.${styles.roadmapCorner}`)?.offsetWidth ?? 0;
-      setRoom(Math.max(0, Math.floor(scroller.clientWidth - names)));
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(scroller);
-    return () => observer.disconnect();
-  }, [drawable]);
+  const { axis, day, room, track, scrolls, measured, at } = useDays(
+    scrollRef,
+    preview ? [...drawn, preview] : drawn,
+    data.today,
+    styles.roadmapCorner,
+    drawable,
+  );
 
   /* A plan that scrolls opens with today a third of the way in, so what is
      coming has more room than what is over. Once per view: a read of the
      board must not throw somebody back while they look at last month. */
-  const measured = room !== null;
   useLayoutEffect(() => {
     const scroller = scrollRef.current;
     if (!scroller || room === null) return;
@@ -333,23 +256,6 @@ export function RoadmapCanvas({
     const width = at(row.end) - left + day;
     const to = width < room - 48 ? left - (room - width) / 2 : left - 24;
     scroller.scrollTo({ left: Math.max(0, to), behavior: "smooth" });
-  }
-
-  /* Whole pixels, so the 1px line never smears to grey. */
-  const today = Math.round(at(data.today) + day / 2);
-  const monthLabels = labelMonths(months, day);
-  const monthXs = monthLabels.filter((m) => m.line).map((m) => m.left);
-  const lines = weekLines(axis, months);
-  /* A week says its day only where nothing covers it: today's tag, or a
-     month line running through the number. */
-  function weekLabel(i: number, week: string): string {
-    if (7 * day < 18) return "";
-    const text = String(Number(week.slice(8)));
-    const x = i * 7 * day;
-    const right = x + 5 + text.length * MONO_CH;
-    if (today + TODAY_HALF > x && today - TODAY_HALF < right) return "";
-    if (monthXs.some((m) => m > x + 1 && m < right + 4)) return "";
-    return text;
   }
 
   /* Only somebody the option PATCH would answer may drag, and a shipped
@@ -421,67 +327,9 @@ export function RoadmapCanvas({
         <div
           className={styles.roadmapGrid}
           data-measured={measured || undefined}
-          style={
-            {
-              "--rm-track": `${track}px`,
-              "--rm-week": `${7 * day}px`,
-            } as CSSProperties
-          }
+          style={daysStyle(track, day)}
         >
-          <div className={styles.roadmapHead}>
-            <div className={styles.roadmapCorner}>{groupProperty.name}</div>
-            <div className={styles.roadmapTrack} data-testid="roadmap-axis">
-              {monthLabels.map((m) => (
-                <span
-                  key={m.key}
-                  className={`${styles.roadmapMonth} ${m.line ? styles.roadmapMonthLine : ""}`}
-                  style={{ left: Math.round(m.left), width: m.width }}
-                >
-                  <span className={styles.roadmapMonthName}>{m.text}</span>
-                </span>
-              ))}
-              <div className={styles.roadmapWeeks} aria-hidden>
-                {axis.weeks.map((week, i) => (
-                  <span
-                    key={week}
-                    className={`${styles.roadmapWeek} ${lines[i] ? "" : styles.roadmapWeekBare}`}
-                    style={{ left: Math.round(i * 7 * day) }}
-                  >
-                    {weekLabel(i, week)}
-                  </span>
-                ))}
-              </div>
-              <span className={styles.roadmapTodayTag} style={{ left: today }}>
-                {formatDate(data.today)}
-              </span>
-            </div>
-          </div>
-
-          {/* The weeks and the months run down to the bottom of the screen,
-              under the bars, so a short plan still reads as a timeline. */}
-          <div className={styles.roadmapLines} aria-hidden>
-            {axis.weeks.map((week, i) =>
-              i > 0 && lines[i] ? (
-                <span
-                  key={week}
-                  className={styles.roadmapWeekLine}
-                  style={{ left: Math.round(i * 7 * day) }}
-                />
-              ) : null,
-            )}
-            {monthXs.map((x) => (
-              <span key={x} className={styles.roadmapMonthRule} style={{ left: Math.round(x) }} />
-            ))}
-          </div>
-
-          {/* Before the rows, so the words after a bar stand over it while
-              the bars stay under it. */}
-          <div
-            className={styles.roadmapToday}
-            style={{ "--rm-x": `${today}px` } as CSSProperties}
-            title={`Today, ${formatDate(data.today)}`}
-            data-testid="roadmap-today"
-          />
+          <Days axis={axis} day={day} today={data.today} corner={groupProperty.name} />
 
           {drawn.map((drawnRow, i) => {
             /* A moved end is drawn where it will land: the bar, its date and

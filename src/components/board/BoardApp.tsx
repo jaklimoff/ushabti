@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { taskByAddress } from "@/lib/board";
 import { waitingCount } from "@/lib/waiting";
-import type { BoardData } from "@/lib/types";
+import { drawsCards, type BoardData } from "@/lib/types";
 
 /** What opening a task needs: which one, and the key its link carries. */
 type Openable = { id: string; key: string };
@@ -19,6 +19,7 @@ import { ColumnsPanel } from "./ColumnsPanel";
 import { FilterChips } from "./Filters";
 import { ListCanvas } from "./ListCanvas";
 import { focusBar, RoadmapCanvas } from "./RoadmapCanvas";
+import { TimelineCanvas } from "./TimelineCanvas";
 import { RoadmapPanel } from "./RoadmapPanel";
 import { Listening } from "./Listening";
 import { Search } from "./Search";
@@ -158,7 +159,7 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
     setCardOpen(true);
   }, [cardOpen, open]);
   /* A roadmap draws no card, so another view kind puts the panel away. */
-  const cardShown = cardOpen && view != null && view.kind !== "roadmap";
+  const cardShown = cardOpen && view != null && drawsCards(view.kind);
 
   /* A task that another person removed must not keep the panel open. The board
      answers that here rather than in an effect, so the panel is never drawn one
@@ -309,6 +310,8 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
             onOpenTask={open}
             litColumnId={cardShown && !openTask ? litColumn : null}
           />
+        ) : view?.kind === "timeline" ? (
+          <TimelineCanvas selectedTaskId={openTask} onOpenTask={open} />
         ) : view?.kind === "roadmap" ? (
           <RoadmapCanvas openOptionId={openBar?.optionId ?? null} onOpenOption={pressBar} />
         ) : (
@@ -337,7 +340,7 @@ export function BoardShell({ initialTask }: { initialTask: string | null }) {
 
         {/* A roadmap says what it needs in its own blank, and a list under
             its own way in. */}
-        {data.tasks.length === 0 && view?.kind !== "roadmap" && view?.kind !== "list" && (
+        {data.tasks.length === 0 && view?.kind === "board" && (
           <div className={styles.firstHint}>
             <div className={styles.firstHintInner}>
               The columns come from a property called <b>{groupProperty?.name ?? "Status"}</b>. So

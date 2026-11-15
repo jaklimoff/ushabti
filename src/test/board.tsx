@@ -76,6 +76,7 @@ export function newProject(): BoardData {
     lensWidths: {},
     startFolded: [],
     cardView: null,
+    dates: { startBy: null, endBy: null },
   }));
   return {
     project: {
@@ -151,6 +152,7 @@ export function withPhases(data: BoardData): BoardData {
       lensWidths: {},
       startFolded: [],
       cardView: null,
+      dates: { startBy: null, endBy: null },
     });
   data.cardView = defaultCardView(data.properties, data.views[0].groupById);
   return data;

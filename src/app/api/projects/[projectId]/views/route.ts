@@ -12,6 +12,7 @@ import {
   withProjectLock,
 } from "@/lib/queries";
 import { rankAfter } from "@/lib/rank";
+import { readTimelineDates } from "@/lib/timeline";
 import { GROUPED_KINDS, VIEW_KINDS, type ViewKind } from "@/lib/types";
 
 type Ctx = { params: Promise<{ projectId: string }> };
@@ -21,14 +22,19 @@ export const POST = route<Ctx>(async (req, ctx) => {
   const { user, membership } = await guard(projectId);
   mayOnly(user, membership, "structure");
 
-  const input = await body<{ name?: string; kind?: string; groupById?: string | null }>(req);
+  const input = await body<{
+    name?: string;
+    kind?: string;
+    groupById?: string | null;
+    dates?: unknown;
+  }>(req);
   const name = str(input.name, "View name", { max: 40 });
 
   // A request that says nothing about the kind means a board, which is what
   // every view was before there was more than one.
   const wanted = input.kind ?? "board";
   if (!(VIEW_KINDS as readonly string[]).includes(wanted))
-    throw new HttpError(400, "A view is a board, a list or a roadmap.");
+    throw new HttpError(400, "A view is a board, a list, a roadmap or a timeline.");
   const kind = wanted as ViewKind;
 
   // A board is its columns and a roadmap its rows, so neither can be made
@@ -51,6 +57,11 @@ export const POST = route<Ctx>(async (req, ctx) => {
       ? startsOnCurrent({ rules: [] }, group, await projectToday(projectId))
       : null;
 
+  /* A timeline is its bars, and a bar needs a day to end on. The start may
+     be none: a task with no start is the one day it ends on. */
+  const dates = kind === "timeline" ? readTimelineDates(input.dates, properties) : null;
+  if (dates && !dates.endBy) throw new HttpError(400, "Choose the date property the bars end on.");
+
   const view = await withProjectLock(projectId, async (tx) => {
     const siblings = await tx
       .select({ position: views.position })
@@ -67,7 +78,10 @@ export const POST = route<Ctx>(async (req, ctx) => {
         groupById,
         position: rankAfter(siblings.at(-1)?.position ?? null),
         isDefault: siblings.length === 0,
-        config: filters && filters.rules.length ? { filters } : {},
+        config: {
+          ...(filters && filters.rules.length ? { filters } : {}),
+          ...(dates ? { dates } : {}),
+        },
       })
       .returning();
     return row;

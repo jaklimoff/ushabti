@@ -48,6 +48,7 @@ import { goesAt, sweepCutoff } from "./deleted";
 import { DEFAULT_PROPERTIES, DEFAULT_VIEWS, defaultViewConfig } from "./defaults";
 import { readFilters } from "./filters";
 import { readStartFolded } from "./fold";
+import { readTimelineDates } from "./timeline";
 import { readTimeZone, todayIn } from "./day";
 import {
   BLOCKS,
@@ -982,6 +983,7 @@ export function toViewDTO(row: ViewRow, propertyList: PropertyDTO[], lens?: unkn
       propertyList,
     ),
     cardView: ownCardView(row.cardView, propertyList),
+    dates: readTimelineDates((row.config as { dates?: unknown } | null)?.dates, propertyList),
   };
 }
 

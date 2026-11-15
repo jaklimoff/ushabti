@@ -697,8 +697,15 @@
   transition: filter 140ms var(--ease);
 }
 
-.primary:hover {
+.primary:hover:not(:disabled) {
   filter: brightness(1.08);
+}
+
+/* A button that does nothing must not look like one that does. */
+.primary:disabled {
+  background: var(--bg-hover);
+  color: var(--faint);
+  cursor: default;
 }
 
 .ghost {
@@ -4471,5 +4478,224 @@ button.listHeadCell:focus-visible .listHeadHint {
   .roadmapFirst {
     margin: 14px 10px;
     padding: 16px;
+  }
+}
+
+/* ---- a timeline: a roadmap whose rows are tasks ---- */
+
+.popNote {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* A task's title is longer than a release's name, so the names have more room. */
+.timeline {
+  --rm-name: 300px;
+}
+
+/* The name is a button that opens the task, drawn as the roadmap's cell. */
+.timeline button.roadmapName {
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.timeline .roadmapRow:hover .roadmapName {
+  --rm-cell: var(--bg-hover);
+}
+
+.timeline .roadmapRow[data-open] {
+  background: var(--bg-hover);
+}
+
+.timeline .roadmapRow[data-open] .roadmapName {
+  --rm-cell: var(--bg-hover);
+}
+
+.timelineCornerDates {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 400;
+}
+
+/* A task that is over is history: a full bar, dimmed. */
+.timelineBar[data-over] {
+  opacity: 0.5;
+}
+
+.timelineCount {
+  position: absolute;
+  top: 0;
+  right: 7px;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-shadow: 0 0 3px var(--bg);
+}
+
+/* A task with no start is the one day it ends on. */
+.timelineDiamond {
+  position: absolute;
+  top: 17px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  transform: translateX(-50%) rotate(45deg);
+  border: 1px solid color-mix(in srgb, var(--c) 70%, transparent);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--c) 30%, var(--bg));
+  cursor: pointer;
+}
+
+.timelineDiamond[data-over] {
+  opacity: 0.5;
+}
+
+.timelineDiamond:hover,
+.timelineBar:hover {
+  filter: brightness(1.25);
+}
+
+.timelineDiamond:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The face and the end day after a bar. It stands over today's line. */
+.timelineAfter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-meta);
+  white-space: nowrap;
+  text-shadow:
+    0 0 2px var(--bg),
+    0 0 4px var(--bg);
+  pointer-events: none;
+}
+
+.timelineAfter > span[aria-hidden] {
+  margin: 0 -3px;
+}
+
+.timelineLate {
+  color: var(--warn);
+}
+
+/* A start after the end: no bar, and a chip that says so. Nothing corrects it. */
+.timelineBackwards {
+  position: absolute;
+  top: 12px;
+  z-index: 1;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px dashed var(--warn);
+  border-radius: var(--r-sm);
+  background: linear-gradient(var(--warn-soft), var(--warn-soft)), var(--bg);
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  color: var(--warn);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.timelineSection {
+  display: flex;
+  flex: 0 0 auto;
+  height: 36px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-faint);
+  background: var(--bg);
+}
+
+/* Held at the left with the names, so it reads with the days scrolled. */
+.timelineSectionHead {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  white-space: nowrap;
+  color: var(--text-meta);
+  font-size: var(--t-small);
+}
+
+.timelineChevronShut {
+  transform: rotate(-90deg);
+}
+
+.timelineSectionName,
+.timelineSectionCount {
+  font-family: var(--font-mono);
+  font-size: var(--t-chip);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.timelineSectionCount {
+  color: var(--text-2);
+}
+
+.timelineAddRow {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: var(--rm-row-h);
+}
+
+.timelineAddStrip,
+.timelineCompose {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: var(--rm-name);
+  padding: 10px 14px;
+}
+
+.timelineCompose {
+  width: min(420px, 100vw);
+}
+
+.timelineBlank {
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.timelineBlankLead {
+  margin: 0;
+  font-size: var(--t-body);
+  color: var(--text-2);
+}
+
+.timelineBlankPick {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .timeline {
+    --rm-name: 140px;
+  }
+
+  .timelineSectionSaid {
+    display: none;
   }
 }

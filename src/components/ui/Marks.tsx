@@ -95,10 +95,17 @@ export function Chevron({ size = 10, className }: { size?: number; className?: s
 
 /**
  * What a kind of view looks like: a dot for a board, three lines for a list,
- * three staggered bars for a roadmap. Drawn here rather than taken from an
+ * three staggered bars for a roadmap, three short steps for a timeline, whose
+ * bars are tasks and so are short and many. Drawn here rather than taken from an
  * icon set, like the comment bubble on a card. The strip above the board and
  * Settings → Views both draw this one, so a kind reads the same in both.
  */
+const KIND_PATH: Record<Exclude<ViewKind, "board">, string> = {
+  list: "M0.5 1.5h7M0.5 4h7M0.5 6.5h7",
+  roadmap: "M0.5 1.5h3.5M2.5 4h4M4 6.5h3.5",
+  timeline: "M0.5 1.5h2.5M2.75 4h2.5M5 6.5h2.5",
+};
+
 export function ViewKindMark({
   kind,
   on = true,
@@ -121,12 +128,7 @@ export function ViewKindMark({
       focusable="false"
       style={{ flex: "0 0 8px", opacity }}
     >
-      <path
-        d={kind === "roadmap" ? "M0.5 1.5h3.5M2.5 4h4M4 6.5h3.5" : "M0.5 1.5h7M0.5 4h7M0.5 6.5h7"}
-        stroke={color}
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
+      <path d={KIND_PATH[kind]} stroke={color} strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   );
 }

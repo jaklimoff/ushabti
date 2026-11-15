@@ -102,3 +102,60 @@ describe("A view's own card view", () => {
     expect(answer.status).toBe(400);
   });
 });
+
+describe("A timeline view", () => {
+  async function dated() {
+    const set = await setUp();
+    const date = async (name: string) =>
+      (
+        await ok<{ property: Property }>(
+          set.me.post(`/api/projects/${set.project.id}/properties`, { name, type: "date" }),
+        )
+      ).property;
+    return { ...set, start: await date("Start"), due: await date("Due") };
+  }
+
+  it("keeps its two dates in its config, with no migration", async () => {
+    const { owner, project: p, me, start, due } = await dated();
+    const { view: made } = await ok<{ view: View & { dates: unknown } }>(
+      me.post(`/api/projects/${p.id}/views`, {
+        name: "When",
+        kind: "timeline",
+        dates: { startBy: start.id, endBy: due.id },
+      }),
+    );
+    expect(made).toMatchObject({ kind: "timeline", groupById: null });
+    expect(made.dates).toEqual({ startBy: start.id, endBy: due.id });
+
+    // Starts on may be nothing.
+    await ok(me.patch(`/api/views/${made.id}`, { dates: { startBy: null, endBy: due.id } }));
+    const read = (await board(owner, p.id)).views.find((v: View) => v.id === made.id);
+    expect(read.dates).toEqual({ startBy: null, endBy: due.id });
+  });
+
+  it("is refused with no date to end on, or a property that is not a date", async () => {
+    const { me, project: p, property } = await dated();
+    const none = await me.post(`/api/projects/${p.id}/views`, { name: "T", kind: "timeline" });
+    expect(none.status).toBe(400);
+    const select = await me.post(`/api/projects/${p.id}/views`, {
+      name: "T",
+      kind: "timeline",
+      dates: { endBy: property("Status").id },
+    });
+    expect(select.status).toBe(400);
+  });
+
+  it("reads a deleted property as none, and the delete is not refused", async () => {
+    const { owner, project: p, me, start, due } = await dated();
+    const { view: made } = await ok<{ view: View }>(
+      me.post(`/api/projects/${p.id}/views`, {
+        name: "When",
+        kind: "timeline",
+        dates: { startBy: start.id, endBy: due.id },
+      }),
+    );
+    await ok(me.del(`/api/properties/${due.id}`));
+    const read = (await board(owner, p.id)).views.find((v: View) => v.id === made.id);
+    expect(read.dates).toEqual({ startBy: start.id, endBy: null });
+  });
+});

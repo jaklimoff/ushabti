@@ -476,26 +476,37 @@ export type ColumnWidths = Record<string, number>;
  * wants. Nothing else about a view changes with the kind: the filters, the
  * card view and the one card order are shared by both.
  */
-export const VIEW_KINDS = ["board", "list", "roadmap"] as const;
+export const VIEW_KINDS = ["board", "list", "roadmap", "timeline"] as const;
 
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
 /**
  * The kinds that read `groupById`. A board makes its columns from it and a
- * roadmap its rows; a list keeps one unread.
+ * roadmap its rows; a list and a timeline keep one unread.
  */
 export const GROUPED_KINDS: readonly ViewKind[] = ["board", "roadmap"];
+
+/**
+ * Whether a view draws cards, and so has a card or columns to arrange. A
+ * roadmap and a timeline draw bars; a timeline still reads the project's card
+ * for the colour of a bar and the face after it.
+ */
+export function drawsCards(kind: ViewKind): boolean {
+  return kind === "board" || kind === "list";
+}
 
 export const VIEW_KIND_LABEL: Record<ViewKind, string> = {
   board: "Board",
   list: "List",
   roadmap: "Roadmap",
+  timeline: "Timeline",
 };
 
 export const VIEW_KIND_HINT: Record<ViewKind, string> = {
   board: "Cards in columns, one column for each value.",
   list: "One task on each line, with the columns you choose.",
   roadmap: "One bar for each dated option, on a line of weeks.",
+  timeline: "One bar for each task, between two dates.",
 };
 
 /** The archived tasks under one dated option. */
@@ -510,7 +521,7 @@ export type ArchivedUnder = {
 export type ViewDTO = {
   id: string;
   name: string;
-  /** board | list | roadmap. What shape this view draws the tasks in. */
+  /** board | list | roadmap | timeline. What shape this view draws the tasks in. */
   kind: ViewKind;
   /** The property the columns come from. A list may have none. */
   groupById: string | null;
@@ -557,6 +568,12 @@ export type ViewDTO = {
    * too.
    */
   cardView: CardView | null;
+  /**
+   * The two date properties a timeline draws its bars between, read afresh:
+   * a pointer to a property that is gone or is not a date reads as null.
+   * Every view carries it; only a timeline reads it.
+   */
+  dates: { startBy: string | null; endBy: string | null };
 };
 
 export type ChecklistItemDTO = {

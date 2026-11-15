@@ -24,6 +24,7 @@ import {
 } from "@/lib/card-view";
 import {
   CARD_PLACE_LABEL,
+  drawsCards,
   PROPERTY_TYPE_LABEL,
   type CardMode,
   type CardPlace,
@@ -47,7 +48,7 @@ export function CardPanel() {
   const params = useSearchParams();
   const base = `/p/${data.project.id}/settings/card`;
   /* A roadmap draws bars, so it has no card to pick. */
-  const drawing = data.views.filter((v) => v.kind !== "roadmap");
+  const drawing = data.views.filter((v) => drawsCards(v.kind));
   const picked = drawing.find((v) => v.id === params.get("of")) ?? null;
   const from = params.get("from");
   const hrefOf = (view: ViewDTO | null) => {
@@ -123,16 +124,19 @@ function WhoseLink({
 
 function DefaultCard() {
   const { data } = useBoard();
-  const drawing = data.views.filter((v) => v.kind !== "roadmap");
+  const drawing = data.views.filter((v) => drawsCards(v.kind));
   const follow = drawing.filter((v) => v.cardView == null).map((v) => v.name);
   const own = drawing.filter((v) => v.cardView != null).map((v) => v.name);
-  const roadmap = data.views.some((v) => v.kind === "roadmap");
+  /* Only the kinds this project has are named. */
+  const bars = (["roadmap", "timeline"] as const).filter((k) =>
+    data.views.some((v) => v.kind === k),
+  );
   return (
     <>
       <p className={styles.defaultCardSaid} data-testid="default-card-followers">
         <Note>
           {followersSaid(follow, own)}
-          {roadmap && " A roadmap draws no card."}
+          {bars.length > 0 && ` A ${bars.join(" or a ")} draws no card.`}
         </Note>
       </p>
       <CardEditor />

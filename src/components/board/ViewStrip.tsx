@@ -14,6 +14,7 @@ import { SortableContext, horizontalListSortingStrategy, useSortable } from "@dn
 import { CSS } from "@dnd-kit/utilities";
 import {
   GROUPABLE_TYPES,
+  drawsCards,
   GROUPED_KINDS,
   isSelect,
   VIEW_KIND_LABEL,
@@ -34,6 +35,8 @@ import { copyText } from "@/lib/clipboard";
 import { useBoard } from "./store";
 import styles from "./board.module.css";
 import { Label } from "@/components/ui/Form";
+import { dateProperties, firstDates, readTimelineDates, type TimelineDates } from "@/lib/timeline";
+import { TimelineDatesChips } from "./TimelineDates";
 
 const VIEW_DOTS = ["#3fb0c8", "#6d5bd0", "#2f9e7a", "#d1913a", "#c2557a", "#4b8fbe"];
 
@@ -71,6 +74,8 @@ export function ViewStrip({
     kind === "roadmap" ? isSelect(p.type) : GROUPABLE_TYPES.includes(p.type),
   );
   const [picked, setGroupById] = useState(groupable[0]?.id ?? "");
+  /* A timeline's two dates, which start on the first date properties. */
+  const [dates, setDates] = useState<TimelineDates>(() => firstDates(data.properties));
   const groupById = groupable.some((p) => p.id === picked) ? picked : (groupable[0]?.id ?? "");
   const ref = useDismiss<HTMLDivElement>(() => setAdding(false), adding);
 
@@ -115,17 +120,22 @@ export function ViewStrip({
        which used to make the whole + a dead end. */
     const grouped = GROUPED_KINDS.includes(kind);
     if (grouped && !chosen) return;
+    const timeline = kind === "timeline";
+    const read = readTimelineDates(dates, data.properties);
+    if (timeline && !read.endBy) return;
     const property = data.properties.find((p) => p.id === chosen);
     const fallback =
       kind === "list"
         ? untakenName("List")
         : kind === "roadmap"
           ? untakenName("Roadmap")
-          : `By ${property?.name.toLowerCase() ?? "property"}`;
+          : timeline
+            ? untakenName("Timeline")
+            : `By ${property?.name.toLowerCase() ?? "property"}`;
     const title = name.trim() || fallback;
     setName("");
     setAdding(false);
-    await createView(title, kind, grouped ? chosen : null);
+    await createView(title, kind, grouped ? chosen : null, timeline ? read : undefined);
   }
 
   /* A pill is a button first: it only becomes a drag once the pointer has
@@ -182,6 +192,7 @@ export function ViewStrip({
           setAdding((v) => !v);
           setKind("board");
           setGroupById(groupable[0]?.id ?? "");
+          setDates(firstDates(data.properties));
         }}
       >
         <PlusIcon />
@@ -193,7 +204,7 @@ export function ViewStrip({
       {/* A roadmap draws no card, so there is nothing for it to arrange. A
           list draws no card either: it arranges its columns, in the drawer the
           card has on a board. */}
-      {view && view.kind !== "roadmap" && (
+      {view && drawsCards(view.kind) && (
         <button
           className={`${styles.pill} ${styles.tool} ${cardOpen ? styles.filterOn : ""}`}
           data-testid="card-button"
@@ -305,13 +316,19 @@ export function ViewStrip({
                 </span>
               )}
             </div>
+          ) : kind === "timeline" ? (
+            <TimelineDatesChips properties={data.properties} dates={dates} onChange={setDates} />
           ) : (
             <span style={{ fontSize: 11.5, color: "var(--muted)" }}>
               One row for each task, in the order the board already has.
             </span>
           )}
           <div className={styles.row}>
-            <button className={styles.primary} onClick={() => void submit()}>
+            <button
+              className={styles.primary}
+              disabled={kind === "timeline" && !readTimelineDates(dates, data.properties).endBy}
+              onClick={() => void submit()}
+            >
               Create view
             </button>
             <button className={styles.ghost} onClick={() => setAdding(false)}>
@@ -636,8 +653,9 @@ function ViewMenu({
                 ))}
               </div>
             )}
-            {/* A roadmap draws no card, so it has nothing to arrange. */}
-            {view.kind !== "roadmap" && (
+            {view.kind === "timeline" && <TimelineMenuDates view={view} then={then} />}
+            {/* A roadmap and a timeline draw no card, so they have nothing to arrange. */}
+            {drawsCards(view.kind) && (
               <button
                 role="menuitem"
                 tabIndex={-1}
@@ -680,5 +698,58 @@ function ViewMenu({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A timeline's two dates in its menu, where a board offers its columns. Each
+ * pick is the same write Settings → Views makes. Ends on cannot be nothing,
+ * because a timeline is its bars.
+ */
+function TimelineMenuDates({
+  view,
+  then,
+}: {
+  view: ViewDTO;
+  then: (run: () => void) => () => void;
+}) {
+  const { data, updateView } = useBoard();
+  const offered = dateProperties(data.properties);
+  if (!offered.length) return null;
+  const group = (
+    label: string,
+    picked: string | null,
+    choices: (string | null)[],
+    key: "startBy" | "endBy",
+  ) => (
+    <div role="group" aria-label={label} className={styles.menuGroup}>
+      <span className={styles.menuLabel} aria-hidden>
+        {label}
+      </span>
+      {choices.map((id) => (
+        <button
+          key={id ?? "nothing"}
+          role="menuitemradio"
+          aria-checked={picked === id}
+          tabIndex={-1}
+          className={styles.menuItem}
+          onClick={then(() => {
+            if (picked !== id) void updateView(view.id, { dates: { ...view.dates, [key]: id } });
+          })}
+        >
+          <span className={styles.menuTick} aria-hidden>
+            {picked === id ? "✓" : ""}
+          </span>
+          {id ? offered.find((p) => p.id === id)?.name : "Nothing"}
+        </button>
+      ))}
+    </div>
+  );
+  const ids = offered.map((p) => p.id);
+  return (
+    <>
+      {group("Starts on", view.dates.startBy, [...ids, null], "startBy")}
+      {group("Ends on", view.dates.endBy, ids, "endBy")}
+    </>
   );
 }

@@ -28,7 +28,9 @@ import { Chevron, ViewKindMark } from "@/components/ui/Marks";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
 import { Card, Note, Row, Section, Tag } from "@/components/ui/Layout";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
+import { dateProperties, firstDates } from "@/lib/timeline";
 import {
+  drawsCards,
   GROUPABLE_TYPES,
   GROUPED_KINDS,
   hasOptions,
@@ -162,6 +164,14 @@ function ViewRow({
       void updateView(view.id, { kind: next, groupById: first });
       return;
     }
+    /* A timeline is its bars, so one that has no end yet is given the first
+       date properties, as a board is given its first property. */
+    if (next === "timeline" && !view.dates.endBy) {
+      const dates = firstDates(data.properties);
+      if (!dates.endBy) return;
+      void updateView(view.id, { kind: next, dates });
+      return;
+    }
     void updateView(view.id, { kind: next });
   }
 
@@ -194,7 +204,7 @@ function ViewRow({
     onToggle();
   }
 
-  const draws = view.kind !== "roadmap";
+  const draws = drawsCards(view.kind);
   const own = view.cardView != null;
   const askable = filterProperties(data.properties);
   const rules = view.filters.rules.filter((r) => askable.some((p) => p.id === r.propertyId));
@@ -279,7 +289,8 @@ function ViewRow({
                 value: option,
                 label: VIEW_KIND_LABEL[option],
                 disabled:
-                  GROUPED_KINDS.includes(option) && !propertiesFor(option, groupable).length,
+                  (GROUPED_KINDS.includes(option) && !propertiesFor(option, groupable).length) ||
+                  (option === "timeline" && !dateProperties(data.properties).length),
               }))}
             />
           </span>
@@ -298,6 +309,42 @@ function ViewRow({
                 }))}
               />
             </span>
+          ) : view.kind === "timeline" ? (
+            <>
+              <span className={`${styles.viewPair} ${styles.viewGroup}`}>
+                <Label className={styles.viewLabel}>Starts on</Label>
+                <Select
+                  aria-label={`Start date of the view ${view.name}`}
+                  value={view.dates.startBy ?? ""}
+                  onChange={(picked) =>
+                    void updateView(view.id, {
+                      dates: { ...view.dates, startBy: picked || null },
+                    })
+                  }
+                  options={[
+                    ...dateProperties(data.properties).map((p) => ({
+                      value: p.id,
+                      label: p.name,
+                    })),
+                    { value: "", label: "Nothing" },
+                  ]}
+                />
+              </span>
+              <span className={`${styles.viewPair} ${styles.viewGroup}`}>
+                <Label className={styles.viewLabel}>Ends on</Label>
+                <Select
+                  aria-label={`End date of the view ${view.name}`}
+                  value={view.dates.endBy ?? ""}
+                  onChange={(picked) =>
+                    picked && void updateView(view.id, { dates: { ...view.dates, endBy: picked } })
+                  }
+                  options={dateProperties(data.properties).map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                  }))}
+                />
+              </span>
+            </>
           ) : (
             /* A list groups by nothing on purpose, and says so in the column. */
             <span
@@ -316,7 +363,7 @@ function ViewRow({
               className={!draws ? styles.viewCardNone : own ? styles.viewCardOwn : undefined}
               title={
                 !draws
-                  ? "A roadmap draws bars, not cards."
+                  ? `A ${VIEW_KIND_LABEL[view.kind].toLowerCase()} draws bars, not cards.`
                   : own
                     ? "This view keeps a card of its own."
                     : "This view draws the project's default card."

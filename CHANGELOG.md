@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **Timeline view.** A new kind of view puts each task on a line of weeks, as a bar from its start
+  date to its end date. Pick the two date properties when you make it. A bar fills with its
+  checklist, a task with no start is a diamond, a start after the end is flagged and never
+  corrected, an end that passed says how many days over, and tasks with no end wait under **Not
+  scheduled**.
+
 ## 0.50.0 — 2026-11-14
 
 ### Added

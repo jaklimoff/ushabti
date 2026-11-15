@@ -26,6 +26,7 @@ import {
 } from "@/lib/queries";
 import { rankBetween } from "@/lib/rank";
 import { readSort } from "@/lib/sort";
+import { readTimelineDates } from "@/lib/timeline";
 import { VIEW_KINDS, type ViewKind } from "@/lib/types";
 
 type Ctx = { params: Promise<{ viewId: string }> };
@@ -45,6 +46,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     filters?: unknown;
     sort?: unknown;
     startFolded?: unknown;
+    dates?: unknown;
     afterId?: string | null;
     isDefault?: boolean;
   }>(req);
@@ -57,7 +59,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 
   if (input.kind !== undefined) {
     if (!(VIEW_KINDS as readonly string[]).includes(input.kind))
-      throw new HttpError(400, "A view is a board, a list or a roadmap.");
+      throw new HttpError(400, "A view is a board, a list, a roadmap or a timeline.");
     patch.kind = input.kind;
   }
 
@@ -93,12 +95,25 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     input.filters !== undefined ||
     input.sort !== undefined ||
     input.startFolded !== undefined ||
+    input.dates !== undefined ||
     grouped
   ) {
     const properties = await loadProperties(projectId);
     let config = {
-      ...((current.config ?? {}) as { filters?: unknown; sort?: unknown; startFolded?: unknown }),
+      ...((current.config ?? {}) as {
+        filters?: unknown;
+        sort?: unknown;
+        startFolded?: unknown;
+        dates?: unknown;
+      }),
     };
+
+    if (input.dates !== undefined) {
+      /* The same reading the board does, so a pointer to a property that is
+         not a date is never saved. A board keeps the pair unread, as a list
+         keeps its grouping, so turning it back into a timeline restores it. */
+      config = { ...config, dates: readTimelineDates(input.dates, properties) };
+    }
 
     if (input.filters !== undefined) {
       // A filter says what everybody on this board can see. An agent writes

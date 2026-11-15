@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CardEditor } from "@/components/settings/CardViewPanel";
 import { Button, IconButton } from "@/components/ui/Button";
 import { ConfirmRow, useConfirm } from "@/components/ui/ConfirmRow";
+import { drawsCards } from "@/lib/types";
 import { isTyping } from "./keys";
 import { useBoard } from "./store";
 import styles from "./panel.module.css";
@@ -43,14 +44,14 @@ export function CardPanel({ onClose }: { onClose: () => void }) {
     panelRef.current?.focus();
   }, []);
 
-  if (!view || view.kind === "roadmap") return null;
+  if (!view || !drawsCards(view.kind)) return null;
 
   const own = view.cardView != null;
   const project = onDefault === view.id && !own;
   /* The other views that draw the default, so the line names who else a
      change to it reaches. A roadmap draws no card. */
   const others = data.views
-    .filter((v) => v.id !== view.id && v.kind !== "roadmap" && v.cardView == null)
+    .filter((v) => v.id !== view.id && drawsCards(v.kind) && v.cardView == null)
     .map((v) => v.name);
 
   return (

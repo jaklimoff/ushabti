@@ -5,6 +5,7 @@ import {
   drawOrder,
   buildRow,
   cardAccent,
+  cardStripe,
   cardItems,
   cardOrder,
   defaultCardView,
@@ -681,6 +682,15 @@ describe("the colour a panel takes from a card", () => {
     expect(cardAccent(edged, task({ "p-status": "o-done", "p-prio": "o-urgent" }), [])).toBe(
       "#4f8a5b",
     );
+  });
+
+  it("names the value the stripe wears, for a timeline row", () => {
+    expect(cardStripe(edged, task({ "p-status": "o-done" }), [])).toEqual({
+      color: "#4f8a5b",
+      word: "Done",
+    });
+    expect(cardStripe(items(null), task({ "p-who": "m-ada" }), [ADA])?.word).toBe(ADA.name);
+    expect(cardStripe(edged, task(), [])).toBeNull();
   });
 
   it("is nothing when the task holds no value for the stripe", () => {

@@ -291,7 +291,13 @@ type Store = {
   ) => void;
 
   /** A board needs a property for its columns. A list does not. */
-  createView: (name: string, kind: ViewKind, groupById: string | null) => Promise<void>;
+  createView: (
+    name: string,
+    kind: ViewKind,
+    groupById: string | null,
+    /** A timeline's two dates. Nothing else reads them. */
+    dates?: ViewDTO["dates"],
+  ) => Promise<void>;
   updateView: (
     viewId: string,
     patch: {
@@ -301,6 +307,7 @@ type Store = {
       filters?: ViewFilters;
       sort?: ViewSort | null;
       startFolded?: string[];
+      dates?: ViewDTO["dates"];
     },
   ) => Promise<void>;
   deleteView: (viewId: string) => Promise<void>;
@@ -1595,11 +1602,11 @@ export function BoardProvider({
 
   /* --- views ---------------------------------------------------------- */
   const createView = useCallback<Store["createView"]>(
-    async (name, kind, groupById) => {
+    async (name, kind, groupById, dates) => {
       try {
         const { view: created } = await tracked.post<{ view: ViewDTO }>(
           `/api/projects/${projectId}/views`,
-          { name, kind, groupById },
+          { name, kind, groupById, ...(dates ? { dates } : {}) },
         );
         setData((current) => ({ ...current, views: [...current.views, created] }));
         setViewId(created.id);

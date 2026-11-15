@@ -97,6 +97,7 @@ function view(over: Partial<ViewDTO>): ViewDTO {
     lensWidths: {},
     startFolded: [],
     cardView: null,
+    dates: { startBy: null, endBy: null },
     ...over,
   };
 }
