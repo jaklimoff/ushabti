@@ -130,11 +130,14 @@ export function Days({
   day,
   today: todayDay,
   corner,
+  lit = null,
 }: {
   axis: RoadmapAxis;
   day: number;
   today: string;
   corner: React.ReactNode;
+  /** The days a held bar stands on, lit on the axis so they read as dates. */
+  lit?: { start: string; end: string } | null;
 }) {
   const months = useMemo(() => roadmapMonths(axis), [axis]);
   /* Whole pixels, so the 1px line never smears to grey. */
@@ -159,6 +162,20 @@ export function Days({
       <div className={styles.roadmapHead}>
         <div className={styles.roadmapCorner}>{corner}</div>
         <div className={styles.roadmapTrack} data-testid="roadmap-axis">
+          {lit && (
+            <span
+              className={styles.daysLit}
+              data-testid="days-lit"
+              style={{
+                left: Math.round(daysIn(axis, lit.start) * day),
+                width: Math.max(
+                  1,
+                  Math.round((daysIn(axis, lit.end) - daysIn(axis, lit.start) + 1) * day),
+                ),
+              }}
+              aria-hidden
+            />
+          )}
           {monthLabels.map((m) => (
             <span
               key={m.key}

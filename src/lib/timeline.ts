@@ -8,7 +8,7 @@
  * them come from `roadmap.ts`.
  */
 
-import { dayNumber } from "./roadmap";
+import { dayNumber, dayOf as dayAt } from "./roadmap";
 import type { PropertyDTO } from "./types";
 
 /** The two date properties a timeline reads. Ends on is the one it needs. */
@@ -136,4 +136,70 @@ export function spanOf(row: TimelineRow<unknown>): { start: string; end: string 
 /** "3 days over": the words after an end that passed on an open task. */
 export function lateWords(days: number): string {
   return `${days} ${days === 1 ? "day" : "days"} over`;
+}
+
+/**
+ * What a pointer holds on a bar: its body, which moves both days, or one end.
+ * A diamond is one day, so it is only ever held whole.
+ */
+export type Grip = "body" | "start" | "end";
+
+/** The days a held bar stands on. A diamond's start is its end. */
+export type HeldDays = { start: string; end: string };
+
+/**
+ * Where a held bar lands, moved so many whole days. The body and a diamond
+ * move both days by the same count. An end moves alone and stops one day
+ * short of the other, so it never passes it; on a one-day bar it can only
+ * move away. Only a bar or a diamond is ever held: a backwards row has no
+ * bar to hold, and nothing corrects it.
+ */
+export function movedDates(
+  row: { shape: TimelineRow<unknown>["shape"]; start: string; end: string },
+  grip: Grip,
+  by: number,
+): HeldDays {
+  const start = dayNumber(row.start);
+  const end = dayNumber(row.end);
+  if (row.shape === "point" || grip === "body")
+    return { start: dayAt(start + by), end: dayAt(end + by) };
+  if (grip === "start")
+    return { start: dayAt(Math.min(start + by, Math.max(end - 1, start))), end: row.end };
+  return { start: row.start, end: dayAt(Math.max(end + by, Math.min(start + 1, end))) };
+}
+
+/**
+ * The days a drag across an empty row gives it, from the day it was pressed
+ * on to the day it was let go on, whichever way it went. With no Starts on,
+ * the row is given only the day it ends on.
+ */
+export function sweptDates(from: string, to: string, hasStart: boolean): HeldDays {
+  const [start, end] = from <= to ? [from, to] : [to, from];
+  return hasStart ? { start, end } : { start: end, end };
+}
+
+/**
+ * The values a move writes: each date that changed, and nothing for a date
+ * that did not. A diamond keeps having no start, so it writes only its end,
+ * and so does a timeline with no Starts on.
+ */
+export function changedDates(
+  was: { start: string | null; end: string | null },
+  now: HeldDays,
+  dates: TimelineDates,
+  withStart: boolean,
+): { propertyId: string; value: string }[] {
+  const out: { propertyId: string; value: string }[] = [];
+  if (dates.startBy && withStart && now.start !== was.start)
+    out.push({ propertyId: dates.startBy, value: now.start });
+  if (dates.endBy && now.end !== was.end) out.push({ propertyId: dates.endBy, value: now.end });
+  return out;
+}
+
+/** "Nov 23 – Dec 4 · 12 days": the days a held bar will stand on, both in. */
+export function spanWords(days: HeldDays, format: (day: string) => string): string {
+  const count = dayNumber(days.end) - dayNumber(days.start) + 1;
+  const length = `${count} ${count === 1 ? "day" : "days"}`;
+  if (days.start === days.end) return `${format(days.end)} · ${length}`;
+  return `${format(days.start)} – ${format(days.end)} · ${length}`;
 }

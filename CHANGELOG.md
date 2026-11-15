@@ -10,6 +10,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **Drag a bar on the Timeline.** Drag a bar to move both of its dates, or one end to move one
+  date; an end stops one day short of the other. While you hold it, the old place stays dashed,
+  its days light up on the axis and it says the new span. Left and Right move a focused bar a
+  day, Shift with them only its end, Enter saves and Escape puts it back. Drag across the days of
+  a Not scheduled row to give it a start and an end.
 - **Timeline view.** A new kind of view puts each task on a line of weeks, as a bar from its start
   date to its end date. Pick the two date properties when you make it. A bar fills with its
   checklist, a task with no start is a diamond, a start after the end is flagged and never

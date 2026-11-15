@@ -4594,6 +4594,84 @@ button.listHeadCell:focus-visible .listHeadHint {
   color: var(--warn);
 }
 
+/* The days a held bar stands on, lit under the weeks of the axis. */
+.daysLit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-left: 1px solid var(--accent);
+  border-right: 1px solid var(--accent);
+  pointer-events: none;
+}
+
+/* A bar that moves: its body is grabbed, a finger still scrolls up and down. */
+.timelineBar[data-movable],
+.timelineDiamond[data-movable] {
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.timelineBar[data-held],
+.timelineDiamond[data-held] {
+  cursor: grabbing;
+  filter: brightness(1.25);
+  z-index: 2;
+}
+
+/* The left end's grip is the right end's, turned round. */
+.timelineGripStart::after {
+  left: 6px;
+}
+
+/* Where a held bar was, so the move reads against it. */
+.timelineGhost {
+  position: absolute;
+  top: 12px;
+  height: 24px;
+  border: 1px dashed var(--text-meta);
+  border-radius: var(--r-sm);
+  pointer-events: none;
+}
+
+.timelineGhostPoint {
+  top: 17px;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* A row with no end takes a drag across its days. */
+.timelineEmpty {
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+/* The day under the pointer on an empty row, and the bar a drag draws. */
+.timelineHoverDay {
+  position: absolute;
+  top: 12px;
+  height: 24px;
+  border: 1px dashed var(--text-meta);
+  border-radius: var(--r-sm);
+  pointer-events: none;
+}
+
+.timelineSweep {
+  position: absolute;
+  top: 12px;
+  height: 24px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  pointer-events: none;
+}
+
+.timelineHint {
+  color: var(--text-meta);
+}
+
 /* A start after the end: no bar, and a chip that says so. Nothing corrects it. */
 .timelineBackwards {
   position: absolute;

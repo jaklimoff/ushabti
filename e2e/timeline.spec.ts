@@ -6,6 +6,7 @@ type Page = import("@playwright/test").Page;
 
 type Board = {
   today: string;
+  tasks: { id: string; title: string; values: Record<string, unknown> }[];
   properties: { id: string; name: string; type: string; options: { id: string; name: string }[] }[];
 };
 
@@ -226,5 +227,168 @@ test.describe("A timeline", () => {
     await expect(page.getByText("Create a date property first.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Create view" })).toBeDisabled();
     await shot(page, testInfo.outputPath("seen-timeline-no-dates.png"));
+  });
+
+  test("moves a bar's days by its body and by each end", async ({ page }, testInfo) => {
+    const { projectId, today, due, start, row } = await makeTimeline(page);
+    const valuesOf = async (title: string) =>
+      (await boardOf(page, projectId)).tasks.find((t) => t.title === title)!.values;
+    const writes: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "PUT" && r.url().includes("/values/")) writes.push(r.url());
+    });
+
+    const bar = row("A bar with a list").getByTestId("timeline-bar");
+    /* The bar runs eleven days, from two days ago to eight days on. */
+    const box = (await bar.boundingBox())!;
+    const day = box.width / 11;
+    const y = box.y + box.height / 2;
+
+    // The body, held three days on: the ghost, the lit days and the span.
+    await page.mouse.move(box.x + box.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 3 * day, y, { steps: 8 });
+    await expect(row("A bar with a list").getByTestId("timeline-ghost")).toBeVisible();
+    await expect(page.getByTestId("days-lit")).toBeVisible();
+    await expect(row("A bar with a list").getByTestId("timeline-end")).toHaveText(
+      `${formatDate(plus(today, 1))} – ${formatDate(plus(today, 11))} · 11 days`,
+    );
+    /* Not `shot`: it moves the pointer away, which would end the drag. */
+    await page.screenshot({
+      path: testInfo.outputPath("seen-timeline-held.png"),
+      animations: "disabled",
+    });
+    await page.mouse.up();
+    await expect(page.getByTestId("timeline-ghost")).toHaveCount(0);
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
+    await expect
+      .poll(() => valuesOf("A bar with a list"))
+      .toMatchObject({
+        [start]: plus(today, 1),
+        [due]: plus(today, 11),
+      });
+    expect(writes).toHaveLength(2);
+
+    // Dropped on the same days, it writes nothing.
+    const moved = (await bar.boundingBox())!;
+    await page.mouse.move(moved.x + moved.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(moved.x + moved.width / 2 + 2 * day, y, { steps: 5 });
+    await page.mouse.move(moved.x + moved.width / 2, y, { steps: 5 });
+    await page.mouse.up();
+    await expect(page.getByTestId("timeline-ghost")).toHaveCount(0);
+    expect(writes).toHaveLength(2);
+
+    // The right end moves only the end, and stops one day short of the start.
+    const grip = row("A bar with a list").getByTestId("timeline-grip-end");
+    const g = (await grip.boundingBox())!;
+    await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(g.x - 30 * day, g.y + g.height / 2, { steps: 10 });
+    await expect(row("A bar with a list").getByTestId("timeline-end")).toHaveText(
+      `${formatDate(plus(today, 1))} – ${formatDate(plus(today, 2))} · 2 days`,
+    );
+    await page.mouse.up();
+    await expect
+      .poll(() => valuesOf("A bar with a list"))
+      .toMatchObject({
+        [start]: plus(today, 1),
+        [due]: plus(today, 2),
+      });
+    expect(writes).toHaveLength(3);
+
+    // The left end moves only the start.
+    const left = (await row("A bar with a list").getByTestId("timeline-grip-start").boundingBox())!;
+    const oneDay = (await bar.boundingBox())!.width / 2; // two days long now
+    await page.mouse.move(left.x + left.width / 2, left.y + left.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(left.x + left.width / 2 - 3 * oneDay, left.y + left.height / 2, {
+      steps: 8,
+    });
+    await page.mouse.up();
+    await expect
+      .poll(() => valuesOf("A bar with a list"))
+      .toMatchObject({
+        [start]: plus(today, -2),
+        [due]: plus(today, 2),
+      });
+    expect(writes).toHaveLength(4);
+  });
+
+  test("moves a focused bar by the keys, and gives an empty row its days", async ({
+    page,
+  }, testInfo) => {
+    const { projectId, today, due, start, row } = await makeTimeline(page);
+    const valuesOf = async (title: string) =>
+      (await boardOf(page, projectId)).tasks.find((t) => t.title === title)!.values;
+
+    // Left and Right move the whole bar, Shift only its end; Enter writes.
+    const bar = row("A bar with a list").getByTestId("timeline-bar");
+    await bar.focus();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Shift+ArrowRight");
+    await expect(row("A bar with a list").getByTestId("timeline-end")).toHaveText(
+      `${formatDate(plus(today, 0))} – ${formatDate(plus(today, 11))} · 12 days · Enter to save, Esc to undo`,
+    );
+    await page.keyboard.press("Enter");
+    await expect
+      .poll(() => valuesOf("A bar with a list"))
+      .toMatchObject({
+        [start]: plus(today, 0),
+        [due]: plus(today, 11),
+      });
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
+
+    // Escape puts it back and writes nothing.
+    await bar.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByTestId("timeline-ghost")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("timeline-ghost")).toHaveCount(0);
+    await expect(row("A bar with a list").getByTestId("timeline-end")).toHaveText(
+      formatDate(plus(today, 11)),
+    );
+
+    // A diamond moves whole, by its end.
+    await row("One day only").getByTestId("timeline-point").focus();
+    await page.keyboard.press("Shift+ArrowLeft");
+    await page.keyboard.press("Enter");
+    await expect.poll(() => valuesOf("One day only")).toEqual({ [due]: plus(today, 4) });
+
+    // A start after its end has no bar to move.
+    await expect(row("Backwards dates").getByTestId("timeline-bar")).toHaveCount(0);
+
+    // Not scheduled: the pointer says what a drag does, and a drag gives both days.
+    const empty = row("No end yet").getByTestId("timeline-empty");
+    const ref = (await row("Late work").getByTestId("timeline-bar").boundingBox())!;
+    const day = ref.width / 8; // ten days ago to three days ago
+    const xOf = (d: number) => ref.x + (d + 10 + 0.5) * day;
+    const e = (await empty.boundingBox())!;
+    const y = e.y + e.height / 2;
+    await page.mouse.move(xOf(3), y);
+    await expect(row("No end yet").getByTestId("timeline-hint")).toHaveText(
+      "Drag across the days to give it a start and an end",
+    );
+    /* Not `shot`: it moves the pointer away, which would end the drag. */
+    await page.screenshot({
+      path: testInfo.outputPath("seen-timeline-hint.png"),
+      animations: "disabled",
+    });
+    await page.mouse.down();
+    await page.mouse.move(xOf(6), y, { steps: 8 });
+    await expect(row("No end yet").getByTestId("timeline-hint")).toHaveText(
+      `${formatDate(plus(today, 3))} – ${formatDate(plus(today, 6))} · 4 days`,
+    );
+    await page.mouse.up();
+    await expect(row("No end yet")).not.toHaveAttribute("data-unscheduled", "");
+    await expect(row("No end yet").getByTestId("timeline-bar")).toBeVisible();
+    await expect(page.getByTestId("timeline-unscheduled")).toHaveCount(0);
+    await expect
+      .poll(() => valuesOf("No end yet"))
+      .toMatchObject({
+        [start]: plus(today, 3),
+        [due]: plus(today, 6),
+      });
   });
 });

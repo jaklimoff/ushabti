@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  changedDates,
   firstDates,
+  movedDates,
+  spanWords,
+  sweptDates,
   lateWords,
   readTimelineDates,
   spanOf,
@@ -152,5 +156,93 @@ describe("the rows of a timeline", () => {
     const timeline = rows(tasks);
     expect(timeline.dated.map((r) => r.task.id)).toEqual(["late", "soon"]);
     expect(timeline.unscheduled.map((t) => t.id)).toEqual(["none"]);
+  });
+});
+
+describe("moving a held bar", () => {
+  const bar = { shape: "bar" as const, start: "2026-11-20", end: "2026-11-25" };
+  const point = { shape: "point" as const, start: "2026-11-25", end: "2026-11-25" };
+
+  it("moves both days of the body by the same whole days", () => {
+    expect(movedDates(bar, "body", 3)).toEqual({ start: "2026-11-23", end: "2026-11-28" });
+    expect(movedDates(bar, "body", -21)).toEqual({ start: "2026-10-30", end: "2026-11-04" });
+    expect(movedDates(bar, "body", 0)).toEqual({ start: bar.start, end: bar.end });
+  });
+
+  it("moves only the start with the left end, and only the end with the right", () => {
+    expect(movedDates(bar, "start", -4)).toEqual({ start: "2026-11-16", end: bar.end });
+    expect(movedDates(bar, "start", 2)).toEqual({ start: "2026-11-22", end: bar.end });
+    expect(movedDates(bar, "end", 6)).toEqual({ start: bar.start, end: "2026-12-01" });
+    expect(movedDates(bar, "end", -2)).toEqual({ start: bar.start, end: "2026-11-23" });
+  });
+
+  it("stops an end one day short of the other", () => {
+    expect(movedDates(bar, "start", 30)).toEqual({ start: "2026-11-24", end: bar.end });
+    expect(movedDates(bar, "end", -30)).toEqual({ start: bar.start, end: "2026-11-21" });
+  });
+
+  it("lets the end of a one-day bar move only away from the other", () => {
+    const one = { shape: "bar" as const, start: "2026-11-20", end: "2026-11-20" };
+    expect(movedDates(one, "end", -3)).toEqual({ start: one.start, end: one.end });
+    expect(movedDates(one, "end", 2)).toEqual({ start: one.start, end: "2026-11-22" });
+    expect(movedDates(one, "start", 3)).toEqual({ start: one.start, end: one.end });
+    expect(movedDates(one, "start", -1)).toEqual({ start: "2026-11-19", end: one.end });
+  });
+
+  it("drags a diamond whole, whichever end is named, and it moves its end", () => {
+    for (const grip of ["body", "start", "end"] as const) {
+      expect(movedDates(point, grip, 4)).toEqual({ start: "2026-11-29", end: "2026-11-29" });
+    }
+  });
+
+  it("crosses months and years by whole days", () => {
+    const late = { shape: "bar" as const, start: "2026-12-30", end: "2026-12-31" };
+    expect(movedDates(late, "body", 2)).toEqual({ start: "2027-01-01", end: "2027-01-02" });
+  });
+});
+
+describe("what a move writes", () => {
+  const was = { start: "2026-11-20", end: "2026-11-25" };
+
+  it("writes each date that changed, and nothing for the same days", () => {
+    expect(changedDates(was, { start: "2026-11-21", end: "2026-11-26" }, DATES, true)).toEqual([
+      { propertyId: "p-start", value: "2026-11-21" },
+      { propertyId: "p-due", value: "2026-11-26" },
+    ]);
+    expect(changedDates(was, { start: was.start, end: "2026-11-26" }, DATES, true)).toEqual([
+      { propertyId: "p-due", value: "2026-11-26" },
+    ]);
+    expect(changedDates(was, was, DATES, true)).toEqual([]);
+  });
+
+  it("writes only the end of a diamond and of a timeline with no start", () => {
+    const now = { start: "2026-11-27", end: "2026-11-27" };
+    expect(changedDates({ start: null, end: was.end }, now, DATES, false)).toEqual([
+      { propertyId: "p-due", value: "2026-11-27" },
+    ]);
+    expect(changedDates(was, now, { startBy: null, endBy: "p-due" }, true)).toEqual([
+      { propertyId: "p-due", value: "2026-11-27" },
+    ]);
+  });
+
+  it("gives an empty row both days, whichever way it was dragged", () => {
+    const swept = sweptDates("2026-11-30", "2026-11-22", true);
+    expect(swept).toEqual({ start: "2026-11-22", end: "2026-11-30" });
+    expect(changedDates({ start: null, end: null }, swept, DATES, true)).toEqual([
+      { propertyId: "p-start", value: "2026-11-22" },
+      { propertyId: "p-due", value: "2026-11-30" },
+    ]);
+    expect(sweptDates("2026-11-22", "2026-11-30", false)).toEqual({
+      start: "2026-11-30",
+      end: "2026-11-30",
+    });
+  });
+
+  it("says the span a held bar will stand on, both days in", () => {
+    const format = (d: string) => d.slice(5);
+    expect(spanWords({ start: "2026-11-23", end: "2026-12-04" }, format)).toBe(
+      "11-23 – 12-04 · 12 days",
+    );
+    expect(spanWords({ start: "2026-12-04", end: "2026-12-04" }, format)).toBe("12-04 · 1 day");
   });
 });
