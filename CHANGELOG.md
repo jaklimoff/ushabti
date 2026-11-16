@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.51.0 — 2026-11-16
+
 ### Added
 
 - **Drag a bar on the Timeline.** Drag a bar to move both of its dates, or one end to move one
