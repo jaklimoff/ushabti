@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.51.1 — 2026-11-16
+
 ### Changed
 
 - **Newer dependencies.** Next.js 16.4.6, marked 18.2.0, Nodemailer 10.5.0, PGlite 0.5.16,
