@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **Newer dependencies.** Next.js 16.4.6, marked 18.2.0, Nodemailer 10.5.0, PGlite 0.5.16,
+  Playwright 1.65.0, Lucide and the AWS S3 client, with ten patch and minor updates in all.
+  Nothing about how the board works changes.
+
 ## 0.51.0 — 2026-11-16
 
 ### Added
