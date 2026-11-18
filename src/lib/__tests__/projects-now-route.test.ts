@@ -80,7 +80,8 @@ describe("Every project of a person, with who is at work", () => {
     expect(five.projects.every((p) => p.agents.length === 1)).toBe(true);
     expect(five.statements).toBe(one.statements);
     expect(one.boards + five.boards).toBe(0);
-  });
+    // Six projects on a cold database, beside the rest of the check.
+  }, 30_000);
 
   it("answers in the person's Home order, with the newest line of the feed", async () => {
     const me = await person("Ordered");

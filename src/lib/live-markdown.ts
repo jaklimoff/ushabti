@@ -36,7 +36,11 @@ export type Piece =
   | { kind: "video"; from: number; to: number; src: string; name: string }
   | { kind: "download"; from: number; to: number; src: string; words: string }
   | { kind: "key"; from: number; to: number; key: string; href: string }
-  | { kind: "task"; from: number; to: number; done: boolean };
+  | { kind: "task"; from: number; to: number; done: boolean }
+  | { kind: "open"; from: number; to: number; target: Target };
+
+/** What a click on a drawn link opens: a task of the board, or an address. */
+export type Target = { key: string } | { href: string };
 
 export type Style = "strong" | "em" | "strike" | "code" | "link";
 export type LineStyle =
@@ -62,12 +66,14 @@ export type PreviewContext = {
   /** Null for an address the box must not fetch. */
   fileAt: (src: string) => FileLook | null;
   keysIn: (text: string) => KeyLink[];
+  /** Opens the task a key names, as a click on the key does on the page. */
+  openKey: (key: string) => void;
 };
 
 /* With nothing said, no file is drawn and no key is a link: the box fetches
    nothing it was not told is ours. */
 export const previewContext = Facet.define<PreviewContext, PreviewContext>({
-  combine: (values) => values[0] ?? { fileAt: () => null, keysIn: () => [] },
+  combine: (values) => values[0] ?? { fileAt: () => null, keysIn: () => [], openKey: () => {} },
 });
 
 const INLINE: Record<string, Style> = {
@@ -215,6 +221,10 @@ export function pieces(state: EditorState): Piece[] {
         if (marks.length >= 2) {
           out.push({ kind: "hide", from: marks[0].from, to: marks[0].to });
           out.push({ kind: "hide", from: marks[1].from, to });
+          const url = node.node.getChild("URL");
+          const href = url ? doc.sliceString(url.from, url.to).replace(/^<(.*)>$/, "$1") : "";
+          if (href && marks[1].from > marks[0].to)
+            out.push({ kind: "open", from: marks[0].to, to: marks[1].from, target: { href } });
         }
         // The words of a link are markdown too: "[a *b*](x)" draws b in italics.
         return;
@@ -232,6 +242,20 @@ export function pieces(state: EditorState): Piece[] {
         if (look?.kind === "download")
           out.push({ kind: "download", from, to, src, words: look.words });
         return false;
+      }
+      if (name === "URL") {
+        // A bare address is a link on the page, as GFM makes it.
+        const parent = node.node.parent?.name;
+        if (parent === "Link" || parent === "Image" || parent === "LinkReference") return;
+        out.push({ kind: "style", from, to, style: "link" });
+        if (quiet(from, to))
+          out.push({
+            kind: "open",
+            from,
+            to,
+            target: { href: bareHref(doc.sliceString(from, to)) },
+          });
+        return;
       }
       if (name === "TaskMarker") {
         const text = doc.sliceString(from, to);
@@ -263,10 +287,30 @@ export function pieces(state: EditorState): Piece[] {
   // A key in code or in a link stays words, as `renderMarkdown()` leaves it.
   for (const { index: from, written, key, href } of context.keysIn(doc.toString())) {
     const to = from + written.length;
-    if (!noKeys.some(([a, b]) => from < b && to > a))
-      out.push({ kind: "key", from, to, key, href });
+    if (noKeys.some(([a, b]) => from < b && to > a)) continue;
+    out.push({ kind: "key", from, to, key, href });
+    if (quiet(from, to)) out.push({ kind: "open", from, to, target: { key } });
   }
   return out;
+}
+
+/** The address marked makes of a bare one: "www." is the web, an "@" is mail. */
+function bareHref(written: string): string {
+  if (/^[a-z][\w+.-]*:/i.test(written)) return written;
+  if (/^www\./i.test(written)) return `http://${written}`;
+  return written.includes("@") ? `mailto:${written}` : written;
+}
+
+/**
+ * What a click at `pos` opens: a link drawn as a link, which is never one on
+ * the caret's line, where a link is its source.
+ */
+export function openAt(state: EditorState, pos: number): Target | null {
+  const all = pieces(state);
+  const hit = (p: { from: number; to: number }) => p.from <= pos && pos < p.to;
+  for (const p of all) if (p.kind === "open" && hit(p)) return p.target;
+  for (const p of all) if (p.kind === "download" && hit(p)) return { href: p.src };
+  return null;
 }
 
 class ImageWidget extends WidgetType {
@@ -320,10 +364,12 @@ class DownloadWidget extends WidgetType {
     return other.src === this.src && other.words === this.words;
   }
   toDOM() {
-    // Words that read as the link, and no link: a click in the box edits.
+    // Words that read as the link. A click opens the file, in `follow`.
     const span = document.createElement("span");
     span.textContent = this.words;
     span.className = "cm-lp-link";
+    span.setAttribute("data-lp-open", "");
+    span.title = this.src;
     return span;
   }
   ignoreEvent() {
@@ -380,6 +426,12 @@ function decoration(p: Piece): { from: number; to: number; deco: Decoration } {
           attributes: { "data-task-key": p.key, title: p.href },
         }),
       };
+    case "open":
+      return {
+        from: p.from,
+        to: p.to,
+        deco: Decoration.mark({ attributes: { "data-lp-open": "" } }),
+      };
     case "image":
       return { ...p, deco: Decoration.replace({ widget: new ImageWidget(p.src, p.alt) }) };
     case "video":
@@ -413,7 +465,94 @@ const preview = StateField.define<DecorationSet>({
 
 const markdown = new Language(defineLanguageFacet(), markdownParser, [], "markdown");
 
+/** How long a second press may take to make a double click, which selects. */
+export const DOUBLE_CLICK_MS = 300;
+/** How far a press may wander before it is a drag that selects. */
+const DRAG_PX = 4;
+
+/** Only an address that leaves nothing behind: never a script. */
+function openOutside(href: string) {
+  let url: URL;
+  try {
+    url = new URL(href, window.location.href);
+  } catch {
+    return;
+  }
+  if (!["http:", "https:", "mailto:"].includes(url.protocol)) return;
+  // A new tab, because the box may hold words nobody has saved yet.
+  window.open(url.href, "_blank", "noopener,noreferrer");
+}
+
+/* The open a press is waiting on, until a second press makes it a double click. */
+const pending = new WeakMap<EditorView, ReturnType<typeof setTimeout>>();
+
+/**
+ * A plain press on a drawn link opens it, as on the page, and keeps the caret
+ * where it was, so the line does not turn into its source under the finger.
+ * The press is held back from CodeMirror, so a drag that starts on a link
+ * selects here, and a double click selects the word here, and neither opens.
+ */
+function press(e: MouseEvent, view: EditorView): boolean {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
+  const waiting = pending.get(view);
+  if (e.detail > 1) {
+    if (waiting === undefined) return false;
+    clearTimeout(waiting);
+    pending.delete(view);
+    const at = view.posAtCoords({ x: e.clientX, y: e.clientY });
+    if (at === null) return false;
+    e.preventDefault();
+    const word = view.state.wordAt(at);
+    view.focus();
+    view.dispatch({ selection: word ? { anchor: word.from, head: word.to } : { anchor: at } });
+    return true;
+  }
+  const el = (e.target as Element | null)?.closest?.("[data-lp-open]");
+  if (!el || !view.contentDOM.contains(el)) return false;
+  const target = openAt(view.state, view.posAtDOM(el));
+  if (!target) return false;
+  e.preventDefault();
+  if (waiting !== undefined) clearTimeout(waiting);
+  pending.delete(view);
+  const anchor = view.posAtCoords({ x: e.clientX, y: e.clientY }) ?? view.posAtDOM(el);
+  let dragging = false;
+  const move = (m: MouseEvent) => {
+    if (!dragging) {
+      if (Math.hypot(m.clientX - e.clientX, m.clientY - e.clientY) < DRAG_PX) return;
+      dragging = true;
+      view.focus();
+    }
+    const head = view.posAtCoords({ x: m.clientX, y: m.clientY }, false);
+    view.dispatch({ selection: { anchor, head } });
+  };
+  const up = () => {
+    window.removeEventListener("mousemove", move);
+    window.removeEventListener("mouseup", up);
+    if (dragging) return;
+    pending.set(
+      view,
+      setTimeout(() => {
+        pending.delete(view);
+        if ("key" in target) {
+          /* Another task takes this panel, so the box first lets go and
+             saves what it owes on its own task; the press kept the focus.
+             The task opens on the next turn, once the closed box is drawn:
+             in the same render the old box stayed on the new task's panel. */
+          const { openKey } = view.state.facet(previewContext);
+          if (view.hasFocus) view.contentDOM.blur();
+          setTimeout(() => openKey(target.key));
+        } else openOutside(target.href);
+      }, DOUBLE_CLICK_MS),
+    );
+  };
+  window.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", up);
+  return true;
+}
+
+const follow = EditorView.domEventHandlers({ mousedown: press });
+
 /** The language and the preview, which is all a box needs to read as rendered. */
 export function livePreview(): Extension {
-  return [new LanguageSupport(markdown), preview];
+  return [new LanguageSupport(markdown), preview, follow];
 }

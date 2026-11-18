@@ -3,9 +3,9 @@ import { keyLinksIn, type TaskLinks } from "./task-keys";
 import { attachmentIdOf, lookOf, type FileFacts } from "./uploads";
 
 /**
- * What the live box asks the page: how a file is drawn and which keys are
- * links. The answers are the page's own rules, so the box cannot read a file
- * or a key another way.
+ * What the live box asks the page: how a file is drawn, which keys are
+ * links, and how a key opens its task. The answers are the page's own rules,
+ * so the box cannot read a file or a key another way.
  *
  * It is built on the board's side and handed to the editor, because the
  * editor is a chunk of its own: importing these rules from there moves them
@@ -14,6 +14,7 @@ import { attachmentIdOf, lookOf, type FileFacts } from "./uploads";
 export function previewContextFor(
   files: readonly FileFacts[],
   links: TaskLinks | null,
+  openKey: (key: string) => void = () => {},
 ): PreviewContext {
   return {
     fileAt: (src) => {
@@ -25,5 +26,6 @@ export function previewContextFor(
       return file ? lookOf(file) : { kind: "image" };
     },
     keysIn: (text) => (links ? keyLinksIn(text, links) : []),
+    openKey,
   };
 }

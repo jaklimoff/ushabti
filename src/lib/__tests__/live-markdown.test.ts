@@ -1,7 +1,7 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { previewContextFor } from "../live-context";
-import { livePreview, pieces, previewContext, type Piece } from "../live-markdown";
+import { livePreview, openAt, pieces, previewContext, type Piece } from "../live-markdown";
 import type { TaskLinks } from "../task-keys";
 import type { FileFacts } from "../uploads";
 
@@ -20,7 +20,10 @@ function drawn(doc: string, cursor?: number | EditorSelection, told: Told = {}) 
   });
   const all = pieces(state);
   const cuts = all
-    .filter((p): p is Extract<Piece, { from: number }> => p.kind !== "line" && p.kind !== "style")
+    .filter(
+      (p): p is Extract<Piece, { from: number }> =>
+        p.kind !== "line" && p.kind !== "style" && p.kind !== "open",
+    )
     .sort((a, b) => a.from - b.from);
   let out = "";
   let at = 0;
@@ -219,5 +222,62 @@ describe("live preview", () => {
     expect(style(drawn(doc, 0).all)).toEqual({ kind: "style", from: 5, to: 6, style: "code" });
     expect(drawn(doc, 0).text).toBe("see `c` now");
     expect(style(away(doc).all)).toEqual({ kind: "style", from: 5, to: 6, style: "code" });
+  });
+
+  describe("a click on a drawn link", () => {
+    const at = (doc: string, word: string, told?: Told) => {
+      const { all } = away(doc, told);
+      const state = EditorState.create({
+        doc: `${doc}\n\n`,
+        selection: EditorSelection.cursor(doc.length + 2),
+        extensions: [
+          livePreview(),
+          previewContext.of(previewContextFor(told?.files ?? [], told?.links ?? null)),
+        ],
+      });
+      return { all, target: openAt(state, doc.indexOf(word)) };
+    };
+
+    it("opens a link's address from its words", () => {
+      expect(at("see [the docs](https://x.y/z) now", "docs").target).toEqual({
+        href: "https://x.y/z",
+      });
+    });
+
+    it("draws a bare address as a link that opens", () => {
+      const { all, target } = at("go to https://x.y/a now", "x.y");
+      expect(all).toContainEqual({ kind: "style", from: 6, to: 19, style: "link" });
+      expect(target).toEqual({ href: "https://x.y/a" });
+      expect(at("www.x.y here", "x.y").target).toEqual({ href: "http://www.x.y" });
+    });
+
+    it("opens a task by its key", () => {
+      const links = { projectId: "p1", projectKey: "USH", keys: ["USH-1"] };
+      expect(at("see ush-1 now", "ush-1", { links }).target).toEqual({ key: "USH-1" });
+    });
+
+    it("opens a file drawn as a download", () => {
+      const pdf = { id: FILE, name: "plan.pdf", mime: "application/pdf", size: 2048 };
+      expect(at(`![plan](/api/attachments/${FILE})`, "![", { files: [pdf] }).target).toEqual({
+        href: `/api/attachments/${FILE}`,
+      });
+    });
+
+    it("opens nothing on the caret's line, where a link is its source", () => {
+      const links = { projectId: "p1", projectKey: "USH", keys: ["USH-1"] };
+      const doc = "[a](https://x.y) USH-1 https://x.y/b";
+      const state = EditorState.create({
+        doc,
+        selection: EditorSelection.cursor(0),
+        extensions: [livePreview(), previewContext.of(previewContextFor([], links))],
+      });
+      expect(pieces(state).filter((p) => p.kind === "open")).toEqual([]);
+      for (const word of ["a]", "USH-1", "x.y/b"])
+        expect(openAt(state, doc.indexOf(word))).toBe(null);
+    });
+
+    it("opens nothing in plain words", () => {
+      expect(at("just words", "words").target).toBe(null);
+    });
   });
 });

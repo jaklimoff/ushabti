@@ -632,6 +632,10 @@
   text-underline-offset: 2px;
   color: var(--accent-soft);
 }
+/* Only a link that a click opens: on the caret's line a link is its source. */
+.descEditor :global([data-lp-open]) {
+  cursor: pointer;
+}
 .descEditor :global(.cm-lp-image),
 .descEditor :global(.cm-lp-video) {
   display: block;

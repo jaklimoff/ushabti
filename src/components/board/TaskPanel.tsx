@@ -11,6 +11,7 @@ import {
   PANEL_MIN_WIDTH,
   relativeTime,
   shortDay,
+  taskByAddress,
 } from "@/lib/board";
 import { cardAccent } from "@/lib/card-view";
 import { ink } from "@/lib/colors";
@@ -2445,6 +2446,20 @@ function Description({
   /* Words the server refused because the description changed under them. */
   const [mine, setMine] = useState<string | null>(null);
   const ref = useRef<TextBox>(null);
+  /* Another task in the panel starts the box over: a key clicked in the
+     words opens it here, and nothing typed for this task may follow. */
+  const [of, setOf] = useState(taskId);
+  const task = useRef(taskId);
+  task.current = taskId;
+  if (of !== taskId) {
+    setOf(taskId);
+    setEditing(false);
+    setTyped(false);
+    setDraft(value);
+    setSending(null);
+    setMine(null);
+    base.current = value;
+  }
   const shown = sending ?? value;
 
   /* The editor is a chunk of its own. Asking for it as the panel opens means
@@ -2482,8 +2497,11 @@ function Description({
   const owes = typed && draft !== value && draft !== base.current;
 
   async function save(words: string, from: string) {
+    const asked = taskId;
     setSending(words);
     const answer = await onCommit(words, from);
+    // An answer about the task before this one has nothing to draw here.
+    if (task.current !== asked) return;
     setSending(null);
     if (answer === "changed") setMine(words);
   }
@@ -2931,10 +2949,14 @@ function Checklist({
 /* The page draws files and keys from these, so a live box does too. Both
    lists change with a board read, not with a key pressed in the box. */
 function usePreview(files: AttachmentDTO[], links: TaskKeyLinks) {
-  const { projectId, projectKey, tasks } = links;
+  const { projectId, projectKey, tasks, open } = links;
   return useMemo(
-    () => previewContextFor(files, { projectId, projectKey, keys: tasks.map((t) => t.key) }),
-    [files, projectId, projectKey, tasks],
+    () =>
+      previewContextFor(files, { projectId, projectKey, keys: tasks.map((t) => t.key) }, (key) => {
+        const task = taskByAddress(tasks, key);
+        if (task) open(task);
+      }),
+    [files, projectId, projectKey, tasks, open],
   );
 }
 

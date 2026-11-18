@@ -8,6 +8,14 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A link in the Markdown box opens with a click.** In the description, the comment box and a
+  comment's edit, a plain click on a link drawn as a link opens it, and the caret stays where it
+  was. A task key opens its task in the panel; a web address and a file open in a new tab, because
+  the box may hold words nobody has saved. On the caret's line a link is its source and a click
+  edits, as before.
+
 ## 0.51.1 — 2026-11-16
 
 ### Changed
