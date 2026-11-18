@@ -6,7 +6,14 @@ import {
   syntaxTree,
 } from "@codemirror/language";
 import { GFM, parser, type MarkdownConfig } from "@lezer/markdown";
-import { EditorState, Facet, RangeSetBuilder, StateField, type Extension } from "@codemirror/state";
+import {
+  EditorState,
+  Facet,
+  RangeSetBuilder,
+  StateEffect,
+  StateField,
+  type Extension,
+} from "@codemirror/state";
 import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemirror/view";
 // Types only: the rules they name are handed in, so this chunk imports none of them.
 import type { KeyLink } from "./task-keys";
@@ -132,9 +139,22 @@ const SingleTilde: MarkdownConfig = {
 /** The editor's parser, which the parser comparison test reads too. */
 export const markdownParser = parser.configure([GFM, SingleTilde]);
 
+/** The box took the focus, or lost it. */
+export const focusIs = StateEffect.define<boolean>();
+
+/* Whether somebody is in the box. A box nobody is in has no caret to show
+   the source of, so every line reads rendered: the description is always its
+   editor, and a click must change no line but the one it lands on. A state
+   with no such field, as a test builds, reads as one with the focus. */
+const inBox = StateField.define<boolean>({
+  create: () => false,
+  update: (was, tr) => tr.effects.reduce((v, e) => (e.is(focusIs) ? e.value : v), was),
+});
+
 /** The lines any part of the selection touches. Those show their source. */
 function activeLines(state: EditorState): Set<number> {
   const lines = new Set<number>();
+  if (state.field(inBox, false) === false) return lines;
   for (const range of state.selection.ranges) {
     const last = state.doc.lineAt(range.to).number;
     for (let n = state.doc.lineAt(range.from).number; n <= last; n++) lines.add(n);
@@ -457,6 +477,7 @@ const preview = StateField.define<DecorationSet>({
   update: (deco, tr) =>
     tr.docChanged ||
     tr.selection ||
+    tr.effects.some((e) => e.is(focusIs)) ||
     tr.startState.facet(previewContext) !== tr.state.facet(previewContext)
       ? decorate(tr.state)
       : deco,
@@ -554,5 +575,11 @@ const follow = EditorView.domEventHandlers({ mousedown: press });
 
 /** The language and the preview, which is all a box needs to read as rendered. */
 export function livePreview(): Extension {
-  return [new LanguageSupport(markdown), preview, follow];
+  return [
+    new LanguageSupport(markdown),
+    inBox,
+    EditorView.focusChangeEffect.of((_, focusing) => focusIs.of(focusing)),
+    preview,
+    follow,
+  ];
 }

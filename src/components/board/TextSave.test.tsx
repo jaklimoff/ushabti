@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { ME, newProject, renderWithBoard, withPerson, withTask } from "@/test/board";
-import { boxValue, fillBox, serving } from "@/test/panel";
+import { boxValue, fillBox, serving, intoDescription } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -41,7 +41,7 @@ describe("A text save does not overwrite a change it did not see", () => {
   test("the description asks in place, and Keep mine saves the second words", async () => {
     const { sent, wrote, taskOf, task, anna } = await twoPeople();
 
-    await page.getByText("Add a description…").click();
+    await intoDescription();
     await fillBox("Ben wrote this.");
     wrote(task, { description: "Anna wrote this." }, anna);
     await mod("{Enter}");
@@ -59,7 +59,7 @@ describe("A text save does not overwrite a change it did not see", () => {
 
     await question.getByRole("button", { name: "Keep mine" }).click();
     await expect.element(question).not.toBeInTheDocument();
-    await expect.element(byTestId("markdown")).toHaveTextContent("Ben wrote this.");
+    await expect.poll(boxValue).toBe("Ben wrote this.");
     expect(taskOf(task.id)!.description).toBe("Ben wrote this.");
     // The second send carries what Anna wrote as its base, so it lands.
     expect(sent("PATCH", TASK).map((r) => r.body)).toEqual([
@@ -129,7 +129,13 @@ describe("A text save does not overwrite a change it did not see", () => {
       server.answer,
     );
 
-    await page.getByText("Add a description…").click();
+    // Anna is not in the box, and Ben's words show in it.
+    await expect.element(byTestId("live-editor")).toBeInTheDocument();
+    server.wrote(task, { description: "Ben was here first." }, ben);
+    ring();
+    await expect.poll(boxValue).toBe("Ben was here first.");
+
+    await intoDescription();
     await expect.element(byTestId("live-editor")).toHaveFocus();
 
     // Ben saves twice while Anna's box is open and untouched.
@@ -148,9 +154,7 @@ describe("A text save does not overwrite a change it did not see", () => {
       description: "Ben's second words. Anna agrees.",
       baseDescription: "Ben's second words.",
     });
-    await expect
-      .element(byTestId("markdown"))
-      .toHaveTextContent("Ben's second words. Anna agrees.");
+    await expect.poll(boxValue).toBe("Ben's second words. Anna agrees.");
     expect(byTestId("changed-while-typing").elements()).toHaveLength(0);
     expect(server.taskOf(task.id)!.description).toBe("Ben's second words. Anna agrees.");
   });

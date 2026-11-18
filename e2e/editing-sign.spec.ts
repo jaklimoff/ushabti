@@ -77,8 +77,11 @@ test.describe("A field shows who is editing it", () => {
     await anna.page.getByTestId("task-title").press("Escape");
     await expect(sign(ben.page)).toHaveCount(0, { timeout: 2_000 });
 
-    // The description, opened by a click and closed by Escape.
-    await anna.page.getByText("Add a description…").click();
+    // The description is always on screen, and says nothing until Anna is in it.
+    await expect(descriptionBox(anna.page)).toBeVisible();
+    await expect(sign(ben.page)).toHaveCount(0);
+    // A click puts her in it, and Escape takes her out.
+    await descriptionBox(anna.page).click();
     await expect(sign(ben.page)).toHaveText("Anna Person is editing the description", {
       timeout: 2_000,
     });

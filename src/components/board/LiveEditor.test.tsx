@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { newProject, renderWithBoard, withAgent, withTask } from "@/test/board";
-import { boxValue, fillBox, serving } from "@/test/panel";
+import { boxValue, fillBox, serving, intoDescription } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
+import { Markdown } from "./Markdown";
+import styles from "./panel.module.css";
 
 /*
  * The description is a CodeMirror box whose lines read as rendered markdown,
@@ -31,16 +34,30 @@ async function openDescription(agent = false) {
   const task = withTask(data, "Write it live", { Status: "Todo" });
   const server = serving(data);
   const drawn = await renderWithBoard(<BoardShell initialTask={task.key} />, data, server.answer);
-  await page.getByText("Add a description…").click();
+  await intoDescription();
   await expect.element(editor()).toHaveFocus();
-  return { ...drawn, ...server, task };
+  return { ...drawn, ...server, task, data };
 }
 
-/** Saves the box with Mod + Enter and waits for the page to draw it. */
-async function saveBox() {
+/**
+ * Saves the box with Mod + Enter, then draws the saved words as the page
+ * draws them: rendered, in the box the description wears before its editor
+ * lands, as wide as the editor. The editor stays on the panel.
+ */
+async function saveBox(known: { id: string; key: string }[] = []) {
+  const text = boxValue();
+  const width = (editor().element().closest(`.${styles.descLive}`) as HTMLElement).offsetWidth;
   await mod("{Enter}");
+  await expect.element(editor()).not.toHaveFocus();
+  const project = { projectId: "p", projectKey: known[0]?.key.split("-")[0] ?? "TST" };
+  const host = document.body.appendChild(document.createElement("div"));
+  await render(
+    <div className={`${styles.descEditor} ${styles.descLive}`} style={{ width, margin: 0 }}>
+      <Markdown text={text} links={{ ...project, tasks: known, open: () => {} }} />
+    </div>,
+    { container: host },
+  );
   await expect.element(byTestId("markdown")).toBeVisible();
-  await expect.poll(() => editor().elements().length).toBe(0);
 }
 
 /** Where an element's words sit, without the padding or the gap of its line. */
@@ -129,7 +146,7 @@ describe("The live description", () => {
     await saveBox();
     expect(box).toEqual(look(markdown().querySelector("code")!, CODE_LOOK));
 
-    await page.getByText("here").click();
+    await userEvent.click(line("here"));
     await expect.element(editor()).toHaveFocus();
     await mod("{Home}");
     await expect.poll(() => inBox(".cm-line")[0].textContent).toBe("see `code` here");
@@ -236,7 +253,7 @@ describe("The live description", () => {
     expect(link).toHaveLength(1);
     expect(link[0].textContent).toBe(task.key);
     expect(link[0].classList).toContain("cm-lp-link");
-    (editor().element() as HTMLElement).blur();
+    await saveBox([task]);
     await expect
       .poll(() => markdown().querySelector("a[data-task-key]")?.textContent)
       .toBe(task.key);
@@ -259,16 +276,18 @@ describe("The live description", () => {
     await userEvent.keyboard("today");
     await expect.poll(boxValue).toBe(`Over to @${AGENT} today`);
     (editor().element() as HTMLElement).blur();
-    await expect.element(byTestId("markdown")).toMatchTextContent(`Over to @${AGENT} today`);
+    await expect.element(editor()).not.toHaveFocus();
+    await expect.poll(boxValue).toBe(`Over to @${AGENT} today`);
   });
 
   test("Escape throws the edit away and leaves the panel open", async () => {
     const { sent } = await openDescription();
     await userEvent.keyboard("not kept");
     await userEvent.keyboard("{Escape}");
-    await expect.element(editor()).not.toBeInTheDocument();
+    await expect.element(editor()).not.toHaveFocus();
+    await expect.poll(boxValue).toBe("");
     await expect.element(byTestId("task-title")).toBeVisible();
-    await expect.element(page.getByText("Add a description…")).toBeVisible();
+    await expect.element(page.getByText("Add a description…")).toBeInTheDocument();
     expect(sent("PATCH")).toEqual([]);
   });
 
@@ -353,7 +372,7 @@ async function stubbedUploads() {
       };
     return server.answer(sent);
   });
-  await page.getByText("Add a description…").click();
+  await intoDescription();
   await expect.element(editor()).toHaveFocus();
   return { task };
 }

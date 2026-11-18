@@ -20,7 +20,6 @@ test("a click on a link in the description opens it, and a key opens its task", 
   await addTask(page, "Todo", "Points out");
   await expect(page.getByTestId("task-title")).toHaveValue("Points out");
 
-  await page.getByText("Add a description…").click();
   const editor = page.getByTestId("live-editor");
   await fillBox(editor, `Read [the docs](https://example.com/docs) and ${first}.\nlast line`);
   const docs = editor.locator("[data-lp-open]", { hasText: "the docs" });

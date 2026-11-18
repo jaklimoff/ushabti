@@ -1,58 +1,79 @@
-import { expect, test } from "@playwright/test";
-import { addTask, createProject, register, unique } from "./helpers";
+import { expect, test, type Locator } from "@playwright/test";
+import { addTask, boxValue, createProject, fillBox, register, unique } from "./helpers";
 
 /**
- * Words selected in a description with a drag stay selected, to be copied:
- * the click that ends the drag does not open the editor. A plain click on
- * the words still does.
+ * The description is always its editor. A click goes straight into the
+ * words, and no line but the clicked one changes how it looks, so nothing on
+ * the panel jumps. Leaving the box saves, Mod + Enter saves and leaves it,
+ * and Escape puts the saved words back and saves nothing.
  */
 
-test("a drag that selects words in a description leaves the editor closed", async ({
-  page,
-}, testInfo) => {
-  await register(page, "Ada Lovelace");
-  await createProject(page, unique("Select"));
-  await addTask(page, "Todo", "Copy from me");
+const WORDS = "## Plan\n\nShip the **first** part.\n\nThen the *second* part.\n\nThe end.";
 
-  await page.getByText("Add a description…").click();
-  const editor = page.getByTestId("live-editor");
-  await expect(editor).toBeFocused();
-  await page.keyboard.type("Copy the **first words** and the *last words* of this line.");
-  // Leaving the box saves it and puts the rendered words back.
-  await page.getByTestId("task-title").click();
-  const words = page.getByTestId("markdown");
-  await expect(words.locator("em")).toBeVisible();
-  await expect(editor).toHaveCount(0);
-
-  await words.locator("strong").dragTo(words.locator("em"));
-
-  const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
-  expect(selected).toContain("words and the last");
-  await expect(editor).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath("seen-description-selected.png") });
-
-  // A drag that ends in the box's margin, below the words, also leaves it closed.
-  await page.evaluate(() => window.getSelection()?.removeAllRanges());
-  const box = page.getByRole("button", { name: /Copy the first words/ });
-  const size = (await box.boundingBox())!;
-  await words.locator("strong").dragTo(box, {
-    targetPosition: { x: size.width / 2, y: size.height - 4 },
-  });
-  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toContain(
-    "words and the last",
+/** Where each line of the box sits, and where the checklist under it is. */
+async function layout(editor: Locator) {
+  const lines = await editor.evaluate((el) =>
+    [...el.querySelectorAll(".cm-line")].map((l) => {
+      const r = l.getBoundingClientRect();
+      return { top: Math.round(r.top), height: Math.round(r.height) };
+    }),
   );
-  // Long enough for a click that would open the editor to have opened it.
-  await page.waitForTimeout(500);
-  await expect(editor).toHaveCount(0);
+  const under = await editor.page().getByRole("button", { name: "Add item" }).boundingBox();
+  return { lines, under: Math.round(under!.y) };
+}
 
-  // So does a double click that selects a word.
-  await words.locator("em").dblclick({ position: { x: 4, y: 5 } });
-  await page.waitForTimeout(500);
-  await expect(editor).toHaveCount(0);
-  expect((await page.evaluate(() => window.getSelection()?.toString() ?? "")).trim()).toBe("last");
-  await page.screenshot({ path: testInfo.outputPath("seen-description-word.png") });
+test("a click goes into the description and moves nothing", async ({ page }, testInfo) => {
+  await register(page, "Ada Lovelace");
+  await createProject(page, unique("Click"));
+  await addTask(page, "Todo", "Click into me");
 
-  // A plain click on the words still opens the editor.
-  await words.locator("strong").click();
+  // The box is the editor from the start, with no Click to edit.
+  const editor = page.getByTestId("live-editor");
+  await expect(editor).toBeVisible();
+  await expect(page.getByText("Click to edit")).toHaveCount(0);
+  await expect(editor).not.toBeFocused();
+
+  // Leaving the box saves it, and the words read rendered.
+  await fillBox(editor, WORDS);
+  const saved = page.waitForResponse((r) => r.request().method() === "PATCH");
+  await page.getByTestId("task-title").click();
+  expect((await saved).ok()).toBe(true);
+  await expect(editor).not.toContainText("##");
+  await expect(editor).not.toContainText("**");
+
+  // A click on one line puts the caret there; no other line moves.
+  const before = await layout(editor);
+  const second = editor.locator(".cm-line", { hasText: "second" });
+  await second.click();
   await expect(editor).toBeFocused();
+  await expect(second).toContainText("*second*");
+  await expect(editor).not.toContainText("##");
+  await expect(editor).not.toContainText("**");
+  expect(await layout(editor)).toEqual(before);
+  await page.screenshot({ path: testInfo.outputPath("seen-description-click.png") });
+
+  // Escape puts the saved words back, leaves the box and saves nothing.
+  const writes: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "PATCH") writes.push(r.url());
+  });
+  await page.keyboard.type(" Not kept.");
+  await page.keyboard.press("Escape");
+  await expect(editor).not.toBeFocused();
+  await expect.poll(() => boxValue(editor)).toBe(WORDS);
+  await expect(page.getByTestId("task-title")).toBeVisible();
+
+  // Mod + Enter saves and leaves the box.
+  await editor.locator(".cm-line", { hasText: "The end." }).click();
+  await page.keyboard.press("End");
+  await page.keyboard.type(" Kept.");
+  const kept = page.waitForResponse((r) => r.request().method() === "PATCH");
+  await page.keyboard.press("ControlOrMeta+Enter");
+  expect((await kept).ok()).toBe(true);
+  await expect(editor).not.toBeFocused();
+  expect(writes).toHaveLength(1);
+
+  // A fresh page reads what was saved, and nothing that was thrown away.
+  await page.reload();
+  await expect.poll(() => boxValue(page.getByTestId("live-editor"))).toBe(`${WORDS} Kept.`);
 });

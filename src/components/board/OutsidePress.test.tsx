@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { newProject, renderWithBoard, withTask } from "@/test/board";
-import { fillBox, serving } from "@/test/panel";
+import { fillBox, serving, intoDescription } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -53,7 +53,7 @@ describe("A press on the board keeps what the panel was typing", () => {
 
   test("the description is saved", async () => {
     const { sent } = await opened();
-    await page.getByText("Add a description…").click();
+    await intoDescription();
     await fillBox("Typed and pressed away.");
     await pressBoard();
     await expect.poll(() => sent("PATCH", TASK).length).toBe(1);

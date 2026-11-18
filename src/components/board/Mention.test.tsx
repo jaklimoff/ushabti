@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { newProject, renderWithBoard, withAgent, withTask } from "@/test/board";
-import { boxValue, liveValue, serving } from "@/test/panel";
+import { boxValue, liveValue, serving, intoDescription } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -93,14 +93,16 @@ describe("Who an @ can name", () => {
       title: `Ask the agent @${AGENT}`,
     });
 
-    await page.getByText("Add a description…").click();
+    await intoDescription();
     await expect.element(byTestId("live-editor")).toHaveFocus();
     await userEvent.keyboard("Over to @nig");
     await expect.element(list()).toBeVisible();
     await userEvent.keyboard("{Enter}");
     await expect.poll(boxValue).toBe(`Over to @${AGENT} `);
     (byTestId("live-editor").element() as HTMLElement).blur();
-    await expect.element(byTestId("markdown")).toMatchTextContent(`Over to @${AGENT}`);
+    await expect
+      .poll(() => sent("PATCH", /^\/api\/tasks\/[0-9a-f-]+$/).at(-1)?.body)
+      .toMatchObject({ description: `Over to @${AGENT} ` });
   });
 });
 

@@ -116,8 +116,7 @@ export function Markdown({
 
   /* A plain click on a task key opens the task in the panel, as search does,
      with no page load. A click with a key held, or a middle click, is the
-     browser's: the href is the task's own address. Whether a click opens the
-     description's editor is the box's question, in `useClickToEdit`. */
+     browser's: the href is the task's own address. */
   const onClick = (e: MouseEvent<HTMLDivElement>) => {
     const a = (e.target as Element).closest?.("a[data-task-key]");
     if (!a || !links) return;

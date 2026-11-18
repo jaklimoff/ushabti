@@ -64,7 +64,6 @@ import { isTyping } from "./keys";
 import { Markdown, type TaskKeyLinks } from "./Markdown";
 import { FilesStrip } from "./FilesStrip";
 import { loadLiveEditor, MarkdownBox } from "./MarkdownBox";
-import { useClickToEdit } from "./useClickToEdit";
 import { withoutUploadLines } from "@/lib/uploads";
 import { previewContextFor } from "@/lib/live-context";
 import { MentionList, useMentions, type TextBox } from "./Mentions";
@@ -2429,13 +2428,14 @@ function Description({
   reload: () => Promise<void>;
   onCommit: (text: string, base: string) => Promise<Saved>;
 }) {
-  const [editing, setEditing] = useState(false);
   const mod = useModKey();
-  /* Open is editing, whether or not a key was pressed: the sign is there so
-     that two people do not start at once. */
-  useSayField(editing ? "description" : null, inField);
+  /* The box is always on screen, so it is the focus that says somebody is
+     in it, whether or not a key was pressed: the sign is there so that two
+     people do not start at once. */
+  const [focused, setFocused] = useState(false);
+  useSayField(focused ? "description" : null, inField);
   const [draft, setDraft] = useState(value);
-  /* Whether this tab typed since the editor opened. Opening it is not an
+  /* Whether this tab typed since the box last saved. Going into it is not an
      edit, and the draft it leaves behind goes stale the moment somebody else
      writes the description. */
   const [typed, setTyped] = useState(false);
@@ -2453,7 +2453,7 @@ function Description({
   task.current = taskId;
   if (of !== taskId) {
     setOf(taskId);
-    setEditing(false);
+    setFocused(false);
     setTyped(false);
     setDraft(value);
     setSending(null);
@@ -2463,7 +2463,7 @@ function Description({
   const shown = sending ?? value;
 
   /* The editor is a chunk of its own. Asking for it as the panel opens means
-     the first click on the description does not wait for the download. */
+     the rendered words stand in for it for as short a time as can be. */
   useEffect(() => {
     void loadLiveEditor();
   }, []);
@@ -2520,8 +2520,10 @@ function Description({
       : null,
   );
 
+  /* Escape throws the draft away, and the blur it ends with saves nothing. */
+  const thrown = useRef(false);
+
   function close(words = draft) {
-    setEditing(false);
     setTyped(false);
     if (words !== value && words !== base.current) void save(words, base.current);
   }
@@ -2536,38 +2538,15 @@ function Description({
     if (words !== undefined && !ref.current?.owns?.(document.activeElement)) close(words);
   }
 
-  /* How tall the words were when the box opened, less the border both
-     share, so the editor opens at their height and nothing under it moves. */
-  const words = useRef<HTMLDivElement>(null);
-  const [openedAt, setOpenedAt] = useState<number | null>(null);
-
-  /* Nothing reads the draft until the editor opens, so the click that opens it
-     is what fills it in. */
-  function edit() {
-    const height = words.current?.offsetHeight;
-    setOpenedAt(height ? height - 2 : null);
-    setDraft(shown);
-    setTyped(false);
-    setEditing(true);
-  }
-  const clicks = useClickToEdit(edit, taskId);
-
   return (
-    <div
-      className={`${styles.block} ${styles.descBlock}`}
-      style={
-        openedAt === null ? undefined : ({ "--desc-h": `${openedAt}px` } as React.CSSProperties)
-      }
-    >
+    <div className={`${styles.block} ${styles.descBlock}`}>
       <div className={styles.blockHead}>
         <Label>Description</Label>
         <span className={styles.spacer} />
         <span className={styles.hint}>
-          {/* Editing starts with a click, so the browser has the word by then.
+          {/* Shown with the focus, so the browser has the word by then.
               The words come first, so the MD that stays holds the edge. */}
-          <span className={styles.hintWords}>
-            {editing ? `${mod ?? "Ctrl"} + Enter saves` : "Click to edit"}
-          </span>
+          <span className={styles.hintWords}>{`${mod ?? "Ctrl"} + Enter saves`}</span>
           <span className={styles.kbd} title="Written in Markdown">
             MD
           </span>
@@ -2584,68 +2563,67 @@ function Description({
           }}
           onTake={() => setMine(null)}
         />
-      ) : editing ? (
-        <>
-          <MarkdownBox
-            boxRef={ref}
-            live
-            preview={preview}
-            taskId={taskId}
-            send={counted}
-            className={`${styles.descEditor} ${styles.descLive}`}
-            autoFocus
-            value={text}
-            placeholder="Write in Markdown…"
-            onChange={typing}
-            onUploading={uploaded}
-            onUploaded={() => void reload()}
-            onFocus={() => {
-              held.current = false;
-            }}
-            onBlur={() => {
-              if (uploading > 0) {
-                /* The editor stays open for the line, but what was typed is
-                   saved now: a panel closed before the file lands raises no
-                   second blur. The file's line follows when it is ready. */
-                held.current = true;
-                if (typed && leaving !== value && leaving !== base.current) {
-                  const from = base.current;
-                  base.current = leaving;
-                  void save(leaving, from);
-                }
-              } else if (owes) close();
-              else close(value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                (e.target as HTMLTextAreaElement).blur();
-              }
-              if (e.key === "Escape") {
-                // No blur() here: closing the editor unmounts the textarea, and
-                // a removed element raises no blur, so nothing is saved. A
-                // blur() would save the draft first, which is the title's bug.
-                setDraft(value);
-                setTyped(false);
-                setEditing(false);
-              }
-            }}
-          />
-        </>
       ) : (
-        <div
-          ref={words}
-          className={`${styles.desc} ${shown.trim() ? "" : styles.descEmpty}`}
-          {...clicks}
-          role="button"
-          tabIndex={0}
-        >
-          {shown.trim() ? (
-            <Markdown text={shown} links={links} files={files} />
-          ) : (
-            "Add a description…"
-          )}
-        </div>
+        <MarkdownBox
+          key={taskId}
+          boxRef={ref}
+          live
+          preview={preview}
+          taskId={taskId}
+          send={counted}
+          className={`${styles.descEditor} ${styles.descLive}`}
+          value={text}
+          placeholder="Add a description…"
+          waiting={
+            text.trim() ? (
+              <Markdown text={text} links={links} files={files} />
+            ) : (
+              <span className={styles.descEmpty}>Add a description…</span>
+            )
+          }
+          onChange={typing}
+          onUploading={uploaded}
+          onUploaded={() => void reload()}
+          onFocus={() => {
+            held.current = false;
+            setFocused(true);
+          }}
+          onBlur={() => {
+            setFocused(false);
+            if (thrown.current) {
+              thrown.current = false;
+              return;
+            }
+            if (uploading > 0) {
+              /* The box keeps the line, but what was typed is saved now: a
+                 panel closed before the file lands raises no second blur.
+                 The file's line follows when it is ready. */
+              held.current = true;
+              if (typed && leaving !== value && leaving !== base.current) {
+                const from = base.current;
+                base.current = leaving;
+                void save(leaving, from);
+              }
+            } else if (owes) close();
+            else close(value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              (e.target as HTMLElement).blur();
+            }
+            if (e.key === "Escape") {
+              /* The saved words go back in, and the blur that leaves the box
+                 is told to save nothing: a blur that saved would be the
+                 title's bug. */
+              e.preventDefault();
+              thrown.current = true;
+              setDraft(value);
+              setTyped(false);
+              (e.target as HTMLElement).blur();
+            }
+          }}
+        />
       )}
       <EditingSign said={sign} />
     </div>

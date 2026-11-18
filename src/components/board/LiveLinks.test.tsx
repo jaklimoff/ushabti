@@ -3,7 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import type { AttachmentDTO } from "@/lib/types";
 import { DOUBLE_CLICK_MS } from "@/lib/live-markdown";
 import { detailOf, newProject, renderWithBoard, withTask } from "@/test/board";
-import { fillBox, liveValue, serving } from "@/test/panel";
+import { fillBox, liveValue, serving, intoDescription } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -77,7 +77,7 @@ async function openPanel() {
 /** The description box open, holding the links, with the caret on the last line. */
 async function description() {
   const opened = await openPanel();
-  await page.getByText("Add a description…").click();
+  await intoDescription();
   await fillBox(TEXT);
   await expect.poll(() => inBox("live-editor", "[data-lp-open]").length).toBe(4);
   return opened;
@@ -140,8 +140,8 @@ describe("A click on a link in a live box", () => {
     expect(patches[0].path).toBe(`/api/tasks/${task.id}`);
     expect(patches[0].body).toMatchObject({ description: TEXT });
     // The other task's description is its own, empty, and not being edited.
-    await expect.poll(() => byTestId("live-editor").elements().length).toBe(0);
-    await expect.element(page.getByText("Add a description…")).toBeVisible();
+    await expect.poll(() => liveValue("live-editor")).toBe("");
+    expect(byTestId("live-editor").element().contains(document.activeElement)).toBe(false);
   });
 
   test("on the caret's line a click puts the caret and opens nothing", async () => {

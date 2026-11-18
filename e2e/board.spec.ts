@@ -70,12 +70,11 @@ test.describe("Ushabti board", () => {
     await expect(card(page, "Write the first task, renamed").first()).toBeVisible();
 
     // description with markdown
-    await page.getByText("Add a description…").click();
     const editor = descriptionBox(page);
     await fillBox(editor, "Ships **offline** first.\n\n- one\n- two");
     await editor.blur();
-    await expect(page.getByTestId("markdown").locator("strong")).toHaveText("offline");
-    await expect(page.getByTestId("markdown").locator("li")).toHaveCount(2);
+    await expect(editor.locator(".cm-lp-strong")).toHaveText("offline");
+    await expect(editor).not.toContainText("**");
 
     // checklist
     await page.getByRole("button", { name: "Add item" }).click();

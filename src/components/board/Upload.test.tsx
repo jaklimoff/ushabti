@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import type { AttachmentDTO } from "@/lib/types";
 import { detailOf, newProject, renderWithBoard, withTask } from "@/test/board";
-import { boxValue, liveValue, serving } from "@/test/panel";
+import { boxValue, liveValue, serving, intoDescription } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -76,7 +76,7 @@ describe("Uploads", () => {
       return server.answer(sent);
     });
 
-    await page.getByText("Add a description…").click();
+    await intoDescription();
     const editor = byTestId("live-editor");
     await expect.element(editor).toHaveFocus();
     const files = new DataTransfer();
@@ -91,8 +91,8 @@ describe("Uploads", () => {
     (editor.element() as HTMLElement).blur();
     await expect.poll(() => server.taskOf(task.id)!.description).toBe(LINE);
     await expect
-      .element(byTestId("markdown").getByRole("img"))
-      .toHaveAttribute("src", `/api/attachments/${UPLOAD}`);
+      .poll(() => editor.element().querySelector(".cm-lp-image")?.getAttribute("src"))
+      .toBe(`/api/attachments/${UPLOAD}`);
     await expect.poll(() => byTestId("files").getByTestId("file").elements().length).toBe(1);
   });
 

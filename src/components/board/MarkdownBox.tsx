@@ -6,14 +6,17 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ClipboardEvent,
   type DragEvent,
   type KeyboardEvent,
+  type ReactNode,
   type RefObject,
   type TextareaHTMLAttributes,
 } from "react";
 import { flushSync } from "react-dom";
 import { markdownLine } from "@/lib/attachments";
+import { inBrowser, onServer, tellNobody } from "@/lib/mounted";
 import { uploadFile } from "@/lib/upload-client";
 import { insertLines, replaceFirst, uploadingLine } from "@/lib/uploads";
 import type { PreviewContext } from "@/lib/live-markdown";
@@ -64,6 +67,7 @@ export function MarkdownBox({
   boxRef,
   live = false,
   preview,
+  waiting,
   onKeyDown,
   onSelect,
   onBlur,
@@ -87,6 +91,8 @@ export function MarkdownBox({
   live?: boolean;
   /** What a live box draws files and keys by, as the page does. */
   preview?: PreviewContext;
+  /** What a live box draws in its place until the editor is here. */
+  waiting?: ReactNode;
 }) {
   const own = useRef<TextBox>(null);
   const ref = boxRef ?? own;
@@ -94,6 +100,16 @@ export function MarkdownBox({
   /* Picked once for the life of the box: the chunk that lands while a lazy
      editor waits must not swap it for another, which would draw a new one. */
   const [LiveEditor] = useState(() => loaded ?? LazyLiveEditor);
+  /* The server cannot draw the editor, and a lazy one it drew would come
+     back empty, so the first paint is the waiting box on both sides. */
+  const mounted = useSyncExternalStore(tellNobody, inBrowser, onServer);
+  /* A press on the waiting box is a press on the box: the editor takes the
+     focus when it lands, with the caret where the press was. A ref, not
+     state: a render inside the press could swap the box out from under it,
+     and the drawer reads a press on a removed node as a press outside. The
+     suspended editor is drawn again with the props it had, so it reads the
+     ref as it mounts. */
+  const pressed = useRef<{ x: number; y: number } | null>(null);
 
   /* An upload answers long after it started, so it asks for the words as
      they are then. A write sets them at once, before React renders them, so
@@ -200,35 +216,52 @@ export function MarkdownBox({
 
   if (live) {
     const testId = (rest as { "data-testid"?: string })["data-testid"] ?? "live-editor";
+    /* Named after its box: the description and the comment box wait at once. */
+    const wait = (
+      <div
+        className={rest.className}
+        data-testid={`${testId}-wait`}
+        onPointerDown={(e) => {
+          if (!(e.target as Element).closest?.("a"))
+            pressed.current = { x: e.clientX, y: e.clientY };
+        }}
+      >
+        {waiting}
+      </div>
+    );
     return (
       <>
-        {/* Named after its box: the description and the comment box wait at once. */}
-        <Suspense fallback={<div className={rest.className} data-testid={`${testId}-wait`} />}>
-          <LiveEditor
-            boxRef={ref}
-            value={value}
-            label={rest["aria-label"] ?? "Description"}
-            testId={testId}
-            className={rest.className}
-            placeholder={rest.placeholder}
-            autoFocus={rest.autoFocus}
-            preview={preview}
-            onChange={(text) => write(text)}
-            onSelect={() => picker.sync()}
-            onKeyDown={(e) => {
-              const key = e as unknown as KeyboardEventLike;
-              if (picker.onKeyDown(key)) return true;
-              onKeyDown?.(key);
-              return e.defaultPrevented;
-            }}
-            onFocus={() => rest.onFocus?.(undefined as never)}
-            onBlur={() => {
-              picker.close();
-              onBlur?.(undefined as never);
-            }}
-            onFiles={take}
-          />
-        </Suspense>
+        {!mounted ? (
+          wait
+        ) : (
+          <Suspense fallback={wait}>
+            <LiveEditor
+              boxRef={ref}
+              value={value}
+              label={rest["aria-label"] ?? "Description"}
+              testId={testId}
+              className={rest.className}
+              placeholder={rest.placeholder}
+              autoFocus={rest.autoFocus}
+              pressed={pressed}
+              preview={preview}
+              onChange={(text) => write(text)}
+              onSelect={() => picker.sync()}
+              onKeyDown={(e) => {
+                const key = e as unknown as KeyboardEventLike;
+                if (picker.onKeyDown(key)) return true;
+                onKeyDown?.(key);
+                return e.defaultPrevented;
+              }}
+              onFocus={() => rest.onFocus?.(undefined as never)}
+              onBlur={() => {
+                picker.close();
+                onBlur?.(undefined as never);
+              }}
+              onFiles={take}
+            />
+          </Suspense>
+        )}
         <MentionList picker={picker} />
         {refused?.taskId === taskId && (
           <span className={styles.boxRefused} role="status" data-testid="upload-refused">

@@ -101,14 +101,13 @@ test.describe("The task panel reads as one set of controls", () => {
 
   test("clicking the description moves no text", async ({ page }, testInfo) => {
     const panel = await openTask(page);
-    const shown = panel.getByTestId("markdown").first();
-    await expect(shown).toHaveText("Ships offline first.");
-    const before = await wordsAt(shown);
-
-    await shown.click();
     const editor = panel.getByTestId("live-editor");
-    await expect(editor).toBeFocused();
     const line = editor.locator(".cm-line").first();
+    await expect(line).toHaveText("Ships offline first.");
+    const before = await wordsAt(line);
+
+    await line.click();
+    await expect(editor).toBeFocused();
     await expect(line).toHaveText("Ships offline first.");
     /* On a desktop the words keep the panel's own size. */
     await expect(editor).toHaveCSS("font-size", "12.5px");
@@ -189,8 +188,8 @@ test.describe("The task panel under a finger", () => {
     const panel = await openTask(page, "Later");
     const size = (el: Locator) => el.evaluate((node) => getComputedStyle(node).fontSize);
 
-    await panel.getByTestId("markdown").first().click();
     const editor = panel.getByTestId("live-editor");
+    await editor.click();
     await expect(editor).toBeFocused();
     await expect(editor).toHaveCSS("font-size", "16px");
     await expect(editor.locator(".cm-line").first()).toHaveCSS("font-size", "16px");
@@ -204,10 +203,10 @@ test.describe("The task panel under a finger", () => {
     expect(parseFloat(await size(code))).toBeLessThan(16);
     await page.screenshot({ path: testInfo.outputPath("seen-panel-touch-description.png") });
 
-    /* The box closes on a blur and the panel moves up under it, so it closes
-       before the press on Edit, or the press lands on what moved there. */
+    /* The box saves on a blur, which is a write and redraws the panel, so it
+       leaves before the press on Edit. */
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-    await expect(editor).toHaveCount(0);
+    await expect(editor).not.toBeFocused();
     await panel.getByRole("button", { name: "Edit" }).click();
     const box = panel.getByTestId("comment-editor");
     await expect(box).toBeVisible();

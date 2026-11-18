@@ -137,15 +137,18 @@ for (const { name, width, height } of WIDTHS) {
       await renderWithBoard(<BoardShell initialTask={task.key} />, data, serving(data, [comment]));
       await expect.element(byTestId("task-panel")).toBeVisible();
 
-      const description = byTestId("markdown");
+      // The description is its editor, drawn rendered while nobody is in it.
+      const description = byTestId("live-editor");
       await expect.element(description).toBeVisible();
-      expect(html(description).querySelector("pre code")!.textContent).toContain('"item29"');
-      expect(html(description).querySelector("p code")!.textContent).toContain("webhooks,import");
+      const code = () => [...html(description).querySelectorAll(".cm-line.cm-lp-code")];
+      await expect.poll(() => code().length).toBeGreaterThan(0);
+      const block = code().find((l) => l.textContent?.includes('"item29"'))!;
+      expect(html(description).querySelector(".cm-lp-code:not(.cm-line)")!.textContent).toContain(
+        "webhooks,import",
+      );
       nothingScrollsSideways(description);
-      // The block is taller than one line, because the line wrapped.
-      expect(
-        html(description).querySelector("pre")!.getBoundingClientRect().height,
-      ).toBeGreaterThan(50);
+      // The code line is taller than one line, because it wrapped.
+      expect(block.getBoundingClientRect().height).toBeGreaterThan(50);
 
       const said = byTestId("comment-markdown");
       await expect.element(said).toBeVisible();

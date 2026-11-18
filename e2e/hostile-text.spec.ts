@@ -33,6 +33,19 @@ async function drawnAsText(page: Page, box: Locator) {
   expect(await page.evaluate(() => getComputedStyle(document.body).display)).not.toBe("none");
 }
 
+/** The description is its live editor, which draws the source as words,
+    and a GFM task box as its own checkbox and nothing else of a form. */
+async function editedAsText(page: Page, box: Locator) {
+  await expect(box).toContainText("Plain words stay.");
+  await expect(box).toContainText("covered");
+  const lines = box.locator(".cm-line");
+  await expect(
+    lines.locator("style, form, input:not(.cm-lp-task), button, textarea, select, option, [style]"),
+  ).toHaveCount(0);
+  await expect(lines.locator(".cm-lp-task")).toHaveCount(2);
+  expect(await page.evaluate(() => getComputedStyle(document.body).display)).not.toBe("none");
+}
+
 function freshKey(): string {
   return `H${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
 }
@@ -58,7 +71,7 @@ test.describe("Hostile text", () => {
     ).toBe(true);
 
     await page.goto(`/p/${projectId}?task=${task.key}`);
-    await drawnAsText(page, page.getByTestId("markdown").first());
+    await editedAsText(page, page.getByTestId("live-editor"));
     await drawnAsText(page, page.getByTestId("comment-markdown"));
     await page.screenshot({ path: testInfo.outputPath("seen-hostile-panel.png") });
 

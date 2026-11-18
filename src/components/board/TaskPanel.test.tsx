@@ -89,13 +89,13 @@ describe("The task panel", () => {
     task.description = "The words that were saved.";
     const { sent } = await draw(data, task);
 
-    const markdown = byTestId("markdown");
-    await expect.element(markdown).toHaveTextContent("The words that were saved.");
+    await expect.element(byTestId("live-editor")).toBeInTheDocument();
+    await expect.poll(boxValue).toBe("The words that were saved.");
 
-    await markdown.click();
     await fillBox("Words nobody asked to keep.");
     await userEvent.keyboard("{Escape}");
-    await expect.element(byTestId("markdown")).toHaveTextContent("The words that were saved.");
+    await expect.poll(boxValue).toBe("The words that were saved.");
+    await expect.element(byTestId("live-editor")).not.toHaveFocus();
 
     const title = byTestId("task-title");
     await title.click();
@@ -106,7 +106,7 @@ describe("The task panel", () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(taskWrites(sent)).toEqual([]);
     await expect.element(byTestId("task-title")).toHaveValue("Keep the old title");
-    await expect.element(byTestId("markdown")).toHaveTextContent("The words that were saved.");
+    expect(boxValue()).toBe("The words that were saved.");
   });
 
   /*
@@ -189,6 +189,29 @@ describe("An edit the tab was closed on", () => {
     await expect.poll(() => taskWrites(sent).length).toBe(1);
     expect(taskWrites(sent)[0].body).toMatchObject({ title: "The words the tab took" });
     // Only a keepalive request outlives the page that sent it.
+    const leave = vi
+      .mocked(fetch)
+      .mock.calls.find(
+        ([url, init]) =>
+          TASK.test(new URL(String(url), location.origin).pathname) && init?.keepalive,
+      );
+    expect(leave?.[1]?.method).toBe("PATCH");
+  });
+
+  test("the description is saved although nothing was blurred", async () => {
+    const data = newProject();
+    const task = withTask(data, "Keep the words", { Status: "Todo" });
+    task.description = "The words that were saved.";
+    const { sent } = await draw(data, task);
+
+    await fillBox("The words the tab took.");
+    await expect.element(byTestId("live-editor")).toHaveFocus();
+    window.dispatchEvent(new PageTransitionEvent("pagehide"));
+    await expect.poll(() => taskWrites(sent).length).toBe(1);
+    expect(taskWrites(sent)[0].body).toMatchObject({
+      description: "The words the tab took.",
+      baseDescription: "The words that were saved.",
+    });
     const leave = vi
       .mocked(fetch)
       .mock.calls.find(

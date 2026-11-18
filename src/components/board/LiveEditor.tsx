@@ -28,6 +28,8 @@ export type LiveEditorProps = {
   testId: string;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Where the box was pressed before the editor was here, if it was. */
+  pressed?: RefObject<{ x: number; y: number } | null>;
   className?: string;
   /** The task's files and the board's keys, so the box draws them as the page does. */
   preview?: PreviewContext;
@@ -115,7 +117,11 @@ export default function LiveEditor(props: LiveEditorProps) {
       owns: (el) => !!el && v.dom.contains(el),
     };
     latest.current.boxRef.current = box;
-    if (p.autoFocus) {
+    const at = p.pressed?.current;
+    if (at) {
+      v.focus();
+      v.dispatch({ selection: { anchor: v.posAtCoords(at) ?? v.state.doc.length } });
+    } else if (p.autoFocus) {
       v.focus();
       v.dispatch({ selection: { anchor: v.state.doc.length } });
     }

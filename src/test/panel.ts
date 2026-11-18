@@ -342,3 +342,14 @@ export async function fillBox(text: string, testId = "live-editor") {
      either, or the blur reads a panel that has not seen the typing yet. */
   await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 }
+
+/**
+ * The description is always its editor, so going into it is a focus. The
+ * editor is a lazy chunk, so this waits for it to be drawn first.
+ */
+export async function intoDescription() {
+  const box = page.getByTestId("live-editor");
+  await expect.element(box).toBeInTheDocument();
+  (box.element() as HTMLElement).focus();
+  await expect.element(box).toHaveFocus();
+}

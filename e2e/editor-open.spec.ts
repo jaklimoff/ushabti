@@ -2,9 +2,11 @@ import { expect, test, type Page, type Response } from "@playwright/test";
 import { addTask, createProject, register, unique } from "./helpers";
 
 /**
- * The description's editor is a chunk of its own. The panel asks for it as it
- * opens, so a click after that draws the editor at once, with no stand-in in
- * between. A click before it still opens the editor, after the wait.
+ * The description's editor is a chunk of its own, and the description is
+ * always its editor. The panel asks for the chunk as it opens, so a task
+ * opened after that draws the editor at once, with no stand-in in between.
+ * Before it, the box draws the words, and a click on them still ends in the
+ * editor, after the wait.
  */
 
 /* A string from CodeMirror's own theme. Nothing of ours writes it in a
@@ -22,52 +24,40 @@ function editorChunk(page: Page) {
   });
 }
 
-/* Watches the page from the press on: whether the stand-in was ever drawn,
-   and how long the editor took to appear. Measured inside the page, so the
-   round trips of the test runner do not count. */
+/* Watches the page from the press on: whether the stand-in was ever drawn.
+   Measured inside the page, so a stand-in drawn for one frame counts. */
 async function watchOpen(page: Page) {
   await page.evaluate(() => {
     const w = window as unknown as {
-      opened: { pressedAt: number; shownAt: number | null; waited: boolean };
+      opened: { waited: boolean };
     };
-    w.opened = { pressedAt: 0, shownAt: null, waited: false };
-    document.addEventListener(
-      "pointerdown",
-      () => {
-        w.opened.pressedAt = performance.now();
-      },
-      { capture: true, once: true },
-    );
+    w.opened = { waited: false };
     new MutationObserver(() => {
       if (document.querySelector('[data-testid="live-editor-wait"]')) w.opened.waited = true;
-      if (w.opened.shownAt === null && document.querySelector('[data-testid="live-editor"]'))
-        w.opened.shownAt = performance.now();
     }).observe(document.body, { childList: true, subtree: true });
   });
   return () =>
-    page.evaluate(() => {
-      const { opened } = window as unknown as {
-        opened: { pressedAt: number; shownAt: number; waited: boolean };
-      };
-      return { waited: opened.waited, took: opened.shownAt - opened.pressedAt };
-    });
+    page.evaluate(() => (window as unknown as { opened: { waited: boolean } }).opened.waited);
 }
 
-test("with the chunk loaded, the description opens at once and with no stand-in", async ({
-  page,
-}) => {
+test("with the chunk loaded, a task opens on its editor with no stand-in", async ({ page }) => {
   await register(page, "Ada Lovelace");
   await createProject(page, unique("Open"));
   const chunk = editorChunk(page);
-  await addTask(page, "Todo", "Open it at once");
+  await addTask(page, "Todo", "Opened first");
   await chunk;
+  await addTask(page, "Todo", "Opened second");
+  await expect(page.getByTestId("task-title")).toHaveValue("Opened second");
 
-  const read = await watchOpen(page);
-  await page.getByText("Add a description…").click();
+  const waited = await watchOpen(page);
+  await page.getByTestId("card").filter({ hasText: "Opened first" }).click();
+  await expect(page.getByTestId("task-title")).toHaveValue("Opened first");
+  await expect(page.getByTestId("live-editor")).toBeVisible();
+  // There is no Click to edit: the box is the editor from the start.
+  await expect(page.getByText("Click to edit")).toHaveCount(0);
+  await page.getByTestId("live-editor").click();
   await expect(page.getByTestId("live-editor")).toBeFocused();
-  const { waited, took } = await read();
-  expect(waited).toBe(false);
-  expect(took).toBeLessThan(100);
+  expect(await waited()).toBe(false);
 });
 
 test("a click before the chunk has loaded still opens the editor", async ({ page }) => {
@@ -86,8 +76,10 @@ test("a click before the chunk has loaded still opens the editor", async ({ page
     await route.fallback();
   });
   await page.getByText("Open it early").first().click();
-  await page.getByText("Add a description…").click();
-  await expect(page.getByTestId("live-editor-wait")).toBeAttached();
+  // The box stands in for the editor, with the same words in it.
+  const waiting = page.getByTestId("live-editor-wait");
+  await expect(waiting).toHaveText("Add a description…");
+  await waiting.click();
   release();
   await expect(page.getByTestId("live-editor")).toBeFocused();
 });

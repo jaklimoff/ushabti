@@ -1,16 +1,17 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { previewContextFor } from "../live-context";
-import { livePreview, openAt, pieces, previewContext, type Piece } from "../live-markdown";
+import { focusIs, livePreview, openAt, pieces, previewContext, type Piece } from "../live-markdown";
 import type { TaskLinks } from "../task-keys";
 import type { FileFacts } from "../uploads";
 
 /** What the page tells the box; null tells it nothing. */
 type Told = { files?: FileFacts[]; links?: TaskLinks } | null;
 
-/** The words as the preview draws them: hidden stretches gone, widgets named. */
-function drawn(doc: string, cursor?: number | EditorSelection, told: Told = {}) {
-  const state = EditorState.create({
+/** The words as the preview draws them: hidden stretches gone, widgets named.
+    The box has the focus unless `unfocused` says nobody is in it. */
+function drawn(doc: string, cursor?: number | EditorSelection, told: Told = {}, unfocused = false) {
+  const made = EditorState.create({
     doc,
     selection: typeof cursor === "number" ? EditorSelection.cursor(cursor) : cursor,
     extensions: [
@@ -18,6 +19,7 @@ function drawn(doc: string, cursor?: number | EditorSelection, told: Told = {}) 
       told ? previewContext.of(previewContextFor(told.files ?? [], told.links ?? null)) : [],
     ],
   });
+  const state = unfocused ? made : made.update({ effects: focusIs.of(true) }).state;
   const all = pieces(state);
   const cuts = all
     .filter(
@@ -62,6 +64,12 @@ describe("live preview", () => {
     const doc = "**one**\n**two**";
     expect(drawn(doc, 3).text).toBe("**one**\ntwo");
     expect(drawn(doc, 11).text).toBe("one\n**two**");
+  });
+
+  it("shows no source at all while nobody is in the box", () => {
+    const doc = "## Plan\n**one**\n**two**";
+    expect(drawn(doc, 0, {}, true).text).toBe("Plan\none\ntwo");
+    expect(drawn(doc, EditorSelection.single(0, doc.length), {}, true).text).toBe("Plan\none\ntwo");
   });
 
   it("draws a link as its words", () => {
@@ -266,14 +274,17 @@ describe("live preview", () => {
     it("opens nothing on the caret's line, where a link is its source", () => {
       const links = { projectId: "p1", projectKey: "USH", keys: ["USH-1"] };
       const doc = "[a](https://x.y) USH-1 https://x.y/b";
-      const state = EditorState.create({
+      const away = EditorState.create({
         doc,
         selection: EditorSelection.cursor(0),
         extensions: [livePreview(), previewContext.of(previewContextFor([], links))],
       });
+      const state = away.update({ effects: focusIs.of(true) }).state;
       expect(pieces(state).filter((p) => p.kind === "open")).toEqual([]);
       for (const word of ["a]", "USH-1", "x.y/b"])
         expect(openAt(state, doc.indexOf(word))).toBe(null);
+      // With nobody in the box, the caret's line is drawn, so its links open.
+      expect(openAt(away, doc.indexOf("USH-1"))).toEqual({ key: "USH-1" });
     });
 
     it("opens nothing in plain words", () => {

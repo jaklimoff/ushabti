@@ -23,7 +23,7 @@ test.describe("The live description", () => {
     await fetched;
     // From here no script can arrive, so the box must already be here.
     await page.route(/\.js(\?|$)/, (route) => route.abort());
-    await page.getByText("Add a description…").click();
+    await page.getByTestId("live-editor").click();
     await expect(page.getByTestId("live-editor")).toBeFocused();
   });
 });

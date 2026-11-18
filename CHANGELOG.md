@@ -16,6 +16,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
   the box may hold words nobody has saved. On the caret's line a link is its source and a click
   edits, as before.
 
+### Changed
+
+- **The description is always its editor.** There is no Click to edit any more: a click goes
+  straight into the words, the caret lands where you clicked, and nothing on the panel jumps.
+  Out of the box every line reads rendered, the caret's line too. Leaving the box or Mod + Enter
+  saves, and Escape puts the saved words back.
+
 ## 0.51.1 — 2026-11-16
 
 ### Changed

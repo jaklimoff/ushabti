@@ -48,24 +48,26 @@ test("a key in a description and in a comment opens its task", async () => {
   await renderWithBoard(<BoardShell initialTask={waiting.key} />, data, server.answer);
   window.history.replaceState(null, "", address);
 
-  const description = byTestId("markdown");
-  await expect.element(description.getByRole("link")).toBeVisible();
-  const links = () => description.element().querySelectorAll("a[data-task-key]");
-  expect(links()).toHaveLength(1);
-  const link = links()[0] as HTMLAnchorElement;
+  /* The description is its live editor, which draws a key as the page
+     does: one link, titled with the task's own address. */
+  const inBox = (selector: string) =>
+    byTestId("live-editor").element().querySelectorAll<HTMLElement>(selector);
+  await expect.poll(() => inBox("[data-task-key]").length).toBe(1);
+  const link = inBox("[data-task-key]")[0];
   expect(link.textContent).toBe(written);
-  expect(link.getAttribute("href")).toBe(`/p/${data.project.id}?task=${blocker.key}`);
-  await expect.element(description.element().querySelector("code")!).toHaveTextContent(blocker.key);
+  expect(link.getAttribute("title")).toBe(`/p/${data.project.id}?task=${blocker.key}`);
+  expect(inBox(".cm-lp-code")[0].textContent).toBe(blocker.key);
 
-  // A ⌘ or Ctrl click is the browser's: a new tab on the task's own address,
-  // and the panel and the description behind it stay as they were.
+  // A ⌘ or Ctrl click is the browser's: the panel stays as it was.
   await userEvent.click(link, { modifiers: ["ControlOrMeta"] });
   expect(window.location.search).not.toMatch(/task=/);
   await expect.element(byTestId("task-title")).toHaveValue("The waiting one");
-  expect(byTestId("live-editor").elements()).toHaveLength(0);
 
-  // A plain click opens the task in the panel with no page load.
-  await userEvent.click(link);
+  // A plain click opens the task in the panel with no page load. The click
+  // above put the caret in the box, so it leaves first to draw the link.
+  (byTestId("live-editor").element() as HTMLElement).blur();
+  await expect.poll(() => inBox("[data-task-key]").length).toBe(1);
+  await userEvent.click(inBox("[data-task-key]")[0]);
   await expect.element(byTestId("task-title")).toHaveValue("The blocker");
   expect(window.location.search).toMatch(new RegExp(`task=${blocker.key}$`));
 

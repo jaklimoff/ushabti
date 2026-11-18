@@ -398,45 +398,15 @@
   border: 1px solid var(--line-menu);
 }
 
-/* "Click to edit" is for the pointer that is about to click, so it waits
-   for the pointer, or for the keyboard, and the MD stays. */
+/* "Mod + Enter saves" is for somebody in the box, so it waits for the
+   focus, and the MD stays. */
 .hintWords {
   opacity: 0;
   transition: opacity 140ms var(--ease);
 }
 
-.descBlock:hover .hintWords,
 .descBlock:focus-within .hintWords {
   opacity: 1;
-}
-
-/* The words wear the editor's box, unseen, so opening it moves nothing: the
-   border and the padding are the editor's, and the margin takes them back
-   out to the column's edge. A pointer on it shows the box it will become.
-   No `text-wrap: pretty` here: the editor cannot match it, so the first line
-   rewrapped the moment the box opened. */
-.desc {
-  margin: 0 -11px;
-  padding: 9px 10px;
-  border: 1px solid transparent;
-  border-radius: var(--r-md);
-  font-size: var(--t-body);
-  line-height: 1.6;
-  color: var(--text-4);
-  cursor: text;
-  transition:
-    background 140ms var(--ease),
-    border-color 140ms var(--ease);
-  min-height: 42px;
-}
-
-.desc:hover {
-  background: var(--bg-input);
-  border-color: var(--line-strong);
-}
-
-.desc:focus-visible {
-  outline-offset: 0;
 }
 
 /* Nothing written yet: the words are an offer, not a description. */
@@ -533,14 +503,30 @@
   min-height: 120px;
   padding: 9px 10px;
 }
-/* The description opens exactly as tall as its words were, so nothing
-   under it moves. `--desc-h` is measured on the click that opens it. */
+/* The description is as tall as its words, and the rendered words drawn
+   while the editor is on its way sit in the same box with the same padding,
+   so nothing under it moves when the editor lands. */
 .descLive :global(.cm-editor) {
-  min-height: var(--desc-h, 40px);
+  min-height: 40px;
 }
-/* The description's editor lies where its words lay. CodeMirror pads a
-   line and the content of its own, which moved every word when the box
-   opened, so both go. Its theme is added after this sheet, hence the extra
+.descLive:not(:has(:global(.cm-editor))) {
+  min-height: 42px;
+  cursor: text;
+}
+/* The editor draws a list item as a line and puts no space at its top or
+   its bottom, so the words drawn while it is on the way do the same. */
+.descLive .markdown > :first-child {
+  margin-top: 0;
+}
+.descLive .markdown > :last-child {
+  margin-bottom: 0;
+}
+.descLive .markdown li {
+  margin: 0;
+}
+/* The description's editor lies where the column's words lie. CodeMirror
+   pads a line and the content of its own, which moved every word against
+   the rendered words, so both go. Its theme is added after this sheet, hence the extra
    class on each. */
 .descLive {
   width: calc(100% + 22px);
