@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A link in a Links field is edited in place.** A pencil beside its ✕ turns the link into a
+  box holding its whole address: Enter or leaving the box saves it where it sits, Escape puts it
+  back. A click on the link still opens it.
 - **A link in the Markdown box opens with a click.** In the description, the comment box and a
   comment's edit, a plain click on a link drawn as a link opens it, and the caret stays where it
   was. A task key opens its task in the panel; a web address and a file open in a new tab, because

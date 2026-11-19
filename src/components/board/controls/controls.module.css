@@ -418,6 +418,14 @@
   text-decoration: underline;
 }
 
+/* A link being edited: the box takes the link's place and its whole width. */
+.linkEditing {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .linkProblem {
   font-size: var(--t-micro);
   color: var(--danger-text);

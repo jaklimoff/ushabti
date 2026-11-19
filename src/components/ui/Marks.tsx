@@ -132,3 +132,21 @@ export function ViewKindMark({
     </svg>
   );
 }
+
+/**
+ * Edit: a comment's and a link's. Drawn, because a glyph sits off centre at
+ * 12 px.
+ */
+export function PencilIcon() {
+  return (
+    <svg aria-hidden width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path
+        d="M7.6 2.4l2 2M2 10l.5-2.4L8.3 1.8a.9.9 0 011.3 0l.6.6a.9.9 0 010 1.3L4.4 9.5 2 10z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

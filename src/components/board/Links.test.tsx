@@ -151,4 +151,92 @@ describe("A Link property", () => {
       .element(byTestId("list-row").filter({ hasText: "Two pull requests" }))
       .toMatchTextContent("acme/shop#12 +1");
   });
+
+  test("a link is edited in place: Enter and blur save it where it sits, Escape and empty put it back", async () => {
+    const data = newProject();
+    const links = withLinks(data, "Pull requests");
+    const OTHER = "https://github.com/acme/shop/pull/99";
+    const ship = withTask(data, "Ship the cart", { Status: "Todo" });
+    ship.values[links.id] = [PR, ISSUE];
+    const server = serving(data);
+    const { sent } = await renderWithBoard(
+      <BoardShell initialTask={ship.key} />,
+      data,
+      server.answer,
+    );
+    const pencil = (label: string) => page.getByRole("button", { name: `Edit ${label}` });
+    const box = (label: string) => page.getByRole("textbox", { name: `Edit ${label}` });
+    const values = () => sent("PUT", VALUE).map((r) => r.body);
+
+    /* A click on the label is the link and starts no edit. */
+    const label = panelLinks("Pull requests").first();
+    await expect.element(label).toHaveAttribute("target", "_blank");
+    label.element().addEventListener("click", (e) => e.preventDefault(), { once: true });
+    await label.click();
+    expect(box("acme/shop#12").elements()).toHaveLength(0);
+
+    /* The pencil sits beside the ✕ and opens a box with the whole address,
+       focused, the words picked. */
+    await expect.element(page.getByRole("button", { name: "Remove acme/shop#12" })).toBeVisible();
+    await pencil("acme/shop#12").click();
+    const input = box("acme/shop#12");
+    await expect.element(input).toHaveValue(PR);
+    await expect.element(input).toHaveFocus();
+    const el = input.element() as HTMLInputElement;
+    expect(el.value.slice(el.selectionStart ?? 0, el.selectionEnd ?? 0)).toBe(PR);
+
+    /* Escape puts the old link back and writes nothing. */
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => linkTexts("Pull requests")).toEqual(["acme/shop#12", "acme/shop#7"]);
+    await expect.element(pencil("acme/shop#12")).toHaveFocus();
+
+    /* Empty puts it back too; removing is the ✕'s job. */
+    await pencil("acme/shop#12").click();
+    await box("acme/shop#12").fill("");
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => linkTexts("Pull requests")).toEqual(["acme/shop#12", "acme/shop#7"]);
+
+    /* Unchanged writes nothing. */
+    await pencil("acme/shop#12").click();
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => linkTexts("Pull requests")).toEqual(["acme/shop#12", "acme/shop#7"]);
+    expect(values()).toEqual([]);
+
+    /* A link the server would refuse stays in the box with the reason. */
+    await pencil("acme/shop#12").click();
+    await box("acme/shop#12").fill("ftp://acme.test/file");
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(
+        page
+          .getByRole("alert")
+          .filter({ hasText: "Pull requests takes only http and https links." }),
+      )
+      .toBeVisible();
+    await expect.element(box("acme/shop#12")).toHaveValue("ftp://acme.test/file");
+
+    /* A link already in the list, by another spelling, stays too. */
+    await box("acme/shop#12").fill(`${ISSUE}#top`);
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(page.getByRole("alert").filter({ hasText: "Pull requests already has this link." }))
+      .toBeVisible();
+    await expect.element(box("acme/shop#12")).toHaveValue(`${ISSUE}#top`);
+    expect(values()).toEqual([]);
+
+    /* Enter saves, and the link keeps its place. */
+    await box("acme/shop#12").fill(OTHER);
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => linkTexts("Pull requests")).toEqual(["acme/shop#99", "acme/shop#7"]);
+    await expect.poll(() => values()).toEqual([{ value: [OTHER, ISSUE] }]);
+
+    /* Blur saves as well. */
+    await pencil("acme/shop#7").click();
+    await box("acme/shop#7").fill(`${ISSUE}#x`);
+    await page.getByLabelText("Add a link to Pull requests").click();
+    await expect
+      .poll(() => values())
+      .toEqual([{ value: [OTHER, ISSUE] }, { value: [OTHER, `${ISSUE}#x`] }]);
+    await expect.poll(() => linkTexts("Pull requests")).toEqual(["acme/shop#99", "acme/shop#7"]);
+  });
 });

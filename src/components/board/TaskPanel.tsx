@@ -52,6 +52,7 @@ import type {
 } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button, IconButton } from "@/components/ui/Button";
+import { PencilIcon } from "@/components/ui/Marks";
 import { useNow } from "@/components/ui/useElapsed";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useSaveOnLeave } from "@/components/ui/useSaveOnLeave";
@@ -2645,21 +2646,6 @@ function LinkIcon() {
         d="M6 8a2.5 2.5 0 003.5 0l2-2A2.5 2.5 0 008 2.5l-.8.8M8 6a2.5 2.5 0 00-3.5 0l-2 2A2.5 2.5 0 006 11.5l.8-.8"
         stroke="currentColor"
         strokeWidth="1.3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/** Edit, drawn for the same reason as the tick: a glyph sits off centre. */
-function PencilIcon() {
-  return (
-    <svg aria-hidden width="12" height="12" viewBox="0 0 12 12" fill="none">
-      <path
-        d="M7.6 2.4l2 2M2 10l.5-2.4L8.3 1.8a.9.9 0 011.3 0l.6.6a.9.9 0 010 1.3L4.4 9.5 2 10z"
-        stroke="currentColor"
-        strokeWidth="1.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />

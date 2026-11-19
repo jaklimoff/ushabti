@@ -10,11 +10,11 @@ import type { FormerDTO, MemberDTO, PropertyDTO, PropertyOptionDTO, TaskValue } 
 import { personMenu, personName, personOf, personOpeningAt } from "@/lib/people";
 import { openingAt, optionMenu } from "@/lib/option-menu";
 import { pickableOptions } from "@/lib/option-dates";
-import { LinkError, linkLabel, linksOf, readLinks } from "@/lib/web-links";
+import { LinkError, linkKey, linkLabel, linksOf, readLinks } from "@/lib/web-links";
 import { tasksOf } from "@/lib/related";
 import { SEARCH_LIMIT, searchTasks } from "@/lib/search";
 import { Avatar } from "@/components/ui/Avatar";
-import { Chevron } from "@/components/ui/Marks";
+import { Chevron, PencilIcon } from "@/components/ui/Marks";
 import { useDismiss } from "@/components/ui/useDismiss";
 import { useHighlightInView, walkKeys } from "../Ask";
 import { useBoard } from "../store";
@@ -793,11 +793,22 @@ function ScalarField({
  * paste one more into. The box adds on Enter or on blur, as every value box of
  * the panel saves. A link the server would refuse stays in the box with the
  * reason beside it, rather than vanish as if it were saved.
+ *
+ * A pencil beside each ✕ turns that one link into a box holding its whole
+ * address, saved the way the add box saves. It is a button and not a click on
+ * the label, so a click on the label always opens the link.
  */
 function LinkList({ property, value, onChange, labelId }: Props) {
   const links = linksOf(value);
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  /* The edit is tied to the link it opened on, not to its place: a list that
+     another tab changed meanwhile must not take the words at another link. */
+  const [editing, setEditing] = useState<{ link: string; draft: string; problem: string | null }>();
+  /* True from the press until the edit closes, so the blur that follows an
+     Enter or an Escape, as the box leaves, saves nothing a second time. */
+  const editOpen = useRef(false);
+  const groupRef = useRef<HTMLDivElement>(null);
 
   function add() {
     const text = draft.trim();
@@ -818,30 +829,123 @@ function LinkList({ property, value, onChange, labelId }: Props) {
     if (next.length !== links.length) onChange(next);
   }
 
+  function startEdit(link: string) {
+    editOpen.current = true;
+    setEditing({ link, draft: link, problem: null });
+  }
+
+  /** Closes the edit; from a key, the focus goes back to the link's pencil. */
+  function closeEdit(link: string | null) {
+    editOpen.current = false;
+    setEditing(undefined);
+    if (link === null) return;
+    requestAnimationFrame(() => {
+      const pencils = groupRef.current?.querySelectorAll<HTMLButtonElement>("[data-link-edit]");
+      for (const pencil of pencils ?? []) {
+        if (pencil.dataset.linkEdit === link) pencil.focus();
+      }
+    });
+  }
+
+  function saveEdit(fromKey: boolean) {
+    if (!editOpen.current || !editing) return;
+    const at = links.indexOf(editing.link);
+    const text = editing.draft.trim();
+    /* Emptied, unchanged, or gone from the list: nothing to write. */
+    if (at < 0 || !text || text === editing.link) {
+      closeEdit(fromKey && at >= 0 ? editing.link : null);
+      return;
+    }
+    const refuse = (reason: string) =>
+      setEditing({ ...editing, problem: `${property.name} ${reason}` });
+    const key = linkKey(text);
+    if (links.some((l, i) => i !== at && linkKey(l) === key)) {
+      refuse("already has this link.");
+      return;
+    }
+    let next: string[];
+    try {
+      next = readLinks(links.map((l, i) => (i === at ? text : l)));
+    } catch (error) {
+      if (!(error instanceof LinkError)) throw error;
+      refuse(error.message);
+      return;
+    }
+    closeEdit(fromKey ? text : null);
+    onChange(next);
+  }
+
   return (
     <div className={styles.wrap} style={{ display: "block" }}>
-      <div className={styles.links} role="group" {...named(labelId)}>
-        {links.map((link) => (
-          <span key={link} className={styles.link}>
-            <a
-              className={styles.linkText}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={link}
-            >
-              {linkLabel(link)}
-            </a>
-            <button
-              className={styles.chipRemove}
-              title="Remove"
-              aria-label={`Remove ${linkLabel(link)}`}
-              onClick={() => onChange(links.filter((l) => l !== link))}
-            >
-              ✕
-            </button>
-          </span>
-        ))}
+      <div className={styles.links} role="group" ref={groupRef} {...named(labelId)}>
+        {links.map((link) =>
+          editing?.link === link ? (
+            <span key={link} className={styles.linkEditing}>
+              <input
+                className={styles.textInput}
+                type="url"
+                aria-label={`Edit ${linkLabel(link)}`}
+                aria-invalid={editing.problem ? true : undefined}
+                value={editing.draft}
+                ref={(el) => {
+                  /* Once, as the box opens: focused, with the words picked. */
+                  if (el && el.dataset.opened !== "1") {
+                    el.dataset.opened = "1";
+                    el.focus();
+                    el.select();
+                  }
+                }}
+                onChange={(e) => setEditing({ ...editing, draft: e.target.value, problem: null })}
+                onBlur={() => saveEdit(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    saveEdit(true);
+                  }
+                  if (e.key === "Escape") {
+                    /* Escape takes the edit back, and that is all it does. */
+                    e.stopPropagation();
+                    closeEdit(link);
+                  }
+                }}
+              />
+              {editing.problem && (
+                <span className={styles.linkProblem} role="alert">
+                  {editing.problem}
+                </span>
+              )}
+            </span>
+          ) : (
+            <span key={link} className={styles.link}>
+              <a
+                className={styles.linkText}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={link}
+              >
+                {linkLabel(link)}
+              </a>
+              <button
+                className={styles.chipRemove}
+                title="Edit"
+                aria-label={`Edit ${linkLabel(link)}`}
+                data-link-edit={link}
+                onClick={() => startEdit(link)}
+              >
+                <PencilIcon />
+              </button>
+              <button
+                className={styles.chipRemove}
+                title="Remove"
+                aria-label={`Remove ${linkLabel(link)}`}
+                onClick={() => onChange(links.filter((l) => l !== link))}
+              >
+                ✕
+              </button>
+            </span>
+          ),
+        )}
         <input
           className={styles.textInput}
           type="url"
