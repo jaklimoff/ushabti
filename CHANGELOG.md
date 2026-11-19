@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.52.0 — 2026-11-19
+
 ### Added
 
 - **A link in a Links field is edited in place.** A pencil beside its ✕ turns the link into a
