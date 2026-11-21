@@ -13,6 +13,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 - **A change says what it was before.** The Activity tab reads "set Status from Todo to In
   Progress" and "renamed it from … to …", and a label line says what was added and what was taken
   away. Lines written before this release read as they did.
+- **The Activity tab shows who, and goes further back.** Every line wears the face of who did it,
+  an agent's as an agent's. **Everyone**, **People** and **Agents** narrow the lines, and **Show
+  older** reads past the newest sixty. Agents read the same lines at
+  `GET /api/tasks/{taskId}/activity?before=`.
 
 ### Fixed
 

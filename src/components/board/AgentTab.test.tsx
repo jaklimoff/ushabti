@@ -109,6 +109,7 @@ function serve(fake: Fake): Answer {
         run: fake.open && fullRun(fake, fake.open),
         pastRuns: fake.past.slice(0, 20),
         pastRunsTotal: fake.past.length,
+        activityMore: false,
         ...fake.more,
       });
       return { body: { task: detail } };

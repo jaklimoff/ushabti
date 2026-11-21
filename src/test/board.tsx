@@ -314,6 +314,7 @@ export function detailOf(task: TaskDTO, more: Partial<TaskDetailDTO> = {}): Task
     run: null,
     pastRuns: [],
     pastRunsTotal: 0,
+    activityMore: false,
     attachments: [],
     ...more,
   };

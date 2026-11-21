@@ -1249,6 +1249,23 @@
   white-space: nowrap;
 }
 
+.activityWhose {
+  align-self: flex-start;
+}
+
+/* One width with or without a face, so the words of every line start at one edge. */
+.activityFace {
+  flex: 0 0 18px;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  height: 1.5em;
+}
+
+.activityWho {
+  color: var(--text-2);
+}
+
 .activityText {
   color: var(--text-4);
   min-width: 0;

@@ -651,7 +651,10 @@ export type TaskDetailDTO = TaskDTO & {
   pointedBy: { propertyId: string; tasks: PointerDTO[] }[];
   checklist: ChecklistItemDTO[];
   comments: CommentDTO[];
+  /** The newest sixty lines, newest first. Older ones are `GET /api/tasks/{id}/activity?before=`. */
   activity: ActivityDTO[];
+  /** Whether lines older than the ones in `activity` exist. */
+  activityMore: boolean;
   /** The open run of this task, with its plan and its log. */
   run: AgentRunDetailDTO | null;
   /**

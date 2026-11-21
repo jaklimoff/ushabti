@@ -37,6 +37,9 @@ import { trackWrites } from "@/lib/writes";
 import { joinLog } from "@/lib/run-log";
 import { personName, personOf } from "@/lib/people";
 import type {
+  ActivityDTO,
+  FormerDTO,
+  MemberDTO,
   AgentRunDTO,
   AgentRunDetailDTO,
   AgentRunLogDTO,
@@ -71,6 +74,7 @@ import { MentionList, useMentions, type TextBox } from "./Mentions";
 import { useBoard, usePresence } from "./store";
 import boardStyles from "./board.module.css";
 import styles from "./panel.module.css";
+import controlStyles from "./controls/controls.module.css";
 import { hasOptions } from "@/lib/types";
 import { changeAsked, droppedBy, droppedSaid, isShown, withoutHidden } from "@/lib/when";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
@@ -995,34 +999,15 @@ export function TaskPanel({
               )}
 
               {detail && shownTab === "activity" && (
-                <div className={styles.feed}>
-                  {detail.activity.length === 0 && (
-                    <p className={styles.activityEmpty}>No activity yet.</p>
-                  )}
-                  {detail.activity.map((entry) => (
-                    <div key={entry.id} className={styles.activityRow}>
-                      <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
-                      <span className={styles.activityText}>
-                        {activityWords(entry, data.project.name, (id) => {
-                          const person = personOf(id, data.members, data.former);
-                          return person ? personName(person) : null;
-                        }).map((s, i) =>
-                          s.tone ? (
-                            <span
-                              key={i}
-                              className={s.tone === "now" ? styles.activityNow : styles.activityWas}
-                            >
-                              {s.text}
-                            </span>
-                          ) : (
-                            s.text
-                          ),
-                        )}
-                        {entry.via && <span className={styles.via}> via {entry.via}</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <ActivityFeed
+                  key={taskId}
+                  taskId={taskId}
+                  lines={detail.activity}
+                  more={detail.activityMore}
+                  projectName={data.project.name}
+                  members={data.members}
+                  former={data.former}
+                />
               )}
 
               {shownTab === "agent" && (
@@ -2041,6 +2026,182 @@ function RunLog({ runId, log, more }: { runId: string; log: AgentRunLogDTO[]; mo
           <span className={styles.runLogText}>{line.text}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Who the Activity tab shows. Not saved: it narrows the lines the tab holds. */
+type Whose = "all" | "human" | "agent";
+
+const WHOSE: { id: Whose; label: string }[] = [
+  { id: "all", label: "Everyone" },
+  { id: "human", label: "People" },
+  { id: "agent", label: "Agents" },
+];
+
+/** The words of a line, with the actor's name split out to read brighter. */
+function withActor(said: Said[], actor: { name: string } | null): (Said | { who: string })[] {
+  const first = said[0];
+  if (!actor || !first || first.tone || !first.text.startsWith(actor.name)) return said;
+  return [{ who: actor.name }, { text: first.text.slice(actor.name.length) }, ...said.slice(1)];
+}
+
+/**
+ * The task's activity, newest first: a face on every line, a choice of whose
+ * lines to read, and the older lines on a press.
+ */
+function ActivityFeed({
+  taskId,
+  lines,
+  more,
+  projectName,
+  members,
+  former,
+}: {
+  taskId: string;
+  lines: ActivityDTO[];
+  more: boolean;
+  projectName: string;
+  members: MemberDTO[];
+  former: FormerDTO[];
+}) {
+  const [whose, setWhose] = useState<Whose>("all");
+  const groupLabel = useId();
+  /* Every line shown once somebody asked for older ones, newest first. A
+     reload hands back only the newest sixty, and a write meanwhile pushes the
+     sixtieth out of them, so the rest are kept here, as PastRuns keeps runs. */
+  const [kept, setKept] = useState<{
+    taskId: string;
+    rows: ActivityDTO[];
+    more: boolean;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const fresh = new Set(lines.map((line) => line.id));
+  const mine = kept?.taskId === taskId ? kept : null;
+  const held = mine ? [...lines, ...mine.rows.filter((line) => !fresh.has(line.id))] : lines;
+  const older = mine ? mine.more : more;
+  const shown = whose === "all" ? held : held.filter((line) => line.actor?.kind === whose);
+
+  async function showOlder() {
+    if (loading) return;
+    const last = held.at(-1);
+    if (!last) return;
+    setLoading(true);
+    setFailed(false);
+    try {
+      const page = await api.get<{ activity: ActivityDTO[]; more: boolean }>(
+        `/api/tasks/${taskId}/activity?before=${last.id}`,
+      );
+      setKept((current) => {
+        const base = current?.taskId === taskId ? current.rows : [];
+        const rows = [...lines, ...base.filter((line) => !fresh.has(line.id))];
+        // A page asked for after another task opened, or twice, is dropped.
+        if (rows.at(-1)?.id !== last.id) return current;
+        return { taskId, rows: [...rows, ...page.activity], more: page.more };
+      });
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (held.length === 0) {
+    return (
+      <div className={styles.feed}>
+        <p className={styles.activityEmpty}>No activity yet.</p>
+      </div>
+    );
+  }
+
+  const nameOf = (id: unknown) => {
+    const person = personOf(id, members, former);
+    return person ? personName(person) : null;
+  };
+
+  return (
+    <div className={styles.feed} data-testid="activity-feed">
+      <span id={groupLabel} hidden>
+        Whose activity
+      </span>
+      <div
+        className={`${controlStyles.seg} ${styles.activityWhose}`}
+        role="group"
+        aria-labelledby={groupLabel}
+      >
+        {WHOSE.map((option) => {
+          const on = whose === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              className={`${controlStyles.segItem} ${
+                on ? `${controlStyles.segItemOn} ${controlStyles.picked}` : ""
+              }`}
+              style={{ "--c": "var(--accent)" } as React.CSSProperties}
+              aria-pressed={on}
+              onClick={() => setWhose(option.id)}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+      {shown.length === 0 && (
+        <p className={styles.activityEmpty}>
+          {whose === "agent"
+            ? "No agent wrote any of these lines."
+            : "No person wrote any of these lines."}
+        </p>
+      )}
+      {shown.map((entry) => (
+        <div key={entry.id} className={styles.activityRow} data-testid="activity-line">
+          <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
+          <span className={styles.activityFace}>
+            {entry.actor && (
+              <Avatar
+                name={entry.actor.name}
+                color={entry.actor.color}
+                emoji={entry.actor.emoji}
+                kind={entry.actor.kind}
+                gone={!members.some((m) => m.id === entry.actor!.id)}
+                size={18}
+              />
+            )}
+          </span>
+          <span className={styles.activityText}>
+            {withActor(activityWords(entry, projectName, nameOf), entry.actor).map((s, i) =>
+              "who" in s ? (
+                <span key={i} className={styles.activityWho}>
+                  {s.who}
+                </span>
+              ) : s.tone ? (
+                <span
+                  key={i}
+                  className={s.tone === "now" ? styles.activityNow : styles.activityWas}
+                >
+                  {s.text}
+                </span>
+              ) : (
+                s.text
+              ),
+            )}
+            {entry.via && <span className={styles.via}> via {entry.via}</span>}
+          </span>
+        </div>
+      ))}
+      {older && (
+        <button
+          type="button"
+          className={styles.runMore}
+          disabled={loading}
+          data-testid="activity-older"
+          onClick={() => void showOlder()}
+        >
+          {failed ? "Those lines did not load. Try again" : "Show older"}
+        </button>
+      )}
     </div>
   );
 }

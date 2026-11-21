@@ -68,6 +68,7 @@ function writes(): Answer {
         run: null,
         pastRuns: [],
         pastRunsTotal: 0,
+        activityMore: false,
         attachments: [],
       };
       return { body: { task: detail } };

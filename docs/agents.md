@@ -155,6 +155,7 @@ so an agent sees exactly what a person sees and nothing more.
 | One run in full     | `GET /api/runs/{runId}`                             |
 | Older log lines     | `GET /api/runs/{runId}?before={lineId}`             |
 | Older runs of a task | `GET /api/tasks/{taskId}/runs?before={runId}`      |
+| Older activity of a task | `GET /api/tasks/{taskId}/activity?before={lineId}` |
 | Create a task       | `POST /api/projects/{projectId}/tasks`              |
 | Rename or rewrite   | `PATCH /api/tasks/{taskId}`                         |
 | Set one property    | `PUT /api/tasks/{taskId}/values/{propertyId}`       |
@@ -176,6 +177,13 @@ so an agent sees exactly what a person sees and nothing more.
 | Comment             | `POST /api/tasks/{taskId}/comments`                 |
 | What happened since | `GET /api/projects/{projectId}/activity?after=…`    |
 | Wait for changes    | `GET /api/projects/{projectId}/stream`              |
+
+A task in full carries its newest sixty lines of activity, newest first, and
+`activityMore` says whether older ones exist. `GET
+/api/tasks/{taskId}/activity?before={lineId}`, with the oldest line you hold,
+answers the sixty before it as `{ "activity": [...], "more": true }`. Lines one
+write made share a moment, so the order goes on to the id, and a page that ends
+inside such a moment loses no line and repeats none.
 
 Rewording and removing a checklist item are the **Edit checklists** act, which
 an owner or an admin can switch off for an agent; adding and ticking stay open.

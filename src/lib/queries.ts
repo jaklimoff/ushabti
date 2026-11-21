@@ -2003,6 +2003,85 @@ async function loadProject(
   };
 }
 
+/** How many lines of a task's activity one read hands over. */
+export const ACTIVITY_PAGE = 60;
+
+/**
+ * A task's activity, newest first, sixty lines at a time: the newest with the
+ * task, then the lines older than the one `before` names.
+ *
+ * One write stamps all its lines with one moment, so the order goes on to the
+ * id, and the cursor is a line rather than a moment: a page that ends inside
+ * a burst picks it up at the next line. The cursor's own stamp is read in SQL,
+ * so a stamp with microseconds is compared whole.
+ */
+async function readTaskActivity(
+  taskId: string,
+  before: string | null,
+): Promise<{ activity: ActivityDTO[]; more: boolean }> {
+  const rows = await db
+    .select({
+      id: activity.id,
+      kind: activity.kind,
+      data: activity.data,
+      createdAt: activity.createdAt,
+      via: personalTokens.name,
+      actorId: users.id,
+      actorName: users.name,
+      actorColor: users.color,
+      actorEmoji: users.avatarEmoji,
+      actorKind: users.kind,
+    })
+    .from(activity)
+    .leftJoin(users, eq(users.id, activity.actorId))
+    .leftJoin(personalTokens, eq(personalTokens.id, activity.viaTokenId))
+    .where(
+      and(
+        eq(activity.taskId, taskId),
+        before === null
+          ? undefined
+          : sql`(${activity.createdAt}, ${activity.id}) < (select created_at, id from activity where id = ${before})`,
+      ),
+    )
+    .orderBy(desc(activity.createdAt), desc(activity.id))
+    .limit(ACTIVITY_PAGE + 1);
+
+  return {
+    more: rows.length > ACTIVITY_PAGE,
+    activity: rows.slice(0, ACTIVITY_PAGE).map((a) => ({
+      id: a.id,
+      kind: a.kind,
+      data: (a.data ?? {}) as Record<string, unknown>,
+      createdAt: a.createdAt.toISOString(),
+      via: a.via,
+      actor: a.actorId
+        ? {
+            id: a.actorId,
+            name: a.actorName!,
+            color: a.actorColor!,
+            emoji: a.actorEmoji,
+            kind: a.actorKind === "agent" ? ("agent" as const) : ("human" as const),
+          }
+        : null,
+    })),
+  };
+}
+
+/** The lines of a task older than the one named. A line of another task is no cursor. */
+export async function loadActivityBefore(
+  taskId: string,
+  beforeLineId: string,
+): Promise<{ activity: ActivityDTO[]; more: boolean }> {
+  readId(beforeLineId, "line");
+  const [cursor] = await db
+    .select({ id: activity.id })
+    .from(activity)
+    .where(and(eq(activity.id, beforeLineId), eq(activity.taskId, taskId)))
+    .limit(1);
+  if (!cursor) throw new HttpError(404, "Line not found.");
+  return readTaskActivity(taskId, beforeLineId);
+}
+
 /* ------------------------------------------------------------------ */
 /* Task detail                                                         */
 /* ------------------------------------------------------------------ */
@@ -2073,25 +2152,7 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       .leftJoin(personalTokens, eq(personalTokens.id, comments.viaTokenId))
       .where(eq(comments.taskId, taskId))
       .orderBy(asc(comments.createdAt)),
-    db
-      .select({
-        id: activity.id,
-        kind: activity.kind,
-        data: activity.data,
-        createdAt: activity.createdAt,
-        via: personalTokens.name,
-        actorId: users.id,
-        actorName: users.name,
-        actorColor: users.color,
-        actorEmoji: users.avatarEmoji,
-        actorKind: users.kind,
-      })
-      .from(activity)
-      .leftJoin(users, eq(users.id, activity.actorId))
-      .leftJoin(personalTokens, eq(personalTokens.id, activity.viaTokenId))
-      .where(eq(activity.taskId, taskId))
-      .orderBy(desc(activity.createdAt))
-      .limit(60),
+    readTaskActivity(taskId, null),
     loadTaskRuns(taskId),
     linkedTasks(taskId, "blockedBy"),
     linkedTasks(taskId, "blocks"),
@@ -2153,23 +2214,6 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
       : null,
   }));
 
-  const activityList: ActivityDTO[] = activityRows.map((a) => ({
-    id: a.id,
-    kind: a.kind,
-    data: (a.data ?? {}) as Record<string, unknown>,
-    createdAt: a.createdAt.toISOString(),
-    via: a.via,
-    actor: a.actorId
-      ? {
-          id: a.actorId,
-          name: a.actorName!,
-          color: a.actorColor!,
-          emoji: a.actorEmoji,
-          kind: a.actorKind === "agent" ? "agent" : "human",
-        }
-      : null,
-  }));
-
   return {
     id: row.id,
     number: row.number,
@@ -2204,7 +2248,8 @@ export async function loadTaskDetail(taskId: string): Promise<TaskDetailDTO | nu
     pointedBy,
     checklist,
     comments: commentList,
-    activity: activityList,
+    activity: activityRows.activity,
+    activityMore: activityRows.more,
     run: runs.run,
     pastRuns: runs.pastRuns,
     pastRunsTotal: runs.pastRunsTotal,
