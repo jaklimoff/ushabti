@@ -2,10 +2,10 @@ import { desc, sql } from "drizzle-orm";
 import { PROJECT_COLORS } from "../lib/colors";
 import {
   boolean,
+  customType,
   date,
   index,
   integer,
-  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -13,6 +13,17 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+/*
+ * Both drivers hand a jsonb value over already parsed. Drizzle's own jsonb
+ * parses a string a second time, so text that spells 2.0 or null came back
+ * as a number or nothing, and every option id threw and was caught on the way.
+ */
+const jsonb = customType<{ data: unknown; driverData: unknown }>({
+  dataType: () => "jsonb",
+  toDriver: (value) => JSON.stringify(value),
+  fromDriver: (value) => value,
+});
 
 /* ------------------------------------------------------------------ */
 /* Identity                                                            */

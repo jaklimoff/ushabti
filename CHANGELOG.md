@@ -8,6 +8,11 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **Text reads back as it was written.** A text value such as 2.0, 1e3, true or null used to come
+  back as a number or as nothing. A board also reads faster.
+
 ## 0.52.0 — 2026-11-19
 
 ### Added
