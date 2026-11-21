@@ -12,6 +12,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 - **Text reads back as it was written.** A text value such as 2.0, 1e3, true or null used to come
   back as a number or as nothing. A board also reads faster.
+- **A board stops downloading its archive on every change.** The archived tasks travel only
+  when one of them changed, so a board with a long archive reads in a fraction of the time. An
+  agent that sends no stamp gets the board as before.
 
 ## 0.52.0 — 2026-11-19
 

@@ -290,6 +290,18 @@ archived task exactly as it does for a live one — with its values, its
 checklist, its comments and its history — so nothing about an archived task is
 lost, and a link to one still opens it.
 
+**The archived list comes with a stamp.** The board answer carries
+`archivedStamp`, a short hash of everything `archived` holds: which tasks are
+in it, and the title, position and `archivedAt` of each, and the project key.
+It changes whenever one of those does. A caller that keeps the list may send
+the stamp back as `?archivedStamp=<stamp>`. While it is still the stamp of the
+list as it is now, the answer leaves `archived` out and carries the same
+stamp, so the list it kept is still right; when it differs, the answer carries
+the whole list and the new stamp. A read without the parameter always carries
+the whole list, and so does one with `shipped=1`. The stamp says nothing about
+`archivedUnder`, which is in every answer. Nothing else changes: send no stamp
+and the answer is the one you always had.
+
 You may archive the task you finished, the same way you may close your own
 run. Archiving several at once is a person's act and a person's route:
 `POST /api/projects/{projectId}/archive` answers `403` to a token. It takes

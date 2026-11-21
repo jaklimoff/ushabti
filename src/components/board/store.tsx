@@ -54,6 +54,7 @@ import type {
   AgentRunDTO,
   StoppedRunDTO,
   ArchivedTaskDTO,
+  BoardAnswer,
   BoardData,
   CardView,
   ColumnWidths,
@@ -809,16 +810,34 @@ export function BoardProvider({
     };
   }, []);
 
+  /*
+   * The archived list as the server last sent it, with its stamp, kept apart
+   * from the list the board draws. The store changes its own list before a
+   * write is answered, so a read that leaves the list out is read as this
+   * one, and a refused archive, delete or rename is put back as it always was.
+   */
+  const served = useRef<{ stamp: string | null; list: ArchivedTaskDTO[] }>({
+    stamp: initial.archivedStamp ?? null,
+    list: initial.archived,
+  });
+
   const refresh = useCallback(async () => {
     const reading = writes.reading();
     if (retry.current.timer) clearTimeout(retry.current.timer);
     retry.current.timer = null;
+    /* The list the stamp names, as it was when the read went out: an answer
+       without the list is about that stamp and no other. */
+    const held = served.current;
+    const search = new URLSearchParams();
+    if (shipped) search.set("shipped", "1");
+    if (reads === "board" && held.stamp) search.set("archivedStamp", held.stamp);
+    const query = search.size ? `?${search}` : "";
     try {
-      const fresh = await api.get<BoardData>(
-        `/api/projects/${projectId}/${reads}${shipped ? "?shipped=1" : ""}`,
-      );
+      const answer = await api.get<BoardAnswer>(`/api/projects/${projectId}/${reads}${query}`);
       if (!writes.keep(reading)) return;
       retry.current.attempt = 0;
+      const fresh: BoardData = { ...answer, archived: answer.archived ?? held.list };
+      served.current = { stamp: answer.archivedStamp ?? null, list: fresh.archived };
       setData((current) => shareEqual(current, fresh));
       /* The board's answer names every task this project still has, so it is
          the one place that can say which unsent notes have nothing left to

@@ -7,7 +7,8 @@ vi.mock("next/headers", () => import("@/test/headers"));
 
 const { db, pool } = await import("@/test/db");
 const { tasks } = await import("@/db/schema");
-const { archivedTaskRows, liveTaskRows, neighbourRead } = await import("@/lib/queries");
+const { archivedSql, liveTaskRows, neighbourRead } = await import("@/lib/queries");
+const { PgDialect } = await import("drizzle-orm/pg-core");
 const { api, board, ok, person, project } = await import("@/test/route");
 
 /** Enough rows that a plan which reads them all would show it. */
@@ -63,8 +64,22 @@ async function seeded() {
 describe("The rank order comes from an index", { timeout: 60_000 }, () => {
   it("reads a board's archived tasks in rank order off the position index, with no sort", async () => {
     const { p } = await seeded();
-    const plan = await planOf(archivedTaskRows(p.id, false));
+    const query = new PgDialect().sqlToQuery(archivedSql(p.id, null, false));
+    const plan = await planOf({ toSQL: () => query });
     expect(plan).toMatch(/Index Scan using tasks_project_position_idx on tasks/);
+    expect(plan).not.toMatch(/Sort/);
+  });
+
+  it("reads no archived row for the list when the stamp still holds", async () => {
+    const { p } = await seeded();
+    const first = new PgDialect().sqlToQuery(archivedSql(p.id, null, false));
+    const [{ stamp }] = (await pool.query(first.sql, first.params)).rows as { stamp: string }[];
+    const query = new PgDialect().sqlToQuery(archivedSql(p.id, stamp, false));
+    const plan = await planOf({ toSQL: () => query }, true);
+    /* The stamp walks the index once; the scan for the list is never run. */
+    expect(plan).toMatch(
+      /Index Scan using tasks_project_position_idx on tasks t_1 \(never executed\)/,
+    );
     expect(plan).not.toMatch(/Sort/);
   });
 

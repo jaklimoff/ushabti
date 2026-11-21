@@ -109,6 +109,7 @@ import type {
   ActivityDTO,
   ActivityFeedEntryDTO,
   ArchivedTaskDTO,
+  BoardAnswer,
   BoardData,
   CardView,
   ChecklistItemDTO,
@@ -1279,38 +1280,46 @@ function archivedUnderRows(projectId: string) {
     .groupBy(propertyOptions.id);
 }
 
+/** One archived task as the board read takes it from the database. */
+type ArchivedRow = {
+  id: string;
+  number: number;
+  title: string;
+  position: string;
+  archivedAt: Date;
+  shippedIn: string | null;
+};
+
 /**
- * The archived tasks, in the few columns a search and a link need. No values
- * and no counts: nothing draws an archived task, and its panel asks for the
- * rest itself.
+ * The archived tasks, in the few columns a search and a link need, and the
+ * stamp of that list. No values and no counts: nothing draws an archived
+ * task, and its panel asks for the rest itself.
+ *
+ * The stamp is a hash of everything the list carries, the project key
+ * included, because the key of every row is built from it. A caller that
+ * already holds the list sends its stamp as `held`; when that is still the
+ * stamp, no row leaves the database and `rows` is null. It is one statement,
+ * because the board read holds no transaction: a stamp read apart from its
+ * rows could name a list of another moment, and a browser would keep that
+ * list for good.
  *
  * A task deleted while it was archived is not here. It is deleted, and a
  * deleted task never reaches the browser; the drawer lists it, and putting it
  * back makes it archived again.
  */
-export function archivedTaskRows(projectId: string, shipped: boolean) {
-  return db
-    .select({
-      id: tasks.id,
-      number: tasks.number,
-      title: tasks.title,
-      position: tasks.position,
-      archivedAt: tasks.archivedAt,
-      /* The release the changelog lists it under, read as `readShipped`
-         reads it: a shipped option of a release type, never a closed
-         sprint. The newest one wins when two releases name it. The tables
-         are named by hand, because a one-table select writes its columns
-         bare and the inner ones would read as the outer task's. Only the
-         Archived page draws it, so a board read is spared a subquery for
-         every archived task. */
-      shippedIn: shipped
-        ? sql<string | null>`(
+export function archivedSql(projectId: string, held: string | null, shipped: boolean) {
+  /* The release the changelog lists it under, read as `readShipped` reads
+     it: a shipped option of a release type, never a closed sprint. The
+     newest one wins when two releases name it. Only the Archived page draws
+     it, so a board read is spared a subquery for every archived task. */
+  const shippedIn = shipped
+    ? sql`(
         select po.name
         from ${taskValues} tv
         join ${properties} pr on pr.id = tv.property_id
         join ${propertyOptions} po on po.property_id = pr.id
           and tv.value = to_jsonb(po.id::text)
-        where tv.task_id = ${tasks}.id
+        where tv.task_id = t.id
           and po.shipped_at is not null
           and pr.type in (${sql.join(
             PROPERTY_TYPES.filter(isRelease).map((type) => sql`${type}`),
@@ -1319,13 +1328,67 @@ export function archivedTaskRows(projectId: string, shipped: boolean) {
         order by po.shipped_at desc
         limit 1
       )`
-        : sql<string | null>`null`,
-    })
-    .from(tasks)
-    .where(
-      and(eq(tasks.projectId, projectId), isNotNull(tasks.archivedAt), isNull(tasks.deletedAt)),
-    )
-    .orderBy(byPos(tasks.position), asc(tasks.number));
+    : sql`null::text`;
+  /* Both halves walk the position index in rank order, so neither sorts.
+     The rows are aggregated into one value only when the stamp differs, and
+     the planner skips that scan altogether when it does not. The Archived
+     page draws the release, which the stamp does not cover, so it always
+     takes the rows. */
+  const order = sql`t.position collate "C" asc, t.number asc`;
+  const archived = sql`t.project_id = p.id and t.archived_at is not null and t.deleted_at is null`;
+  const send = shipped ? sql`true` : sql`h.stamp is distinct from ${held}::text`;
+  return sql`
+    select p.key, h.stamp, y.list
+    from ${projects} p
+    cross join lateral (
+      select md5(p.key || '|' || coalesce(string_agg(
+        json_build_array(t.id, t.number, t.title, t.position, t.archived_at)::text,
+        ',' order by ${order}
+      ), '')) as stamp
+      from ${tasks} t
+      where ${archived}
+    ) h
+    left join lateral (
+      select json_agg(
+        json_build_array(t.id, t.number, t.title, t.position, t.archived_at, ${shippedIn})
+        order by ${order}
+      ) as list
+      from ${tasks} t
+      where ${archived} and ${send}
+    ) y on true
+    where p.id = ${projectId}
+  `;
+}
+
+export async function archivedRead(
+  projectId: string,
+  held: string | null,
+  shipped: boolean,
+): Promise<{ stamp: string; key: string; rows: ArchivedRow[] | null }> {
+  const result = await db.execute(archivedSql(projectId, held, shipped));
+  const [row] = result.rows as {
+    key: string;
+    stamp: string;
+    list: [string, number, string, string, string, string | null][] | string | null;
+  }[];
+  if (!row) throw new Error(`No project ${projectId}.`);
+  if (!shipped && row.stamp === held) return { stamp: row.stamp, key: row.key, rows: null };
+  /* A driver may hand json back as its text. */
+  const list = typeof row.list === "string" ? JSON.parse(row.list) : row.list;
+  return {
+    stamp: row.stamp,
+    key: row.key,
+    rows: ((list ?? []) as [string, number, string, string, string, string | null][]).map(
+      ([id, number, title, position, archivedAt, shippedIn]) => ({
+        id,
+        number: Number(number),
+        title,
+        position,
+        archivedAt: new Date(archivedAt),
+        shippedIn,
+      }),
+    ),
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1350,6 +1413,27 @@ export async function projectLinks(
     .from(taskLinks)
     .innerJoin(tasks, eq(tasks.id, taskLinks.toId))
     .where(and(eq(tasks.projectId, projectId), eq(taskLinks.kind, kind)));
+}
+
+/**
+ * Every parent row of one project, for the board's count of done parts, with
+ * whether each part is archived. An archived part is done, and saying so here
+ * spares the board an archived row of its own. A deleted part is left out,
+ * because `partsOf` does not count it. The circle check reads `projectLinks`,
+ * which keeps every row.
+ */
+export function parentLinks(projectId: string): Promise<(LinkEdge & { archived: boolean })[]> {
+  return db
+    .select({
+      fromId: taskLinks.fromId,
+      toId: taskLinks.toId,
+      archived: sql<boolean>`${tasks.archivedAt} is not null`,
+    })
+    .from(taskLinks)
+    .innerJoin(tasks, eq(tasks.id, taskLinks.toId))
+    .where(
+      and(eq(tasks.projectId, projectId), eq(taskLinks.kind, PARENT), isNull(tasks.deletedAt)),
+    );
 }
 
 /**
@@ -1593,13 +1677,30 @@ function formerRows(projectId: string) {
 export function loadBoard(
   projectId: string,
   role: string,
+  viewerId?: string | null,
+  agentActs?: AgentActs | null,
+  shipped?: boolean,
+): Promise<BoardData>;
+export function loadBoard(
+  projectId: string,
+  role: string,
+  viewerId: string | null,
+  agentActs: AgentActs | null,
+  shipped: boolean,
+  /* The stamp of the archived list the caller holds, or null. */
+  held: string | null,
+): Promise<BoardAnswer>;
+export function loadBoard(
+  projectId: string,
+  role: string,
   viewerId: string | null = null,
   agentActs: AgentActs | null = null,
   /* Whether each archived task says the release it shipped in. Only the
      Archived page draws that, so only it asks. */
   shipped = false,
-): Promise<BoardData> {
-  return loadProject(projectId, role, viewerId, false, agentActs, shipped);
+  held: string | null = null,
+): Promise<BoardAnswer> {
+  return loadProject(projectId, role, viewerId, false, agentActs, shipped, held);
 }
 
 /**
@@ -1613,7 +1714,7 @@ export function loadSettings(
   role: string,
   viewerId: string | null = null,
 ): Promise<BoardData> {
-  return loadProject(projectId, role, viewerId, true);
+  return loadProject(projectId, role, viewerId, true) as Promise<BoardData>;
 }
 
 async function loadProject(
@@ -1624,7 +1725,8 @@ async function loadProject(
   /* An agent's switches, or null for a person, who always passes. */
   agentActs: AgentActs | null = null,
   shipped = false,
-): Promise<BoardData> {
+  held: string | null = null,
+): Promise<BoardAnswer> {
   /* The sender runs on the read path as the lease does, and for the same
      reason: a board is read far more often than any schedule would fire, and
      a retry a minute old should go out without a job this project would then
@@ -1642,7 +1744,7 @@ async function loadProject(
     optRows,
     viewRows,
     taskRows,
-    archivedRows,
+    archive,
     lenses,
     underRows,
     formerList,
@@ -1690,7 +1792,7 @@ async function loadProject(
       .orderBy(byPos(propertyOptions.position)),
     db.select().from(views).where(eq(views.projectId, projectId)).orderBy(byPos(views.position)),
     preview ? previewTaskRows(projectId) : liveTaskRows(projectId),
-    preview ? [] : archivedTaskRows(projectId, shipped),
+    preview ? null : archivedRead(projectId, held, shipped),
     loadLenses(projectId, viewerId),
     preview ? [] : archivedUnderRows(projectId),
     /* The preview cards name a person who left as the board does. */
@@ -1715,8 +1817,9 @@ async function loadProject(
     /* Only what the cards on this board wait on. What they block is the
        panel's half of the chain, and the panel asks for it itself. */
     taskIds.length ? waitingLinks(taskIds) : Promise.resolve([]),
-    /* Every parent row, because a parent counts its archived parts too. The
-       preview needs only the parts of its own few. */
+    /* Every parent row, because a parent counts its archived parts too, and
+       each says whether its part is archived, so the count needs no archived
+       row of its own. The preview needs only the parts of its own few. */
     !taskIds.length
       ? Promise.resolve([])
       : preview
@@ -1724,7 +1827,7 @@ async function loadProject(
             .select({ fromId: taskLinks.fromId, toId: taskLinks.toId })
             .from(taskLinks)
             .where(and(inArray(taskLinks.fromId, taskIds), eq(taskLinks.kind, PARENT)))
-        : projectLinks(projectId, db, PARENT),
+        : parentLinks(projectId),
     /* The rename of a key and the delete of the project name what they cost. */
     preview
       ? db
@@ -1776,7 +1879,7 @@ async function loadProject(
       over: isOver({ archivedAt: null, values: valuesByTask.get(t.id) ?? {} }, doneWhen),
     });
   }
-  for (const t of archivedRows) blockers.set(t.id, { number: t.number, over: true });
+  /* An archived blocker is over and draws nothing, so it needs no entry. */
   /* The preview holds a few live tasks and nothing else, so the ends of their
      links are read on their own. */
   if (preview) {
@@ -1789,7 +1892,9 @@ async function loadProject(
   }
   /* A parent counts its parts by the same reading of over, so a part that
      blocks nothing reads done here exactly when it would on a chain. */
-  const parts = partsOf(parentRows, new Map([...blockers].map(([id, b]) => [id, b.over])));
+  const over = new Map([...blockers].map(([id, b]) => [id, b.over]));
+  for (const e of parentRows) if ("archived" in e && e.archived) over.set(e.toId, true);
+  const parts = partsOf(parentRows, over);
 
   const waitsOn = new Map<string, number[]>();
   for (const link of linkRows) {
@@ -1823,10 +1928,12 @@ async function loadProject(
     parts: parts.get(t.id) ?? null,
   }));
 
-  const archivedList: ArchivedTaskDTO[] = archivedRows.map((t) => ({
+  /* The keys come from the key the stamp was worked out with, so a rename
+     read between the two statements cannot hide under the stamp. */
+  const archivedList: ArchivedTaskDTO[] | undefined = (archive ? archive.rows : [])?.map((t) => ({
     id: t.id,
     number: t.number,
-    key: `${projectRow.key}-${t.number}`,
+    key: `${archive?.key ?? projectRow.key}-${t.number}`,
     title: t.title,
     position: t.position,
     archivedAt: (t.archivedAt as Date).toISOString(),
@@ -1878,7 +1985,8 @@ async function loadProject(
     views: viewList,
     cardView,
     tasks: taskList,
-    archived: archivedList,
+    ...(archivedList ? { archived: archivedList } : {}),
+    ...(archive ? { archivedStamp: archive.stamp } : {}),
     archivedUnder: Object.fromEntries(
       underRows.map((r) => [
         r.optionId,

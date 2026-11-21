@@ -924,6 +924,12 @@ export type BoardData = {
    */
   archived: ArchivedTaskDTO[];
   /**
+   * The stamp of `archived` as the server sent it: a hash of everything the
+   * list carries. A board read that sends it back is answered without the
+   * list while it still holds. Settings carries none.
+   */
+  archivedStamp?: string;
+  /**
    * What the archived tasks under each option with a target date add up to,
    * by option id. An archived task carries no values here, and a release that
    * shipped archived its work, so a roadmap would lose the day it began.
@@ -943,6 +949,13 @@ export type BoardData = {
    */
   taskCount?: number;
 };
+
+/**
+ * A board read as it crosses the wire. It leaves `archived` out when the
+ * caller sent the stamp of the list as it is now; the caller then reads it as
+ * the list it kept under that stamp.
+ */
+export type BoardAnswer = Omit<BoardData, "archived"> & { archived?: ArchivedTaskDTO[] };
 
 /* ------------------------------------------------------------------ */
 /* Webhooks                                                            */
