@@ -1281,6 +1281,129 @@
   color: var(--text-4);
 }
 
+/* The words after a description line that open what it changed. */
+.changesToggle {
+  margin-left: 10px;
+  padding: 0;
+  font-size: var(--t-small);
+  color: var(--accent);
+}
+
+.changesToggle:hover {
+  color: var(--accent-soft);
+}
+
+/* One edit, line by line, over the Markdown as written. The sign says what a
+   line is; the wash only repeats it. */
+.changes {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-menu);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--t-small);
+  line-height: 1.6;
+  background: var(--bg-card-drag);
+}
+
+.changesHead {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line-menu);
+  color: var(--text-meta);
+}
+
+.changesNote {
+  padding: 8px 12px;
+  color: var(--text-meta);
+}
+
+.changesLine {
+  display: flex;
+  gap: 8px;
+  padding: 1px 12px;
+  color: var(--text-4);
+}
+
+.changesSign {
+  flex: 0 0 1ch;
+}
+
+.changesText {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.changesGone {
+  background: var(--danger-bg);
+  color: var(--danger-soft);
+}
+
+.changesAdded {
+  background: rgba(127, 192, 140, 0.1);
+  color: var(--text-3);
+}
+
+.changesAdded .changesSign {
+  color: var(--live);
+}
+
+.changesMark {
+  border-radius: 2px;
+  color: inherit;
+}
+
+.changesGone .changesMark {
+  background: var(--danger-line);
+}
+
+.changesAdded .changesMark {
+  background: rgba(127, 192, 140, 0.28);
+}
+
+.changesFold {
+  padding: 4px 12px;
+  border-top: 1px solid var(--line-menu);
+  border-bottom: 1px solid var(--line-menu);
+  font-family: var(--font-mono);
+  font-size: var(--t-small);
+  color: var(--text-meta);
+  text-align: center;
+}
+
+.changesFold:hover {
+  color: var(--text-3);
+  background: var(--bg-hover-wash);
+}
+
+.putBack {
+  align-self: flex-start;
+}
+
+/* The question a put-back asks. In the accent and not in red: what is there
+   now becomes a version, so nothing is lost. */
+.putBackAsk {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-left: 2px solid var(--accent);
+  background: var(--accent-wash);
+  font-size: var(--t-body);
+  line-height: 1.5;
+}
+
+.putBackSaid {
+  color: var(--text-3);
+}
+
+.putBackActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .activityEmpty {
   margin: 0;
   font-size: var(--t-body);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { activityWords, describeActivity } from "./TaskPanel";
+import { putBackQuestion } from "./DescriptionChanges";
 
 /** The panel's activity log, in the words a person reads. */
 const line = (data: Record<string, unknown>, name = "Scribe") =>
@@ -107,5 +108,55 @@ describe("A value line in the activity log", () => {
       { text: "Todo", tone: "was" },
       { text: "Doing", tone: "now" },
     ]);
+  });
+});
+
+/* USH-471: a put-back names whose edit it undid. */
+describe("A put-back line in the activity log", () => {
+  const reis = (id: unknown) => (id === "u2" ? "Reis" : null);
+
+  it("names the person whose edit was put back", () => {
+    expect(
+      said("description", { versionId: "v", restoredFrom: "v1", restoredActorId: "u2" }, reis),
+    ).toBe("Jack put the description back as it was before Reis’s edit");
+  });
+
+  it("says their own edit when it was the actor's", () => {
+    expect(said("description", { versionId: "v", restoredFrom: "v1", restoredActorId: "a1" })).toBe(
+      "Jack put the description back as it was before their own edit",
+    );
+  });
+
+  it("says an earlier edit when the other actor is gone", () => {
+    expect(said("description", { versionId: "v", restoredFrom: "v1", restoredActorId: null })).toBe(
+      "Jack put the description back as it was before an earlier edit",
+    );
+  });
+
+  it("reads a plain edit as it did", () => {
+    expect(said("description", { versionId: "v" })).toBe("Jack edited the description");
+  });
+});
+
+describe("The put-back question", () => {
+  const reis = { id: "u2", name: "Reis" };
+  const tail = "What is there now stays in the history.";
+
+  it("counts what goes and what comes back on the newest edit", () => {
+    expect(putBackQuestion({ gone: 2, added: 5 }, true, reis, "u1")).toBe(
+      `Put the description back as it was before this edit? The 5 lines Reis added go, and the 2 lines come back. ${tail}`,
+    );
+  });
+
+  it("says everything written since goes when later edits exist", () => {
+    expect(putBackQuestion({ gone: 2, added: 5 }, false, reis, "u1")).toBe(
+      `Put the description back as it was before this edit? Everything written since goes too. ${tail}`,
+    );
+  });
+
+  it("speaks to the person about their own edit", () => {
+    expect(putBackQuestion({ gone: 0, added: 1 }, true, reis, "u2")).toBe(
+      `Put the description back as it was before this edit? The 1 line you added goes. ${tail}`,
+    );
   });
 });

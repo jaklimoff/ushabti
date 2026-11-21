@@ -78,6 +78,14 @@ import controlStyles from "./controls/controls.module.css";
 import { hasOptions } from "@/lib/types";
 import { changeAsked, droppedBy, droppedSaid, isShown, withoutHidden } from "@/lib/when";
 import { ConfirmRow } from "@/components/ui/ConfirmRow";
+import {
+  ChangesToggle,
+  DescriptionChanges,
+  useVersions,
+  type PutBackAnswer,
+  type Versions,
+} from "./DescriptionChanges";
+import type { DescriptionVersionDTO } from "@/lib/description-versions";
 import { canManage } from "@/lib/roles";
 import { Label } from "@/components/ui/Form";
 import { Meter } from "@/components/ui/Layout";
@@ -371,6 +379,40 @@ export function TaskPanel({
       return answer;
     },
     [counted, direct, notify, patchTask, refresh, reload, taskId],
+  );
+
+  /* The versions the Activity tab opened, kept while the panel is on this
+     task, so a tab switched away and back does not read them again. */
+  const versions = useVersions(taskId);
+
+  /* A put-back is a description write like any other: it sends the text it
+     started from, so it cannot land on an edit it did not see, and it goes
+     past the store so that both watches see it. */
+  const putBack = useCallback(
+    async (version: DescriptionVersionDTO, current: string): Promise<PutBackAnswer> => {
+      let answer: PutBackAnswer = "saved";
+      try {
+        await direct(() =>
+          api.patch(`/api/tasks/${taskId}`, {
+            description: version.before,
+            baseDescription: current,
+            restoredFrom: version.id,
+          }),
+        );
+      } catch (err) {
+        answer = err instanceof ApiError && err.status === 409 ? "changed" : "failed";
+        notify(
+          answer === "changed"
+            ? "The description changed meanwhile, so nothing was put back."
+            : err instanceof Error
+              ? err.message
+              : "The description was not put back.",
+        );
+      }
+      await Promise.all([reload(), refresh()]);
+      return answer;
+    },
+    [direct, notify, refresh, reload, taskId],
   );
 
   /* Who wrote a field last, if the feed says and it was not me. A checklist
@@ -1007,6 +1049,10 @@ export function TaskPanel({
                   projectName={data.project.name}
                   members={data.members}
                   former={data.former}
+                  meId={user.id}
+                  current={shown.description}
+                  versions={versions}
+                  putBack={putBack}
                 />
               )}
 
@@ -1658,6 +1704,8 @@ function describeLine(
     hidBy?: string | null;
     authorId?: string | null;
     byProject?: boolean;
+    restoredFrom?: string;
+    restoredActorId?: string | null;
   };
   switch (entry.kind) {
     case "created":
@@ -1674,6 +1722,14 @@ function describeLine(
       }
       return `${who} renamed it to “${d.title ?? ""}”`;
     case "description":
+      if (d.restoredFrom) {
+        const own = !!d.restoredActorId && d.restoredActorId === entry.actor?.id;
+        const named = own ? null : nameOf(d.restoredActorId);
+        const lead = `${who} put the description back as it was before `;
+        if (own) return `${lead}their own edit`;
+        if (!named) return `${lead}an earlier edit`;
+        return [{ text: lead }, { text: `${named}’s`, tone: "now" }, { text: " edit" }];
+      }
       return `${who} edited the description`;
     case "value":
       /* A line about values a change hid names what went, and the change
@@ -2039,6 +2095,12 @@ const WHOSE: { id: Whose; label: string }[] = [
   { id: "agent", label: "Agents" },
 ];
 
+/** The version a description line names, if it was written after they were kept. */
+function versionOf(line: ActivityDTO): string | null {
+  const id = line.kind === "description" ? line.data.versionId : undefined;
+  return typeof id === "string" && id ? id : null;
+}
+
 /** The words of a line, with the actor's name split out to read brighter. */
 function withActor(said: Said[], actor: { name: string } | null): (Said | { who: string })[] {
   const first = said[0];
@@ -2057,6 +2119,10 @@ function ActivityFeed({
   projectName,
   members,
   former,
+  meId,
+  current,
+  versions,
+  putBack,
 }: {
   taskId: string;
   lines: ActivityDTO[];
@@ -2064,8 +2130,13 @@ function ActivityFeed({
   projectName: string;
   members: MemberDTO[];
   former: FormerDTO[];
+  meId: string;
+  current: string;
+  versions: Versions;
+  putBack: (version: DescriptionVersionDTO, current: string) => Promise<PutBackAnswer>;
 }) {
   const [whose, setWhose] = useState<Whose>("all");
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
   const groupLabel = useId();
   /* Every line shown once somebody asked for older ones, newest first. A
      reload hands back only the newest sixty, and a write meanwhile pushes the
@@ -2081,7 +2152,18 @@ function ActivityFeed({
   const mine = kept?.taskId === taskId ? kept : null;
   const held = mine ? [...lines, ...mine.rows.filter((line) => !fresh.has(line.id))] : lines;
   const older = mine ? mine.more : more;
-  const shown = whose === "all" ? held : held.filter((line) => line.actor?.kind === whose);
+  /* A burst of one actor's edits shares a version, and each save still has
+     its line. They are one edit, so they are drawn once, where the newest is. */
+  const drawn = new Set<string>();
+  const shown = (whose === "all" ? held : held.filter((line) => line.actor?.kind === whose)).filter(
+    (line) => {
+      const versionId = versionOf(line);
+      if (!versionId) return true;
+      if (drawn.has(versionId)) return false;
+      drawn.add(versionId);
+      return true;
+    },
+  );
 
   async function showOlder() {
     if (loading) return;
@@ -2155,42 +2237,71 @@ function ActivityFeed({
             : "No person wrote any of these lines."}
         </p>
       )}
-      {shown.map((entry) => (
-        <div key={entry.id} className={styles.activityRow} data-testid="activity-line">
-          <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
-          <span className={styles.activityFace}>
-            {entry.actor && (
-              <Avatar
-                name={entry.actor.name}
-                color={entry.actor.color}
-                emoji={entry.actor.emoji}
-                kind={entry.actor.kind}
-                gone={!members.some((m) => m.id === entry.actor!.id)}
-                size={18}
+      {shown.map((entry) => {
+        const versionId = versionOf(entry);
+        const open = !!versionId && opened.has(versionId);
+        return (
+          <Fragment key={entry.id}>
+            <div className={styles.activityRow} data-testid="activity-line">
+              <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
+              <span className={styles.activityFace}>
+                {entry.actor && (
+                  <Avatar
+                    name={entry.actor.name}
+                    color={entry.actor.color}
+                    emoji={entry.actor.emoji}
+                    kind={entry.actor.kind}
+                    gone={!members.some((m) => m.id === entry.actor!.id)}
+                    size={18}
+                  />
+                )}
+              </span>
+              <span className={styles.activityText}>
+                {withActor(activityWords(entry, projectName, nameOf), entry.actor).map((s, i) =>
+                  "who" in s ? (
+                    <span key={i} className={styles.activityWho}>
+                      {s.who}
+                    </span>
+                  ) : s.tone ? (
+                    <span
+                      key={i}
+                      className={s.tone === "now" ? styles.activityNow : styles.activityWas}
+                    >
+                      {s.text}
+                    </span>
+                  ) : (
+                    s.text
+                  ),
+                )}
+                {entry.via && <span className={styles.via}> via {entry.via}</span>}
+                {versionId && (
+                  <ChangesToggle
+                    open={open}
+                    onToggle={() =>
+                      setOpened((was) => {
+                        const next = new Set(was);
+                        if (next.has(versionId)) next.delete(versionId);
+                        else next.add(versionId);
+                        return next;
+                      })
+                    }
+                  />
+                )}
+              </span>
+            </div>
+            {versionId && open && (
+              <DescriptionChanges
+                versionId={versionId}
+                versions={versions}
+                current={current}
+                mayEdit
+                meId={meId}
+                putBack={putBack}
               />
             )}
-          </span>
-          <span className={styles.activityText}>
-            {withActor(activityWords(entry, projectName, nameOf), entry.actor).map((s, i) =>
-              "who" in s ? (
-                <span key={i} className={styles.activityWho}>
-                  {s.who}
-                </span>
-              ) : s.tone ? (
-                <span
-                  key={i}
-                  className={s.tone === "now" ? styles.activityNow : styles.activityWas}
-                >
-                  {s.text}
-                </span>
-              ) : (
-                s.text
-              ),
-            )}
-            {entry.via && <span className={styles.via}> via {entry.via}</span>}
-          </span>
-        </div>
-      ))}
+          </Fragment>
+        );
+      })}
       {older && (
         <button
           type="button"

@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A description edit shows what it changed, and puts it back.** In the Activity tab, Show changes
+  opens a description line to the lines taken away and added, with the changed words marked. Put
+  back what was here before asks once, in place, and the new line says whose edit was put back.
 - **A description edit keeps the text it replaced.** Every write of a description keeps the words
   that were there before, and its Activity line names the edit. Agents read both texts at
   `GET /api/tasks/{taskId}/description-versions/{versionId}`, and put one back with `restoredFrom`.
