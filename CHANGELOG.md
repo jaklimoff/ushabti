@@ -10,6 +10,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **A busy board no longer piles reads on a slow server.** An open tab now has one board read out
+  at a time. Changes that arrive meanwhile are read once, after it.
 - **Text reads back as it was written.** A text value such as 2.0, 1e3, true or null used to come
   back as a number or as nothing. A board also reads faster.
 - **A board stops downloading its archive on every change.** The archived tasks travel only

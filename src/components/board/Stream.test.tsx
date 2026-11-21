@@ -171,3 +171,53 @@ test("an open panel ignores a ring that names another task", async () => {
   ring();
   await expect.poll(loads).toBe(before.loads + 2);
 });
+
+/*
+ * A board read is the whole board. When rings came faster than a slow server
+ * answered, each tab piled reads on it and threw all but the last away. A tab
+ * now has one out at a time, and the asks made meanwhile share one after it.
+ */
+test("rings during a held board read start no second read, and one after it", async () => {
+  const data = newProject();
+  const open = withTask(data, "Open", { Status: "Todo" });
+  const server = serving(data, ME);
+  const held: (() => void)[] = [];
+  let holding = false;
+  const { sent, ring } = await renderWithBoard(
+    <BoardShell initialTask={open.key} />,
+    data,
+    server.answer,
+    {
+      hold: (r) =>
+        holding && r.method === "GET" && r.path.endsWith("/board")
+          ? new Promise<void>((done) => held.push(done))
+          : undefined,
+    },
+  );
+  await expect.element(page.getByTestId("task-panel")).toBeVisible();
+  await settle();
+  const reads = () => sent("GET", /\/board$/).length;
+  const loads = () => sent("GET", new RegExp(`/api/tasks/${open.id}$`)).length;
+  const before = { reads: reads(), loads: loads() };
+
+  holding = true;
+  ring();
+  await expect.poll(reads).toBe(before.reads + 1);
+  for (let i = 0; i < 5; i++) {
+    ring(open.id);
+    await new Promise((done) => setTimeout(done, 200));
+  }
+  expect(reads()).toBe(before.reads + 1);
+  /* The panel does not wait for the board: it loads its task on each burst. */
+  expect(loads()).toBeGreaterThan(before.loads);
+
+  held.shift()!();
+  await expect.poll(reads).toBe(before.reads + 2);
+  await new Promise((done) => setTimeout(done, 300));
+  expect(reads()).toBe(before.reads + 2);
+
+  holding = false;
+  held.shift()!();
+  await new Promise((done) => setTimeout(done, 300));
+  expect(reads()).toBe(before.reads + 2);
+});

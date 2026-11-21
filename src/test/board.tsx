@@ -333,6 +333,8 @@ export type Drawing = {
   keepStorage?: boolean;
   /** What the board is drawn inside, as the layout draws the sidebar around it. */
   around?: (board: ReactNode) => ReactNode;
+  /** Holds a request until what it gives back settles, as a slow server would. */
+  hold?: (sent: Sent) => Promise<void> | undefined;
 };
 
 /**
@@ -345,7 +347,7 @@ export async function renderWithBoard(
   ui: ReactNode,
   data: BoardData,
   answer: Answer = () => undefined,
-  { user = ME, keepStorage = false, around = (board) => board }: Drawing = {},
+  { user = ME, keepStorage = false, around = (board) => board, hold }: Drawing = {},
 ) {
   const requests: Sent[] = [];
 
@@ -363,6 +365,7 @@ export async function renderWithBoard(
         body: form ?? (raw ? JSON.parse(raw) : undefined),
       };
       requests.push(sent);
+      await hold?.(sent);
       const said =
         answer(sent) ??
         (sent.method === "GET" && sent.path.endsWith("/board") ? { body: data } : undefined);

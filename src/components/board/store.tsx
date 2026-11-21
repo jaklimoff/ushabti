@@ -47,6 +47,7 @@ import {
 import { batchesSaid, changed, inBatches, type Change } from "@/lib/bulk";
 import { rankBetween } from "@/lib/rank";
 import { backoff, keepOpen } from "@/lib/reopen";
+import { oneRead } from "@/lib/one-read";
 import { trackWrites } from "@/lib/writes";
 import { shareEqual } from "@/lib/share";
 import { boardReader, REMOTE_CHANGE, type RemoteChange } from "@/lib/board-live";
@@ -781,6 +782,9 @@ export function BoardProvider({
    */
   const refreshRef = useRef<() => Promise<void>>(async () => {});
   const [writes] = useState(() => trackWrites(() => void refreshRef.current()));
+  /* One read out at a time; an ask made meanwhile waits for it, then reads
+     once with the newest `refresh`. `oneRead` holds the rule. */
+  const [single] = useState(() => oneRead(() => refreshRef.current()));
   const wrote = useCallback(() => writes.begin(), [writes]);
   const tracked = useMemo<Send>(() => {
     const out = <T,>(request: Promise<T>): Promise<T> => request.finally(writes.begin());
@@ -821,7 +825,7 @@ export function BoardProvider({
     list: initial.archived,
   });
 
-  const refresh = useCallback(async () => {
+  const readNow = useCallback(async () => {
     const reading = writes.reading();
     if (retry.current.timer) clearTimeout(retry.current.timer);
     retry.current.timer = null;
@@ -859,6 +863,7 @@ export function BoardProvider({
       retry.current.attempt += 1;
     }
   }, [projectId, reads, shipped, router, writes]);
+  const refresh = useCallback(() => single.ask(readNow), [single, readNow]);
 
   /*
    * The stream must outlive every re-render, so the effect below holds the
