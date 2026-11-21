@@ -77,13 +77,27 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       )!,
     );
 
-  const written = await db
-    .update(tasks)
-    .set(patch)
-    .where(and(...unchanged))
-    .returning({ id: tasks.id });
+  /* The old title is read under the task's row lock, the one `lockTasks`
+     takes, in the transaction that writes the new one, so the line names
+     what this write replaced and not what a second write left behind. */
+  const { written, was } = await db.transaction(async (tx) => {
+    const [old] =
+      input.title === undefined
+        ? []
+        : await tx
+            .select({ title: tasks.title })
+            .from(tasks)
+            .where(eq(tasks.id, taskId))
+            .for("update");
+    const rows = await tx
+      .update(tasks)
+      .set(patch)
+      .where(and(...unchanged))
+      .returning({ id: tasks.id });
+    return { written: rows.length > 0, was: old?.title as string | undefined };
+  });
 
-  if (written.length === 0) {
+  if (!written) {
     const [row] = await db
       .select({ title: tasks.title, description: tasks.description })
       .from(tasks)
@@ -101,13 +115,9 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
   }
 
   if (input.title !== undefined) {
-    await logActivity({
-      projectId,
-      taskId,
-      actorId: user.id,
-      kind: "title",
-      data: { title: patch.title },
-    });
+    const data: Record<string, unknown> = { title: patch.title };
+    if (was !== undefined && was !== patch.title) data.from = was;
+    await logActivity({ projectId, taskId, actorId: user.id, kind: "title", data });
   }
   if (input.description !== undefined) {
     await logActivity({ projectId, taskId, actorId: user.id, kind: "description", data: {} });

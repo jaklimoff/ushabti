@@ -6,7 +6,7 @@ import { broadcast, clientIdOf, guard, json, route } from "@/lib/api";
 import { logActivityIn } from "@/lib/activity";
 import { lockTasks } from "@/lib/hidden";
 import { taskProjectId } from "@/lib/queries";
-import { describeValue, loadProperty, valueLine } from "@/lib/values";
+import { changeLine, loadProperty } from "@/lib/values";
 import type { TaskValue } from "@/lib/types";
 
 type Ctx = { params: Promise<{ taskId: string; propertyId: string; pointedId: string }> };
@@ -46,14 +46,13 @@ export const DELETE = route<Ctx>(async (req, ctx) => {
       .set({ value })
       .where(and(eq(taskValues.taskId, taskId), eq(taskValues.propertyId, propertyId)));
     await tx.update(tasks).set({ updatedAt: new Date() }).where(eq(tasks.id, taskId));
-    const described = await describeValue(prop, value, tx);
     const ring = await logActivityIn(tx, [
       {
         projectId,
         taskId,
         actorId: user.id,
         kind: "value",
-        data: valueLine(prop, value, described),
+        data: await changeLine(prop, held as TaskValue, value, tx),
       },
     ]);
     return { value, ring };

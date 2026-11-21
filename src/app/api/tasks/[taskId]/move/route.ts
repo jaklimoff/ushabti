@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { tasks, taskValues } from "@/db/schema";
 import type { ActivityEntry } from "@/lib/activity";
 import { HttpError } from "@/lib/auth";
@@ -14,13 +14,7 @@ import {
 import { rankBetween } from "@/lib/rank";
 import { dropHidden, lockTasks } from "@/lib/hidden";
 import type { TaskValue } from "@/lib/types";
-import {
-  coerceValue,
-  describeValue,
-  loadProperty,
-  valueLine,
-  type PropertyRow,
-} from "@/lib/values";
+import { changeLine, coerceValue, loadProperty, type PropertyRow } from "@/lib/values";
 
 type Ctx = { params: Promise<{ taskId: string }> };
 
@@ -86,7 +80,23 @@ export const POST = route<Ctx>(async (req, ctx) => {
 
     const entries: ActivityEntry[] = [];
     if (changes.length) await lockTasks(tx, [taskId]);
+    const had = changes.length
+      ? await tx
+          .select({ propertyId: taskValues.propertyId, value: taskValues.value })
+          .from(taskValues)
+          .where(
+            and(
+              eq(taskValues.taskId, taskId),
+              inArray(
+                taskValues.propertyId,
+                changes.map((c) => c.prop.id),
+              ),
+            ),
+          )
+      : [];
+    const before = new Map(had.map((row) => [row.propertyId, row.value as TaskValue]));
     for (const { prop, value } of changes) {
+      const data = await changeLine(prop, before.get(prop.id), value, tx);
       await tx
         .insert(taskValues)
         .values({ taskId, propertyId: prop.id, value })
@@ -99,7 +109,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         taskId,
         actorId: user.id,
         kind: "value",
-        data: valueLine(prop, value, await describeValue(prop, value, tx)),
+        data,
       });
     }
     const taskIds = entries.length ? [taskId] : [];

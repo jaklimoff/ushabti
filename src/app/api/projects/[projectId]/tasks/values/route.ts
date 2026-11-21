@@ -6,7 +6,7 @@ import { HttpError } from "@/lib/auth";
 import { changed, readChange, readTaskIds, rowsSaid } from "@/lib/bulk";
 import { dropHidden, lockTasks } from "@/lib/hidden";
 import type { TaskValue } from "@/lib/types";
-import { coerceValue, describeValue, loadProperty, valueLine } from "@/lib/values";
+import { changeLine, coerceValue, describeValue, loadProperty } from "@/lib/values";
 
 type Ctx = { params: Promise<{ projectId: string }> };
 
@@ -94,13 +94,15 @@ export const POST = route<Ctx>(async (req, ctx) => {
       if (!said.has(key)) said.set(key, describeValue(property, v, tx));
       return said.get(key)!;
     };
+    /* Each task's own value, read under the lock, so each line says what that
+       task held before. */
+    const had = await tx
+      .select({ taskId: taskValues.taskId, value: taskValues.value })
+      .from(taskValues)
+      .where(and(eq(taskValues.propertyId, property.id), inArray(taskValues.taskId, ids)));
+    const before = new Map(had.map((row) => [row.taskId, row.value as TaskValue]));
     let writes: { taskId: string; value: TaskValue }[] = ids.map((taskId) => ({ taskId, value }));
     if (change && optionId) {
-      const had = await tx
-        .select({ taskId: taskValues.taskId, value: taskValues.value })
-        .from(taskValues)
-        .where(and(eq(taskValues.propertyId, property.id), inArray(taskValues.taskId, ids)));
-      const before = new Map(had.map((row) => [row.taskId, row.value as TaskValue]));
       writes = [];
       for (const taskId of ids) {
         const old = before.get(taskId) ?? null;
@@ -127,7 +129,7 @@ export const POST = route<Ctx>(async (req, ctx) => {
         taskId: w.taskId,
         actorId: user.id,
         kind: "value",
-        data: valueLine(property, w.value, await describe(w.value)),
+        data: await changeLine(property, before.get(w.taskId), w.value, tx, describe),
       })),
     );
     /* One line on each task, the same kind and the same shape the task route

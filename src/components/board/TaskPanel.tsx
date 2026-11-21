@@ -1003,10 +1003,21 @@ export function TaskPanel({
                     <div key={entry.id} className={styles.activityRow}>
                       <span className={styles.activityTime}>{relativeTime(entry.createdAt)}</span>
                       <span className={styles.activityText}>
-                        {describeActivity(entry, data.project.name, (id) => {
+                        {activityWords(entry, data.project.name, (id) => {
                           const person = personOf(id, data.members, data.former);
                           return person ? personName(person) : null;
-                        })}
+                        }).map((s, i) =>
+                          s.tone ? (
+                            <span
+                              key={i}
+                              className={s.tone === "now" ? styles.activityNow : styles.activityWas}
+                            >
+                              {s.text}
+                            </span>
+                          ) : (
+                            s.text
+                          ),
+                        )}
                         {entry.via && <span className={styles.via}> via {entry.via}</span>}
                       </span>
                     </div>
@@ -1559,6 +1570,32 @@ function valueSaid(
   return d.value ?? "empty";
 }
 
+/** A piece of a line. What a value became reads brighter than what it was. */
+export type Said = { text: string; tone?: "was" | "now" };
+
+/* A line that says what came and what went, for a value that is a list. */
+function listSaid(who: string, property: string, added: string[], removed: string[]): Said[] {
+  const plus = added.join(", ");
+  const minus = removed.join(", ");
+  if (added.length && removed.length) {
+    return [
+      { text: `${who} added ` },
+      { text: plus, tone: "now" },
+      { text: ` to ${property} and took ` },
+      { text: minus, tone: "was" },
+      { text: " away" },
+    ];
+  }
+  if (added.length) {
+    return [{ text: `${who} added ` }, { text: plus, tone: "now" }, { text: ` to ${property}` }];
+  }
+  return [
+    { text: `${who} took ` },
+    { text: minus, tone: "was" },
+    { text: ` away from ${property}` },
+  ];
+}
+
 /* A deleted comment is named by whose it was, never by its words. */
 function whoseComment(
   d: { authorId?: string | null; byProject?: boolean },
@@ -1581,6 +1618,36 @@ export function describeActivity(
   projectName: string,
   nameOf: (id: unknown) => string | null,
 ): string {
+  return activityWords(entry, projectName, nameOf)
+    .map((s) => s.text)
+    .join("");
+}
+
+/** The words of a line, in pieces, so the panel can draw the new value
+    brighter than the old one. A line with no `from` was written before it
+    kept one, or by a write that changed nothing, and reads as it always did. */
+export function activityWords(
+  entry: {
+    kind: string;
+    data: Record<string, unknown>;
+    actor: { id?: string; name: string } | null;
+  },
+  projectName: string,
+  nameOf: (id: unknown) => string | null,
+): Said[] {
+  const said = describeLine(entry, projectName, nameOf);
+  return typeof said === "string" ? [{ text: said }] : said;
+}
+
+function describeLine(
+  entry: {
+    kind: string;
+    data: Record<string, unknown>;
+    actor: { id?: string; name: string } | null;
+  },
+  projectName: string,
+  nameOf: (id: unknown) => string | null,
+): string | Said[] {
   // A roll, which older releases did on a sprint's end, had no person behind it.
   const who = entry.actor?.name ?? (entry.data.rolled ? projectName : "Someone");
   const d = entry.data as {
@@ -1588,6 +1655,9 @@ export function describeActivity(
     type?: string;
     value?: string;
     personId?: string | null;
+    fromPersonId?: string | null;
+    added?: string[];
+    removed?: string[];
     title?: string;
     text?: string;
     from?: string;
@@ -1608,6 +1678,15 @@ export function describeActivity(
     case "created":
       return `${who} created the task`;
     case "title":
+      if (typeof d.from === "string") {
+        return [
+          { text: `${who} renamed it from “` },
+          { text: d.from, tone: "was" },
+          { text: "” to “" },
+          { text: d.title ?? "", tone: "now" },
+          { text: "”" },
+        ];
+      }
       return `${who} renamed it to “${d.title ?? ""}”`;
     case "description":
       return `${who} edited the description`;
@@ -1615,6 +1694,23 @@ export function describeActivity(
       /* A line about values a change hid names what went, and the change
          that hid them has its own line beside it. */
       if (d.dropped?.length) return droppedSaid(d.hidBy ?? null, d.dropped);
+      if (typeof d.from === "string") {
+        const property = d.property ?? "a property";
+        if (
+          Array.isArray(d.added) &&
+          Array.isArray(d.removed) &&
+          (d.added.length || d.removed.length)
+        ) {
+          return listSaid(who, property, d.added, d.removed);
+        }
+        const was = valueSaid({ type: d.type, value: d.from, personId: d.fromPersonId }, nameOf);
+        return [
+          { text: `${who} set ${property} from ` },
+          { text: was, tone: "was" },
+          { text: " to " },
+          { text: valueSaid(d, nameOf), tone: "now" },
+        ];
+      }
       return `${who} set ${d.property ?? "a property"} to ${valueSaid(d, nameOf)}`;
     case "checklist":
       if (d.action === "removed") return `${who} removed the checklist item “${d.text ?? ""}”`;

@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A change says what it was before.** The Activity tab reads "set Status from Todo to In
+  Progress" and "renamed it from … to …", and a label line says what was added and what was taken
+  away. Lines written before this release read as they did.
+
 ### Fixed
 
 - **A busy board no longer piles reads on a slow server.** An open tab now has one board read out

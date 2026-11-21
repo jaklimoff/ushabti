@@ -1176,12 +1176,26 @@ A `value` line says somebody set a value:
 `propertyId` and `type`. A `person` line also carries `personId`, the member it
 names now, or `null` when it was cleared, so a watcher knows from the line
 whether it was just assigned and a card dragged across a status column asks it
-to read nothing. A line about values a change hid carries
+to read nothing.
+
+A `value` line also says what the value was before, when the write changed it:
+`from` is the old value in the same words as `value`, `"empty"` when there was
+none. A `person` line adds `fromPersonId`, the member it named before, or
+`null`. A `multi_select` or `relation` line adds `added` and `removed`, the
+words of what came and what went:
+`data: { "property": "Labels", "propertyId": "…", "type": "multi_select", "value": "docs, bug", "optionIds": ["…", "…"], "from": "ux, docs", "added": ["bug"], "removed": ["ux"] }`.
+A write that left the value as it was carries no `from`.
+
+A `title` line says somebody renamed the task:
+`data: { "title": "Retries stop after five tries", "from": "queue thing" }`.
+`from` is the old title, and it is missing when the title stayed as it was.
+
+A line about values a change hid carries
 `data: { "dropped": ["Severity"], "propertyIds": ["…"], "hidBy": "…" }` instead,
 and names nobody.
 
-Lines are stored as they were written. A line older than `type`, `personId`
-and `assigneeIds` lacks them, and then the board says what the line does not;
+Lines are stored as they were written. A line older than `type`, `personId`,
+`assigneeIds` and `from` lacks them, and then the board says what the line does not;
 `board.mjs watch` reads it once a pass for those, and only for those.
 
 A `link` line says one task was made to wait on another, or stopped waiting:

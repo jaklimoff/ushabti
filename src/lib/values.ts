@@ -159,14 +159,37 @@ async function assertOptions(propertyId: string, ids: string[]) {
   }
 }
 
+/** What a value was before a write, in the words of `describeValue`. A
+    multi-select and a Tasks value also say what came and what went. */
+export type ValueWas = {
+  value: TaskValue;
+  described: string;
+  added?: string[];
+  removed?: string[];
+};
+
+/** One reading of a value for telling two apart: every empty is one empty,
+    and a list is a set, since its order is only the order of the clicks. */
+function sameValue(a: TaskValue, b: TaskValue): boolean {
+  const key = (v: TaskValue) => {
+    if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0))
+      return "null";
+    return JSON.stringify(Array.isArray(v) ? [...v].map(String).sort() : v);
+  };
+  return key(a) === key(b);
+}
+
 /** The data of a value line. The name is for people; the id and the type
     are for an agent, since a name can change. A person line names the
     person too, so a watcher can tell whether it is for it without reading
-    the board. Fields are only ever added here: old watchers read the rest. */
+    the board. Fields are only ever added here: old watchers read the rest.
+    `was` is required so that no write can forget what it replaced; a write
+    that left the value as it was says nothing of it. */
 export function valueLine(
   prop: Pick<PropertyRow, "id" | "name" | "type">,
   value: TaskValue,
   described: string,
+  was: ValueWas,
 ): Record<string, unknown> {
   const line: Record<string, unknown> = {
     property: prop.name,
@@ -184,7 +207,82 @@ export function valueLine(
   if (prop.type === "relation") {
     line.taskIds = Array.isArray(value) ? value.filter((v) => typeof v === "string") : [];
   }
+  if (!sameValue(was.value, value)) {
+    line.from = was.described;
+    if (prop.type === "person") {
+      line.fromPersonId = typeof was.value === "string" && was.value ? was.value : null;
+    }
+    if (was.added || was.removed) {
+      line.added = was.added ?? [];
+      line.removed = was.removed ?? [];
+    }
+  }
   return line;
+}
+
+/** The ids of a list value, for working out what a write added and took away. */
+function idsOf(v: TaskValue): string[] {
+  return (Array.isArray(v) ? v : []).filter((x): x is string => typeof x === "string");
+}
+
+/**
+ * A value line for a write from `before` to `value`, both described. It is
+ * read inside the transaction that writes, so `before` is what the lock saw.
+ * `describe` lets a write to many tasks name a value once for all of them.
+ */
+export async function changeLine(
+  prop: Pick<PropertyRow, "id" | "name" | "type">,
+  before: TaskValue | undefined,
+  value: TaskValue,
+  q: Pick<typeof db, "select"> = db,
+  describe: (v: TaskValue) => Promise<string> = (v) => describeValue(prop, v, q),
+): Promise<Record<string, unknown>> {
+  /* A checkbox draws no empty: one nobody ticked was off. */
+  const old: TaskValue = prop.type === "checkbox" ? Boolean(before) : (before ?? null);
+  const was: ValueWas = { value: old, described: await describe(old) };
+  if (prop.type === "multi_select" || prop.type === "relation") {
+    const had = idsOf(old);
+    const has = idsOf(value);
+    was.added = await namesOf(
+      prop,
+      has.filter((id) => !had.includes(id)),
+      q,
+    );
+    was.removed = await namesOf(
+      prop,
+      had.filter((id) => !has.includes(id)),
+      q,
+    );
+  }
+  return valueLine(prop, value, await describe(value), was);
+}
+
+/** The words for each id of an option or a Tasks value: the option's name,
+    or the task's key. An id that is gone reads `?`. */
+async function namesOf(
+  prop: Pick<PropertyRow, "type">,
+  ids: string[],
+  q: Pick<typeof db, "select">,
+): Promise<string[]> {
+  if (!ids.length) return [];
+  if (prop.type === "relation") {
+    const real = ids.filter(isId);
+    const rows = real.length
+      ? await q
+          .select({ id: tasks.id, number: tasks.number, key: projects.key })
+          .from(tasks)
+          .innerJoin(projects, eq(projects.id, tasks.projectId))
+          .where(inArray(tasks.id, real))
+      : [];
+    const byId = new Map(rows.map((r) => [r.id, `${r.key}-${r.number}`]));
+    return ids.map((id) => byId.get(id) ?? "?");
+  }
+  const rows = await q
+    .select({ id: propertyOptions.id, name: propertyOptions.name })
+    .from(propertyOptions)
+    .where(inArray(propertyOptions.id, ids));
+  const byId = new Map(rows.map((r) => [r.id, r.name]));
+  return ids.map((id) => byId.get(id) ?? "?");
 }
 
 /** The options a new task starts with, by property id, for its `created`
@@ -208,7 +306,7 @@ export function optionsOf(
 /** Human-readable text for one value. Used by the activity log. */
 /** `q` is the transaction a caller is inside, so the read takes no second connection. */
 export async function describeValue(
-  prop: PropertyRow,
+  prop: Pick<PropertyRow, "type">,
   value: TaskValue,
   q: Pick<typeof db, "select"> = db,
 ): Promise<string> {
@@ -216,26 +314,15 @@ export async function describeValue(
     return "empty";
   }
   if (hasOptions(prop.type)) {
-    const ids = Array.isArray(value) ? value : [String(value)];
-    const rows = await q
-      .select({ id: propertyOptions.id, name: propertyOptions.name })
-      .from(propertyOptions)
-      .where(inArray(propertyOptions.id, ids));
-    const byId = new Map(rows.map((r) => [r.id, r.name]));
-    return ids.map((id) => byId.get(id) ?? "?").join(", ");
+    const ids = Array.isArray(value) ? value.map(String) : [String(value)];
+    return (await namesOf(prop, ids, q)).join(", ");
   }
   if (prop.type === "checkbox") return value ? "on" : "off";
   /* The keys, which a person reads and an agent can open. */
   if (prop.type === "relation") {
     const ids = (Array.isArray(value) ? value : [value]).filter(isId);
     if (!ids.length) return "empty";
-    const rows = await q
-      .select({ id: tasks.id, number: tasks.number, key: projects.key })
-      .from(tasks)
-      .innerJoin(projects, eq(projects.id, tasks.projectId))
-      .where(inArray(tasks.id, ids));
-    const byId = new Map(rows.map((r) => [r.id, `${r.key}-${r.number}`]));
-    return ids.map((id) => byId.get(id) ?? "?").join(", ");
+    return (await namesOf(prop, ids, q)).join(", ");
   }
   /* How many, never the addresses: the feed is read by everybody, and a list
      of URLs in one line reads as noise. */

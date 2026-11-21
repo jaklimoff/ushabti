@@ -1255,6 +1255,15 @@
   overflow-wrap: anywhere;
 }
 
+/* What a value became reads brighter than what it was; both stay readable. */
+.activityNow {
+  color: var(--text-2);
+}
+
+.activityWas {
+  color: var(--text-4);
+}
+
 .activityEmpty {
   margin: 0;
   font-size: var(--t-body);

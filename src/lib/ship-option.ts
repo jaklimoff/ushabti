@@ -13,7 +13,8 @@ import { readDoneWhen } from "./links";
 import { rankAfter } from "./rank";
 import { loadProperties, type Tx } from "./queries";
 import { closes, nextOpenOption, shipDay, splitShip, type ShipDone, type ShipRest } from "./ship";
-import type { TaskValue } from "./types";
+import type { PropertyType, TaskValue } from "./types";
+import { valueLine } from "./values";
 import { isSelect } from "./types";
 
 /** A value that says something: not missing, null, "" or []. */
@@ -241,17 +242,15 @@ export async function shipOptionIn(
   /* The line on each task says what happened to it, as if somebody had
      done it by hand; the line on the project carries the counts. */
   const line = { projectId, actorId: a.actorId };
+  const shipProp = { id: propertyId, name: option.property, type: option.type as PropertyType };
   const entries: ActivityEntry[] = [
     ...taken.map((taskId) => ({
       ...line,
       taskId,
       kind: "value",
+      /* A stray was in no release, which is what lets the option land. */
       data: {
-        property: option.property,
-        propertyId,
-        type: option.type,
-        value: option.name,
-        optionId,
+        ...valueLine(shipProp, optionId, option.name, { value: null, described: "empty" }),
         shipId,
       },
     })),
@@ -266,11 +265,10 @@ export async function shipOptionIn(
       taskId,
       kind: "value",
       data: {
-        property: option.property,
-        propertyId,
-        type: option.type,
-        value: next && to ? next.name : "empty",
-        optionId: to,
+        ...valueLine(shipProp, to, next && to ? next.name : "empty", {
+          value: optionId,
+          described: option.name,
+        }),
         shipId,
       },
     })),

@@ -84,6 +84,14 @@ describe("Ship on a column", () => {
     expect(cleared).toMatchObject({ archived: 1, rest: "clear" });
     let b = await read();
     expect(b.tasks.find((t) => t.title === "Foxtrot")!.values[version.id] ?? null).toBeNull();
+    /* The line of a task the ship moved says what it was before (USH-468). */
+    const foxtrot = b.tasks.find((t) => t.title === "Foxtrot")!;
+    const detail = await ok<{
+      task: { activity: { kind: string; data: Record<string, unknown> }[] };
+    }>(me.get(`/api/tasks/${foxtrot.id}`));
+    expect(
+      detail.task.activity.find((l) => l.kind === "value" && l.data.shipId)?.data,
+    ).toMatchObject({ property: "Version", from: "v3", value: "empty", optionId: null });
     expect(b.tasks.some((t) => t.title === "Echo")).toBe(false);
 
     const leave = await ok(me.post(`/api/options/${v1.id}/ship`, { rest: "leave" }));
@@ -859,6 +867,10 @@ describe("Ship takes the over tasks in no release", () => {
     const taken = lines.filter((l) => ["Golf", "Hotel"].includes(ids[l.taskId ?? ""]));
     expect(taken.map((l) => l.kind).sort()).toEqual(["archive", "archive", "value", "value"]);
     for (const line of taken) expect(line.data.shipId).toBe(shipId);
+    // A stray was in no release, and its line says so.
+    for (const line of taken.filter((l) => l.kind === "value")) {
+      expect(line.data).toMatchObject({ from: "empty", value: "v1", optionId: v1.id });
+    }
   });
 
   it("with the tick off, they stay where they were", async () => {
