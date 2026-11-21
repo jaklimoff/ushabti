@@ -20,7 +20,8 @@ const fake = vi.hoisted(() => {
      the old words under a lock first, and that read guards nothing. */
   const chain = (rows: () => Rows, remember = false) => {
     const node: Record<string, unknown> = {};
-    for (const step of ["set", "returning", "from", "limit", "for"]) node[step] = () => node;
+    for (const step of ["set", "returning", "from", "limit", "for", "orderBy"])
+      node[step] = () => node;
     node.where = (condition: unknown) => {
       if (remember) state.where.push(condition);
       return node;
@@ -48,6 +49,11 @@ vi.mock("@/lib/queries", () => ({
   logActivity: vi.fn(async () => undefined),
   touchTasks: vi.fn(async () => undefined),
 }));
+vi.mock("@/lib/hidden", () => ({ lockTasks: vi.fn(async () => undefined) }));
+vi.mock("@/lib/activity", () => ({
+  logActivityIn: vi.fn(async () => async () => undefined),
+}));
+vi.mock("@/lib/description-versions", () => ({ keepVersion: vi.fn(async () => "version-1") }));
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   guard: async () => ({ user: { id: "user-1", kind: "human" } }),
@@ -58,6 +64,7 @@ import { PATCH as patchTask } from "@/app/api/tasks/[taskId]/route";
 import { PATCH as patchItem } from "@/app/api/checklist/[itemId]/route";
 import { broadcast } from "@/lib/api";
 import { logActivity } from "@/lib/queries";
+import { logActivityIn } from "@/lib/activity";
 
 function send(payload: unknown) {
   return new Request("http://localhost/api", {
@@ -84,21 +91,24 @@ beforeEach(() => {
   fake.state.where = [];
   fake.state.updates = 0;
   vi.mocked(logActivity).mockClear();
+  vi.mocked(logActivityIn).mockClear();
   vi.mocked(broadcast).mockClear();
 });
 
 describe("PATCH /api/tasks/{id}", () => {
   it("writes without a base as it always did, and compares nothing", async () => {
     fake.state.updated = [{ id: "task-1" }];
+    fake.state.read = [{ title: "A task", description: "" }];
     const res = await task({ description: "New words" });
     expect(res.status).toBe(200);
     expect(condition().params).toEqual(["task-1"]);
-    expect(logActivity).toHaveBeenCalledTimes(1);
+    expect(logActivityIn).toHaveBeenCalledTimes(1);
     expect(broadcast).toHaveBeenCalledTimes(1);
   });
 
   it("puts the base in the same statement as the update", async () => {
     fake.state.updated = [{ id: "task-1" }];
+    fake.state.read = [{ title: "A task", description: "Before" }];
     const res = await task({ description: "Mine", baseDescription: "Before" });
     expect(res.status).toBe(200);
     expect(fake.state.updates).toBe(1);
@@ -117,7 +127,7 @@ describe("PATCH /api/tasks/{id}", () => {
       field: "description",
       current: "Theirs",
     });
-    expect(logActivity).not.toHaveBeenCalled();
+    expect(logActivityIn).not.toHaveBeenCalled();
     expect(broadcast).not.toHaveBeenCalled();
   });
 
@@ -131,12 +141,14 @@ describe("PATCH /api/tasks/{id}", () => {
 
   it("compares the trimmed title it will write, so the same words are not a clash", async () => {
     fake.state.updated = [{ id: "task-1" }];
+    fake.state.read = [{ title: "Old", description: "" }];
     await task({ title: "  Same  ", baseTitle: "Old" });
     expect(condition().params).toEqual(["task-1", "Old", "Same"]);
   });
 
   it("ignores a base for a field it does not write", async () => {
     fake.state.updated = [{ id: "task-1" }];
+    fake.state.read = [{ title: "Old", description: "" }];
     const res = await task({ title: "New", baseDescription: "Anything" });
     expect(res.status).toBe(200);
     expect(condition().params).toEqual(["task-1"]);

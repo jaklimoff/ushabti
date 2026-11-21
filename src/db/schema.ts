@@ -468,6 +468,29 @@ export const comments = pgTable(
 );
 
 /**
+ * One edit of a description: the text it replaced and the text it left.
+ * The feed and the webhooks send a line's data whole, so the old words live
+ * here and the `description` line names only this row.
+ */
+export const descriptionVersions = pgTable(
+  "description_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    before: text("before").notNull(),
+    after: text("after").notNull(),
+    /* The version a put-back restored. No foreign key: both rows go with
+       the task, and a put-back is never moved by a later edit. */
+    restoredFrom: uuid("restored_from"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("description_versions_task_time_idx").on(t.taskId, t.createdAt)],
+);
+
+/**
  * A file on a task. The bytes live in the bucket under `key`; this row is the
  * only way to reach them, because a file is read through the board, which
  * checks who asks. A row with no `readyAt` is an upload nobody confirmed yet.

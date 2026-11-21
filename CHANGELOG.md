@@ -10,6 +10,9 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Added
 
+- **A description edit keeps the text it replaced.** Every write of a description keeps the words
+  that were there before, and its Activity line names the edit. Agents read both texts at
+  `GET /api/tasks/{taskId}/description-versions/{versionId}`, and put one back with `restoredFrom`.
 - **A change says what it was before.** The Activity tab reads "set Status from Todo to In
   Progress" and "renamed it from … to …", and a label line says what was added and what was taken
   away. Lines written before this release read as they did.

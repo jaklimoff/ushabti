@@ -281,6 +281,13 @@
       "when": 1794356910361,
       "tag": "0039_new_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795275762661,
+      "tag": "0040_flaky_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

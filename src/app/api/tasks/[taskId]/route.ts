@@ -1,6 +1,6 @@
 import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { projects, tasks } from "@/db/schema";
+import { descriptionVersions, projects, tasks } from "@/db/schema";
 import { HttpError } from "@/lib/auth";
 import {
   body,
@@ -10,10 +10,14 @@ import {
   json,
   mayOnly,
   optionalStr,
+  readId,
   route,
   str,
 } from "@/lib/api";
+import { type ActivityEntry, logActivityIn } from "@/lib/activity";
 import { deletedLine, goesAt } from "@/lib/deleted";
+import { keepVersion } from "@/lib/description-versions";
+import { lockTasks } from "@/lib/hidden";
 import { loadTaskDetail, logActivity, sweepDeleted, taskProjectId } from "@/lib/queries";
 
 type Ctx = { params: Promise<{ taskId: string }> };
@@ -52,6 +56,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
     description?: string;
     baseTitle?: string;
     baseDescription?: string;
+    restoredFrom?: string | null;
   }>(req);
   const patch: Record<string, unknown> = { updatedAt: new Date() };
 
@@ -77,27 +82,76 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
       )!,
     );
 
-  /* The old title is read under the task's row lock, the one `lockTasks`
-     takes, in the transaction that writes the new one, so the line names
-     what this write replaced and not what a second write left behind. */
-  const { written, was } = await db.transaction(async (tx) => {
-    const [old] =
-      input.title === undefined
-        ? []
-        : await tx
-            .select({ title: tasks.title })
-            .from(tasks)
-            .where(eq(tasks.id, taskId))
-            .for("update");
+  const restoredFrom =
+    input.restoredFrom === undefined || input.restoredFrom === null
+      ? null
+      : readId(input.restoredFrom, "version");
+  if (restoredFrom && input.description === undefined)
+    throw new HttpError(400, "A put-back needs the description it puts back.");
+
+  /* The old texts are read under the task's row lock, in the transaction
+     that writes the new ones, so the line and the version name what this
+     write replaced and not what a second write left behind. */
+  const result = await db.transaction(async (tx) => {
+    await lockTasks(tx, [taskId]);
+    const [old] = await tx
+      .select({ title: tasks.title, description: tasks.description })
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    // Gone under the write: the answer below reads it again and says so.
+    if (!old) return null;
+
+    let restored: { actorId: string | null } | undefined;
+    if (restoredFrom) {
+      [restored] = await tx
+        .select({ actorId: descriptionVersions.actorId, before: descriptionVersions.before })
+        .from(descriptionVersions)
+        .where(
+          and(
+            eq(descriptionVersions.id, restoredFrom),
+            eq(descriptionVersions.taskId, taskId),
+            eq(descriptionVersions.before, patch.description as string),
+          ),
+        );
+      if (!restored)
+        throw new HttpError(400, "That version is not this task's, or the text is not its before.");
+    }
+
     const rows = await tx
       .update(tasks)
       .set(patch)
       .where(and(...unchanged))
       .returning({ id: tasks.id });
-    return { written: rows.length > 0, was: old?.title as string | undefined };
+    if (rows.length === 0) return null;
+
+    const lines: ActivityEntry[] = [];
+    if (input.title !== undefined) {
+      const data: Record<string, unknown> = { title: patch.title };
+      if (old.title !== patch.title) data.from = old.title;
+      lines.push({ projectId, taskId, actorId: user.id, kind: "title", data });
+    }
+    if (input.description !== undefined) {
+      const after = patch.description as string;
+      const data: Record<string, unknown> = {};
+      if (old.description !== after) {
+        data.versionId = await keepVersion(tx, {
+          taskId,
+          actorId: user.id,
+          before: old.description,
+          after,
+          restoredFrom,
+        });
+        if (restored) {
+          data.restoredFrom = restoredFrom;
+          data.restoredActorId = restored.actorId;
+        }
+      }
+      lines.push({ projectId, taskId, actorId: user.id, kind: "description", data });
+    }
+    return { ring: await logActivityIn(tx, lines) };
   });
 
-  if (!written) {
+  if (!result) {
     const [row] = await db
       .select({ title: tasks.title, description: tasks.description })
       .from(tasks)
@@ -113,15 +167,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
         : "description";
     return json({ error: "This changed while you typed.", field, current: row[field] }, 409);
   }
-
-  if (input.title !== undefined) {
-    const data: Record<string, unknown> = { title: patch.title };
-    if (was !== undefined && was !== patch.title) data.from = was;
-    await logActivity({ projectId, taskId, actorId: user.id, kind: "title", data });
-  }
-  if (input.description !== undefined) {
-    await logActivity({ projectId, taskId, actorId: user.id, kind: "description", data: {} });
-  }
+  await result.ring();
 
   await broadcast({ projectId, scope: "task", taskId, clientId: clientIdOf(req) });
   return json({ ok: true });

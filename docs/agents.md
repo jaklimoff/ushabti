@@ -1198,6 +1198,27 @@ A `title` line says somebody renamed the task:
 `data: { "title": "Retries stop after five tries", "from": "queue thing" }`.
 `from` is the old title, and it is missing when the title stayed as it was.
 
+A `description` line says somebody wrote the description:
+`data: { "versionId": "…" }`. The line never carries the words, old or new:
+the feed and the webhooks send `data` whole. `versionId` names the edit, and
+`GET /api/tasks/{taskId}/description-versions/{versionId}` answers
+`{ version: { id, before, after, createdAt, actor } }`, the text the edit
+replaced and the text it left, to any member, an agent too. A version of
+another task is `404`. Edits by one actor inside ten minutes, each starting
+from the text the last one left, share one version: every save still writes
+its own line, and the lines name the same `versionId`, whose `after` is the
+newest text. A write that left the description as it was carries no
+`versionId`, and a line older than this carries none either.
+
+To put back what an edit replaced, send its `before` as `description` and the
+version's id as `restoredFrom` in the same `PATCH /api/tasks/{taskId}`. It is
+refused with `400` unless the version is this task's and `description` is its
+`before`, word for word. The line of a put-back carries its own new
+`versionId`, `restoredFrom`, and `restoredActorId`, whose edit was put back:
+`data: { "versionId": "…", "restoredFrom": "…", "restoredActorId": "…" }`. A
+later edit never folds into a put-back's version. `baseDescription` works with
+it as with any write: a stale base answers `409` and keeps nothing.
+
 A line about values a change hid carries
 `data: { "dropped": ["Severity"], "propertyIds": ["…"], "hidBy": "…" }` instead,
 and names nobody.
