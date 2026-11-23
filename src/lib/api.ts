@@ -46,9 +46,9 @@ export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response
         res = fail(500, "Something went wrong on the server.");
       }
     }
-    /* Plain, never packed here: Next 16.4.5 strips Content-Encoding from a
-       route's answer and still sends the packed bytes, which no browser can
-       read (vercel/next.js#101192). Packing belongs to the server in front. */
+    /* Plain, never packed here: Next's own server packs a route's answer
+       (vercel/next.js#101220). A route must never set Content-Encoding, because
+       Next strips it and still sends the packed bytes (vercel/next.js#101192). */
     return res;
   };
 }

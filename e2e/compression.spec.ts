@@ -54,11 +54,11 @@ async function fill(page: Page, projectId: string) {
 }
 
 test.describe("Compressed answers", () => {
-  /* The route answers plain, and the server in front packs it: Next 16.4.5
-     strips a route's own Content-Encoding (vercel/next.js#101192), and
-     `next start` packs a route's answer from vercel/next.js#101220 on. So the
-     wire may carry either, and what counts is that every caller reads it. */
-  test("the board read reads the same, whatever the caller accepts", async ({ page }) => {
+  /* The route answers plain and Next's own server packs it
+     (vercel/next.js#101220), under `next start` and the image's server.js.
+     It packs gzip and never Brotli, so a caller that accepts only br reads
+     it plain. Every browser accepts gzip too. */
+  test("the board read is compressed when asked, and plain when not", async ({ page }) => {
     await register(page, "Squeeze Owner");
     const projectId = await createProject(page, unique("Squeeze"));
     await fill(page, projectId);
@@ -70,16 +70,20 @@ test.describe("Compressed answers", () => {
     const board = JSON.parse(plain.bytes.toString("utf8"));
     expect(board.tasks).toHaveLength(12);
 
-    for (const accept of ["gzip", "br", "gzip, deflate, br"]) {
+    const onlyBr = await raw(url, { Cookie: cookie, "Accept-Encoding": "br" });
+    expect(onlyBr.headers["content-encoding"]).toBeUndefined();
+    expect(JSON.parse(decoded(onlyBr))).toEqual(board);
+
+    for (const accept of ["gzip", "gzip, deflate, br", "gzip, deflate, br, zstd"]) {
       const packed = await raw(url, { Cookie: cookie, "Accept-Encoding": accept });
       const encoding = packed.headers["content-encoding"];
-      // Packed bytes under no Content-Encoding are what broke the board.
-      expect([undefined, "gzip", "br"]).toContain(encoding);
+      expect(["gzip", "br"]).toContain(encoding);
+      expect(packed.headers.vary ?? "").toMatch(/accept-encoding/i);
       expect(JSON.parse(decoded(packed))).toEqual(board);
-      expect(!encoding || /accept-encoding/i.test(packed.headers.vary ?? "")).toBe(true);
+      expect(packed.bytes.length).toBeLessThan(plain.bytes.length / 3);
       console.log(
         `board read, Accept-Encoding ${accept}: ${plain.bytes.length} bytes plain, ` +
-          `${packed.bytes.length} on the wire as ${encoding ?? "plain"}`,
+          `${packed.bytes.length} on the wire as ${encoding}`,
       );
     }
   });
