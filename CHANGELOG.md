@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.53.0 — 2026-11-23
+
 ### Added
 
 - **A description edit shows what it changed, and puts it back.** In the Activity tab, Show changes
