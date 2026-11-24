@@ -1,7 +1,7 @@
 import type { FormerDTO, MemberDTO, PropertyDTO, TaskDTO, TaskValue } from "./types";
 import { personName } from "./people";
 import { isSelect } from "./types";
-import { isOpenOption } from "./option-dates";
+import { carriesDates, isOpenOption } from "./option-dates";
 import { readOptionIcon, type OptionIcon } from "./option-icons";
 import { formatterFor } from "./day";
 
@@ -82,8 +82,9 @@ export function buildColumns(
     });
   } else if (isSelect(property.type)) {
     for (const option of property.options) {
-      /* A card on a shipped sprint falls to "No sprint", the one column that
-         says it is in no open sprint. Its chip still names the old one. */
+      /* A card on a shipped sprint or release falls to "No sprint" or "No
+         release", the one column that says it is in no open one. Its chip
+         still names the old one. */
       if (!isOpenOption(property, option)) continue;
       columns.push({
         id: option.id,
@@ -163,11 +164,12 @@ export function buildColumns(
     column?.tasks.push(task);
   }
 
-  /* A card on a shipped sprint is in no open sprint, and the empty column says
-     that rather than "No sprint", which its chip would contradict. */
+  /* A card on a shipped sprint or release is in no open one, and the empty
+     column says that rather than "No sprint", which its chip would contradict. */
   const none = byId.get(NO_VALUE);
   if (
-    property?.type === "iteration" &&
+    property &&
+    carriesDates(property) &&
     none?.tasks.some((t) => columnIdForTask(t, property) !== NO_VALUE)
   ) {
     none.name = `No open ${property.name.toLowerCase()}`;

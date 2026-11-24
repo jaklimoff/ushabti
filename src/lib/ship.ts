@@ -57,10 +57,10 @@ export function nextOptionOf<T extends { id: string }>(options: T[], optionId: s
 
 /**
  * Where Move sends the rest: the next option that is still open. A shipped
- * sprint has no column, so work moved into it would leave the board.
+ * sprint or release has no column, so work moved into it would leave the board.
  */
 export function nextOpenOption<T extends { id: string; shippedAt: string | null }>(
-  property: { type: string },
+  property: { type: string; config: { dated?: boolean } | null },
   options: T[],
   optionId: string,
 ): T | null {

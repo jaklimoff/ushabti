@@ -214,6 +214,8 @@ describe("An option carries a plan", () => {
     const { sent } = await draw(data);
     const patches = writes(sent);
     const status = box("Status");
+    // A shipped option of a dated select waits behind the fold.
+    await status.getByRole("button", { name: "1 shipped" }).click();
     await expect.element(status.getByText("✓ Oct 2")).toBeVisible();
     expect(status.getByRole("button", { name: /^Unship / }).elements()).toHaveLength(1);
     // Shown, never typed into: there is no box for it.
@@ -257,6 +259,7 @@ describe("An option carries a plan", () => {
     todo.shippedAt = "2026-10-02";
     await draw(data);
     const status = box("Status");
+    await status.getByRole("button", { name: "1 shipped" }).click();
     await expect.element(status.getByLabelText("Start of Todo")).toHaveValue("2026-10-01");
     await expect.element(status.getByLabelText("Target of Todo")).toBeVisible();
     await expect.element(status.getByLabelText("Note of Todo")).toBeVisible();
@@ -272,6 +275,7 @@ describe("An option carries a plan", () => {
     option(data, "Ready").shippedAt = "2026-10-03";
     await draw(data);
     const status = box("Status");
+    await status.getByRole("button", { name: "1 shipped" }).click();
     await expect.element(status.getByText("✓ Oct 3")).toBeVisible();
     expect(status.getByRole("button", { name: /^Unship / }).elements()).toHaveLength(0);
   });

@@ -298,9 +298,9 @@ describe("Ship on a column", () => {
   });
 
   /* The screen half of "Clear takes the value away; Leave keeps it": the
-     press sends Clear, and the shipped column folds. What Clear and Leave
-     write is the route test. */
-  test("Clear sends its word, and the shipped column folds", async () => {
+     press sends Clear, and the shipped release leaves the board, as a shipped
+     sprint does. What Clear and Leave write is the route test. */
+  test("Clear sends its word, and the shipped column leaves the board", async () => {
     const data = shipBoard();
     const version = propertyOf(data, "Version");
     const { sent } = await renderWithBoard(<BoardShell initialTask={null} />, data, (s) => {
@@ -319,7 +319,7 @@ describe("Ship on a column", () => {
       .getByRole("button", { name: "Clear the value" })
       .click();
 
-    await expect.element(byTestId("column-strip").filter({ hasText: "v3" })).toBeVisible();
+    await gone(column("v3"));
     const ships = sent("POST", /\/ship$/);
     expect(ships).toHaveLength(1);
     expect(ships[0].path).toBe(`/api/options/${version.options[2].id}/ship`);

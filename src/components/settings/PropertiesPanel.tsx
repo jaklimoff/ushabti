@@ -188,8 +188,8 @@ function PropertyRow({ property, canEdit }: { property: PropertyDTO; canEdit: bo
   const dated = carriesDates(property);
   /* The rule's row opens on a press, and stays while a rule is set. */
   const [whenOpen, setWhenOpen] = useState(false);
-  /* Fifty old sprints must not stand before this week's, so the shipped ones
-     wait behind one row. A dated select has none: its versions stay. */
+  /* Fifty old sprints or twenty old releases must not stand before the ones
+     still to come, so the shipped ones wait behind one row. */
   const { open: openOptions, shipped } = splitShipped(property);
   const [unfolded, setUnfolded] = useState(false);
   const optionSensors = useGripSensors();

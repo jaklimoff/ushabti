@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **A shipped release folds away as a shipped sprint does.** It has no column on a board grouped by Release, the task panel's picker leaves it out unless the task holds it, the filter and Settings keep it behind a Shipped fold, and Move after a ship steps over it. A task that holds it still shows it.
+
 ## 0.54.0 — 2026-11-24
 
 ### Added

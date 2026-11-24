@@ -3,8 +3,7 @@ import { card, column, createProject, dragCard, register, unique } from "./helpe
 
 /**
  * A shipped sprint leaves every screen that offers a choice, and stays on the
- * tasks that hold it. A shipped version stays everywhere: there are few, and
- * people pick old ones on purpose.
+ * tasks that hold it. A shipped release does the same: `shipped-release.spec.ts`.
  *
  * The board, the picker, the filter fold and Settings are the two
  * `Sprints.test.tsx`. What stays is the drop, which is a drag across columns.

@@ -81,12 +81,13 @@ function today(): string {
 }
 
 /*
- * Move stays end to end: it archives, moves on, writes the day and folds,
+ * Move stays end to end: it archives, moves on, writes the day and takes the
+ * shipped column off the board,
  * through the real board. The question, Clear, the refusals and Unship are
  * `Progress.test.tsx` and `release-route.test.ts`.
  */
 test.describe("Ship on a column", () => {
-  test("Move archives what is over, moves the rest on, writes the day and folds", async ({
+  test("Move archives what is over, moves the rest on, writes the day and leaves", async ({
     page,
   }) => {
     const { projectId, read, version, v1, v2 } = await releaseBoard(page);
@@ -98,7 +99,7 @@ test.describe("Ship on a column", () => {
       .getByRole("button", { name: "Move to the next option" })
       .click();
 
-    await expect(page.getByTestId("column-strip").filter({ hasText: "v1" })).toBeVisible();
+    await expect(column(page, "v1")).toHaveCount(0);
     await expect(column(page, "v2").getByText("Charlie")).toBeVisible();
     await expect(card(page, "Alpha")).toHaveCount(0);
 
@@ -109,10 +110,6 @@ test.describe("Ship on a column", () => {
       .find((p) => p.id === version.id)!
       .options.find((o) => o.id === v1.id)!;
     expect(shipped.shippedAt).toBe(today());
-
-    /* The shipped column offers no second ship. */
-    await page.getByTestId("column-strip").filter({ hasText: "v1" }).click();
-    await expect(column(page, "v1").getByTestId("column-ship")).toHaveCount(0);
 
     /* Every line of the ship shares one id: three archived, one moved, one
        on the project with the counts. */

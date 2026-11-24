@@ -87,9 +87,10 @@ const members: MemberDTO[] = [
 ];
 
 describe("buildColumns and a shipped option", () => {
-  const options = (type: PropertyDTO["type"]) =>
+  const options = (type: PropertyDTO["type"], config: PropertyDTO["config"] = {}) =>
     property({
       type,
+      config,
       options: property().options.map((o) =>
         o.id === "o-todo" ? { ...o, targetAt: "2026-09-01", shippedAt: "2026-09-02" } : o,
       ),
@@ -108,7 +109,15 @@ describe("buildColumns and a shipped option", () => {
     expect(columns.map((c) => c.name)).toEqual(["Done", "No status"]);
   });
 
-  it("draws a shipped option of a dated select exactly as before", () => {
+  it("draws no column for a shipped release of a dated select, as for a sprint", () => {
+    const release = options("select", { dated: true });
+    const columns = buildColumns(release, [task("a", { "p-status": "o-todo" })], []);
+    expect(columns.map((c) => c.id)).toEqual(["o-done", NO_VALUE]);
+    expect(columns[1].tasks.map((t) => t.id)).toEqual(["a"]);
+    expect(columns[1].name).toBe("No open status");
+  });
+
+  it("keeps a column for a plain select, which carries no dates", () => {
     const columns = buildColumns(options("select"), [task("a", { "p-status": "o-todo" })], []);
     expect(columns.map((c) => c.id)).toEqual(["o-todo", "o-done"]);
   });

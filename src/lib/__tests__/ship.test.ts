@@ -104,12 +104,15 @@ describe("the next open option", () => {
   ];
 
   it("steps over a shipped sprint, which has no column to move into", () => {
-    expect(nextOpenOption({ type: "iteration" }, options, "s1")?.id).toBe("s3");
-    expect(nextOpenOption({ type: "iteration" }, options, "s3")).toBeNull();
+    const sprint = { type: "iteration", config: null };
+    expect(nextOpenOption(sprint, options, "s1")?.id).toBe("s3");
+    expect(nextOpenOption(sprint, options, "s3")).toBeNull();
   });
 
-  it("keeps the next version of a dated select, shipped or not", () => {
-    expect(nextOpenOption({ type: "select" }, options, "s1")?.id).toBe("s2");
+  it("steps over a shipped release the same way", () => {
+    const release = { type: "select", config: { dated: true } };
+    expect(nextOpenOption(release, options, "s1")?.id).toBe("s3");
+    expect(nextOpenOption(release, options, "s3")).toBeNull();
   });
 });
 

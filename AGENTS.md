@@ -136,9 +136,12 @@ and what is easy to get wrong.
   select whose stored `config.dated` is on. No screen offers that flag any
   more: **Use releases** makes a select with it on, and a select that had it
   keeps its boxes. It is its own type because a sprint is not a version:
-  many, short, made by a cadence and gone when shipped. Those differences
-  hang off the type, never off the name Sprint. A version or an epic stays a
-  plain dated select.
+  many, short, made by a cadence, and closed rather than shipped. Those
+  differences hang off the type, never off the name Sprint. A version or an
+  epic stays a plain dated select. A shipped option of any dated property
+  folds away all the same: `isOpenOption()` asks `carriesDates()`, so a
+  shipped sprint and a shipped release both leave the columns, the pickers,
+  the filter and Settings, and stay on the tasks that hold them.
 - **Releases and sprints are two switches, and each is a pointer.**
   `projects.releaseBy` and `projects.sprintBy` name the select and the
   iteration, in the `typeBy` pattern: no foreign key, read afresh by

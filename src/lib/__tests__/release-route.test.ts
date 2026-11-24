@@ -105,6 +105,19 @@ describe("Ship on a column", () => {
     expect(last.status).toBe(400);
   });
 
+  /* A shipped release has no column, so Move steps over it as it steps over
+     a shipped sprint. */
+  it("Move sends the rest to the next release that has not shipped", async () => {
+    const { me, read, version, v1, v2, v3 } = await releaseBoard();
+    await ok(me.patch(`/api/options/${v2.id}`, { targetAt: "2026-10-07" }));
+    await ok(me.post(`/api/options/${v2.id}/ship`, { rest: "leave" }));
+
+    const moved = await ok(me.post(`/api/options/${v1.id}/ship`, { rest: "next" }));
+    expect(moved).toMatchObject({ archived: 3, moved: 1, rest: "next" });
+    const b = await read();
+    expect(b.tasks.find((t) => t.title === "Charlie")!.values[version.id]).toBe(v3.id);
+  });
+
   /* The agent that deployed ships the release. Unship throws the day away,
      so it stays a person's, an admin's, with the sentence it always had. */
   it("a member token ships as an admin does, and is refused on unship", async () => {

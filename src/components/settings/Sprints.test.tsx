@@ -395,10 +395,10 @@ describe("A shipped option in Settings", () => {
     await expect.element(box.getByLabelText("Start of S1")).toBeVisible();
   });
 
-  /* The Settings half of "a shipped version of a dated select is drawn
-     exactly as before". The board and the panel are `Sprints.test.tsx` of
-     the board. */
-  test("a shipped version of a dated select keeps its boxes and no fold", async () => {
+  /* The Settings half of "a shipped release folds away wherever a shipped
+     sprint does". The board and the panel are `Sprints.test.tsx` of the
+     board. */
+  test("a shipped release of a dated select waits behind the same fold", async () => {
     const data = newProject();
     data.properties.push({
       id: crypto.randomUUID(),
@@ -414,7 +414,9 @@ describe("A shipped option in Settings", () => {
     });
     await renderWithBoard(<PropertiesPanel />, data);
     const box = boxOf("Version");
+    await expect.element(box.getByLabelText("Start of V2")).toBeVisible();
+    await gone(box.getByLabelText("Start of V1"));
+    await box.getByRole("button", { name: "1 shipped" }).click();
     await expect.element(box.getByLabelText("Start of V1")).toBeVisible();
-    await gone(box.getByRole("button", { name: /shipped$/ }));
   });
 });

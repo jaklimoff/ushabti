@@ -106,7 +106,11 @@ export async function shipOptionIn(
       siblings = await options();
     }
   }
-  const next = nextOpenOption(option, siblings, optionId);
+  const next = nextOpenOption(
+    { type: option.type, config: option.config as { dated?: boolean } | null },
+    siblings,
+    optionId,
+  );
   if (rest === "next" && !next) {
     throw new HttpError(400, `${option.name} is the last option, so there is nothing to move to.`);
   }

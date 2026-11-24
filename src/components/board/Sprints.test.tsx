@@ -225,9 +225,10 @@ describe("A shipped option on the board", () => {
     await gone(card("New work"));
   });
 
-  /* The board half of "a shipped version of a dated select is drawn exactly
-     as before". Settings is `settings/Sprints.test.tsx`. */
-  test("a shipped version of a dated select is drawn exactly as before", async () => {
+  /* The screen half of "a shipped release folds away wherever a shipped
+     sprint does": no column, no button in the picker unless the task holds
+     it, and one fold in the filter that a search reaches behind. */
+  test("a shipped release of a dated select folds away as a sprint does", async () => {
     const data = newProject();
     withIteration(
       data,
@@ -236,22 +237,35 @@ describe("A shipped option on the board", () => {
         option("V2", "b"),
         option("V3", "c"),
       ],
-      { name: "Version", type: "select" },
+      { name: "Release", type: "select" },
     );
-    withTask(data, "Released work");
+    withTask(data, "Released work", { Release: "V1" });
+    withTask(data, "New work");
     await renderWithBoard(<BoardShell initialTask={null} />, data, serving(data).answer);
-    await expect.element(column("V1")).toBeVisible();
+    await expect.poll(names).toEqual(["V2", "V3", "No open release"]);
 
+    const offered = () =>
+      fieldOf("Release")
+        .getByRole("button")
+        .elements()
+        .map((e: Element) => e.textContent?.trim());
     await card("Released work").click();
-    await expect.element(byTestId("task-panel")).toBeVisible();
-    await expect
-      .poll(() =>
-        fieldOf("Version")
-          .getByRole("button")
-          .elements()
-          .map((e: Element) => e.textContent?.trim()),
-      )
-      .toEqual(["V1", "V2", "V3"]);
+    await expect.poll(offered).toEqual(["V1", "V2", "V3"]);
+    await userEvent.keyboard("{Escape}");
+    await card("New work").click();
+    await expect.poll(offered).toEqual(["V2", "V3"]);
+    await userEvent.keyboard("{Escape}");
+
+    await byTestId("filter-button").click();
+    await byTestId("filter-search").fill("Release");
+    await userEvent.keyboard("{Enter}");
+    const rows = page.getByRole("option");
+    await gone(rows.filter({ hasText: /^V1/ }));
+    await expect.element(rows.filter({ hasText: /^V2/ })).toBeVisible();
+    const fold = rows.filter({ hasText: "Shipped" });
+    await expect.poll(() => text(fold)).toMatch(/1/);
+    await byTestId("filter-box").fill("V1");
+    await expect.element(rows.filter({ hasText: /^V1/ })).toBeVisible();
   });
 });
 

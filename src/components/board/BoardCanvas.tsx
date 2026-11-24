@@ -183,7 +183,7 @@ function findColumn(columns: BoardColumn[], taskId: string) {
  * the column the card came from writes nothing. Asked in one place, so the
  * sorted board and the board in its own order cannot answer it differently.
  *
- * A shipped sprint has no column, so its card sits in the empty one and is
+ * A shipped sprint or release has no column, so its card sits in the empty one and is
  * already there: moving it inside that column must not take its sprint away.
  */
 function landed(task: TaskDTO, property: PropertyDTO, column: BoardColumn): boolean {

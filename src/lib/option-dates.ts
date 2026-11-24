@@ -28,16 +28,16 @@ export function carriesDates(property: {
 
 /**
  * True when an option is offered on a screen: a column, a row of a picker, a
- * row of Settings. A shipped iteration is not, because fifty old sprints must
- * not stand between a team and this week's. A version that shipped stays: there
- * are few, and people pick old ones on purpose. The value stays on the task, so
- * a card and the roadmap still read every option.
+ * row of Settings. A shipped option of a dated property is not, a sprint or a
+ * release alike, because twenty old releases must not stand between a team and
+ * the ones still to come. The value stays on the task, so a card, the roadmap
+ * and the changelog still read every option.
  */
 export function isOpenOption(
-  property: { type: string },
+  property: { type: string; config: { dated?: boolean } | null },
   option: { shippedAt: string | null },
 ): boolean {
-  return !(property.type === "iteration" && option.shippedAt);
+  return !(option.shippedAt && carriesDates(property));
 }
 
 /**
@@ -73,7 +73,7 @@ function nextDay(day: string): string {
 
 /** The options a picker offers: the open ones, and the one the value holds. */
 export function pickableOptions<O extends { id: string; shippedAt: string | null }>(
-  property: { type: string; options: O[] },
+  property: { type: string; config: { dated?: boolean } | null; options: O[] },
   value: unknown,
 ): O[] {
   const held = Array.isArray(value) ? value : [value];
@@ -83,6 +83,7 @@ export function pickableOptions<O extends { id: string; shippedAt: string | null
 /** The open options and the shipped ones a fold keeps, each in their order. */
 export function splitShipped<O extends { shippedAt: string | null }>(property: {
   type: string;
+  config: { dated?: boolean } | null;
   options: O[];
 }): { open: O[]; shipped: O[] } {
   const open: O[] = [];
