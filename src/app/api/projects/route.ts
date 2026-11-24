@@ -1,5 +1,6 @@
-import { requireActor, requireUser } from "@/lib/auth";
+import { HttpError, requireActor, requireUser } from "@/lib/auth";
 import { body, humanOnly, json, route, str } from "@/lib/api";
+import { isId } from "@/lib/ids";
 import { createProject, listProjects } from "@/lib/queries";
 import { suggestProjectKey } from "@/lib/defaults";
 
@@ -13,7 +14,7 @@ export const GET = route(async () => {
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser();
-  const input = await body<{ name?: string; key?: string }>(req);
+  const input = await body<{ name?: string; key?: string; from?: string | null }>(req);
   const name = str(input.name, "Project name", { max: 80 });
   const rawKey =
     typeof input.key === "string" && input.key.trim() ? input.key : suggestProjectKey(name);
@@ -24,6 +25,11 @@ export const POST = route(async (req: Request) => {
       .replace(/[^A-Z0-9]/g, "")
       .slice(0, 6) || "TSK";
 
-  const project = await createProject(user.id, name, key);
+  /* The setup of one of the person's own projects, instead of the default set.
+     Any id that is not one answers as a project that does not exist. */
+  if (input.from != null && !isId(input.from)) throw new HttpError(404, "Project not found.");
+  const from = input.from ?? undefined;
+
+  const project = await createProject(user.id, name, key, from);
   return json({ project }, 201);
 });

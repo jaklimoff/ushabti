@@ -2,16 +2,31 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { ME, newProject, renderWithBoard, type Answer } from "@/test/board";
 import { pushed } from "@/test/next-navigation";
-import { NewProject } from "./NewProject";
+import { NewProject, type SetupSource } from "./NewProject";
 
 const made: Answer = (sent) =>
   sent.method === "POST" && sent.path === "/api/projects"
     ? { body: { project: { id: "p-new" } } }
     : undefined;
 
-async function draw(answer: Answer = made) {
-  return renderWithBoard(<NewProject user={ME} />, newProject(), answer);
+async function draw(answer: Answer = made, sources: SetupSource[] = []) {
+  return renderWithBoard(<NewProject user={ME} sources={sources} />, newProject(), answer);
 }
+
+const ROADMAP: SetupSource = {
+  id: "p-roadmap",
+  key: "USH",
+  name: "Ushabti roadmap",
+  color: "#2f6fde",
+  line: "From Ushabti roadmap: 8 properties with their options, 4 views, the card, the agent rules, releases on, sprints off. Releases start with no versions. Tasks, people and webhooks stay behind.",
+};
+const SITE: SetupSource = {
+  id: "p-site",
+  key: "WEB",
+  name: "Website",
+  color: "#c2410c",
+  line: "From Website: 6 properties with their options, 2 views, releases off, sprints off. Tasks, people and webhooks stay behind.",
+};
 
 beforeEach(() => {
   pushed.length = 0;
@@ -98,5 +113,71 @@ describe("The New project page", () => {
       .toHaveAttribute("aria-invalid", "true");
     await expect.element(page.getByText("That key is taken by another project.")).toBeVisible();
     expect(pushed).toEqual([]);
+  });
+
+  test("starts with the default set, and sends no source", async () => {
+    const { sent } = await draw(made, [ROADMAP, SITE]);
+    await expect.element(page.getByRole("radio", { name: "Default set" })).toBeChecked();
+    await expect
+      .element(page.getByRole("radio", { name: "The same setup as another project" }))
+      .not.toBeChecked();
+    expect(page.getByTestId("setup-tile").elements()).toHaveLength(0);
+    await userEvent.type(page.getByRole("textbox", { name: "Project name" }), "Harbour");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect.poll(() => pushed).toEqual(["/p/p-new"]);
+    expect(
+      sent()
+        .filter((s) => s.method === "POST")
+        .map((s) => s.body),
+    ).toEqual([{ name: "Harbour", key: "HAR" }]);
+  });
+
+  test("another project's setup shows the tiles, asks for one, and says what comes over", async () => {
+    const { sent } = await draw(made, [ROADMAP, SITE]);
+    await userEvent.type(page.getByRole("textbox", { name: "Project name" }), "Harbour");
+    await page.getByRole("radio", { name: "The same setup as another project" }).click();
+    const tiles = page.getByTestId("setup-tile");
+    expect(tiles.elements().map((t) => t.textContent)).toEqual([
+      "USHUshabti roadmap",
+      "WEBWebsite",
+    ]);
+    expect(page.getByTestId("setup-line").elements()).toHaveLength(0);
+
+    /* None picked: it says so under the tiles and writes nothing. */
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect
+      .element(page.getByText("Pick the project whose setup to start with."))
+      .toBeVisible();
+    await expect.element(tiles.first()).toHaveFocus();
+    expect(sent().filter((s) => s.method === "POST")).toEqual([]);
+
+    await tiles.first().click();
+    await expect.element(page.getByTestId("setup-line")).toHaveTextContent(ROADMAP.line);
+    await tiles.nth(1).click();
+    await expect.element(page.getByTestId("setup-line")).toHaveTextContent(SITE.line);
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect.poll(() => pushed).toEqual(["/p/p-new"]);
+    expect(
+      sent()
+        .filter((s) => s.method === "POST")
+        .map((s) => s.body),
+    ).toEqual([{ name: "Harbour", key: "HAR", from: "p-site" }]);
+  });
+
+  test("with one project, it is picked already", async () => {
+    await draw(made, [ROADMAP]);
+    await page.getByRole("radio", { name: "The same setup as another project" }).click();
+    await expect.element(page.getByTestId("setup-tile")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(page.getByTestId("setup-line")).toHaveTextContent(ROADMAP.line);
+  });
+
+  test("going back to the default set sends no source", async () => {
+    const { sent } = await draw(made, [ROADMAP]);
+    await userEvent.type(page.getByRole("textbox", { name: "Project name" }), "Harbour");
+    await page.getByRole("radio", { name: "The same setup as another project" }).click();
+    await page.getByRole("radio", { name: "Default set" }).click();
+    await page.getByRole("button", { name: "Create project" }).click();
+    await expect.poll(() => pushed).toEqual(["/p/p-new"]);
+    expect(sent().find((s) => s.method === "POST")?.body).toEqual({ name: "Harbour", key: "HAR" });
   });
 });

@@ -8,6 +8,13 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A new project can start with the setup of another.** New project asks what to start with: the
+  default set, or the same setup as one of your projects. The second copies its properties and
+  options, views, card, done rule and agent rules, and says what comes over in one line before you
+  press Create. Tasks, people, webhooks and the dates of releases and sprints stay behind.
+
 ### Changed
 
 - **New project opens a page of its own.** The sidebar's +, Home's + New project and the first-run

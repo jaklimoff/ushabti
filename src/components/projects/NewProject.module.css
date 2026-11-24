@@ -8,3 +8,52 @@
   flex-direction: column;
   gap: 14px;
 }
+
+.start {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-body);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.choice input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.note {
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.error {
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--danger-text);
+  text-wrap: pretty;
+}

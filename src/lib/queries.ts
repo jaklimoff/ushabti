@@ -101,6 +101,7 @@ import type { ChartDay } from "./charts";
 import { WAITING_STATUSES } from "./run-state";
 import { kickAskMail } from "./ask-sender";
 import { joinProject } from "./membership";
+import { writeSetupFrom } from "./setup-write";
 import { kickSender } from "./webhooks";
 import { readOptionIcon } from "./option-icons";
 import { GROUPABLE_TYPES, isSelect, PROPERTY_TYPES, VIEW_KINDS } from "./types";
@@ -869,8 +870,12 @@ async function lastChanges(projectIds: string[]): Promise<Map<string, LastChange
   return out;
 }
 
-/** Creates the project, its default property set and its default views. */
-export async function createProject(userId: string, name: string, key: string) {
+/**
+ * Creates the project, with the default property set and views, or with the
+ * setup of `from`, a project the person is a member of. One transaction: a
+ * source that answers 404 leaves no project behind.
+ */
+export async function createProject(userId: string, name: string, key: string, from?: string) {
   return db.transaction(async (tx) => {
     const [project] = await tx
       .insert(projects)
@@ -883,6 +888,11 @@ export async function createProject(userId: string, name: string, key: string) {
       .returning();
 
     await joinProject(tx, { projectId: project.id, userId, role: "owner" });
+
+    if (from) {
+      await writeSetupFrom(tx, userId, project.id, from);
+      return project;
+    }
 
     const propRanks = rankSequence(DEFAULT_PROPERTIES.length);
     const byName = new Map<string, string>();

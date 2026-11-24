@@ -1,15 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { suggestProjectKey } from "@/lib/defaults";
 import { Button, ButtonPageLink } from "@/components/ui/Button";
-import { Field, Input } from "@/components/ui/Form";
+import { Field, Input, Label } from "@/components/ui/Form";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { AppBar, AppCrumb } from "@/components/ui/AppBar";
 import { FormActions, PageHead, PageShell } from "@/components/ui/Layout";
+import { ProjectTiles, type TileProject } from "@/components/lists/ProjectTiles";
 import styles from "./NewProject.module.css";
+
+/** A project whose setup a new one may start with, and what it would bring. */
+export type SetupSource = TileProject & { line: string };
 
 /**
  * The page that makes a project. It used to be a form at the end of Home's
@@ -17,7 +21,7 @@ import styles from "./NewProject.module.css";
  * nothing. Nothing is sent until **Create project**: this is a form that makes
  * a thing, not a field that saves on blur.
  */
-export function NewProject({ user }: { user: SessionUser }) {
+export function NewProject({ user, sources = [] }: { user: SessionUser; sources?: SetupSource[] }) {
   return (
     <div className={styles.page}>
       <AppBar user={user} trail={[<AppCrumb key="here">New project</AppCrumb>]} />
@@ -26,7 +30,7 @@ export function NewProject({ user }: { user: SessionUser }) {
           title="New project"
           lead="A project is one board of tasks, shared with the people and agents you invite."
         />
-        <NewProjectForm />
+        <NewProjectForm sources={sources} />
       </PageShell>
     </div>
   );
@@ -37,7 +41,7 @@ export function NewProject({ user }: { user: SessionUser }) {
  * somebody types; the note under it follows the name instead, so the example
  * is theirs from the start.
  */
-export function NewProjectForm() {
+export function NewProjectForm({ sources = [] }: { sources?: SetupSource[] }) {
   const router = useRouter();
   const nameBox = useRef<HTMLInputElement>(null);
   /* Held at once, before the state that marks the button busy has drawn. */
@@ -47,6 +51,14 @@ export function NewProjectForm() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /* Default set until somebody asks for another project's setup. */
+  const [copying, setCopying] = useState(false);
+  /* With one project there is nothing to choose, so it is picked already. */
+  const [from, setFrom] = useState<string | null>(sources.length === 1 ? sources[0].id : null);
+  const [fromError, setFromError] = useState<string | null>(null);
+  const tiles = useRef<HTMLDivElement>(null);
+  const picked = copying ? sources.find((p) => p.id === from) : undefined;
+  const choice = useId();
   const sample = key || (name.trim() ? suggestProjectKey(name) : "WR");
 
   async function create(event: React.FormEvent) {
@@ -57,6 +69,11 @@ export function NewProjectForm() {
       nameBox.current?.focus();
       return;
     }
+    if (copying && !picked) {
+      setFromError("Pick the project whose setup to start with.");
+      tiles.current?.querySelector<HTMLButtonElement>("button")?.focus();
+      return;
+    }
     held.current = true;
     setBusy(true);
     setError(null);
@@ -64,6 +81,7 @@ export function NewProjectForm() {
       const { project } = await api.post<{ project: { id: string } }>("/api/projects", {
         name: name.trim(),
         key: key.trim() || suggestProjectKey(name),
+        ...(picked ? { from: picked.id } : {}),
       });
       /* The button stays held until the board replaces this page. */
       router.push(`/p/${project.id}`);
@@ -112,6 +130,55 @@ export function NewProjectForm() {
           onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
         />
       </Field>
+      <div className={styles.start}>
+        <Label id={`${choice}-label`}>Start with</Label>
+        <div className={styles.choices} role="radiogroup" aria-labelledby={`${choice}-label`}>
+          <label className={styles.choice}>
+            <input
+              type="radio"
+              name={choice}
+              checked={!copying}
+              onChange={() => {
+                setCopying(false);
+                setFromError(null);
+              }}
+            />
+            Default set
+          </label>
+          <label className={styles.choice}>
+            <input
+              type="radio"
+              name={choice}
+              checked={copying}
+              disabled={sources.length === 0}
+              onChange={() => setCopying(true)}
+            />
+            The same setup as another project
+          </label>
+        </div>
+        {copying ? (
+          <div ref={tiles} className={styles.tiles}>
+            <ProjectTiles
+              projects={sources}
+              picked={(id) => id === from}
+              onPick={(id) => {
+                setFrom(id);
+                setFromError(null);
+              }}
+              testId="setup-tile"
+            />
+            {fromError ? (
+              <span className={styles.error} role="alert">
+                {fromError}
+              </span>
+            ) : picked ? (
+              <span className={styles.note} data-testid="setup-line">
+                {picked.line}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       <FormActions>
         <ButtonPageLink variant="ghost" href="/projects">
           Cancel
