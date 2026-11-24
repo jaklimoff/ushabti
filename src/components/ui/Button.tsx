@@ -72,13 +72,16 @@ export function ButtonLink({
  */
 export function ButtonPageLink({
   variant = "primary",
+  size = "md",
   className,
   ...rest
-}: React.ComponentProps<typeof Link> & { variant?: Variant }) {
+}: React.ComponentProps<typeof Link> & { variant?: Variant; size?: "md" | "lg" }) {
   return (
     <Link
       {...rest}
-      className={[styles.btn, styles[variant], className ?? ""].filter(Boolean).join(" ")}
+      className={[styles.btn, styles[variant], size === "lg" ? styles.btnLg : "", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
     />
   );
 }

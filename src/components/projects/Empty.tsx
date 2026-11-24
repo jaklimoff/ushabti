@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useId } from "react";
-import { Button } from "@/components/ui/Button";
+import { ButtonPageLink } from "@/components/ui/Button";
 import styles from "./ProjectList.module.css";
 
 /**
@@ -46,7 +46,7 @@ export function HomeSection({
  * it. Somebody who signed up to join a team has nothing to make, so the panel
  * also says how they get in, with the address the owner needs.
  */
-export function FirstProjectPanel({ email, onCreate }: { email: string; onCreate: () => void }) {
+export function FirstProjectPanel({ email }: { email: string }) {
   const id = useId();
   return (
     <div
@@ -62,9 +62,9 @@ export function FirstProjectPanel({ email, onCreate }: { email: string; onCreate
       <p className={styles.panelLine}>
         A project is one board of tasks, shared with the people and agents you invite.
       </p>
-      <Button size="lg" onClick={onCreate}>
+      <ButtonPageLink size="lg" href="/projects/new">
         New project
-      </Button>
+      </ButtonPageLink>
       <p className={styles.panelInvite}>
         Joining a team? Ask its owner to invite <span className={styles.panelEmail}>{email}</span>.
       </p>

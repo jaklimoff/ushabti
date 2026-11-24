@@ -9,12 +9,13 @@ import { ProjectList } from "@/components/projects/ProjectList";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Home · Ushabti" };
 
-/** `?new` arrives from **New project** in the sidebar, and opens the one form. */
+/** `?new` is an old link to the form Home used to hold; it has a page now. */
 export default async function ProjectsPage({
   searchParams,
 }: {
   searchParams: Promise<{ new?: string }>;
 }) {
+  if ((await searchParams).new !== undefined) redirect("/projects/new");
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -30,11 +31,9 @@ export default async function ProjectsPage({
     listSummaries(user.id, projects, boardsOnce(user.id)),
     parts.then((read) => loadCharts(user.id, projects, async (row) => read.get(row.id))),
   ]);
-  const adding = (await searchParams).new !== undefined;
   return (
     <ProjectList
       user={user}
-      adding={adding}
       lists={lists}
       charts={charts.charts}
       chartChoices={charts.choices}

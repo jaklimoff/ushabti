@@ -316,6 +316,22 @@ describe("The open sidebar", () => {
       .toHaveAttribute("aria-current", "page");
   });
 
+  test("every New project goes to its own page, and on it the + says you are there", async () => {
+    const made = twoProjects();
+    at.pathname = "/projects/new";
+    await draw(made, false);
+    const row = sidebar().getByRole("link", { name: "New project" });
+    await expect.element(row).toHaveAttribute("href", "/projects/new");
+    await expect.element(row).toHaveAttribute("aria-current", "page");
+    expect(sidebar().element().querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+
+    await byTestId("sidebar-fold").click();
+    const plus = sidebar().getByRole("link", { name: "New project" });
+    await expect.element(plus).toHaveAttribute("href", "/projects/new");
+    await expect.element(plus).toHaveAttribute("aria-current", "page");
+    expect(getComputedStyle(plus.element()).borderStyle).toBe("solid");
+  });
+
   test("on Home, the Home row and the rail's house say you are there", async () => {
     const made = twoProjects();
     at.pathname = "/projects";
@@ -462,6 +478,9 @@ describe("On a phone", () => {
     expect(box.x + box.width).toBeLessThanOrEqual(390);
     await expect.element(page.getByRole("menuitem", { name: "Home" })).toBeVisible();
     await expect.element(page.getByRole("menuitem", { name: "New project" })).toBeVisible();
+    await expect
+      .element(page.getByRole("menuitem", { name: "New project" }))
+      .toHaveAttribute("href", "/projects/new");
 
     await userEvent.keyboard("{ArrowDown}");
     await expect.element(page.getByRole("menuitem", { name: /^Harbour:/ })).toHaveFocus();

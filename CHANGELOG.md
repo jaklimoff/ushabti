@@ -8,6 +8,12 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Changed
+
+- **New project opens a page of its own.** The sidebar's +, Home's + New project and the first-run
+  panel all go to `/projects/new`, where the form is the only thing on the page. It used to open at
+  the end of Home's grid, often below the fold.
+
 ## 0.53.0 — 2026-11-23
 
 ### Added

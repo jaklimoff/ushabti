@@ -412,3 +412,11 @@
     display: none;
   }
 }
+
+/* On New project the way to one is the place you are: solid, as Home is marked. */
+.railNew[aria-current="page"] {
+  border-style: solid;
+  border-color: var(--line-strong);
+  background: var(--bg-menu-hover);
+  color: var(--text);
+}

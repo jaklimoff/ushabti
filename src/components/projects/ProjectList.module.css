@@ -465,29 +465,6 @@
   border-radius: var(--r-lg);
 }
 
-/* Sans, as every create form names itself: caps are for labels. */
-.formTitle {
-  margin: 0;
-  font-size: var(--t-ui);
-  font-weight: 600;
-  color: var(--text);
-}
-
-/* The first project's form stands where the panel was, in the same dashed
-   frame, so pressing New project does not throw the page to the left. */
-.firstForm {
-  display: flex;
-  justify-content: center;
-  padding: 30px 26px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--r-lg);
-}
-
-.firstForm > .form {
-  width: 100%;
-  max-width: 400px;
-}
-
 .error {
   font-size: var(--t-small);
   color: var(--danger-text);

@@ -50,14 +50,8 @@ export async function signIn(page: Page, account: Account) {
 }
 
 export async function createProject(page: Page, name: string): Promise<string> {
-  await page.goto("/projects");
+  await page.goto("/projects/new");
   const input = page.getByPlaceholder("Project name");
-  const newButton = page.getByRole("button", { name: /New project/i });
-  // The list streams in behind a loading state, and "load" can fire first.
-  // Counting the button then finds none, skips the click, and waits for a
-  // form that never opens. Wait for one of the two before choosing.
-  await expect(input.or(newButton).first()).toBeVisible();
-  if (!(await input.isVisible())) await newButton.first().click();
   await input.fill(name);
   await page.getByRole("button", { name: "Create project" }).click();
   await page.waitForURL(/\/p\/[0-9a-f-]{36}/);

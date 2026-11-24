@@ -48,17 +48,20 @@ test.describe("Who else has the task open", () => {
     await addTask(owner.page, "Todo", "Looked at by two");
     await owner.page.getByRole("button", { name: "Close task" }).click();
 
-    await friend.page.goto(`/p/${projectId}`);
-    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
-    await card(friend.page, "Looked at by two").click();
-    await expect(friend.page.getByTestId("task-key")).toBeVisible();
-
     const boardReads: string[] = [];
     friend.page.on("request", (req) => {
       if (/\/api\/projects\/[^/]+\/board$/.test(new URL(req.url()).pathname)) {
         boardReads.push(req.url());
       }
     });
+    await friend.page.goto(`/p/${projectId}`);
+    await expect(friend.page.getByTestId("live-dot")).toBeVisible();
+    /* The dot lights on open, but the board reads once on `ready`, a moment
+       and a jitter later. That read is owed; only the ones after it count. */
+    await expect.poll(() => boardReads.length).toBeGreaterThan(0);
+    await card(friend.page, "Looked at by two").click();
+    await expect(friend.page.getByTestId("task-key")).toBeVisible();
+    boardReads.length = 0;
 
     await card(owner.page, "Looked at by two").click();
     await expect(faces(friend.page)).toHaveCount(1, { timeout: 2_000 });

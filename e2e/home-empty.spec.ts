@@ -15,13 +15,14 @@ test("an empty Home offers the first project, then the first list", async ({ pag
   const first = page.getByRole("group", { name: "Create your first project" });
   await expect(first).toContainText("A project is one board of tasks");
   await expect(first).toContainText("Lists and charts appear here once you have a project.");
-  await expect(page.getByRole("button", { name: "+ New project" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "+ New project" })).toHaveCount(0);
   await expect(page.getByTestId("my-lists")).toHaveCount(0);
   await expect(page.getByTestId("my-charts")).toHaveCount(0);
   await expect(page.getByTestId("list-new")).toHaveCount(0);
   await expect(page.getByTestId("chart-new")).toHaveCount(0);
 
-  await first.getByRole("button", { name: "New project" }).click();
+  await first.getByRole("link", { name: "New project" }).click();
+  await page.waitForURL(/\/projects\/new$/);
   const name = unique("Start");
   await page.getByPlaceholder("Project name").fill(name);
   await page.getByRole("button", { name: "Create project" }).click();
@@ -31,7 +32,10 @@ test("an empty Home offers the first project, then the first list", async ({ pag
   /* A project, no lists: the wide panel is the link, and the heading has none. */
   await page.goto("/projects");
   await expect(first).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "+ New project" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "+ New project" })).toHaveAttribute(
+    "href",
+    "/projects/new",
+  );
   const lists = page.getByTestId("my-lists");
   const panel = lists.getByRole("link", { name: "+ New list" });
   await expect(panel).toHaveAccessibleDescription(/picked by rules, such as everything in Todo/);

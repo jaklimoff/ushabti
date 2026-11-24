@@ -93,6 +93,11 @@ function useOnHome(): boolean {
   return usePathname() === "/projects";
 }
 
+/** Whether this page is New project, which the sidebar's `+` then marks as the place. */
+function useOnNew(): boolean {
+  return usePathname() === "/projects/new";
+}
+
 /** The `[` key folds and unfolds, as a key and not a letter, on every layout. */
 function useFoldKey(toggle: () => void, active: boolean) {
   useEffect(() => {
@@ -163,6 +168,7 @@ export function Sidebar() {
 function Rail() {
   const { projects, current, toggle } = useSidebar()!;
   const home = useOnHome();
+  const adding = useOnNew();
   const working = projects.some(isWorking);
   const now = useNow(working);
   /* One Tab stop: the arrows walk the rail, and Tab leaves it. */
@@ -257,11 +263,12 @@ function Rail() {
           );
         })}
         <Link
-          href="/projects?new"
+          href="/projects/new"
           className={`${styles.railItem} ${styles.railNew}`}
           data-item="_new"
           tabIndex={tab("_new")}
           aria-label="New project"
+          aria-current={adding ? "page" : undefined}
           title="New project"
         >
           +
@@ -343,6 +350,7 @@ function Rows({ onPick, menu }: { onPick?: () => void; menu?: boolean }) {
 function Open() {
   const { toggle } = useSidebar()!;
   const home = useOnHome();
+  const adding = useOnNew();
   return (
     <nav
       className={`${styles.sidebar} ${styles.open}`}
@@ -382,7 +390,11 @@ function Open() {
         </Link>
         <Rows />
       </div>
-      <Link href="/projects?new" className={`${styles.row} ${styles.newRow}`}>
+      <Link
+        href="/projects/new"
+        className={`${styles.row} ${styles.newRow}`}
+        aria-current={adding ? "page" : undefined}
+      >
         <span className={styles.glyph} aria-hidden>
           +
         </span>
@@ -496,7 +508,7 @@ function Sheet({ children, className }: { children: React.ReactNode; className?:
           </Link>
           <Rows menu onPick={() => setOpen(false)} />
           <Link
-            href="/projects?new"
+            href="/projects/new"
             role="menuitem"
             tabIndex={-1}
             className={`${styles.row} ${styles.newRow}`}

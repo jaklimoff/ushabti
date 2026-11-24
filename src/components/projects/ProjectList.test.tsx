@@ -219,7 +219,7 @@ describe("The projects on Home", () => {
     for (const head of heads) expect(getComputedStyle(head).fontSize).toBe("15px");
 
     for (const name of ["+ New project", "+ New list", "+ New chart"]) {
-      const press = page.getByRole(name === "+ New list" ? "link" : "button", { name });
+      const press = page.getByRole(name === "+ New chart" ? "button" : "link", { name });
       expect(getComputedStyle(press.element()).height).toBe("26px");
       expect(getComputedStyle(press.element()).borderStyle).toBe("none");
     }
@@ -238,9 +238,11 @@ describe("The projects on Home", () => {
     expect(getComputedStyle(agent).color).toBe("rgb(139, 145, 155)");
     const dot = agent.firstElementChild!;
     expect(getComputedStyle(dot).backgroundColor).toBe("rgb(127, 192, 140)");
-
-    await page.getByRole("button", { name: "+ New project" }).click();
-    await expect.element(page.getByRole("textbox", { name: "Project name" })).toHaveFocus();
+    /* New project is a page of its own; Home holds no form for it. */
+    await expect
+      .element(page.getByRole("link", { name: "+ New project" }))
+      .toHaveAttribute("href", "/projects/new");
+    expect(page.getByRole("textbox", { name: "Project name" }).elements()).toHaveLength(0);
   });
 
   test("a move to the front sends no neighbour", async () => {
@@ -261,7 +263,7 @@ describe("An empty section on Home", () => {
     expect(first.element().textContent).toContain(
       "A project is one board of tasks, shared with the people and agents you invite.",
     );
-    expect(page.getByRole("button", { name: "+ New project" }).elements()).toHaveLength(0);
+    expect(page.getByRole("link", { name: "+ New project" }).elements()).toHaveLength(0);
     expect(page.getByRole("textbox", { name: "Project name" }).elements()).toHaveLength(0);
 
     /* One line in the panel, in place of two more boxes saying "not yet". */
@@ -283,40 +285,11 @@ describe("An empty section on Home", () => {
       parseFloat(getComputedStyle(heads[0]).fontSize),
     );
 
-    await first.getByRole("button", { name: "New project" }).click();
-    const nameBox = page.getByRole("textbox", { name: "Project name" });
-    await expect.element(nameBox).toHaveFocus();
-    expect(first.elements()).toHaveLength(0);
-    /* A create form: a label over each box, Cancel then the primary at the right. */
-    const form = page.getByRole("form", { name: "New project" });
-    expect(
-      form
-        .getByText(/^(Name|Key)$/)
-        .elements()
-        .map((el) => el.textContent),
-    ).toEqual(["Name", "Key"]);
-    expect(
-      form
-        .getByRole("button")
-        .elements()
-        .map((el) => el.textContent),
-    ).toEqual(["Cancel", "Create project"]);
-    /* The hint follows the name, and the key box stays empty until it is left. */
-    const said = () => form.element().textContent ?? "";
-    expect(said()).toContain("Task keys will look like WEB-14.");
-    await userEvent.type(nameBox, "Harbour lights");
-    await expect.poll(said).toContain("Task keys will look like HL-14.");
-    await expect.element(page.getByRole("textbox", { name: "Project key" })).toHaveValue("");
-    /* An empty name is said under the box, and the box takes the focus. */
-    await userEvent.clear(nameBox);
-    await form.getByRole("button", { name: "Create project" }).click();
-    await expect.poll(said).toContain("Give the project a name.");
-    await expect.element(nameBox).toHaveFocus();
-    await expect.element(nameBox).toHaveAttribute("aria-invalid", "true");
-    await page.getByRole("button", { name: "Cancel" }).click();
+    /* The panel's button goes to the page that makes a project. */
     await expect
-      .element(page.getByRole("group", { name: "Create your first project" }))
-      .toBeVisible();
+      .element(first.getByRole("link", { name: "New project" }))
+      .toHaveAttribute("href", "/projects/new");
+    expect(page.getByRole("form").elements()).toHaveLength(0);
   });
 
   test("with a project and nothing else, lists and charts are wide panels", async () => {

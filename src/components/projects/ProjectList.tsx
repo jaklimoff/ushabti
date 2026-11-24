@@ -23,12 +23,10 @@ import { api } from "@/lib/client";
 import { landedAfter } from "@/lib/landed";
 import { SILENCE_CHECK_MS, homeReader, type HomeReader } from "@/lib/home-live";
 import { trackWrites, type Reading, type Writes } from "@/lib/writes";
-import { suggestProjectKey } from "@/lib/defaults";
-import { Button, ButtonPageLink, IconButton } from "@/components/ui/Button";
-import { Field, Input } from "@/components/ui/Form";
+import { ButtonPageLink, IconButton } from "@/components/ui/Button";
 import type { SessionUser } from "@/components/ui/UserMenu";
 import { AppBar, AppCrumb } from "@/components/ui/AppBar";
-import { FormActions, PageHead, PageShell } from "@/components/ui/Layout";
+import { PageHead, PageShell } from "@/components/ui/Layout";
 import { ProjectMark } from "@/components/ui/Marks";
 import { canManage, isOwner } from "@/lib/roles";
 import { formatDate, longAgo } from "@/lib/board";
@@ -73,17 +71,14 @@ export function ProjectList({
   lists = [],
   charts = [],
   chartChoices = [],
-  adding: asked = false,
 }: {
   user: SessionUser;
   projects: ProjectRow[];
   lists?: ListSummary[];
   charts?: ChartDTO[];
   chartChoices?: ChartChoice[];
-  adding?: boolean;
 }) {
   const first = projects.length === 0;
-  const [adding, setAdding] = useState(asked);
   const live = useLive(projects);
   const sidebar = useSidebar()?.shown ?? false;
   const order = useOrder(projects, live);
@@ -103,30 +98,16 @@ export function ProjectList({
           <HomeSection
             title="Projects"
             count={projects.length}
-            adding={adding}
             create={
-              !adding && (
-                <Button
-                  variant="text"
-                  className={styles.headButton}
-                  onClick={() => setAdding(true)}
-                >
-                  + New project
-                </Button>
-              )
+              <ButtonPageLink variant="text" className={styles.headButton} href="/projects/new">
+                + New project
+              </ButtonPageLink>
             }
-            empty={<FirstProjectPanel email={user.email} onCreate={() => setAdding(true)} />}
+            empty={<FirstProjectPanel email={user.email} />}
           >
             {order.error && (
               <div className={styles.error} role="alert">
                 {order.error}
-              </div>
-            )}
-
-            {/* The first project's form opens where the panel was, in its frame. */}
-            {first && adding && (
-              <div className={styles.firstForm}>
-                <NewProjectForm onCancel={() => setAdding(false)} />
               </div>
             )}
 
@@ -149,8 +130,6 @@ export function ProjectList({
                     ))}
                   </SortableContext>
                 </DndContext>
-
-                {adding && !first && <NewProjectForm onCancel={() => setAdding(false)} />}
               </div>
             )}
           </HomeSection>
@@ -165,94 +144,6 @@ export function ProjectList({
         </div>
       </PageShell>
     </div>
-  );
-}
-
-/**
- * The form that makes a project, laid out as every create form is: a label
- * over each box, Cancel then the primary at the right. The key stays empty
- * until the name is left, so it never flickers as somebody types; the hint
- * under it follows the name instead, so the example is theirs from the start.
- */
-function NewProjectForm({ onCancel }: { onCancel: () => void }) {
-  const router = useRouter();
-  const titleId = useId();
-  const nameBox = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
-  const [key, setKey] = useState("");
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const sample = key || (name.trim() ? suggestProjectKey(name) : "WEB");
-
-  async function create(event: React.FormEvent) {
-    event.preventDefault();
-    if (busy) return;
-    if (!name.trim()) {
-      setNameError("Give the project a name.");
-      nameBox.current?.focus();
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const { project } = await api.post<{ project: { id: string } }>("/api/projects", {
-        name: name.trim(),
-        key: key.trim() || suggestProjectKey(name),
-      });
-      router.push(`/p/${project.id}`);
-    } catch (err) {
-      const said = err instanceof Error ? err.message : "Could not create the project.";
-      /* The answer lands on the box it is about. */
-      if (/name/i.test(said)) setNameError(said);
-      else setError(said);
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form className={styles.form} onSubmit={create} aria-labelledby={titleId} noValidate>
-      <h3 id={titleId} className={styles.formTitle}>
-        New project
-      </h3>
-      <Field label="Name" error={nameError}>
-        <Input
-          ref={nameBox}
-          block
-          autoFocus
-          value={name}
-          aria-label="Project name"
-          placeholder="Project name"
-          onChange={(e) => {
-            setName(e.target.value);
-            if (nameError) setNameError(null);
-          }}
-          onBlur={() => {
-            // A suggestion you can edit beats one that flickers in grey
-            // as you type and looks disabled.
-            if (!key && name.trim()) setKey(suggestProjectKey(name));
-          }}
-        />
-      </Field>
-      <Field label="Key" error={error} note={`Task keys will look like ${sample}-14.`}>
-        <Input
-          block
-          value={key}
-          aria-label="Project key"
-          placeholder="e.g. WEB"
-          maxLength={6}
-          onChange={(e) => setKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-        />
-      </Field>
-      <FormActions>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" busy={busy}>
-          {busy ? "Creating…" : "Create project"}
-        </Button>
-      </FormActions>
-    </form>
   );
 }
 
