@@ -8,6 +8,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+## 0.54.0 — 2026-11-24
+
 ### Added
 
 - **A new project can start with the setup of another.** New project asks what to start with: the
