@@ -1,7 +1,8 @@
 import "server-only";
 import { HttpError } from "@/lib/auth";
 import type { MappingAsk } from "./plan";
-import { MAX_FILE_BYTES, readTrello, TOO_LARGE, type SourceBoard } from "./trello";
+import { readExport } from "./read";
+import { MAX_FILE_BYTES, TOO_LARGE, type SourceBoard } from "./source";
 
 /**
  * How a file and an answer arrive at the two import routes.
@@ -37,10 +38,11 @@ export async function readImportRequest(req: Request): Promise<ImportRequest> {
   }
 
   const file = form.get("file");
-  if (!(file instanceof File)) throw new HttpError(400, "Pick a Trello export first.");
+  if (!(file instanceof File)) throw new HttpError(400, "Pick an export first.");
   if (file.size > MAX_FILE_BYTES) throw new HttpError(413, TOO_LARGE);
 
-  const read = readTrello(await file.text());
+  /* The file says what kind of export it is, by its shape. */
+  const read = readExport(await file.text());
   if (!read.ok) throw new HttpError(400, read.said);
 
   return { board: read.board, ask: readMapping(form.get("mapping")) };

@@ -11,6 +11,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 ### Changed
 
 - **A shipped release folds away as a shipped sprint does.** It has no column on a board grouped by Release, the task panel's picker leaves it out unless the task holds it, the filter and Settings keep it behind a Shipped fold, and Move after a ship steps over it. A task that holds it still shows it.
+- **An import knows a file by its shape.** A JSON file that is no export the import takes is refused with a sentence naming the kinds it takes. A Trello file imports as before.
 
 ## 0.54.0 — 2026-11-24
 

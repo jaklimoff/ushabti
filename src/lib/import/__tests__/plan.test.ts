@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { droppedSaid, planImport, previewOf, type ProjectShape } from "../plan";
+import { alreadyOf, droppedSaid, planImport, previewOf, type ProjectShape } from "../plan";
 import { fixture } from "./fixture";
 
 /**
@@ -286,5 +286,63 @@ describe("two lists of one name", () => {
     expect(droppedSaid(planImport(same, board())).some((line) => line.includes("one column"))).toBe(
       false,
     );
+  });
+});
+
+describe("a card with no column", () => {
+  it("comes in with the group property empty, and the preview counts it", () => {
+    const file = fixture();
+    const loose = file.cards.find((c) => c.name === "Talk to the team")!;
+    const board2 = {
+      ...file,
+      cards: file.cards.map((c) => (c === loose ? { ...c, listId: null } : c)),
+    };
+
+    const plan = planImport(board2, board());
+    const task = plan.tasks.find((t) => t.sourceId === loose.id)!;
+    expect(task.listId).toBeNull();
+    /* It is counted against no list, and the other cards still are. */
+    expect(plan.lists.reduce((n, l) => n + l.cards, 0)).toBe(plan.tasks.length - 1);
+    expect(previewOf(plan).columnless).toBe(1);
+    expect(previewOf(planImport(file, board())).columnless).toBe(0);
+  });
+});
+
+describe("what this board already took", () => {
+  it("reads it per source, so an id of one source blocks no card of another", () => {
+    const lines = [
+      { data: { source: "trello", sourceId: "card-1" } },
+      { data: { source: "other", sourceId: "card-2" } },
+      { data: { importId: "the project line" } },
+      { data: null },
+    ];
+    expect([...alreadyOf(lines, "trello")]).toEqual(["card-1"]);
+    expect([...alreadyOf(lines, "other")]).toEqual(["card-2"]);
+  });
+});
+
+describe("the source's own words", () => {
+  it("come from the reader and not the plan", () => {
+    const file = fixture();
+    const source = {
+      ...file.source,
+      word: "elsewhere",
+      name: "Elsewhere",
+      untitled: "Untitled item",
+      assigned: (who: string) => `Assigned elsewhere to ${who}.`,
+      wrote: (author: string) => `${author} said elsewhere:`,
+      leftBehind: () => ["Some things stay elsewhere."],
+      closing: [],
+    };
+    const cards = file.cards.map((c, at) => (at === 0 ? { ...c, name: "" } : c));
+    const plan = planImport({ ...file, source, cards }, board());
+    expect(plan.tasks[0].title).toBe("Untitled item");
+    const all = JSON.stringify(plan.tasks);
+    expect(all).toContain("Assigned elsewhere to Grace Hopper.");
+    expect(all).toContain("said elsewhere:");
+    expect(all).not.toContain("Trello");
+    expect(droppedSaid(plan)[0]).toBe("Some things stay elsewhere.");
+    expect(droppedSaid(plan).join(" ")).not.toContain("Trello");
+    expect(previewOf(plan).source).toBe("elsewhere");
   });
 });

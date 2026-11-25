@@ -1083,7 +1083,7 @@ export type ImportRowDTO = {
  * whole import twice.
  */
 export type ImportPreviewDTO = {
-  /** Which kind of export this came from. There is one: `trello`. */
+  /** The word of the source this came from, a key of `SOURCE_NAMES`. */
   source: string;
   /** What the board was called on the other side. */
   board: string;
@@ -1094,6 +1094,9 @@ export type ImportPreviewDTO = {
   lists: ImportRowDTO[];
   labels: ImportRowDTO[];
   tasks: { coming: number; already: number };
+  /** Of the tasks coming, how many have no column and come with the group
+   * property empty. */
+  columnless: number;
   archived: { inFile: number; coming: boolean };
   people: { matched: string[]; named: string[] };
   /** What will not come, in sentences. */

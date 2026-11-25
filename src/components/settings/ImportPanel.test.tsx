@@ -1,7 +1,8 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { planImport, previewOf } from "@/lib/import/plan";
 import { readTrello } from "@/lib/import/trello";
+import type { ImportPreviewDTO } from "@/lib/types";
 import { ME, newProject, renderWithBoard } from "@/test/board";
 import trello from "@/test/fixtures/trello-small.json";
 import { ImportPanel } from "./ImportPanel";
@@ -18,16 +19,11 @@ afterEach(async () => {
   await page.viewport(1440, 900);
 });
 
-test("the import page reads on a phone", async () => {
-  await page.viewport(390, 780);
-  const data = newProject();
-  /* The planner runs on the server and counts bytes as Node does. Vitest
-     reads Buffer itself, so the stand-in goes as soon as the file is read. */
-  vi.stubGlobal("Buffer", { byteLength: (s: string) => new TextEncoder().encode(s).length });
+/** The planner's own preview of the fixture, for a project of this shape. */
+function previewFor(data: ReturnType<typeof newProject>) {
   const read = readTrello(JSON.stringify(trello));
-  vi.unstubAllGlobals();
   if (!read.ok) throw new Error(read.said);
-  const preview = previewOf(
+  return previewOf(
     planImport(read.board, {
       properties: data.properties.map((p) => ({
         id: p.id,
@@ -40,7 +36,9 @@ test("the import page reads on a phone", async () => {
       already: new Set(),
     }),
   );
+}
 
+async function pickFile(data: ReturnType<typeof newProject>, preview: ImportPreviewDTO) {
   await renderWithBoard(
     <SettingsShell initial={data} user={ME} version="test">
       <ImportPanel />
@@ -57,11 +55,27 @@ test("the import page reads on a phone", async () => {
     box,
     new File([JSON.stringify(trello)], "trello.json", { type: "application/json" }),
   );
+}
+
+test("the import page reads on a phone", async () => {
+  await page.viewport(390, 780);
+  const data = newProject();
+  await pickFile(data, previewFor(data));
   await expect.element(page.getByText("Launch board")).toBeVisible();
   await expect.element(page.getByText("4 coming")).toBeVisible();
 
   const doc = document.documentElement;
   expect(Math.max(doc.scrollWidth - doc.clientWidth, 0)).toBe(0);
+});
+
+/* What the plan counts is `plan.test.ts`; this is that the page says it. */
+test("the preview counts the cards that come with no column", async () => {
+  const data = newProject();
+  const preview = previewFor(data);
+  expect(preview.columnless).toBe(0);
+  await pickFile(data, { ...preview, columnless: 2 });
+  await expect.element(page.getByText("4 coming")).toBeVisible();
+  await expect.element(page.getByText(`2 with no ${preview.group.name}`)).toBeVisible();
 });
 
 /* The screen half of "an admin downloads the project". What the file holds

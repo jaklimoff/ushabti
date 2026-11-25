@@ -297,6 +297,13 @@ function Preview({
             <Field label="Tasks" inline>
               <Tag accent>{preview.tasks.coming} coming</Tag>
               {preview.tasks.already > 0 && <Tag>{preview.tasks.already} already here</Tag>}
+              {/* A card with no column still comes; its column is left empty,
+                  and the count says so before anybody looks for it. */}
+              {preview.columnless > 0 && (
+                <Tag>
+                  {preview.columnless} with no {preview.group.name}
+                </Tag>
+              )}
             </Field>
           </Row>
           <Row>

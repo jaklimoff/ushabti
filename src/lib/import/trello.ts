@@ -2,69 +2,34 @@
  * A Trello export, read into the few things a board can use.
  *
  * Trello's export is one JSON file and it carries far more than a task board
- * needs. This module is the whole of what we understand of it: everything
- * below reads `SourceBoard` and never the file again, so adding a second
- * source later is another reader and not a second import.
+ * needs. This module is the whole of what we understand of it, Trello's own
+ * words included: everything below reads `SourceBoard` and never the file
+ * again.
  *
  * Nothing here touches the database or the clock, so the limits and the
  * mapping can both be asked without a server.
  */
 
-/** How large a file may be. A board this size is a board, not a backup. */
-export const MAX_FILE_BYTES = 5 * 1024 * 1024;
+import {
+  MAX_CARDS,
+  parseFile,
+  SOURCE_NAMES,
+  type Source,
+  type SourceCard,
+  type SourceChecklistItem,
+  type SourceComment,
+  type SourceRead,
+} from "./source";
 
-/** How many cards one import may carry. */
-export const MAX_CARDS = 2000;
-
-/** The one sentence a file that is too large is refused with, wherever it is
- * read: the route answers it from the header and this module from the bytes. */
-export const TOO_LARGE = "That file is larger than 5 MB. An import takes 5 MB at a time.";
-
-/** The word that names where a task came from. There is one of them. */
-export const SOURCE = "trello";
-
-export type SourceList = {
-  id: string;
-  name: string;
-  /** Trello's own order. A number in an export, and lists are read by it. */
-  pos: number;
-};
-
-export type SourceLabel = { id: string; name: string };
-
-/** A person on the Trello board. Trello carries no email, only a name. */
-export type SourceMember = { id: string; name: string };
-
-export type SourceChecklistItem = { text: string; done: boolean };
-
-export type SourceComment = { author: string; text: string; at: string };
-
-export type SourceCard = {
-  id: string;
-  /** Trello's short code for the card, which is the tail of its URL. */
-  shortLink: string;
-  name: string;
-  desc: string;
-  listId: string;
-  pos: number;
-  /** The moment Trello holds, or null. The date part of it becomes Due. */
-  due: string | null;
-  /** Archived on Trello. */
-  closed: boolean;
-  labelIds: string[];
-  memberIds: string[];
-  checklist: SourceChecklistItem[];
-  comments: SourceComment[];
-};
+export { MAX_CARDS, MAX_FILE_BYTES, TOO_LARGE } from "./source";
+export type { SourceBoard } from "./source";
 
 /**
- * What the file holds that a task board cannot take.
+ * What a Trello file holds that a task board cannot take.
  *
- * It is counted rather than ignored, because the preview says it out loud:
- * somebody who is about to move a year of work deserves to read what will not
- * come with it before they press the button.
+ * It is counted rather than ignored, because the preview says it out loud.
  */
-export type Dropped = {
+export type TrelloDropped = {
   attachments: number;
   customFields: number;
   starts: number;
@@ -75,17 +40,46 @@ export type Dropped = {
   homelessCards: number;
 };
 
-export type SourceBoard = {
-  name: string;
-  lists: SourceList[];
-  labels: SourceLabel[];
-  members: SourceMember[];
-  /** Every card of a live list, lists in `pos` order and cards inside them. */
-  cards: SourceCard[];
-  dropped: Dropped;
+/** Trello, as the import names it and speaks of it. */
+export const TRELLO: Source = {
+  word: "trello",
+  name: SOURCE_NAMES.trello,
+  untitled: "Untitled card",
+  assigned: (who) => `Assigned on Trello to ${who}.`,
+  wrote: (author) => `**${author}** wrote on Trello:`,
+  leftBehind: (dropped) => {
+    const d = dropped as Partial<TrelloDropped>;
+    const said: string[] = [];
+    const line = (n: number | undefined, one: string, many: string) => {
+      if (n && n > 0) said.push(`${n} ${n === 1 ? one : many}`);
+    };
+    line(d.attachments, "attachment is left behind.", "attachments are left behind.");
+    line(d.customFields, "custom field is left behind.", "custom fields are left behind.");
+    line(d.starts, "start date is left behind.", "start dates are left behind.");
+    line(
+      d.dueComplete,
+      "card ticks its due date as done; that tick is left behind.",
+      "cards tick their due date as done; those ticks are left behind.",
+    );
+    line(
+      d.actions,
+      "entry of the board's history is not a comment and is left behind.",
+      "entries of the board's history are not comments and are left behind.",
+    );
+    line(
+      d.archivedLists,
+      "archived list is left behind, with its cards.",
+      "archived lists are left behind, with their cards.",
+    );
+    return said;
+  },
+  closing: ["Trello exports its last 1000 actions, so older comments are not in the file."],
 };
 
-export type TrelloRead = { ok: true; board: SourceBoard } | { ok: false; said: string };
+/** A Trello board has lists and cards. Anything without both is another file. */
+export function isTrello(file: Record<string, unknown>): boolean {
+  return Array.isArray(file.lists) && Array.isArray(file.cards);
+}
 
 /* ------------------------------------------------------------------ */
 
@@ -128,33 +122,25 @@ function cmp<T extends { pos: number }>(a: { item: T; at: number }, b: { item: T
 }
 
 /**
- * Reads one export, or says why it cannot.
+ * Reads one Trello export, or says why it cannot.
  *
- * The two limits are answered here and not in the route, because they are
- * about the file rather than about the request: the same sentence is owed to
+ * The limits are answered here and not in the route, because they are about
+ * the file rather than about the request: the same sentence is owed to
  * whoever asks, and a test can ask without a server.
  */
-export function readTrello(raw: string): TrelloRead {
-  const bytes = Buffer.byteLength(raw, "utf8");
-  if (bytes > MAX_FILE_BYTES) return { ok: false, said: TOO_LARGE };
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { ok: false, said: "That file is not JSON. Export the board again as JSON." };
-  }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return { ok: false, said: "That file is not a Trello board." };
-  }
-
-  const file = parsed as Raw;
+export function readTrello(raw: string): SourceRead {
+  const parsed = parseFile(raw);
+  if (!parsed.ok) return parsed;
   /* A board has lists and cards. Anything without both is another file that
      happens to be JSON, and saying so beats making an empty board. */
-  if (!Array.isArray(file.lists) || !Array.isArray(file.cards)) {
+  if (!isTrello(parsed.file)) {
     return { ok: false, said: "That file is not a Trello board: it has no lists and cards." };
   }
+  return readTrelloFile(parsed.file);
+}
 
+/** Reads a parsed file that `isTrello` already knows. */
+export function readTrelloFile(file: Raw): SourceRead {
   const cardRows = rows(file.cards);
   if (cardRows.length > MAX_CARDS) {
     return {
@@ -183,7 +169,7 @@ export function readTrello(raw: string): TrelloRead {
   const comments = commentsByCard(rows(file.actions));
 
   const cards: SourceCard[] = [];
-  const dropped: Dropped = {
+  const dropped: TrelloDropped = {
     attachments: 0,
     customFields: rows(file.customFields).length,
     starts: 0,
@@ -232,7 +218,7 @@ export function readTrello(raw: string): TrelloRead {
     .map((card, at) => ({ card, at }))
     .sort(
       (a, b) =>
-        (order.get(a.card.listId) ?? 0) - (order.get(b.card.listId) ?? 0) ||
+        (order.get(a.card.listId ?? "") ?? 0) - (order.get(b.card.listId ?? "") ?? 0) ||
         a.card.pos - b.card.pos ||
         a.at - b.at,
     )
@@ -241,6 +227,7 @@ export function readTrello(raw: string): TrelloRead {
   return {
     ok: true,
     board: {
+      source: TRELLO,
       name: text(file.name).trim() || "A Trello board",
       lists,
       labels,

@@ -27,8 +27,14 @@ import {
 import type { ActivityEntry } from "@/lib/activity";
 import { dropHidden } from "@/lib/hidden";
 import type { ImportMadeDTO } from "@/lib/types";
-import { planImport, type MappingAsk, type PlanProperty, type ProjectShape } from "./plan";
-import { SOURCE, type SourceBoard } from "./trello";
+import {
+  alreadyOf,
+  planImport,
+  type MappingAsk,
+  type PlanProperty,
+  type ProjectShape,
+} from "./plan";
+import type { SourceBoard } from "./source";
 
 /**
  * Writing a whole board, once.
@@ -58,9 +64,9 @@ function batches<T>(items: T[], size = BATCH): T[][] {
 /**
  * The board as it is today, for the plan to read.
  *
- * The `already` set is this project's own memory of what it has taken: one
- * read of the `import` lines, which is the only place a card's Trello id is
- * ever written down.
+ * The `already` set is this project's own memory of what it has taken from
+ * this one source: one read of the `import` lines, which is the only place a
+ * card's id on the other side is ever written down.
  *
  * The write passes its own transaction, and it has to. Read this from outside
  * the lock and two imports of one file arriving together both find nothing
@@ -69,7 +75,11 @@ function batches<T>(items: T[], size = BATCH): T[][] {
  * first wrote, and has nothing left to do. The preview reads it without a
  * transaction, because a preview is a guess about a moment and writes nothing.
  */
-export async function projectShape(projectId: string, tx?: Tx): Promise<ProjectShape> {
+export async function projectShape(
+  projectId: string,
+  source: string,
+  tx?: Tx,
+): Promise<ProjectShape> {
   const handle = tx ?? db;
   const [propertyRows, memberRows, groupPropertyId, importLines] = await Promise.all([
     loadProperties(projectId, tx),
@@ -85,12 +95,6 @@ export async function projectShape(projectId: string, tx?: Tx): Promise<ProjectS
       .where(and(eq(activity.projectId, projectId), eq(activity.kind, "import"))),
   ]);
 
-  const already = new Set<string>();
-  for (const line of importLines) {
-    const data = (line.data ?? {}) as { source?: unknown; sourceId?: unknown };
-    if (data.source === SOURCE && typeof data.sourceId === "string") already.add(data.sourceId);
-  }
-
   return {
     properties: propertyRows.map((p) => ({
       id: p.id,
@@ -100,7 +104,7 @@ export async function projectShape(projectId: string, tx?: Tx): Promise<ProjectS
     })),
     members: memberRows,
     groupPropertyId,
-    already,
+    already: alreadyOf(importLines, source),
   };
 }
 
@@ -142,7 +146,7 @@ async function ensureProperty(
  * answers which option each asker landed on.
  *
  * The answer is keyed by the id the list or the label has in the file and
- * never by its name. A Trello board may hold two lists called Done, and a map
+ * never by its name. A board may hold two lists called Done, and a map
  * of names put both of their cards on whichever one was written last.
  *
  * Two askers of one name still share one option, because an option is a name
@@ -213,15 +217,19 @@ export async function applyImport(input: {
   const importId = randomUUID();
 
   const { made, ring } = await withProjectLock(projectId, async (tx) => {
-    const plan = planImport(board, await projectShape(projectId, tx), ask);
+    const plan = planImport(board, await projectShape(projectId, board.source.word, tx), ask);
     const nothing = { importId, tasks: 0, options: 0, already: plan.already };
     if (plan.tasks.length === 0) return { made: nothing, ring: null };
 
-    const groupId = await ensureProperty(tx, projectId, plan.group, "select");
     /* A list is a column, so every list comes, empty or not: a board has to
        arrive looking like the board it left. A label nobody put on a card is
-       not on the board at all, so it is not made. */
-    const listOptions = await addOptions(tx, groupId, asked(plan.lists));
+       not on the board at all, so it is not made. A file with no lists at all
+       has nothing to make the columns of, so it makes no property for them. */
+    const groupId =
+      plan.lists.length > 0 ? await ensureProperty(tx, projectId, plan.group, "select") : null;
+    const listOptions = groupId
+      ? await addOptions(tx, groupId, asked(plan.lists))
+      : new Map<string, string>();
     const optionOfList = new Map<string, string>();
     for (const list of plan.lists) {
       const id = list.optionId ?? listOptions.get(list.sourceId);
@@ -287,8 +295,9 @@ export async function applyImport(input: {
     for (let at = 0; at < plan.tasks.length; at += 1) {
       const task = plan.tasks[at];
       const taskId = rows[at].id;
-      const option = optionOfList.get(task.listId);
-      if (option) values.push({ taskId, propertyId: groupId, value: option });
+      /* A card with no column comes in with the group property empty. */
+      const option = task.listId === null ? undefined : optionOfList.get(task.listId);
+      if (groupId && option) values.push({ taskId, propertyId: groupId, value: option });
       if (labelsId) {
         const worn = [
           ...new Set(
@@ -343,7 +352,7 @@ export async function applyImport(input: {
         kind: "import",
         data: {
           importId,
-          source: plan.source,
+          source: plan.source.word,
           board: plan.board,
           tasks: plan.tasks.length,
           options,
@@ -357,7 +366,7 @@ export async function applyImport(input: {
         kind: "import",
         data: {
           importId,
-          source: plan.source,
+          source: plan.source.word,
           sourceId: task.sourceId,
           sourceKey: task.sourceKey,
           board: plan.board,

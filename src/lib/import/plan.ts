@@ -1,5 +1,5 @@
 import { isSelect, type ImportPreviewDTO, type ImportRowDTO } from "@/lib/types";
-import { SOURCE, type Dropped, type SourceBoard, type SourceCard } from "./trello";
+import type { Dropped, Source, SourceBoard, SourceCard } from "./source";
 
 /**
  * What an import will do, worked out before anything is written.
@@ -38,7 +38,8 @@ export type ProjectShape = {
   members: { id: string; name: string }[];
   /** The property the main view makes its columns from, or null. */
   groupPropertyId: string | null;
-  /** `sourceId` of every card this project took from an earlier import. */
+  /** `sourceId` of every card this project took from an earlier import of
+   * the same source. An id of another source is another card. */
   already: Set<string>;
 };
 
@@ -72,11 +73,12 @@ export type PlanOption = {
 
 export type PlanTask = {
   sourceId: string;
-  /** How to find the card it came from again. Trello's short code. */
+  /** How to find the card it came from again, such as Trello's short code. */
   sourceKey: string;
   title: string;
   description: string;
-  listId: string;
+  /** Null for a card with no column: the group property stays empty. */
+  listId: string | null;
   labelIds: string[];
   /** `YYYY-MM-DD` in UTC, or null. */
   due: string | null;
@@ -88,7 +90,7 @@ export type PlanTask = {
 };
 
 export type Plan = {
-  source: string;
+  source: Source;
   board: string;
   group: PlanProperty;
   labelsProperty: PlanProperty;
@@ -101,7 +103,7 @@ export type Plan = {
   /** Cards this board took on an earlier import and will not take again. */
   already: number;
   archived: { inFile: number; coming: boolean };
-  /** Trello names, split by whether this board has somebody of that name. */
+  /** The source's names, split by whether this board has somebody of that name. */
   people: { matched: string[]; named: string[] };
   /** Cards that carried more than one member. Only the first one comes. */
   extraMembers: number;
@@ -178,21 +180,37 @@ function landing(
     : { optionId: null, optionName: name };
 }
 
-/** The date part of a Trello moment, in UTC, or null. */
+/** The date part of a source's moment, in UTC, or null. */
 export function dueDate(raw: string | null): string | null {
   if (!raw) return null;
   const at = new Date(raw);
   return Number.isNaN(at.getTime()) ? null : at.toISOString().slice(0, 10);
 }
 
-/** One Trello comment, written as the importer with its author named. */
-export function commentBody(author: string, body: string): string {
-  return `**${author}** wrote on Trello:\n\n${body}`.slice(0, MAX_BODY);
+/** One comment of the source, written as the importer with its author named. */
+export function commentBody(source: Source, author: string, body: string): string {
+  return `${source.wrote(author)}\n\n${body}`.slice(0, MAX_BODY);
 }
 
 /** A card with nothing in the name box is still a card. */
-function titleOf(card: SourceCard): string {
-  return (card.name || "Untitled card").slice(0, MAX_TITLE);
+function titleOf(source: Source, card: SourceCard): string {
+  return (card.name || source.untitled).slice(0, MAX_TITLE);
+}
+
+/**
+ * The `sourceId` of every card the feed says this project took from one
+ * source.
+ *
+ * Read per source, because an id is only an id inside the source that gave
+ * it: a Trello card and an item of another board may carry the same one.
+ */
+export function alreadyOf(lines: { data: unknown }[], source: string): Set<string> {
+  const already = new Set<string>();
+  for (const line of lines) {
+    const data = (line.data ?? {}) as { source?: unknown; sourceId?: unknown };
+    if (data.source === source && typeof data.sourceId === "string") already.add(data.sourceId);
+  }
+  return already;
 }
 
 /**
@@ -233,13 +251,13 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
     /* A person we cannot match is not made and not lost: their name goes on
        the last line of the description, where a reader will find it. */
     const description = (
-      who && !assigneeId ? `${card.desc}\n\nAssigned on Trello to ${who}.`.trim() : card.desc
+      who && !assigneeId ? `${card.desc}\n\n${board.source.assigned(who)}`.trim() : card.desc
     ).slice(0, MAX_BODY);
 
     return {
       sourceId: card.id,
       sourceKey: card.shortLink,
-      title: titleOf(card),
+      title: titleOf(board.source, card),
       description,
       listId: card.listId,
       labelIds: card.labelIds,
@@ -247,7 +265,7 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
       assigneeId,
       archived: card.closed,
       checklist: card.checklist,
-      comments: card.comments.map((c) => ({ body: commentBody(c.author, c.text) })),
+      comments: card.comments.map((c) => ({ body: commentBody(board.source, c.author, c.text) })),
     };
   });
 
@@ -281,7 +299,7 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
   );
 
   return {
-    source: SOURCE,
+    source: board.source,
     board: board.name,
     group,
     labelsProperty,
@@ -301,34 +319,15 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
 /**
  * What will not come, in sentences.
  *
- * The preview says it out loud rather than listing every key Trello has: a
+ * The preview says it out loud rather than listing every key a source has: a
  * count of a thing somebody will miss is worth reading, and a zero is not, so
  * nothing that is not in the file gets a line.
  */
 export function droppedSaid(plan: Plan): string[] {
-  const d = plan.dropped;
-  const said: string[] = [];
+  const said: string[] = [...plan.source.leftBehind(plan.dropped)];
   const line = (n: number, one: string, many: string) => {
     if (n > 0) said.push(`${n} ${n === 1 ? one : many}`);
   };
-  line(d.attachments, "attachment is left behind.", "attachments are left behind.");
-  line(d.customFields, "custom field is left behind.", "custom fields are left behind.");
-  line(d.starts, "start date is left behind.", "start dates are left behind.");
-  line(
-    d.dueComplete,
-    "card ticks its due date as done; that tick is left behind.",
-    "cards tick their due date as done; those ticks are left behind.",
-  );
-  line(
-    d.actions,
-    "entry of the board's history is not a comment and is left behind.",
-    "entries of the board's history are not comments and are left behind.",
-  );
-  line(
-    d.archivedLists,
-    "archived list is left behind, with its cards.",
-    "archived lists are left behind, with their cards.",
-  );
   /* Two lists of one name become one column, because an option is a name on
      this board and two columns called Done cannot be told apart on a card, in
      a filter or by the next import. It is said here rather than left to be
@@ -354,7 +353,7 @@ export function droppedSaid(plan: Plan): string[] {
       `${plan.archived.inFile} archived ${plan.archived.inFile === 1 ? "card stays" : "cards stay"} behind. Turn the switch on to bring ${plan.archived.inFile === 1 ? "it" : "them"} in, archived.`,
     );
   }
-  said.push("Trello exports its last 1000 actions, so older comments are not in the file.");
+  said.push(...plan.source.closing);
   return said;
 }
 
@@ -375,7 +374,7 @@ export function previewOf(plan: Plan): ImportPreviewDTO {
     making: option.making,
   });
   return {
-    source: plan.source,
+    source: plan.source.word,
     board: plan.board,
     group: { propertyId: plan.group.id, name: plan.group.name, making: plan.group.making },
     properties: [plan.labelsProperty, plan.dueProperty, plan.assigneeProperty].map((p) => ({
@@ -387,6 +386,7 @@ export function previewOf(plan: Plan): ImportPreviewDTO {
        for no others, so the preview must not offer a chooser for the rest. */
     labels: plan.labels.filter((label) => label.cards > 0).map(row),
     tasks: { coming: plan.tasks.length, already: plan.already },
+    columnless: plan.tasks.filter((task) => task.listId === null).length,
     archived: plan.archived,
     people: plan.people,
     dropped: droppedSaid(plan),

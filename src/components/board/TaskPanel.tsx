@@ -90,6 +90,7 @@ import { canManage } from "@/lib/roles";
 import { Label } from "@/components/ui/Form";
 import { Meter } from "@/components/ui/Layout";
 import { concerns, REMOTE_CHANGE, type RemoteChange } from "@/lib/board-live";
+import { sourceName } from "@/lib/import/source";
 
 /** One person's answer about their own screen, kept in their own browser. */
 const WIDTH_KEY = "ushabti:panel-width";
@@ -1771,7 +1772,7 @@ function describeLine(
     case "import":
       /* One import writes a line on the project with the counts and one on
          every task it made. Only a task's lines reach this panel. */
-      return `${who} brought this in from ${d.source === "trello" ? "Trello" : "another board"}`;
+      return `${who} brought this in from ${sourceName(d.source) ?? "another board"}`;
     case "link":
       if (d.action === "parented") return `${who} made it part of ${d.parentKey || "another task"}`;
       if (d.action === "unparented") {

@@ -18,6 +18,6 @@ export const POST = route<Ctx>(async (req, ctx) => {
   adminOnly(user, membership, "bring a board in");
 
   const { board, ask } = await readImportRequest(req);
-  const plan = planImport(board, await projectShape(projectId), ask);
+  const plan = planImport(board, await projectShape(projectId, board.source.word), ask);
   return json({ preview: previewOf(plan) });
 });
