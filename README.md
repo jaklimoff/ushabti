@@ -147,7 +147,8 @@ Board  ·  List  ·  By assignee              ← views you create
 - **Webhooks.** The board posts to a URL when something changes: the kind, the
   task and the moment, signed with HMAC-SHA256, and never the change itself.
   See [docs/webhooks.md](docs/webhooks.md).
-- **Import and export.** **Settings → Import** takes a Trello JSON export.
+- **Import and export.** **Settings → Import** takes a Trello JSON export or
+  the JSON of `gh project item-list` for a GitHub project.
   **Settings → Project → Export** saves one project as a JSON file.
 
 ![The task panel](docs/task.png)

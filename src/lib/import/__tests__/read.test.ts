@@ -21,7 +21,7 @@ describe("readExport", () => {
   it("refuses JSON no reader knows, naming the kinds it takes", () => {
     expect(readExport(JSON.stringify({ hello: "world" }))).toEqual({
       ok: false,
-      said: "That file is not an export the import knows. It takes a board exported from Trello.",
+      said: "That file is not an export the import knows. It takes a board exported from Trello or GitHub.",
     });
     /* Half of a Trello board is not one. */
     expect(readExport(JSON.stringify({ lists: [] })).ok).toBe(false);

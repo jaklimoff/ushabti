@@ -20,6 +20,7 @@ import type { Dropped, Source, SourceBoard, SourceCard } from "./source";
 export const LABELS_PROPERTY = "Labels";
 export const DUE_PROPERTY = "Due";
 export const ASSIGNEE_PROPERTY = "Assignee";
+export const LINK_PROPERTY = "Link";
 
 /** How long a title and a body may be, as every other route holds them. */
 const MAX_TITLE = 400;
@@ -84,6 +85,8 @@ export type PlanTask = {
   due: string | null;
   /** A member of this project, matched by name, or null. */
   assigneeId: string | null;
+  /** The item's address on the other side, or null. */
+  link: string | null;
   archived: boolean;
   checklist: { text: string; done: boolean }[];
   comments: { body: string }[];
@@ -96,6 +99,7 @@ export type Plan = {
   labelsProperty: PlanProperty;
   dueProperty: PlanProperty;
   assigneeProperty: PlanProperty;
+  linkProperty: PlanProperty;
   lists: PlanOption[];
   labels: PlanOption[];
   /** The cards that become tasks, in the order they will be written. */
@@ -108,6 +112,8 @@ export type Plan = {
   /** Cards that carried more than one member. Only the first one comes. */
   extraMembers: number;
   dropped: Dropped;
+  /** Said before anything else on the preview, or null. */
+  warning: string | null;
 };
 
 /* ------------------------------------------------------------------ */
@@ -231,6 +237,7 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
     propertyNamed(shape, ASSIGNEE_PROPERTY, "person"),
     ASSIGNEE_PROPERTY,
   );
+  const linkProperty = found(propertyNamed(shape, LINK_PROPERTY, "link"), LINK_PROPERTY);
 
   const archived = ask.archived === true;
   const coming = board.cards.filter((c) => (archived || !c.closed) && !shape.already.has(c.id));
@@ -263,6 +270,7 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
       labelIds: card.labelIds,
       due: dueDate(card.due),
       assigneeId,
+      link: card.link,
       archived: card.closed,
       checklist: card.checklist,
       comments: card.comments.map((c) => ({ body: commentBody(board.source, c.author, c.text) })),
@@ -305,6 +313,7 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
     labelsProperty,
     dueProperty,
     assigneeProperty,
+    linkProperty,
     lists,
     labels,
     tasks,
@@ -313,6 +322,7 @@ export function planImport(board: SourceBoard, shape: ProjectShape, ask: Mapping
     people: { matched: [...matched], named: [...named] },
     extraMembers,
     dropped: board.dropped,
+    warning: board.warning,
   };
 }
 
@@ -377,7 +387,14 @@ export function previewOf(plan: Plan): ImportPreviewDTO {
     source: plan.source.word,
     board: plan.board,
     group: { propertyId: plan.group.id, name: plan.group.name, making: plan.group.making },
-    properties: [plan.labelsProperty, plan.dueProperty, plan.assigneeProperty].map((p) => ({
+    /* Link only when a task carries one, so a file with no addresses does
+       not promise a property the write will never make. */
+    properties: [
+      plan.labelsProperty,
+      plan.dueProperty,
+      plan.assigneeProperty,
+      ...(plan.tasks.some((task) => task.link !== null) ? [plan.linkProperty] : []),
+    ].map((p) => ({
       name: p.name,
       making: p.making,
     })),
@@ -390,6 +407,7 @@ export function previewOf(plan: Plan): ImportPreviewDTO {
     archived: plan.archived,
     people: plan.people,
     dropped: droppedSaid(plan),
+    warning: plan.warning,
   };
 }
 

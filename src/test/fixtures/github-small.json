@@ -1,0 +1,78 @@
+{
+  "items": [
+    {
+      "id": "PVTI_lADOBq2dAc4AeX1Azg0aAAE",
+      "content": {
+        "type": "Issue",
+        "title": "Fix the sign-in loop",
+        "body": "Signing in with a link sends you back to the sign-in page.",
+        "number": 12,
+        "repository": "acme/web",
+        "url": "https://github.com/acme/web/issues/12"
+      },
+      "title": "Fix the sign-in loop",
+      "status": "In Progress",
+      "labels": ["bug"],
+      "assignees": ["ada", "grace"],
+      "repository": "https://github.com/acme/web",
+      "milestone": { "title": "Spring", "description": "", "dueOn": "2026-04-01T00:00:00Z" },
+      "priority": "High"
+    },
+    {
+      "id": "PVTI_lADOBq2dAc4AeX1Azg0aAAI",
+      "content": {
+        "type": "PullRequest",
+        "title": "Speed up the board",
+        "body": "Draws each card once.",
+        "number": 15,
+        "repository": "acme/web",
+        "url": "https://github.com/acme/web/pull/15"
+      },
+      "title": "Speed up the board",
+      "status": "Done",
+      "labels": ["perf", "bug"],
+      "assignees": ["octocat"],
+      "repository": "https://github.com/acme/web",
+      "reviewers": ["grace"]
+    },
+    {
+      "id": "PVTI_lADOBq2dAc4AeX1Azg0aAAM",
+      "content": {
+        "type": "DraftIssue",
+        "title": "Write the launch note",
+        "body": "Ask Ada for the numbers.",
+        "id": "DI_lADOBq2dAc4AeX1Azg0aBBB"
+      },
+      "title": "Write the launch note",
+      "status": "Todo"
+    },
+    {
+      "id": "PVTI_lADOBq2dAc4AeX1Azg0aAAQ",
+      "content": null,
+      "status": "Todo"
+    },
+    {
+      "id": "PVTI_lADOBq2dAc4AeX1Azg0aAAU",
+      "content": {
+        "type": "Issue",
+        "title": "Plan the next release",
+        "body": "",
+        "number": 3,
+        "repository": "acme/api",
+        "url": "https://github.com/acme/api/issues/3"
+      },
+      "title": "Plan the next release",
+      "labels": ["Release"],
+      "repository": "https://github.com/acme/api",
+      "iteration": {
+        "title": "Iteration 4",
+        "startDate": "2026-11-16",
+        "duration": 14,
+        "iterationId": "a1b2c3d4"
+      },
+      "linked pull requests": ["https://github.com/acme/api/pull/4"],
+      "priority": "Low"
+    }
+  ],
+  "totalCount": 8
+}

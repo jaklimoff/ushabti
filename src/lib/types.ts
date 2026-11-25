@@ -1101,6 +1101,9 @@ export type ImportPreviewDTO = {
   people: { matched: string[]; named: string[] };
   /** What will not come, in sentences. */
   dropped: string[];
+  /** The sentence said first, before the counts, such as a file cut short;
+   * or null. */
+  warning: string | null;
 };
 
 /** What one import made. The page says this and then sends you to the board. */

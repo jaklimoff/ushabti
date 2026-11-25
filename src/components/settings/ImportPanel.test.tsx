@@ -49,7 +49,7 @@ async function pickFile(data: ReturnType<typeof newProject>, preview: ImportPrev
     },
   );
 
-  const box = page.getByLabelText("The Trello export to bring in");
+  const box = page.getByLabelText("The export to bring in");
   await expect.element(box).toBeEnabled();
   await userEvent.upload(
     box,
@@ -92,7 +92,7 @@ test("an admin is offered the download before the import, and a member sees no r
       .getByRole("heading", { level: 2 })
       .elements()
       .map((h) => h.textContent),
-  ).toEqual(["Export", "Import from Trello"]);
+  ).toEqual(["Export", "Import a board"]);
   await admin.screen.unmount();
 
   const member = newProject();

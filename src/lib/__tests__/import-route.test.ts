@@ -168,7 +168,57 @@ describe("A file of no kind the import knows", () => {
     const res = await api(owner).post(`/api/projects/${p.id}/import/preview`, sent);
     expect(res.status).toBe(400);
     expect(await res.text()).toContain(
-      "That file is not an export the import knows. It takes a board exported from Trello.",
+      "That file is not an export the import knows. It takes a board exported from Trello or GitHub.",
     );
+  });
+});
+
+describe("Bringing a project in from GitHub", () => {
+  const GITHUB = "src/test/fixtures/github-small.json";
+
+  function github(file = readFileSync(GITHUB, "utf8")) {
+    const sent = new FormData();
+    sent.set("file", new File([file], "project.json"));
+    sent.set("mapping", JSON.stringify({ lists: {}, labels: {}, archived: false }));
+    return sent;
+  }
+
+  it("an item brings its status, its labels and its link, and only once", async () => {
+    const owner = await person("Ada Lovelace");
+    const p = await project(owner);
+    const me = api(owner);
+
+    const made = await ok(me.post(`/api/projects/${p.id}/import`, github()));
+    expect(made.made.tasks).toBe(4);
+
+    const read = (await board(owner, p.id)) as Board;
+    const property = (name: string) => read.properties.find((x) => x.name === name)!;
+    const status = property("Status");
+    const link = property("Link");
+    const labels = property("Labels");
+    const name = (prop: Property, id: unknown) => prop.options.find((o) => o.id === id)?.name;
+
+    const pr = read.tasks.find((t) => t.title === "Speed up the board")!;
+    expect(name(status, pr.values[status.id])).toBe("Done");
+    expect((pr.values[labels.id] as string[]).map((id) => name(labels, id))).toEqual([
+      "perf",
+      "bug",
+    ]);
+    expect(pr.values[link.id]).toEqual(["https://github.com/acme/web/pull/15"]);
+
+    const draft = read.tasks.find((t) => t.title === "Write the launch note")!;
+    expect(name(status, draft.values[status.id])).toBe("Todo");
+    expect(draft.values).not.toHaveProperty(link.id);
+
+    const loose = read.tasks.find((t) => t.title === "Plan the next release")!;
+    expect(loose.values).not.toHaveProperty(status.id);
+
+    /* The same file, and the same issue held by another project. */
+    expect((await ok(me.post(`/api/projects/${p.id}/import`, github()))).made.tasks).toBe(0);
+    const other = JSON.parse(readFileSync(GITHUB, "utf8")) as { items: { id: string }[] };
+    for (const item of other.items) item.id = `${item.id}-elsewhere`;
+    const shared = await ok(me.post(`/api/projects/${p.id}/import`, github(JSON.stringify(other))));
+    /* Only the draft is new: it lives in one project and is its own item. */
+    expect(shared.made.tasks).toBe(1);
   });
 });

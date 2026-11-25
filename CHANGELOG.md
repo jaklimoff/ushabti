@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Added
+
+- **A GitHub project comes in through Settings → Import.** Export it with `gh project item-list <number> --owner <owner> --format json --limit 2000` and pick the file in the same box a Trello export goes in. Issues, pull requests and drafts become tasks with their title and body, Status becomes the columns, labels become Labels, and an issue's address goes into a Link property. The preview names every field it leaves behind, and says first when the file holds fewer items than the project.
+
 ### Changed
 
 - **A shipped release folds away as a shipped sprint does.** It has no column on a board grouped by Release, the task panel's picker leaves it out unless the task holds it, the filter and Settings keep it behind a Shipped fold, and Move after a ship steps over it. A task that holds it still shows it.

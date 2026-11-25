@@ -1242,7 +1242,8 @@ about a task. `reset` — the owner made somebody a reset link, with
 `data: { "hash": "…", "text": "…" }`, the whole text as it was saved — so do
 not read a key off every entry.
 
-An `import` line says the owner brought a board in from Trello. **An agent gets
+An `import` line says the owner brought a board in from Trello or a GitHub
+project; `data.source` is `trello` or `github`. **An agent gets
 nothing new for it**: the route is the owner's, and the tasks arrive in the
 feed and on the stream exactly as any other task does. There is one line on the
 project with the counts and one on each task naming the card it came from, all

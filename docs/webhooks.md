@@ -38,7 +38,7 @@ every ring it carries no data: the new text and its hash are on the feed line.
 Read them from `/activity`.
 
 **`import` rings once for a whole import**, and not once per card. The owner
-brought a board in from Trello; the ring carries the line about the project,
+brought a board in from Trello or GitHub; the ring carries the line about the project,
 so `taskId` and `taskKey` are null, and the feed holds one `import` line per
 task behind it for the receiver to read.
 

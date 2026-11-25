@@ -100,7 +100,7 @@ async function checkboxGeometry(box: Locator) {
   };
 }
 
-const fileBox = () => page.getByLabelText("The Trello export to bring in");
+const fileBox = () => page.getByLabelText("The export to bring in");
 /* The button drawn over the file box: the box itself is under it. */
 const fileButton = () => page.getByText("Choose a file…");
 

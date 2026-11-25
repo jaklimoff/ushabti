@@ -256,6 +256,11 @@ export async function applyImport(input: {
       ? await ensureProperty(tx, projectId, plan.assigneeProperty, "person")
       : null;
 
+    const wantsLink = plan.tasks.some((t) => t.link !== null);
+    const linkId = wantsLink
+      ? await ensureProperty(tx, projectId, plan.linkProperty, "link")
+      : null;
+
     /* One raise for the whole file. The numbers that come back are the last
        N, so the first card of the file takes the first of them. */
     const [project] = await tx
@@ -312,6 +317,7 @@ export async function applyImport(input: {
       if (assigneeId && task.assigneeId) {
         values.push({ taskId, propertyId: assigneeId, value: task.assigneeId });
       }
+      if (linkId && task.link) values.push({ taskId, propertyId: linkId, value: [task.link] });
 
       const itemRanks = rankSpread(null, task.checklist.length);
       task.checklist.forEach((item, i) => {

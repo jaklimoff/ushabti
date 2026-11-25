@@ -17,7 +17,7 @@ runs real teams, and a minor release may still change an API. The
 - **A per-view card order.** See the limit below.
 - **A board that pages.** A board loads all its tasks at once, which is fine
   for a few thousand. See the limit below.
-- **Import from Jira.** Trello is in. Jira has no one export — its CSV repeats a column per label and per comment, its dates carry the site's locale, and it stops at 1000 rows — so it waits until somebody asks for it.
+- **Import from Jira.** Trello and GitHub Projects are in. Jira has no one export — its CSV repeats a column per label and per comment, its dates carry the site's locale, and it stops at 1000 rows — so it waits until somebody asks for it.
 
 ## Not planned
 
@@ -159,6 +159,16 @@ CHANGELOG says which.
   own 1000-action export never held: all left behind, each counted on the
   preview in a sentence. An import adds and never updates, so it is a move and
   not a bridge. An agent gets nothing new.
+  **GitHub came second.** The same box takes the JSON of
+  `gh project item-list <number> --owner <owner> --format json --limit 2000`,
+  read by its `items` and `totalCount`. Each item becomes a task with its
+  title and body, Status becomes the columns, labels become Labels, and an
+  issue's or a pull request's address goes into a Link property, made when
+  missing. An issue is keyed by its address, so one issue that sits in two
+  GitHub projects comes in once. The file has no comments, no open or closed
+  state, no sub-issues and no option order, and its values carry no types, so
+  every other field is named on the preview and left behind. A file cut short
+  of `totalCount` says so first: gh stops at 30 items without a word.
 
 - **A date rule can name a window of days.** A rule named one day, so "due this
   week" had to be rewritten every week — and the view a small team opens every

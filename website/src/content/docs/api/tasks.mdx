@@ -126,7 +126,7 @@ those are about the project and never reach a task. A `comment` entry carries `d
 `data.action: "deleted"` with `data.authorId` and `data.byProject` when somebody took it down. An `archive` entry carries `data.action`, which is `archived`
 or `restored`, and so does a `deleted` one — see
 [the activity feed](/api/projects/#the-deleted-line). An `import` entry says the task came
-in from Trello and names the card it came from in `data.sourceId`; the webhook behind it rings once
+in from Trello or GitHub (`data.source`) and names the card or item it came from in `data.sourceId`; the webhook behind it rings once
 for the whole import, off the line about the project. An `attachment` entry carries `data.action`,
 `added` or `removed`, with `data.attachmentId` and `data.name`.
 `author` and `actor` are `null` when the user row has been deleted.

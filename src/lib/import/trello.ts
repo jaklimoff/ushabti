@@ -14,6 +14,7 @@ import {
   MAX_CARDS,
   parseFile,
   SOURCE_NAMES,
+  tooMany,
   type Source,
   type SourceCard,
   type SourceChecklistItem,
@@ -143,10 +144,7 @@ export function readTrello(raw: string): SourceRead {
 export function readTrelloFile(file: Raw): SourceRead {
   const cardRows = rows(file.cards);
   if (cardRows.length > MAX_CARDS) {
-    return {
-      ok: false,
-      said: `That export has ${cardRows.length} cards. An import takes ${MAX_CARDS} at a time.`,
-    };
+    return { ok: false, said: tooMany(cardRows.length) };
   }
 
   const allLists = rows(file.lists);
@@ -197,6 +195,7 @@ export function readTrelloFile(file: Raw): SourceRead {
       desc: text(card.desc),
       listId,
       pos: pos(card.pos),
+      link: null,
       due: text(card.due) || null,
       closed: card.closed === true,
       labelIds: ids(card.idLabels),
@@ -234,6 +233,7 @@ export function readTrelloFile(file: Raw): SourceRead {
       members,
       cards: inOrder,
       dropped,
+      warning: null,
     },
   };
 }

@@ -27,11 +27,13 @@ import {
   type ImportRowDTO,
   type PropertyDTO,
 } from "@/lib/types";
+import { GH_COMMAND } from "@/lib/import/github";
 import { PageHead } from "./SettingsShell";
 import styles from "./settings.module.css";
 
 /**
- * Taking the project out as one file, and bringing a board in from Trello.
+ * Taking the project out as one file, and bringing a board in from Trello or
+ * a GitHub project.
  *
  * The page is the flow, because the board has no dialogs: pick a file and the
  * page becomes the preview, press **Import** and it says what was made.
@@ -116,7 +118,7 @@ export function ImportPanel() {
     <>
       <PageHead
         title="Import and export"
-        note="Take the project out as one file, or bring a board in from Trello."
+        note="Take the project out as one file, or bring a board in from Trello or GitHub."
       />
 
       {/*
@@ -156,19 +158,24 @@ export function ImportPanel() {
         </Section>
       ) : (
         <>
-          <Section title="Import from Trello">
+          {/* One box for every kind of file: the file says what it is, so
+              the note says how to get each one. */}
+          <Section title="Import a board">
             <Card>
               <Row>
                 <Field
-                  label="Trello file"
+                  label="Export file"
                   inline
                   error={error}
                   note={
                     ready ? (
                       <>
-                        In Trello: <b>Board menu → More → Print and export → Export as JSON</b>. Its
-                        lists become columns and its cards tasks, and nothing is made twice. Up to 5
-                        MB and 2000 cards at a time.
+                        From Trello: <b>Board menu → More → Print and export → Export as JSON</b>.
+                        From a GitHub project: run <code>gh auth refresh -s read:project</code>{" "}
+                        once, then <code>{GH_COMMAND} &gt; project.json</code>. Add{" "}
+                        <code>--query &quot;is:issue&quot;</code> to leave pull requests out. Its
+                        lists or its Status become columns and its cards or items tasks, and nothing
+                        is made twice. Up to 5 MB and 2000 cards at a time.
                       </>
                     ) : (
                       "One moment — the page is still loading."
@@ -178,7 +185,7 @@ export function ImportPanel() {
                   <FileInput
                     fileName={name}
                     accept="application/json,.json"
-                    aria-label="The Trello export to bring in"
+                    aria-label="The export to bring in"
                     /* A file picked before React has taken the page over goes
                        nowhere: the box is drawn on the server, and its change
                        has nobody listening. So it is shut until then, and says
@@ -293,6 +300,15 @@ function Preview({
     <>
       <Section title={preview.board} note="What this import will do.">
         <Card>
+          {/* A file cut short is said before the counts, because every count
+              under it is a count of the part that came. */}
+          {preview.warning && (
+            <Row>
+              <span className={styles.importWarn} role="status">
+                {preview.warning}
+              </span>
+            </Row>
+          )}
           <Row>
             <Field label="Tasks" inline>
               <Tag accent>{preview.tasks.coming} coming</Tag>

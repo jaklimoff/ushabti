@@ -1,4 +1,5 @@
 import { parseFile, type SourceRead } from "./source";
+import { GITHUB, isGitHub, readGitHubFile } from "./github";
 import { isTrello, readTrelloFile, TRELLO } from "./trello";
 
 /**
@@ -14,7 +15,10 @@ type Reader = {
   read: (file: Record<string, unknown>) => SourceRead;
 };
 
-const READERS: Reader[] = [{ name: TRELLO.name, knows: isTrello, read: readTrelloFile }];
+const READERS: Reader[] = [
+  { name: TRELLO.name, knows: isTrello, read: readTrelloFile },
+  { name: GITHUB.name, knows: isGitHub, read: readGitHubFile },
+];
 
 /** The kinds the import takes, as one sentence names them: "Trello or GitHub". */
 function kinds(): string {

@@ -34,13 +34,13 @@ const FIXTURE = "src/test/fixtures/trello-small.json";
  */
 async function openImport(page: Page, projectId: string) {
   await gotoSettings(page, projectId, "import");
-  await expect(page.getByLabel("The Trello export to bring in")).toBeEnabled();
+  await expect(page.getByLabel("The export to bring in")).toBeEnabled();
 }
 
 /** Puts the file in the box and waits for the preview to come back. */
 async function pick(page: Page) {
   await settles(page, /\/import\/preview$/, async () => {
-    await page.getByLabel("The Trello export to bring in").setInputFiles(FIXTURE);
+    await page.getByLabel("The export to bring in").setInputFiles(FIXTURE);
   });
   await expect(page.getByText("Launch board")).toBeVisible();
 }
@@ -62,10 +62,7 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   const rail = page.getByRole("navigation", { name: "Settings sections" });
   await expect(rail.getByRole("link", { name: "Import and export" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Import and export" })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2 })).toHaveText([
-    "Export",
-    "Import from Trello",
-  ]);
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText(["Export", "Import a board"]);
   await expect(page.getByRole("link", { name: "Download" })).toHaveAttribute(
     "href",
     `/api/projects/${projectId}/export`,
@@ -117,4 +114,49 @@ test("a Trello export becomes columns and cards, and only once", async ({ page }
   await showColumn(page, "Todo");
   await expect(card(page, "Write the launch note")).toHaveCount(1);
   await expect(page.getByTestId("card")).toHaveCount(4);
+});
+
+test("a GitHub project comes in through the same box, and says what it leaves", async ({
+  page,
+}) => {
+  await register(page, "Ada Lovelace");
+  const projectId = await createProject(page, unique("GitHub import"));
+
+  await openImport(page, projectId);
+  await expect(page.getByText("gh auth refresh -s read:project")).toBeVisible();
+  await expect(page.getByText('--query "is:issue"')).toBeVisible();
+
+  await settles(page, /\/import\/preview$/, async () => {
+    await page
+      .getByLabel("The export to bring in")
+      .setInputFiles("src/test/fixtures/github-small.json");
+  });
+  await expect(page.getByRole("heading", { name: "A GitHub project" })).toBeVisible();
+
+  // The file is short of the project, and that is said before anything else.
+  const warning = page.getByRole("status").filter({ hasText: "--limit 2000" });
+  await expect(warning).toHaveText(
+    "This file holds 5 of the project's 8 items. Export it again with --limit 2000 to bring them all.",
+  );
+  await expect(page.getByText("4 coming")).toBeVisible();
+  await expect(page.getByText("1 with no Status")).toBeVisible();
+  await expect(
+    page.getByText("Milestone, Priority and Iteration are not brought in."),
+  ).toBeVisible();
+  await expect(page.getByText("1 item this token could not read is left behind.")).toBeVisible();
+  await expect(page.getByText("comments, open or closed state", { exact: false })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("seen-github-preview.png") });
+
+  await settles(page, /\/import$/, () =>
+    page.getByRole("button", { name: "Import 4 tasks" }).click(),
+  );
+  await expect(page.getByText("4 tasks and", { exact: false })).toBeVisible();
+
+  await page.goto(`/p/${projectId}`);
+  await showColumn(page, "Done");
+  await expect(card(page, "Speed up the board")).toBeVisible();
+  await showColumn(page, "In Progress");
+  await expect(card(page, "Fix the sign-in loop")).toBeVisible();
+  await showColumn(page, "Todo");
+  await expect(card(page, "Write the launch note")).toBeVisible();
 });

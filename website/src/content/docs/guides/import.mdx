@@ -1,6 +1,6 @@
 ---
-title: Bring a board from Trello
-description: Import a Trello JSON export into an Ushabti project — lists become columns, cards become tasks, and a second run makes nothing twice.
+title: Bring a board from Trello or GitHub
+description: Import a Trello JSON export or a GitHub project into an Ushabti project — lists become columns, cards become tasks, and a second run makes nothing twice.
 sidebar:
   order: 12
 ---
@@ -9,10 +9,11 @@ import { Aside, LinkCard, Badge } from '@astrojs/starlight/components'
 
 **Settings → Import**, or `/p/{projectId}/settings/import`. <Badge text="owner and admins" variant="caution" size="small" />
 
-A team that cannot bring its board over does not start. This page takes one Trello export and makes
-your project look like the board you left: the same columns, the same cards, in the same order.
+A team that cannot bring its board over does not start. This page takes one Trello export, or one
+GitHub project, and makes your project look like the board you left: the same columns, the same
+cards, in the same order. There is one file box for both: the file says what it is.
 
-Trello only, for now. Jira has no single export — its CSV repeats a column per label and per
+Jira is not in yet. It has no single export — its CSV repeats a column per label and per
 comment, its dates carry the site's locale, and it stops at 1000 rows — so it is its own job and not
 a checkbox on this one.
 
@@ -96,6 +97,53 @@ cards you already have are counted as *already here* and the new ones are added 
 A second import **adds**; it never updates. A card whose title changed on Trello after you imported
 it keeps the title it arrived with. Import is a move, not a bridge.
 </Aside>
+
+## From a GitHub project
+
+GitHub's own **Export view data** is a table with no issue body, so the file comes from the `gh`
+command line instead. It reads with your own login and nothing is kept on the server.
+
+1. **Give `gh` the scope once.** Reading a project needs `read:project`:
+
+   ```sh
+   gh auth refresh -s read:project
+   ```
+
+2. **Export the project.** The number is in the project's address, and the owner is the user or
+   the organisation that holds it:
+
+   ```sh
+   gh project item-list 5 --owner acme --format json --limit 2000 > project.json
+   ```
+
+   Keep `--limit 2000`. Without it gh stops at 30 items and says nothing; the preview then says
+   first that the file holds fewer items than the project. Add `--query "is:issue"` to leave pull
+   requests out.
+
+3. **Pick `project.json` here**, read the preview, and press **Import**.
+
+| GitHub                         | Ushabti                                                                |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| An issue, a pull request, a draft | A **task**, in the order the file has them                           |
+| Title and body                 | The title and the description                                          |
+| Status                         | An **option** of the property your main view groups by — a column       |
+| No status                      | A task with that property empty                                        |
+| Labels                         | Options of **Labels**                                                  |
+| The first assignee             | **Assignee**, if somebody here has that login as their name; else a last line *Assigned on GitHub to …* |
+| The issue's address            | **Link**, made when the board has none. A draft has no address         |
+
+The board is called *A GitHub project*, because the file does not carry the project's name.
+
+**Nothing twice.** An issue or a pull request is known by its address and a draft by its item id,
+so the same file twice makes nothing twice, and an issue that sits in two GitHub projects comes in
+once.
+
+**What does not come.** The file holds every value as plain text, so the import cannot tell a
+select from a date: every field other than Status, Labels and Assignees is named on the preview —
+*"Milestone, Iteration and Priority are not brought in."* — and so are linked pull requests,
+reviewers, and items your token could not read. The file never carries comments, open or closed
+state, sub-issue links, archived items, empty columns or the order of the columns, and the preview
+says that too.
 
 ## The limits
 

@@ -17,6 +17,11 @@ export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 /** How many cards one import may carry. */
 export const MAX_CARDS = 2000;
 
+/** The one sentence a file of too many cards is refused with, whatever its source. */
+export function tooMany(count: number): string {
+  return `That export has ${count} cards. An import takes ${MAX_CARDS} at a time.`;
+}
+
 /** The one sentence a file that is too large is refused with, wherever it is
  * read: the route answers it from the header and a reader from the bytes. */
 export const TOO_LARGE = "That file is larger than 5 MB. An import takes 5 MB at a time.";
@@ -49,6 +54,7 @@ export function parseFile(raw: string): ParsedFile {
  */
 export const SOURCE_NAMES: Readonly<Record<string, string>> = {
   trello: "Trello",
+  github: "GitHub",
 };
 
 /** The name people read for a stored word, or null for one nobody knows. */
@@ -109,6 +115,8 @@ export type SourceCard = {
    * in with the group property empty. */
   listId: string | null;
   pos: number;
+  /** The address of the item on the other side, or null. It becomes Link. */
+  link: string | null;
   /** The moment the source holds, or null. The date part of it becomes Due. */
   due: string | null;
   /** Archived on the other side. */
@@ -135,6 +143,9 @@ export type SourceBoard = {
    * not come with it before they press the button.
    */
   dropped: Dropped;
+  /** A sentence the preview says before anything else, such as a file cut
+   * short, or null. */
+  warning: string | null;
 };
 
 export type SourceRead = { ok: true; board: SourceBoard } | { ok: false; said: string };

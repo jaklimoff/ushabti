@@ -2217,6 +2217,14 @@ textarea.rulesBox {
   text-wrap: pretty;
 }
 
+/* A file cut short, said first on the import preview. */
+.importWarn {
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--warn);
+  text-wrap: pretty;
+}
+
 /* ------------------------------------------- the order of views and rows */
 
 /* The one thing that lifts a row. The rest of the row keeps its caret. */
