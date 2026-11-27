@@ -143,7 +143,7 @@ test("a write that waits too long for the project lock answers 503", async ({ pa
 
   const answer = await inDatabase(async (c) => {
     await c.query("begin");
-    await c.query("select 1 from projects where id = $1 for update", [projectId]);
+    await c.query("select 1 from projects where id = $1 for no key update", [projectId]);
     try {
       return await page.request.post(`${base}/api/projects/${projectId}/tasks`, {
         data: { title: "Waits" },

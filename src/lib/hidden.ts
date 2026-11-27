@@ -100,7 +100,9 @@ export async function dropHidden(
 /**
  * Locks these tasks for the rest of the transaction, in one order, so two
  * writers over the same tasks queue rather than deadlock. Every write that
- * calls `dropHidden` calls this first, before it writes a value.
+ * calls `dropHidden` calls this first, before it writes a value. The lock is
+ * the no-key kind: it still queues every other locker and writer of the row,
+ * and lets a comment or a feed line check its foreign key without waiting.
  */
 export async function lockTasks(tx: Tx, taskIds: string[]): Promise<void> {
   const ids = [...new Set(taskIds)];
@@ -110,7 +112,7 @@ export async function lockTasks(tx: Tx, taskIds: string[]): Promise<void> {
     .from(tasks)
     .where(inArray(tasks.id, ids))
     .orderBy(asc(tasks.id))
-    .for("update");
+    .for("no key update");
 }
 
 /**

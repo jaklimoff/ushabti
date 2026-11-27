@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Fixed
+
+- **A card moved while somebody writes a value on it no longer fails.** The two used to lock each other out, and one answered with a server error. The same held for a comment or a feed line written while a task, a project or a person's list was held.
+
 ## 0.55.0 — 2026-11-27
 
 ### Added

@@ -161,14 +161,18 @@ export async function projectName(projectId: string): Promise<string> {
  * Anything that reads its neighbours and then writes a rank has to do both
  * inside one transaction, or two writes at the same moment read the same
  * neighbour and produce the same rank. Locking the project row is enough:
- * every ordered list in the app belongs to exactly one project.
+ * every ordered list in the app belongs to exactly one project. The lock is
+ * the no-key kind: it still queues every other locker of the row, and lets
+ * other writes check their foreign keys against it without waiting.
  */
 export async function withProjectLock<T>(
   projectId: string,
   work: (tx: Tx) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select 1 from ${projects} where ${projects.id} = ${projectId} for update`);
+    await tx.execute(
+      sql`select 1 from ${projects} where ${projects.id} = ${projectId} for no key update`,
+    );
     return work(tx);
   });
 }
@@ -185,7 +189,9 @@ export async function withProjectLocks<T>(
   const ids = [...new Set(projectIds)].sort();
   return db.transaction(async (tx) => {
     for (const id of ids) {
-      await tx.execute(sql`select 1 from ${projects} where ${projects.id} = ${id} for update`);
+      await tx.execute(
+        sql`select 1 from ${projects} where ${projects.id} = ${id} for no key update`,
+      );
     }
     return work(tx);
   });

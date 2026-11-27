@@ -46,7 +46,11 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 export const DELETE = route<Ctx>(async (_req, ctx) => {
   const { source } = await ownSource(ctx);
   await db.transaction(async (tx) => {
-    await tx.select({ id: lists.id }).from(lists).where(eq(lists.id, source.listId)).for("update");
+    await tx
+      .select({ id: lists.id })
+      .from(lists)
+      .where(eq(lists.id, source.listId))
+      .for("no key update");
     const rest = await tx
       .select({ id: listSources.id })
       .from(listSources)

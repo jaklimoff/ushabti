@@ -64,7 +64,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
             .select({ text: checklistItems.text })
             .from(checklistItems)
             .where(eq(checklistItems.id, itemId))
-            .for("update");
+            .for("no key update");
     const [row] = await tx
       .update(checklistItems)
       .set(patch)

@@ -10,10 +10,11 @@ type Writer = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 /**
  * Takes this person's list for the rest of the transaction. Their order is
  * theirs alone, so the lock is their user row and never a project: a join and
- * a drag of the same person cannot both read the same top.
+ * a drag of the same person cannot both read the same top. The no-key kind
+ * still queues them, and lets a comment or a run by this person go through.
  */
 export async function lockList(tx: Writer, userId: string) {
-  await tx.execute(sql`select 1 from ${users} where ${users.id} = ${userId} for update`);
+  await tx.execute(sql`select 1 from ${users} where ${users.id} = ${userId} for no key update`);
 }
 
 /**
