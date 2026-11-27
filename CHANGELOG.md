@@ -14,6 +14,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **Try again now loads the page again.** It used to draw the same failed answer once more, so a board that timed out stayed broken until a reload. A page that breaks inside a signed-in screen now says so in the page column, and the sidebar stays.
+
 - **A busy database answers 503, and a double sign-up says the account exists.** A deadlock, a conflict Postgres rolled back or a lost database connection answers "The server is busy. Try again in a moment." with `Retry-After: 5`, as a timeout already did, instead of a server error. Two submits of one sign-up form answer the second "An account with that email already exists.".
 
 - **On a phone, a toast shows above the open task.** A save that failed while a task was open used to say so behind the panel, and the toast was gone by the time the panel closed.

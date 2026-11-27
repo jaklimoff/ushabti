@@ -1,16 +1,14 @@
 "use client";
 
+import { digestOf } from "@/lib/broken";
+
 /**
  * The root layout failed, so there is no layout to render into: this file
- * ships its own html and body, and cannot use the shared components.
+ * ships its own html and body, and cannot use the shared components. `retry`
+ * reads the page again; `reset` would only draw the same failed answer.
  */
-export default function GlobalError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function GlobalError({ error, retry }: { error: unknown; retry: () => void }) {
+  const digest = digestOf(error);
   return (
     <html lang="en">
       <body
@@ -29,16 +27,16 @@ export default function GlobalError({
         <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 380 }}>
           <div style={{ fontSize: 15, fontWeight: 600 }}>Ushabti could not start this page</div>
           <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "#8b919b" }}>
-            {error.digest ? (
+            {digest ? (
               <>
-                Look for <code style={{ color: "#a4aab3" }}>{error.digest}</code> in the server log.
+                Look for <code style={{ color: "#a4aab3" }}>{digest}</code> in the server log.
               </>
             ) : (
               "Look at the server log."
             )}
           </div>
           <button
-            onClick={reset}
+            onClick={() => retry()}
             style={{
               alignSelf: "center",
               padding: "6px 13px",

@@ -2,21 +2,17 @@
 
 import { Button } from "@/components/ui/Button";
 import { StatusPage } from "@/components/ui/StatusPage";
+import { BROKE_BODY, BROKE_TITLE, digestOf } from "@/lib/broken";
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+/* `retry` reads the page again; `reset` only draws the same failed answer. */
+export default function Error({ error, retry }: { error: unknown; retry: () => void }) {
   return (
     <StatusPage
-      title="Something broke"
-      digest={error.digest}
-      action={<Button onClick={reset}>Try again</Button>}
+      title={BROKE_TITLE}
+      digest={digestOf(error)}
+      action={<Button onClick={() => retry()}>Try again</Button>}
     >
-      The page could not finish loading. Try again; if it keeps happening, look at the server log.
+      {BROKE_BODY}
     </StatusPage>
   );
 }
