@@ -1,6 +1,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { attachments, projects } from "@/db/schema";
+import { uniqueViolation } from "@/db/timeouts";
 import { removeObjects } from "@/lib/attachment-rows";
 import { HttpError } from "@/lib/auth";
 import {
@@ -189,11 +190,7 @@ export const PATCH = route<Ctx>(async (req, ctx) => {
 });
 
 function isPublicKeyTaken(err: unknown): boolean {
-  for (let e = err as { code?: string; constraint?: string; cause?: unknown } | undefined; e;) {
-    if (e.code === "23505" && e.constraint === "projects_public_changelog_key") return true;
-    e = e.cause as typeof e;
-  }
-  return false;
+  return uniqueViolation(err, "projects_public_changelog_key");
 }
 
 export const DELETE = route<Ctx>(async (req, ctx) => {

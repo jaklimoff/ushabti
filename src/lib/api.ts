@@ -16,7 +16,7 @@ import {
 } from "./roles";
 import { originOf } from "./origin";
 import { inRequest } from "./via";
-import { isDatabaseTimeout } from "@/db/timeouts";
+import { classifyDbError } from "@/db/timeouts";
 
 export { HttpError };
 
@@ -37,9 +37,16 @@ export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response
       res = await inRequest(() => handler(req, ctx));
     } catch (err) {
       if (err instanceof HttpError) res = fail(err.status, err.message, err.headers);
-      else if (isDatabaseTimeout(err)) {
-        /* A wait ran out: the database is busy, not broken, and a retry may pass. */
-        console.error("[ushabti] database timeout", req.method, new URL(req.url).pathname, err);
+      else if (classifyDbError(err) === "busy") {
+        /* A wait ran out, a lock race was rolled back, or a connection went:
+           the database is busy, not broken, and a retry may pass. */
+        console.error(
+          "[ushabti] database busy",
+          codeOf(err),
+          req.method,
+          new URL(req.url).pathname,
+          err,
+        );
         res = fail(503, "The server is busy. Try again in a moment.", { "Retry-After": "5" });
       } else {
         console.error("[ushabti] route error", err);
@@ -51,6 +58,16 @@ export function route<Ctx>(handler: (req: Request, ctx: Ctx) => Promise<Response
        Next strips it and still sends the packed bytes (vercel/next.js#101192). */
     return res;
   };
+}
+
+/* The code the database or Node gave, for the log line. */
+function codeOf(err: unknown): string {
+  for (let e: unknown = err, depth = 0; e && typeof e === "object" && depth < 5; depth++) {
+    const { code, cause } = e as { code?: unknown; cause?: unknown };
+    if (typeof code === "string") return code;
+    e = cause;
+  }
+  return "no code";
 }
 
 const READS = new Set(["GET", "HEAD", "OPTIONS"]);

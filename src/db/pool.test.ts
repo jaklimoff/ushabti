@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isDatabaseTimeout, TIMEOUTS, timeoutSettings } from "./timeouts";
+import {
+  classifyDbError,
+  isDatabaseTimeout,
+  TIMEOUTS,
+  timeoutSettings,
+  uniqueViolation,
+} from "./timeouts";
 
 vi.mock("server-only", () => ({}));
 
@@ -73,5 +79,67 @@ describe("The limits", () => {
     expect(isDatabaseTimeout(pg("23505"))).toBe(false);
     expect(isDatabaseTimeout(new Error("Something else"))).toBe(false);
     expect(isDatabaseTimeout(null)).toBe(false);
+    expect(isDatabaseTimeout(pg("40P01"))).toBe(false);
+  });
+});
+
+describe("A busy database", () => {
+  const pg = (code: string, extra: Record<string, unknown> = {}) =>
+    Object.assign(new Error("pg"), { code, ...extra });
+
+  it.each([
+    "57014",
+    "55P03",
+    "25P03",
+    "40P01",
+    "40001",
+    "08000",
+    "08006",
+    "08P01",
+    "57P01",
+    "57P02",
+    "57P03",
+    "ECONNREFUSED",
+    "ECONNRESET",
+  ])("reads %s as busy", (code) => {
+    expect(classifyDbError(pg(code))).toBe("busy");
+  });
+
+  it("reads a lost connection and a connect timeout as busy", () => {
+    expect(classifyDbError(new Error("Connection terminated unexpectedly"))).toBe("busy");
+    expect(classifyDbError(new Error("Connection terminated"))).toBe("busy");
+    expect(classifyDbError(new Error("timeout exceeded when trying to connect"))).toBe("busy");
+  });
+
+  it("finds the code in what an error wraps", () => {
+    expect(classifyDbError(new Error("Failed query", { cause: pg("40P01") }))).toBe("busy");
+    expect(
+      classifyDbError(new Error("Failed query", { cause: new Error("Connection terminated") })),
+    ).toBe("busy");
+  });
+
+  it("reads anything else as nothing, a unique violation too", () => {
+    expect(classifyDbError(pg("23505", { constraint: "users_email_key" }))).toBe(null);
+    expect(classifyDbError(pg("23503"))).toBe(null);
+    expect(classifyDbError(new Error("Something else"))).toBe(null);
+    expect(classifyDbError(null)).toBe(null);
+  });
+});
+
+describe("A unique violation", () => {
+  const pg = (code: string, constraint?: string) =>
+    Object.assign(new Error("pg"), { code, constraint });
+
+  it("names only the constraint it broke, also when wrapped", () => {
+    expect(uniqueViolation(pg("23505", "users_email_key"), "users_email_key")).toBe(true);
+    expect(
+      uniqueViolation(
+        new Error("Failed query", { cause: pg("23505", "users_email_key") }),
+        "users_email_key",
+      ),
+    ).toBe(true);
+    expect(uniqueViolation(pg("23505", "projects_key"), "users_email_key")).toBe(false);
+    expect(uniqueViolation(pg("23503", "users_email_key"), "users_email_key")).toBe(false);
+    expect(uniqueViolation(null, "users_email_key")).toBe(false);
   });
 });

@@ -75,6 +75,7 @@ Every failure is the same envelope, at the status the route chose:
 | `409` | A conflict with a rule: a run already open, a run closed, an agent still holding a task. |
 | `429` | Ten failures from this address in ten minutes. The answer carries `Retry-After` in seconds. |
 | `500` | `Something went wrong on the server.` Anything unexpected, logged server-side. |
+| `503` | `The server is busy. Try again in a moment.` The database was busy or a wait timed out. Wait the `Retry-After` seconds and try again. |
 
 ## Ids
 

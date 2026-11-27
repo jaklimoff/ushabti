@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import { uniqueViolation } from "@/db/timeouts";
 import { INVITE_IS_DEAD } from "@/lib/invite-link";
 import { inviteOfToken, spendInvite } from "@/lib/invites";
 import { joinProject } from "@/lib/membership";
@@ -8,6 +9,8 @@ import { createSession, hashPassword, HttpError, refuseIfLimited, signupIsOpen }
 import { body, broadcast, json, route, str } from "@/lib/api";
 import { pickAvatarColor } from "@/lib/colors";
 import { addressOf, limiter, signupByAddress } from "@/lib/rate-limit";
+
+const TAKEN = "An account with that email already exists.";
 
 export const POST = route(async (req: Request) => {
   const key = signupByAddress(addressOf(req.headers));
@@ -58,31 +61,38 @@ async function signUp(req: Request): Promise<Response> {
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
-  if (existing.length) throw new HttpError(409, "An account with that email already exists.");
+  if (existing.length) throw new HttpError(409, TAKEN);
 
   const passwordHash = await hashPassword(input.password);
 
   /* One transaction, so a failure leaves no account without its project, and
      a link spent by another browser in between leaves no account at all. */
-  const { user, joined } = await db.transaction(async (tx) => {
-    const [user] = await tx
-      .insert(users)
-      .values({ email, name, passwordHash, color: pickAvatarColor(email) })
-      .returning({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        color: users.color,
-        emoji: users.avatarEmoji,
-      });
-    if (!token) return { user, joined: null };
-    const invite = await spendInvite(tx, token, email);
-    if (!invite) throw new HttpError(400, INVITE_IS_DEAD);
-    /* Anything but admin joins as a member, so a stray word gives nothing. */
-    const role = invite.role === "admin" ? "admin" : "member";
-    await joinProject(tx, { projectId: invite.projectId, userId: user.id, role });
-    return { user, joined: invite.projectId };
-  });
+  const { user, joined } = await db
+    .transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({ email, name, passwordHash, color: pickAvatarColor(email) })
+        .returning({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+          color: users.color,
+          emoji: users.avatarEmoji,
+        });
+      if (!token) return { user, joined: null };
+      const invite = await spendInvite(tx, token, email);
+      if (!invite) throw new HttpError(400, INVITE_IS_DEAD);
+      /* Anything but admin joins as a member, so a stray word gives nothing. */
+      const role = invite.role === "admin" ? "admin" : "member";
+      await joinProject(tx, { projectId: invite.projectId, userId: user.id, role });
+      return { user, joined: invite.projectId };
+    })
+    /* A second submit of the same form passed the check above while this
+       one hashed the password. */
+    .catch((err: unknown) => {
+      if (uniqueViolation(err, "users_email_key")) throw new HttpError(409, TAKEN);
+      throw err;
+    });
 
   if (joined) await broadcast({ projectId: joined, scope: "project" });
 

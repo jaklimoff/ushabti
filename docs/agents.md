@@ -1411,6 +1411,7 @@ answer is left as its agent left it.
 | 404  | The task, run or project is not there.                        |
 | 409  | The task already has an open run, or your run is closed — finished, taken over, or lost. A run that handed the task on is the one open run a claim closes rather than refuses. It is also the answer to `lost` on a run that waits. |
 | 429  | Ten bad tokens came from your address inside ten minutes. Wait, do not retry in a loop. |
+| 503  | The server is busy or a wait timed out. Wait the `Retry-After` seconds and try again. |
 
 Every id is a UUID, in a path and in a body alike, and the shape is read before
 the database sees it. So `400` says the id was never an id; `404` says it was a
