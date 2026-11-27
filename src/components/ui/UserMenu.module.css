@@ -84,7 +84,7 @@
   position: absolute;
   top: 32px;
   right: 0;
-  z-index: 60;
+  z-index: var(--z-sheet);
   min-width: 178px;
   padding: 5px;
   background: var(--bg-menu);

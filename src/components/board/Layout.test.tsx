@@ -223,3 +223,30 @@ describe("The new-task composer", () => {
     await grows(input);
   });
 });
+
+describe("A toast on a phone", () => {
+  test("shows above an open task", async () => {
+    await page.viewport(400, 780);
+    const data = newProject();
+    const task = withTask(data, "Will not save", { Status: "Todo" });
+    const open = serving(data);
+    await renderWithBoard(<BoardShell initialTask={task.key} />, data, (asked) =>
+      asked.method === "PATCH" && asked.path === `/api/tasks/${task.id}`
+        ? { status: 500, body: { error: "The change did not save." } }
+        : open(asked),
+    );
+    const panel = byTestId("task-panel");
+    await expect.element(panel).toBeVisible();
+
+    await panel.getByTestId("task-title").fill("Renamed");
+    await userEvent.tab();
+    const toast = byTestId("toast").filter({ hasText: "did not save" });
+    await expect.element(toast).toBeVisible();
+
+    // The drawer covers the toast's corner, so the toast must be drawn on top.
+    const box = html(toast).getBoundingClientRect();
+    expect(box.right).toBeLessThanOrEqual(html(panel).getBoundingClientRect().right + 0.5);
+    const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    expect(html(toast).contains(top)).toBe(true);
+  });
+});

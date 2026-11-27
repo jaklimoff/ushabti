@@ -8,7 +8,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 25;
+  z-index: var(--z-drawer);
   width: min(100%, var(--panel-w, 396px));
   display: flex;
   flex-direction: column;
@@ -27,7 +27,7 @@
   left: -3px;
   width: 7px;
   height: 100%;
-  z-index: 30;
+  z-index: var(--z-raised);
   cursor: col-resize;
   background: transparent;
   transition: background 120ms var(--ease);
@@ -179,7 +179,7 @@
   position: absolute;
   top: 32px;
   right: 37px;
-  z-index: 40;
+  z-index: var(--z-pop);
   width: 184px;
   padding: 5px;
   background: var(--bg-menu);
@@ -1425,7 +1425,7 @@
     bottom: 0;
     width: min(100%, 420px);
     flex: none;
-    z-index: 120;
+    z-index: var(--z-drawer-phone);
     box-shadow: -22px 0 60px rgba(0, 0, 0, 0.62);
   }
 }
@@ -2453,7 +2453,7 @@
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 30;
+  z-index: var(--z-raised);
   width: 236px;
   padding: 5px;
   display: flex;

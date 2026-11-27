@@ -22,7 +22,7 @@
   height: 100dvh;
   background: var(--bg-top);
   border-right: 1px solid var(--line);
-  z-index: 30;
+  z-index: var(--z-raised);
 }
 
 .rail {
@@ -233,7 +233,7 @@
    do. It is hidden and not removed, so it is placed before it shows. */
 .tip {
   position: fixed;
-  z-index: 70;
+  z-index: var(--z-tip);
   display: flex;
   visibility: hidden;
   flex-direction: column;
@@ -386,7 +386,7 @@
   position: absolute;
   top: 32px;
   left: 0;
-  z-index: 60;
+  z-index: var(--z-sheet);
   display: flex;
   flex-direction: column;
   gap: 1px;

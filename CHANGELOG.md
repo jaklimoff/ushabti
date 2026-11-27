@@ -14,6 +14,8 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Fixed
 
+- **On a phone, a toast shows above the open task.** A save that failed while a task was open used to say so behind the panel, and the toast was gone by the time the panel closed.
+
 - **The task panel writes only what was typed, to the task on screen.** A title refused on one task no longer asks again, or saves, on the next task opened, and a write of the task you left no longer empties the panel of the one you opened. A number box keeps "1,5" or "5h" and says it takes a number, instead of clearing the value. A date or a text left unchanged writes nothing, and Tab out of Set… → Due no longer clears the date on every picked card.
 
 - **A card moved while somebody writes a value on it no longer fails.** The two used to lock each other out, and one answered with a server error. The same held for a comment or a feed line written while a task, a project or a person's list was held.

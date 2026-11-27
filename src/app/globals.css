@@ -150,6 +150,28 @@
   --shadow-menu: 0 14px 34px rgba(0, 0, 0, 0.55);
   --shadow-drag: 0 26px 54px rgba(0, 0, 0, 0.62), 0 2px 0 rgba(255, 255, 255, 0.04) inset;
   --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* The stacking levels. Nothing outside one component stacks by a literal
+     above 5, so the next overlap is a choice. */
+  /* The app bar on top of the page under it. */
+  --z-bar: 20;
+  /* The task panel beside the board on a wide screen. */
+  --z-drawer: 25;
+  /* The sidebar, a panel's grip and the small menus that hang off a bar. */
+  --z-raised: 30;
+  /* Popovers, a column's add form, the mention list, a listener's tip. */
+  --z-pop: 40;
+  /* The phone sidebar sheet, the user menu, a select list, the role pop. */
+  --z-sheet: 60;
+  /* Tooltips, above any menu they explain. */
+  --z-tip: 70;
+  /* Every drawer on a phone, full height, over the sheet and the bar. */
+  --z-drawer-phone: 120;
+  /* Toasts say what failed, so they show above an open drawer too. */
+  --z-toast: 130;
+  /* A carried card or row, above everything, a toast too. dnd-kit's
+     DragOverlay takes a number, so BoardCanvas and ListCanvas pass 300. */
+  --z-drag: 300;
 }
 
 * {
