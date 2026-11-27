@@ -8,6 +8,10 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ## Unreleased
 
+### Security
+
+- **An agent token reads no email, no invite and no list of agent tokens.** The board and Settings answer an agent with every member's email as null and no invites, and the list of agents and their tokens answers it 403. A leaked token hands out less, and every agent still finds each member by name or id.
+
 ### Fixed
 
 - **A card moved while somebody writes a value on it no longer fails.** The two used to lock each other out, and one answered with a server error. The same held for a comment or a feed line written while a task, a project or a person's list was held.

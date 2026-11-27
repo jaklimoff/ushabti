@@ -25,8 +25,8 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     "doneWhen": null         // the options this project calls done, as { propertyId, optionIds }, or null for archived
   },
 
-  "invites": [ { "email": "…", "createdAt": "…" } ],   // added before they had an account
-  "members": [               // people AND agents, by name
+  "invites": [ { "email": "…", "createdAt": "…" } ],   // added before they had an account; [] for an agent
+  "members": [               // people AND agents, by name; an agent reads every email as null
     { "id": "…", "name": "Ada", "email": "ada@example.com",
       "color": "#6d5bd0", "emoji": null, "role": "owner", "kind": "human" },
     { "id": "…", "name": "Builder", "email": null,

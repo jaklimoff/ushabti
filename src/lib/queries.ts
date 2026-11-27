@@ -1716,7 +1716,17 @@ export function loadBoard(
   shipped = false,
   held: string | null = null,
 ): Promise<BoardAnswer> {
-  return loadProject(projectId, role, viewerId, false, agentActs, shipped, held);
+  /* Only an agent carries switches, so they are the sign of who asks. */
+  return loadProject(
+    projectId,
+    role,
+    viewerId,
+    false,
+    agentActs !== null,
+    agentActs,
+    shipped,
+    held,
+  );
 }
 
 /**
@@ -1729,8 +1739,9 @@ export function loadSettings(
   projectId: string,
   role: string,
   viewerId: string | null = null,
+  forAgent = false,
 ): Promise<BoardData> {
-  return loadProject(projectId, role, viewerId, true) as Promise<BoardData>;
+  return loadProject(projectId, role, viewerId, true, forAgent) as Promise<BoardData>;
 }
 
 async function loadProject(
@@ -1738,6 +1749,9 @@ async function loadProject(
   role: string,
   viewerId: string | null,
   preview: boolean,
+  /* An agent reads no email and no invite: a token that leaks must not hand
+     out who is on the board or who is asked to join it. */
+  forAgent: boolean,
   /* An agent's switches, or null for a person, who always passes. */
   agentActs: AgentActs | null = null,
   shipped = false,
@@ -1784,17 +1798,19 @@ async function loadProject(
       .innerJoin(users, eq(users.id, projectMembers.userId))
       .where(eq(projectMembers.projectId, projectId))
       .orderBy(asc(users.name)),
-    db
-      .select({
-        email: projectInvites.email,
-        createdAt: projectInvites.createdAt,
-        hash: projectInvites.hash,
-        expiresAt: projectInvites.expiresAt,
-        role: projectInvites.role,
-      })
-      .from(projectInvites)
-      .where(eq(projectInvites.projectId, projectId))
-      .orderBy(asc(projectInvites.createdAt)),
+    forAgent
+      ? []
+      : db
+          .select({
+            email: projectInvites.email,
+            createdAt: projectInvites.createdAt,
+            hash: projectInvites.hash,
+            expiresAt: projectInvites.expiresAt,
+            role: projectInvites.role,
+          })
+          .from(projectInvites)
+          .where(eq(projectInvites.projectId, projectId))
+          .orderBy(asc(projectInvites.createdAt)),
     db
       .select()
       .from(properties)
@@ -1959,7 +1975,7 @@ async function loadProject(
   const members: MemberDTO[] = memberRows.map((m) => ({
     id: m.id,
     name: m.name,
-    email: m.email,
+    email: forAgent ? null : m.email,
     color: m.color,
     emoji: m.emoji,
     role: m.role,

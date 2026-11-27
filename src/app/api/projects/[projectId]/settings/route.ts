@@ -9,5 +9,5 @@ export const GET = route<Ctx>(async (_req, ctx) => {
   const { projectId } = await ctx.params;
   const { user, membership } = await guard(projectId);
   const viewerId = user.kind === "human" ? user.id : null;
-  return json(await loadSettings(projectId, membership.role, viewerId));
+  return json(await loadSettings(projectId, membership.role, viewerId, user.kind === "agent"));
 });

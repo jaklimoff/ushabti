@@ -6,6 +6,7 @@ import {
   clientIdOf,
   adminOnly,
   guard,
+  humanOnly,
   json,
   route,
   str,
@@ -21,7 +22,10 @@ type Ctx = { params: Promise<{ projectId: string }> };
 /** Every agent of the project, with the tokens that are still live. */
 export const GET = route<Ctx>(async (_req, ctx) => {
   const { projectId } = await ctx.params;
-  await guard(projectId);
+  const { user } = await guard(projectId);
+  /* It lists every agent's switches and live tokens: a person's business,
+     and an agent reads its own switches from /api/agent/me. */
+  humanOnly(user);
   return json({ agents: await loadAgents(projectId) });
 });
 

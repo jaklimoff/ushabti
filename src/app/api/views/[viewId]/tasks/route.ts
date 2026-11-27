@@ -24,8 +24,10 @@ export const GET = route<Ctx>(async (_req, ctx) => {
     throw new HttpError(404, GONE);
   }
   const { user, membership } = await guard(projectId);
-  /* No viewer: nobody's lens is read, not even the caller's. */
-  const board = await loadBoard(projectId, membership.role, null);
+  /* No viewer: nobody's lens is read, not even the caller's. An agent's
+     switches say it is an agent, so it reads the board an agent reads. */
+  const acts = user.kind === "agent" ? membership.acts : null;
+  const board = await loadBoard(projectId, membership.role, null, acts);
   const queue = viewQueue(board, viewId, user.id);
   // Deleted between the two reads.
   if (!queue) throw new HttpError(404, GONE);

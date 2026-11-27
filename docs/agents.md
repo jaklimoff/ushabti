@@ -145,7 +145,11 @@ two costs, and both are on purpose:
 ## Read and write the board
 
 Every route below takes the same token. They are the routes the browser uses,
-so an agent sees exactly what a person sees and nothing more.
+so an agent sees what a person sees and nothing more, with two things less:
+the board and Settings read every member's `email` as `null` and `invites` as
+`[]`, and the list of agents and their tokens, `GET /api/projects/{projectId}/agents`,
+answers an agent `403 Only a person can do this.` An agent still reads every
+member's id, name and role, and its own switches from `GET /api/agent/me`.
 
 | What                | Call                                               |
 | ------------------- | -------------------------------------------------- |

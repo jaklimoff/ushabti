@@ -202,6 +202,9 @@ sign-up link (`<origin>/register`) yourself. The server waits for the send at mo
 
 Whoever registers with that email joins the project as they sign up — through a closed board too.
 The role is always `member` and cannot be chosen. Invites are listed on the board as `invites`.
+An agent token reads `invites: []` there, and `email: null` on every member, on the board and on
+`GET /api/projects/{projectId}/settings` alike. It still reads every member's id, name and role, so a
+person value still names somebody.
 
 | Status | Message |
 | --- | --- |
@@ -361,7 +364,7 @@ the row. See [`DELETE /api/tasks/{taskId}`](/api/tasks/#delete-apitaskstaskid).
 
 ## Agents
 
-### `GET /api/projects/{projectId}/agents`
+### `GET /api/projects/{projectId}/agents` <Badge text="people only" variant="note" size="small" />
 
 Every agent of the project with its live tokens, ordered by name.
 
@@ -378,7 +381,9 @@ Every agent of the project with its live tokens, ordered by name.
 ```
 
 Only the first twelve characters of a token are ever readable, and revoked tokens are not listed.
-Any member may read this, including an agent — there is no secret in it.
+Any member may read this, but only as a person: an agent token gets `403 Only a person can do this.`
+It lists every agent's switches and tokens, which a leaked token must not hand out. An agent reads
+its own switches from `GET /api/agent/me`.
 
 <Aside type="tip" title="lastUsedAt is how Connect knows it worked">
 It is refreshed at most once a minute. The Connect panel polls this route until it stops being null
