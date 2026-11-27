@@ -696,8 +696,11 @@ function CheckboxToggle({ value, onChange, labelId }: Props) {
 
 function DateField({ property, value, onChange, labelId }: Props) {
   const [editing, setEditing] = useState(false);
+  /* Escape closes the box in the same breath as the blur, which reads this. */
+  const thrown = useRef(false);
   const buttonId = useId();
-  const text = typeof value === "string" && value ? formatDate(value) : "";
+  const held = typeof value === "string" ? value : "";
+  const text = held ? formatDate(held) : "";
 
   if (editing) {
     return (
@@ -706,14 +709,24 @@ function DateField({ property, value, onChange, labelId }: Props) {
         type="date"
         autoFocus
         {...named(labelId)}
-        defaultValue={typeof value === "string" ? value : ""}
+        defaultValue={held}
+        onFocus={() => {
+          thrown.current = false;
+        }}
         onBlur={(e) => {
           setEditing(false);
+          if (thrown.current) return;
+          /* A box opened and left again is no answer: the same day written
+             again would still ring every tab. */
+          if (e.target.value === held) return;
           onChange(e.target.value || null);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          if (e.key === "Escape") setEditing(false);
+          if (e.key === "Escape") {
+            thrown.current = true;
+            setEditing(false);
+          }
         }}
       />
     );
@@ -745,6 +758,7 @@ function ScalarField({
     value === null || value === undefined ? "" : String(value),
   );
   const [dirty, setDirty] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   /* Escape blurs in the same breath as it clears dirty, before the render
      that would show it, so the blur reads this instead. */
   const thrown = useRef(false);
@@ -752,39 +766,63 @@ function ScalarField({
   const shown = dirty ? draft : value === null || value === undefined ? "" : String(value);
 
   function commit() {
-    setDirty(false);
     const trimmed = draft.trim();
+    const empty = value === null || value === undefined || value === "";
     if (!trimmed) {
-      onChange(null);
+      setDirty(false);
+      if (!empty) onChange(null);
       return;
     }
-    onChange(numeric ? Number(trimmed) : trimmed);
+    if (!numeric) {
+      setDirty(false);
+      if (trimmed !== value) onChange(trimmed);
+      return;
+    }
+    /* Not a number is no value: sent, it would arrive as null and clear the
+       one held. A comma is refused rather than guessed at. */
+    const number = Number(trimmed);
+    if (!Number.isFinite(number)) {
+      setProblem(`${property.name} takes a number, like 2 or 1.5.`);
+      return;
+    }
+    setDirty(false);
+    if (number !== value) onChange(number);
   }
 
   return (
-    <input
-      className={styles.textInput}
-      inputMode={numeric ? "decimal" : undefined}
-      {...named(labelId)}
-      value={shown}
-      placeholder={noneName(property)}
-      onChange={(e) => {
-        setDirty(true);
-        setDraft(e.target.value);
-      }}
-      onFocus={() => {
-        thrown.current = false;
-      }}
-      onBlur={() => dirty && !thrown.current && commit()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        if (e.key === "Escape") {
-          setDirty(false);
-          thrown.current = true;
-          (e.target as HTMLInputElement).blur();
-        }
-      }}
-    />
+    <span className={styles.linkEditing}>
+      <input
+        className={styles.textInput}
+        inputMode={numeric ? "decimal" : undefined}
+        {...named(labelId)}
+        aria-invalid={problem ? true : undefined}
+        value={shown}
+        placeholder={noneName(property)}
+        onChange={(e) => {
+          setDirty(true);
+          setProblem(null);
+          setDraft(e.target.value);
+        }}
+        onFocus={() => {
+          thrown.current = false;
+        }}
+        onBlur={() => dirty && !thrown.current && commit()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setDirty(false);
+            setProblem(null);
+            thrown.current = true;
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
+      {problem && (
+        <span className={styles.linkProblem} role="alert">
+          {problem}
+        </span>
+      )}
+    </span>
   );
 }
 

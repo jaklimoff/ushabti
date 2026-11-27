@@ -118,6 +118,13 @@ async function setProperty(property: string) {
   await userEvent.keyboard("{Enter}");
 }
 
+/** Tab until the focus leaves the date box: Tab walks its day, month and year first. */
+async function tabOutOfDate() {
+  for (let i = 0; i < 4 && (document.activeElement as HTMLInputElement).type === "date"; i++)
+    await userEvent.keyboard("{Tab}");
+  expect((document.activeElement as HTMLInputElement).type).not.toBe("date");
+}
+
 afterEach(async () => {
   await page.viewport(1440, 900);
 });
@@ -629,6 +636,52 @@ describe("Set on a multi-select", () => {
     for (const task of server.tasks) {
       expect(task.values[labels]).toEqual(had[task.title].filter((id) => id !== bug));
     }
+  });
+});
+
+describe("The Set bar writes only what was set", () => {
+  test("Set on Due, then Tab, clears no date", async () => {
+    const data = newProject();
+    for (const title of ["Aardvark", "Beetle", "Cricket"])
+      withTask(data, title, { Status: "Todo", Due: "2026-10-20" });
+    const due = propertyOf(data, "Due").id;
+    const { sent, server } = await draw(data);
+    await pick("Aardvark", "Beetle", "Cricket");
+    await setProperty("Due");
+
+    await page.getByRole("button", { name: "No due", exact: true }).click();
+    await expect.poll(() => (document.activeElement as HTMLInputElement).type).toBe("date");
+    await tabOutOfDate();
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(sent("POST", BULK)).toEqual([]);
+    for (const task of server.tasks) expect(task.values[due]).toBe("2026-10-20");
+  });
+
+  test("the draft starts over when the picks change", async () => {
+    const data = newProject();
+    fourCards(data);
+    const { sent, server, ring } = await draw(data);
+    await pick("Aardvark", "Beetle");
+    await setProperty("Due");
+
+    await page.getByRole("button", { name: "No due", exact: true }).click();
+    await expect.poll(() => (document.activeElement as HTMLInputElement).type).toBe("date");
+    await page.elementLocator(document.activeElement!).fill("2026-10-21");
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => sent("POST", BULK).length).toBe(1);
+    await expect
+      .element(byTestId("pick-menu").getByRole("button", { name: /Oct 21/ }))
+      .toBeVisible();
+
+    // Another tab archives Beetle, so the picks change under the open menu.
+    server.tasks = server.tasks.filter((t) => t.title !== "Beetle");
+    ring();
+    await gone(card("Beetle"));
+    await count("1 selected");
+    await expect
+      .element(byTestId("pick-menu").getByRole("button", { name: "No due", exact: true }))
+      .toBeVisible();
   });
 });
 

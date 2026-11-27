@@ -301,11 +301,19 @@ export function TaskPanel({
    * opening another task is not a write.
    */
   const asked = useRef(taskId);
+  /* The task on screen, set as the panel draws. A write of the task before it
+     ends by reading that task again, and that read must not take the slot the
+     task on screen asked for. */
+  const showing = useRef(taskId);
+  showing.current = taskId;
 
   /* The read is something outside React, so what comes back from it is put on
      screen in the promise’s own callback rather than in the line that started
      the read. The effect below only asks; this is where the answer lands. */
   const load = useCallback(() => {
+    /* A task that was left asks no read: the board's own read still brings
+       its card the checklist and comment counts. */
+    if (showing.current !== taskId) return refresh();
     const reading = writes.reading();
     asked.current = taskId;
     return api
@@ -329,7 +337,7 @@ export function TaskPanel({
         if (asked.current !== taskId) return;
         onClose();
       });
-  }, [onClose, syncTaskCounts, taskId, writes]);
+  }, [onClose, refresh, syncTaskCounts, taskId, writes]);
   useEffect(() => {
     loadRef.current = load;
   }, [load]);
@@ -843,7 +851,12 @@ export function TaskPanel({
           )}
         </div>
 
+        {/* A box holds what was typed and the line a refusal left, and both
+            belong to one task: the key throws them away when another one
+            opens. A refusal of the task before that lands after the switch is
+            lost without a word, as the description's is. */}
         <TitleField
+          key={taskId}
           taskId={taskId}
           value={shown.title}
           changedBy={wroteLast("title")}

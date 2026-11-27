@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from "vitest";
 import { commands, page, userEvent } from "vitest/browser";
 import type { BoardData, CommentDTO, TaskDTO } from "@/lib/types";
 import { detailOf, ME, newProject, renderWithBoard, withTask, type Answer } from "@/test/board";
-import { fillBox as fillLive, liveValue } from "@/test/panel";
+import { fillBox as fillLive, liveValue, serving as panelServing } from "@/test/panel";
 import { BoardShell } from "./BoardApp";
 
 /*
@@ -14,6 +14,7 @@ import { BoardShell } from "./BoardApp";
  */
 
 const TASK = /^\/api\/tasks\/[0-9a-f-]+$/;
+const VALUE = /^\/api\/tasks\/[0-9a-f-]+\/values\/[0-9a-f-]+$/;
 const COMMENTS = /^\/api\/tasks\/[0-9a-f-]+\/comments$/;
 
 const byTestId = (id: string) => page.getByTestId(id);
@@ -249,5 +250,124 @@ describe("An edit the tab was closed on", () => {
     window.dispatchEvent(new PageTransitionEvent("pagehide"));
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(taskWrites(sent)).toEqual([]);
+  });
+});
+
+describe("The panel writes only what was typed, to the task on screen", () => {
+  test("a write of the task left lands no read over the task opened", async () => {
+    const data = newProject();
+    const first = withTask(data, "First task", { Status: "Todo" });
+    const second = withTask(data, "Second task", { Status: "Todo" });
+    const server = panelServing(data);
+    server.item(second, "A step of the second");
+    let release = () => {};
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const { sent } = await renderWithBoard(
+      <BoardShell initialTask={first.key} />,
+      data,
+      server.answer,
+      {
+        hold: ({ method, path }) =>
+          method === "PATCH" && path === `/api/tasks/${first.id}` ? held : undefined,
+      },
+    );
+    await expect.element(byTestId("task-panel")).toBeVisible();
+
+    await byTestId("task-title").fill("First task, renamed");
+    await byTestId("card").filter({ hasText: "Second task" }).click();
+    await expect.element(byTestId("task-title")).toHaveValue("Second task");
+    await expect.poll(() => sent("PATCH", TASK).length).toBe(1);
+
+    release();
+    await expect.poll(() => server.taskOf(first.id)!.title).toBe("First task, renamed");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expect.element(byTestId("task-title")).toHaveValue("Second task");
+    await expect.element(page.getByText("A step of the second")).toBeVisible();
+    // The task left is not read into the panel again.
+    expect(sent("GET", TASK).filter((r) => r.path.endsWith(first.id)).length).toBe(1);
+  });
+
+  async function withFields() {
+    const data = newProject();
+    for (const [name, type] of [
+      ["Points", "number"],
+      ["Note", "text"],
+    ] as const)
+      data.properties.push({
+        id: crypto.randomUUID(),
+        name,
+        type,
+        position: `z${name}`,
+        config: {},
+        options: [],
+      });
+    const task = withTask(data, "Fields", {
+      Status: "Todo",
+      Points: 3,
+      Note: "Kept words",
+      Due: "2026-10-20",
+    });
+    const server = panelServing(data);
+    const drawn = await renderWithBoard(<BoardShell initialTask={task.key} />, data, server.answer);
+    await expect.element(byTestId("task-panel")).toBeVisible();
+    const values = () => drawn.sent("PUT", VALUE);
+    return { ...drawn, ...server, data, task, values };
+  }
+
+  const box = (name: string) => byTestId("task-panel").getByRole("textbox", { name });
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+
+  test("a number box refuses what is not a number, and says why under it", async () => {
+    const { values, taskOf, task, data } = await withFields();
+    const points = data.properties.find((p) => p.name === "Points")!.id;
+    for (const typed of ["1,5", "5h", "abc"]) {
+      await box("Points").fill(typed);
+      await userEvent.keyboard("{Tab}");
+      await expect
+        .element(page.getByRole("alert"))
+        .toHaveTextContent("Points takes a number, like 2 or 1.5.");
+      await expect.element(box("Points")).toHaveValue(typed);
+      await expect.element(box("Points")).toHaveAttribute("aria-invalid", "true");
+    }
+    await settle();
+    expect(values()).toEqual([]);
+    expect(taskOf(task.id)!.values[points]).toBe(3);
+
+    // The words go on the next key, and a number is sent.
+    await box("Points").fill("1.5");
+    await expect.element(page.getByRole("alert")).not.toBeInTheDocument();
+    await userEvent.keyboard("{Tab}");
+    await expect.poll(() => values().map((r) => r.body)).toEqual([{ value: 1.5 }]);
+  });
+
+  test("a value that did not change sends nothing", async () => {
+    const { values } = await withFields();
+
+    // A date opened and left.
+    await page.getByRole("button", { name: /^Due/ }).click();
+    await expect.poll(() => (document.activeElement as HTMLInputElement).type).toBe("date");
+    for (let i = 0; i < 4 && (document.activeElement as HTMLInputElement).type === "date"; i++)
+      await userEvent.keyboard("{Tab}");
+
+    // Words typed and taken back.
+    await box("Note").click();
+    await userEvent.keyboard("x{Backspace}{Tab}");
+    // The same number again.
+    await box("Points").fill("3");
+    await userEvent.keyboard("{Tab}");
+
+    await settle();
+    expect(values()).toEqual([]);
+  });
+
+  test("Escape in a changed date sends nothing", async () => {
+    const { values } = await withFields();
+    await page.getByRole("button", { name: /^Due/ }).click();
+    await expect.poll(() => (document.activeElement as HTMLInputElement).type).toBe("date");
+    await page.elementLocator(document.activeElement!).fill("2026-10-25");
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("button", { name: /^Due/ })).toBeVisible();
+    await settle();
+    expect(values()).toEqual([]);
   });
 });

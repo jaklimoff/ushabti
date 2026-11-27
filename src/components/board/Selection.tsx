@@ -59,6 +59,13 @@ function PickBar({ taskOpen }: { taskOpen: boolean }) {
   /* What was set, so the control says what the cards now carry. It starts
      empty because the cards may each have carried something different. */
   const [draft, setDraft] = useState<TaskValue>(null);
+  /* The draft says what the picks of the moment carry, so other picks start
+     it over, as they do the question. */
+  const [draftOf, setDraftOf] = useState(picks);
+  if (draftOf !== picks) {
+    setDraftOf(picks);
+    setDraft(null);
+  }
   const [query, setQuery] = useState("");
   const [at, setAt] = useState(0);
 

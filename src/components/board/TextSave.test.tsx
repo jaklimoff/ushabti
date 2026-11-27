@@ -158,4 +158,34 @@ describe("A text save does not overwrite a change it did not see", () => {
     expect(byTestId("changed-while-typing").elements()).toHaveLength(0);
     expect(server.taskOf(task.id)!.description).toBe("Ben's second words. Anna agrees.");
   });
+
+  test("a title refused on one task asks nothing on the next task opened", async () => {
+    const data = newProject();
+    const anna = { ...data.members[0] };
+    const benMember = withPerson(data, "Ben Friend");
+    const ben: SessionUser = { ...benMember, email: benMember.email! };
+    const first = withTask(data, "First words", { Status: "Todo" });
+    const second = withTask(data, "Second words", { Status: "Todo" });
+    const server = serving(data, ben);
+    const { sent } = await renderWithBoard(
+      <BoardShell initialTask={first.key} />,
+      data,
+      server.answer,
+      { user: ben },
+    );
+    await expect.element(byTestId("task-panel")).toBeVisible();
+
+    await byTestId("task-title").fill("Ben's title");
+    server.wrote(first, { title: "Anna's title" }, anna);
+    await userEvent.keyboard("{Enter}");
+    await expect.element(byTestId("changed-while-typing")).toBeVisible();
+
+    await byTestId("card").filter({ hasText: "Second words" }).click();
+    await expect.element(byTestId("task-title")).toHaveValue("Second words");
+    expect(byTestId("changed-while-typing").elements()).toHaveLength(0);
+    // Nothing of the first task's words went to the second.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(sent("PATCH", TASK).filter((r) => r.path.endsWith(second.id))).toEqual([]);
+    expect(server.taskOf(second.id)!.title).toBe("Second words");
+  });
 });
