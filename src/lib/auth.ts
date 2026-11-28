@@ -1,8 +1,8 @@
 import "server-only";
-import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies, headers } from "next/headers";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { projectMembers, projects, sessions, users } from "@/db/schema";
 import { bearerToken, holderOfToken, isPersonalToken } from "./agents";
@@ -41,12 +41,25 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return timingSafeEqual(key, expected);
 }
 
+/**
+ * What a session row holds for a cookie: its SHA-256 digest, as a token is
+ * stored. A copy of the database, such as a backup, then holds nothing that
+ * signs anybody in.
+ */
+export function sessionDigest(cookie: string): string {
+  return createHash("sha256").update(cookie, "utf8").digest("hex");
+}
+
 export async function createSession(userId: string): Promise<void> {
-  const id = randomBytes(32).toString("base64url");
+  const cookie = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
-  await db.insert(sessions).values({ id, userId, expiresAt });
+  // Nothing else ever clears a dead session, so a sign-in clears its own.
+  await db
+    .delete(sessions)
+    .where(and(eq(sessions.userId, userId), lte(sessions.expiresAt, new Date())));
+  await db.insert(sessions).values({ id: sessionDigest(cookie), userId, expiresAt });
   const jar = await cookies();
-  jar.set(SESSION_COOKIE, id, {
+  jar.set(SESSION_COOKIE, cookie, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -55,17 +68,17 @@ export async function createSession(userId: string): Promise<void> {
   });
 }
 
-/** The id of the session cookie on this request, if there is one. */
+/** The id of this request's session row, if it carries a session cookie. */
 export async function currentSessionId(): Promise<string | null> {
   const jar = await cookies();
-  return jar.get(SESSION_COOKIE)?.value ?? null;
+  const cookie = jar.get(SESSION_COOKIE)?.value;
+  return cookie ? sessionDigest(cookie) : null;
 }
 
 export async function destroySession(): Promise<void> {
-  const jar = await cookies();
-  const id = jar.get(SESSION_COOKIE)?.value;
+  const id = await currentSessionId();
   if (id) await db.delete(sessions).where(eq(sessions.id, id));
-  jar.delete(SESSION_COOKIE);
+  (await cookies()).delete(SESSION_COOKIE);
 }
 
 export type CurrentUser = {
@@ -106,8 +119,7 @@ export type Actor = {
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const jar = await cookies();
-  const id = jar.get(SESSION_COOKIE)?.value;
+  const id = await currentSessionId();
   if (!id) return null;
 
   const rows = await db

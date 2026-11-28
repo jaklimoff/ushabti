@@ -14,7 +14,7 @@ import { Aside, LinkCard } from '@astrojs/starlight/components'
 | Database | PostgreSQL 18 with Drizzle ORM |
 | Drag | dnd-kit, one context for cards **and** columns |
 | Live | Server-sent events fed by Postgres `LISTEN`/`NOTIFY` |
-| Auth | scrypt password hashes, a random session id in the database |
+| Auth | scrypt password hashes, a session cookie whose SHA-256 digest is in the database |
 | Styling | CSS modules. No framework |
 | Tests | Vitest for the rules, Playwright for the screens |
 

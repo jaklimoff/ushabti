@@ -31,7 +31,7 @@ cookie is tried instead.
 | Name / prefix | `ushabti_session` | `ush_` + 32 random bytes |
 | Lifetime | 30 days | until revoked |
 | Scope | every project you are a member of | **one project** |
-| Stored as | a random id in `sessions` | a SHA-256 digest — the plain text is shown once |
+| Stored as | the SHA-256 digest of the cookie, in `sessions` | a SHA-256 digest — the plain text is shown once |
 | Flags | `httpOnly`, `SameSite=Lax`, `secure` in production | — |
 
 <Aside type="caution" title="Ten failures in ten minutes">

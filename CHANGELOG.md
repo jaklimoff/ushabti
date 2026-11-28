@@ -10,6 +10,7 @@ usual promise applies: a patch fixes, a minor adds, a major breaks.
 
 ### Security
 
+- **A copy of the database holds no session to sign in with.** A session is stored as the digest of its cookie, as a token already is, and a sign-in clears that person's expired sessions. Nobody is signed out.
 - **An agent token reads no email, no invite and no list of agent tokens.** The board and Settings answer an agent with every member's email as null and no invites, and the list of agents and their tokens answers it 403. A leaked token hands out less, and every agent still finds each member by name or id.
 
 ### Fixed

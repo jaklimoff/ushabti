@@ -335,7 +335,7 @@ that takes a token, opens a run and is taken over.
 | Database  | PostgreSQL 18 with Drizzle ORM                               |
 | Drag      | dnd-kit, one context for cards and columns                   |
 | Live      | Server-sent events fed by Postgres `LISTEN`/`NOTIFY`         |
-| Auth      | scrypt password hashes, a random session id in the database  |
+| Auth      | scrypt password hashes, sessions kept as SHA-256 digests     |
 | Styling   | CSS modules, no framework                                    |
 
 ### The data model

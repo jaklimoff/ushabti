@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
 import { sessions, users } from "@/db/schema";
+import { sessionDigest } from "@/lib/auth";
 import { joinProject } from "@/lib/membership";
 import { requests } from "./headers";
 
@@ -130,9 +131,11 @@ export async function person(name = "Test Person"): Promise<Caller> {
     })
     .returning({ id: users.id });
   const session = randomBytes(32).toString("base64url");
-  await db
-    .insert(sessions)
-    .values({ id: session, userId: user.id, expiresAt: new Date(Date.now() + 86_400_000) });
+  await db.insert(sessions).values({
+    id: sessionDigest(session),
+    userId: user.id,
+    expiresAt: new Date(Date.now() + 86_400_000),
+  });
   return { id: user.id, name, headers: { cookie: `ushabti_session=${session}` } };
 }
 
