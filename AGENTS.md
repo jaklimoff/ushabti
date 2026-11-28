@@ -74,7 +74,8 @@ and what is easy to get wrong.
   move, and a finger never lifts a heading, because a finger on a heading is
   somebody scrolling a wide list. `cardOrder()` in `card-view.ts` is the one place that says
   which row comes first: `_key`, `_title` and `_desc`, then the properties in
-  their `position`, then `_checklist`, `_parts` and `_comments`. The chips
+  their `position`, then `_checklist`, `_parts`, `_comments`, `_created` and
+  `_updated`. The chips
   that share a place on a card, the columns of a list and the fields of the
   task panel all follow it. One rule sits on top, on a card only: in each place a chip with no
   words — mode `colour` or `avatar`, or a checkbox in mode `icon` — comes first, so a card nobody rearranged
@@ -85,7 +86,7 @@ and what is easy to get wrong.
   and does not write it back, so no migration was needed. Do not give the card
   view an order again, and do not let a task row move among the properties.
 - **A view has a kind, and a list is the same tasks lying down.** `views.kind`
-  is `board`, `list` or `roadmap`, and nothing else about a view changes with it: one
+  is `board`, `list`, `roadmap` or `timeline`, and nothing else about a view changes with it: one
   filter set, one card view, one card order. The kind touches the card view in
   one place, `readCardView()` for a view with no copy, below. A list groups by
   nothing on purpose — sections would need a second drop model, where a drag writes a
@@ -316,7 +317,7 @@ and what is easy to get wrong.
   `_desc`, `_checklist`, `_parts`, `_comments`, `_created` and `_updated` are
   the task row the board already has, given rows so that somebody can take
   them off. `_parts` is the count of a parent's children that are done, worked
-  out by `getBoard` from `isOver`. `_created` and `_updated` are the two
+  out by `loadBoard` from `isOver`. `_created` and `_updated` are the two
   moments the server stamps, drawn as the day in the project's zone; they
   start off, also on a card somebody arranged before they existed, because
   every task has both. They are not fields on a task and must never become

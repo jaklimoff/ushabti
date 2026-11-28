@@ -231,10 +231,16 @@ The board answer carries the live tasks in `tasks` and the archived ones in
 `archived`. A live task carries `archivedAt`, null while it is live.
 
 A view's `kind` says how it draws the tasks: `board` in columns of its
-`groupById` property, `list` one task on each line, and `roadmap` one bar for
-each option of its `groupById` select that has a target date. A roadmap's
-`groupById` is always a select, and its property cannot be deleted while the
-view names it, as with a board.
+`groupById` property, `list` one task on each line, `roadmap` one bar for
+each option of its `groupById` select that has a target date, and `timeline`
+one bar for each task, between two dates. A roadmap's `groupById` is always a
+select, and its property cannot be deleted while the view names it, as with a
+board.
+
+A timeline reads its two dates from `dates`, which holds `startBy` and `endBy`:
+the ids of two date properties, where a bar starts and where it ends. Either
+may be null. A pointer to a property that is gone, or is no longer a date,
+reads as null. Every view carries `dates`; only a timeline reads it.
 
 A view's `filters` is the whole team's, and it is the only filter you read: the
 rules a person adds to their own screen are theirs, never yours, and never
@@ -291,11 +297,20 @@ it for everyone first._ — when a rule names a property the view already
 filters, because one property carries one rule, whoever asked.
 
 **An entry in `archived` is not a whole task.** It holds seven fields: `id`,
-`number`, `key`, `title`, `description`, `position` and `archivedAt`. There are
-no values, no checklist counts and no comment count: no view draws an
-archived task, so the board does not carry what nobody reads. It is enough to
-find one by its key or its words, to know that the key still exists, and to
-list them, which is what the archive page at `/p/{projectId}/archived` does.
+`number`, `key`, `title`, `position`, `archivedAt` and `shippedIn`. There are
+no values, no checklist counts, no comment count and no description: no view
+draws an archived task, so the board does not carry what nobody reads. It is
+enough to find one by its key or its title, to know that the key still exists,
+and to list them, which is what the archive page at `/p/{projectId}/archived`
+does.
+
+`shippedIn` is the name of the shipped release the task went out in. It is
+null unless the read asks for it with `?shipped=1`, and null for a task
+somebody archived by hand.
+
+To find words in the description of an archived task, ask
+`GET /api/projects/{projectId}/search?q=<words>`. It looks through them on the
+server.
 
 Ask `GET /api/tasks/{taskId}` for the whole of one. That route answers for an
 archived task exactly as it does for a live one — with its values, its

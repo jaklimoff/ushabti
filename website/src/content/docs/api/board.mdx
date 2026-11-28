@@ -44,15 +44,17 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
   ],
 
   "views": [
-    // kind is "board", "list" or "roadmap". A list has no columns, so groupById may be
-    // null — and when it is not, it is remembered rather than read.
+    // kind is "board", "list", "roadmap" or "timeline". A list or a timeline has no
+    // columns, so groupById may be null — and when it is not, it is remembered rather
+    // than read. dates is what a timeline reads: startBy and endBy, the ids of two
+    // date properties, or null.
     // sort is the order the view draws in, or null for the rank every view shares.
     // filters is the whole team's. lens is the rules you added to this view, and
     // lensSort the order you picked on it, which only you see and which wins over
     // sort; an agent always reads none of either.
     { "id": "…", "name": "Board", "kind": "board", "groupById": "…", "position": "V",
       "isDefault": true, "filters": { "rules": [] }, "lens": { "rules": [] }, "sort": null,
-      "lensSort": null }
+      "lensSort": null, "dates": { "startBy": null, "endBy": null } }
   ],
 
   "cardView": {              // what every card carries, already read afresh
@@ -78,11 +80,12 @@ curl -s "$USHABTI_URL/api/projects/$PROJECT/board" \
     }
   ],
 
-  "archived": [              // lighter: no values, no counts
+  "archived": [              // lighter: no values, no counts, no description
     {
       "id": "…", "number": 9, "key": "USH-9",
-      "title": "Ship the release image", "description": "",
-      "position": "Va", "archivedAt": "…"
+      "title": "Ship the release image",
+      "position": "Va", "archivedAt": "…",
+      "shippedIn": null      // the shipped release it went out in; null unless ?shipped=1
     }
   ],
 
@@ -148,9 +151,17 @@ An [archived task](/guides/task-panel/#archived-and-put-back) is on no board and
 so it is never in `tasks` — the two lists never overlap. It is in `archived` because the browser's
 search reads every task in the project and a link to one still opens its panel.
 
-`archived` carries **only** the id, number, key, title, description, rank and `archivedAt`. No
-values, no checklist and no comment counts: nothing draws an archived task, so loading those on
-every board read would be work nobody sees. Ask `GET /api/tasks/{taskId}` for the whole of one.
+`archived` carries **only** `id`, `number`, `key`, `title`, `position`, `archivedAt` and
+`shippedIn`. No values, no checklist, no comment counts and no description: nothing draws an
+archived task, so loading those on every board read would be work nobody sees. Ask
+`GET /api/tasks/{taskId}` for the whole of one.
+
+`shippedIn` is the name of the shipped release the task went out in. It is null unless the read
+asks for it with `?shipped=1`, and null for a task somebody archived by hand.
+
+To find words in the description of an archived task, ask
+[`GET /api/projects/{projectId}/search`](#get-apiprojectsprojectidsearchq). It looks through
+them on the server.
 
 Draw `tasks`; treat `archived` as the answer to "does this key still exist?".
 

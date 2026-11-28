@@ -185,14 +185,20 @@ discarded every time the view is read. See [Filters](/guides/filters/).
 { "name": "By assignee", "kind": "board", "groupById": "<propertyId>" }
 ```
 
-`kind` is `board`, `list` or `roadmap`, and defaults to `board` — which is what every view was before there
-was more than one kind.
+`kind` is `board`, `list`, `roadmap` or `timeline`, and defaults to `board` — which is what every view
+was before there was more than one kind.
 
 A **board** requires `groupById`: a property of this project whose type is `select`, `iteration`,
 `person` or `checkbox`. A **roadmap** requires one too, and only a `select` or an `iteration` will do,
 because it draws a row per dated option. A **list** groups nothing and needs none, so it can be created on a project that has no
 such property at all. A list may still carry one; it is remembered, unread, for the day the view
 becomes a board again.
+
+A **timeline** groups nothing either. It draws one bar for each task, between two dates, and reads
+them from `dates`: `{ "startBy": "<propertyId>", "endBy": "<propertyId>" }`, two date properties.
+A new timeline needs `endBy`, because a bar needs a day to end on; `startBy` may be null. A pointer
+to a property that is gone, or is no longer a date, reads as null. Every view carries `dates`; only a
+timeline reads it.
 
 ```json title="201"
 { "view": { "id": "…", "name": "By assignee", "kind": "board", "groupById": "…",
@@ -203,12 +209,14 @@ becomes a board again.
 | --- | --- |
 | `400` | `Choose a property to group by.` · `That property is not in this project.` |
 | `400` | `A view can only group by a select, iteration, person or checkbox property.` |
-| `400` | `A view is a board, a list or a roadmap.` · `A roadmap draws the options of a select property.` |
+| `400` | `A view is a board, a list, a roadmap or a timeline.` · `A roadmap draws the options of a select property.` |
+| `400` | `Choose the date property the bars end on.` |
 
 ### `PATCH /api/views/{viewId}`
 
 ```json title="request"
 { "name": "Board", "kind": "list", "groupById": "…",
+  "dates": { "startBy": "<propertyId>", "endBy": "<propertyId>" },
   "filters": { "rules": [ … ] },
   "sort": { "columnId": "<propertyId or _key|_title|_checklist|_comments|_created|_updated>", "direction": "asc" } }
 ```
